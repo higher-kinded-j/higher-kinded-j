@@ -5,16 +5,17 @@ package org.higherkindedj.hkt.effect;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.*;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 
 /**
@@ -434,6 +435,180 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   public CompletableFuturePath<A> onExecutor(Executor executor) {
     Objects.requireNonNull(executor, "executor must not be null");
     return new CompletableFuturePath<>(future.thenApplyAsync(Function.identity(), executor));
+  }
+
+  // ===== Parallel Execution =====
+
+  /**
+   * Combines this CompletableFuturePath with another in parallel.
+   *
+   * <p>Both futures are already running concurrently, and this method combines their results when
+   * both complete. This is semantically similar to {@link #zipWith} but makes the parallel intent
+   * explicit.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuturePath<UserProfile> profile =
+   *     fetchUser.parZipWith(fetchOrders, UserProfile::new);
+   * }</pre>
+   *
+   * @param other the other path to combine with; must not be null
+   * @param combiner the function to combine results; must not be null
+   * @param <B> the type of the other value
+   * @param <C> the type of the combined result
+   * @return a CompletableFuturePath containing the combined result
+   * @throws NullPointerException if other or combiner is null
+   */
+  public <B, C> CompletableFuturePath<C> parZipWith(
+      CompletableFuturePath<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+    Objects.requireNonNull(other, "other must not be null");
+    Objects.requireNonNull(combiner, "combiner must not be null");
+    return new CompletableFuturePath<>(future.thenCombine(other.future, combiner));
+  }
+
+  /**
+   * Races this CompletableFuturePath against another, returning the first successful result.
+   *
+   * <p>Both futures race, and the result of whichever completes successfully first is returned. If
+   * one fails but the other succeeds, the successful result is returned. Only if both fail is the
+   * exception from the last failure propagated.
+   *
+   * <p>This "first success" semantic is useful for redundant data sources:
+   *
+   * <pre>{@code
+   * CompletableFuturePath<Config> config = loadFromCache.race(loadFromRemote);
+   * // Returns whichever succeeds first; only fails if both fail
+   * }</pre>
+   *
+   * @param other the other path to race against; must not be null
+   * @return a CompletableFuturePath that completes with the first successful result
+   * @throws NullPointerException if other is null
+   */
+  public CompletableFuturePath<A> race(CompletableFuturePath<A> other) {
+    Objects.requireNonNull(other, "other must not be null");
+
+    CompletableFuture<A> result = new CompletableFuture<>();
+    AtomicInteger failureCount = new AtomicInteger(0);
+    AtomicReference<Throwable> lastFailure = new AtomicReference<>();
+
+    BiConsumer<A, Throwable> handler =
+        (value, ex) -> {
+          if (ex == null) {
+            result.complete(value);
+          } else {
+            lastFailure.set(ex);
+            if (failureCount.incrementAndGet() == 2 && !result.isDone()) {
+              result.completeExceptionally(lastFailure.get());
+            }
+          }
+        };
+
+    future.whenComplete(handler);
+    other.future.whenComplete(handler);
+
+    return new CompletableFuturePath<>(result);
+  }
+
+  // ===== Retry Operations =====
+
+  /**
+   * Creates a CompletableFuturePath that executes the supplier with retry support.
+   *
+   * <p>Each retry attempt calls the supplier again, allowing the operation to be retried properly.
+   * The retry logic runs asynchronously on the common fork-join pool.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * RetryPolicy policy = RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofMillis(100))
+   *     .retryOn(IOException.class);
+   *
+   * CompletableFuturePath<String> resilient =
+   *     CompletableFuturePath.supplyAsyncWithRetry(() -> httpClient.get(url), policy);
+   * }</pre>
+   *
+   * @param supplier the supplier for the value; called on each retry attempt; must not be null
+   * @param policy the retry policy; must not be null
+   * @param <A> the value type
+   * @return a CompletableFuturePath that retries the supplier on failure
+   * @throws NullPointerException if supplier or policy is null
+   */
+  public static <A> CompletableFuturePath<A> supplyAsyncWithRetry(
+      Supplier<A> supplier, RetryPolicy policy) {
+    Objects.requireNonNull(supplier, "supplier must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    return new CompletableFuturePath<>(
+        CompletableFuture.supplyAsync(() -> Retry.execute(policy, supplier)));
+  }
+
+  /**
+   * Creates a CompletableFuturePath that executes the supplier with exponential backoff retry.
+   *
+   * <p>This is a convenience method that uses exponential backoff with jitter.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuturePath<String> resilient =
+   *     CompletableFuturePath.supplyAsyncWithRetry(() -> httpClient.get(url), 3, Duration.ofMillis(100));
+   * }</pre>
+   *
+   * @param supplier the supplier for the value; called on each retry attempt; must not be null
+   * @param maxAttempts maximum number of attempts (must be at least 1)
+   * @param initialDelay initial delay between attempts; must not be null
+   * @param <A> the value type
+   * @return a CompletableFuturePath that retries the supplier on failure
+   * @throws NullPointerException if supplier or initialDelay is null
+   * @throws IllegalArgumentException if maxAttempts is less than 1
+   */
+  public static <A> CompletableFuturePath<A> supplyAsyncWithRetry(
+      Supplier<A> supplier, int maxAttempts, Duration initialDelay) {
+    return supplyAsyncWithRetry(
+        supplier, RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
+  }
+
+  /**
+   * Returns a CompletableFuturePath that retries reading this computation's result.
+   *
+   * <p><strong>Note:</strong> This method retries calling {@code join()} on the existing future. If
+   * the future has already failed, retrying will not help because CompletableFuture caches its
+   * result. For retrying an operation that may fail, use {@link #supplyAsyncWithRetry(Supplier,
+   * RetryPolicy)} instead.
+   *
+   * @param policy the retry policy; must not be null
+   * @return a CompletableFuturePath that retries on failure
+   * @throws NullPointerException if policy is null
+   * @deprecated Use {@link #supplyAsyncWithRetry(Supplier, RetryPolicy)} for proper retry
+   *     semantics. This method only retries reading from an already-completed future.
+   */
+  @Deprecated
+  public CompletableFuturePath<A> withRetry(RetryPolicy policy) {
+    Objects.requireNonNull(policy, "policy must not be null");
+    return new CompletableFuturePath<>(
+        CompletableFuture.supplyAsync(() -> Retry.execute(policy, () -> this.join())));
+  }
+
+  /**
+   * Returns a CompletableFuturePath that retries reading this computation's result with exponential
+   * backoff.
+   *
+   * <p><strong>Note:</strong> This method retries calling {@code join()} on the existing future. If
+   * the future has already failed, retrying will not help because CompletableFuture caches its
+   * result. For retrying an operation that may fail, use {@link #supplyAsyncWithRetry(Supplier,
+   * int, Duration)} instead.
+   *
+   * @param maxAttempts maximum number of attempts (must be at least 1)
+   * @param initialDelay initial delay between attempts; must not be null
+   * @return a CompletableFuturePath that retries on failure
+   * @throws NullPointerException if initialDelay is null
+   * @throws IllegalArgumentException if maxAttempts is less than 1
+   * @deprecated Use {@link #supplyAsyncWithRetry(Supplier, int, Duration)} for proper retry
+   *     semantics. This method only retries reading from an already-completed future.
+   */
+  @Deprecated
+  public CompletableFuturePath<A> retry(int maxAttempts, Duration initialDelay) {
+    return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
   }
 
   // ===== Conversions =====

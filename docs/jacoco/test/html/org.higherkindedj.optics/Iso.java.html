@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Iso.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics</a> &gt; <span class="el_source">Iso.java</span></div><h1>Iso.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics;
+
+import java.util.Optional;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+
+/**
+ * An **Iso** (Isomorphism) is a reversible optic representing a lossless, two-way conversion
+ * between two types. It's a &quot;universal translator&quot; 🔄 or a type-safe adapter.
+ *
+ * &lt;p&gt;An Iso is the right tool when you have two types that are informationally equivalent but
+ * structurally different. Common use cases include:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Converting a wrapper type to its raw value (e.g., {@code UserId &lt;-&gt; long}).
+ *   &lt;li&gt;Handling data encoding (e.g., {@code byte[] &lt;-&gt; Base64 String}).
+ *   &lt;li&gt;Bridging two different data structures (e.g., {@code Point &lt;-&gt; Tuple2}).
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ *
+ * @param &lt;S&gt; The source type of the conversion.
+ * @param &lt;A&gt; The target type of the conversion.
+ */
+public interface Iso&lt;S, A&gt; extends Optic&lt;S, S, A, A&gt; {
+
+  /**
+   * Performs the forward conversion from the source type {@code S} to the target type {@code A}.
+   *
+   * @param s The source object.
+   * @return The target object.
+   */
+  A get(S s);
+
+  /**
+   * Performs the backward conversion from the target type {@code A} back to the source type {@code
+   * S}. This is also commonly known as `build` or `review`.
+   *
+   * @param a The target object.
+   * @return The source object.
+   */
+  S reverseGet(A a);
+
+  /**
+   * {@inheritDoc}
+   *
+   * &lt;p&gt;The implementation for an {@code Iso} is a pure mapping operation: it {@code get}s the
+   * {@code A} from the {@code S}, applies the function {@code f}, and then uses {@code reverseGet}
+   * to construct a new {@code S} from the result.
+   */
+  @Override
+  default &lt;F&gt; Kind&lt;F, S&gt; modifyF(Function&lt;A, Kind&lt;F, A&gt;&gt; f, S s, Applicative&lt;F&gt; app) {
+<span class="fc" id="L57">    return app.map(this::reverseGet, f.apply(this.get(s)));</span>
+  }
+
+  /**
+   * Composes this {@code Iso&lt;S, A&gt;} with a {@code Lens&lt;A, B&gt;} to produce a new {@code Lens&lt;S, B&gt;}.
+   *
+   * &lt;p&gt;This is possible because composing a lossless, two-way conversion with a one-way focus
+   * results in a new one-way focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as a {@link Lens}.
+   *
+   * @param other The {@link Lens} to compose with.
+   * @param &lt;B&gt; The final target type of the new {@link Lens}.
+   * @return A new {@link Lens} that focuses from {@code S} to {@code B}.
+   */
+  default &lt;B&gt; Lens&lt;S, B&gt; andThen(Lens&lt;A, B&gt; other) {
+<span class="fc" id="L72">    return Lens.of(</span>
+<span class="fc" id="L73">        s -&gt; other.get(this.get(s)), (s, b) -&gt; this.reverseGet(other.set(b, this.get(s))));</span>
+  }
+
+  /**
+   * Composes this {@code Iso&lt;S, A&gt;} with a {@code Prism&lt;A, B&gt;} to produce a new {@code Prism&lt;S,
+   * B&gt;}.
+   *
+   * &lt;p&gt;This is possible because composing a lossless, two-way conversion with a partial focus
+   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as a {@link Prism}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Iso from UserId wrapper to raw long
+   * Iso&lt;UserId, Long&gt; userIdIso = Iso.of(UserId::value, UserId::new);
+   *
+   * // Prism for positive longs
+   * Prism&lt;Long, Long&gt; positivePrism = Prism.of(
+   *     n -&gt; n &gt; 0 ? Optional.of(n) : Optional.empty(),
+   *     n -&gt; n
+   * );
+   *
+   * // Compose: Iso + Prism = Prism
+   * Prism&lt;UserId, Long&gt; positiveUserIdPrism = userIdIso.andThen(positivePrism);
+   * }&lt;/pre&gt;
+   *
+   * @param other The {@link Prism} to compose with.
+   * @param &lt;B&gt; The final target type of the new {@link Prism}.
+   * @return A new {@link Prism} that focuses from {@code S} to {@code B}.
+   */
+  default &lt;B&gt; Prism&lt;S, B&gt; andThen(Prism&lt;A, B&gt; other) {
+<span class="fc" id="L105">    Iso&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L106">    return Prism.of(s -&gt; other.getOptional(self.get(s)), b -&gt; self.reverseGet(other.build(b)));</span>
+  }
+
+  /**
+   * Composes this {@code Iso&lt;S, A&gt;} with an {@code Affine&lt;A, B&gt;} to produce a new {@code Affine&lt;S,
+   * B&gt;}.
+   *
+   * &lt;p&gt;This is possible because composing a lossless, two-way conversion with a partial focus
+   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as an {@link Affine}.
+   *
+   * @param other The {@link Affine} to compose with.
+   * @param &lt;B&gt; The final target type of the new {@link Affine}.
+   * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
+   */
+  default &lt;B&gt; Affine&lt;S, B&gt; andThen(Affine&lt;A, B&gt; other) {
+<span class="fc" id="L122">    Iso&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L123">    return new Affine&lt;&gt;() {</span>
+      @Override
+      public Optional&lt;B&gt; getOptional(S source) {
+<span class="fc" id="L126">        return other.getOptional(self.get(source));</span>
+      }
+
+      @Override
+      public S set(B newValue, S source) {
+<span class="fc" id="L131">        return self.reverseGet(other.set(newValue, self.get(source)));</span>
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Iso&lt;S, A&gt;} with another {@code Iso&lt;A, B&gt;} to produce a new {@code Iso&lt;S,
+   * B&gt;}.
+   *
+   * &lt;p&gt;Two isomorphisms compose to produce another isomorphism. This is the most natural form of
+   * Iso composition.
+   *
+   * @param other The {@link Iso} to compose with.
+   * @param &lt;B&gt; The final target type of the new {@link Iso}.
+   * @return A new {@link Iso} that converts from {@code S} to {@code B}.
+   */
+  default &lt;B&gt; Iso&lt;S, B&gt; andThen(Iso&lt;A, B&gt; other) {
+<span class="fc" id="L148">    Iso&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L149">    return Iso.of(s -&gt; other.get(self.get(s)), b -&gt; self.reverseGet(other.reverseGet(b)));</span>
+  }
+
+  /**
+   * Creates a new {@code Iso} that performs the conversion in the opposite direction.
+   *
+   * @return A new {@code Iso&lt;A, S&gt;}.
+   */
+  default Iso&lt;A, S&gt; reverse() {
+<span class="fc" id="L158">    return Iso.of(this::reverseGet, this::get);</span>
+  }
+
+  /**
+   * Views this {@code Iso} as a {@link Lens}.
+   *
+   * &lt;p&gt;This is always possible because an {@code Iso} is a more powerful {@code Lens}; its &quot;setter&quot;
+   * ({@code reverseGet}) is lossless and doesn't require the original structure.
+   *
+   * @return A {@link Lens} that represents this {@code Iso}.
+   */
+  default Lens&lt;S, A&gt; asLens() {
+<span class="fc" id="L170">    return Lens.of(this::get, (s, a) -&gt; this.reverseGet(a));</span>
+  }
+
+  /**
+   * Views this {@code Iso} as a {@link Traversal}.
+   *
+   * &lt;p&gt;This is always possible because an {@code Iso} can be seen as a {@code Traversal} that
+   * focuses on exactly one element.
+   *
+   * @return A {@link Traversal} that represents this {@code Iso}.
+   */
+  default Traversal&lt;S, A&gt; asTraversal() {
+<span class="fc" id="L182">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, S&gt; modifyF(Function&lt;A, Kind&lt;F, A&gt;&gt; f, S s, Applicative&lt;F&gt; app) {
+<span class="fc" id="L185">        return Iso.this.modifyF(f, s, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Views this {@code Iso} as a {@link Fold}.
+   *
+   * &lt;p&gt;This is always possible because an {@code Iso} can be used as a read-only query that focuses
+   * on exactly one element.
+   *
+   * @return A {@link Fold} that represents this {@code Iso}.
+   */
+  default Fold&lt;S, A&gt; asFold() {
+<span class="fc" id="L199">    Iso&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L200">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L203">        return f.apply(self.get(source));</span>
+      }
+    };
+  }
+
+  /**
+   * Creates an {@code Iso} from its two fundamental functions: a getter and a reverse getter.
+   *
+   * @param get The function for forward conversion (from {@code S} to {@code A}).
+   * @param reverseGet The function for backward conversion (from {@code A} to {@code S}).
+   * @param &lt;S&gt; The source type.
+   * @param &lt;A&gt; The target type.
+   * @return A new {@code Iso} instance.
+   */
+  static &lt;S, A&gt; Iso&lt;S, A&gt; of(Function&lt;S, A&gt; get, Function&lt;A, S&gt; reverseGet) {
+<span class="fc" id="L218">    return new Iso&lt;&gt;() {</span>
+      @Override
+      public A get(S s) {
+<span class="fc" id="L221">        return get.apply(s);</span>
+      }
+
+      @Override
+      public S reverseGet(A a) {
+<span class="fc" id="L226">        return reverseGet.apply(a);</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

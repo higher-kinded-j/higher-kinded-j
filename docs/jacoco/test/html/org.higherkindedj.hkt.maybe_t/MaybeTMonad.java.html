@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MaybeTMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.maybe_t</a> &gt; <span class="el_source">MaybeTMonad.java</span></div><h1>MaybeTMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.maybe_t;
+
+import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Implements the {@link MonadError} interface for {@link MaybeT}. The witness for {@code MaybeT&lt;F,
+ * ?&gt;} is {@link MaybeTKind.Witness Witness&amp;lt;F&amp;gt;}. The error type {@code E} is fixed to {@link
+ * Unit}, as {@code MaybeT} inherently represents failure as an absence of a value (similar to
+ * {@code Maybe.nothing()}).
+ *
+ * &lt;p&gt;This class requires a {@link Monad} instance for the outer monad {@code F} to operate. It uses
+ * {@link MaybeTKindHelper} to convert between the {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}
+ * representation and the concrete {@link MaybeT} type.
+ *
+ * @param &lt;F&gt; The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
+ */
+public class MaybeTMonad&lt;F&gt; implements MonadError&lt;MaybeTKind.Witness&lt;F&gt;, Unit&gt; {
+
+<span class="fc" id="L31">  private static final Class&lt;MaybeTMonad&gt; MAYBE_T_MONAD_CLASS = MaybeTMonad.class;</span>
+  private final Monad&lt;F&gt; outerMonad;
+
+  /**
+   * Constructs a {@code MaybeTMonad} instance.
+   *
+   * @param outerMonad The {@link Monad} instance for the outer monad {@code F}. Must not be null.
+   * @throws NullPointerException if {@code outerMonad} is null.
+   */
+<span class="fc" id="L40">  public MaybeTMonad(Monad&lt;F&gt; outerMonad) {</span>
+<span class="fc" id="L41">    this.outerMonad =</span>
+<span class="fc" id="L42">        Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_MONAD_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L43">  }</span>
+
+  /**
+   * Lifts a value {@code a} into the {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} context. If {@code
+   * value} is non-null, it results in {@code F&lt;Just(value)&gt;}. If {@code value} is null, it results
+   * in {@code F&lt;Nothing&gt;}.
+   *
+   * @param &lt;A&gt; The type of the value.
+   * @param value The value to lift. Can be null.
+   * @return A {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} representing the lifted value.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; of(@Nullable A value) {
+<span class="fc" id="L56">    Kind&lt;F, Maybe&lt;A&gt;&gt; lifted = outerMonad.of(Maybe.fromNullable(value));</span>
+<span class="fc" id="L57">    return MAYBE_T.widen(MaybeT.fromKind(lifted));</span>
+  }
+
+  /**
+   * Maps a function {@code f} over the value within a {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}. If
+   * the wrapped {@code Kind&lt;F, Maybe&lt;A&gt;&gt;} contains {@code Just(a)}, the function is applied to
+   * {@code a}. If it contains {@code Nothing}, or if the function {@code f} returns null, the
+   * result is {@code F&lt;Nothing&gt;}. The transformation is applied within the context of the outer
+   * monad {@code F}.
+   *
+   * @param &lt;A&gt; The original type of the value.
+   * @param &lt;B&gt; The new type of the value after applying the function.
+   * @param f The function to apply. Must not be null.
+   * @param fa The {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} to map over. Must not be null.
+   * @return A new {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt;} with the function applied.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; fa) {
+
+<span class="fc" id="L79">    Validation.function().requireMapper(f, &quot;f&quot;, MAYBE_T_MONAD_CLASS, MAP);</span>
+<span class="fc" id="L80">    Validation.kind().requireNonNull(fa, MAYBE_T_MONAD_CLASS, MAP);</span>
+
+<span class="fc" id="L82">    MaybeT&lt;F, A&gt; maybeT = MAYBE_T.narrow(fa);</span>
+<span class="fc" id="L83">    Kind&lt;F, Maybe&lt;B&gt;&gt; newValue = outerMonad.map(maybe -&gt; maybe.map(f), maybeT.value());</span>
+<span class="fc" id="L84">    return MAYBE_T.widen(MaybeT.fromKind(newValue));</span>
+  }
+
+  /**
+   * Applies a function wrapped in {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, Function&lt;A, B&gt;&gt;} to a value
+   * wrapped in {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}.
+   *
+   * @param &lt;A&gt; The type of the input value.
+   * @param &lt;B&gt; The type of the result value.
+   * @param ff The wrapped function. Must not be null.
+   * @param fa The wrapped value. Must not be null.
+   * @return A new {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt;} representing the application.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt; ap(
+      Kind&lt;MaybeTKind.Witness&lt;F&gt;, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; fa) {
+
+<span class="fc" id="L104">    Validation.kind().requireNonNull(ff, MAYBE_T_MONAD_CLASS, AP, &quot;function&quot;);</span>
+<span class="fc" id="L105">    Validation.kind().requireNonNull(fa, MAYBE_T_MONAD_CLASS, AP, &quot;argument&quot;);</span>
+
+<span class="fc" id="L107">    MaybeT&lt;F, ? extends Function&lt;A, B&gt;&gt; funcT = MAYBE_T.narrow(ff);</span>
+<span class="fc" id="L108">    MaybeT&lt;F, A&gt; valT = MAYBE_T.narrow(fa);</span>
+
+<span class="fc" id="L110">    Kind&lt;F, Maybe&lt;B&gt;&gt; resultValue =</span>
+<span class="fc" id="L111">        outerMonad.flatMap(</span>
+<span class="fc" id="L112">            maybeF -&gt; outerMonad.map(maybeA -&gt; maybeF.flatMap(maybeA::map), valT.value()),</span>
+<span class="fc" id="L113">            funcT.value());</span>
+<span class="fc" id="L114">    return MAYBE_T.widen(MaybeT.fromKind(resultValue));</span>
+  }
+
+  /**
+   * Applies a function {@code f} that returns a {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt;} to the value
+   * within a {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}, and flattens the result.
+   *
+   * @param &lt;A&gt; The original type of the value.
+   * @param &lt;B&gt; The type of the value in the resulting {@code Kind}.
+   * @param f The function to apply, returning a new {@code Kind}. Must not be null.
+   * @param ma The {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} to transform. Must not be null.
+   * @return A new {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt;}.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt;&gt; f,
+      Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; ma) {
+
+<span class="fc" id="L135">    Validation.function().requireFlatMapper(f, &quot;f&quot;, MAYBE_T_MONAD_CLASS, FLAT_MAP);</span>
+<span class="fc" id="L136">    Validation.kind().requireNonNull(ma, MAYBE_T_MONAD_CLASS, FLAT_MAP);</span>
+
+<span class="fc" id="L138">    MaybeT&lt;F, A&gt; maybeT = MAYBE_T.narrow(ma);</span>
+
+<span class="fc" id="L140">    Kind&lt;F, Maybe&lt;B&gt;&gt; newValue =</span>
+<span class="fc" id="L141">        outerMonad.flatMap(</span>
+            maybeA -&gt;
+                maybeA
+<span class="fc" id="L144">                    .map(</span>
+                        a -&gt; {
+<span class="fc" id="L146">                          Kind&lt;MaybeTKind.Witness&lt;F&gt;, B&gt; resultKind = f.apply(a);</span>
+<span class="fc" id="L147">                          Validation.function()</span>
+<span class="fc" id="L148">                              .requireNonNullResult(</span>
+                                  resultKind, &quot;f&quot;, MAYBE_T_MONAD_CLASS, FLAT_MAP, Kind.class);
+<span class="fc" id="L150">                          MaybeT&lt;F, B&gt; resultT = MAYBE_T.narrow(resultKind);</span>
+<span class="fc" id="L151">                          return resultT.value();</span>
+                        })
+<span class="fc" id="L153">                    .orElse(</span>
+<span class="fc" id="L154">                        outerMonad.of(</span>
+<span class="fc" id="L155">                            Maybe.nothing())), // If Maybe&lt;A&gt; is Nothing, result is F&lt;Nothing&gt;</span>
+<span class="fc" id="L156">            maybeT.value());</span>
+<span class="fc" id="L157">    return MAYBE_T.widen(MaybeT.fromKind(newValue));</span>
+  }
+
+  // --- MonadError Methods (Error Type E = Unit) ---
+
+  /**
+   * Raises an error in the {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} context. For {@code MaybeT}, an
+   * error is represented by the {@code Nothing} state, so this method returns a {@code Kind}
+   * wrapping {@code F&lt;Nothing&gt;}. The provided {@code error} of type {@link Unit} (typically {@link
+   * Unit#INSTANCE}) is ignored.
+   *
+   * @param &lt;A&gt; The type parameter for the resulting {@code Kind}, though it will be empty.
+   * @param error The error value ({@link Unit#INSTANCE}).
+   * @return A {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} representing {@code F&lt;Nothing&gt;}.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; raiseError(@Nullable Unit error) {
+    // Note: error parameter is ignored since Nothing doesn't carry error information
+<span class="fc" id="L175">    return MAYBE_T.widen(MaybeT.nothing(outerMonad));</span>
+  }
+
+  /**
+   * Handles an error (represented by {@code Nothing}) in the {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;,
+   * A&gt;}. If the input {@code ma} represents {@code F&lt;Nothing&gt;}, the {@code handler} function is
+   * applied. The {@link Unit} parameter to the handler will be {@link Unit#INSTANCE}. If {@code ma}
+   * represents {@code F&lt;Just(a)&gt;}, it is returned unchanged. This operation is performed within the
+   * context of the outer monad {@code F}.
+   *
+   * @param &lt;A&gt; The type of the value.
+   * @param ma The {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;} to handle. Must not be null.
+   * @param handler The function to apply if {@code ma} represents {@code F&lt;Nothing&gt;}. It takes a
+   *     {@link Unit} (which will be {@link Unit#INSTANCE}) and returns a new {@code
+   *     Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}. Must not be null.
+   * @return A {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}, either the original or the result of the
+   *     handler.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code handler} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; handleErrorWith(
+      Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; ma,
+      Function&lt;? super Unit, ? extends Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;&gt; handler) {
+
+<span class="fc" id="L201">    Validation.kind().requireNonNull(ma, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, &quot;source&quot;);</span>
+<span class="fc" id="L202">    Validation.function()</span>
+<span class="fc" id="L203">        .requireFunction(handler, &quot;handler&quot;, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH);</span>
+
+<span class="fc" id="L205">    MaybeT&lt;F, A&gt; maybeT = MAYBE_T.narrow(ma);</span>
+
+<span class="fc" id="L207">    Kind&lt;F, Maybe&lt;A&gt;&gt; handledValue =</span>
+<span class="fc" id="L208">        outerMonad.flatMap(</span>
+            maybeA -&gt; {
+<span class="fc bfc" id="L210" title="All 2 branches covered.">              if (maybeA.isJust()) {</span>
+<span class="fc" id="L211">                return outerMonad.of(maybeA); // If Just(a), return F&lt;Just(a)&gt;</span>
+              } else { // If Nothing
+<span class="fc" id="L213">                Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt; resultKind = handler.apply(Unit.INSTANCE);</span>
+<span class="fc" id="L214">                Validation.function()</span>
+<span class="fc" id="L215">                    .requireNonNullResult(</span>
+                        resultKind, &quot;handler&quot;, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+<span class="fc" id="L217">                MaybeT&lt;F, A&gt; resultT = MAYBE_T.narrow(resultKind);</span>
+<span class="fc" id="L218">                return resultT.value(); // This is Kind&lt;F, Maybe&lt;A&gt;&gt;</span>
+              }
+            },
+<span class="fc" id="L221">            maybeT.value());</span>
+<span class="fc" id="L222">    return MAYBE_T.widen(MaybeT.fromKind(handledValue));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

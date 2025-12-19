@@ -24,15 +24,17 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 
 - **[Capability Interfaces](capabilities.md)** – The hierarchy of powers that Path types possess: Composable, Combinable, Chainable, Recoverable, Effectful, and Accumulating. What each unlocks, and why the layering matters.
 
-- **[Path Types](path_types.md)** – The full arsenal: `MaybePath`, `EitherPath`, `TryPath`, `IOPath`, `ValidationPath`, and more. When to reach for each, and what distinguishes them.
+- **[Path Types](path_types.md)** – The full arsenal: `MaybePath`, `EitherPath`, `TryPath`, `IOPath`, `ValidationPath`, `TrampolinePath`, `FreePath`, `FreeApPath`, and more. When to reach for each, and what distinguishes them.
 
-- **[Composition Patterns](composition.md)** – Sequential chains, independent combination, debugging with `peek`, and the art of mixing composition styles.
+- **[Composition Patterns](composition.md)** – Sequential chains, independent combination, parallel execution, debugging with `peek`, and the art of mixing composition styles.
 
 - **[Type Conversions](conversions.md)** – Moving between Path types as your needs change. The bridges between `Maybe` and `Either`, between `Try` and `Validation`, and the rules that govern safe passage.
 
-- **[Patterns and Recipes](patterns.md)** – Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, and the pitfalls that await the unwary.
+- **[Patterns and Recipes](patterns.md)** – Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, resilience with retry, and the pitfalls that await the unwary.
 
 - **[Advanced Effects](advanced_effects.md)** – Reader, State, and Writer paths for environment access, stateful computation, and logging accumulation.
+
+- **[Advanced Topics](advanced_topics.md)** – Stack-safe recursion, DSL building with Free structures, resource management, parallel execution, and resilience patterns.
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -47,6 +49,13 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 - [LazyPathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/LazyPathExample.java) - Deferred, memoised computations
 - [CompletableFuturePathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/CompletableFuturePathExample.java) - Async operations
 - [CollectionPathsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/CollectionPathsExample.java) - List and Stream effects
+
+**Stack-Safety, Resources, Parallelism & Resilience:**
+- [TrampolinePathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/TrampolinePathExample.java) - Stack-safe recursion
+- [FreePathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/FreePathExample.java) - DSL building and interpretation
+- [ResourceManagementExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ResourceManagementExample.java) - bracket, withResource, guarantee
+- [ParallelExecutionExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ParallelExecutionExample.java) - parZipWith, parSequence, race
+- [ResilienceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ResilienceExample.java) - RetryPolicy and backoff patterns
 ~~~
 
 ## Chapter Contents
@@ -54,10 +63,11 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 1. [Effect Path Overview](effect_path_overview.md) - The problem, the model, the first steps
 2. [Capability Interfaces](capabilities.md) - The interface hierarchy powering composition
 3. [Path Types](path_types.md) - Detailed coverage of each Path type
-4. [Composition Patterns](composition.md) - Chaining, combining, and debugging
+4. [Composition Patterns](composition.md) - Chaining, combining, parallel execution, and debugging
 5. [Type Conversions](conversions.md) - Moving between different Path types
-6. [Patterns and Recipes](patterns.md) - Real-world patterns and hard-won wisdom
+6. [Patterns and Recipes](patterns.md) - Real-world patterns, resilience, and hard-won wisdom
 7. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
+8. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
 
 ---
 

@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReaderSelective.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.reader</a> &gt; <span class="el_source">ReaderSelective.java</span></div><h1>ReaderSelective.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.reader;
+
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Implements the {@link Selective} type class for {@link Reader}, with a fixed environment type
+ * {@code R}. This provides selective applicative operations that allow conditional execution based
+ * on the result of previous computations.
+ *
+ * &lt;p&gt;The Selective interface sits between {@link org.higherkindedj.hkt.Applicative} and {@link
+ * org.higherkindedj.hkt.Monad} in terms of power. It allows for static analysis of effects while
+ * still supporting conditional behaviour.
+ *
+ * &lt;p&gt;For Reader, selective operations allow conditional computations that may or may not require
+ * accessing the environment, potentially enabling Optimisations where the environment is only read
+ * when necessary.
+ *
+ * &lt;p&gt;Key operations:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #select(Kind, Kind)}: Conditionally applies an effectful function based on a Choice.
+ *   &lt;li&gt;{@link #branch(Kind, Kind, Kind)}: Provides two-way conditional choice with different
+ *       handlers.
+ *   &lt;li&gt;{@link #whenS(Kind, Kind)}: Conditionally executes an effect based on a boolean.
+ *   &lt;li&gt;{@link #ifS(Kind, Kind, Kind)}: Ternary conditional for selective functors.
+ * &lt;/ul&gt;
+ *
+ * @param &lt;R&gt; The fixed type for the environment required by the {@code Reader}.
+ * @see Reader
+ * @see ReaderMonad
+ * @see Selective
+ * @see Choice
+ */
+public final class ReaderSelective&lt;R&gt; extends ReaderMonad&lt;R&gt;
+    implements Selective&lt;ReaderKind.Witness&lt;R&gt;&gt; {
+
+<span class="fc" id="L47">  private static final ReaderSelective&lt;?&gt; INSTANCE = new ReaderSelective&lt;&gt;();</span>
+<span class="fc" id="L48">  private static final Class&lt;ReaderSelective&gt; READER_SELECTIVE_CLASS = ReaderSelective.class;</span>
+
+  private ReaderSelective() {
+    super();
+  }
+
+  /**
+   * Returns the singleton instance of {@code ReaderSelective} for the specified environment type.
+   *
+   * @param &lt;R&gt; The type of the environment.
+   * @return The singleton instance.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static &lt;R&gt; ReaderSelective&lt;R&gt; instance() {
+<span class="fc" id="L62">    return (ReaderSelective&lt;R&gt;) INSTANCE;</span>
+  }
+
+  /**
+   * The core selective operation for Reader. Given an effectful choice {@code fab} and an effectful
+   * function {@code ff}, applies the function only if the choice is a {@code Left}.
+   *
+   * &lt;p&gt;For Reader, both the choice and the function are computations that depend on the environment
+   * {@code R}. The selective operation sequences these computations appropriately.
+   *
+   * &lt;p&gt;Behavior:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;If {@code fab} produces {@code Right(b)}: Returns a Reader that produces {@code b},
+   *       {@code ff} is not evaluated.
+   *   &lt;li&gt;If {@code fab} produces {@code Left(a)}: The function from {@code ff} is applied to
+   *       {@code a}.
+   * &lt;/ul&gt;
+   *
+   * @param fab A {@link Kind} representing {@code Reader&lt;R, Choice&lt;A, B&gt;&gt;}. Must not be null.
+   * @param ff A {@link Kind} representing {@code Reader&lt;R, Function&lt;A, B&gt;&gt;}. Must not be null.
+   * @param &lt;A&gt; The input type of the function (the type inside {@code Left} of the Choice).
+   * @param &lt;B&gt; The output type and the type inside {@code Right} of the Choice.
+   * @return A {@link Kind} representing {@code Reader&lt;R, B&gt;}. Never null.
+   * @throws NullPointerException if {@code fab} or {@code ff} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fab} or {@code ff} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;ReaderKind.Witness&lt;R&gt;, B&gt; select(
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Choice&lt;A, B&gt;&gt; fab,
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Function&lt;A, B&gt;&gt; ff) {
+
+<span class="fc" id="L95">    Validation.kind().requireNonNull(fab, READER_SELECTIVE_CLASS, SELECT, &quot;choice&quot;);</span>
+<span class="fc" id="L96">    Validation.kind().requireNonNull(ff, READER_SELECTIVE_CLASS, SELECT, &quot;function&quot;);</span>
+
+<span class="fc" id="L98">    Reader&lt;R, Choice&lt;A, B&gt;&gt; readerChoice = READER.narrow(fab);</span>
+<span class="fc" id="L99">    Reader&lt;R, Function&lt;A, B&gt;&gt; readerFunction = READER.narrow(ff);</span>
+
+<span class="fc" id="L101">    Reader&lt;R, B&gt; readerB =</span>
+        (R r) -&gt; {
+<span class="fc" id="L103">          Choice&lt;A, B&gt; choice = readerChoice.run(r);</span>
+
+          // If choice is Right(b), we already have our value
+<span class="fc bfc" id="L106" title="All 2 branches covered.">          if (choice.isRight()) {</span>
+<span class="fc" id="L107">            return choice.getRight();</span>
+          }
+
+          // Choice is Left(a), so we need to apply the function
+<span class="fc" id="L111">          A value = choice.getLeft();</span>
+<span class="fc" id="L112">          Function&lt;A, B&gt; function = readerFunction.run(r);</span>
+<span class="fc" id="L113">          return function.apply(value);</span>
+        };
+
+<span class="fc" id="L116">    return READER.widen(readerB);</span>
+  }
+
+  /**
+   * Optimised implementation of {@code branch} for Reader. Provides a two-way conditional choice,
+   * applying the appropriate handler based on whether the Choice is Left or Right.
+   *
+   * @param fab A {@link Kind} representing {@code Reader&lt;R, Choice&lt;A, B&gt;&gt;}. Must not be null.
+   * @param fl A {@link Kind} representing {@code Reader&lt;R, Function&lt;A, C&gt;&gt;} for the Left case. Must
+   *     not be null.
+   * @param fr A {@link Kind} representing {@code Reader&lt;R, Function&lt;B, C&gt;&gt;} for the Right case.
+   *     Must not be null.
+   * @param &lt;A&gt; The type inside {@code Left} of the Choice.
+   * @param &lt;B&gt; The type inside {@code Right} of the Choice.
+   * @param &lt;C&gt; The result type.
+   * @return A {@link Kind} representing {@code Reader&lt;R, C&gt;}. Never null.
+   */
+  @Override
+  public &lt;A, B, C&gt; Kind&lt;ReaderKind.Witness&lt;R&gt;, C&gt; branch(
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Choice&lt;A, B&gt;&gt; fab,
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Function&lt;A, C&gt;&gt; fl,
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Function&lt;B, C&gt;&gt; fr) {
+
+<span class="fc" id="L139">    Validation.kind().requireNonNull(fab, READER_SELECTIVE_CLASS, BRANCH, &quot;choice&quot;);</span>
+<span class="fc" id="L140">    Validation.kind().requireNonNull(fl, READER_SELECTIVE_CLASS, BRANCH, &quot;leftHandler&quot;);</span>
+<span class="fc" id="L141">    Validation.kind().requireNonNull(fr, READER_SELECTIVE_CLASS, BRANCH, &quot;rightHandler&quot;);</span>
+
+<span class="fc" id="L143">    Reader&lt;R, Choice&lt;A, B&gt;&gt; readerChoice = READER.narrow(fab);</span>
+<span class="fc" id="L144">    Reader&lt;R, Function&lt;A, C&gt;&gt; leftHandler = READER.narrow(fl);</span>
+<span class="fc" id="L145">    Reader&lt;R, Function&lt;B, C&gt;&gt; rightHandler = READER.narrow(fr);</span>
+
+<span class="fc" id="L147">    Reader&lt;R, C&gt; readerC =</span>
+        (R r) -&gt; {
+<span class="fc" id="L149">          Choice&lt;A, B&gt; choice = readerChoice.run(r);</span>
+
+<span class="fc bfc" id="L151" title="All 2 branches covered.">          if (choice.isLeft()) {</span>
+<span class="fc" id="L152">            Function&lt;A, C&gt; leftFunc = leftHandler.run(r);</span>
+<span class="fc" id="L153">            return leftFunc.apply(choice.getLeft());</span>
+          } else {
+<span class="fc" id="L155">            Function&lt;B, C&gt; rightFunc = rightHandler.run(r);</span>
+<span class="fc" id="L156">            return rightFunc.apply(choice.getRight());</span>
+          }
+        };
+
+<span class="fc" id="L160">    return READER.widen(readerC);</span>
+  }
+
+  /**
+   * Conditionally executes a Unit-returning effect based on a boolean condition.
+   *
+   * &lt;p&gt;Key improvement: Returns Unit.INSTANCE instead of null in the Reader computation, making the
+   * result type-safe.
+   *
+   * @param fcond The effectful condition
+   * @param fa The Unit-returning effect to execute if condition is true
+   * @return Reader with Unit result
+   */
+  @Override
+  public Kind&lt;ReaderKind.Witness&lt;R&gt;, Unit&gt; whenS(
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Boolean&gt; fcond, Kind&lt;ReaderKind.Witness&lt;R&gt;, Unit&gt; fa) {
+
+<span class="fc" id="L177">    Validation.kind().requireNonNull(fcond, READER_SELECTIVE_CLASS, WHEN_S, &quot;condition&quot;);</span>
+<span class="fc" id="L178">    Validation.kind().requireNonNull(fa, READER_SELECTIVE_CLASS, WHEN_S, &quot;effect&quot;);</span>
+
+<span class="fc" id="L180">    Reader&lt;R, Boolean&gt; condReader = READER.narrow(fcond);</span>
+<span class="fc" id="L181">    Reader&lt;R, Unit&gt; effectReader = READER.narrow(fa);</span>
+
+<span class="fc" id="L183">    Reader&lt;R, Unit&gt; readerUnit =</span>
+        (R r) -&gt; {
+<span class="fc" id="L185">          boolean condition = condReader.run(r);</span>
+
+<span class="fc bfc" id="L187" title="All 2 branches covered.">          if (condition) {</span>
+<span class="fc" id="L188">            return effectReader.run(r);</span>
+          } else {
+            // Condition is false, return Unit (not null!)
+<span class="fc" id="L191">            return Unit.INSTANCE;</span>
+          }
+        };
+
+<span class="fc" id="L195">    return READER.widen(readerUnit);</span>
+  }
+
+  /**
+   * Optimised implementation of {@code ifS} for Reader. A ternary conditional operator for
+   * selective functors.
+   *
+   * @param fcond A {@link Kind} representing {@code Reader&lt;R, Boolean&gt;}. Must not be null.
+   * @param fthen A {@link Kind} representing {@code Reader&lt;R, A&gt;} for the true branch. Must not be
+   *     null.
+   * @param felse A {@link Kind} representing {@code Reader&lt;R, A&gt;} for the false branch. Must not be
+   *     null.
+   * @param &lt;A&gt; The type of the result.
+   * @return A {@link Kind} representing {@code Reader&lt;R, A&gt;}. Never null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;ReaderKind.Witness&lt;R&gt;, A&gt; ifS(
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, Boolean&gt; fcond,
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, A&gt; fthen,
+      Kind&lt;ReaderKind.Witness&lt;R&gt;, A&gt; felse) {
+
+<span class="fc" id="L216">    Validation.kind().requireNonNull(fcond, READER_SELECTIVE_CLASS, IF_S, &quot;condition&quot;);</span>
+<span class="fc" id="L217">    Validation.kind().requireNonNull(fthen, READER_SELECTIVE_CLASS, IF_S, &quot;thenBranch&quot;);</span>
+<span class="fc" id="L218">    Validation.kind().requireNonNull(felse, READER_SELECTIVE_CLASS, IF_S, &quot;elseBranch&quot;);</span>
+
+<span class="fc" id="L220">    Reader&lt;R, Boolean&gt; condReader = READER.narrow(fcond);</span>
+<span class="fc" id="L221">    Reader&lt;R, A&gt; thenReader = READER.narrow(fthen);</span>
+<span class="fc" id="L222">    Reader&lt;R, A&gt; elseReader = READER.narrow(felse);</span>
+
+<span class="fc" id="L224">    Reader&lt;R, A&gt; readerA =</span>
+        (R r) -&gt; {
+<span class="fc" id="L226">          boolean condition = condReader.run(r);</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">          return condition ? thenReader.run(r) : elseReader.run(r);</span>
+        };
+
+<span class="fc" id="L230">    return READER.widen(readerA);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

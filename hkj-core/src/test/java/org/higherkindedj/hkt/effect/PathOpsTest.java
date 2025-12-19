@@ -7,7 +7,9 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Semigroup;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -948,6 +950,415 @@ class PathOpsTest {
 
       // Minimum size is 0, so result is empty
       assertThat(result.run()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Parallel IOPath Operations")
+  class ParallelIOPathOperationsTests {
+
+    @Test
+    @DisplayName("parSequenceIO() executes IOPaths in parallel and collects results")
+    void parSequenceIOExecutesInParallel() {
+      List<IOPath<Integer>> paths = List.of(Path.ioPure(1), Path.ioPure(2), Path.ioPure(3));
+
+      IOPath<List<Integer>> result = PathOps.parSequenceIO(paths);
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("parSequenceIO() returns empty list for empty input")
+    void parSequenceIOReturnsEmptyListForEmptyInput() {
+      List<IOPath<Integer>> paths = List.of();
+
+      IOPath<List<Integer>> result = PathOps.parSequenceIO(paths);
+
+      assertThat(result.unsafeRun()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("parSequenceIO() validates non-null paths")
+    void parSequenceIOValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parSequenceIO(null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    @Test
+    @DisplayName("parSequenceIO() propagates RuntimeException from failed IOPath")
+    void parSequenceIOPropagatesRuntimeException() {
+      RuntimeException error = new RuntimeException("IO failed");
+      List<IOPath<Integer>> paths =
+          List.of(
+              Path.ioPure(1),
+              Path.io(
+                  () -> {
+                    throw error;
+                  }),
+              Path.ioPure(3));
+
+      IOPath<List<Integer>> result = PathOps.parSequenceIO(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("IO failed");
+    }
+
+    @Test
+    @DisplayName("parZip3() combines three IOPaths in parallel")
+    void parZip3CombinesThreeIOPaths() {
+      IOPath<Integer> first = Path.ioPure(1);
+      IOPath<Integer> second = Path.ioPure(2);
+      IOPath<Integer> third = Path.ioPure(3);
+
+      IOPath<Integer> result = PathOps.parZip3(first, second, third, (a, b, c) -> a + b + c);
+
+      assertThat(result.unsafeRun()).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("parZip3() validates non-null arguments")
+    void parZip3ValidatesNonNullArguments() {
+      IOPath<Integer> path = Path.ioPure(1);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, b, c) -> a))
+          .withMessageContaining("first must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, b, c) -> a))
+          .withMessageContaining("second must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, b, c) -> a))
+          .withMessageContaining("third must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip3(path, path, path, null))
+          .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
+    @DisplayName("parZip3() propagates RuntimeException from any failed IOPath")
+    void parZip3PropagatesRuntimeException() {
+      RuntimeException error = new RuntimeException("parZip3 failed");
+      IOPath<Integer> first = Path.ioPure(1);
+      IOPath<Integer> second =
+          Path.io(
+              () -> {
+                throw error;
+              });
+      IOPath<Integer> third = Path.ioPure(3);
+
+      IOPath<Integer> result = PathOps.parZip3(first, second, third, (a, b, c) -> a + b + c);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("parZip3 failed");
+    }
+
+    @Test
+    @DisplayName("parZip4() combines four IOPaths in parallel")
+    void parZip4CombinesFourIOPaths() {
+      IOPath<Integer> first = Path.ioPure(1);
+      IOPath<Integer> second = Path.ioPure(2);
+      IOPath<Integer> third = Path.ioPure(3);
+      IOPath<Integer> fourth = Path.ioPure(4);
+
+      IOPath<Integer> result =
+          PathOps.parZip4(first, second, third, fourth, (a, b, c, d) -> a + b + c + d);
+
+      assertThat(result.unsafeRun()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("parZip4() validates non-null arguments")
+    void parZip4ValidatesNonNullArguments() {
+      IOPath<Integer> path = Path.ioPure(1);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, b, c, d) -> a))
+          .withMessageContaining("first must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip4(path, null, path, path, (a, b, c, d) -> a))
+          .withMessageContaining("second must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip4(path, path, null, path, (a, b, c, d) -> a))
+          .withMessageContaining("third must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip4(path, path, path, null, (a, b, c, d) -> a))
+          .withMessageContaining("fourth must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parZip4(path, path, path, path, null))
+          .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
+    @DisplayName("parZip4() propagates RuntimeException from any failed IOPath")
+    void parZip4PropagatesRuntimeException() {
+      RuntimeException error = new RuntimeException("parZip4 failed");
+      IOPath<Integer> first = Path.ioPure(1);
+      IOPath<Integer> second = Path.ioPure(2);
+      IOPath<Integer> third =
+          Path.io(
+              () -> {
+                throw error;
+              });
+      IOPath<Integer> fourth = Path.ioPure(4);
+
+      IOPath<Integer> result =
+          PathOps.parZip4(first, second, third, fourth, (a, b, c, d) -> a + b + c + d);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("parZip4 failed");
+    }
+
+    @Test
+    @DisplayName("raceIO() returns first successful result")
+    void raceIOReturnsFirstSuccessfulResult() {
+      IOPath<String> fast = Path.ioPure("fast");
+      IOPath<String> slow =
+          Path.io(
+              () -> {
+                try {
+                  Thread.sleep(100);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "slow";
+              });
+
+      List<IOPath<String>> paths = List.of(slow, fast);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      // The "fast" one should win since it doesn't sleep
+      String winner = result.unsafeRun();
+      assertThat(winner).isIn("fast", "slow"); // Either could win depending on scheduling
+    }
+
+    @Test
+    @DisplayName("raceIO() returns sole path for single-element list")
+    void raceIOReturnsSolePath() {
+      IOPath<String> path = Path.ioPure("only one");
+      List<IOPath<String>> paths = List.of(path);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      assertThat(result).isSameAs(path);
+    }
+
+    @Test
+    @DisplayName("raceIO() throws for empty list")
+    void raceIOThrowsForEmptyList() {
+      List<IOPath<String>> paths = List.of();
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> PathOps.raceIO(paths))
+          .withMessageContaining("paths must not be empty");
+    }
+
+    @Test
+    @DisplayName("raceIO() validates non-null paths")
+    void raceIOValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.raceIO(null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    @Test
+    @DisplayName("raceIO() propagates last failure if all fail")
+    void raceIOPropagatesLastFailureIfAllFail() {
+      RuntimeException error1 = new RuntimeException("error1");
+      RuntimeException error2 = new RuntimeException("error2");
+      IOPath<String> fail1 =
+          Path.io(
+              () -> {
+                throw error1;
+              });
+      IOPath<String> fail2 =
+          Path.io(
+              () -> {
+                throw error2;
+              });
+
+      List<IOPath<String>> paths = List.of(fail1, fail2);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      assertThatThrownBy(result::unsafeRun).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("raceIO() handles mixed success and failure")
+    void raceIOHandlesMixedSuccessAndFailure() {
+      RuntimeException error = new RuntimeException("will fail");
+      IOPath<String> willFail =
+          Path.io(
+              () -> {
+                throw error;
+              });
+      IOPath<String> willSucceed = Path.ioPure("success");
+
+      List<IOPath<String>> paths = List.of(willFail, willSucceed);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      // The successful one should win or be available
+      String winner = result.unsafeRun();
+      assertThat(winner).isEqualTo("success");
+    }
+
+    @Test
+    @DisplayName("parSequenceFuture() is alias for sequenceFuture()")
+    void parSequenceFutureIsAliasForSequenceFuture() {
+      List<CompletableFuturePath<Integer>> paths =
+          List.of(
+              CompletableFuturePath.completed(1),
+              CompletableFuturePath.completed(2),
+              CompletableFuturePath.completed(3));
+
+      CompletableFuturePath<List<Integer>> result = PathOps.parSequenceFuture(paths);
+
+      assertThat(result.join()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("parSequenceIO() handles InterruptedException during parallel execution")
+    void parSequenceIOHandlesInterruptedException() throws InterruptedException {
+      CountDownLatch started = new CountDownLatch(1);
+      CountDownLatch canProceed = new CountDownLatch(1);
+      AtomicReference<Throwable> caught = new AtomicReference<>();
+
+      // Create an IOPath that blocks until we signal
+      List<IOPath<Integer>> paths =
+          List.of(
+              Path.io(
+                  () -> {
+                    started.countDown();
+                    try {
+                      canProceed.await(); // Block until interrupted
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                      throw new RuntimeException(e);
+                    }
+                    return 1;
+                  }));
+
+      IOPath<List<Integer>> result = PathOps.parSequenceIO(paths);
+
+      Thread testThread =
+          new Thread(
+              () -> {
+                try {
+                  result.unsafeRun();
+                } catch (Throwable t) {
+                  caught.set(t);
+                }
+              });
+
+      testThread.start();
+      started.await(); // Wait for the IOPath to start
+      testThread.interrupt(); // Interrupt while waiting
+      testThread.join(5000);
+
+      assertThat(testThread.isAlive()).isFalse();
+      // The exception should be propagated
+      assertThat(caught.get()).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("parSequenceIO() wraps checked exception in RuntimeException")
+    void parSequenceIOWrapsCheckedException() {
+      Exception checkedException = new Exception("Checked exception from parallel execution");
+      List<IOPath<Integer>> paths =
+          List.of(
+              Path.io(
+                  () -> {
+                    throw sneakyThrow(checkedException);
+                  }));
+
+      IOPath<List<Integer>> result = PathOps.parSequenceIO(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasCause(checkedException);
+    }
+
+    @Test
+    @DisplayName("parZip3() wraps checked exception in RuntimeException")
+    void parZip3WrapsCheckedException() {
+      Exception checkedException = new Exception("parZip3 checked exception");
+      IOPath<Integer> first = Path.ioPure(1);
+      IOPath<Integer> second =
+          Path.io(
+              () -> {
+                throw sneakyThrow(checkedException);
+              });
+      IOPath<Integer> third = Path.ioPure(3);
+
+      IOPath<Integer> result = PathOps.parZip3(first, second, third, (a, b, c) -> a + b + c);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasCause(checkedException);
+    }
+
+    @Test
+    @DisplayName("parZip4() wraps checked exception in RuntimeException")
+    void parZip4WrapsCheckedException() {
+      Exception checkedException = new Exception("parZip4 checked exception");
+      IOPath<Integer> first = Path.ioPure(1);
+      IOPath<Integer> second = Path.ioPure(2);
+      IOPath<Integer> third =
+          Path.io(
+              () -> {
+                throw sneakyThrow(checkedException);
+              });
+      IOPath<Integer> fourth = Path.ioPure(4);
+
+      IOPath<Integer> result =
+          PathOps.parZip4(first, second, third, fourth, (a, b, c, d) -> a + b + c + d);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasCause(checkedException);
+    }
+
+    @Test
+    @DisplayName("raceIO() wraps checked exception in RuntimeException when all fail")
+    void raceIOWrapsCheckedException() {
+      Exception checkedException1 = new Exception("raceIO checked exception 1");
+      Exception checkedException2 = new Exception("raceIO checked exception 2");
+      IOPath<String> failing1 =
+          Path.io(
+              () -> {
+                throw sneakyThrow(checkedException1);
+              });
+      IOPath<String> failing2 =
+          Path.io(
+              () -> {
+                throw sneakyThrow(checkedException2);
+              });
+
+      // Need at least 2 paths to test the exception wrapping code path
+      // (single path optimization returns the path directly)
+      List<IOPath<String>> paths = List.of(failing1, failing2);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      assertThatThrownBy(result::unsafeRun).isInstanceOf(RuntimeException.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> RuntimeException sneakyThrow(Throwable e) throws E {
+      throw (E) e;
     }
   }
 

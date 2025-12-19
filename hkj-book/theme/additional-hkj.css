@@ -151,3 +151,45 @@ h1 + h2 {
     color: var(--fg);
     opacity: 0.5;
 }
+
+/* ===== Heading Colors by Theme ===== */
+
+/* Latte (light theme) - uses darker, more saturated colors */
+html.latte h1, html.latte .content h1 { color: #1e66f5 !important; } /* Blue */
+html.latte h2, html.latte .content h2 { color: #8839ef !important; } /* Mauve */
+html.latte h3, html.latte .content h3 { color: #179299 !important; } /* Teal */
+html.latte h4, html.latte .content h4 { color: #df8e1d !important; } /* Yellow */
+html.latte h5, html.latte .content h5 { color: #40a02b !important; } /* Green */
+html.latte h6, html.latte .content h6 { color: #e64553 !important; } /* Maroon */
+
+/* Frappe (dark theme) */
+html.frappe h1, html.frappe .content h1 { color: #8caaee !important; } /* Blue */
+html.frappe h2, html.frappe .content h2 { color: #ca9ee6 !important; } /* Mauve */
+html.frappe h3, html.frappe .content h3 { color: #81c8be !important; } /* Teal */
+html.frappe h4, html.frappe .content h4 { color: #e5c890 !important; } /* Yellow */
+html.frappe h5, html.frappe .content h5 { color: #a6d189 !important; } /* Green */
+html.frappe h6, html.frappe .content h6 { color: #ea999c !important; } /* Maroon */
+
+/* Macchiato (dark theme) */
+html.macchiato h1, html.macchiato .content h1 { color: #8aadf4 !important; } /* Blue */
+html.macchiato h2, html.macchiato .content h2 { color: #c6a0f6 !important; } /* Mauve */
+html.macchiato h3, html.macchiato .content h3 { color: #8bd5ca !important; } /* Teal */
+html.macchiato h4, html.macchiato .content h4 { color: #eed49f !important; } /* Yellow */
+html.macchiato h5, html.macchiato .content h5 { color: #a6da95 !important; } /* Green */
+html.macchiato h6, html.macchiato .content h6 { color: #ee99a0 !important; } /* Maroon */
+
+/* Mocha (dark theme) */
+html.mocha h1, html.mocha .content h1 { color: #89b4fa !important; } /* Blue */
+html.mocha h2, html.mocha .content h2 { color: #cba6f7 !important; } /* Mauve */
+html.mocha h3, html.mocha .content h3 { color: #94e2d5 !important; } /* Teal */
+html.mocha h4, html.mocha .content h4 { color: #f9e2af !important; } /* Yellow */
+html.mocha h5, html.mocha .content h5 { color: #a6e3a1 !important; } /* Green */
+html.mocha h6, html.mocha .content h6 { color: #eba0ac !important; } /* Maroon */
+
+/* Ensure heading links inherit their heading color */
+html.latte :is(h1, h2, h3, h4, h5, h6) > a,
+html.frappe :is(h1, h2, h3, h4, h5, h6) > a,
+html.macchiato :is(h1, h2, h3, h4, h5, h6) > a,
+html.mocha :is(h1, h2, h3, h4, h5, h6) > a {
+    color: inherit !important;
+}

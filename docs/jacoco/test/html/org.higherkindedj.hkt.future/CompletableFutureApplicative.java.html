@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CompletableFutureApplicative.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.future</a> &gt; <span class="el_source">CompletableFutureApplicative.java</span></div><h1>CompletableFutureApplicative.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.future;
+
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Implements the {@link Applicative} type class for {@link java.util.concurrent.CompletableFuture},
+ * using {@link CompletableFutureKind.Witness} as the higher-kinded type witness.
+ *
+ * &lt;p&gt;This class provides the mechanisms to:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Lift pure values into a {@code CompletableFuture} context ({@link #of(Object)}).
+ *   &lt;li&gt;Apply a function wrapped in a {@code CompletableFuture} to a value also wrapped in a {@code
+ *       CompletableFuture} ({@link #ap(Kind, Kind)}).
+ * &lt;/ul&gt;
+ *
+ * It extends {@link CompletableFutureFunctor} to inherit the {@code map} operation.
+ *
+ * &lt;p&gt;Operations are performed asynchronously, leveraging the capabilities of {@link
+ * CompletableFuture}. For instance, {@link #ap(Kind, Kind)} uses {@link
+ * CompletableFuture#thenCombine(CompletionStage, BiFunction)} to wait for both the future holding
+ * the function and the future holding the value before applying the function.
+ *
+ * @see Applicative
+ * @see CompletableFutureFunctor
+ * @see CompletableFutureKind
+ * @see CompletableFutureKind.Witness
+ * @see CompletableFutureKindHelper
+ * @see java.util.concurrent.CompletableFuture
+ */
+public class CompletableFutureApplicative extends CompletableFutureFunctor
+    implements Applicative&lt;CompletableFutureKind.Witness&gt; {
+
+<span class="fc" id="L46">  private static final Class&lt;CompletableFutureApplicative&gt; COMPLETABLE_FUTURE_APPLICATIVE_CLASS =</span>
+      CompletableFutureApplicative.class;
+
+  /** Constructs a new {@code CompletableFutureApplicative} instance. */
+<span class="fc" id="L50">  public CompletableFutureApplicative() {</span>
+    // Default constructor
+<span class="fc" id="L52">  }</span>
+
+  /**
+   * Lifts a pure value into the {@link CompletableFuture} applicative context.
+   *
+   * &lt;p&gt;The provided value is wrapped in an immediately completed {@link CompletableFuture}. If the
+   * value is {@code null}, it results in a {@code CompletableFuture} completed with {@code null}.
+   *
+   * @param &lt;A&gt; The type of the value.
+   * @param value The value to lift. Can be {@code null}.
+   * @return A {@code Kind&lt;CompletableFutureKind.Witness, A&gt;} representing an already completed
+   *     {@link CompletableFuture} holding the given {@code value}. This corresponds to {@code
+   *     CompletableFuture.completedFuture(value)}. Never null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;CompletableFutureKind.Witness, A&gt; of(@Nullable A value) {
+<span class="fc" id="L68">    return FUTURE.widen(CompletableFuture.completedFuture(value));</span>
+  }
+
+  /**
+   * Applies a function, wrapped in a {@link CompletableFuture}, to a value, also wrapped in a
+   * {@link CompletableFuture}.
+   *
+   * &lt;p&gt;This operation waits for both the {@code CompletableFuture} containing the function ({@code
+   * ff}) and the {@code CompletableFuture} containing the value ({@code fa}) to complete. Once both
+   * are complete, the function is applied to the value. The result of this application is then
+   * wrapped in a new {@code CompletableFuture}.
+   *
+   * &lt;p&gt;If either of the input {@code CompletableFuture}s completes exceptionally, the resulting
+   * {@code CompletableFuture} will also complete exceptionally with that throwable.
+   *
+   * &lt;p&gt;The implementation uses {@link
+   * CompletableFuture#thenCombine(java.util.concurrent.CompletionStage,
+   * java.util.function.BiFunction)} to achieve this asynchronous coordination.
+   *
+   * @param &lt;A&gt; The input type of the function and the type of the value in {@code fa}.
+   * @param &lt;B&gt; The output type of the function and the type of the value in the resulting {@code
+   *     CompletableFuture}. The result of {@code func.apply(val)} can be {@code null} if type
+   *     {@code B} is nullable.
+   * @param ff A {@code Kind&lt;CompletableFutureKind.Witness, Function&lt;A, B&gt;&gt;} representing the
+   *     asynchronously available function. Must not be null.
+   * @param fa A {@code Kind&lt;CompletableFutureKind.Witness, A&gt;} representing the asynchronously
+   *     available value. Must not be null.
+   * @return A {@code Kind&lt;CompletableFutureKind.Witness, B&gt;} representing a new {@link
+   *     CompletableFuture} that will complete with the result of applying the function to the
+   *     value, or complete exceptionally if any of the preceding stages fail. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;CompletableFutureKind.Witness, B&gt; ap(
+      Kind&lt;CompletableFutureKind.Witness, ? extends Function&lt;A, B&gt;&gt; ff,
+      Kind&lt;CompletableFutureKind.Witness, A&gt; fa) {
+
+    // Enhanced validation with descriptive parameters
+<span class="fc" id="L108">    Validation.kind().requireNonNull(ff, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, &quot;function&quot;);</span>
+<span class="fc" id="L109">    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, &quot;argument&quot;);</span>
+
+<span class="fc" id="L111">    CompletableFuture&lt;? extends Function&lt;A, B&gt;&gt; futureF = FUTURE.narrow(ff);</span>
+<span class="fc" id="L112">    CompletableFuture&lt;A&gt; futureA = FUTURE.narrow(fa);</span>
+
+<span class="fc" id="L114">    CompletableFuture&lt;B&gt; futureB = futureF.thenCombine(futureA, (func, val) -&gt; func.apply(val));</span>
+<span class="fc" id="L115">    return FUTURE.widen(futureB);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

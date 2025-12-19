@@ -24,7 +24,7 @@ build on each other, and the logic remains visible even as complexity grows.
 
 ---
 
-## Sequential Composition: One Thing After Another
+## Sequential Composition: _One Thing After Another_
 
 The `via` method chains computations where each step depends on the previous
 result. It's the workhorse of effect composition.
@@ -75,7 +75,7 @@ side effects that must happen in order but don't pass data forward.
 
 ---
 
-## Independent Combination: All Together Now
+## Independent Combination: _All Together Now_
 
 `zipWith` combines computations that don't depend on each other. Neither
 needs the other's result to proceed.
@@ -165,6 +165,102 @@ structure at a glance.
 
 ---
 
+## Parallel Composition
+
+> *"The machine didn't think about one thing at a time. It thought about
+> many things, all at once, in parallel streams that only converged when
+> they had to."*
+>
+> — Neal Stephenson, *Cryptonomicon*
+
+Sequential composition with `via` is appropriate when each step depends on
+the previous. But when computations are genuinely independent, running them
+in parallel can dramatically reduce total execution time.
+
+### Expressing Parallelism with parZipWith
+
+`parZipWith` is `zipWith` with explicit parallel execution:
+
+```java
+IOPath<User> fetchUser = IOPath.delay(() -> userService.get(id));
+IOPath<Preferences> fetchPrefs = IOPath.delay(() -> prefService.get(id));
+
+// Sequential: ~200ms (100ms + 100ms)
+IOPath<Profile> sequential = fetchUser.zipWith(fetchPrefs, Profile::new);
+
+// Parallel: ~100ms (max of both)
+IOPath<Profile> parallel = fetchUser.parZipWith(fetchPrefs, Profile::new);
+```
+
+The operations are the same; the execution strategy differs. Use `parZipWith`
+when you want to make the parallel intent explicit.
+
+### N-ary Parallel Composition
+
+For three or four independent paths, use `PathOps` utilities:
+
+```java
+IOPath<Dashboard> dashboard = PathOps.parZip3(
+    fetchMetrics(),
+    fetchAlerts(),
+    fetchUsers(),
+    Dashboard::new
+);
+
+IOPath<Report> report = PathOps.parZip4(
+    fetchSales(),
+    fetchInventory(),
+    fetchCustomers(),
+    fetchTrends(),
+    Report::new
+);
+```
+
+### List Parallelism with parSequenceIO
+
+When you have a dynamic number of independent operations:
+
+```java
+List<IOPath<Product>> fetches = productIds.stream()
+    .map(id -> IOPath.delay(() -> productService.get(id)))
+    .toList();
+
+// All fetches run concurrently
+IOPath<List<Product>> products = PathOps.parSequenceIO(fetches);
+```
+
+### Racing Computations
+
+Sometimes you want whichever completes first:
+
+```java
+IOPath<Config> primary = IOPath.delay(() -> fetchFromPrimary());
+IOPath<Config> backup = IOPath.delay(() -> fetchFromBackup());
+
+// Returns whichever config arrives first
+IOPath<Config> fastest = primary.race(backup);
+```
+
+### Sequential vs Parallel: The Decision
+
+| Scenario | Use |
+|----------|-----|
+| B needs A's result | `via` (sequential) |
+| A and B independent, need both | `parZipWith` |
+| 3-4 independent operations | `parZip3`, `parZip4` |
+| List of independent operations | `parSequenceIO` |
+| Want fastest of alternatives | `race` |
+
+The wrong choice doesn't break correctness—just performance. When in doubt,
+prefer sequential; parallelise when profiling shows it matters.
+
+~~~admonish tip title="See Also"
+See [Advanced Effect Topics](advanced_topics.md) for comprehensive coverage of
+parallel execution patterns including `parSequenceFuture` and `raceIO`.
+~~~
+
+---
+
 ## Debugging with `peek`
 
 Effect chains can frustrate debugging. When something fails mid-pipeline,
@@ -211,7 +307,7 @@ Not every error should halt processing. Sometimes you have a sensible
 fallback. Sometimes you need to transform the error for the next layer.
 Sometimes you want to try several approaches before giving up.
 
-### Strategy 1: Recover with a Default
+### Strategy 1: _Recover with a Default_
 
 The operation might fail, but you have a reasonable fallback:
 
@@ -226,7 +322,7 @@ EitherPath<Error, User> user = Path.either(findUser(id))
 Use this when the fallback is genuinely acceptable, not when you're
 papering over problems you should be handling properly.
 
-### Strategy 2: Transform the Error
+### Strategy 2: _Transform the Error_
 
 Low-level errors leak implementation details. Transform them at layer
 boundaries:
@@ -240,7 +336,7 @@ EitherPath<ServiceError, Data> result =
 The original error is preserved as the cause; callers see a domain-appropriate
 type.
 
-### Strategy 3: Fallback Chain
+### Strategy 3: _Fallback Chain_
 
 Multiple sources for the same data, each with trade-offs:
 
@@ -260,7 +356,7 @@ EitherPath<Error, Config> config =
 Each `recoverWith` only triggers if the previous step failed. The first
 success short-circuits the chain.
 
-### Strategy 4: Accumulate All Errors
+### Strategy 4: _Accumulate All Errors_
 
 For validation where users should see everything wrong at once:
 
@@ -278,7 +374,7 @@ ValidationPath<List<String>, User> user =
 
 See [ValidationPath](path_types.md#validationpath) for the full API.
 
-### Strategy 5: Error Enrichment
+### Strategy 5: _Error Enrichment_
 
 Add context as errors propagate:
 
@@ -392,7 +488,7 @@ conversion (`toEitherPath`, `mapError`) happens at a deliberate boundary.
 
 ## Common Mistakes
 
-### Mistake 1: Using `via` for Independent Operations
+### Mistake 1: _Using `via` for Independent Operations_
 
 ```java
 // Misleading: suggests email validation depends on name
@@ -403,7 +499,7 @@ validateName(input)
 validateName(input).zipWith(validateEmail(input), (n, e) -> ...)
 ```
 
-### Mistake 2: Side Effects in `map`
+### Mistake 2: _Side Effects in `map`_
 
 ```java
 // Wrong: side effect hidden in map
@@ -422,7 +518,7 @@ path.via(user -> Path.io(() -> {
 }));
 ```
 
-### Mistake 3: Forgetting to Run
+### Mistake 3: _Forgetting to Run_
 
 ```java
 // Bug: nothing happens
@@ -439,7 +535,7 @@ void processUser(String id) {
 }
 ```
 
-### Mistake 4: Converting Back and Forth
+### Mistake 4: _Converting Back and Forth_
 
 ```java
 // Wasteful: converting repeatedly
@@ -462,6 +558,10 @@ Path.maybe(findUser(id))
 | Sequential | `via` | Each step depends on the previous |
 | Sequential (ignore value) | `then` | Sequencing without data flow |
 | Independent | `zipWith` | Combine unrelated computations |
+| Parallel binary | `parZipWith` | Two independent computations |
+| Parallel n-ary | `parZip3`, `parZip4` | 3-4 independent computations |
+| Parallel list | `parSequenceIO` | Dynamic number of computations |
+| First-to-finish | `race` | Redundant sources, timeouts |
 | Accumulate errors | `zipWithAccum` | Collect all validation failures |
 | Debug | `peek` | Observe without disrupting |
 | Default value | `recover` | Provide fallback on failure |

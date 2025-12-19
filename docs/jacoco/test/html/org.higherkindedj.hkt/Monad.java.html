@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Monad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt</a> &gt; <span class="el_source">Monad.java</span></div><h1>Monad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.function.Function5;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Represents the Monad type class, extending Applicative. Inherits 'of', 'ap', 'map' and adds
+ * 'flatMap' (sequencing operations).
+ *
+ * @param &lt;M&gt; The witness type for the Monad (e.g., ListKind.class, OptionalKind.class)
+ */
+@NullMarked
+public interface Monad&lt;M&gt; extends Applicative&lt;M&gt; {
+
+  // 'of' is  inherited from Applicative
+  // 'map' is inherited from Functor (via Applicative)
+  // 'ap' is inherited from Applicative
+
+  /**
+   * Sequences monadic operations. Takes a monadic value and a function that produces a new monadic
+   * value, returning the result within the monadic context. Also known as 'bind' or '&gt;&gt;='.
+   *
+   * @param f The function to apply, which returns a monadic value (e.g., A -&gt; {@code ListKind&lt;B&gt;}).
+   *     Assumed non-null.
+   * @param ma The input monadic value (e.g., {@code ListKind&lt;A&gt;}). Assumed non-null.
+   * @param &lt;A&gt; The input type within the monad.
+   * @param &lt;B&gt; The result type within the monad.
+   * @return The resulting monadic value (e.g., {@code ListKind&lt;B&gt;}). Guaranteed non-null.
+   */
+  &lt;A, B&gt; Kind&lt;M, B&gt; flatMap(final Function&lt;? super A, ? extends Kind&lt;M, B&gt;&gt; f, final Kind&lt;M, A&gt; ma);
+
+  /**
+   * Conditionally sequences a monadic operation. If the predicate is true, it applies {@code
+   * flatMap} with the given function; otherwise, it returns the original monadic value lifted into
+   * the new type.
+   *
+   * @param predicate The condition to test on the monad's value.
+   * @param ifTrue The function to apply if the predicate is true.
+   * @param ifFalse The function to apply if the predicate is false.
+   * @param ma The input monadic value.
+   * @param &lt;A&gt; The input type within the monad.
+   * @param &lt;B&gt; The result type within the monad.
+   * @return A new monadic value.
+   */
+  default &lt;A, B&gt; Kind&lt;M, B&gt; flatMapIfOrElse(
+      final Predicate&lt;? super A&gt; predicate,
+      final Function&lt;? super A, ? extends Kind&lt;M, B&gt;&gt; ifTrue,
+      final Function&lt;? super A, ? extends Kind&lt;M, B&gt;&gt; ifFalse,
+      final Kind&lt;M, A&gt; ma) {
+    // Both branches are guaranteed by the compiler to return a Kind&lt;M, B&gt;.
+<span class="fc bfc" id="L61" title="All 2 branches covered.">    return flatMap(a -&gt; predicate.test(a) ? ifTrue.apply(a) : ifFalse.apply(a), ma);</span>
+  }
+
+  /**
+   * Allows &quot;peeking&quot; at the value inside the Monad without changing the flow. This is useful for
+   * logging or debugging.
+   *
+   * @param action The consumer to execute on the value inside the monad.
+   * @param ma The input monadic value.
+   * @param &lt;A&gt; The type of the value in the monad.
+   * @return The original monadic value.
+   */
+  default &lt;A&gt; Kind&lt;M, A&gt; peek(final Consumer&lt;? super A&gt; action, final Kind&lt;M, A&gt; ma) {
+<span class="fc" id="L74">    return map(</span>
+        a -&gt; {
+<span class="fc" id="L76">          action.accept(a);</span>
+<span class="fc" id="L77">          return a;</span>
+        },
+        ma);
+  }
+
+  /**
+   * Discards the result of a monadic computation, replacing it with Unit. This explicitly
+   * represents &quot;computation completed but result is not interesting&quot;.
+   *
+   * &lt;p&gt;This is more explicit and type-safe than using {@code as(null, ma)}.
+   *
+   * &lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Database write returns row count, but we don't care
+   * Kind&lt;IO.Witness, Integer&gt; write = database.write(data);
+   * Kind&lt;IO.Witness, Unit&gt; justWrite = monad.asUnit(write);
+   *
+   * // Chain with other effects
+   * Kind&lt;IO.Witness, Unit&gt; sequence = monad.flatMap(
+   *     _ -&gt; monad.asUnit(database.write(moreData)),
+   *     justWrite
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param ma The monadic computation whose result will be discarded
+   * @param &lt;A&gt; The type of the discarded result
+   * @return The same computation structure, but with Unit as the result
+   */
+  default &lt;A&gt; Kind&lt;M, Unit&gt; asUnit(final Kind&lt;M, A&gt; ma) {
+<span class="fc" id="L107">    return map(_ -&gt; Unit.INSTANCE, ma);</span>
+  }
+
+  /**
+   * Keeps the effect of this Monad, but replaces the result with the given value.
+   *
+   * &lt;p&gt;&lt;b&gt;Null Safety:&lt;/b&gt; If you want to explicitly represent &quot;no result&quot;, use {@link
+   * #asUnit(Kind)} instead of passing null.
+   *
+   * @param b The new value to replace the result with. Must not be null.
+   * @param ma The input monadic value.
+   * @param &lt;A&gt; The original type of the value in the monad.
+   * @param &lt;B&gt; The type of the new value.
+   * @return A new monadic value with the result replaced by 'b'.
+   * @throws NullPointerException if b is null (use asUnit() for Unit results)
+   */
+  default &lt;A, B&gt; Kind&lt;M, B&gt; as(final B b, final Kind&lt;M, A&gt; ma) {
+<span class="fc" id="L124">    requireNonNull(b, &quot;Use asUnit() instead of as(null, ma)&quot;);</span>
+<span class="fc" id="L125">    return map(_ -&gt; b, ma);</span>
+  }
+
+  // --- flatMapN implementations ---
+
+  /**
+   * Sequences two monadic values and combines their results using a function that returns a monadic
+   * value. This is the monadic equivalent of {@link Applicative#map2}.
+   *
+   * &lt;p&gt;This operation is useful when you need to perform two independent monadic computations and
+   * then combine their results in a way that may involve additional effects.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Fetch user and their preferences, then validate together
+   * Kind&lt;IO.Witness, User&gt; user = fetchUser(userId);
+   * Kind&lt;IO.Witness, Preferences&gt; prefs = fetchPreferences(userId);
+   * Kind&lt;IO.Witness, ValidatedProfile&gt; profile = monad.flatMap2(
+   *     user,
+   *     prefs,
+   *     (u, p) -&gt; validateProfile(u, p) // returns Kind&lt;IO.Witness, ValidatedProfile&gt;
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param ma The first non-null monadic value {@code Kind&lt;M, A&gt;}.
+   * @param mb The second non-null monadic value {@code Kind&lt;M, B&gt;}.
+   * @param f A non-null function that takes values from both monads and returns a new monadic
+   *     value.
+   * @param &lt;A&gt; The type of the value in {@code ma}.
+   * @param &lt;B&gt; The type of the value in {@code mb}.
+   * @param &lt;R&gt; The type of the result within the returned monad.
+   * @return A non-null {@code Kind&lt;M, R&gt;} containing the result of the combined computation.
+   * @throws NullPointerException if any argument is null.
+   */
+  default &lt;A, B, R&gt; Kind&lt;M, R&gt; flatMap2(
+      final Kind&lt;M, A&gt; ma,
+      final Kind&lt;M, B&gt; mb,
+      final BiFunction&lt;? super A, ? super B, ? extends Kind&lt;M, R&gt;&gt; f) {
+<span class="fc" id="L164">    requireNonNull(ma, &quot;Kind&lt;M, A&gt; ma for flatMap2 cannot be null&quot;);</span>
+<span class="fc" id="L165">    requireNonNull(mb, &quot;Kind&lt;M, B&gt; mb for flatMap2 cannot be null&quot;);</span>
+<span class="fc" id="L166">    requireNonNull(f, &quot;combining function for flatMap2 cannot be null&quot;);</span>
+<span class="fc" id="L167">    return flatMap(a -&gt; flatMap(b -&gt; f.apply(a, b), mb), ma);</span>
+  }
+
+  /**
+   * Sequences three monadic values and combines their results using a function that returns a
+   * monadic value. This is the monadic equivalent of {@link Applicative#map3}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Combine three database queries with a final validation
+   * Kind&lt;IO.Witness, Result&gt; result = monad.flatMap3(
+   *     fetchUser(id),
+   *     fetchOrder(orderId),
+   *     fetchInventory(itemId),
+   *     (user, order, inventory) -&gt; validateAndProcess(user, order, inventory)
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param ma The first non-null monadic value {@code Kind&lt;M, A&gt;}.
+   * @param mb The second non-null monadic value {@code Kind&lt;M, B&gt;}.
+   * @param mc The third non-null monadic value {@code Kind&lt;M, C&gt;}.
+   * @param f A non-null function that takes values from all three monads and returns a new monadic
+   *     value.
+   * @param &lt;A&gt; The type of the value in {@code ma}.
+   * @param &lt;B&gt; The type of the value in {@code mb}.
+   * @param &lt;C&gt; The type of the value in {@code mc}.
+   * @param &lt;R&gt; The type of the result within the returned monad.
+   * @return A non-null {@code Kind&lt;M, R&gt;} containing the result of the combined computation.
+   * @throws NullPointerException if any argument is null.
+   */
+  default &lt;A, B, C, R&gt; Kind&lt;M, R&gt; flatMap3(
+      final Kind&lt;M, A&gt; ma,
+      final Kind&lt;M, B&gt; mb,
+      final Kind&lt;M, C&gt; mc,
+      final Function3&lt;? super A, ? super B, ? super C, ? extends Kind&lt;M, R&gt;&gt; f) {
+<span class="fc" id="L203">    requireNonNull(ma, &quot;Kind&lt;M, A&gt; ma for flatMap3 cannot be null&quot;);</span>
+<span class="fc" id="L204">    requireNonNull(mb, &quot;Kind&lt;M, B&gt; mb for flatMap3 cannot be null&quot;);</span>
+<span class="fc" id="L205">    requireNonNull(mc, &quot;Kind&lt;M, C&gt; mc for flatMap3 cannot be null&quot;);</span>
+<span class="fc" id="L206">    requireNonNull(f, &quot;combining function for flatMap3 cannot be null&quot;);</span>
+<span class="fc" id="L207">    return flatMap(a -&gt; flatMap2(mb, mc, (b, c) -&gt; f.apply(a, b, c)), ma);</span>
+  }
+
+  /**
+   * Sequences four monadic values and combines their results using a function that returns a
+   * monadic value. This is the monadic equivalent of {@link Applicative#map4}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Combine four data sources with validation
+   * Kind&lt;IO.Witness, OrderConfirmation&gt; confirmation = monad.flatMap4(
+   *     fetchUser(userId),
+   *     fetchProduct(productId),
+   *     checkInventory(productId),
+   *     getShippingInfo(addressId),
+   *     (user, product, inventory, shipping) -&gt;
+   *         validateAndCreateOrder(user, product, inventory, shipping)
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param ma The first non-null monadic value {@code Kind&lt;M, A&gt;}.
+   * @param mb The second non-null monadic value {@code Kind&lt;M, B&gt;}.
+   * @param mc The third non-null monadic value {@code Kind&lt;M, C&gt;}.
+   * @param md The fourth non-null monadic value {@code Kind&lt;M, D&gt;}.
+   * @param f A non-null function that takes values from all four monads and returns a new monadic
+   *     value.
+   * @param &lt;A&gt; The type of the value in {@code ma}.
+   * @param &lt;B&gt; The type of the value in {@code mb}.
+   * @param &lt;C&gt; The type of the value in {@code mc}.
+   * @param &lt;D&gt; The type of the value in {@code md}.
+   * @param &lt;R&gt; The type of the result within the returned monad.
+   * @return A non-null {@code Kind&lt;M, R&gt;} containing the result of the combined computation.
+   * @throws NullPointerException if any argument is null.
+   */
+  default &lt;A, B, C, D, R&gt; Kind&lt;M, R&gt; flatMap4(
+      final Kind&lt;M, A&gt; ma,
+      final Kind&lt;M, B&gt; mb,
+      final Kind&lt;M, C&gt; mc,
+      final Kind&lt;M, D&gt; md,
+      final Function4&lt;? super A, ? super B, ? super C, ? super D, ? extends Kind&lt;M, R&gt;&gt; f) {
+<span class="fc" id="L248">    requireNonNull(ma, &quot;Kind&lt;M, A&gt; ma for flatMap4 cannot be null&quot;);</span>
+<span class="fc" id="L249">    requireNonNull(mb, &quot;Kind&lt;M, B&gt; mb for flatMap4 cannot be null&quot;);</span>
+<span class="fc" id="L250">    requireNonNull(mc, &quot;Kind&lt;M, C&gt; mc for flatMap4 cannot be null&quot;);</span>
+<span class="fc" id="L251">    requireNonNull(md, &quot;Kind&lt;M, D&gt; md for flatMap4 cannot be null&quot;);</span>
+<span class="fc" id="L252">    requireNonNull(f, &quot;combining function for flatMap4 cannot be null&quot;);</span>
+<span class="fc" id="L253">    return flatMap(a -&gt; flatMap3(mb, mc, md, (b, c, d) -&gt; f.apply(a, b, c, d)), ma);</span>
+  }
+
+  /**
+   * Sequences five monadic values and combines their results using a function that returns a
+   * monadic value. This is the monadic equivalent of {@link Applicative#map5}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Combine five data sources for a complex operation
+   * Kind&lt;IO.Witness, Report&gt; report = monad.flatMap5(
+   *     fetchUser(userId),
+   *     fetchAccount(accountId),
+   *     getTransactions(accountId),
+   *     loadPreferences(userId),
+   *     checkCompliance(userId),
+   *     (user, account, transactions, prefs, compliance) -&gt;
+   *         generateReport(user, account, transactions, prefs, compliance)
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param ma The first non-null monadic value {@code Kind&lt;M, A&gt;}.
+   * @param mb The second non-null monadic value {@code Kind&lt;M, B&gt;}.
+   * @param mc The third non-null monadic value {@code Kind&lt;M, C&gt;}.
+   * @param md The fourth non-null monadic value {@code Kind&lt;M, D&gt;}.
+   * @param me The fifth non-null monadic value {@code Kind&lt;M, E&gt;}.
+   * @param f A non-null function that takes values from all five monads and returns a new monadic
+   *     value.
+   * @param &lt;A&gt; The type of the value in {@code ma}.
+   * @param &lt;B&gt; The type of the value in {@code mb}.
+   * @param &lt;C&gt; The type of the value in {@code mc}.
+   * @param &lt;D&gt; The type of the value in {@code md}.
+   * @param &lt;E&gt; The type of the value in {@code me}.
+   * @param &lt;R&gt; The type of the result within the returned monad.
+   * @return A non-null {@code Kind&lt;M, R&gt;} containing the result of the combined computation.
+   * @throws NullPointerException if any argument is null.
+   */
+  default &lt;A, B, C, D, E, R&gt; Kind&lt;M, R&gt; flatMap5(
+      final Kind&lt;M, A&gt; ma,
+      final Kind&lt;M, B&gt; mb,
+      final Kind&lt;M, C&gt; mc,
+      final Kind&lt;M, D&gt; md,
+      final Kind&lt;M, E&gt; me,
+      final Function5&lt;? super A, ? super B, ? super C, ? super D, ? super E, ? extends Kind&lt;M, R&gt;&gt;
+          f) {
+<span class="fc" id="L299">    requireNonNull(ma, &quot;Kind&lt;M, A&gt; ma for flatMap5 cannot be null&quot;);</span>
+<span class="fc" id="L300">    requireNonNull(mb, &quot;Kind&lt;M, B&gt; mb for flatMap5 cannot be null&quot;);</span>
+<span class="fc" id="L301">    requireNonNull(mc, &quot;Kind&lt;M, C&gt; mc for flatMap5 cannot be null&quot;);</span>
+<span class="fc" id="L302">    requireNonNull(md, &quot;Kind&lt;M, D&gt; md for flatMap5 cannot be null&quot;);</span>
+<span class="fc" id="L303">    requireNonNull(me, &quot;Kind&lt;M, E&gt; me for flatMap5 cannot be null&quot;);</span>
+<span class="fc" id="L304">    requireNonNull(f, &quot;combining function for flatMap5 cannot be null&quot;);</span>
+<span class="fc" id="L305">    return flatMap(a -&gt; flatMap4(mb, mc, md, me, (b, c, d, e) -&gt; f.apply(a, b, c, d, e)), ma);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

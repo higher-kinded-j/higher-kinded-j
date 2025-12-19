@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fold.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics</a> &gt; <span class="el_source">Fold.java</span></div><h1>Fold.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Unit;
+
+/**
+ * A **Fold** is a read-only optic for querying and extracting data from a structure. Think of it as
+ * a functional &quot;query&quot; or &quot;getter&quot; 🔍 that can focus on zero or more parts within a larger whole.
+ *
+ * &lt;p&gt;A Fold is the right tool for read-only operations such as:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Extracting all values of a certain type from a complex structure
+ *   &lt;li&gt;Searching for elements matching a predicate
+ *   &lt;li&gt;Counting elements
+ *   &lt;li&gt;Checking if any/all elements satisfy a condition
+ *   &lt;li&gt;Aggregating values using a {@link Monoid}
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Unlike {@link Lens} or {@link Traversal}, a Fold is strictly read-only and cannot modify the
+ * structure. However, any {@link Lens}, {@link Prism}, {@link Iso}, or {@link Traversal} can be
+ * viewed as a Fold using their respective {@code asFold()} methods.
+ *
+ * &lt;p&gt;It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ *
+ * &lt;p&gt;&lt;b&gt;Example usage:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * record Order(List&lt;Item&gt; items) {}
+ * record Item(String name, int price) {}
+ *
+ * // Create a Fold that focuses on all items in an order
+ * Fold&lt;Order, Item&gt; itemsFold = ...;
+ *
+ * Order order = new Order(List.of(
+ *   new Item(&quot;Apple&quot;, 100),
+ *   new Item(&quot;Banana&quot;, 50),
+ *   new Item(&quot;Cherry&quot;, 150)
+ * ));
+ *
+ * // Extract all items
+ * List&lt;Item&gt; allItems = itemsFold.getAll(order);
+ *
+ * // Find expensive items
+ * Optional&lt;Item&gt; expensive = itemsFold.find(item -&gt; item.price() &gt; 100, order);
+ *
+ * // Count items
+ * int count = itemsFold.length(order);
+ *
+ * // Check if any item is expensive
+ * boolean hasExpensive = itemsFold.exists(item -&gt; item.price() &gt; 100, order);
+ * }&lt;/pre&gt;
+ *
+ * @param &lt;S&gt; The type of the whole structure (e.g., {@code Order}).
+ * @param &lt;A&gt; The type of the focused parts (e.g., {@code Item}).
+ */
+public interface Fold&lt;S, A&gt; extends Optic&lt;S, S, A, A&gt; {
+
+  /**
+   * Folds all focused parts into a summary value using a {@link Monoid}.
+   *
+   * &lt;p&gt;This is the fundamental operation of a Fold. It maps each focused part {@code A} to a
+   * monoidal value {@code M} using the function {@code f}, then combines all these values using the
+   * monoid's {@code combine} operation.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Sum all prices
+   * Monoid&lt;Integer&gt; sumMonoid = Monoid.of(0, Integer::sum);
+   * int totalPrice = itemsFold.foldMap(sumMonoid, Item::price, order);
+   * }&lt;/pre&gt;
+   *
+   * @param monoid The {@link Monoid} used to combine the mapped values.
+   * @param f The function to map each focused part {@code A} to the monoidal type {@code M}.
+   * @param source The source structure.
+   * @param &lt;M&gt; The monoidal type.
+   * @return The aggregated result of type {@code M}.
+   */
+  &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source);
+
+  /**
+   * {@inheritDoc}
+   *
+   * &lt;p&gt;For a {@code Fold}, the {@code modifyF} operation is read-only: it extracts values using the
+   * {@code Const} applicative but does not actually modify the structure. The returned structure is
+   * always identical to the input.
+   *
+   * &lt;p&gt;This method exists to satisfy the {@link Optic} interface and enable composition with other
+   * optics. However, for pure read operations, prefer using {@link #foldMap}, {@link #getAll}, or
+   * other query methods.
+   */
+  @Override
+  default &lt;F&gt; Kind&lt;F, S&gt; modifyF(Function&lt;A, Kind&lt;F, A&gt;&gt; f, S s, Applicative&lt;F&gt; app) {
+    // For Fold, modifyF must traverse and apply effects from f, even though
+    // we don't use the results to modify the structure (it's read-only).
+    // We combine effects using a Monoid that sequences them via the Applicative.
+    // Note: We use Unit.INSTANCE instead of null to avoid issues with Applicatives
+    // where of(null) produces an empty/failure result (e.g., OptionalMonad).
+<span class="fc" id="L109">    Monoid&lt;Kind&lt;F, Unit&gt;&gt; effectMonoid =</span>
+<span class="fc" id="L110">        new Monoid&lt;&gt;() {</span>
+          @Override
+          public Kind&lt;F, Unit&gt; empty() {
+<span class="fc" id="L113">            return app.of(Unit.INSTANCE);</span>
+          }
+
+          @Override
+          public Kind&lt;F, Unit&gt; combine(Kind&lt;F, Unit&gt; a, Kind&lt;F, Unit&gt; b) {
+<span class="fc" id="L118">            return app.map2(a, b, (v1, v2) -&gt; Unit.INSTANCE);</span>
+          }
+        };
+
+<span class="fc" id="L122">    Kind&lt;F, Unit&gt; effects =</span>
+<span class="fc" id="L123">        foldMap(effectMonoid, a -&gt; app.map(ignored -&gt; Unit.INSTANCE, f.apply(a)), s);</span>
+
+<span class="fc" id="L125">    return app.map(ignored -&gt; s, effects);</span>
+  }
+
+  /**
+   * Extracts all focused parts from the source structure into a {@link List}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Item&gt; allItems = itemsFold.getAll(order);
+   * }&lt;/pre&gt;
+   *
+   * @param source The source structure.
+   * @return A {@code List} containing all focused parts, in the order they were encountered.
+   */
+  default List&lt;A&gt; getAll(S source) {
+    // Use mutable accumulator for O(k) performance instead of O(k²) from list copying
+<span class="fc" id="L142">    final List&lt;A&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L143">    Monoid&lt;Void&gt; accumulatorMonoid =</span>
+<span class="fc" id="L144">        new Monoid&lt;&gt;() {</span>
+          @Override
+          public Void empty() {
+<span class="fc" id="L147">            return null;</span>
+          }
+
+          @Override
+          public Void combine(Void a, Void b) {
+<span class="fc" id="L152">            return null;</span>
+          }
+        };
+
+<span class="fc" id="L156">    foldMap(</span>
+        accumulatorMonoid,
+        a -&gt; {
+<span class="fc" id="L159">          result.add(a);</span>
+<span class="fc" id="L160">          return null;</span>
+        },
+        source);
+<span class="fc" id="L163">    return result;</span>
+  }
+
+  /**
+   * Returns the first focused part, if any.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Optional&lt;Item&gt; firstItem = itemsFold.preview(order);
+   * }&lt;/pre&gt;
+   *
+   * @param source The source structure.
+   * @return An {@link Optional} containing the first focused part, or {@code Optional.empty()} if
+   *     there are no focuses.
+   */
+  default Optional&lt;A&gt; preview(S source) {
+<span class="fc" id="L180">    return foldMap(firstOptionalMonoid(), Optional::of, source);</span>
+  }
+
+  /**
+   * Finds the first focused part that matches the given predicate.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Optional&lt;Item&gt; expensive = itemsFold.find(item -&gt; item.price() &gt; 100, order);
+   * }&lt;/pre&gt;
+   *
+   * @param predicate The predicate to test each focused part.
+   * @param source The source structure.
+   * @return An {@link Optional} containing the first matching part, or {@code Optional.empty()} if
+   *     no part matches.
+   */
+  default Optional&lt;A&gt; find(Predicate&lt;? super A&gt; predicate, S source) {
+<span class="fc" id="L198">    return foldMap(</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        firstOptionalMonoid(), a -&gt; predicate.test(a) ? Optional.of(a) : Optional.empty(), source);</span>
+  }
+
+  /**
+   * Checks if there are no focused parts in the structure.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * boolean noItems = itemsFold.isEmpty(order);
+   * }&lt;/pre&gt;
+   *
+   * @param source The source structure.
+   * @return {@code true} if there are no focused parts, {@code false} otherwise.
+   */
+  default boolean isEmpty(S source) {
+<span class="fc bfc" id="L215" title="All 2 branches covered.">    return length(source) == 0;</span>
+  }
+
+  /**
+   * Counts the number of focused parts in the structure.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * int itemCount = itemsFold.length(order);
+   * }&lt;/pre&gt;
+   *
+   * @param source The source structure.
+   * @return The number of focused parts.
+   */
+  default int length(S source) {
+<span class="fc" id="L231">    return foldMap(sumIntMonoid(), a -&gt; 1, source);</span>
+  }
+
+  /**
+   * Checks if any focused part matches the given predicate.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * boolean hasExpensive = itemsFold.exists(item -&gt; item.price() &gt; 100, order);
+   * }&lt;/pre&gt;
+   *
+   * @param predicate The predicate to test each focused part.
+   * @param source The source structure.
+   * @return {@code true} if at least one focused part matches, {@code false} otherwise.
+   */
+  default boolean exists(Predicate&lt;? super A&gt; predicate, S source) {
+<span class="fc" id="L248">    return foldMap(anyBooleanMonoid(), predicate::test, source);</span>
+  }
+
+  /**
+   * Checks if all focused parts match the given predicate.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * boolean allAffordable = itemsFold.all(item -&gt; item.price() &lt;= 100, order);
+   * }&lt;/pre&gt;
+   *
+   * @param predicate The predicate to test each focused part.
+   * @param source The source structure.
+   * @return {@code true} if all focused parts match (or if there are no focused parts), {@code
+   *     false} otherwise.
+   */
+  default boolean all(Predicate&lt;? super A&gt; predicate, S source) {
+<span class="fc" id="L266">    return foldMap(allBooleanMonoid(), predicate::test, source);</span>
+  }
+
+  /**
+   * Composes this {@code Fold&lt;S, A&gt;} with another {@code Fold&lt;A, B&gt;} to create a new {@code Fold&lt;S,
+   * B&gt;}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Fold&lt;Order, Item&gt; itemsFold = ...;
+   * Fold&lt;Item, String&gt; nameFold = ...;
+   * Fold&lt;Order, String&gt; namesFold = itemsFold.andThen(nameFold);
+   *
+   * List&lt;String&gt; allNames = namesFold.getAll(order);
+   * }&lt;/pre&gt;
+   *
+   * @param other The {@link Fold} to compose with.
+   * @param &lt;B&gt; The type of the final focused parts.
+   * @return A new, composed {@link Fold}.
+   */
+  default &lt;B&gt; Fold&lt;S, B&gt; andThen(final Fold&lt;A, B&gt; other) {
+<span class="fc" id="L288">    Fold&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L289">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super B, ? extends M&gt; f, S source) {
+<span class="fc" id="L292">        return self.foldMap(monoid, a -&gt; other.foldMap(monoid, f, a), source);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates a new {@code Fold} that only focuses on elements matching the given predicate.
+   *
+   * &lt;p&gt;This is a composable filtering combinator for read-only queries. Elements that don't match
+   * the predicate are excluded from all fold operations (getAll, foldMap, exists, etc.).
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Fold from Order to all Items
+   * Fold&lt;Order, Item&gt; itemsFold = Fold.of(Order::items);
+   *
+   * // Filter to expensive items only
+   * Fold&lt;Order, Item&gt; expensiveItems = itemsFold.filtered(item -&gt; item.price() &gt; 100);
+   *
+   * // Usage:
+   * int count = expensiveItems.length(order);
+   * // Returns count of expensive items only
+   *
+   * List&lt;Item&gt; expensive = expensiveItems.getAll(order);
+   * // Returns only items with price &gt; 100
+   *
+   * int totalExpensive = expensiveItems.foldMap(sumMonoid, Item::price, order);
+   * // Sum of only expensive items
+   * }&lt;/pre&gt;
+   *
+   * @param predicate The predicate to filter elements by
+   * @return A new {@code Fold} that only focuses on matching elements
+   */
+  default Fold&lt;S, A&gt; filtered(Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L327">    Fold&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L328">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        return self.foldMap(monoid, a -&gt; predicate.test(a) ? f.apply(a) : monoid.empty(), source);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates a new {@code Fold} that only focuses on elements where a nested query satisfies the
+   * given predicate.
+   *
+   * &lt;p&gt;This advanced filtering combinator allows filtering based on properties accessed through
+   * another optic (Fold), enabling queries like &quot;all items from orders where the order total
+   * exceeds $500&quot;.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Fold from Customer to all Items across all orders
+   * Fold&lt;Customer, Item&gt; customerItems = customerOrdersFold.andThen(orderItemsFold);
+   *
+   * // Fold from Item to its category tags
+   * Fold&lt;Item, String&gt; itemTags = Fold.of(Item::tags);
+   *
+   * // Filter to items that have any &quot;premium&quot; tag
+   * Fold&lt;Customer, Item&gt; premiumItems =
+   *     customerItems.filterBy(itemTags, tag -&gt; tag.equals(&quot;premium&quot;));
+   *
+   * // Get all premium items
+   * List&lt;Item&gt; premium = premiumItems.getAll(customer);
+   * }&lt;/pre&gt;
+   *
+   * @param query The {@link Fold} to query each focused element
+   * @param predicate The predicate to test the queried values
+   * @param &lt;B&gt; The type of values queried by the Fold
+   * @return A new {@code Fold} that only focuses on elements where the query matches
+   */
+  default &lt;B&gt; Fold&lt;S, A&gt; filterBy(Fold&lt;A, B&gt; query, Predicate&lt;? super B&gt; predicate) {
+<span class="fc" id="L367">    Fold&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L368">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L371">        return self.foldMap(</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">            monoid, a -&gt; query.exists(predicate, a) ? f.apply(a) : monoid.empty(), source);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Fold} from a function that extracts a list of focused parts.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Fold&lt;Order, Item&gt; itemsFold = Fold.of(Order::items);
+   * }&lt;/pre&gt;
+   *
+   * @param getAll A function that extracts all focused parts from the structure.
+   * @param &lt;S&gt; The type of the whole structure.
+   * @param &lt;A&gt; The type of the focused parts.
+   * @return A new {@code Fold} instance.
+   */
+  static &lt;S, A&gt; Fold&lt;S, A&gt; of(Function&lt;S, List&lt;A&gt;&gt; getAll) {
+<span class="fc" id="L392">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L395">        M result = monoid.empty();</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">        for (A a : getAll.apply(source)) {</span>
+<span class="fc" id="L397">          result = monoid.combine(result, f.apply(a));</span>
+<span class="fc" id="L398">        }</span>
+<span class="fc" id="L399">        return result;</span>
+      }
+    };
+  }
+
+  // Private helper monoids to reduce code duplication
+
+  /**
+   * Returns a monoid that keeps the first non-empty Optional.
+   *
+   * @param &lt;T&gt; The type contained in the Optional.
+   * @return A monoid for finding the first element.
+   */
+  private static &lt;T&gt; Monoid&lt;Optional&lt;T&gt;&gt; firstOptionalMonoid() {
+<span class="fc" id="L413">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Optional&lt;T&gt; empty() {
+<span class="fc" id="L416">        return Optional.empty();</span>
+      }
+
+      @Override
+      public Optional&lt;T&gt; combine(Optional&lt;T&gt; a, Optional&lt;T&gt; b) {
+<span class="fc bfc" id="L421" title="All 2 branches covered.">        return a.isPresent() ? a : b;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a monoid for summing integers.
+   *
+   * @return A monoid for integer addition.
+   */
+  private static Monoid&lt;Integer&gt; sumIntMonoid() {
+<span class="fc" id="L432">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Integer empty() {
+<span class="fc" id="L435">        return 0;</span>
+      }
+
+      @Override
+      public Integer combine(Integer a, Integer b) {
+<span class="fc" id="L440">        return a + b;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a monoid for boolean OR (disjunction).
+   *
+   * @return A monoid that returns true if any value is true.
+   */
+  private static Monoid&lt;Boolean&gt; anyBooleanMonoid() {
+<span class="fc" id="L451">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Boolean empty() {
+<span class="fc" id="L454">        return false;</span>
+      }
+
+      @Override
+      public Boolean combine(Boolean a, Boolean b) {
+<span class="fc bfc" id="L459" title="All 4 branches covered.">        return a || b;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a monoid for boolean AND (conjunction).
+   *
+   * @return A monoid that returns true if all values are true.
+   */
+  private static Monoid&lt;Boolean&gt; allBooleanMonoid() {
+<span class="fc" id="L470">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Boolean empty() {
+<span class="fc" id="L473">        return true;</span>
+      }
+
+      @Override
+      public Boolean combine(Boolean a, Boolean b) {
+<span class="fc bfc" id="L478" title="All 4 branches covered.">        return a &amp;&amp; b;</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

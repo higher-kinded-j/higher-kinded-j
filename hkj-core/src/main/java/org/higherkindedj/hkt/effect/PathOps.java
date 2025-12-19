@@ -7,10 +7,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
@@ -730,5 +734,231 @@ public final class PathOps {
     }
 
     return CompletableFuturePath.fromFuture(result);
+  }
+
+  // ===== Parallel IOPath Operations =====
+
+  /**
+   * Executes a list of IOPaths in parallel and collects results.
+   *
+   * <p>All IOPaths are executed concurrently using CompletableFuture. If any IOPath fails, the
+   * result fails with that exception.
+   *
+   * @param paths the IOPaths to execute in parallel; must not be null
+   * @param <A> the element type
+   * @return an IOPath containing a list of all results
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> IOPath<List<A>> parSequenceIO(List<IOPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return Path.ioPure(List.of());
+    }
+
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              List<CompletableFuture<A>> futures =
+                  paths.stream()
+                      .map(path -> CompletableFuture.supplyAsync(path::unsafeRun))
+                      .collect(Collectors.toList());
+
+              try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+                return futures.stream().map(CompletableFuture::join).toList();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Parallel execution interrupted", e);
+              } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException re) {
+                  throw re;
+                }
+                throw new RuntimeException(cause);
+              }
+            }));
+  }
+
+  /**
+   * Executes a list of CompletableFuturePaths in parallel and collects results.
+   *
+   * <p>All futures run concurrently. If any fails, the result fails.
+   *
+   * @param paths the paths to execute; must not be null
+   * @param <A> the element type
+   * @return a CompletableFuturePath containing a list of all results
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> CompletableFuturePath<List<A>> parSequenceFuture(
+      List<CompletableFuturePath<A>> paths) {
+    // This already exists as sequenceFuture, which is already parallel
+    return sequenceFuture(paths);
+  }
+
+  /**
+   * Combines three IOPaths in parallel.
+   *
+   * @param first the first IOPath; must not be null
+   * @param second the second IOPath; must not be null
+   * @param third the third IOPath; must not be null
+   * @param combiner the function to combine results; must not be null
+   * @param <A> the type of the first value
+   * @param <B> the type of the second value
+   * @param <C> the type of the third value
+   * @param <D> the type of the combined result
+   * @return an IOPath containing the combined result
+   * @throws NullPointerException if any argument is null
+   */
+  public static <A, B, C, D> IOPath<D> parZip3(
+      IOPath<A> first,
+      IOPath<B> second,
+      IOPath<C> third,
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
+    Objects.requireNonNull(first, "first must not be null");
+    Objects.requireNonNull(second, "second must not be null");
+    Objects.requireNonNull(third, "third must not be null");
+    Objects.requireNonNull(combiner, "combiner must not be null");
+
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              CompletableFuture<A> futureA = CompletableFuture.supplyAsync(first::unsafeRun);
+              CompletableFuture<B> futureB = CompletableFuture.supplyAsync(second::unsafeRun);
+              CompletableFuture<C> futureC = CompletableFuture.supplyAsync(third::unsafeRun);
+
+              try {
+                CompletableFuture.allOf(futureA, futureB, futureC).get();
+                return combiner.apply(futureA.join(), futureB.join(), futureC.join());
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Parallel execution interrupted", e);
+              } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException re) {
+                  throw re;
+                }
+                throw new RuntimeException(cause);
+              }
+            }));
+  }
+
+  /**
+   * Combines four IOPaths in parallel.
+   *
+   * @param first the first IOPath; must not be null
+   * @param second the second IOPath; must not be null
+   * @param third the third IOPath; must not be null
+   * @param fourth the fourth IOPath; must not be null
+   * @param combiner the function to combine results; must not be null
+   * @param <A> the type of the first value
+   * @param <B> the type of the second value
+   * @param <C> the type of the third value
+   * @param <D> the type of the fourth value
+   * @param <E> the type of the combined result
+   * @return an IOPath containing the combined result
+   * @throws NullPointerException if any argument is null
+   */
+  public static <A, B, C, D, E> IOPath<E> parZip4(
+      IOPath<A> first,
+      IOPath<B> second,
+      IOPath<C> third,
+      IOPath<D> fourth,
+      Function4<? super A, ? super B, ? super C, ? super D, ? extends E> combiner) {
+    Objects.requireNonNull(first, "first must not be null");
+    Objects.requireNonNull(second, "second must not be null");
+    Objects.requireNonNull(third, "third must not be null");
+    Objects.requireNonNull(fourth, "fourth must not be null");
+    Objects.requireNonNull(combiner, "combiner must not be null");
+
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              CompletableFuture<A> futureA = CompletableFuture.supplyAsync(first::unsafeRun);
+              CompletableFuture<B> futureB = CompletableFuture.supplyAsync(second::unsafeRun);
+              CompletableFuture<C> futureC = CompletableFuture.supplyAsync(third::unsafeRun);
+              CompletableFuture<D> futureD = CompletableFuture.supplyAsync(fourth::unsafeRun);
+
+              try {
+                CompletableFuture.allOf(futureA, futureB, futureC, futureD).get();
+                return combiner.apply(
+                    futureA.join(), futureB.join(), futureC.join(), futureD.join());
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Parallel execution interrupted", e);
+              } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException re) {
+                  throw re;
+                }
+                throw new RuntimeException(cause);
+              }
+            }));
+  }
+
+  /**
+   * Races multiple IOPaths, returning the first to complete successfully.
+   *
+   * <p>All IOPaths are executed concurrently. The first to complete successfully wins. If all fail,
+   * the last failure is propagated.
+   *
+   * @param paths the IOPaths to race; must not be null or empty
+   * @param <A> the element type
+   * @return an IOPath that completes with the first successful result
+   * @throws NullPointerException if paths is null
+   * @throws IllegalArgumentException if paths is empty
+   */
+  public static <A> IOPath<A> raceIO(List<IOPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    if (paths.isEmpty()) {
+      throw new IllegalArgumentException("paths must not be empty");
+    }
+
+    if (paths.size() == 1) {
+      return paths.getFirst();
+    }
+
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              CompletableFuture<A> result = new CompletableFuture<>();
+              List<Throwable> failures = new ArrayList<>();
+
+              List<CompletableFuture<A>> futures =
+                  paths.stream()
+                      .map(path -> CompletableFuture.supplyAsync(path::unsafeRun))
+                      .toList();
+
+              for (CompletableFuture<A> future : futures) {
+                future.whenComplete(
+                    (value, ex) -> {
+                      if (ex == null && !result.isDone()) {
+                        result.complete(value);
+                        // Cancel others (best effort)
+                        futures.forEach(f -> f.cancel(true));
+                      } else if (ex != null) {
+                        synchronized (failures) {
+                          failures.add(ex);
+                          if (failures.size() == paths.size() && !result.isDone()) {
+                            result.completeExceptionally(failures.getLast());
+                          }
+                        }
+                      }
+                    });
+              }
+
+              try {
+                return result.get();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Race interrupted", e);
+              } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException re) {
+                  throw re;
+                }
+                throw new RuntimeException(cause);
+              }
+            }));
   }
 }
