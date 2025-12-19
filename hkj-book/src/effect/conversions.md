@@ -735,4 +735,4 @@ Continue to [Patterns and Recipes](patterns.md) for real-world usage patterns.
 ---
 
 **Previous:** [Composition Patterns](composition.md)
-**Next:** [Patterns and Recipes](patterns.md)
+**Next:** [Focus-Effect Integration](focus_integration.md)

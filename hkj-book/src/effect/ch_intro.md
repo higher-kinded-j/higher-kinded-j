@@ -15,7 +15,7 @@ The Effect Path API provides a unified map for this territory.
 
 Rather than learning separate idioms for absence (`Optional`), failure (`try-catch`), typed errors (`Either`), and deferred effects (`CompletableFuture`), you work with **Path types**: thin, composable wrappers that share a common vocabulary. The same `map`, `via`, and `recover` operations work regardless of what kind of effect you're handling. The underlying complexity remains (it must), but the Path contains it.
 
-If you've used the Focus DSL from the optics chapters, the patterns will feel familiar. Where FocusPath navigates through *data structures*, EffectPath navigates through *computational effects*. Both use `via` for composition. Both provide fluent, chainable operations. The territory differs; the cartography rhymes.
+If you've used the Focus DSL from the optics chapters, the patterns will feel familiar. Where FocusPath navigates through *data structures*, EffectPath navigates through *computational effects*. Both use `via` for composition. Both provide fluent, chainable operations. The territory differs; the cartography rhymes. And when you need to cross between territories—extracting structured data into effect pipelines, or drilling into effect results with optics—the bridge API connects both worlds seamlessly.
 
 ---
 
@@ -29,6 +29,8 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 - **[Composition Patterns](composition.md)** – Sequential chains, independent combination, parallel execution, debugging with `peek`, and the art of mixing composition styles.
 
 - **[Type Conversions](conversions.md)** – Moving between Path types as your needs change. The bridges between `Maybe` and `Either`, between `Try` and `Validation`, and the rules that govern safe passage.
+
+- **[Focus-Effect Integration](focus_integration.md)** – Bridging optics and effects. Converting FocusPath to EffectPath for validation pipelines, using `focus()` to navigate within effect contexts, and patterns that combine both domains.
 
 - **[Patterns and Recipes](patterns.md)** – Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, resilience with retry, and the pitfalls that await the unwary.
 
@@ -65,9 +67,10 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 3. [Path Types](path_types.md) - Detailed coverage of each Path type
 4. [Composition Patterns](composition.md) - Chaining, combining, parallel execution, and debugging
 5. [Type Conversions](conversions.md) - Moving between different Path types
-6. [Patterns and Recipes](patterns.md) - Real-world patterns, resilience, and hard-won wisdom
-7. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
-8. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
+6. [Focus-Effect Integration](focus_integration.md) - Bridging optics and effects
+7. [Patterns and Recipes](patterns.md) - Real-world patterns, resilience, and hard-won wisdom
+8. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
+9. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
 
 ---
 

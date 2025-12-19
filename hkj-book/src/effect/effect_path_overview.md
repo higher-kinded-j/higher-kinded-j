@@ -257,6 +257,115 @@ silently, which is usually what you want when debugging the happy path.
 
 ---
 
+## Structural Navigation with `focus`
+
+Effect paths integrate with the Focus DSL, enabling structural navigation within effect contexts.
+Where `map` transforms values and `via` chains effects, `focus` drills into nested structures
+using optics.
+
+```
+                         FOCUS WITHIN EFFECTS
+
+    EitherPath<Error, User>
+            │
+            │  focus(namePath)         ← optic navigation
+            ▼
+    EitherPath<Error, String>
+            │
+            │  map(String::toUpperCase)  ← value transformation
+            ▼
+    EitherPath<Error, String>
+            │
+            │  via(validateName)         ← effect chaining
+            ▼
+    EitherPath<Error, ValidName>
+```
+
+### Basic Usage
+
+```java
+// Given a FocusPath from the optics domain
+FocusPath<User, String> namePath = UserFocus.name();
+
+// Apply within an effect
+EitherPath<Error, User> userResult = fetchUser(userId);
+EitherPath<Error, String> nameResult = userResult.focus(namePath);
+```
+
+The focus preserves the effect's semantics: if `userResult` is `Left`, `nameResult` is also `Left`.
+Only `Right` values are navigated.
+
+### Handling Optional Focus
+
+When using `AffinePath` (for optional fields), provide an error for the absent case:
+
+```java
+// AffinePath for Optional<String> email
+AffinePath<User, String> emailPath = UserFocus.email();
+
+// Must provide error if email is absent
+EitherPath<Error, String> emailResult =
+    userResult.focus(emailPath, new Error("Email not configured"));
+```
+
+| FocusPath | AffinePath |
+|-----------|------------|
+| Always succeeds (value guaranteed) | May fail (value optional) |
+| `focus(path)` | `focus(path, errorIfAbsent)` |
+
+### Effect-Specific Behaviour
+
+Each effect type handles absent focuses differently:
+
+| Effect | FocusPath Result | AffinePath Absent Result |
+|--------|------------------|--------------------------|
+| `MaybePath` | `Just(focused)` | `Nothing` |
+| `EitherPath` | `Right(focused)` | `Left(providedError)` |
+| `TryPath` | `Success(focused)` | `Failure(providedException)` |
+| `IOPath` | `IO(focused)` | `IO(throw exception)` |
+| `ValidationPath` | `Valid(focused)` | `Invalid(providedError)` |
+
+### Chaining Focus with Effects
+
+Focus composes naturally with other path operations:
+
+```java
+// Complex pipeline: fetch → navigate → validate → transform
+EitherPath<Error, String> result =
+    fetchUser(userId)                              // → EitherPath<Error, User>
+        .focus(UserFocus.address())                // → EitherPath<Error, Address>
+        .focus(AddressFocus.postcode(), noPostcodeError)  // → EitherPath<Error, String>
+        .via(code -> validatePostcode(code))       // → EitherPath<Error, ValidPostcode>
+        .map(ValidPostcode::formatted);            // → EitherPath<Error, String>
+```
+
+### When to Use focus vs via
+
+| Operation | Use When |
+|-----------|----------|
+| `focus(path)` | Extracting nested fields with optics |
+| `via(f)` | Chaining to another effect computation |
+| `map(f)` | Transforming the value without changing effect type |
+
+```java
+// focus: structural navigation (optics)
+path.focus(UserFocus.name())
+
+// via: effect sequencing (monadic bind)
+path.via(user -> validateUser(user))
+
+// map: value transformation (functor)
+path.map(name -> name.toUpperCase())
+```
+
+~~~admonish tip title="See Also"
+- [Focus DSL](../optics/focus_dsl.md) - Complete guide to Focus paths and navigation
+- [Focus-Effect Integration](focus_integration.md) - Complete bridging guide
+- [Capability Interfaces](capabilities.md) - Type class foundations
+~~~
+
+---
+
 ## Summary
 
 | Operation | What It Does | Railway Metaphor |

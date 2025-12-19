@@ -6,9 +6,15 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.MaybePath;
+import org.higherkindedj.hkt.effect.OptionalPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
@@ -532,6 +538,116 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
               return result;
             },
             (s, a) -> self.set(a, s)));
+  }
+
+  // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Extracts the optionally focused value and wraps it in a {@link MaybePath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain, translating the Optional semantics
+   * of AffinePath to the Maybe semantics of MaybePath. If this path focuses on a value, the result
+   * is Just; if it doesn't match, the result is Nothing.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<Config, String> apiKeyPath = ConfigFocus.optionalApiKey();
+   * Config config = new Config(Optional.of("secret-key"));
+   *
+   * // Extract and process with effect operations
+   * MaybePath<String> result = apiKeyPath.toMaybePath(config)
+   *     .filter(key -> key.startsWith("secret"))
+   *     .map(String::toUpperCase);
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a MaybePath that is Just if the affine matches, Nothing otherwise
+   */
+  default MaybePath<A> toMaybePath(S source) {
+    return getOptional(source).map(Path::just).orElseGet(Path::nothing);
+  }
+
+  /**
+   * Extracts the optionally focused value and wraps it in an {@link EitherPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain for error-handling computations. If
+   * this path focuses on a value, the result is Right; if it doesn't match, the result is Left with
+   * the provided error.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<User, String> emailPath = UserFocus.optionalEmail();
+   * User user = new User("Alice", Optional.empty());
+   *
+   * // Extract with explicit error handling
+   * EitherPath<String, String> result = emailPath.toEitherPath(user, "Email is required")
+   *     .via(email -> validateEmail(email));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param errorIfAbsent the error to use if the affine doesn't match
+   * @param <E> the error type
+   * @return an EitherPath containing Right if matched, Left otherwise
+   */
+  default <E> EitherPath<E, A> toEitherPath(S source, E errorIfAbsent) {
+    return getOptional(source)
+        .<EitherPath<E, A>>map(Path::right)
+        .orElseGet(() -> Path.left(errorIfAbsent));
+  }
+
+  /**
+   * Extracts the optionally focused value and wraps it in a {@link TryPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain for exception-handling
+   * computations. If this path focuses on a value, the result is Success; if it doesn't match, the
+   * result is Failure with the exception provided by the supplier.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<Config, String> urlPath = ConfigFocus.optionalUrl();
+   * Config config = new Config(Optional.empty());
+   *
+   * // Extract with exception on absence
+   * TryPath<URI> result = urlPath.toTryPath(config,
+   *         () -> new IllegalStateException("URL is required"))
+   *     .via(url -> Path.tryOf(() -> new URI(url)));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param exceptionIfAbsent supplies the exception if the affine doesn't match
+   * @return a TryPath containing Success if matched, Failure otherwise
+   */
+  default TryPath<A> toTryPath(S source, Supplier<? extends Throwable> exceptionIfAbsent) {
+    return getOptional(source)
+        .map(Path::success)
+        .orElseGet(() -> Path.failure(exceptionIfAbsent.get()));
+  }
+
+  /**
+   * Extracts the optionally focused value and wraps it in an {@link OptionalPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain, preserving the Optional semantics
+   * directly. This is useful when you want to work with java.util.Optional via the Path API.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<User, String> nicknamePath = UserFocus.optionalNickname();
+   * User user = new User("Alice", Optional.of("Ali"));
+   *
+   * // Extract and process
+   * OptionalPath<String> result = nicknamePath.toOptionalPath(user)
+   *     .map(String::toLowerCase);
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return an OptionalPath containing the value if the affine matches
+   */
+  default OptionalPath<A> toOptionalPath(S source) {
+    return Path.optional(getOptional(source));
   }
 
   // ===== Factory Methods =====

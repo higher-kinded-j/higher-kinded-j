@@ -18,6 +18,8 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 
 /**
  * A fluent path wrapper for {@link IO} values.
@@ -635,6 +637,53 @@ public final class IOPath<A> implements Effectful<A> {
    */
   public IOPath<A> retry(int maxAttempts, Duration initialDelay) {
     return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
+  }
+
+  // ===== Focus Bridge Methods =====
+
+  /**
+   * Applies a {@link FocusPath} to navigate within the contained value.
+   *
+   * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
+   * inside an IO context. The lens operation is deferred along with the IO computation.
+   *
+   * @param path the FocusPath to apply; must not be null
+   * @param <B> the focused type
+   * @return a new IOPath containing the focused value
+   * @throws NullPointerException if path is null
+   */
+  public <B> IOPath<B> focus(FocusPath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return map(path::get);
+  }
+
+  /**
+   * Applies an {@link AffinePath} to navigate within the contained value.
+   *
+   * <p>This bridges from the effect domain to the optics domain. If the AffinePath doesn't match, a
+   * runtime exception is thrown when the IO is executed. For safer handling, consider using {@code
+   * toTryPath()} first.
+   *
+   * @param path the AffinePath to apply; must not be null
+   * @param exceptionIfAbsent supplies the exception if the path doesn't match; must not be null
+   * @param <B> the focused type
+   * @return a new IOPath containing the focused value
+   * @throws NullPointerException if path or exceptionIfAbsent is null
+   */
+  public <B> IOPath<B> focus(
+      AffinePath<A, B> path, Supplier<? extends RuntimeException> exceptionIfAbsent) {
+    Objects.requireNonNull(path, "path must not be null");
+    Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");
+    return via(
+        a ->
+            path.getOptional(a)
+                .<IOPath<B>>map(Path::ioPure)
+                .orElseGet(
+                    () ->
+                        Path.io(
+                            () -> {
+                              throw exceptionIfAbsent.get();
+                            })));
   }
 
   // ===== Object methods =====

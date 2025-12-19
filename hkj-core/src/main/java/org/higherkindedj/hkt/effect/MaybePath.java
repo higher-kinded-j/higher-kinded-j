@@ -20,6 +20,8 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 
 /**
  * A fluent path wrapper for {@link Maybe} values.
@@ -364,6 +366,60 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     // doesn't actually store errors (Nothing has no error value).
     Objects.requireNonNull(mapper, "mapper must not be null");
     return (Recoverable<E2, A>) this;
+  }
+
+  // ===== FocusPath Bridge Methods =====
+
+  /**
+   * Applies a {@link FocusPath} to navigate within the contained value.
+   *
+   * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
+   * inside an effect context. Since FocusPath always focuses on exactly one element, the result is
+   * always a successful navigation if the MaybePath contains a value.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, String> namePath = UserFocus.name();
+   *
+   * MaybePath<User> userPath = Path.just(user);
+   * MaybePath<String> name = userPath.focus(namePath);
+   * // Equivalent to: userPath.map(namePath::get)
+   * }</pre>
+   *
+   * @param path the FocusPath to apply
+   * @param <B> the focused type
+   * @return a new MaybePath containing the focused value
+   */
+  public <B> MaybePath<B> focus(FocusPath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return map(path::get);
+  }
+
+  /**
+   * Applies an {@link AffinePath} to navigate within the contained value.
+   *
+   * <p>This bridges from the effect domain to the optics domain. The result flattens the two
+   * optional layers: if either the MaybePath is empty or the AffinePath doesn't match, the result
+   * is Nothing.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<User, String> emailPath = UserFocus.optionalEmail();
+   *
+   * MaybePath<User> userPath = Path.just(user);
+   * MaybePath<String> email = userPath.focus(emailPath);
+   * // Returns Nothing if user has no email
+   * }</pre>
+   *
+   * @param path the AffinePath to apply
+   * @param <B> the focused type
+   * @return a new MaybePath containing the focused value if both succeed
+   */
+  public <B> MaybePath<B> focus(AffinePath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return via(a -> path.getOptional(a).map(Path::just).orElseGet(Path::nothing));
   }
 
   // ===== Object methods =====

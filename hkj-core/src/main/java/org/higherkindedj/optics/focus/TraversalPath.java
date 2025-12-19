@@ -15,6 +15,11 @@ import org.higherkindedj.hkt.constant.Const;
 import org.higherkindedj.hkt.constant.ConstApplicative;
 import org.higherkindedj.hkt.constant.ConstKind;
 import org.higherkindedj.hkt.constant.ConstKindHelper;
+import org.higherkindedj.hkt.effect.ListPath;
+import org.higherkindedj.hkt.effect.MaybePath;
+import org.higherkindedj.hkt.effect.NonDetPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
@@ -679,6 +684,111 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    */
   default TraversalPath<S, A> traced(BiConsumer<S, List<A>> observer) {
     return new TracedTraversalFocusPath<>(this, observer);
+  }
+
+  // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Extracts all focused values and wraps them in a {@link ListPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain, allowing all focused values to be
+   * processed using effect-based operations. ListPath uses positional zipWith semantics where
+   * elements are combined index-by-index.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * TraversalPath<Company, Employee> employeesPath = CompanyFocus.employees();
+   * Company company = new Company(List.of(emp1, emp2, emp3));
+   *
+   * // Extract all employees and process
+   * ListPath<String> names = employeesPath.toListPath(company)
+   *     .map(Employee::name)
+   *     .map(String::toUpperCase);
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a ListPath containing all focused values
+   */
+  default ListPath<A> toListPath(S source) {
+    return Path.listPath(getAll(source));
+  }
+
+  /**
+   * Extracts all focused values and wraps them in a {@link NonDetPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain using non-deterministic semantics.
+   * NonDetPath uses Cartesian product for zipWith, producing all combinations of values.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * TraversalPath<Config, String> optionsPath = ConfigFocus.options();
+   * Config config = new Config(List.of("a", "b", "c"));
+   *
+   * // Non-deterministic processing - Cartesian product on combination
+   * NonDetPath<String> combinations = optionsPath.toNonDetPath(config)
+   *     .zipWith(Path.list(List.of("1", "2")), (opt, num) -> opt + num);
+   * // Results in: ["a1", "a2", "b1", "b2", "c1", "c2"]
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a NonDetPath containing all focused values
+   */
+  default NonDetPath<A> toNonDetPath(S source) {
+    return Path.list(getAll(source));
+  }
+
+  /**
+   * Extracts all focused values and wraps them in a {@link StreamPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain using lazy stream semantics. This
+   * is useful for large collections where eager evaluation would be inefficient.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * TraversalPath<Database, Record> recordsPath = DatabaseFocus.records();
+   * Database db = getLargeDatabase();
+   *
+   * // Lazy stream processing
+   * StreamPath<String> ids = recordsPath.toStreamPath(db)
+   *     .map(Record::id)
+   *     .filter(id -> id.startsWith("A"));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a StreamPath streaming all focused values
+   */
+  default StreamPath<A> toStreamPath(S source) {
+    return Path.streamFromList(getAll(source));
+  }
+
+  /**
+   * Extracts the first focused value (if any) and wraps it in a {@link MaybePath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain, narrowing the traversal to at most
+   * one element. This is useful when you only need the first element of a traversal.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * TraversalPath<Team, Employee> membersPath = TeamFocus.members();
+   * Team team = new Team(List.of(emp1, emp2, emp3));
+   *
+   * // Get just the first member
+   * MaybePath<Employee> firstMember = membersPath.toMaybePath(team);
+   *
+   * // Process if present
+   * MaybePath<String> firstName = firstMember.map(Employee::name);
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a MaybePath containing the first value if present
+   */
+  default MaybePath<A> toMaybePath(S source) {
+    List<A> all = getAll(source);
+    return all.isEmpty() ? Path.nothing() : Path.just(all.get(0));
   }
 
   // ===== Factory Methods =====

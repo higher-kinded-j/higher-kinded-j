@@ -752,5 +752,5 @@ Writer patterns.
 
 ---
 
-**Previous:** [Type Conversions](conversions.md)
+**Previous:** [Focus-Effect Integration](focus_integration.md)
 **Next:** [Advanced Effects](advanced_effects.md)

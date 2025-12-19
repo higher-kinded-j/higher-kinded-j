@@ -8,6 +8,11 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.IdPath;
+import org.higherkindedj.hkt.effect.MaybePath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
@@ -541,6 +546,109 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
               return a;
             },
             (s, a) -> self.set(a, s)));
+  }
+
+  // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Extracts the focused value and wraps it in a {@link MaybePath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain, allowing the extracted value to be
+   * used in effect-based computations. Since FocusPath always focuses on exactly one element, the
+   * result is always a Just (non-empty) MaybePath.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, String> namePath = UserFocus.name();
+   * User user = new User("Alice", address);
+   *
+   * // Extract and process with effect operations
+   * MaybePath<String> result = namePath.toMaybePath(user)
+   *     .map(String::toUpperCase)
+   *     .filter(name -> !name.isEmpty());
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a MaybePath containing the focused value
+   */
+  default MaybePath<A> toMaybePath(S source) {
+    return Path.just(get(source));
+  }
+
+  /**
+   * Extracts the focused value and wraps it in an {@link EitherPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain for error-handling computations.
+   * Since FocusPath always focuses on exactly one element, the result is always a Right (success)
+   * EitherPath.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, String> emailPath = UserFocus.email();
+   * User user = new User("Alice", "alice@example.com");
+   *
+   * // Extract and validate
+   * EitherPath<ValidationError, String> result = emailPath.<ValidationError>toEitherPath(user)
+   *     .via(email -> validateEmail(email));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param <E> the error type (phantom for success case)
+   * @return an EitherPath containing the focused value as Right
+   */
+  default <E> EitherPath<E, A> toEitherPath(S source) {
+    return Path.right(get(source));
+  }
+
+  /**
+   * Extracts the focused value and wraps it in a {@link TryPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain for exception-handling
+   * computations. Since FocusPath always focuses on exactly one element, the result is always a
+   * Success TryPath.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<Config, String> urlPath = ConfigFocus.apiUrl();
+   * Config config = new Config("https://api.example.com");
+   *
+   * // Extract and parse
+   * TryPath<URI> result = urlPath.toTryPath(config)
+   *     .via(url -> Path.tryOf(() -> new URI(url)));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a TryPath containing the focused value as Success
+   */
+  default TryPath<A> toTryPath(S source) {
+    return Path.success(get(source));
+  }
+
+  /**
+   * Extracts the focused value and wraps it in an {@link IdPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain using the identity effect. IdPath
+   * is useful when you need a consistent Path interface but don't require any effect semantics.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, String> namePath = UserFocus.name();
+   * User user = new User("Alice", address);
+   *
+   * // Extract as IdPath for composition with other paths
+   * IdPath<String> result = namePath.toIdPath(user)
+   *     .map(String::toUpperCase);
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return an IdPath containing the focused value
+   */
+  default IdPath<A> toIdPath(S source) {
+    return Path.id(get(source));
   }
 
   // ===== Factory Methods =====
