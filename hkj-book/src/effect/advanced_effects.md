@@ -486,4 +486,4 @@ The systems remain subtle and pervasive, but no longer tyrannical.
 ---
 
 **Previous:** [Patterns and Recipes](patterns.md)
-**Next:** [Advanced Topics](advanced_topics.md)
+**Next:** [Effect Contexts](effect_contexts.md)

@@ -741,4 +741,4 @@ systems that handle the full spectrum of real-world complexity.
 
 ---
 
-**Previous:** [Advanced Effects](advanced_effects.md)
+**Previous:** [MutableContext](effect_contexts_mutable.md)

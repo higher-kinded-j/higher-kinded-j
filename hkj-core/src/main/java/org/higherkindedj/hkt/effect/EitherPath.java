@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -14,6 +15,7 @@ import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
@@ -416,6 +418,73 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
             path.getOptional(a)
                 .<EitherPath<E, B>>map(Path::right)
                 .orElseGet(() -> Path.left(errorIfAbsent)));
+  }
+
+  // ===== Lifting Methods =====
+
+  /**
+   * Lifts this Either into a deferred IO context.
+   *
+   * <p>The Either value is captured immediately but wrapped in IO for composition with other
+   * IO-based operations. This is useful when you need to combine synchronous Either results with
+   * deferred IO computations.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * EitherPath<Error, User> validated = validateUser(input);
+   * IOPath<Either<Error, User>> deferred = validated.liftIO();
+   *
+   * // Now compose with other IO operations
+   * IOPath<Either<Error, Profile>> result = deferred.map(either ->
+   *     either.map(user -> enrichUser(user)));
+   * }</pre>
+   *
+   * @return an IOPath containing this Either
+   */
+  public IOPath<Either<E, A>> liftIO() {
+    Either<E, A> captured = this.value;
+    return new IOPath<>(IO.delay(() -> captured));
+  }
+
+  /**
+   * Lifts this Either into an async CompletableFuture context.
+   *
+   * <p>Returns an already-completed future containing this Either. This is useful when you need to
+   * combine synchronous Either results with async operations.
+   *
+   * @return a CompletableFuturePath containing this Either
+   */
+  public CompletableFuturePath<Either<E, A>> liftFuture() {
+    return new CompletableFuturePath<>(CompletableFuture.completedFuture(this.value));
+  }
+
+  /**
+   * Creates a deferred IO computation that produces an Either.
+   *
+   * <p>The supplier is not invoked until the IO is executed. This is useful for deferring
+   * computations that may fail with typed errors.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * IOPath<Either<ApiError, User>> userIO = EitherPath.deferIO(() ->
+   *     userService.fetch(userId)
+   *         .mapError(ApiError::fromException));
+   *
+   * // Computation is deferred until:
+   * Either<ApiError, User> result = userIO.unsafeRun();
+   * }</pre>
+   *
+   * @param supplier the deferred computation; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return an IOPath that will produce the Either when run
+   * @throws NullPointerException if supplier is null
+   */
+  public static <E, A> IOPath<Either<E, A>> deferIO(Supplier<Either<E, A>> supplier) {
+    Objects.requireNonNull(supplier, "supplier must not be null");
+    return new IOPath<>(IO.delay(supplier));
   }
 
   // ===== Object methods =====

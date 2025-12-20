@@ -14,10 +14,13 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Effectful;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -637,6 +640,115 @@ public final class IOPath<A> implements Effectful<A> {
    */
   public IOPath<A> retry(int maxAttempts, Duration initialDelay) {
     return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
+  }
+
+  // ===== Effect Wrapping Methods =====
+
+  /**
+   * Wraps the IO result in an Either, catching any exceptions.
+   *
+   * <p>Exceptions thrown during execution are caught and converted to the error type via the
+   * provided mapper. Successful results are wrapped in {@link Either#right}.
+   *
+   * <p>This method is useful for converting exception-throwing computations into typed error
+   * handling, enabling composition with other Either-based operations.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * IOPath<Either<ApiError, Response>> safe =
+   *     Path.io(() -> httpClient.get(url))
+   *         .catching(ApiError::fromException);
+   *
+   * // Later, run and handle the Either
+   * Either<ApiError, Response> result = safe.unsafeRun();
+   * }</pre>
+   *
+   * @param exceptionMapper converts exceptions to error type E; must not be null
+   * @param <E> the error type
+   * @return an IOPath producing Either instead of throwing
+   * @throws NullPointerException if exceptionMapper is null
+   */
+  public <E> IOPath<Either<E, A>> catching(
+      Function<? super Throwable, ? extends E> exceptionMapper) {
+    Objects.requireNonNull(exceptionMapper, "exceptionMapper must not be null");
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              try {
+                return Either.right(this.value.unsafeRunSync());
+              } catch (Throwable t) {
+                return Either.left(exceptionMapper.apply(t));
+              }
+            }));
+  }
+
+  /**
+   * Wraps the IO result in a Maybe, treating exceptions as Nothing.
+   *
+   * <p>If the computation succeeds, the result is wrapped in {@link Maybe#just}. If it throws an
+   * exception, the result is {@link Maybe#nothing()}.
+   *
+   * <p>This method is useful when you want to convert a potentially failing computation into an
+   * optional result without preserving error information.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * IOPath<Maybe<Config>> config =
+   *     Path.io(() -> loadConfig())
+   *         .asMaybe();
+   *
+   * // Later, run and handle the Maybe
+   * Maybe<Config> result = config.unsafeRun();
+   * Config cfg = result.orElse(Config.defaults());
+   * }</pre>
+   *
+   * @return an IOPath producing Maybe, with Nothing on failure
+   */
+  public IOPath<Maybe<A>> asMaybe() {
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              try {
+                return Maybe.just(this.value.unsafeRunSync());
+              } catch (Throwable t) {
+                return Maybe.nothing();
+              }
+            }));
+  }
+
+  /**
+   * Wraps the IO result in a Try, capturing success or failure.
+   *
+   * <p>Unlike {@link #toTryPath()} which executes immediately, this method returns a deferred
+   * computation that produces a Try when run. The exception is captured in the Try rather than
+   * propagating.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * IOPath<Try<Data>> safeParse =
+   *     Path.io(() -> parseData(input))
+   *         .asTry();
+   *
+   * // Later, run and handle the Try
+   * Try<Data> result = safeParse.unsafeRun();
+   * Data data = result.getOrElse(Data.empty());
+   * }</pre>
+   *
+   * @return an IOPath producing Try, capturing any failure
+   */
+  public IOPath<Try<A>> asTry() {
+    return new IOPath<>(
+        IO.delay(
+            () -> {
+              try {
+                return Try.success(this.value.unsafeRunSync());
+              } catch (Throwable t) {
+                return Try.failure(t);
+              }
+            }));
   }
 
   // ===== Focus Bridge Methods =====
