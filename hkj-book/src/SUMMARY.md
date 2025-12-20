@@ -70,6 +70,11 @@
   - [Focus-Effect Integration](effect/focus_integration.md)
   - [Patterns and Recipes](effect/patterns.md)
   - [Advanced Effects](effect/advanced_effects.md)
+  - [Effect Contexts](effect/effect_contexts.md)
+    - [ErrorContext](effect/effect_contexts_error.md)
+    - [Optional Contexts](effect/effect_contexts_optional.md)
+    - [ConfigContext](effect/effect_contexts_config.md)
+    - [MutableContext](effect/effect_contexts_mutable.md)
   - [Advanced Topics](effect/advanced_topics.md)
 
 # Advanced Topics

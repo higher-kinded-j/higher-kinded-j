@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -17,6 +18,7 @@ import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
@@ -420,6 +422,71 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   public <B> MaybePath<B> focus(AffinePath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return via(a -> path.getOptional(a).map(Path::just).orElseGet(Path::nothing));
+  }
+
+  // ===== Lifting Methods =====
+
+  /**
+   * Lifts this Maybe into a deferred IO context.
+   *
+   * <p>The Maybe value is captured immediately but wrapped in IO for composition with other
+   * IO-based operations. This is useful when you need to combine synchronous Maybe results with
+   * deferred IO computations.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * MaybePath<User> found = findUser(userId);
+   * IOPath<Maybe<User>> deferred = found.liftIO();
+   *
+   * // Now compose with other IO operations
+   * IOPath<Maybe<Profile>> result = deferred.map(maybe ->
+   *     maybe.map(user -> enrichUser(user)));
+   * }</pre>
+   *
+   * @return an IOPath containing this Maybe
+   */
+  public IOPath<Maybe<A>> liftIO() {
+    Maybe<A> captured = this.value;
+    return new IOPath<>(IO.delay(() -> captured));
+  }
+
+  /**
+   * Lifts this Maybe into an async CompletableFuture context.
+   *
+   * <p>Returns an already-completed future containing this Maybe. This is useful when you need to
+   * combine synchronous Maybe results with async operations.
+   *
+   * @return a CompletableFuturePath containing this Maybe
+   */
+  public CompletableFuturePath<Maybe<A>> liftFuture() {
+    return new CompletableFuturePath<>(CompletableFuture.completedFuture(this.value));
+  }
+
+  /**
+   * Creates a deferred IO computation that produces a Maybe.
+   *
+   * <p>The supplier is not invoked until the IO is executed. This is useful for deferring optional
+   * lookups or computations that may produce no value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * IOPath<Maybe<User>> userIO = MaybePath.deferIO(() ->
+   *     userRepository.findById(userId));
+   *
+   * // Computation is deferred until:
+   * Maybe<User> result = userIO.unsafeRun();
+   * }</pre>
+   *
+   * @param supplier the deferred computation; must not be null
+   * @param <A> the value type
+   * @return an IOPath that will produce the Maybe when run
+   * @throws NullPointerException if supplier is null
+   */
+  public static <A> IOPath<Maybe<A>> deferIO(Supplier<Maybe<A>> supplier) {
+    Objects.requireNonNull(supplier, "supplier must not be null");
+    return new IOPath<>(IO.delay(supplier));
   }
 
   // ===== Object methods =====
