@@ -266,14 +266,17 @@ OptionalContext<IOKind.Witness, User> maybeContext =
 ### runIO: Get an IOPath
 
 ```java
-OptionalContext<IOKind.Witness, User> ctx = ...;
+// For OptionalContext
+OptionalContext<IOKind.Witness, User> optionalCtx = OptionalContext.some(user);
+IOPath<Maybe<User>> maybeIO = optionalCtx.runIO();
 
-// Extract IOPath<Maybe<User>> or IOPath<Optional<User>>
-IOPath<Maybe<User>> ioPath = ctx.runIO();  // OptionalContext
-IOPath<Optional<User>> ioPath = ctx.runIO();  // JavaOptionalContext
+// For JavaOptionalContext
+JavaOptionalContext<IOKind.Witness, User> javaCtx = JavaOptionalContext.some(user);
+IOPath<Optional<User>> optionalIO = javaCtx.runIO();
 
 // Execute
-Maybe<User> result = ioPath.unsafeRun();
+Maybe<User> maybeResult = maybeIO.unsafeRun();
+Optional<User> optionalResult = optionalIO.unsafeRun();
 ```
 
 ### runIOOrElse: Value or Default

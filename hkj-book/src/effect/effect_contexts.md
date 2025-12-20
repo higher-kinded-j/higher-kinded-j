@@ -19,7 +19,7 @@ They're a middle layer between the simple Path types you've already learned and 
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [EffectContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/EffectContextExample.java) - Demonstrates all five Effect Contexts
+- [EffectContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/EffectContextExample.java) - Demonstrates all five Effect Contexts
 ~~~
 
 ---
@@ -211,9 +211,8 @@ OptionalContext<IOKind.Witness, Config> config =
 
 ```java
 ConfigContext<IOKind.Witness, ServiceConfig, Report> report =
-    ConfigContext.<ServiceConfig>ask()
-        .via(config -> ConfigContext.io(cfg ->
-            reportService.generate(cfg.reportFormat())));
+    ConfigContext.io(config ->
+        reportService.generate(config.reportFormat()));
 
 Report result = report.runWithSync(new ServiceConfig("PDF", 30));
 ```

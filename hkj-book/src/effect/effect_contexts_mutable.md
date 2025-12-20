@@ -57,11 +57,16 @@ record Stats(int processed, int errors, long totalBytes) {
 }
 
 MutableContext<IOKind.Witness, Stats, Unit> processFile(Path file) {
-    return MutableContext.<Stats, byte[]>io(s ->
-            StateTuple.of(s, Files.readAllBytes(file)))
-        .flatMap(content -> MutableContext.<Stats, Unit>modify(stats ->
-            stats.addBytes(content.length).incrementProcessed()))
-        .recoverFromError(e -> MutableContext.modify(Stats::incrementErrors));
+    return MutableContext.io(stats -> {
+        try {
+            byte[] content = Files.readAllBytes(file);
+            return StateTuple.of(
+                stats.addBytes(content.length).incrementProcessed(),
+                Unit.INSTANCE);
+        } catch (Exception e) {
+            return StateTuple.of(stats.incrementErrors(), Unit.INSTANCE);
+        }
+    });
 }
 
 // Process all files
@@ -275,9 +280,13 @@ MutableContext<IOKind.Witness, IdState, List<Request>> tagAll(List<Request> requ
     return requests.stream()
         .map(this::tagRequest)
         .reduce(
-            MutableContext.pure(new ArrayList<>()),
+            MutableContext.pure(List.<Request>of()),
             (accCtx, reqCtx) -> accCtx.flatMap(list ->
-                reqCtx.map(req -> { list.add(req); return list; }))
+                reqCtx.map(req -> {
+                    var newList = new java.util.ArrayList<>(list);
+                    newList.add(req);
+                    return List.copyOf(newList);
+                }))
         );
 }
 
