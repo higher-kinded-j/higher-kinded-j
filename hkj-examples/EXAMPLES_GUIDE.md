@@ -138,6 +138,7 @@ The Effect Path API provides a fluent, type-safe approach to composing effect ty
 | [ServiceLayerExample.java](src/main/java/org/higherkindedj/example/effect/ServiceLayerExample.java) | Real-world service layer patterns with EitherPath and IOPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ServiceLayerExample` | [Patterns and Recipes](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
 | [PathOpsExample.java](src/main/java/org/higherkindedj/example/effect/PathOpsExample.java) | PathOps utilities: sequence, traverse, and firstSuccess | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.PathOpsExample` | [Composition Patterns](https://higher-kinded-j.github.io/latest/effect/composition.html) |
 | [CrossPathConversionsExample.java](src/main/java/org/higherkindedj/example/effect/CrossPathConversionsExample.java) | Converting between different Path types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CrossPathConversionsExample` | [Type Conversions](https://higher-kinded-j.github.io/latest/effect/conversions.html) |
+| [ForPathExample.java](src/main/java/org/higherkindedj/example/effect/ForPathExample.java) | For-comprehensions that work directly with Path types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ForPathExample` | [ForPath Comprehension](https://higher-kinded-j.github.io/latest/effect/forpath_comprehension.html) |
 
 ### Advanced Effects
 

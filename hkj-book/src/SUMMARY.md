@@ -66,6 +66,7 @@
     - [FreePath](effect/path_free.md)
     - [FreeApPath](effect/path_freeap.md)
   - [Composition Patterns](effect/composition.md)
+  - [ForPath Comprehension](effect/forpath_comprehension.md)
   - [Type Conversions](effect/conversions.md)
   - [Focus-Effect Integration](effect/focus_integration.md)
   - [Patterns and Recipes](effect/patterns.md)

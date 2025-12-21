@@ -441,6 +441,10 @@ Kind<IdKind.Witness, List<Pair<Integer, Player>>> indexed =
 For more details on indexed optics, see [Indexed Optics](../optics/indexed_optics.md).
 ~~~
 
+~~~admonish tip title="See Also"
+- [ForPath Comprehension](../effect/forpath_comprehension.md) - For-comprehensions that work directly with Effect Path types
+~~~
+
 ---
 
 ~~~admonish tip title="Further Reading"

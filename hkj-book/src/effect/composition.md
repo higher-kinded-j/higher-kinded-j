@@ -573,7 +573,7 @@ The world remains understandable and lawful when each operation has a clear
 purpose and failures propagate predictably. Composition is the discipline
 that makes this possible.
 
-Continue to [Type Conversions](conversions.md) for detailed coverage of
+Continue to [ForPath Comprehension](forpath_comprehension.md) for detailed coverage of
 moving between Path types.
 
 ~~~admonish tip title="See Also"
@@ -585,4 +585,4 @@ moving between Path types.
 ---
 
 **Previous:** [Path Types](path_types.md)
-**Next:** [Type Conversions](conversions.md)
+**Next:** [ForPath Comprehension](forpath_comprehension.md)
