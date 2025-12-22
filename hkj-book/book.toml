@@ -30,3 +30,4 @@ level = 1
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.3" # do not edit: managed by `mdbook-admonish install`
+

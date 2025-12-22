@@ -9,5 +9,15 @@ module org.higherkindedj.examples {
   requires org.higherkindedj.annotations;
   requires java.compiler;
 
-// The examples module does not export any packages for other modules to use
+  // Export Order Workflow packages for testing
+  exports org.higherkindedj.example.order.audit;
+  exports org.higherkindedj.example.order.config;
+  exports org.higherkindedj.example.order.error;
+  exports org.higherkindedj.example.order.model;
+  exports org.higherkindedj.example.order.model.value;
+  exports org.higherkindedj.example.order.resilience;
+  exports org.higherkindedj.example.order.runner;
+  exports org.higherkindedj.example.order.service;
+  exports org.higherkindedj.example.order.service.impl;
+  exports org.higherkindedj.example.order.workflow;
 }
