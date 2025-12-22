@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" font-family="system-ui, -apple-system, sans-serif" font-size="12">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+    <marker id="arrowhead-error" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#d44"/>
+    </marker>
+  </defs>
+
+  <!-- Background sections -->
+  <rect x="30" y="40" width="280" height="240" rx="8" fill="#e8f4e8" stroke="#6a6" stroke-width="1.5"/>
+  <text x="170" y="65" text-anchor="middle" font-weight="600" fill="#464">Validation</text>
+
+  <rect x="330" y="40" width="280" height="320" rx="8" fill="#e8f0f8" stroke="#68a" stroke-width="1.5"/>
+  <text x="470" y="65" text-anchor="middle" font-weight="600" fill="#446">Processing</text>
+
+  <rect x="630" y="40" width="240" height="120" rx="8" fill="#f4f4e8" stroke="#aa6" stroke-width="1.5"/>
+  <text x="750" y="65" text-anchor="middle" font-weight="600" fill="#664">Completion</text>
+
+  <!-- Error track -->
+  <rect x="30" y="420" width="840" height="50" rx="6" fill="#fee" stroke="#d66" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="450" y="450" text-anchor="middle" font-weight="500" fill="#944">Error Track</text>
+
+  <!-- Validation nodes -->
+  <rect x="60" y="90" width="120" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="120" y="113" text-anchor="middle" font-weight="500">OrderRequest</text>
+
+  <rect x="60" y="150" width="120" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="120" y="168" text-anchor="middle" font-size="11">Validate Address</text>
+  <text x="120" y="180" text-anchor="middle" font-size="9" fill="#888">❓</text>
+
+  <rect x="60" y="210" width="120" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="120" y="228" text-anchor="middle" font-size="11">Lookup Customer</text>
+  <text x="120" y="240" text-anchor="middle" font-size="9" fill="#888">❓</text>
+
+  <!-- Validation arrows -->
+  <line x1="120" y1="126" x2="120" y2="147" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="120" y1="186" x2="120" y2="207" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Error branches from validation -->
+  <path d="M 180 168 Q 220 168 220 390 L 220 420" stroke="#d44" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-error)"/>
+  <text x="225" y="290" font-size="10" fill="#944">ShippingError</text>
+
+  <path d="M 180 228 Q 250 228 250 390 L 250 420" stroke="#d44" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-error)"/>
+  <text x="255" y="320" font-size="10" fill="#944">CustomerError</text>
+
+  <!-- Connection to Processing -->
+  <line x1="180" y1="228" x2="350" y2="100" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Processing nodes -->
+  <rect x="350" y="85" width="130" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="415" y="103" text-anchor="middle" font-size="11">ValidatedOrder</text>
+  <text x="415" y="115" text-anchor="middle" font-size="9" fill="#888">✓</text>
+
+  <rect x="350" y="145" width="130" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="415" y="163" text-anchor="middle" font-size="11">Reserve Inventory</text>
+  <text x="415" y="175" text-anchor="middle" font-size="9" fill="#888">❓</text>
+
+  <rect x="350" y="205" width="130" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="415" y="223" text-anchor="middle" font-size="11">Apply Discounts</text>
+  <text x="415" y="235" text-anchor="middle" font-size="9" fill="#888">❓</text>
+
+  <rect x="350" y="265" width="130" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="415" y="283" text-anchor="middle" font-size="11">Process Payment</text>
+  <text x="415" y="295" text-anchor="middle" font-size="9" fill="#888">❓</text>
+
+  <rect x="350" y="325" width="130" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="415" y="343" text-anchor="middle" font-size="11">Create Shipment</text>
+  <text x="415" y="355" text-anchor="middle" font-size="9" fill="#888">❓</text>
+
+  <!-- Processing arrows -->
+  <line x1="415" y1="121" x2="415" y2="142" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="415" y1="181" x2="415" y2="202" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="415" y1="241" x2="415" y2="262" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="415" y1="301" x2="415" y2="322" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Error branches from processing -->
+  <path d="M 480 163 Q 530 163 530 390 L 530 420" stroke="#d44" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-error)"/>
+  <text x="490" y="280" font-size="10" fill="#944">InventoryError</text>
+
+  <path d="M 480 223 Q 560 223 560 390 L 560 420" stroke="#d44" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-error)"/>
+  <text x="530" y="300" font-size="10" fill="#944">DiscountError</text>
+
+  <path d="M 480 283 Q 590 283 590 390 L 590 420" stroke="#d44" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-error)"/>
+  <text x="560" y="340" font-size="10" fill="#944">PaymentError</text>
+
+  <path d="M 480 343 Q 620 343 620 390 L 620 420" stroke="#d44" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-error)"/>
+  <text x="580" y="380" font-size="10" fill="#944">ShippingError</text>
+
+  <!-- Connection to Completion -->
+  <line x1="480" y1="343" x2="650" y2="100" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Completion nodes -->
+  <rect x="650" y="85" width="130" height="36" rx="4" fill="#fff" stroke="#666" stroke-width="1.5"/>
+  <text x="715" y="103" text-anchor="middle" font-size="11">Send Notification</text>
+  <text x="715" y="115" text-anchor="middle" font-size="9" fill="#888">❓ (recoverable)</text>
+
+  <rect x="720" y="145" width="130" height="36" rx="4" fill="#9d9" stroke="#4a4" stroke-width="2"/>
+  <text x="785" y="168" text-anchor="middle" font-weight="600" fill="#262">OrderResult</text>
+
+  <!-- Completion arrows -->
+  <line x1="715" y1="121" x2="750" y2="142" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 780 168 Q 800 200 780 220 L 780 178" stroke="#6a6" stroke-width="1" fill="none" stroke-dasharray="3,2"/>
+  <text x="810" y="200" font-size="9" fill="#484">recovered</text>
+
+  <!-- Legend -->
+  <rect x="650" y="500" width="220" height="70" rx="4" fill="#f8f8f8" stroke="#ccc"/>
+  <text x="660" y="520" font-weight="600" font-size="11">Legend</text>
+  <line x1="660" y1="535" x2="690" y2="535" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <text x="700" y="539" font-size="10">Success path</text>
+  <line x1="660" y1="555" x2="690" y2="555" stroke="#d44" stroke-width="1.5" marker-end="url(#arrowhead-error)"/>
+  <text x="700" y="559" font-size="10">Error branch</text>
+
+  <!-- Railway metaphor note -->
+  <text x="450" y="530" text-anchor="middle" font-style="italic" fill="#666" font-size="11">
+    Success stays on the main track; errors switch to the failure track
+  </text>
+</svg>

@@ -1,308 +1,716 @@
-# The Order Workflow Example
+# Order Workflow: A Practical Guide to Effect Composition
 
-This example is a practical demonstration of how to use the Higher-Kinded-J library to manage a common real-world scenario.
+> *"The major difference between a thing that might go wrong and a thing that cannot possibly go wrong is that when a thing that cannot possibly go wrong goes wrong, it usually turns out to be impossible to get at or repair."*
+>
+> — Douglas Adams, *Mostly Harmless*
 
-The scenario covers an Order workflow that involves asynchronous operations.  The Operations can fail with specific, expected business errors.
+Enterprise software can be like this.  Consider order processing. Every step can fail. Every failure has a type. Every type demands a different response. And when you've nested enough `try-catch` blocks inside enough null checks inside enough `if` statements, the thing that cannot possibly go wrong becomes the thing you cannot possibly debug.
+
+This walkthrough demonstrates how to build a robust, multi-step order workflow using the Effect Path API and Focus DSL. You'll see how typed errors, composable operations, and functional patterns transform the pyramid of doom into a railway of clarity.
 
 ~~~admonish info title="What You'll Learn"
-- Using the EitherT monad transformer to combine async operations with typed error handling
-- Composing CompletableFuture with Either to handle both domain errors and system failures
-- Building multi-step workflows with dependency injection and structured logging
-- Implementing error recovery strategies with handleErrorWith and handleError
-- Converting synchronous exceptions to typed domain errors using Try
-- Using For comprehensions to sequence complex asynchronous and error-prone workflows
+- Composing multi-step workflows with `EitherPath` and `via()` chains
+- Modelling domain errors with sealed interfaces for exhaustive handling
+- Using `ForPath` comprehensions for readable sequential composition
+- Implementing resilience patterns: retry policies, timeouts, and recovery
+- Integrating Focus DSL for immutable state updates
+- Configuring workflow behaviour with feature flags
+- Adapting these patterns to your own domain
 ~~~
 
-## Async Operations with Error Handling:
-
-You can find the code for the Order Processing example in the [`org.higherkindedj.example.order`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow) package.
-
-**Goal of this Example:**
-
-* To show how to compose asynchronous steps (using `CompletableFuture`) with steps that might result in domain-specific errors (using `Either`).
-* To introduce the **`EitherT` monad transformer** as a powerful tool to simplify working with nested structures like `CompletableFuture<Either<DomainError, Result>>`.
-* To illustrate how to handle different kinds of errors:
-  * **Domain Errors:** Expected business failures (e.g., invalid input, item out of stock) represented by `Either.Left`.
-  * **System Errors:** Unexpected issues during async execution (e.g., network timeouts) handled by `CompletableFuture`.
-  * **Synchronous Exceptions:** Using `Try` to capture exceptions from synchronous code and integrate them into the error handling flow.
-* To demonstrate error recovery using `MonadError` capabilities.
-* To show how dependencies (like logging) can be managed within the workflow steps.
-
-**Prerequisites:**
-
-Before diving in, it's helpful to have a basic understanding of:
-
-* [Core Concepts](core-concepts.md) of Higher-Kinded-J (`Kind`and Type Classes).
-* The specific types being used: [Supported Types](../monads/supported-types.md).
-* The general [Usage Guide](usage-guide.md).
-
-**Key Files:**
-
-* [`Dependencies.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/Dependencies.java): Holds external dependencies (e.g., logger).
-* [`OrderWorkflowRunner.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java): Orchestrates the workflow, initialising and running different workflow versions (Workflow1 and Workflow2).
-* [`OrderWorkflowSteps.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowSteps.java): Defines the individual workflow steps (sync/async), accepting `Dependencies`.
-* [`Workflow1.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java): Implements the order processing workflow using `EitherT` over `CompletableFuture`, with the initial validation step using an `Either`.
-* [`Workflow2.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/Workflow2.java): Implements a similar workflow to `Workflow1`, but the initial validation step uses a `Try` that is then converted to an `Either`.
-* [`WorkflowModels.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/model/WorkflowModels.java): Data records (`OrderData`, `ValidatedOrder`, etc.).
-* [`DomainError.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/error/DomainError.java): Sealed interface defining specific business errors.
+~~~admonish example title="See Example Code"
+- [OrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflow.java) - Main workflow implementation
+- [ConfigurableOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java) - Feature flags and resilience
+- [FocusDSLExamples.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/FocusDSLExamples.java) - Optics integration
+- [OrderError.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/error/OrderError.java) - Sealed error hierarchy
+~~~
 
 ---
 
-## Order Processing Workflow
+## The Territory: Why Order Workflows Are Hard
 
-![mermaid-flow-transparent.svg](../images/mermaid-flow-transparent.svg)
+Consider a typical e-commerce order flow:
 
----
-
-## The Problem: Combining Asynchronicity and Typed Errors
-
-Imagine an online order process with the following stages:
-
-1. **Validate Order Data:** Check quantity, product ID, etc. (Can fail with `ValidationError`). This is a synchronous operation.
-2. **Check Inventory:** Call an external inventory service (async). (Can fail with `StockError`).
-3. **Process Payment:** Call a payment gateway (async). (Can fail with `PaymentError`).
-4. **Create Shipment:** Call a shipping service (async). (Can fail with `ShippingError`, some of which might be recoverable).
-5. **Notify Customer:** Send an email/SMS (async). (Might fail, but should not critically fail the entire order).
-
-We face several challenges:
-
-* **Asynchronicity:** Steps 2, 3, 4, 5 involve network calls and should use `CompletableFuture`.
-* **Domain Errors:** Steps can fail for specific business reasons. We want to represent these failures with *types* (like `ValidationError`, `StockError`) rather than just generic exceptions or nulls. `Either<DomainError, SuccessValue>` is a good fit for this.
-* **Composition:** How do we chain these steps together? Directly nesting `CompletableFuture<Either<DomainError, ...>>` leads to complex and hard-to-read code (often called "callback hell" or nested `thenCompose`/`thenApply` chains).
-* **Short-Circuiting:** If validation fails (returns `Left(ValidationError)`), we shouldn't proceed to check inventory or process payment. The workflow should stop and return the validation error.
-* **Dependencies & Logging:** Steps need access to external resources (like service clients, configuration, loggers). How do we manage this cleanly?
-
-## The Solution: `EitherT` Monad Transformer + Dependency Injection
-
-This example tackles these challenges using:
-
-1. **`Either<DomainError, R>`**: To represent the result of steps that can fail with a specific business error (`DomainError`). `Left` holds the error, `Right` holds the success value `R`.
-2. **`CompletableFuture<T>`**: To handle the asynchronous nature of external service calls. It also inherently handles system-level exceptions (network timeouts, service unavailability) by completing exceptionally with a `Throwable`.
-3. **`EitherT<F_OUTER_WITNESS, L_ERROR, R_VALUE>`**: The key component! This *monad transformer* wraps a nested structure `Kind<F_OUTER_WITNESS, Either<L_ERROR, R_VALUE>>`. In our case:
-   * `F_OUTER_WITNESS` (Outer Monad's Witness) = `CompletableFutureKind.Witness` (handling async and system errors `Throwable`).
-   * `L_ERROR` (Left Type) = `DomainError` (handling business errors).
-   * `R_VALUE` (Right Type) = The success value of a step.
-     It provides `map`, `flatMap`, and `handleErrorWith` operations that work seamlessly across *both* the outer `CompletableFuture` context and the inner `Either` context.
-4. **Dependency Injection:** A `Dependencies` record holds external collaborators (like a logger). This record is passed to `OrderWorkflowSteps`, making dependencies explicit and testable.
-5. **Structured Logging:** Steps use the injected logger (`dependencies.log(...)`) for consistent logging.
-
-### Setting up `EitherTMonad`
-
-In `OrderWorkflowRunner`, we get the necessary type class instances:
-
-```java
-// MonadError instance for CompletableFuture (handles Throwable)
-// F_OUTER_WITNESS for CompletableFuture is CompletableFutureKind.Witness
-private final @NonNull MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
-    CompletableFutureMonad.INSTANCE;
-
-// EitherTMonad instance, providing the outer monad (futureMonad).
-// This instance handles DomainError for the inner Either.
-// The HKT witness for EitherT here is EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>
-private final @NonNull
-MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
-    eitherTMonad = new EitherTMonad<>(this.futureMonad);
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        ORDER PROCESSING PIPELINE                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   Request ──▶ Validate ──▶ Customer ──▶ Inventory ──▶ Discount          │
+│                  │            │            │            │               │
+│                  ▼            ▼            ▼            ▼               │
+│              Address?     Exists?      In Stock?    Valid Code?         │
+│              Postcode?    Eligible?    Reserved?    Loyalty Tier?       │
+│                                                                         │
+│   ──▶ Payment ──▶ Shipment ──▶ Notification ──▶ Result                  │
+│          │           │             │                                    │
+│          ▼           ▼             ▼                                    │
+│       Approved?   Created?     Sent?                                    │
+│       Funds?      Carrier?     (non-critical)                           │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Now, `eitherTMonad` can be used to chain operations on `EitherT` values (which are `Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, A>`). Its `flatMap` method automatically handles:
-
-* **Async Sequencing:** Delegated to `futureMonad.flatMap` (which translates to `CompletableFuture::thenCompose`).
-* **Error Short-Circuiting:** If an inner `Either` becomes `Left(domainError)`, subsequent `flatMap` operations are skipped, propagating the `Left` within the `CompletableFuture`.
-
-## Workflow Step-by-Step (`Workflow1.java`)
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-Let's trace the execution flow defined in `Workflow1`. The workflow uses a `For` comprehension to sequentially chain the steps. steps. The state (`WorkflowContext`) is carried implicitly within the `Right` side of the `EitherT`.
-
-The `OrderWorkflowRunner` initialises and calls `Workflow1` (or `Workflow2`). The core logic for composing the steps resides within these classes.
-
-
-We start with `OrderData` and create an initial `WorkflowContext`.
-
-Next, `eitherTMonad.of(initialContext)` lifts this context into an `EitherT` value, representing a `CompletableFuture` that is already successfully completed with an `Either.Right(initialContext)`.
-
-
+Each step can fail for specific, typed reasons. Traditional Java handles this with a patchwork of approaches:
 
 ```java
-// From Workflow1.run()
-
-var initialContext = WorkflowModels.WorkflowContext.start(orderData);
-
-// The For-comprehension expresses the workflow sequentially.
-// Each 'from' step represents a monadic bind (flatMap).
-var workflow = For.from(eitherTMonad, eitherTMonad.of(initialContext))
-    // Step 1: Validation. The lambda receives the initial context.
-    .from(ctx1 -> {
-      var validatedOrderET = EitherT.fromEither(futureMonad, EITHER.narrow(steps.validateOrder(ctx1.initialData())));
-      return eitherTMonad.map(ctx1::withValidatedOrder, validatedOrderET);
-    })
-    // Step 2: Inventory. The lambda receives a tuple of (initial context, context after validation).
-    .from(t -> {
-      var ctx = t._2(); // Get the context from the previous step
-      var inventoryCheckET = EitherT.fromKind(steps.checkInventoryAsync(ctx.validatedOrder().productId(), ctx.validatedOrder().quantity()));
-      return eitherTMonad.map(ignored -> ctx.withInventoryChecked(), inventoryCheckET);
-    })
-    // Step 3: Payment. The lambda receives a tuple of all previous results. The latest context is the last element.
-    .from(t -> {
-      var ctx = t._3(); // Get the context from the previous step
-      var paymentConfirmET = EitherT.fromKind(steps.processPaymentAsync(ctx.validatedOrder().paymentDetails(), ctx.validatedOrder().amount()));
-      return eitherTMonad.map(ctx::withPaymentConfirmation, paymentConfirmET);
-    })
-    // Step 4: Shipment (with error handling).
-    .from(t -> {
-        var ctx = t._4(); // Get the context from the previous step
-        var shipmentAttemptET = EitherT.fromKind(steps.createShipmentAsync(ctx.validatedOrder().orderId(), ctx.validatedOrder().shippingAddress()));
-        var recoveredShipmentET = eitherTMonad.handleErrorWith(shipmentAttemptET, error -> {
-            if (error instanceof DomainError.ShippingError(var reason) && "Temporary Glitch".equals(reason)) {
-                dependencies.log("WARN: Recovering from temporary shipping glitch for order " + ctx.validatedOrder().orderId());
-                return eitherTMonad.of(new WorkflowModels.ShipmentInfo("DEFAULT_SHIPPING_USED"));
+// The pyramid of doom
+public OrderResult processOrder(OrderRequest request) {
+    if (request == null) {
+        return OrderResult.error("Request is null");
+    }
+    try {
+        var address = validateAddress(request.address());
+        if (address == null) {
+            return OrderResult.error("Invalid address");
+        }
+        var customer = customerService.find(request.customerId());
+        if (customer == null) {
+            return OrderResult.error("Customer not found");
+        }
+        try {
+            var inventory = inventoryService.reserve(request.items());
+            if (!inventory.isSuccess()) {
+                return OrderResult.error(inventory.getReason());
             }
-            return eitherTMonad.raiseError(error);
-        });
-        return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
-    })
-    // Step 5 & 6 are combined in the yield for a cleaner result.
-    .yield(t -> {
-      var finalContext = t._5(); // The context after the last 'from'
-      var finalResult = new WorkflowModels.FinalResult(
-          finalContext.validatedOrder().orderId(),
-          finalContext.paymentConfirmation().transactionId(),
-          finalContext.shipmentInfo().trackingId()
-      );
-
-      // Attempt notification, but recover from failure, returning the original FinalResult.
-      var notifyET = EitherT.fromKind(steps.notifyCustomerAsync(finalContext.initialData().customerId(), "Order processed: " + finalResult.orderId()));
-      var recoveredNotifyET = eitherTMonad.handleError(notifyET, notifyError -> {
-        dependencies.log("WARN: Notification failed for order " + finalResult.orderId() + ": " + notifyError.message());
-        return Unit.INSTANCE;
-      });
-
-      // Map the result of the notification back to the FinalResult we want to return.
-      return eitherTMonad.map(ignored -> finalResult, recoveredNotifyET);
-    });
-
-// The yield returns a Kind<M, Kind<M, R>>, so we must flatten it one last time.
-var flattenedFinalResultET = eitherTMonad.flatMap(x -> x, workflow);
-
-var finalConcreteET = EITHER_T.narrow(flattenedFinalResultET);
-return finalConcreteET.value();
+            // ... and so on, ever deeper
+        } catch (InventoryException e) {
+            return OrderResult.error("Inventory error: " + e.getMessage());
+        }
+    } catch (ValidationException e) {
+        return OrderResult.error("Validation error: " + e.getMessage());
+    }
+}
 ```
 
-There is a lot going on in the `For` comprehension so lets try and unpick it.
+The problems multiply:
 
-#### Breakdown of the `For` Comprehension:
-
-1. **`For.from(eitherTMonad, eitherTMonad.of(initialContext))`**: The comprehension is initiated with a starting value. We lift the initial `WorkflowContext` into our `EitherT` monad, representing a successful, asynchronous starting point: `Future<Right(initialContext)>`.
-2. **`.from(ctx1 -> ...)` (Validation)**:
-   * **Purpose:** Validates the basic order data.
-   * **Sync/Async:** Synchronous. `steps.validateOrder` returns `Kind<EitherKind.Witness<DomainError>, ValidatedOrder>`.
-   * **HKT Integration:** The `Either` result is lifted into the `EitherT<CompletableFuture, ...>` context using `EitherT.fromEither(...)`. This wraps the immediate `Either` result in a *completed*`CompletableFuture`.
-   * **Error Handling:** If validation fails, `validateOrder` returns a `Left(ValidationError)`. This becomes a `Future<Left(ValidationError)>`, and the `For` comprehension automatically short-circuits, skipping all subsequent steps.
-3. **`.from(t -> ...)` (Inventory Check)**:
-   * **Purpose:** Asynchronously checks if the product is in stock.
-   * **Sync/Async:** Asynchronous. `steps.checkInventoryAsync` returns `Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>>`.
-   * **HKT Integration:** The `Kind` returned by the async step is directly wrapped into `EitherT` using `EitherT.fromKind(...)`.
-   * **Error Handling:** Propagates `Left(StockError)` or underlying `CompletableFuture` failures.
-4. **`.from(t -> ...)` (Payment)**:
-   * **Purpose:** Asynchronously processes the payment.
-   * **Sync/Async:** Asynchronous.
-   * **HKT Integration & Error Handling:** Works just like the inventory check, propagating `Left(PaymentError)` or `CompletableFuture` failures.
-5. **`.from(t -> ...)` (Shipment with Recovery)**:
-   * **Purpose:** Asynchronously creates a shipment.
-   * **HKT Integration:** Uses `EitherT.fromKind` and `eitherTMonad.handleErrorWith`.
-   * **Error Handling & Recovery:** If `createShipmentAsync` returns a `Left(ShippingError("Temporary Glitch"))`, the `handleErrorWith` block catches it and returns a *successful*`EitherT` with default shipment info, allowing the workflow to proceed. All other errors are propagated.
-6. **`.yield(t -> ...)` (Final Result and Notification)**:
-   * **Purpose:** The final block of the `For` comprehension. It takes the accumulated results from all previous steps (in a tuple `t`) and produces the final result of the entire chain.
-   * **Logic:**
-     1. It constructs the `FinalResult` from the successful `WorkflowContext`.
-     2. It attempts the final, non-critical notification step (`notifyCustomerAsync`).
-     3. Crucially, it uses `handleError` on the notification result. If notification fails, it logs a warning but recovers to a `Right(Unit.INSTANCE)`, ensuring the overall workflow remains successful.
-     4. It then maps the result of the recovered notification step back to the `FinalResult`, which becomes the final value of the entire comprehension.
-7. **Final `flatMap` and Unwrapping**:
-   * The `yield` block itself can return a monadic value. To get the final, single-layer result, we do one last `flatMap` over the `For` comprehension's result.
-   * Finally, `EITHER_T.narrow(...)` and `.value()` are used to extract the underlying `Kind<CompletableFutureKind.Witness, Either<...>>` from the `EitherT` record. The `main` method in `OrderWorkflowRunner` then uses `FUTURE.narrow()` and `.join()` to get the final `Either` result for printing.
-
+| Issue | Consequence |
+|-------|-------------|
+| Mixed idioms | Nulls, exceptions, and booleans don't compose |
+| Nested structure | Business logic buried under error handling |
+| String errors | No type safety, no exhaustive matching |
+| Repeated patterns | Each step reinvents error propagation |
 
 ---
 
+## The Map: Effect Path helps tame complexity
 
-## Alternative: Handling Exceptions with `Try` (`Workflow2.java`)
-
-The `OrderWorkflowRunner` also initialises and can run `Workflow2`. This workflow is identical to Workflow1 except for the first step. It demonstrates how to integrate synchronous code that might throw exceptions.
-
-- [Workflow2.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/Workflow2.java)
+The Effect Path API provides a unified approach. Here's the same workflow:
 
 ```java
-// From Workflow2.run(), inside the first .from(...)
-.from(ctx1 -> {
-  var tryResult = TRY.narrow(steps.validateOrderWithTry(ctx1.initialData()));
-  var eitherResult = tryResult.toEither(
-      throwable -> (DomainError) new DomainError.ValidationError(throwable.getMessage()));
-  var validatedOrderET = EitherT.fromEither(futureMonad, eitherResult);
-  // ... map context ...
-})
+public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
+    return validateShippingAddress(request.shippingAddress())
+        .via(validAddress ->
+            lookupAndValidateCustomer(request.customerId())
+                .via(customer ->
+                    buildValidatedOrder(request, customer, validAddress)
+                        .via(order -> processOrderCore(order, customer))));
+}
 ```
 
-* The `steps.validateOrderWithTry` method is designed to throw exceptions on validation failure (e.g., `IllegalArgumentException`).
-* `TRY.tryOf(...)` in `OrderWorkflowSteps` wraps this potentially exception-throwing code, returning a `Kind<TryKind.Witness, ValidatedOrder>`.
-* In `Workflow2`, we `narrow` this to a concrete `Try<ValidatedOrder>`.
-* We use `tryResult.toEither(...)` to convert the `Try` into an `Either<DomainError, ValidatedOrder>`:
-    * A `Try.Success(validatedOrder)` becomes `Either.right(validatedOrder)`.
-    * A `Try.Failure(throwable)` is mapped to an `Either.left(new DomainError.ValidationError(throwable.getMessage()))`.
-* The resulting `Either` is then lifted into `EitherT` using `EitherT.fromEither`, and the rest of the workflow proceeds as before.
+The transformation is dramatic:
 
-This demonstrates a practical pattern for integrating synchronous, exception-throwing code into the `EitherT`-based workflow by explicitly converting failures into your defined `DomainError` types.
+- **Flat structure**: Each step chains to the next with `via()`
+- **Typed errors**: `OrderError` is a sealed interface; the compiler ensures exhaustive handling
+- **Automatic propagation**: Failures short-circuit; no explicit checks required
+- **Composable**: Each step returns `EitherPath<OrderError, T>`, so they combine naturally
 
 ---
 
-~~~admonish important  title="Key Points:"
+## Workflow Architecture
 
+![Order Workflow Architecture](../images/order-workflow-architecture.svg)
 
-This example illustrates several powerful patterns enabled by Higher-Kinded-J:
+Notice how errors branch off at each decision point, while success flows forward. This is the railway model in action: success stays on the main track; errors switch to the failure track and propagate to the end.
 
-1.  **`EitherT` for `Future<Either<Error, Value>>`**: This is the core pattern. Use `EitherT` whenever you need to sequence asynchronous operations (`CompletableFuture`) where each step can also fail with a specific, typed error (`Either`).
-    * Instantiate `EitherTMonad<F_OUTER_WITNESS, L_ERROR>` with the `Monad<F_OUTER_WITNESS>` instance for your outer monad (e.g., `CompletableFutureMonad`).
-    * Use `eitherTMonad.flatMap` or a `For` comprehension to chain steps.
-    * Lift async results (`Kind<F_OUTER_WITNESS, Either<L, R>>`) into `EitherT` using `EitherT.fromKind`.
-    * Lift sync results (`Either<L, R>`) into `EitherT` using `EitherT.fromEither`.
-    * Lift pure values (`R`) into `EitherT` using `eitherTMonad.of` or `EitherT.right`.
-    * Lift errors (`L`) into `EitherT` using `eitherTMonad.raiseError` or `EitherT.left`.
-2.  **Typed Domain Errors**: Use `Either` (often with a sealed interface like `DomainError` for the `Left` type) to represent expected business failures clearly. This improves type safety and makes error handling more explicit.
-3.  **Error Recovery**: Use `eitherTMonad.handleErrorWith` (for complex recovery returning another `EitherT`) or `handleError` (for simpler recovery to a pure value for the `Right` side) to inspect `DomainError`s and potentially recover, allowing the workflow to continue gracefully.
-4.  **Integrating `Try`**: If dealing with synchronous legacy code or libraries that throw exceptions, wrap calls using `TRY.tryOf`. Then, `narrow` the `Try` and use `toEither` (or `fold`) to convert `Try.Failure` into an appropriate `Either.Left<DomainError>` before lifting into `EitherT`.
-5.  **Dependency Injection**: Pass necessary dependencies (loggers, service clients, configurations) into your workflow steps (e.g., via a constructor and a `Dependencies` record). This promotes loose coupling and testability.
-6.  **Structured Logging**: Use an injected logger within steps to provide visibility into the workflow's progress and state without tying the steps to a specific logging implementation (like `System.out`).
-7.  **`var` for Conciseness**: Utilise Java's `var` for local variable type inference where the type is clear from the right-hand side of an assignment. This can reduce verbosity, especially with complex generic types common in HKT.
+---
+
+## Building Block: The Sealed Error Hierarchy
+
+The foundation of type-safe error handling is a sealed interface:
+
+```java
+@GeneratePrisms
+public sealed interface OrderError
+    permits ValidationError, CustomerError, InventoryError,
+            DiscountError, PaymentError, ShippingError,
+            NotificationError, SystemError {
+
+    String code();
+    String message();
+    Instant timestamp();
+    Map<String, Object> context();
+}
+```
+
+Each variant carries domain-specific information:
+
+```java
+record CustomerError(
+    String code,
+    String message,
+    Instant timestamp,
+    Map<String, Object> context,
+    String customerId
+) implements OrderError {
+
+    public static CustomerError notFound(String customerId) {
+        return new CustomerError(
+            "CUSTOMER_NOT_FOUND",
+            "Customer not found: " + customerId,
+            Instant.now(),
+            Map.of("customerId", customerId),
+            customerId
+        );
+    }
+
+    public static CustomerError suspended(String customerId, String reason) {
+        return new CustomerError(
+            "CUSTOMER_SUSPENDED",
+            "Customer account suspended: " + reason,
+            Instant.now(),
+            Map.of("customerId", customerId, "reason", reason),
+            customerId
+        );
+    }
+}
+```
+
+The `@GeneratePrisms` annotation creates optics for each variant, enabling type-safe pattern matching in functional pipelines.
+
+### Why Sealed Interfaces Matter
+
+```java
+// Exhaustive matching - compiler ensures all cases handled
+public String getUserFriendlyMessage(OrderError error) {
+    return switch (error) {
+        case ValidationError e  -> "Please check your order: " + e.message();
+        case CustomerError e    -> "Account issue: " + e.message();
+        case InventoryError e   -> "Stock issue: " + e.message();
+        case DiscountError e    -> "Discount issue: " + e.message();
+        case PaymentError e     -> "Payment issue: " + e.message();
+        case ShippingError e    -> "Shipping issue: " + e.message();
+        case NotificationError e -> "Order processed (notification pending)";
+        case SystemError e      -> "System error - please try again";
+    };
+}
+```
+
+Add a new error type, and the compiler tells you everywhere that needs updating.
+
+---
+
+## Composing the Workflow with `via()`
+
+The `via()` method is the workhorse of Effect Path composition. It chains computations where each step depends on the previous result:
+
+```java
+private EitherPath<OrderError, OrderResult> processOrderCore(
+    ValidatedOrder order, Customer customer) {
+
+    return reserveInventory(order.orderId(), order.lines())
+        .via(reservation ->
+            applyDiscounts(order, customer)
+                .via(discount ->
+                    processPayment(order, discount)
+                        .via(payment ->
+                            createShipment(order, order.shippingAddress())
+                                .via(shipment ->
+                                    sendNotifications(order, customer, discount)
+                                        .map(notification ->
+                                            buildOrderResult(order, discount,
+                                                payment, shipment, notification))))));
+}
+```
+
+Each step:
+1. Receives the success value from the previous step
+2. Returns a new `EitherPath`
+3. Automatically propagates errors (if the previous step failed, this step is skipped)
+
+### Individual Steps Are Simple
+
+```java
+private EitherPath<OrderError, InventoryReservation> reserveInventory(
+    OrderId orderId, List<ValidatedOrderLine> lines) {
+    return Path.either(inventoryService.reserve(orderId, lines));
+}
+
+private EitherPath<OrderError, PaymentConfirmation> processPayment(
+    ValidatedOrder order, DiscountResult discount) {
+    return Path.either(
+        paymentService.processPayment(
+            order.orderId(),
+            discount.finalTotal(),
+            order.paymentMethod()));
+}
+```
+
+The `Path.either()` factory lifts an `Either<E, A>` into an `EitherPath<E, A>`. Your services return `Either`; the workflow composes them with `via()`.
+
+---
+
+## Pattern Spotlight: ForPath Comprehensions
+
+For workflows with several sequential steps, `ForPath` provides a cleaner syntax:
+
+```java
+private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
+    return ForPath.from(lookupCustomer(customerId))
+        .from(this::validateCustomerEligibility)
+        .yield((found, validated) -> validated);
+}
+```
+
+This is equivalent to nested `via()` calls but reads more naturally for simple sequences.
+
+### When to Use ForPath vs via()
+
+| Pattern | Best For |
+|---------|----------|
+| `ForPath` | 2-3 sequential steps with simple dependencies |
+| `via()` chains | Longer chains, complex branching, or when intermediate values are reused |
+
+~~~admonish note title="ForPath Limitation"
+`ForPath` for `EitherPath` currently supports up to 3 steps. For longer sequences, use nested `via()` chains as shown in the main workflow.
 ~~~
 
 ---
 
-~~~admonish success title="Further Considerations & Potential Enhancements"
+## Recovery Patterns
 
-While this example covers a the core concepts, a real-world application might involve more complexities. Here are some areas to consider for further refinement:
+Not all errors are fatal. Notifications, for instance, shouldn't fail the entire order:
 
-1. **More Sophisticated Error Handling/Retries:**
-   * **Retry Mechanisms:** For transient errors (like network hiccups or temporary service unavailability), you might implement retry logic. This could involve retrying a failed async step a certain number of times with exponential backoff. While `higher-kinded-j` itself doesn't provide specific retry utilities, you could integrate libraries like Resilience4j or implement custom retry logic within a `flatMap` or `handleErrorWith` block.
-   * **Compensating Actions (Sagas):** If a step fails after previous steps have caused side effects (e.g., payment succeeds, but shipment fails irrevocably), you might need to trigger compensating actions (e.g., refund payment). This often leads to more complex Saga patterns.
-2. **Configuration of Services:**
-   * The `Dependencies` record currently only holds a logger. In a real application, it would also provide configured instances of service clients (e.g., `InventoryService`, `PaymentGatewayClient`, `ShippingServiceClient`). These clients would be interfaces, with concrete implementations (real or mock for testing) injected.
-3. **Parallel Execution of Independent Steps:**
-   * If some workflow steps are independent and can be executed concurrently, you could leverage `CompletableFuture.allOf` (to await all) or `CompletableFuture.thenCombine` (to combine results of two).
-   * Integrating these with `EitherT` would require careful management of the `Either` results from parallel futures. For instance, if you run two `EitherT` operations in parallel, you'd get two `CompletableFuture<Either<DomainError, ResultX>>`. You would then need to combine these, deciding how to aggregate errors if multiple occur, or how to proceed if one fails and others succeed.
-4. **Transactionality:**
-   * For operations requiring atomicity (all succeed or all fail and roll back), traditional distributed transactions are complex. The Saga pattern mentioned above is a common alternative for managing distributed consistency.
-   * Individual steps might interact with transactional resources (e.g., a database). The workflow itself would coordinate these, but doesn't typically manage a global transaction across disparate async services.
-5. **More Detailed & Structured Logging:**
-   * The current logging is simple string messages. For better observability, use a structured logging library (e.g., SLF4J with Logback/Log4j2) and log key-value pairs (e.g., `orderId`, `stepName`, `status`, `durationMs`, `errorType` if applicable). This makes logs easier to parse, query, and analyse.
-   * Consider logging at the beginning and end of each significant step, including the outcome (success/failure and error details).
-6. **Metrics & Monitoring:**
-   * Instrument the workflow to emit metrics (e.g., using Micrometer). Track things like workflow execution time, step durations, success/failure counts for each step, and error rates. This is crucial for monitoring the health and performance of the system.
+```java
+private EitherPath<OrderError, NotificationResult> sendNotifications(
+    ValidatedOrder order, Customer customer, DiscountResult discount) {
 
-~~~
+    return Path.either(
+            notificationService.sendOrderConfirmation(
+                order.orderId(), customer, discount.finalTotal()))
+        .recoverWith(error -> Path.right(NotificationResult.none()));
+}
+```
 
-Higher-Kinded-J can help build more robust, resilient, and observable workflows using these foundational patterns from this example.
+The `recoverWith()` method catches errors and provides a fallback. Here, notification failures are swallowed, and processing continues with a "no notification" result.
+
+### Recovery Options
+
+| Method | Use Case |
+|--------|----------|
+| `recover(f)` | Transform error to success value directly |
+| `recoverWith(f)` | Provide alternative `EitherPath` (may itself fail) |
+| `mapError(f)` | Transform error type (stays on failure track) |
 
 ---
 
+## Resilience: Retry and Timeout
+
+The `ConfigurableOrderWorkflow` demonstrates production-grade resilience:
+
+```java
+public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
+    var retryPolicy = createRetryPolicy();
+    var totalTimeout = calculateTotalTimeout();
+
+    return Resilience.resilient(
+        Path.io(() -> executeWorkflow(request)),
+        retryPolicy,
+        totalTimeout,
+        "ConfigurableOrderWorkflow.process");
+}
+```
+
+### Retry Policy
+
+```java
+public record RetryPolicy(
+    int maxAttempts,
+    Duration initialDelay,
+    double backoffMultiplier,
+    Duration maxDelay,
+    Predicate<Throwable> retryOn
+) {
+    public static RetryPolicy defaults() {
+        return new RetryPolicy(
+            3,                              // attempts
+            Duration.ofMillis(100),         // initial delay
+            2.0,                            // exponential backoff
+            Duration.ofSeconds(5),          // max delay cap
+            t -> t instanceof IOException  // retry on IO errors
+                || t instanceof TimeoutException
+        );
+    }
+
+    public Duration delayForAttempt(int attempt) {
+        if (attempt <= 1) return Duration.ZERO;
+        var retryNumber = attempt - 1;
+        var delayMillis = initialDelay.toMillis()
+            * Math.pow(backoffMultiplier, retryNumber - 1);
+        return Duration.ofMillis(
+            Math.min((long) delayMillis, maxDelay.toMillis()));
+    }
+}
+```
+
+> *"I love deadlines. I love the whooshing noise they make as they go by."*
+>
+> — Douglas Adams
+
+Timeouts ensure deadlines don't just whoosh by indefinitely:
+
+```java
+var timeout = Resilience.withTimeout(
+    operation,
+    Duration.ofSeconds(30),
+    "paymentService.charge"
+);
+```
+
+---
+
+## Focus DSL Integration
+
+The Focus DSL complements Effect Path for immutable state updates. Where Effect Path navigates *computational effects*, Focus navigates *data structures*.
+
+### Immutable State Updates
+
+```java
+public static OrderWorkflowState applyDiscount(
+    OrderWorkflowState state, DiscountResult discount) {
+
+    var withDiscount = state.withDiscountResult(discount);
+
+    return state.validatedOrder()
+        .map(order -> {
+            var updatedOrder = updateOrderSubtotal(order, discount.finalTotal());
+            return withDiscount.withValidatedOrder(updatedOrder);
+        })
+        .orElse(withDiscount);
+}
+```
+
+### Pattern Matching with Sealed Types
+
+```java
+public static EitherPath<OrderError, PaymentMethod> validatePaymentMethod(
+    PaymentMethod method) {
+
+    return switch (method) {
+        case PaymentMethod.CreditCard card -> {
+            if (card.cardNumber().length() < 13) {
+                yield Path.left(
+                    OrderError.ValidationError.forField(
+                        "cardNumber", "Card number too short"));
+            }
+            yield Path.right(method);
+        }
+        case PaymentMethod.BankTransfer transfer -> {
+            if (transfer.accountNumber().isBlank()) {
+                yield Path.left(
+                    OrderError.ValidationError.forField(
+                        "accountNumber", "Account number required"));
+            }
+            yield Path.right(method);
+        }
+        // ... other cases
+    };
+}
+```
+
+The sealed `PaymentMethod` type enables exhaustive validation with Effect Path integration.
+
+---
+
+## Feature Flags: Configuration-Driven Behaviour
+
+The `ConfigurableOrderWorkflow` uses feature flags to control optional behaviours:
+
+```java
+public record FeatureFlags(
+    boolean enablePartialFulfilment,
+    boolean enableSplitShipments,
+    boolean enableLoyaltyDiscounts
+) {
+    public static FeatureFlags defaults() {
+        return new FeatureFlags(false, false, true);
+    }
+
+    public static FeatureFlags allEnabled() {
+        return new FeatureFlags(true, true, true);
+    }
+}
+```
+
+These flags control workflow branching:
+
+```java
+private EitherPath<OrderError, DiscountResult> applyDiscounts(
+    ValidatedOrder order, Customer customer) {
+
+    return order.promoCode()
+        .<EitherPath<OrderError, DiscountResult>>map(
+            code -> Path.either(discountService.applyPromoCode(code, order.subtotal())))
+        .orElseGet(() -> {
+            if (config.featureFlags().enableLoyaltyDiscounts()) {
+                return Path.either(
+                    discountService.calculateLoyaltyDiscount(customer, order.subtotal()));
+            }
+            return Path.right(DiscountResult.noDiscount(order.subtotal()));
+        });
+}
+```
+
+---
+
+## Compile-Time Code Generation
+
+Much of the boilerplate in this example is generated at compile time through annotations. This keeps your code focused on domain logic while the annotation processors handle the mechanical parts.
+
+### Annotation Overview
+
+| Annotation | Purpose | Generated Code |
+|------------|---------|----------------|
+| `@GenerateLenses` | Immutable record updates | Type-safe lenses for each field |
+| `@GenerateFocus` | Focus DSL integration | `FocusPath` and `AffinePath` accessors |
+| `@GeneratePrisms` | Sealed type navigation | Prisms for each variant of sealed interfaces |
+| `@GeneratePathBridge` | Service-to-Path bridging | `*Paths` class wrapping service methods |
+| `@PathVia` | Method-level documentation | Includes doc strings in generated bridges |
+
+### Lenses and Focus for Records
+
+```java
+@GenerateLenses
+@GenerateFocus
+public record OrderWorkflowState(
+    OrderRequest request,
+    Optional<ValidatedOrder> validatedOrder,
+    Optional<InventoryReservation> inventoryReservation,
+    // ... more fields
+) { }
+```
+
+The annotation processor generates `OrderWorkflowStateLenses` with a lens for each field, plus `OrderWorkflowStateFocus` with `FocusPath` accessors. These enable immutable updates without manual `with*` methods:
+
+```java
+// Generated lens usage
+var updated = OrderWorkflowStateLenses.validatedOrder()
+    .set(state, Optional.of(newOrder));
+
+// Generated focus usage
+var subtotal = OrderWorkflowStateFocus.validatedOrder()
+    .andThen(ValidatedOrderFocus.subtotal())
+    .get(state);
+```
+
+### Prisms for Sealed Hierarchies
+
+```java
+@GeneratePrisms
+public sealed interface OrderError
+    permits ValidationError, CustomerError, InventoryError, ... { }
+```
+
+This generates `OrderErrorPrisms` with a prism for each permitted variant:
+
+```java
+// Extract specific error type if present
+Optional<PaymentError> paymentError =
+    OrderErrorPrisms.paymentError().getOptional(error);
+
+// Pattern-match in functional style
+var recovery = OrderErrorPrisms.shippingError()
+    .modifyOptional(error, e -> e.recoverable()
+        ? recoverShipping(e)
+        : e);
+```
+
+### Path Bridges for Services
+
+```java
+@GeneratePathBridge
+public interface CustomerService {
+
+    @PathVia(doc = "Looks up customer details by ID")
+    Either<OrderError, Customer> findById(CustomerId id);
+
+    @PathVia(doc = "Validates customer eligibility")
+    Either<OrderError, Customer> validateEligibility(Customer customer);
+}
+```
+
+This generates `CustomerServicePaths`:
+
+```java
+// Generated bridge class
+public class CustomerServicePaths {
+    private final CustomerService delegate;
+
+    public EitherPath<OrderError, Customer> findById(CustomerId id) {
+        return Path.either(delegate.findById(id));
+    }
+
+    public EitherPath<OrderError, Customer> validateEligibility(Customer customer) {
+        return Path.either(delegate.validateEligibility(customer));
+    }
+}
+```
+
+Now your workflow can use the generated bridges directly:
+
+```java
+private final CustomerServicePaths customers;
+
+private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId id) {
+    return customers.findById(id)
+        .via(customers::validateEligibility);
+}
+```
+
+### Why Code Generation Matters
+
+The annotations eliminate three categories of boilerplate:
+
+1. **Structural navigation**: Lenses and prisms provide type-safe access without manual getter/setter chains
+2. **Effect wrapping**: Path bridges convert `Either`-returning services to `EitherPath` automatically
+3. **Pattern matching**: Prisms enable functional matching on sealed types without explicit `instanceof` checks
+
+The result is domain code that reads like a specification of *what* should happen, while the generated code handles *how* to navigate, wrap, and match.
+
+---
+
+## Adapting These Patterns to Your Domain
+
+### Step 1: Define Your Error Hierarchy
+
+Start with a sealed interface for your domain errors:
+
+```java
+public sealed interface MyDomainError
+    permits ValidationError, NotFoundError, ConflictError, SystemError {
+
+    String code();
+    String message();
+}
+```
+
+### Step 2: Wrap Your Services
+
+Convert existing services to return `Either`:
+
+```java
+// Before
+public User findUser(String id) throws UserNotFoundException { ... }
+
+// After
+public Either<MyDomainError, User> findUser(String id) {
+    try {
+        return Either.right(legacyService.findUser(id));
+    } catch (UserNotFoundException e) {
+        return Either.left(NotFoundError.user(id));
+    }
+}
+```
+
+### Step 3: Compose with EitherPath
+
+Build your workflows using `via()`:
+
+```java
+public EitherPath<MyDomainError, Result> process(Request request) {
+    return Path.either(validateRequest(request))
+        .via(valid -> Path.either(findUser(valid.userId())))
+        .via(user -> Path.either(performAction(user, valid)))
+        .map(this::buildResult);
+}
+```
+
+### Step 4: Add Resilience Gradually
+
+Start simple, add resilience as needed:
+
+```java
+// Start with basic composition
+var result = workflow.process(request);
+
+// Add timeout when integrating external services
+var withTimeout = Resilience.withTimeout(result, Duration.ofSeconds(30), "process");
+
+// Add retry for transient failures
+var resilient = Resilience.withRetry(withTimeout, RetryPolicy.defaults());
+```
+
+---
+
+## Reflection: Complexity Tamed by Simple Building Blocks
+
+Step back and consider what we have built. An order workflow with eight distinct steps, seven potential error types, recovery logic, retry policies, feature flags, and immutable state updates. In traditional Java, this would likely span hundreds of lines of nested conditionals, try-catch blocks, and defensive null checks.
+
+Instead, the core workflow fits in a single method:
+
+```java
+return validateShippingAddress(request.shippingAddress())
+    .via(validAddress -> lookupAndValidateCustomer(request.customerId())
+        .via(customer -> buildValidatedOrder(request, customer, validAddress)
+            .via(order -> processOrderCore(order, customer))));
+```
+
+This is not magic. It is the result of combining a small number of simple, composable building blocks:
+
+| Building Block | What It Does |
+|----------------|--------------|
+| `Either<E, A>` | Represents success or typed failure |
+| `EitherPath<E, A>` | Wraps `Either` with chainable operations |
+| `via(f)` | Sequences operations, propagating errors |
+| `map(f)` | Transforms success values |
+| `recoverWith(f)` | Handles failures with fallbacks |
+| Sealed interfaces | Enables exhaustive error handling |
+| Records | Provides immutable data with minimal syntax |
+| Annotations | Generates lenses, prisms, and bridges |
+
+None of these concepts is particularly complex. `Either` is just a container with two cases. `via` is just `flatMap` with a friendlier name. Sealed interfaces are just sum types. Records are just product types. Lenses are just pairs of getter and setter functions.
+
+The power comes from *composition*. Each building block does one thing well, and they combine without friction. Error propagation is automatic. State updates are immutable. Pattern matching is exhaustive. Code generation eliminates boilerplate.
+
+> *"Make each program do one thing well. To do a new job, build afresh rather than complicate old programs by adding new features."*
+>
+> — Doug McIlroy, Unix Philosophy
+
+This is the Unix philosophy applied to data and control flow. Small, focused tools, combined freely. The result is code that is:
+
+- **Readable**: The workflow reads like a specification
+- **Testable**: Each step is a pure function
+- **Maintainable**: Changes are localised; the compiler catches missing cases
+- **Resilient**: Error handling is consistent and explicit
+
+The pyramid of doom we started with was not a failure of Java. It was a failure to find the right abstractions. Effect Path, sealed types, and code generation provide those abstractions. The complexity has not disappeared, but it is now *managed* rather than *sprawling*.
+
+---
+
+~~~admonish info title="Key Takeaways"
+* **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
+* **`via()` chains** compose sequential operations with automatic error propagation
+* **`ForPath` comprehensions** provide readable syntax for simple sequences (up to 3 steps)
+* **Recovery patterns** (`recover`, `recoverWith`) handle non-fatal errors gracefully
+* **Resilience utilities** add retry and timeout behaviour without cluttering business logic
+* **Focus DSL** complements Effect Path for immutable state updates
+* **Feature flags** enable configuration-driven workflow behaviour
+* **Annotation processors** generate lenses, prisms, and service bridges, eliminating boilerplate
+* **Composition of simple building blocks** tames complexity without hiding it
+~~~
+
+---
+
+~~~admonish tip title="See Also"
+- [Effect Path Overview](../effect/effect_path_overview.md) - The railway model and core operations
+- [Path Types](../effect/path_types.md) - Complete reference for all Path types
+- [Patterns and Recipes](../effect/patterns.md) - More real-world patterns
+- [Focus DSL](../optics/focus_dsl.md) - Composable data navigation
+- [Monad](../functional/monad.md) - The type class powering `via` and `flatMap`
+~~~
+
+---
+
+**Previous:** [Usage Guide](usage-guide.md)
 **Next:** [Draughts Game](draughts.md)
