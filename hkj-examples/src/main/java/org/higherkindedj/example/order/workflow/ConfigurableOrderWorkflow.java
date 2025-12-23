@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import java.time.Instant;
+import java.util.Optional;
 import org.higherkindedj.example.order.config.WorkflowConfig;
 import org.higherkindedj.example.order.error.OrderError;
 import org.higherkindedj.example.order.model.Customer;
@@ -9,9 +11,15 @@ import org.higherkindedj.example.order.model.InventoryReservation;
 import org.higherkindedj.example.order.model.OrderRequest;
 import org.higherkindedj.example.order.model.OrderResult;
 import org.higherkindedj.example.order.model.PartialFulfilmentResult;
+import org.higherkindedj.example.order.model.Product;
 import org.higherkindedj.example.order.model.SplitShipmentResult;
 import org.higherkindedj.example.order.model.ValidatedOrder;
+import org.higherkindedj.example.order.model.ValidatedOrderLine;
+import org.higherkindedj.example.order.model.ValidatedShippingAddress;
 import org.higherkindedj.example.order.model.value.CustomerId;
+import org.higherkindedj.example.order.model.value.Money;
+import org.higherkindedj.example.order.model.value.OrderId;
+import org.higherkindedj.example.order.model.value.ProductId;
 import org.higherkindedj.example.order.resilience.Resilience;
 import org.higherkindedj.example.order.resilience.RetryPolicy;
 import org.higherkindedj.example.order.service.CustomerService;
@@ -280,36 +288,33 @@ public class ConfigurableOrderWorkflow {
   }
 
   private ValidatedOrder createValidatedOrder(
-      OrderRequest request,
-      Customer customer,
-      org.higherkindedj.example.order.model.ValidatedShippingAddress validAddress) {
+      OrderRequest request, Customer customer, ValidatedShippingAddress validAddress) {
     var lines =
         request.lines().stream()
             .map(
                 line ->
-                    org.higherkindedj.example.order.model.ValidatedOrderLine.of(
-                        new org.higherkindedj.example.order.model.value.ProductId(line.productId()),
-                        new org.higherkindedj.example.order.model.Product(
-                            new org.higherkindedj.example.order.model.value.ProductId(
-                                line.productId()),
+                    ValidatedOrderLine.of(
+                        new ProductId(line.productId()),
+                        new Product(
+                            new ProductId(line.productId()),
                             "Product " + line.productId(),
                             "Description",
-                            org.higherkindedj.example.order.model.value.Money.gbp("10.00"),
+                            Money.gbp("10.00"),
                             "General",
                             true),
                         line.quantity()))
             .toList();
 
     return new ValidatedOrder(
-        org.higherkindedj.example.order.model.value.OrderId.generate(),
+        OrderId.generate(),
         customer.id(),
         customer,
         lines,
-        java.util.Optional.empty(),
+        Optional.empty(),
         validAddress,
         request.paymentMethod(),
         ValidatedOrder.calculateSubtotal(lines),
-        java.time.Instant.now());
+        Instant.now());
   }
 
   private RetryPolicy createRetryPolicy() {

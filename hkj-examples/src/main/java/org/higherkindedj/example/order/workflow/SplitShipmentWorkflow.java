@@ -5,6 +5,7 @@ package org.higherkindedj.example.order.workflow;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.higherkindedj.example.order.error.OrderError;
 import org.higherkindedj.example.order.model.InventoryReservation;
 import org.higherkindedj.example.order.model.ShipmentInfo;
@@ -131,8 +132,7 @@ public class SplitShipmentWorkflow {
 
   /** Appends an element to an immutable list, returning a new list. */
   private static <T> List<T> appendToList(List<T> list, T element) {
-    return java.util.stream.Stream.concat(list.stream(), java.util.stream.Stream.of(element))
-        .toList();
+    return Stream.concat(list.stream(), Stream.of(element)).toList();
   }
 
   private EitherPath<OrderError, ShipmentInfo> createWarehouseShipment(
