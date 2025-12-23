@@ -10,6 +10,10 @@
 - Converting between types like Maybe, List, and Either
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial08_NaturalTransformation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial08_NaturalTransformation.java)
+~~~
+
 ~~~admonish example title="See Example Code"
 - [NaturalTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/NaturalTest.java) - Comprehensive test suite
 - [NaturalTransformationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/natural/NaturalTransformationExample.java) - Practical examples
@@ -285,6 +289,10 @@ They are a fundamental building block in functional programming, particularly wh
 - **Bartosz Milewski**: [Natural Transformations](https://bartoszmilewski.com/2015/04/07/natural-transformations/) - Accessible introduction with diagrams
 - **Cats Documentation**: [FunctionK](https://typelevel.org/cats/datatypes/functionk.html) - Scala's equivalent (called `~>` or `FunctionK`)
 - **Functional Programming in Scala**: Chapter 11 covers natural transformations in the context of Free monads
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice natural transformations in [Tutorial 08: Natural Transformation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial08_NaturalTransformation.java) (5 exercises, ~10 minutes).
 ~~~
 
 ---

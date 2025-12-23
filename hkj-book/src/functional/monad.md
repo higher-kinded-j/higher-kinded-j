@@ -9,6 +9,10 @@
 - How monadic short-circuiting works in practice
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial04_MonadChaining.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial04_MonadChaining.java)
+~~~
+
 You've seen how `Functor` lets you `map` over a value in a context and how `Applicative` lets you combine independent computations within a context. Now, we'll introduce the most powerful of the trio: **`Monad`**.
 
 A `Monad` builds on `Applicative` by adding one crucial ability: sequencing computations that **depend on each other**. If the result of the first operation is needed to determine the second operation, you need a `Monad`.
@@ -344,6 +348,10 @@ This pattern is especially powerful when combined with error-handling monads lik
 - **Scott Logic**: [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html) - Practical guide to functors and monads in Java
 - **Bartosz Milewski**: [Monads: Programmer's Definition](https://bartoszmilewski.com/2016/11/21/monads-programmers-definition/) - Practical explanation of monads for programmers
 - **Cats Documentation**: [Monad](https://typelevel.org/cats/typeclasses/monad.html) - Scala implementation and examples
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice Monad chaining in [Tutorial 04: Monad Chaining](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial04_MonadChaining.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

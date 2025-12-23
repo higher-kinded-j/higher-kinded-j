@@ -8,6 +8,10 @@
 - Practical examples with Either and Try
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial05_MonadErrorHandling.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial05_MonadErrorHandling.java)
+~~~
+
 While a `Monad` is excellent for sequencing operations that might fail (like with `Optional` or `Either`), it doesn't provide a standardised way to *inspect* or *recover* from those failures. The **`MonadError`** type class fills this gap.
 
 It's a specialised `Monad` that has a defined error type `E`, giving you a powerful and abstract API for raising and handling errors within any monadic workflow.
@@ -109,6 +113,10 @@ In this example, `raiseError` allows us to create the failure case in a clean, d
 
 ~~~admonish tip title="Further Reading"
 - **Cats Documentation**: [ApplicativeError](https://typelevel.org/cats/typeclasses/applicativeerror.html) - The foundation that MonadError builds upon
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice error handling in [Tutorial 05: Monad Error Handling](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial05_MonadErrorHandling.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

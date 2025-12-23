@@ -10,6 +10,10 @@
 - Validation patterns that accumulate all errors
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial10_FreeApplicative.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial10_FreeApplicative.java)
+~~~
+
 ~~~admonish example title="See Example Code"
 - [FreeApTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free_ap/FreeApTest.java) - Comprehensive test suite
 - [FreeApApplicativeTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free_ap/FreeApApplicativeTest.java) - Applicative law verification
@@ -330,6 +334,10 @@ Use Free Applicative when your computations are independent; use Free Monad when
 ~~~admonish tip title="Further Reading"
 - **Functional Programming in Scala** (Red Book): Chapter 12 covers applicative functors and their relationship to monads
 - **Cats Documentation**: [Free Applicative](https://typelevel.org/cats/datatypes/freeapplicative.html) - Scala implementation with examples
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice Free Applicative in [Tutorial 10: Free Applicative](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial10_FreeApplicative.java) (6 exercises, ~12 minutes).
 ~~~
 
 ---

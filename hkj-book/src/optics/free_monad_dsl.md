@@ -11,6 +11,10 @@
 - Creating reusable program fragments
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial11_AdvancedOpticsDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java)
+~~~
+
 ~~~admonish title="Example Code"
 [FreeMonadOpticDSLExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FreeMonadOpticDSLExample.java)
 ~~~
@@ -653,6 +657,10 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 ~~~admonish tip title="Further Reading"
 - **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - The foundational explanation
 - **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) - Error handling patterns
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java) (7 exercises, ~12 minutes).
 ~~~
 
 ---

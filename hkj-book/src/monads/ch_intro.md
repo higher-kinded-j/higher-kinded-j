@@ -14,6 +14,10 @@ Each type has its purpose. `Id` does nothing, which makes it useful as a baselin
 
 The art lies in choosing the right context for the problem at hand. Sometimes you need fail-fast semantics; sometimes you need error accumulation. Sometimes laziness helps; sometimes it hinders. This chapter provides the vocabulary. Experience provides the judgement.
 
+~~~admonish title="Hands On Practice"
+[Tutorial07_RealWorld.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java)
+~~~
+
 ---
 
 ## The Landscape
@@ -117,6 +121,10 @@ A rough decision guide:
 18. [Validated](validated_monad.md) - Error accumulation
 19. [Writer](writer_monad.md) - Output accumulation
 20. [Const](const_type.md) - Phantom-typed constants
+
+~~~admonish info title="Hands-On Learning"
+Practice real-world monad patterns in [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises, ~12 minutes).
+~~~
 
 ---
 

@@ -12,6 +12,10 @@
 - Practical patterns for real-world Java applications
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial09_FluentOpticsAPI.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java)
+~~~
+
 ~~~admonish title="Example Code"
 [FluentOpticOpsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentOpticOpsExample.java)
 ~~~
@@ -1026,6 +1030,10 @@ for (Order order : orders) {
 ~~~admonish tip title="Further Reading"
 - **Martin Fowler**: [Fluent Interface](https://martinfowler.com/bliki/FluentInterface.html) - The original pattern description
 - **Haskell Lens**: [Lens Tutorial](https://hackage.haskell.org/package/lens-tutorial) - Deeper theoretical understanding
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---
