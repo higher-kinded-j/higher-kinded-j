@@ -13,6 +13,10 @@
 - When to use lenses vs direct field access
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial01_LensBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial01_LensBasics.java) | [Tutorial07_GeneratedOptics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial07_GeneratedOptics.java)
+~~~
+
 ~~~admonish title="Example Code"
 [LensesExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 ~~~
@@ -385,6 +389,10 @@ Kind<ValidatedKind.Witness<String>, Employee> result =
 Lenses integrate with For comprehensions in two ways:
 - Use `focus()` within a For comprehension to extract values via lens-like accessors. See [For Comprehensions: Extracting Values with focus()](../functional/for_comprehension.md#extracting-values-with-focus).
 - Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_comprehension.md#stateful-updates-with-forstate).
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial01_LensBasics.java) (7 exercises, ~10 minutes) and generated optics in [Tutorial 07: Generated Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial07_GeneratedOptics.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

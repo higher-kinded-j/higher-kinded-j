@@ -8,6 +8,10 @@
 - When to choose Functor over direct method calls
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial02_FunctorMapping.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial02_FunctorMapping.java)
+~~~
+
 At the heart of functional programming is the ability to transform data within a container without having to open it. The **`Functor`** type class provides exactly this capability. It's the simplest and most common abstraction for any data structure that can be "mapped over."
 
 If you've ever used `Optional.map()` or `Stream.map()`, you've already been using the Functor pattern! `higher-kinded-j` simply formalises this concept so you can apply it to any data structure.
@@ -123,6 +127,10 @@ As you can see, the `Functor` provides a consistent API for transformation, rega
 - **Scott Logic**: [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html) - Practical guide to functors and monads in Java
 - **Bartosz Milewski**: [Functors](https://bartoszmilewski.com/2015/01/20/functors/) - Comprehensive explanation of functors from category theory to code
 - **Cats Documentation**: [Functor](https://typelevel.org/cats/typeclasses/functor.html) - Scala implementation and examples
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice Functor mapping in [Tutorial 02: Functor Mapping](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial02_FunctorMapping.java) (6 exercises, ~8 minutes).
 ~~~
 
 ---

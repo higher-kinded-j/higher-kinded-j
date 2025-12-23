@@ -9,6 +9,10 @@
 - Quick reference table for all composition patterns
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial02_LensComposition.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial02_LensComposition.java)
+~~~
+
 When composing optics, the resulting optic type follows precise mathematical rules. Understanding these rules helps you predict what type of optic you'll get and why.
 
 ---
@@ -315,6 +319,10 @@ Understanding these rules helps you:
 - Predict the type of composed optics
 - Choose the right composition approach
 - Design your domain model with optics in mind
+
+~~~admonish info title="Hands-On Learning"
+Practice lens composition in [Tutorial 02: Lens Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial02_LensComposition.java) (7 exercises, ~10 minutes).
+~~~
 
 ---
 

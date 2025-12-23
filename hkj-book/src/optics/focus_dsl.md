@@ -16,6 +16,10 @@
 - When to use Focus DSL vs manual lens composition
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) | [Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java)
+~~~
+
 ~~~admonish title="Example Code"
 [NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) | [TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
 ~~~
@@ -1407,6 +1411,10 @@ TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
 - [Lenses](lenses.md) - Foundation concepts
 - [Fluent API](fluent_api.md) - Alternative fluent patterns
 - [Free Monad DSL](free_monad_dsl.md) - Composable optic programs
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice the Focus DSL in [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises, ~12 minutes) and [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises, ~12 minutes).
 ~~~
 
 ---

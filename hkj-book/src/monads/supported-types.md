@@ -8,6 +8,10 @@
 - Where to find detailed documentation and examples for each supported type
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial06_ConcreteTypes.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java)
+~~~
+
 ![monads_everywhere.webp](../images/monads_everywhere.webp)
 
 Higher-Kinded-J provides Higher-Kinded Type (HKT) simulation capabilities, allowing various Java types and custom types to be used with generic functional type classes like `Functor`, `Applicative`, `Monad`, and `MonadError`. 
@@ -270,6 +274,12 @@ This is achieved by representing the application of a type constructor `F` to a 
   * [`ConstBifunctor`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstBifunctor.java) (`Bifunctor<ConstKind2.Witness>`). This instance provides `first` (transforms the constant value), `second` (changes only the phantom type), and `bimap` (combines both, though only `first` affects the constant value).
 * **Notes**: The second type parameter `A` is **phantom**: it exists only in the type signature and has no runtime representation. Calling `mapSecond` or `second` preserves the constant value whilst changing the phantom type in the signature. This makes `Const` particularly useful for fold implementations (accumulating a single value), getter patterns in lens libraries (van Laarhoven lenses), and data extraction from structures without transformation. The mapper function in `second` is applied to `null` for exception propagation, so use null-safe mappers. Similar to `Const` in Scala's Cats and Scalaz libraries.
 * **Usage**: [How to use the Const Type](./const_type.md)
+
+---
+
+~~~admonish info title="Hands-On Learning"
+Practice with concrete types in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises, ~10 minutes).
+~~~
 
 ---
 

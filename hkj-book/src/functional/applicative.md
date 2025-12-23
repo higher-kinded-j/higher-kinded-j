@@ -8,6 +8,10 @@
 - Real-world validation scenarios with the Validated type
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial03_ApplicativeCombining.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial03_ApplicativeCombining.java)
+~~~
+
 Whilst a `Functor` excels at applying a *pure* function to a value inside a context, what happens when the function you want to apply is *also* wrapped in a context? This is where the **`Applicative`** type class comes in. It's the next step up in power from a `Functor` and allows you to combine multiple computations within a context in a very powerful way.
 
 ---
@@ -127,6 +131,10 @@ This error accumulation is impossible with `Functor` and is one of the key featu
 
 ~~~admonish tip title="Further Reading"
 - **Cats Documentation**: [Applicative](https://typelevel.org/cats/typeclasses/applicative.html) - Comprehensive coverage of Applicative laws and practical examples
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice Applicative combining in [Tutorial 03: Applicative Combining](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial03_ApplicativeCombining.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

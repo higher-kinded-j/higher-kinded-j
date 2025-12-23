@@ -12,6 +12,10 @@
 - Advanced patterns for multi-level and conditional validation scenarios
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial06_OpticsComposition.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial06_OpticsComposition.java)
+~~~
+
 ~~~admonish title="Example Code"
 [ValidatedTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)
 ~~~
@@ -815,6 +819,10 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 
 ~~~admonish tip title="See Also"
 For a complete guide to validation-aware modifications including fluent builder API, integration with Jakarta Bean Validation, and performance optimisation, see [Fluent API for Optics](fluent_api.md#part-25-validation-aware-modifications).
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice optic composition in [Tutorial 06: Optics Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial06_OpticsComposition.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

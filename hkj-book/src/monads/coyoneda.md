@@ -10,6 +10,10 @@
 - When Coyoneda improves performance
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial09_Coyoneda.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java)
+~~~
+
 ~~~admonish example title="See Example Code"
 - [CoyonedaTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/coyoneda/CoyonedaTest.java) - Comprehensive test suite
 - [CoyonedaFunctorTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/coyoneda/CoyonedaFunctorTest.java) - Functor law verification
@@ -284,6 +288,10 @@ It's a powerful tool for optimising functional pipelines and simplifying Free mo
 ~~~admonish tip title="Further Reading"
 - **Why it helps**: [Introduction to Yoneda and Coyoneda](https://gist.github.com/gregberns/ede18190d5117eea6fb51815e2eab9b2) - Explains Coyoneda as a _deferred map_
 - **Bartosz Milewski**: [The Yoneda Lemma](https://bartoszmilewski.com/2015/09/01/the-yoneda-lemma/) - The mathematical foundation (more theoretical)
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice Coyoneda in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java) (5 exercises, ~10 minutes).
 ~~~
 
 ---

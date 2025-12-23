@@ -11,6 +11,10 @@
 - When to use Affines vs Prisms vs Lenses
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial04_AffineBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial04_AffineBasics.java)
+~~~
+
 ~~~admonish title="Example Code"
 [AffineUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/AffineUsageExample.java)
 ~~~
@@ -674,6 +678,10 @@ By adding Affines to your toolkit, you can write cleaner, safer code that handle
 
 ~~~admonish tip title="Terminology Note"
 In some functional programming libraries (notably Scala's Monocle), the Affine optic is called an **Optional**. This can cause confusion with Java's `java.util.Optional`. In higher-kinded-j, we use the term "Affine" to avoid this ambiguity whilst maintaining mathematical precision.
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice affine basics in [Tutorial 04: Affine Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial04_AffineBasics.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

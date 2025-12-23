@@ -10,6 +10,10 @@
 - How type classes provide generic operations across different container types
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial01_KindBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java)
+~~~
+
 Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (HKTs) and associated functional type classes in Java. Understanding these is crucial for using and extending the library.
 
 [Feel free to skip ahead to the examples and come back later for the theory](hkt_basic_examples.md)
@@ -141,6 +145,12 @@ Higher-Kinded-J provides the `org.higherkindedj.hkt.Unit` type to address this.
 
 * **Domain Errors:** These are expected business-level errors or alternative outcomes. They are represented *within* the structure of the simulated type (e.g., `Either.Left`, `Maybe.Nothing`, `Try.Failure`, a failed `CompletableFuture`, potentially a specific result type within `IO`). These are handled using the type's specific methods or `MonadError` capabilities (`handleErrorWith`, `recover`, `fold`, `orElse`, etc.) *after* successfully unwrapping the `Kind`.
 * **Simulation Errors (`KindUnwrapException`):** These indicate a problem with the HKT simulation *itself* – usually a programming error. Examples include passing `null` to `unwrap`, passing a `ListKind` to `OptionalKindHelper.unwrap`, or (if it were possible) having a `Holder` record contain a `null` reference to the underlying Java object it's supposed to hold. These are signalled by throwing the unchecked `KindUnwrapException` from `unwrap` methods to clearly distinguish infrastructure issues from domain errors. You typically shouldn't need to catch `KindUnwrapException` unless debugging the simulation usage itself.
+
+---
+
+~~~admonish info title="Hands-On Learning"
+Practice Kind basics in [Tutorial 01: Kind Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java) (4 exercises, ~8 minutes).
+~~~
 
 ---
 

@@ -11,6 +11,10 @@
 - When to use traversals vs streams vs manual loops for collection processing
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial05_TraversalBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java)
+~~~
+
 ~~~admonish title="Example Code"
 [TraversalUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 ~~~
@@ -827,6 +831,10 @@ A `Traversal` is the most general of the core optics. In fact, all other optics 
 * An `Iso` is just a `Traversal` that focuses on **exactly one** item and is reversible.
 
 This is the reason they can all be composed together so seamlessly. By mastering `Traversal`, you complete your understanding of the core optics family, enabling you to build powerful, declarative, and safe data transformations that work efficiently across any number of targets.
+
+~~~admonish info title="Hands-On Learning"
+Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java) (7 exercises, ~10 minutes).
+~~~
 
 ---
 

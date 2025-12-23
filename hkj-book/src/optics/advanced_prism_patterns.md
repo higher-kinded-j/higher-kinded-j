@@ -15,6 +15,10 @@
 - Testing strategies for prism-heavy codebases
 ~~~
 
+~~~admonish title="Hands On Practice"
+[Tutorial10_AdvancedPrismPatterns.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial10_AdvancedPrismPatterns.java)
+~~~
+
 ~~~admonish title="Example Code"
 [ConfigurationManagementExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ConfigurationManagementExample.java)
 [ApiResponseHandlingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ApiResponseHandlingExample.java)
@@ -965,6 +969,10 @@ public class PrismTestPatterns {
 - **Monocle**: [Scala Optics Library](https://www.optics.dev/Monocle/) - Production-ready Scala optics with extensive patterns
 - **Haskell Lens**: [Canonical Reference](https://hackage.haskell.org/package/lens) - The original comprehensive optics library
 - **Lens Tutorial**: [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial) - Beginner-friendly introduction
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice advanced prism patterns in [Tutorial 10: Advanced Prism Patterns](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial10_AdvancedPrismPatterns.java) (8 exercises, ~12 minutes).
 ~~~
 
 ---
