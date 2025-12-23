@@ -2,59 +2,78 @@
 
 ![draughts_board.png](../images/draughts_board.png)
 
-This tutorial will guide you through building a complete and playable command-line draughts (checkers) game.
-
-We will provide all the necessary code, broken down into manageable files. More importantly, we will demonstrate how `higher-kinded-j` makes this process more robust, maintainable, and functionally elegant by cleanly separating game logic, user interaction, and state management.
+This tutorial guides you through building a complete command-line draughts (checkers) game using the Effects Path API and Focus DSL. We demonstrate how Higher-Kinded-J makes functional game development in Java both practical and elegant.
 
 ~~~admonish info title="What You'll Learn"
-- How to build a complete functional game using the State, Either, and IO monads
-- Techniques for managing immutable game state with the State monad
-- How to handle user input and validation with Either for type-safe error handling
-- Using the IO monad to encapsulate side effects while keeping core logic pure
-- Composing monadic operations with For comprehensions for readable workflows
-- Implementing complex game rules like multi-jump captures using pure functions
+- How to build a complete functional game using the Effects Path API
+- Managing immutable game state with `WithStatePath`
+- Railway-oriented programming with `EitherPath` for validation pipelines
+- Type-safe error handling using the Focus-Effect bridge
+- Encapsulating side effects with `IOPath` while keeping core logic pure
+- Stream-based functional patterns for declarative iteration
+- Composing operations with `ForPath` for readable workflows
+- Using the Focus DSL and `@GenerateFocus` for type-safe data navigation
 ~~~
 
-### The Functional Approach
+~~~admonish example title="See Example Code"
+[org.higherkindedj.example.draughts](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/draughts)
+~~~
 
-At its core, a game like draughts involves several key aspects where functional patterns can shine:
+---
 
-* **State Management**: The board, the position of pieces, whose turn it is – this is all game state. Managing this immutably can prevent a host of bugs.
-* **User Input**: Players will enter moves, which might be valid, invalid, or incorrectly formatted.
-* **Game Logic**: Operations like validating a move, capturing a piece, checking for kings, or determining a winner.
-* **Side Effects**: Interacting with the console for input and output.
+## The Effects Path Approach
 
-`higher-kinded-j` provides monads that are perfect for these tasks:
+At its core, a game like draughts involves several aspects where the Effects Path API shines:
 
-* **[`State` Monad](../monads/state_monad.md)**: For cleanly managing and transitioning the game state without mutable variables.
-* **[`Either` Monad](../monads/either_monad.md)**: For handling input parsing and move validation, clearly distinguishing between success and different kinds of errors.
-* **[`IO` Monad](../monads/io_monad.md)**: For encapsulating side effects like reading from and printing to the console, keeping the core logic pure.
-* [`For` Comprehension](../functional/for_comprehension.md): To flatten sequences of monadic operations (`flatMap` calls) into a more readable, sequential style.
+```
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                    DRAUGHTS GAME ARCHITECTURE                       │
+    │                                                                     │
+    │                        ┌──────────────┐                             │
+    │                        │  Focus DSL   │                             │
+    │                        │  Navigation  │                             │
+    │                        └──────┬───────┘                             │
+    │                               │                                     │
+    │   User Input          Game Logic              Display               │
+    │   ─────────           ──────────              ───────               │
+    │                               │                                     │
+    │   IOPath              WithStatePath           IOPath                │
+    │   ┌──────────┐        ┌──────┴──────┐        ┌──────────┐           │
+    │   │ Read     │───────►│ Validate    │───────►│ Render   │           │
+    │   │ Parse    │ railway│ Navigate    │ stream │ Board    │           │
+    │   │ Validate │───────►│ Update      │───────►│          │           │
+    │   └──────────┘        └─────────────┘        └──────────┘           │
+    │        │                    │                     │                 │
+    │        ▼                    ▼                     ▼                 │
+    │   EitherPath          WithStatePath           IOPath                │
+    │   <Error,             <GameState,             <Unit>                │
+    │   MoveCommand>        MoveResult>                                   │
+    │                                                                     │
+    │                    Composed via ForPath                             │
+    └─────────────────────────────────────────────────────────────────────┘
+```
 
-By using these, we can build a more declarative and composable game.
+The Effects Path API provides the tools for each concern:
 
-### The Complete Code
+| Concern | Path Type | Purpose |
+|---------|-----------|---------|
+| **State Management** | `WithStatePath<S, A>` | Pure state transformations without mutable variables |
+| **User Input** | `IOPath<A>` + `EitherPath<E, A>` | Side effects with railway-oriented validation |
+| **Game Logic** | `WithStatePath<GameState, MoveResult>` | Railway-oriented validation and rule enforcement |
+| **Side Effects** | `IOPath<A>` | Deferred console I/O |
+| **Composition** | `ForPath` | Sequential workflow composition |
+| **Data Navigation** | Focus DSL | Type-safe access to nested structures |
+| **Iteration** | `Stream` + `IntStream` | Declarative, functional iteration patterns |
 
-you can find the complete code in the package:
+---
 
-- [`org.higherkindedj.example.draughts`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/draughts)
+## Step 1: Defining the Game State with Focus DSL
 
-### Step 1: Core Concepts Quick Recap
-
-Before we write game code, let's briefly revisit *why*`higher-kinded-j` is necessary. Java doesn't let us write, for example, a generic function that works for *any* container `F<A>` (like `List<A>` or `Optional<A>`). `higher-kinded-j` simulates this with:
-
-* **`Kind<F, A>`**: A bridge interface representing a type `A` within a context `F`.
-* **Witness Types**: Marker types that stand in for `F` (the type constructor).
-* **Type Classes**: Interfaces like `Functor`, `Applicative`, `Monad`, and `MonadError` that define operations (like `map`, `flatMap`, `handleErrorWith`) which work over these `Kind`s.
-
-For a deeper dive, check out the [Core Concepts of Higher-Kinded-J](core-concepts.md) and the [Usage Guide](usage-guide.md).
-
-### Step 2: Defining the Draughts Game State
-
-Our game state needs to track the board, pieces, and current player.
-First, we need to define the core data structures of our game. These are simple, immutable records represent the game's state.
+Our game state uses immutable records annotated with `@GenerateFocus` to enable type-safe navigation via the Focus DSL.
 
 ```java
+import org.higherkindedj.optics.annotations.GenerateFocus;
+
 // Enum for the two players
 enum Player { RED, BLACK }
 
@@ -62,517 +81,758 @@ enum Player { RED, BLACK }
 enum PieceType { MAN, KING }
 
 // A piece on the board, owned by a player with a certain type
+@GenerateFocus
 record Piece(Player owner, PieceType type) {}
 
 // A square on the 8x8 board, identified by row and column
+@GenerateFocus
 record Square(int row, int col) {
   @Override
-  public @NonNull String toString() {
+  public String toString() {
     return "" + (char)('a' + col) + (row + 1);
   }
 }
 
 // Represents an error during move parsing or validation
-record GameError(String description) {}
+// The isQuit flag distinguishes quit commands from validation errors
+@GenerateFocus
+record GameError(String description, boolean isQuit) {
+  public GameError(String description) { this(description, false); }
+}
 
 // The command to make a move from one square to another
+@GenerateFocus
 record MoveCommand(Square from, Square to) {}
 
 // The outcome of a move attempt
 enum MoveOutcome { SUCCESS, INVALID_MOVE, CAPTURE_MADE, GAME_WON }
+
+@GenerateFocus
 record MoveResult(MoveOutcome outcome, String message) {}
-
 ```
 
-We can define a `GameState` record:
+The main `GameState` record captures the complete game state. The initialisation uses a stream-based approach for a declarative, functional style:
 
 ```java
-// The complete, immutable state of the game at any point in time
-public record GameState(Map<Square, Piece> board, Player currentPlayer, String message, boolean isGameOver) {
+@GenerateFocus
+public record GameState(
+    Map<Square, Piece> board,
+    Player currentPlayer,
+    String message,
+    boolean isGameOver) {
 
+  private static final int BLACK_START_ROW = 0;
+  private static final int BLACK_END_ROW = 3;
+  private static final int RED_START_ROW = 5;
+  private static final int RED_END_ROW = 8;
+
+  /**
+   * Creates the initial game state using stream-based board initialisation.
+   */
   public static GameState initial() {
-    Map<Square, Piece> startingBoard = new HashMap<>();
-    // Place BLACK pieces
-    for (int r = 0; r < 3; r++) {
-      for (int c = (r % 2 != 0) ? 0 : 1; c < 8; c += 2) {
-        startingBoard.put(new Square(r, c), new Piece(Player.BLACK, PieceType.MAN));
-      }
-    }
-    // Place RED pieces
-    for (int r = 5; r < 8; r++) {
-      for (int c = (r % 2 != 0) ? 0 : 1; c < 8; c += 2) {
-        startingBoard.put(new Square(r, c), new Piece(Player.RED, PieceType.MAN));
-      }
-    }
-    return new GameState(Collections.unmodifiableMap(startingBoard), Player.RED, "Game started. RED's turn.", false);
+    Map<Square, Piece> board =
+        Stream.concat(
+                placePieces(Player.BLACK, BLACK_START_ROW, BLACK_END_ROW),
+                placePieces(Player.RED, RED_START_ROW, RED_END_ROW))
+            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    return new GameState(board, Player.RED, "Game started. RED's turn.", false);
   }
 
-   GameState withBoard(Map<Square, Piece> newBoard) {
-    return new GameState(Collections.unmodifiableMap(newBoard), this.currentPlayer, this.message, this.isGameOver);
+  /**
+   * Generates piece placements using flatMap to combine all squares across rows.
+   */
+  private static Stream<Map.Entry<Square, Piece>> placePieces(
+      Player owner, int startRow, int endRow) {
+    Piece piece = new Piece(owner, PieceType.MAN);
+
+    return IntStream.range(startRow, endRow)
+        .boxed()
+        .flatMap(row ->
+            darkSquaresInRow(row).mapToObj(col -> Map.entry(new Square(row, col), piece)));
   }
 
-   GameState withCurrentPlayer(Player nextPlayer) {
-    return new GameState(this.board, nextPlayer, this.message, this.isGameOver);
+  /**
+   * Returns column indices of dark (playable) squares using IntStream.iterate.
+   */
+  private static IntStream darkSquaresInRow(int row) {
+    int startCol = (row % 2 != 0) ? 0 : 1;
+    return IntStream.iterate(startCol, col -> col < 8, col -> col + 2);
   }
 
-   GameState withMessage(String newMessage) {
-    return new GameState(this.board, this.currentPlayer, newMessage, this.isGameOver);
-  }
-
-  GameState withGameOver() {
-    return new GameState(this.board, this.currentPlayer, this.message, true);
-  }
-
-   GameState togglePlayer() {
-    Player next = (this.currentPlayer == Player.RED) ? Player.BLACK : Player.RED;
-    return withCurrentPlayer(next).withMessage(next + "'s turn.");
-  }
+  // Pure transformation methods
+  GameState withMessage(String newMessage) { ... }
+  GameState togglePlayer() { ... }
 }
-
 ```
 
-We'll use the `State<S, A>` monad from `higher-kinded-j` to manage this `GameState`. A `State<GameState, A>` represents a computation that takes an initial `GameState` and produces a result `A` along with a new, updated `GameState`. Explore the [State Monad documentation](../monads/state_monad.md) for more.
+~~~admonish note title="Functional Initialisation"
+The stream-based approach replaces imperative nested loops with declarative operations:
+- `Stream.concat()` combines piece placements from both players
+- `IntStream.range().flatMap()` generates squares across multiple rows
+- `IntStream.iterate()` calculates playable squares on each row
+- `Collectors.toUnmodifiableMap()` creates an immutable result
+~~~
 
-### Step 3: Handling User Input with `IO` and `Either`
-
-This class handles reading user input from the console. The `readMoveCommand` method returns an `IO<Either<GameError, MoveCommand>>`. This type signature is very descriptive: it tells us the action is an `IO` side effect, and its result will be either a `GameError` or a valid `MoveCommand`.
+The `@GenerateFocus` annotation generates Focus path classes that enable type-safe navigation:
 
 ```java
+// Generated: GameStateFocus, PieceFocus, SquareFocus, etc.
+// Usage:
+Player owner = PieceFocus.owner().get(piece);
+GameState updated = GameStateFocus.message().set("New message", state);
+```
+
+---
+
+## Step 2: Handling User Input with Railway-Oriented Programming
+
+The `InputHandler` class demonstrates railway-oriented programming for input parsing. The parsing pipeline uses `EitherPath` to chain validation steps, where errors automatically short-circuit to the error track:
+
+```
+readLine → checkQuit → splitInput → parseSquares → MoveCommand
+   ↓          ↓           ↓            ↓
+ IOPath   EitherPath  EitherPath   EitherPath
+```
+
+Each step either continues on the success track or switches to the error track. The final result captures both the side effect of reading from console (`IOPath`) and the possibility of parse errors (`Either`).
+
+```java
+import org.higherkindedj.hkt.effect.IOPath;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.Path;
+
 class InputHandler {
   private static final Scanner scanner = new Scanner(System.in);
 
-   static Kind<IOKind.Witness, Either<GameError, MoveCommand>> readMoveCommand() {
-    return IOKindHelper.IO_OP.delay(() -> {
-      System.out.print("Enter move for " + " (e.g., 'a3 b4') or 'quit': ");
-      String line = scanner.nextLine();
-
-      if ("quit".equalsIgnoreCase(line.trim())) {
-        return Either.left(new GameError("Player quit the game."));
-      }
-
-      String[] parts = line.trim().split("\\s+");
-      if (parts.length != 2) {
-        return Either.left(new GameError("Invalid input. Use 'from to' format (e.g., 'c3 d4')."));
-      }
-      try {
-        Square from = parseSquare(parts[0]);
-        Square to = parseSquare(parts[1]);
-        return Either.right(new MoveCommand(from, to));
-      } catch (IllegalArgumentException e) {
-        return Either.left(new GameError(e.getMessage()));
-      }
+  /**
+   * Reads a move command from the console.
+   * Wraps the side-effecting input operation in IOPath and delegates parsing
+   * to a pure function.
+   */
+  static IOPath<Either<GameError, MoveCommand>> readMoveCommand() {
+    return Path.io(() -> {
+      System.out.print("Enter move (e.g., 'a3 b4') or 'quit': ");
+      return parseLine(scanner.nextLine().trim());
     });
   }
 
-  private static Square parseSquare(String s) throws IllegalArgumentException {
-    if (s == null || s.length() != 2) throw new IllegalArgumentException("Invalid square format: " + s);
-    char colChar = s.charAt(0);
-    char rowChar = s.charAt(1);
-    if (colChar < 'a' || colChar > 'h' || rowChar < '1' || rowChar > '8') {
-      throw new IllegalArgumentException("Square out of bounds (a1-h8): " + s);
+  /**
+   * Parses an input line using railway-oriented programming.
+   * The pipeline chains validation steps with .via(), where any error
+   * short-circuits the entire pipeline.
+   */
+  private static Either<GameError, MoveCommand> parseLine(String line) {
+    return checkNotQuit(line)
+        .via(InputHandler::splitIntoTwoParts)
+        .via(InputHandler::parseSquarePair)
+        .run();
+  }
+
+  // ===== Pipeline Steps =====
+
+  /** First step: checks if input is the quit command. */
+  private static EitherPath<GameError, String> checkNotQuit(String line) {
+    return "quit".equalsIgnoreCase(line)
+        ? Path.left(new GameError("Player quit the game.", true))
+        : Path.right(line);
+  }
+
+  /** Second step: splits input into exactly two parts. */
+  private static EitherPath<GameError, String[]> splitIntoTwoParts(String line) {
+    String[] parts = line.split("\\s+");
+    return parts.length == 2
+        ? Path.right(parts)
+        : Path.left(new GameError("Invalid input. Use 'from to' format (e.g., 'c3 d4')."));
+  }
+
+  /** Third step: parses both squares and combines into MoveCommand. */
+  private static EitherPath<GameError, MoveCommand> parseSquarePair(String[] parts) {
+    return parseSquare(parts[0]).zipWith(parseSquare(parts[1]), MoveCommand::new);
+  }
+
+  // ===== Square Parsing =====
+
+  /**
+   * Parses a square notation string (e.g., "a3") using railway-oriented programming.
+   */
+  private static EitherPath<GameError, Square> parseSquare(String input) {
+    return validateFormat(input).via(InputHandler::validateBoundsAndCreate);
+  }
+
+  private static EitherPath<GameError, String> validateFormat(String input) {
+    return (input != null && input.length() == 2)
+        ? Path.right(input)
+        : Path.left(new GameError("Invalid square format: " + input));
+  }
+
+  private static EitherPath<GameError, Square> validateBoundsAndCreate(String input) {
+    char colChar = input.charAt(0);
+    char rowChar = input.charAt(1);
+
+    boolean validCol = colChar >= 'a' && colChar <= 'h';
+    boolean validRow = rowChar >= '1' && rowChar <= '8';
+
+    if (!validCol || !validRow) {
+      return Path.left(new GameError("Square out of bounds (a1-h8): " + input));
     }
-    int col = colChar - 'a';
-    int row = rowChar - '1';
-    return new Square(row, col);
+
+    return Path.right(new Square(rowChar - '1', colChar - 'a'));
   }
 }
-
 ```
 
-Learn more about the [IO Monad](../monads/io_monad.md) and [Either Monad](../monads/either_monad.md).
+~~~admonish note title="The Railway Model"
+The `EitherPath` follows the railway model: values flow on the success track (Right), while errors automatically switch to the failure track (Left). The `.via()` method chains dependent validations, and `zipWith` combines two validations, short-circuiting on the first error.
+~~~
 
 ---
 
-### Step 4: Game Logic as State Transitions
+## Step 3: Game Logic with Railway-Oriented Programming
 
-This is the heart of our application, containing the complete rules of draughts. The `applyMove` method takes a `MoveCommand` and returns a `State` computation. This computation, when run, will validate the move against the current `GameState`, and if valid, produce a `MoveResult` and the new `GameState`. _This entire class has no side effects._
+The game logic uses railway-oriented programming where validations chain on the success track and errors automatically short-circuit to the error track. This replaces imperative if-else chains with a fluent, declarative pipeline.
 
 ```java
-public class GameLogicSimple {
+import org.higherkindedj.hkt.effect.WithStatePath;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPaths;
 
-  static Kind<StateKind.Witness<GameState>, MoveResult> applyMove(MoveCommand command) {
-    return StateKindHelper.STATE.widen(
+public class GameLogic {
+
+  /**
+   * Applies a move command using railway-oriented programming.
+   * Each step either continues on the success track or short-circuits to the error track.
+   */
+  public static WithStatePath<GameState, MoveResult> applyMove(MoveCommand command) {
+    Square from = MoveCommandFocus.from().get(command);
+    Square to = MoveCommandFocus.to().get(command);
+
+    return Path.state(
         State.of(
-            currentState -> {
-              // Unpack command for easier access
-              Square from = command.from();
-              Square to = command.to();
-              Piece piece = currentState.board().get(from);
-              String invalidMsg; // To hold error messages
+            (GameState state) ->
+                // Railway: get piece → validate ownership → validate destination → apply move
+                getPieceAt(from, state)
+                    .via(piece -> validateOwnership(piece, state))
+                    .via(piece -> validateDestinationEmpty(to, state).map(unit -> piece))
+                    .via(piece -> validateAndApply(state, command, piece, from, to))
+                    .fold(error -> invalidMove(error, state), result -> result)));
+  }
+```
 
-              // Validate the move based on currentState and command
-              //    - Is it the current player's piece?
-              //    - Is the move diagonal?
-              //    - Is the destination square empty or an opponent's piece for a jump?
+Each validation step is a separate function that returns an `EitherPath`:
 
-              if (piece == null) {
-                invalidMsg = "No piece at " + from;
-                return new StateTuple<>(
-                    new MoveResult(MoveOutcome.INVALID_MOVE, invalidMsg),
-                    currentState.withMessage(invalidMsg));
-              }
-              if (piece.owner() != currentState.currentPlayer()) {
-                invalidMsg = "Not your piece.";
-                return new StateTuple<>(
-                    new MoveResult(MoveOutcome.INVALID_MOVE, invalidMsg),
-                    currentState.withMessage(invalidMsg));
-              }
-              if (currentState.board().containsKey(to)) {
-                invalidMsg = "Destination square " + to + " is occupied.";
-                return new StateTuple<>(
-                    new MoveResult(MoveOutcome.INVALID_MOVE, invalidMsg),
-                    currentState.withMessage(invalidMsg));
-              }
+```java
+  // ===== Validation Pipeline Steps =====
 
-              int rowDiff = to.row() - from.row();
-              int colDiff = to.col() - from.col();
-
-              // Simple move or jump?
-              if (Math.abs(rowDiff) == 1 && Math.abs(colDiff) == 1) { // Simple move
-                if (piece.type() == PieceType.MAN) {
-                  if ((piece.owner() == Player.RED && rowDiff > 0)
-                      || (piece.owner() == Player.BLACK && rowDiff < 0)) {
-                    invalidMsg = "Men can only move forward.";
-                    return new StateTuple<>(
-                        new MoveResult(MoveOutcome.INVALID_MOVE, invalidMsg),
-                        currentState.withMessage(invalidMsg));
-                  }
-                }
-                return performMove(currentState, command, piece);
-              } else if (Math.abs(rowDiff) == 2 && Math.abs(colDiff) == 2) { // Jump move
-                Square jumpedSquare =
-                    new Square(from.row() + rowDiff / 2, from.col() + colDiff / 2);
-                Piece jumpedPiece = currentState.board().get(jumpedSquare);
-
-                if (jumpedPiece == null || jumpedPiece.owner() == currentState.currentPlayer()) {
-                  invalidMsg = "Invalid jump. Must jump over an opponent's piece.";
-                  return new StateTuple<>(
-                      new MoveResult(MoveOutcome.INVALID_MOVE, invalidMsg),
-                      currentState.withMessage(invalidMsg));
-                }
-
-                return performJump(currentState, command, piece, jumpedSquare);
-              } else {
-                invalidMsg = "Move must be diagonal by 1 or 2 squares.";
-                return new StateTuple<>(
-                    new MoveResult(MoveOutcome.INVALID_MOVE, invalidMsg),
-                    currentState.withMessage(invalidMsg));
-              }
-            }));
+  /** Gets the piece at a square using the Focus-Effect bridge. */
+  private static EitherPath<String, Piece> getPieceAt(Square square, GameState state) {
+    return AffinePath.of(FocusPaths.<Square, Piece>mapAt(square))
+        .toEitherPath(state.board(), "No piece at " + square);
   }
 
+  /** Validates that the piece belongs to the current player. */
+  private static EitherPath<String, Piece> validateOwnership(Piece piece, GameState state) {
+    Player currentPlayer = GameStateFocus.currentPlayer().get(state);
+    Player pieceOwner = PieceFocus.owner().get(piece);
+
+    return pieceOwner == currentPlayer
+        ? Path.right(piece)
+        : Path.left("Not your piece.");
+  }
+
+  /** Validates that the destination square is empty. */
+  private static EitherPath<String, Unit> validateDestinationEmpty(Square to, GameState state) {
+    boolean isEmpty =
+        AffinePath.of(FocusPaths.<Square, Piece>mapAt(to)).getOptional(state.board()).isEmpty();
+
+    return isEmpty
+        ? Path.right(Unit.INSTANCE)
+        : Path.left("Destination square " + to + " is occupied.");
+  }
+
+  /** Validates the move type and applies it if valid. */
+  private static EitherPath<String, StateTuple<GameState, MoveResult>> validateAndApply(
+      GameState state, MoveCommand command, Piece piece, Square from, Square to) {
+
+    int rowDiff = SquareFocus.row().get(to) - SquareFocus.row().get(from);
+    int colDiff = SquareFocus.col().get(to) - SquareFocus.col().get(from);
+
+    if (Math.abs(rowDiff) == 1 && Math.abs(colDiff) == 1) {
+      return validateSimpleMove(piece, rowDiff).map(p -> performMove(state, command, p));
+    } else if (Math.abs(rowDiff) == 2 && Math.abs(colDiff) == 2) {
+      return validateJumpMove(state, command, piece, from, rowDiff, colDiff);
+    } else {
+      return Path.left("Move must be diagonal by 1 or 2 squares.");
+    }
+  }
+```
+
+State updates use the Focus DSL for cleaner transformations:
+
+```java
+  /** Creates an invalid move result. */
+  private static StateTuple<GameState, MoveResult> invalidMove(String message, GameState state) {
+    return new StateTuple<>(
+        new MoveResult(MoveOutcome.INVALID_MOVE, message),
+        GameStateFocus.message().set(message, state));
+  }
+
+  /** Performs a simple move. */
   private static StateTuple<GameState, MoveResult> performMove(
       GameState state, MoveCommand command, Piece piece) {
+
     Map<Square, Piece> newBoard = new HashMap<>(state.board());
     newBoard.remove(command.from());
     newBoard.put(command.to(), piece);
 
-    GameState movedState = state.withBoard(newBoard);
+    GameState movedState = GameStateFocus.board().set(newBoard, state);
     GameState finalState = checkAndKingPiece(movedState, command.to());
 
     return new StateTuple<>(
-        new MoveResult(MoveOutcome.SUCCESS, "Move successful."), finalState.togglePlayer());
+        new MoveResult(MoveOutcome.SUCCESS, "Move successful."),
+        finalState.togglePlayer());
   }
-
-  private static StateTuple<GameState, MoveResult> performJump(
-      GameState state, MoveCommand command, Piece piece, Square jumpedSquare) {
-    Map<Square, Piece> newBoard = new HashMap<>(state.board());
-    newBoard.remove(command.from());
-    newBoard.remove(jumpedSquare);
-    newBoard.put(command.to(), piece);
-
-    GameState jumpedState = state.withBoard(newBoard);
-    GameState finalState = checkAndKingPiece(jumpedState, command.to());
-
-    // Check for win condition
-    boolean blackWins =
-        finalState.board().values().stream().noneMatch(p -> p.owner() == Player.RED);
-    boolean redWins =
-        finalState.board().values().stream().noneMatch(p -> p.owner() == Player.BLACK);
-
-    if (blackWins || redWins) {
-      String winner = blackWins ? "BLACK" : "RED";
-      return new StateTuple<>(
-          new MoveResult(MoveOutcome.GAME_WON, winner + " wins!"),
-          finalState.withGameOver().withMessage(winner + " has captured all pieces!"));
-    }
-
-    return new StateTuple<>(
-        new MoveResult(MoveOutcome.CAPTURE_MADE, "Capture successful."), finalState.togglePlayer());
-  }
-
-  private static GameState checkAndKingPiece(GameState state, Square to) {
-    Piece piece = state.board().get(to);
-    if (piece != null && piece.type() == PieceType.MAN) {
-      // A RED piece is kinged on row index 0 (the "1st" row).
-      // A BLACK piece is kinged on row index 7 (the "8th" row).
-      if ((piece.owner() == Player.RED && to.row() == 0)
-          || (piece.owner() == Player.BLACK && to.row() == 7)) {
-        Map<Square, Piece> newBoard = new HashMap<>(state.board());
-        newBoard.put(to, new Piece(piece.owner(), PieceType.KING));
-        return state
-            .withBoard(newBoard)
-            .withMessage(piece.owner() + "'s piece at " + to + " has been kinged!");
-      }
-    }
-    return state;
-  }
-}
 ```
 
-This uses `State.of` to create a stateful computation. `State.get()`, `State.set()`, and `State.modify()` are other invaluable tools from the State monad.
+~~~admonish tip title="Focus-Effect Bridge"
+The bridge between Focus DSL and Effects Path API enables powerful patterns:
+- `AffinePath.of(FocusPaths.mapAt(key)).toEitherPath(map, error)` - Navigate into a Map with error handling
+- `AffinePath.of(FocusPaths.mapAt(key)).toMaybePath(map)` - Navigate with optional result
+- `GameStateFocus.message().set(msg, state)` - Type-safe state updates
+~~~
 
 ---
 
-### Step 5: Composing with `flatMap` - The Monadic Power
+## Step 4: Composing with ForPath and Extracted Handlers
 
-Now, we combine these pieces. The main loop needs to:
-
-1. Display the board (`IO`).
-2. Read user input (`IO`).
-3. If the input is valid, apply it to the game logic (`State`).
-4. Loop with the new game state.
-
-This sequence of operations is a good use case for a `For` comprehension to improve on nested `flatMap` calls.
-
-Here's how we compose these pieces together in the main game loop:
+The main game class uses `ForPath` to compose the turn workflow, with error handling extracted into pure predicates and separate handler functions for improved readability:
 
 ```java
+import org.higherkindedj.hkt.effect.IOPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.expression.ForPath;
 
 public class Draughts {
 
-  private static final IOMonad ioMonad = IOMonad.INSTANCE;
-  
-  // Processes a single turn of the game
-  private static Kind<IOKind.Witness, GameState> processTurn(GameState currentGameState) {
-  
-    // 1. Use 'For' to clearly sequence the display and read actions.
-    var sequence = For.from(ioMonad, BoardDisplay.displayBoard(currentGameState))
+  /**
+   * Processes a single turn using ForPath for composition.
+   */
+  private static IOPath<GameState> processTurn(GameState currentState) {
+    return ForPath.from(BoardDisplay.displayBoard(currentState))
         .from(ignored -> InputHandler.readMoveCommand())
-        .yield((ignored, eitherResult) -> eitherResult); // Yield the result of the read action
-
-    // 2. The result of the 'For' is an IO<Either<...>>.
-    //    Now, flatMap that single result to handle the branching.
-    return ioMonad.flatMap(
-        eitherResult ->
-            eitherResult.fold(
-                error -> { // Left case: Input error
-                  return IOKindHelper.IO_OP.delay(
-                      () -> {
-                        System.out.println("Error: " + error.description());
-                        return currentGameState;
-                      });
-                },
-                moveCommand -> { // Right case: Valid input
-                  var stateComputation = GameLogic.applyMove(moveCommand);
-                  var resultTuple = StateKindHelper.STATE.runState(stateComputation, currentGameState);
-                  return ioMonad.of(resultTuple.state());
-                }),
-        sequence);
+        .yield((ignored, result) -> result)
+        .via(result -> handleTurnResult(result, currentState));
   }
 
-  
-  // other methods....
-}
+  /**
+   * Handles the result using Either.fold() with extracted handler functions.
+   */
+  private static IOPath<GameState> handleTurnResult(
+      Either<GameError, MoveCommand> result, GameState state) {
+    return result.fold(
+        error -> handleError(error, state),
+        command -> applyMove(command, state));
+  }
 
+  // ===== Error Handling =====
+
+  /**
+   * Handles an error using a pure predicate to distinguish quit from other errors.
+   */
+  private static IOPath<GameState> handleError(GameError error, GameState state) {
+    return isQuitCommand(error)
+        ? handleQuit(state)
+        : displayErrorAndContinue(error, state);
+  }
+
+  /** Pure predicate: checks if the error represents a quit command using Focus DSL. */
+  private static boolean isQuitCommand(GameError error) {
+    return GameErrorFocus.isQuit().get(error);
+  }
+
+  /** Handles the quit command by setting game over and displaying farewell. */
+  private static IOPath<GameState> handleQuit(GameState state) {
+    return Path.io(() -> {
+      System.out.println("Goodbye!");
+      return GameStateFocus.isGameOver().set(true, state);
+    });
+  }
+
+  /** Displays an error message and returns the unchanged state. */
+  private static IOPath<GameState> displayErrorAndContinue(GameError error, GameState state) {
+    return Path.io(() -> {
+      System.out.println("Error: " + GameErrorFocus.description().get(error));
+      return state;
+    });
+  }
+
+  // ===== Move Application =====
+
+  /** Applies a valid move command to the game state. */
+  private static IOPath<GameState> applyMove(MoveCommand command, GameState state) {
+    return Path.ioPure(GameLogic.applyMove(command).run(state).state());
+  }
+}
 ```
 
-The `For` comprehension flattens the `display -> read` sequence, making the primary workflow more declarative and easier to read than nested callbacks.
+~~~admonish note title="Functional Error Handling"
+The error handling demonstrates several functional patterns:
+- **Pure predicates**: `isQuitCommand()` uses `GameErrorFocus.isQuit()` for type-safe access
+- **Type-safe flags**: The `isQuit` field in `GameError` avoids string matching
+- **Extracted handlers**: Each error case has its own handler function
+- **Separation of concerns**: Logic is cleanly separated from side effects
+~~~
 
-
-
-The [Order Processing Example](order-walkthrough.md) in the `higher-kinded-j` docs shows a more complex scenario using `CompletableFuture` and `EitherT`, which is a great reference for getting started with monad transformers.
+The `ForPath` comprehension makes the workflow declarative:
+1. Display the board (side effect)
+2. Read user input (side effect returning `Either`)
+3. Yield the result for further processing
+4. Handle errors or apply moves via extracted functions
 
 ---
 
-### Step 6: The Game Loop
+## Step 5: The Game Loop
+
+The game loop is a recursive `IOPath` computation that uses a ternary expression for clarity:
 
 ```java
-
-public class Draughts {
-
-  private static final IOMonad ioMonad = IOMonad.INSTANCE;
-
-  // The main game loop as a single, recursive IO computation
-  private static Kind<IOKind.Witness, Unit> gameLoop(GameState gameState) {
-    if (gameState.isGameOver()) {
-      // Base case: game is over, just display the final board and message.
-      return BoardDisplay.displayBoard(gameState);
-    }
-
-    // Recursive step: process one turn and then loop with the new state
-    return ioMonad.flatMap(Draughts::gameLoop, processTurn(gameState));
+  /**
+   * The main game loop as a recursive IOPath computation.
+   * Creates an IOPath representing the entire game.
+   */
+  private static IOPath<Unit> gameLoop(GameState gameState) {
+    return gameState.isGameOver()
+        ? BoardDisplay.displayBoard(gameState)
+        : processTurn(gameState).via(Draughts::gameLoop);
   }
-
-  // processTurn as before....
 
   public static void main(String[] args) {
-    // Get the initial state
-    GameState initialState = GameState.initial();
-    // Create the full game IO program
-    Kind<IOKind.Witness, Unit> fullGame = gameLoop(initialState);
-    // Execute the program. This is the only place where side effects are actually run.
-    IOKindHelper.IO_OP.unsafeRunSync(fullGame);
-    System.out.println("Thank you for playing!");
-  }
-}
+    // Build and execute the complete game
+    IOPath<Unit> game =
+        Path.ioPure(GameState.initial())
+            .via(Draughts::gameLoop)
+            .then(() -> Path.ioRunnable(() -> System.out.println("Thank you for playing!")));
 
+    game.unsafeRun();
+  }
 ```
 
-Key methods like `IOKindHelper.IO_OP.unsafeRunSync()` and `StateKindHelper.STATE.runState()` are used to execute the monadic computations at the "edge" of the application.
+~~~admonish note title="Deferred Execution"
+The entire game is constructed as a pure `IOPath` value. No side effects occur until `unsafeRun()` is called at the application boundary. This separation makes the code easier to test and reason about.
+~~~
 
-### Step 7: Displaying the Board
+---
 
-A simple text representation will do the trick.
-This class is responsible for rendering the GameState to the console. Notice how the displayBoard method doesn't perform the printing directly; it returns an `IO<Unit>` which is a description of the printing action. This keeps the method pure.
+## Step 6: Displaying the Board with Streams and MaybePath
+
+The display uses `IOPath` to encapsulate console output, with streams for declarative rendering and `MaybePath` for optional piece handling:
 
 ```java
-
 public class BoardDisplay {
 
-  public static Kind<IOKind.Witness, Unit> displayBoard(GameState gameState) {
-    return IOKindHelper.IO_OP.delay(
-        () -> {
-          System.out.println("\n  a b c d e f g h");
-          System.out.println(" +-----------------+");
-          for (int r = 7; r >= 0; r--) { // Print from row 8 down to 1
-            System.out.print((r + 1) + "| ");
-            for (int c = 0; c < 8; c++) {
-              Piece p = gameState.board().get(new Square(r, c));
-              if (p == null) {
-                System.out.print(". ");
-              } else {
-                char pieceChar = (p.owner() == Player.RED) ? 'r' : 'b';
-                if (p.type() == PieceType.KING) pieceChar = Character.toUpperCase(pieceChar);
-                System.out.print(pieceChar + " ");
-              }
-            }
-            System.out.println("|" + (r + 1));
-          }
-          System.out.println(" +-----------------+");
-          System.out.println("  a b c d e f g h");
-          System.out.println("\n" + gameState.message());
-          if (!gameState.isGameOver()) {
-            System.out.println("Current Player: " + gameState.currentPlayer());
-          }
-          return Unit.INSTANCE;
-        });
+  private static final String BOARD_HEADER = "  a b c d e f g h";
+  private static final String BOARD_BORDER = " +-----------------+";
+
+  /**
+   * Creates an IOPath that, when executed, displays the current game state.
+   */
+  public static IOPath<Unit> displayBoard(GameState gameState) {
+    return Path.ioRunnable(() -> System.out.println(renderGameState(gameState)));
+  }
+
+  /**
+   * Renders the complete game state as a string using stream composition.
+   */
+  private static String renderGameState(GameState state) {
+    return String.join("\n",
+        "",
+        BOARD_HEADER,
+        BOARD_BORDER,
+        renderBoard(state),
+        BOARD_BORDER,
+        BOARD_HEADER,
+        "",
+        state.message(),
+        renderCurrentPlayer(state));
+  }
+
+  /**
+   * Renders all board rows using streams.
+   */
+  private static String renderBoard(GameState state) {
+    return IntStream.iterate(7, row -> row >= 0, row -> row - 1)
+        .mapToObj(row -> renderRow(state, row))
+        .collect(Collectors.joining("\n"));
+  }
+
+  /**
+   * Renders a single row of the board.
+   */
+  private static String renderRow(GameState state, int row) {
+    String squares = IntStream.range(0, 8)
+        .mapToObj(col -> renderSquare(state, row, col))
+        .collect(Collectors.joining(" "));
+
+    int displayRow = row + 1;
+    return displayRow + "| " + squares + " |" + displayRow;
+  }
+
+  /**
+   * Renders a single square using MaybePath for optional piece handling.
+   */
+  private static String renderSquare(GameState state, int row, int col) {
+    return AffinePath.of(FocusPaths.<Square, Piece>mapAt(new Square(row, col)))
+        .toMaybePath(state.board())
+        .map(BoardDisplay::pieceToChar)
+        .getOrElse(".");
+  }
+
+  /**
+   * Pure function converting a piece to its display character.
+   */
+  private static String pieceToChar(Piece piece) {
+    char base = PieceFocus.owner().get(piece) == Player.RED ? 'r' : 'b';
+    char display = PieceFocus.type().get(piece) == PieceType.KING
+        ? Character.toUpperCase(base)
+        : base;
+    return String.valueOf(display);
+  }
+
+  private static String renderCurrentPlayer(GameState state) {
+    return state.isGameOver()
+        ? ""
+        : "Current Player: " + GameStateFocus.currentPlayer().get(state);
   }
 }
-
 ```
 
-### Playing the game
+~~~admonish note title="Functional Rendering Patterns"
+The display uses several functional patterns:
+- **Streams**: `IntStream.iterate()` and `mapToObj()` for declarative row/column iteration
+- **MaybePath**: `toMaybePath().map().getOrElse()` safely handles absent pieces
+- **Pure functions**: `pieceToChar()` has no side effects and uses Focus DSL
+- **String composition**: `String.join()` and `Collectors.joining()` for clean concatenation
+~~~
+
+### Playing the Game
 
 ![draughts_game.png](../images/draughts_game.png)
 
-In the game we can see the black has "kinged" a piece by reaching `e8`.  
+In the game we can see BLACK has "kinged" a piece by reaching `e8`.
 
-### Step 8: Refactoring for Multiple Captures
+---
 
-A key rule in draughts is that if a capture is available, it must be taken, and if a capture leads to another possible capture for the same piece, that jump must also be taken.
+## Step 7: Adding Multi-Jump Rules with Stream-Based Jump Detection
 
-The beauty of our functional approach is that we only need to modify the core rules in `GameLogic.java`. `The Draughts.java` game loop, the IO handlers, and the data models don't need to change at all.
+A key rule in draughts is that captures must be completed: if a capture leads to another possible capture with the same piece, that jump must also be taken.
 
-The core idea is to modify the `performJump` method. After a jump is completed, we will check if the piece that just moved can make another jump from its new position.
+The beauty of the functional approach is that we only need to modify the core rules in `GameLogic.java`. The game loop, IO handlers, and data models remain unchanged.
 
-We do this by adding a helper `canPieceJump` and modify `performJump` to check for subsequent jumps. 
-
-If another jump is possible, the player's turn does not end., we will update the board state but not switch the current player, forcing them to make another capture.
-If another jump is not possible, we will switch the player as normal.
+The jump detection uses a stream-based approach instead of nested loops for cleaner functional style:
 
 ```java
+  /** Jump direction offsets for checking available jumps. */
+  private static final int[] JUMP_OFFSETS = {-2, 2};
 
-/** Check if a piece at a given square has any valid jumps. */
+  /** Record representing a jump direction (row and column offsets). */
+  private record JumpDirection(int rowOffset, int colOffset) {}
+
+  /**
+   * Checks if a piece can make any valid jump using MaybePath.
+   */
   private static boolean canPieceJump(GameState state, Square from) {
-    Piece piece = state.board().get(from);
-    if (piece == null) return false;
-
-    int[] directions = {-2, 2};
-    for (int rowOffset : directions) {
-      for (int colOffset : directions) {
-        if (piece.type() == PieceType.MAN) {
-          if ((piece.owner() == Player.RED && rowOffset > 0)
-              || (piece.owner() == Player.BLACK && rowOffset < 0)) {
-            continue; // Invalid forward direction for man
-          }
-        }
-
-        Square to = new Square(from.row() + rowOffset, from.col() + colOffset);
-        if (to.row() < 0
-            || to.row() > 7
-            || to.col() < 0
-            || to.col() > 7
-            || state.board().containsKey(to)) {
-          continue; // Off board or destination occupied
-        }
-
-        Square jumpedSquare = new Square(from.row() + rowOffset / 2, from.col() + colOffset / 2);
-        Piece jumpedPiece = state.board().get(jumpedSquare);
-        if (jumpedPiece != null && jumpedPiece.owner() != piece.owner()) {
-          return true; // Found a valid jump
-        }
-      }
-    }
-    return false;
+    return AffinePath.of(FocusPaths.<Square, Piece>mapAt(from))
+        .toMaybePath(state.board())
+        .map(piece -> hasAnyValidJump(state, from, piece))
+        .getOrElse(false);
   }
 
-  /** Now it checks for further jumps after a capture. */
-  private static StateTuple<GameState, MoveResult> performJump(
-      GameState state, MoveCommand command, Piece piece, Square jumpedSquare) {
-    // Perform the jump and update board
-    Map<Square, Piece> newBoard = new HashMap<>(state.board());
-    newBoard.remove(command.from());
-    newBoard.remove(jumpedSquare);
-    newBoard.put(command.to(), piece);
-    GameState jumpedState = state.withBoard(newBoard);
+  /**
+   * Checks all directions for valid jumps using streams.
+   */
+  private static boolean hasAnyValidJump(GameState state, Square from, Piece piece) {
+    Player owner = PieceFocus.owner().get(piece);
+    PieceType type = PieceFocus.type().get(piece);
 
-    // Check for kinging after the jump
-    GameState stateAfterKinging = checkAndKingPiece(jumpedState, command.to());
-
-    // Check for win condition after the capture
-    boolean blackWins =
-        !stateAfterKinging.board().values().stream().anyMatch(p -> p.owner() == Player.RED);
-    boolean redWins =
-        !stateAfterKinging.board().values().stream().anyMatch(p -> p.owner() == Player.BLACK);
-    if (blackWins || redWins) {
-      String winner = blackWins ? "BLACK" : "RED";
-      return new StateTuple<>(
-          new MoveResult(MoveOutcome.GAME_WON, winner + " wins!"),
-          stateAfterKinging.withGameOver().withMessage(winner + " has captured all pieces!"));
-    }
-
-    // Check if the same piece can make another jump
-    boolean anotherJumpPossible = canPieceJump(stateAfterKinging, command.to());
-
-    if (anotherJumpPossible) {
-      // If another jump exists, DO NOT toggle the player.
-      // Update the message to prompt for the next jump.
-      String msg = "Capture successful. You must jump again with the same piece.";
-      return new StateTuple<>(
-          new MoveResult(MoveOutcome.CAPTURE_MADE, msg), stateAfterKinging.withMessage(msg));
-    } else {
-      // No more jumps, so end the turn and toggle the player.
-      return new StateTuple<>(
-          new MoveResult(MoveOutcome.CAPTURE_MADE, "Capture successful."),
-          stateAfterKinging.togglePlayer());
-    }
+    return generateJumpDirections()
+        .filter(dir -> isValidJumpDirection(type, owner, dir.rowOffset()))
+        .anyMatch(dir -> isValidJump(state, from, dir, owner));
   }
 
+  /**
+   * Generates all possible jump direction pairs using flatMap.
+   */
+  private static Stream<JumpDirection> generateJumpDirections() {
+    return IntStream.of(JUMP_OFFSETS)
+        .boxed()
+        .flatMap(row -> IntStream.of(JUMP_OFFSETS).mapToObj(col -> new JumpDirection(row, col)));
+  }
+
+  /** Checks if a jump direction is valid for the piece type. */
+  private static boolean isValidJumpDirection(PieceType type, Player owner, int rowOffset) {
+    if (type == PieceType.KING) return true;
+    // Men can only jump forward
+    return !((owner == Player.RED && rowOffset > 0) || (owner == Player.BLACK && rowOffset < 0));
+  }
+
+  /** Checks if a specific jump is valid using MaybePath. */
+  private static boolean isValidJump(GameState state, Square from, JumpDirection dir, Player owner) {
+    int toRow = from.row() + dir.rowOffset();
+    int toCol = from.col() + dir.colOffset();
+
+    if (toRow < 0 || toRow > 7 || toCol < 0 || toCol > 7) return false;
+
+    Square to = new Square(toRow, toCol);
+    Square jumpedSquare = new Square(from.row() + dir.rowOffset() / 2, from.col() + dir.colOffset() / 2);
+
+    // Destination must be empty
+    boolean destEmpty =
+        AffinePath.of(FocusPaths.<Square, Piece>mapAt(to)).getOptional(state.board()).isEmpty();
+
+    // Must have opponent piece to jump
+    boolean hasOpponentPiece =
+        AffinePath.of(FocusPaths.<Square, Piece>mapAt(jumpedSquare))
+            .toMaybePath(state.board())
+            .filter(p -> PieceFocus.owner().get(p) != owner)
+            .run()
+            .isJust();
+
+    return destEmpty && hasOpponentPiece;
+  }
 ```
 
-### Why This Functional Approach is Better
+~~~admonish note title="Stream-Based Iteration"
+The jump detection replaces nested imperative loops with:
+- `IntStream.of().flatMap()` - Generates all direction combinations
+- `Stream.filter()` - Removes invalid directions for piece type
+- `Stream.anyMatch()` - Short-circuits on first valid jump found
+- `MaybePath.filter().run().isJust()` - Safely checks for opponent piece
+~~~
 
-Having seen the complete code, let's reflect on the benefits:
+After a capture, we check for further jumps using `MaybePath`:
 
-* **Testability**: The `GameLogic` class is completely pure, that is to say it has no side effects and doesn't depend on `System.in` or `System.out`. You can test the entire rules engine simply by providing a `GameState` and a `MoveCommand`, then asserting on the resulting `GameState` and `MoveResult`. This is significantly easier than testing code that's tangled with console I/O.
-* **Composability**: The `gameLoop` in `Draughts.java` is a beautiful example of composition. It clearly and declaratively lays out the sequence of events for a game turn: `display -> read -> process`. The `flatMap` calls hide all the messy details of passing state and results from one step to the next.
-* **Reasoning**: The type signatures tell a story. `IO<Either<GameError, MoveCommand>>` is far more descriptive than a method that returns a `MoveCommand` but might throw an exception or return `null`. It explicitly forces the caller to handle both the success and error cases.
-* **Maintainability**: If you want to change from a command-line interface to a graphical one, you only need to replace `BoardDisplay` and `InputHandler`. The entire core `GameLogic` remains untouched because it's completely decoupled from the presentation layer.
+```java
+  private static StateTuple<GameState, MoveResult> performJump(...) {
+    // ... perform the jump and update board ...
 
-This tutorial has only scratched the surface. You could extend this by exploring other constructs from the library, like using `Validated` to accumulate multiple validation errors or using the `Reader` monad to inject different sets of game rules.
+    // Check for win condition using MaybePath
+    return checkWinCondition(stateAfterKinging)
+        .map(winner -> createWinResult(winner, stateAfterKinging))
+        .getOrElseGet(() -> checkMultiJumpOrEndTurn(stateAfterKinging, command.to()));
+  }
 
-Java may not have native HKTs, but with [**Higher-Kinded-J**](https://higher-kinded-j.github.io/home.html), you can absolutely utilise these powerful and elegant functional patterns to write better, more robust applications.
+  /** Checks for multi-jump or ends the turn. */
+  private static StateTuple<GameState, MoveResult> checkMultiJumpOrEndTurn(
+      GameState state, Square position) {
+    return canPieceJump(state, position)
+        ? new StateTuple<>(
+            new MoveResult(MoveOutcome.CAPTURE_MADE,
+                "Capture successful. You must jump again with the same piece."),
+            GameStateFocus.message().set(
+                "Capture successful. You must jump again with the same piece.", state))
+        : new StateTuple<>(
+            new MoveResult(MoveOutcome.CAPTURE_MADE, "Capture successful."),
+            state.togglePlayer());
+  }
+```
+
+---
+
+## Under the Hood: The Monads
+
+The Effects Path API provides a user-friendly layer over powerful functional abstractions. Understanding these foundations helps when you need more advanced patterns.
+
+### The State Monad
+
+`WithStatePath<S, A>` wraps the State monad, which represents computations that thread state through a sequence of operations:
+
+```java
+// State<S, A> represents: S -> (A, S)
+// A function from initial state to (result, new state)
+
+// WithStatePath provides a fluent API over State
+WithStatePath<Integer, String> computation = WithStatePath.<Integer>get()
+    .via(n -> WithStatePath.modify((Integer x) -> x + 1)
+        .map(ignored -> "Count: " + (n + 1)));
+
+StateTuple<Integer, String> result = computation.run(0);
+// result.value() = "Count: 1", result.state() = 1
+```
+
+### The Either Monad
+
+`EitherPath<E, A>` wraps Either, providing typed error handling that short-circuits on failure:
+
+```java
+// Either<E, A> is either Left(error) or Right(value)
+// Operations on Right continue; operations on Left propagate the error
+
+EitherPath<String, Integer> result = Path.<String, Integer>right(10)
+    .via(n -> n > 5 ? Path.right(n * 2) : Path.left("Too small"))
+    .map(n -> n + 1);
+// result.run() = Right(21)
+```
+
+### The IO Monad
+
+`IOPath<A>` wraps IO, representing deferred side effects:
+
+```java
+// IO<A> describes a computation that, when run, produces A
+// Nothing happens until unsafeRun() is called
+
+IOPath<String> readName = Path.io(() -> {
+    System.out.print("Name: ");
+    return scanner.nextLine();
+});
+
+// readName is a value describing the action - no I/O yet
+String name = readName.unsafeRun();  // Now the I/O happens
+```
+
+### Higher-Kinded Types
+
+Java lacks native support for higher-kinded types. Higher-Kinded-J provides a simulation using `Kind<F, A>` as a bridge type:
+
+```java
+// We cannot write: <F> F<A> map(F<A> fa, Function<A, B> f)
+// But we can write: <F> Kind<F, B> map(Kind<F, A> fa, Function<A, B> f)
+
+// The Path types unwrap the complexity for everyday use
+```
+
+The Effects Path API abstracts over these foundations, providing a consistent, fluent interface that works the same way regardless of which effect type you use.
+
+---
+
+## Why This Functional Approach is Better
+
+| Aspect | Traditional | Effects Path API |
+|--------|-------------|------------------|
+| **Testability** | Mock frameworks, complex setup | Pure functions, direct assertions |
+| **Error Handling** | Exceptions, null checks | Railway-oriented (`EitherPath.via()`) |
+| **Validation** | Nested if-else chains | Fluent pipelines that short-circuit |
+| **State Management** | Mutable fields | Immutable transforms (`WithStatePath`) |
+| **Side Effects** | Scattered throughout code | Isolated at boundaries (`IOPath`) |
+| **Composability** | Nested callbacks | Fluent chaining (`via`, `map`) |
+| **Iteration** | Imperative loops | Streams with `flatMap`, `filter`, `anyMatch` |
+| **Optional Data** | Manual null checks | `MaybePath.map().getOrElse()` |
+| **Data Access** | Manual null checks | Type-safe paths (Focus DSL) |
+
+The `GameLogic` class is completely pure; you can test the entire rules engine by providing a `GameState` and a `MoveCommand`, then asserting on the result. No mocking of console I/O required.
+
+---
+
+~~~admonish tip title="See Also"
+- [Effect Path Overview](../effect/effect_path_overview.md) - The railway model for effect composition
+- [Focus DSL](../optics/focus_dsl.md) - Type-safe data navigation
+- [Focus-Effect Integration](../effect/focus_integration.md) - Bridging optics and effects
+- [ForPath Comprehensions](../functional/for_comprehension.md) - For-comprehension syntax
+- [WithStatePath](../effect/path_types.md) - State management patterns
+~~~
 
 ---
 
