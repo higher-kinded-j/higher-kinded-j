@@ -222,5 +222,28 @@ _Notes:_
 
 ---
 
+~~~admonish tip title="Effect Path Alternative"
+For most use cases, prefer **[IOPath](../effect/path_io.md)** which wraps `IO` and provides:
+
+- Fluent composition with `map`, `via`, `recover`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+
+```java
+// Instead of manual IO chaining:
+Kind<IOKind.Witness, Config> config = IOKindHelper.delay(() -> loadConfig());
+Kind<IOKind.Witness, String> value = ioMonad.flatMap(
+    c -> IOKindHelper.delay(() -> c.getValue("key")), config);
+
+// Use IOPath for cleaner composition:
+IOPath<String> value = Path.io(() -> loadConfig())
+    .via(c -> Path.io(() -> c.getValue("key")));
+```
+
+See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+---
+
 **Previous:** [Identity](identity.md)
 **Next:** [Lazy](lazy_monad.md)

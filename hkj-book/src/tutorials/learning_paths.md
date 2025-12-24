@@ -21,7 +21,27 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 ## Recommended Paths
 
-### Path A: Quick Start
+~~~admonish tip title="Start Here"
+**Path A: Effect-First** is the recommended path for most users. It teaches the primary user-facing API of Higher-Kinded-J and gets you productive quickly.
+~~~
+
+### Path A: Effect-First (Recommended)
+*The modern approach: start with the user-friendly Effect API.*
+
+| Session | Journey | Duration |
+|---------|---------|----------|
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
+| 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
+| 3 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
+| 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
+
+**Total**: 4 sessions, ~143 min across sessions
+
+**Best for**: New users who want the recommended learning experience.
+
+---
+
+### Path B: Quick Start
 *Get productive with Higher-Kinded-J quickly.*
 
 | Session | Journey | Duration |
@@ -35,7 +55,7 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 ---
 
-### Path B: Practical FP
+### Path C: Practical FP
 *Core functional patterns for everyday use.*
 
 | Session | Journey | Duration |
@@ -51,7 +71,7 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 ---
 
-### Path C: Core Types Deep Dive
+### Path D: Core Types Deep Dive
 *Master the theoretical foundation.*
 
 | Session | Journey | Duration |
@@ -66,7 +86,7 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 ---
 
-### Path D: Optics Specialist
+### Path E: Optics Specialist
 *Master immutable data manipulation.*
 
 | Session | Journey | Duration |
@@ -79,22 +99,6 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 **Total**: 4 sessions, ~139 min across sessions
 
 **Best for**: Developers working with complex immutable data structures who want to master optics.
-
----
-
-### Path E: Effect-First (Recommended)
-*The modern approach: start with the user-friendly Effect API.*
-
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
-| 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
-| 3 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
-| 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
-
-**Total**: 4 sessions, ~143 min across sessions
-
-**Best for**: New users who want the recommended learning experience.
 
 ---
 

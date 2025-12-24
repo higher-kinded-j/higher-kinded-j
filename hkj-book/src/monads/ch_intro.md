@@ -1,8 +1,20 @@
-# Monads in Practice
+# Foundations: Core Types
 
 > *"Everything was beautiful and nothing hurt."*
 >
 > – Kurt Vonnegut, *Slaughterhouse-Five*
+
+---
+
+~~~admonish tip title="Prefer Effect Paths for Everyday Use"
+While this chapter documents the underlying core types, **most applications should use the [Effect Path API](../effect/ch_intro.md)** for cleaner composition and unified error handling. Effect Paths like `EitherPath`, `MaybePath`, and `TryPath` wrap these types and provide:
+
+- A consistent API across all effect types (`map`, `via`, `recover`)
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md)
+- Railway-oriented programming for flat, readable pipelines
+
+Use this chapter as a **reference** for understanding the foundations that power the Effect Path API.
+~~~
 
 ---
 

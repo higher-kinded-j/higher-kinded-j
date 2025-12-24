@@ -333,5 +333,28 @@ This example demonstrates how `ValidatedMonad` along with `Validated` can be use
 
 ---
 
+~~~admonish tip title="Effect Path Alternative"
+For most use cases, prefer **[ValidationPath](../effect/path_validation.md)** which wraps `Validated` and provides:
+
+- Fluent composition with `map`, `via`, `recover`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+- Error accumulation when combined with applicative operations
+
+```java
+// Instead of manual Validated chaining:
+Validated<List<Error>, User> user = validateUser(input);
+Validated<List<Error>, Order> order = user.flatMap(u -> createOrder(u));
+
+// Use ValidationPath for cleaner composition:
+ValidationPath<List<Error>, Order> order = Path.validation(validateUser(input))
+    .via(u -> createOrder(u));
+```
+
+See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+---
+
 **Previous:** [Try](try_monad.md)
 **Next:** [Writer](writer_monad.md)

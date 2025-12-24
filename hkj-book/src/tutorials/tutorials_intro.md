@@ -16,19 +16,23 @@ Think of these as a guided laboratory for functional programming patterns in Jav
 
 Each journey is designed for a single sitting (22-40 minutes). Short enough to stay focused. Long enough to build real understanding.
 
-### Core Types Journeys
+### Effect API Journey (Recommended)
+
+~~~admonish tip title="Start Here for Practical Use"
+After completing Core: Foundations, the **Effect API journey** is the recommended next step. It teaches the primary user-facing API of Higher-Kinded-J.
+~~~
+
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Effect API](effect/effect_journey.md) | ~65 min | 15 | Effect paths, ForPath, Contexts |
+
+### Core Types Journeys (Foundation)
 
 | Journey | Duration | Exercises | Focus |
 |---------|----------|-----------|-------|
 | [Foundations](coretypes/foundations_journey.md) | ~38 min | 24 | Kind, Functor, Applicative, Monad |
 | [Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | MonadError, Either, Maybe, Validated |
 | [Advanced Patterns](coretypes/advanced_journey.md) | ~26 min | 16 | Natural Transformations, Coyoneda, Free Ap |
-
-### Effect API Journey
-
-| Journey | Duration | Exercises | Focus |
-|---------|----------|-----------|-------|
-| [Effect API](effect/effect_journey.md) | ~65 min | 15 | Effect paths, ForPath, Contexts |
 
 ### Optics Journeys
 
@@ -165,13 +169,14 @@ After completing the tutorials, continue your learning journey with:
 
 Choose your starting point:
 
-**Core Types Track:**
+**Recommended Path:**
+1. [Foundations Journey](coretypes/foundations_journey.md) - Start here for core concepts
+2. [Effect API Journey](effect/effect_journey.md) - The primary user-facing API (recommended next)
+
+**Core Types Track (Foundation):**
 - [Foundations Journey](coretypes/foundations_journey.md) - Start here for HKT basics
 - [Error Handling Journey](coretypes/error_handling_journey.md) - Continue with error handling
 - [Advanced Journey](coretypes/advanced_journey.md) - Master advanced patterns
-
-**Effect API:**
-- [Effect API Journey](effect/effect_journey.md) - The recommended user-facing API
 
 **Optics Track:**
 - [Lens & Prism Journey](optics/lens_prism_journey.md) - Start here for optics
@@ -179,7 +184,7 @@ Choose your starting point:
 - [Fluent & Free Journey](optics/fluent_free_journey.md) - Advanced APIs
 - [Focus DSL Journey](optics/focus_dsl_journey.md) - Type-safe paths
 
-Or see [Learning Paths](learning_paths.md) for recommended sequences.
+Or see [Learning Paths](learning_paths.md) for detailed sequences.
 
 Remember: The goal isn't to memorise every detail. It's to develop an intuition for when and how to apply these patterns. That only comes through practice.
 

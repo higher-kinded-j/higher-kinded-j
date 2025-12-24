@@ -1,8 +1,19 @@
-# Getting Started with Higher-Kinded Types
+# Foundations: Higher-Kinded Types
 
 > *"If they can get you asking the wrong questions, they don't have to worry about answers."*
 >
 > – Thomas Pynchon, *Gravity's Rainbow*
+
+---
+
+~~~admonish tip title="Start with Effect Paths"
+This chapter documents the machinery that powers Higher-Kinded-J. **Most users can start with the [Effect Path API](../effect/ch_intro.md) directly** without understanding HKTs in detail. The Effect Path API provides a clean, fluent interface that hides this complexity.
+
+Read this chapter when you want to:
+- Understand how the library works internally
+- Write generic code that operates across multiple effect types
+- Extend the library with your own types
+~~~
 
 ---
 

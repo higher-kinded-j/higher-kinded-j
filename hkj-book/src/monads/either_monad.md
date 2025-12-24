@@ -240,5 +240,27 @@ To use `Either` within Higher-Kinded-J framework:
 
 ---
 
+~~~admonish tip title="Effect Path Alternative"
+For most use cases, prefer **[EitherPath](../effect/path_either.md)** which wraps `Either` and provides:
+
+- Fluent composition with `map`, `via`, `recover`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+
+```java
+// Instead of manual Either chaining:
+Either<Error, User> user = findUser(id);
+Either<Error, Order> order = user.flatMap(u -> createOrder(u));
+
+// Use EitherPath for cleaner composition:
+EitherPath<Error, Order> order = Path.either(findUser(id))
+    .via(u -> createOrder(u));
+```
+
+See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+---
+
 **Previous:** [CompletableFuture](cf_monad.md)
 **Next:** [Identity](identity.md)
