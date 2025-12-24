@@ -93,8 +93,15 @@
 # Hands-On Learning
 - [Introduction](tutorials/ch_intro.md)
   - [Interactive Tutorials](tutorials/tutorials_intro.md)
-  - [Core Types Track](tutorials/coretypes_track.md)
-  - [Optics Track](tutorials/optics_track.md)
+  - [Core Types: Foundations](tutorials/coretypes/foundations_journey.md)
+  - [Core Types: Error Handling](tutorials/coretypes/error_handling_journey.md)
+  - [Core Types: Advanced](tutorials/coretypes/advanced_journey.md)
+  - [Effect API](tutorials/effect/effect_journey.md)
+  - [Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)
+  - [Optics: Traversals & Practice](tutorials/optics/traversals_journey.md)
+  - [Optics: Fluent & Free DSL](tutorials/optics/fluent_free_journey.md)
+  - [Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)
+  - [Learning Paths](tutorials/learning_paths.md)
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
 

@@ -55,10 +55,18 @@ Higher-Kinded-J provides a full-featured **Optics library** that treats data acc
 
 ## Learn by Doing
 
-The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Each tutorial guides you through hands-on exercises with immediate test feedback.
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Eight journeys guide you through hands-on exercises with immediate test feedback, each designed to be completed in 22-40 minutes.
 
-- **[Core Types Tutorials](tutorials/coretypes_track.md)** (~60 minutes): Master Functors, Applicatives, and Monads through 7 progressive tutorials that build from `Kind<F, A>` basics to production workflows
-- **[Optics Tutorials](tutorials/optics_track.md)** (~90 minutes): Learn Lenses, Prisms, and Traversals with 9 tutorials covering real-world scenarios from simple field updates to complex Free Monad DSLs
+| Journey | Focus | Duration | Exercises |
+|---------|-------|----------|-----------|
+| **[Core: Foundations](tutorials/coretypes/foundations_journey.md)** | HKT simulation, Functor, Applicative, Monad | ~38 min | 24 |
+| **[Core: Error Handling](tutorials/coretypes/error_handling_journey.md)** | MonadError, concrete types, real-world patterns | ~30 min | 20 |
+| **[Core: Advanced](tutorials/coretypes/advanced_journey.md)** | Natural Transformations, Coyoneda, Free Applicative | ~26 min | 16 |
+| **[Effect API](tutorials/effect/effect_journey.md)** | Effect paths, ForPath, Effect Contexts | ~65 min | 15 |
+| **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | ~40 min | 30 |
+| **[Optics: Traversals](tutorials/optics/traversals_journey.md)** | Traversals, composition, practical applications | ~40 min | 27 |
+| **[Optics: Fluent & Free](tutorials/optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | ~37 min | 22 |
+| **[Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)** | Type-safe path navigation | ~22 min | 18 |
 
 Perfect for developers who prefer learning by building rather than just reading. [Get started →](tutorials/tutorials_intro.md)
 
