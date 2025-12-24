@@ -18,25 +18,27 @@
     <meta name="author" content="{{ book_authors }}">
 {{/if}}
 
-{{! You can add other global meta tags here as well }}
-<meta name="keywords" content="Higher-Kinded Types, Higher-Kinded-J, Higher-Kinded Java, Higher Kinded Java, HKT, Java, Optics, Lens, Prism, Traversal, Iso, Functional Programming, Monad, Functor, Applicative, Transformer, Monoid, Traverse, higherkindedj">
+{{! Keywords for search engines }}
+<meta name="keywords" content="Higher-Kinded Types, Higher-Kinded-J, HKT, Java, Optics, Lens, Prism, Traversal, Iso, Affine, Focus DSL, Effect Path API, Functional Programming, Monad, Functor, Applicative, EitherPath, MaybePath, TryPath, ValidationPath, Java Records, Sealed Interface, Error Handling, Immutable Data">
 
-{{! Example Open Graph tags for better social media sharing (using site-wide info) }}
-<meta property="og:title" content="{{ title }}"> {{! This uses mdbook's generated page title }}
+{{! Open Graph tags for social media sharing }}
+<meta property="og:title" content="{{ title }}">
 {{#if description}}
     <meta property="og:description" content="{{ description }}">
+{{else}}
+    <meta property="og:description" content="Unifying Composable Effects and Advanced Optics for Java. The most comprehensive functional programming library with Effect Path API, Focus DSL, and code generation for Java records.">
 {{/if}}
 <meta property="og:type" content="website">
-{{! Add an og:image meta tag if you have a suitable image for sharing }}
-{{! <meta property="og:image" content="https://higher-kinded-j.github.io/path/to/your/image.png"> }}
-<meta property="og:url" content="https://higher-kinded-j.github.io/{{ path_in_book }}"> {{! mdbook provides path_in_book }}
+<meta property="og:url" content="https://higher-kinded-j.github.io/{{ path_in_book }}">
+<meta property="og:image" content="https://higher-kinded-j.github.io/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:site_name" content="Higher-Kinded-J Documentation">
+<meta property="og:locale" content="en_GB">
 
-<meta property="og:image" content="https://higher-kinded-j.github.io/preview.png" />
-{{! mdBook will still include its default head elements like charset, viewport,
-    its own CSS links, and JS links. This file primarily ADDS to the head. }}
-<meta property="og:site_name" content="Higher-Kinded-J Documentation" />
-
-
-<meta name="twitter:card" content="summary_large_image" /> <meta name="twitter:title" content="{{ title }} - Higher-Kinded-J" />
-<meta name="twitter:description" content="Bringing Higher-Kinded Types and Optics to Java functional patterns" />
-<meta name="twitter:image" content="https://higher-kinded-j.github.io/preview.png" />
+{{! Twitter Card tags }}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="Unifying Composable Effects and Advanced Optics for Java. Effect Path API, Focus DSL, and the most comprehensive optics implementation in the Java ecosystem.">
+<meta name="twitter:image" content="https://higher-kinded-j.github.io/preview.png">
+<meta name="twitter:image:alt" content="Higher-Kinded-J: Composable Effects and Advanced Optics for Java">

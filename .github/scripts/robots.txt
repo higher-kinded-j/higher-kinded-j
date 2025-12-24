@@ -1,0 +1,11 @@
+# Higher-Kinded-J Documentation
+# https://higher-kinded-j.github.io
+
+User-agent: *
+Allow: /
+
+# Sitemaps for each version
+Sitemap: https://higher-kinded-j.github.io/latest/sitemap.xml
+
+# AI-friendly documentation
+# See: https://higher-kinded-j.github.io/latest/llms.txt

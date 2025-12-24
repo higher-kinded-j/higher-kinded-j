@@ -54,11 +54,25 @@ def generate_sitemap(start_dir, base_url, output_file):
         sitemap_content += f'    <loc>{html.escape(url)}</loc>\n' # Escape special characters in URL
         sitemap_content += f'    <lastmod>{today}</lastmod>\n'
         sitemap_content += '    <changefreq>weekly</changefreq>\n' # Default change frequency
-        # Determine priority based on URL depth or specific pages
-        if url.endswith("index.html") or url == base_url.rstrip('/'):
+        # Determine priority based on page importance
+        # Priority 1.0: Main landing pages
+        if url.endswith("index.html") or url.endswith("home.html") or url == base_url.rstrip('/'):
             sitemap_content += '    <priority>1.0</priority>\n'
-        elif "core-concepts.html" in url or "usage-guide.html" in url:
+        # Priority 0.9: Effect Path API and Optics intro pages (key selling points)
+        elif any(p in url for p in ["effect/ch_intro.html", "effect/effect_path_overview.html",
+                                     "optics/optics_intro.html", "optics/focus_dsl.html",
+                                     "effect/focus_integration.html"]):
+            sitemap_content += '    <priority>0.9</priority>\n'
+        # Priority 0.8: Core documentation and tutorials intro
+        elif any(p in url for p in ["core-concepts.html", "usage-guide.html", "hkt_introduction.html",
+                                     "tutorials_intro.html", "spring_boot_integration.html"]):
             sitemap_content += '    <priority>0.8</priority>\n'
+        # Priority 0.7: Other effect and optics pages
+        elif "/effect/" in url or "/optics/" in url:
+            sitemap_content += '    <priority>0.7</priority>\n'
+        # Priority 0.6: Tutorial pages and examples
+        elif "/tutorials/" in url or "/hkts/" in url:
+            sitemap_content += '    <priority>0.6</priority>\n'
         else:
             sitemap_content += '    <priority>0.5</priority>\n' # Default priority
         sitemap_content += '  </url>\n'
