@@ -308,5 +308,27 @@ This example highlights how `MaybeMonad` facilitates working with optional value
 
 ---
 
+~~~admonish tip title="Effect Path Alternative"
+For most use cases, prefer **[MaybePath](../effect/path_maybe.md)** which wraps `Maybe` and provides:
+
+- Fluent composition with `map`, `via`, `recover`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+
+```java
+// Instead of manual Maybe chaining:
+Maybe<User> user = findUser(id);
+Maybe<String> name = user.flatMap(u -> Maybe.fromNullable(u.name()));
+
+// Use MaybePath for cleaner composition:
+MaybePath<String> name = Path.maybe(findUser(id))
+    .via(u -> Path.maybe(u.name()));
+```
+
+See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+---
+
 **Previous:** [List](list_monad.md)
 **Next:** [Optional](optional_monad.md)

@@ -217,5 +217,27 @@ System.out.println(handledTry);
 
 ---
 
+~~~admonish tip title="Effect Path Alternative"
+For most use cases, prefer **[TryPath](../effect/path_try.md)** which wraps `Try` and provides:
+
+- Fluent composition with `map`, `via`, `recover`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+
+```java
+// Instead of manual Try chaining:
+Try<Config> config = Try.of(() -> loadConfig());
+Try<String> value = config.flatMap(c -> Try.of(() -> c.getValue("key")));
+
+// Use TryPath for cleaner composition:
+TryPath<String> value = Path.tryOf(() -> loadConfig())
+    .via(c -> Path.tryOf(() -> c.getValue("key")));
+```
+
+See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+---
+
 **Previous:** [Coyoneda](coyoneda.md)
 **Next:** [Validated](validated_monad.md)

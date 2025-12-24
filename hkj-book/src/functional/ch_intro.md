@@ -1,8 +1,23 @@
-# Type Classes: The Building Blocks
+# Foundations: Type Classes
 
 > *"Quality is not a thing. It is an event."*
 >
 > – Robert M. Pirsig, *Zen and the Art of Motorcycle Maintenance*
+
+---
+
+~~~admonish tip title="Using Type Classes Through Effect Paths"
+While type classes power the library internally, **you rarely interact with them directly**. The [Effect Path API](../effect/ch_intro.md) exposes these capabilities through a unified interface:
+
+| Type Class | Effect Path Method |
+|------------|-------------------|
+| `Functor.map` | `path.map(f)` |
+| `Monad.flatMap` | `path.via(f)` |
+| `MonadError.handleErrorWith` | `path.recover(f)` |
+| `Applicative.ap` | `path.ap(otherPath)` |
+
+Read this chapter to understand the foundations. Use Effect Paths for everyday programming.
+~~~
 
 ---
 

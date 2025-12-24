@@ -271,7 +271,11 @@ repositories {
 
 ## Documentation Guide
 
-### Start Here: Effect Path API
+~~~admonish tip title="Recommended Starting Point"
+Start with the **Effect Path API** section below. It is the primary user-facing API of Higher-Kinded-J and provides everything most applications need.
+~~~
+
+### Effect Path API (Start Here)
 1. **[Effect Path Overview](effect/effect_path_overview.md):** The railway model, creating paths, core operations
 2. **[Capability Interfaces](effect/capabilities.md):** The powers that paths possess
 3. **[Path Types](effect/path_types.md):** When to use each path type
@@ -284,10 +288,13 @@ repositories {
 4. **[Focus DSL](optics/focus_dsl.md):** Type-safe structural navigation
 5. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
 
-### HKT Core Concepts
-1. **[Introduction to HKTs](hkts/hkt_introduction.md):** The simulation and why it matters
-2. **[Core Concepts](hkts/core-concepts.md):** Kind, Witness Types, Type Classes
-3. **[Order Example Walkthrough](hkts/order-walkthrough.md):** A complete workflow with monad transformers
+### Foundations (Reference)
+These sections document the underlying machinery. Most users can start with Effect Paths directly.
+
+1. **[Higher-Kinded Types](hkts/hkt_introduction.md):** The simulation and why it matters
+2. **[Type Classes](functional/ch_intro.md):** Functor, Monad, and other type classes
+3. **[Core Types](monads/ch_intro.md):** Either, Maybe, Try, and other effect types
+4. **[Order Example Walkthrough](hkts/order-walkthrough.md):** A complete workflow with monad transformers
 
 ### History
 
