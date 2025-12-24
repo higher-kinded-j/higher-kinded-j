@@ -12,23 +12,32 @@ Rather than passive reading, you'll:
 
 Think of these as a guided laboratory for functional programming patterns in Java.
 
-## Two Learning Tracks
+## Eight Focused Journeys
 
-The tutorials are organised into two complementary tracks. You can follow them in order or jump to whichever interests you most.
+Each journey is designed for a single sitting (22-40 minutes). Short enough to stay focused. Long enough to build real understanding.
 
-### [Core Types Track](coretypes_track.md)
-**Duration**: ~60 minutes | **Tutorials**: 7 | **Exercises**: 45
+### Core Types Journeys
 
-Master the Higher-Kinded Types simulation that powers the library. Learn to work with `Kind<F, A>`, understand Functors, Applicatives, and Monads, and see how to build robust, composable workflows with types like `Either`, `Maybe`, and `Validated`.
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Foundations](coretypes/foundations_journey.md) | ~38 min | 24 | Kind, Functor, Applicative, Monad |
+| [Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | MonadError, Either, Maybe, Validated |
+| [Advanced Patterns](coretypes/advanced_journey.md) | ~26 min | 16 | Natural Transformations, Coyoneda, Free Ap |
 
-**Perfect for**: Developers who want to understand the theoretical foundation, write generic code that works across multiple types, or use monads directly in their applications.
+### Effect API Journey
 
-### [Optics Track](optics_track.md)
-**Duration**: ~90 minutes | **Tutorials**: 9 | **Exercises**: 64
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Effect API](effect/effect_journey.md) | ~65 min | 15 | Effect paths, ForPath, Contexts |
 
-Master immutable data manipulation with Lenses, Prisms, and Traversals. Learn to perform deep updates on nested structures, work with collections elegantly, and build sophisticated data transformation pipelines using the Free Monad DSL.
+### Optics Journeys
 
-**Perfect for**: Developers working with complex domain models, nested JSON structures, or anyone tired of verbose "copy-and-update" code in Java.
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Lens & Prism](optics/lens_prism_journey.md) | ~40 min | 30 | Lens, Prism, Affine fundamentals |
+| [Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Traversals, composition, real-world use |
+| [Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min | 22 | Fluent API, Free Monad DSL |
+| [Focus DSL](optics/focus_dsl_journey.md) | ~22 min | 18 | Type-safe path navigation |
 
 ## How the Tutorials Work
 
@@ -73,7 +82,7 @@ If you're struggling with an exercise:
 4. **Consult the documentation**: Links are provided throughout the tutorials
 5. **Peek at the solution**: Solutions are in `solutions/coretypes/` and `solutions/optics/` directories
 
-> ⚠️ **Resist the temptation to copy-paste solutions!** You'll learn far more from struggling for 5 minutes than from reading the answer immediately. The struggle is where the learning happens.
+> **Resist the temptation to copy-paste solutions!** You'll learn far more from struggling for 5 minutes than from reading the answer immediately. The struggle is where the learning happens.
 
 ## Prerequisites
 
@@ -99,37 +108,31 @@ If you see a test failure with "Answer required", you're ready to go!
 
 ## Recommended Learning Paths
 
-### Path 1: Foundation First (Recommended for Beginners)
-1. Start with **Core Types Track** (Tutorials 01-04)
-2. Switch to **Optics Track** (Tutorials 01-03)
-3. Return to **Core Types** (Tutorials 05-07)
-4. Finish with **Optics** (Tutorials 04-09)
+See the full [Learning Paths](learning_paths.md) guide for detailed sequences. Here's a quick overview:
 
-**Why this path?** You'll understand the `Kind<F, A>` mechanism before seeing how it powers `modifyF` in optics. The interleaving keeps things fresh.
+### Quick Start (2 sessions)
+[Core: Foundations](coretypes/foundations_journey.md) → [Effect API](effect/effect_journey.md)
 
-### Path 2: Optics Focused (For Practical Developers)
-1. Complete **Optics Track** (All 9 tutorials)
-2. Circle back to **Core Types Track** as needed
+### Practical FP (4 sessions)
+[Core: Foundations](coretypes/foundations_journey.md) → [Error Handling](coretypes/error_handling_journey.md) → [Effect API](effect/effect_journey.md) → [Optics: Lens & Prism](optics/lens_prism_journey.md)
 
-**Why this path?** If you just want to write better code with immutable data, optics give immediate practical value. You can learn the HKT theory later.
+### Optics Specialist (4 sessions)
+[Lens & Prism](optics/lens_prism_journey.md) → [Traversals](optics/traversals_journey.md) → [Fluent & Free](optics/fluent_free_journey.md) → [Focus DSL](optics/focus_dsl_journey.md)
 
-### Path 3: Theory to Practice (For Functional Enthusiasts)
-1. Complete **Core Types Track** (All 7 tutorials)
-2. Complete **Optics Track** (All 9 tutorials)
-
-**Why this path?** A linear progression from foundational concepts to advanced applications. Perfect if you enjoy building up from first principles.
+### Full Curriculum (8 sessions)
+All journeys in recommended order. See [Learning Paths](learning_paths.md).
 
 ## What You'll Build
 
 By the end of these tutorials, you'll have hands-on experience building:
 
-### From Core Types Track:
+### From Core Types Journeys:
 - A **form validation system** using Applicative to combine independent checks
 - A **data processing pipeline** using Monad to chain dependent operations
 - An **error handling workflow** using `Either` and `Validated` for robust failure management
 - A **configuration system** using `Reader` monad for dependency injection
 
-### From Optics Track:
+### From Optics Journeys:
 - A **user profile editor** with deep nested updates using Lens composition
 - An **e-commerce order processor** using Traversals for bulk operations
 - A **data validation pipeline** combining Lens, Prism, and Traversal
@@ -137,7 +140,7 @@ By the end of these tutorials, you'll have hands-on experience building:
 
 ## Tips for Success
 
-1. **Start from the Beginning**: Each tutorial builds on previous concepts. Skipping ahead leads to confusion.
+1. **One journey per sitting**: Each journey builds internal momentum. Splitting them reduces learning.
 
 2. **Read the Hints**: They're there to guide you, not to slow you down. The Javadoc comments often contain the answer.
 
@@ -145,7 +148,7 @@ By the end of these tutorials, you'll have hands-on experience building:
 
 4. **Experiment Fearlessly**: Try different approaches. Tests provide a safety net; you can't break anything.
 
-5. **Don't Rush**: Understanding matters more than speed. Take breaks if you're stuck.
+5. **Don't Rush**: Understanding matters more than speed. Take breaks between journeys.
 
 6. **Ask Questions**: Use [GitHub Discussions](https://github.com/higher-kinded-j/higher-kinded-j/discussions) if you're confused about a concept.
 
@@ -160,14 +163,27 @@ After completing the tutorials, continue your learning journey with:
 
 ## Ready to Begin?
 
-Choose your track and start coding:
+Choose your starting point:
 
-→ **[Core Types Track](coretypes_track.md)** - Understand the foundation
-→ **[Optics Track](optics_track.md)** - Master immutable data manipulation
+**Core Types Track:**
+- [Foundations Journey](coretypes/foundations_journey.md) - Start here for HKT basics
+- [Error Handling Journey](coretypes/error_handling_journey.md) - Continue with error handling
+- [Advanced Journey](coretypes/advanced_journey.md) - Master advanced patterns
+
+**Effect API:**
+- [Effect API Journey](effect/effect_journey.md) - The recommended user-facing API
+
+**Optics Track:**
+- [Lens & Prism Journey](optics/lens_prism_journey.md) - Start here for optics
+- [Traversals Journey](optics/traversals_journey.md) - Collections and composition
+- [Fluent & Free Journey](optics/fluent_free_journey.md) - Advanced APIs
+- [Focus DSL Journey](optics/focus_dsl_journey.md) - Type-safe paths
+
+Or see [Learning Paths](learning_paths.md) for recommended sequences.
 
 Remember: The goal isn't to memorise every detail. It's to develop an intuition for when and how to apply these patterns. That only comes through practice.
 
 ---
 
 **Previous:** [Introduction](ch_intro.md)
-**Next:** [Core Types Track](coretypes_track.md)
+**Next:** [Core Types: Foundations Journey](coretypes/foundations_journey.md)
