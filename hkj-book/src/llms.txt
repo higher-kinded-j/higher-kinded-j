@@ -1,0 +1,88 @@
+# Higher-Kinded-J
+
+> Unifying Composable Effects and Advanced Optics for Java
+
+Higher-Kinded-J is the most comprehensive functional programming library for Java, providing composable error handling through the Effect Path API and type-safe immutable data navigation through the Focus DSL.
+
+## Core Concepts
+
+### Effect Path API
+A railway model for computation where success travels one track and failure travels another. Operations like `map`, `via`, and `recover` work identically across all effect types.
+
+**Path Types:**
+- `MaybePath<A>` - Optional values where absence is normal
+- `EitherPath<E, A>` - Typed errors with structured information
+- `TryPath<A>` - Wrapping code that throws exceptions
+- `ValidationPath<E, A>` - Accumulating ALL errors, not just the first
+- `IOPath<A>` - Deferred side effects
+- `TrampolinePath<A>` - Stack-safe recursion
+- `CompletableFuturePath<A>` - Async operations
+- `FreePath<F, A>` / `FreeApPath<F, A>` - DSL building
+
+### Advanced Optics
+The most comprehensive optics implementation in Java:
+- **Lens** - Focus on a field in a product type
+- **Prism** - Focus on a case in a sum type
+- **Iso** - Bidirectional transformation
+- **Affine** - Optional focus (zero or one)
+- **Traversal** - Multiple focuses in a collection
+- **Filtered Traversals** - Predicate-based focusing
+- **Indexed Optics** - Position-aware transformations
+
+### Focus DSL
+Type-safe structural navigation that integrates with Effect Paths:
+- `FocusPath<S, A>` - Exactly one focus
+- `AffinePath<S, A>` - Zero or one focus
+- `TraversalPath<S, A>` - Zero or more focuses
+
+### Effect-Optics Bridge
+Navigate data structures within effect pipelines using `.focus()`:
+```java
+userService.findById(userId)           // EitherPath<Error, User>
+    .focus(UserFocus.address())        // EitherPath<Error, Address>
+    .focus(AddressFocus.postcode())    // EitherPath<Error, String>
+    .via(code -> validatePostcode(code));
+```
+
+## Installation
+
+```gradle
+dependencies {
+    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
+}
+```
+
+The annotation processor generates Focus paths and Effect paths for Java records and sealed interfaces.
+
+## Key Features
+
+- **Java 25+** - Built for modern Java with records and sealed interfaces
+- **Code Generation** - Automatic optics generation via annotation processor
+- **Spring Boot Integration** - `hkj-spring-boot-starter` for REST APIs
+- **Type Classes** - Functor, Applicative, Monad, MonadError
+- **Monad Transformers** - EitherT, StateT, ReaderT for effect composition
+
+## Documentation
+
+- Main: https://higher-kinded-j.github.io/latest/home.html
+- Effect Path API: https://higher-kinded-j.github.io/latest/effect/ch_intro.html
+- Optics Guide: https://higher-kinded-j.github.io/latest/optics/optics_intro.html
+- Focus DSL: https://higher-kinded-j.github.io/latest/optics/focus_dsl.html
+- Tutorials: https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html
+- Spring Boot: https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html
+
+## Source Code
+
+- Repository: https://github.com/higher-kinded-j/higher-kinded-j
+- License: Apache 2.0
+
+## When to Use Higher-Kinded-J
+
+Use this library when you need:
+- Composable error handling without exception pyramids
+- Type-safe immutable data updates with optics
+- Integration between effect handling and data navigation
+- Code generation for lenses/prisms on Java records
+- Functional patterns in Spring Boot applications

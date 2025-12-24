@@ -1,113 +1,220 @@
 ```
- _   _ _       _                      _   ___           _          _        ___ 
+ _   _ _       _                      _   ___           _          _        ___
 | | | (_)     | |                    | | / (_)         | |        | |      |_  |
 | |_| |_  __ _| |__   ___ _ __ ______| |/ / _ _ __   __| | ___  __| |______  | |
 |  _  | |/ _` | '_ \ / _ \ '__|______|    \| | '_ \ / _` |/ _ \/ _` |______| | |
 | | | | | (_| | | | |  __/ |         | |\  \ | | | | (_| |  __/ (_| |    /\__/ /
-\_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/ 
-          __/ |                                                             
-         |___/                                                              
+\_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/
+          __/ |
+         |___/
 ```
 
-## _Bringing Higher-Kinded Types and Composable Optics to Java_
+## _Unifying Composable Effects and Advanced Optics for Java_
 
 [![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
 ](https://github.com/higher-kinded-j/higher-kinded-j)
 [![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core)  [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
 
 
-This project demonstrates a technique to simulate *Higher-Kinded Types (HKTs)* and implement *Optics* in Java, a feature not natively supported by the language's type system.
-It uses a defunctionalisation approach for HKTs and provides a powerful toolkit for immutable data manipulation with Optics.
+Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **Effect Path API**, and type-safe immutable data navigation through the **Focus DSL**. Each is powerful alone. Together, they form a unified approach to building robust applications, where effects and structure compose seamlessly.
 
-## Where to start
+No more pyramids of nested checks. No more scattered validation logic. Just clean, flat pipelines that read like the business logic they represent.
+
+## Where to Start
 
 **[All the details you need to get started with Higher-Kinded-J can be found in the documentation website](https://higher-kinded-j.github.io/latest/home.html)**
 
-## Introduction: Abstracting over Computation and Structure
+---
+
+## The Problem: Scattered Error Handling
+
+Every Java application battles the same chaos: nulls here, exceptions there, `Optional` when someone remembered. Each approach speaks a different dialect. None compose cleanly.
+
+```java
+// Traditional Java: pyramid of nested checks
+User user = userRepository.findById(userId);
+if (user == null) {
+    return OrderResult.error("User not found");
+}
+try {
+    ValidationResult validation = validator.validate(request);
+    if (!validation.isValid()) {
+        return OrderResult.error(validation.getErrors().get(0));
+    }
+    // ... more nesting, more checks
+} catch (ValidationException e) {
+    return OrderResult.error("Validation error: " + e.getMessage());
+}
+```
+
+## The Solution: Effect Path API
+
+Higher-Kinded-J's **Effect Path API** models computation as a railway: success travels one track, failure travels another. Operations like `map`, `via`, and `recover` work identically across all effect types.
+
+```java
+// Effect Path API: flat, composable, readable
+public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest request) {
+    return Path.maybe(userRepository.findById(userId))
+        .toEitherPath(() -> new OrderError.UserNotFound(userId))
+        .via(user -> Path.either(validator.validate(request))
+            .mapError(OrderError.ValidationFailed::new))
+        .via(validated -> Path.tryOf(() -> paymentService.charge(user, amount))
+            .toEitherPath(OrderError.PaymentFailed::new))
+        .map(payment -> createOrder(user, request, payment));
+}
+```
+
+The nesting is gone. Failures propagate automatically. The business logic reads top-to-bottom.
+
+---
+
+## The Bridge: Effects Meet Optics
+
+What makes Higher-Kinded-J unique is the seamless integration between **Effect Paths** and the **Focus DSL**. Where Effect Paths navigate *computational effects*, Focus Paths navigate *data structures*. Both use the same vocabulary. Both compose with `via`. And when you need to cross between them, the bridge API connects both worlds.
+
+```
+                    THE EFFECT-OPTICS BRIDGE
+
+  EFFECTS DOMAIN                           OPTICS DOMAIN
+  ══════════════                           ═════════════
+
+  EitherPath<E, User>  ────┐         ┌──── FocusPath<User, Address>
+  TryPath<Config>      ────┤         ├──── AffinePath<User, Email>
+  IOPath<Data>         ────┤         ├──── TraversalPath<Team, Player>
+  ValidationPath<E, A> ────┘         └────
+                            │       │
+                            ▼       ▼
+                       ┌─────────────────┐
+                       │  .focus(path)   │
+                       │  .toEitherPath  │
+                       │  .toMaybePath   │
+                       └─────────────────┘
+                              │
+                              ▼
+                    UNIFIED COMPOSITION
+                    ════════════════════
+
+  userService.findById(id)        // Effect: fetch
+      .focus(UserFocus.address()) // Optics: navigate
+      .via(validateAddress)       // Effect: validate
+      .focus(AddressFocus.city()) // Optics: extract
+      .map(String::toUpperCase)   // Transform
+```
+
+```java
+// Fetch user (effect) → navigate to address (optics) → validate (effect)
+EitherPath<Error, String> result =
+    userService.findById(userId)           // EitherPath<Error, User>
+        .focus(UserFocus.address())        // EitherPath<Error, Address>
+        .focus(AddressFocus.postcode())    // EitherPath<Error, String>
+        .via(code -> validatePostcode(code));
+```
+
+Effects and structure, composition and navigation, all speaking the same language.
+
+---
+
+## Two Foundations
 
 ### [Higher-Kinded Types (HKTs)](https://higher-kinded-j.github.io/latest/hkts/hkt_introduction.html)
 
-Java's powerful type system excels in many areas, but it lacks native support for HKTs. This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>`. This project tackles that challenge by **simulating HKTs in Java**, allowing you to use common functional abstractions like `Functor`, `Applicative`, and `Monad` across different type constructors.
+Java lacks native support for abstracting over type constructors. Higher-Kinded-J **simulates HKTs** using defunctionalisation, enabling:
 
-### [Optics](https://higher-kinded-j.github.io/latest/optics/optics_intro.html)
+* Generic functions that work across `Optional`, `List`, `CompletableFuture`, and custom types
+* Type classes like `Functor`, `Applicative`, and `Monad`
+* Monad transformers for composing effect stacks
 
-Working with nested immutable data structures in Java can be verbose and tedious. Optics provide a solution by offering a principled way to access and modify parts of a larger structure. They are composable getters and setters that allow you to "focus" on a specific piece of data within a nested object graph and perform operations on it without boilerplate. The library includes advanced capabilities such as filtered traversals, indexed optics for position-aware transformations, and a fluent API for Java-friendly syntax. An annotation processor generates the necessary Optics for your data classes automatically.
+### [Advanced Optics](https://higher-kinded-j.github.io/latest/optics/optics_intro.html)
 
-## Applying to Your Applications
+Higher-Kinded-J provides the most comprehensive optics implementation available for Java. Working with immutable records means verbose "copy-and-update" logic; the Optics library treats data access as first-class values:
 
-You can apply the patterns and techniques from Higher-Kinded-J in many ways:
+* **Complete optic hierarchy:** Lenses, Prisms, Isos, Affines, Traversals, Folds, and Setters
+* **Automatic generation** via annotation processor for Java records and sealed interfaces
+* **Filtered traversals** for predicate-based focusing within collections
+* **Indexed optics** for position-aware transformations
+* **Focus DSL** for type-safe, fluent path navigation
+* **Effect integration** bridging optics with the Effect Path API
 
-* **Generic Utilities:** Write utility functions that work across different monadic types (e.g., a generic `sequence` function).
-* **Composable Workflows:** Structure complex business logic, especially involving asynchronicity and error handling, in a more functional way.
-* **Immutable Data Manipulation:** Use **Optics (Lens, Prism, Traversal)** to simplify updates to nested immutable objects, reducing boilerplate and errors.
-* **Managing Side Effects:** Use the `IO` monad to explicitly track and sequence side-effecting operations.
-* **Dependency Injection:** Use the `Reader` monad to manage dependencies cleanly.
-* **State Management:** Use the `State` monad for computations that need to thread state through.
-* **Advanced Data Querying:** Use **Filtered Traversals** and **Indexed Optics** to perform sophisticated queries and position-aware transformations on nested collections.
-* **Learning Tool:** Understand HKTs, type classes, and Optics through concrete Java examples.
+---
 
+## Why Higher-Kinded-J?
 
-## Practical Example: [Order Processing Workflow](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html)
+Higher-Kinded-J offers the most advanced optics implementation in the Java ecosystem, combined with a unified effect system that no other library provides.
 
-To see HKT concepts applied in a realistic scenario, check out the **Order Processing Example** located in the `higher-kinded-j-example` module.
+| Feature | Higher-Kinded-J | Functional Java | Fugue Optics | Derive4J |
+|---------|:--------------:|:---------------:|:------------:|:--------:|
+| **Lens** | ✓ | ✓ | ✓ | ✓* |
+| **Prism** | ✓ | ✓ | ✓ | ✓* |
+| **Iso** | ✓ | ✓ | ✓ | ✗ |
+| **Affine/Optional** | ✓ | ✓ | ✓ | ✓* |
+| **Traversal** | ✓ | ✓ | ✓ | ✗ |
+| **Filtered Traversals** | ✓ | ✗ | ✗ | ✗ |
+| **Indexed Optics** | ✓ | ✗ | ✗ | ✗ |
+| **Code Generation** | ✓ | ✗ | ✗ | ✓* |
+| **Java Records Support** | ✓ | ✗ | ✗ | ✗ |
+| **Sealed Interface Support** | ✓ | ✗ | ✗ | ✗ |
+| **Effect Integration** | ✓ | ✗ | ✗ | ✗ |
+| **Focus DSL** | ✓ | ✗ | ✗ | ✗ |
+| **Profunctor Architecture** | ✓ | ✓ | ✓ | ✗ |
+| **Fluent API** | ✓ | ✗ | ✗ | ✗ |
+| **Modern Java (21+)** | ✓ | ✗ | ✗ | ✗ |
 
-This example demonstrates:
+*\* Derive4J generates getters/setters but requires Functional Java for actual optic classes*
 
-* Orchestrating an asynchronous workflow using `CompletableFutureMonad`.
-* Handling domain-specific errors using `Either`.
-* Using the `EitherT` monad transformer to simplify working with nested `CompletableFuture<Either<DomainError, T>>`.
-* Integrating synchronous and asynchronous steps seamlessly within a monadic flow.
+---
 
-Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow.
+## Path Types at a Glance
 
+| Path Type | When to Use |
+|-----------|-------------|
+| `MaybePath<A>` | Absence is normal, not an error |
+| `EitherPath<E, A>` | Errors carry typed, structured information |
+| `TryPath<A>` | Wrapping code that throws exceptions |
+| `ValidationPath<E, A>` | Collecting *all* errors, not just the first |
+| `IOPath<A>` | Side effects you want to defer and sequence |
+| `TrampolinePath<A>` | Stack-safe recursion |
+| `CompletableFuturePath<A>` | Async operations |
 
-## Practical Example: [Optics for Data Manipulation](https://higher-kinded-j.github.io/latest/optics/auditing_complex_data_example.html)
+Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
 
-The `higher-kinded-j-example` module also contains examples of how to use **Optics**. See the `OpticsExample` class for demonstrations of:
+---
 
-* **Lens:** Focusing on a field within a product type (e.g., a class).
-* **Prism:** Focusing on a case within a sum type (e.g., a sealed interface).
-* **Composition:** Combining Optics to drill down into nested structures.
+## Practical Examples
 
-For instance, you can update a deeply nested field in an immutable object with a single, elegant expression:
+### [Order Processing Workflow](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html)
+
+See HKT concepts applied in a realistic scenario:
+
+* Orchestrating async workflows using `CompletableFutureMonad`
+* Handling domain errors with `Either` and `EitherT` monad transformer
+* Integrating synchronous and asynchronous steps seamlessly
+
+### [Optics for Data Manipulation](https://higher-kinded-j.github.io/latest/optics/auditing_complex_data_example.html)
 
 ```java
-  @GenerateLenses
-  public record Player(String name, int score) {}
+@GenerateLenses
+public record Player(String name, int score) {}
 
-  @GenerateLenses
-  @GenerateTraversals // Generates a Traversal for the List<Player>
-  public record Team(String name, List<Player> players) {}
+@GenerateLenses
+@GenerateTraversals
+public record Team(String name, List<Player> players) {}
 
-  @GenerateLenses
-  @GenerateTraversals // Generates a Traversal for the List<Team>
-  public record League(String name, List<Team> teams) {}
-  
-  // Get the generated Traversals and Lenses
-  Traversal<League, Team> leagueToTeams = LeagueTraversals.teams();
-  Traversal<Team, Player> teamToPlayers = TeamTraversals.players();
-  Lens<Player, Integer> playerToScore = PlayerLenses.score();
-  
-  // Compose them to create a single, deep traversal.
-  // The path is: League -> each Team -> each Player -> score
-  Traversal<League, Integer> leagueToAllPlayerScores =
-  leagueToTeams.andThen(teamToPlayers).andThen(playerToScore);
+@GenerateLenses
+@GenerateTraversals
+public record League(String name, List<Team> teams) {}
+
+// Compose traversals for deep navigation
+Traversal<League, Integer> leagueToAllPlayerScores =
+    LeagueTraversals.teams()
+        .andThen(TeamTraversals.players())
+        .andThen(PlayerLenses.score());
+
+// Filter and modify with predicates
+Traversal<League, Player> activePlayers =
+    leagueToAllPlayers.filtered(Player::isActive);
 ```
-[Full Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 
-The library also provides powerful utilities for common patterns:
-
-```java
-// Filter traversals by predicates
-Traversal<League, Player> activePlayersOnly =
-    leagueToAllPlayers.filtered(player -> player.isActive());
-
-// Work with positions using indexed optics
-List<Player> players = List.of(player1, player2, player3);
-IndexedTraversal<Integer, List<Player>, Player> playersWithIndex =
-    IndexedTraversals.forList();
-// Now you can track positions: playersWithIndex.imodify((index, player) -> ...)
-```
+---
 
 ## Requirements
 
@@ -116,27 +223,17 @@ IndexedTraversal<Integer, List<Player>, Player> playersWithIndex =
 
 ## How to Use This Library
 
-The project is modular. To use it, add the relevant dependencies to your `build.gradle` or `pom.xml`. The use of an annotation processor helps to automatically generate the required boilerplate for Optics and other patterns.
-
-**For HKTs:**
+Add the following dependencies to your `build.gradle.kts`:
 
 ```gradle
-// build.gradle.kts
-    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
-```
-
-* **Follow the Usage Guides:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/latest/hkts/usage-guide.html) to wrap your Java objects for HKT operations or to define and use Optics for your data models.
-* **Extend if Necessary:** Follow the guide [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/latest/hkts/extending-simulation.html) in the documentation to create your own HKT simulations or Optics for custom types.
-
-**For Optics:**
-
-```gradle
-// build.gradle.kts
+dependencies {
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
+}
 ```
 
+The annotation processor generates Focus paths and Effect paths for your records, enabling seamless integration between effects and data navigation.
 
 **For SNAPSHOTS:**
 
@@ -144,31 +241,22 @@ The project is modular. To use it, add the relevant dependencies to your `build.
 repositories {
     mavenCentral()
     maven {
-        url= uri("https://central.sonatype.com/repository/maven-snapshots/")
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
     }
 }
 ```
 
-* **Annotate your data classes:** Use the provided annotations (e.g., `@GenerateLenses`) on your immutable classes. [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.html)
-* **Build your project:** The annotation processor will generate the corresponding `Lens`, `Prism`, `Iso`, `Fold`, and `Traversal` implementations for you.
-* **Use the generated Optics:** Import and use the generated optics classes to manipulate your data structures in a clean, functional, and immutable way.
-* **Explore advanced features:** Apply [filtered traversals](https://higher-kinded-j.github.io/latest/optics/filtered_optics.html), [indexed optics](https://higher-kinded-j.github.io/latest/optics/indexed_optics.html), or the [fluent API](https://higher-kinded-j.github.io/latest/optics/fluent_api.html) for more sophisticated data manipulation patterns.
+---
 
 ## Spring Boot Integration
 
-For Spring Boot applications, the **hkj-spring-boot-starter** provides seamless integration of functional programming patterns into your REST APIs and business logic.
-
-### Quick Start
-
-Add the starter dependency:
+The **hkj-spring-boot-starter** brings functional patterns into REST APIs with zero configuration:
 
 ```gradle
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
 }
 ```
-
-Return functional types from controllers:
 
 ```java
 @RestController
@@ -191,67 +279,27 @@ public class UserController {
 }
 ```
 
-**That's it!** Auto-configuration handles:
-- ✅ Either → HTTP response conversion
-- ✅ Validated → HTTP response with error accumulation
-- ✅ EitherT async operations
-- ✅ JSON serialisation for functional types
-- ✅ Error type → HTTP status code mapping
-
-### Features
-
-**Return Functional Types from Controllers**
-- `Either<Error, Data>` for operations that succeed or fail
-- `Validated<Errors, Data>` for accumulating multiple errors
-- `EitherT<CompletableFuture, Error, Data>` for async operations
-
-**Customisable JSON Serialisation**
-```yaml
-hkj:
-  jackson:
-    either-format: TAGGED     # {"success": true, "value": {...}}
-    validated-format: UNWRAPPED  # Just the value or errors
-```
-
-**Spring Boot Actuator Integration**
-```bash
-curl http://localhost:8080/actuator/hkj
-# {
-#   "metrics": {
-#     "either": {"successRate": 0.857, "errorCount": 25},
-#     "validated": {"validRate": 0.800},
-#     "eitherT": {"successRate": 0.882, "avgDuration": "145ms"}
-#   }
-# }
-```
-
-**Spring Security Integration** (Optional)
-```java
-public class UserDetailsService {
-    public Validated<List<AuthError>, UserDetails> loadUser(String username) {
-        // Accumulate all validation errors (username, account status, etc.)
-    }
-}
-```
+Auto-configuration handles Either → HTTP response conversion, error accumulation with Validated, and async operations with EitherT.
 
 For complete documentation, see:
 - [Spring Boot Integration Guide](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html)
 - [Migration Guide](https://higher-kinded-j.github.io/latest/spring/migrating_to_functional_errors.html)
-- [Working Example Application](hkj-spring/example/)
 
-##
+---
 
-**Note:** This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
+## Learn by Doing
 
-## Limitations
+Eight interactive tutorial journeys with hands-on exercises:
 
-While useful the approach to simulating Higher-Kinded Types has some inherent limitations in Java compared to languages with native HKTs:
+| Journey | Focus | Exercises |
+|---------|-------|-----------|
+| [Core: Foundations](https://higher-kinded-j.github.io/latest/tutorials/coretypes/foundations_journey.html) | HKT simulation, Functor, Monad | 24 |
+| [Effect API](https://higher-kinded-j.github.io/latest/tutorials/effect/effect_journey.html) | Effect paths, ForPath, Contexts | 15 |
+| [Optics: Focus DSL](https://higher-kinded-j.github.io/latest/tutorials/optics/focus_dsl_journey.html) | Type-safe path navigation | 18 |
 
-* **Boilerplate:** HKTs Require additional setup code for each simulated type. Optics also require definitions, though they significantly reduce boilerplate at the usage site.
-* **Verbosity:** Usage often involves explicit wrapping/unwrapping and witness types.
-* **Complexity:** Adds cognitive load to understand the simulation mechanism.
-* **Type Safety Gaps:** Relies on some internal casting (`unwrap` methods), although the helpers are designed to be robust (throwing `KindUnwrapException` on structural failure).
-* **Type Inference:** Java's inference can sometimes need help with the complex generics.
+[View all tutorials →](https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html)
+
+---
 
 ## Project Structure
 
@@ -266,69 +314,52 @@ graph TD;
     root --> hkj_book["hkj-book"];
 ```
 
+* **hkj-api**: Public API for HKTs and Optics
+* **hkj-annotations**: Annotations for code generation (`@GenerateLenses`, etc.)
+* **hkj-core**: Core implementation of HKT simulation, Effect Path API, and Optics
+* **hkj-processor**: Annotation processor for generating boilerplate
+* **hkj-processor-plugins**: Extensible plugins for code generation
+* **hkj-examples**: Examples demonstrating all features
+* **hkj-book**: Documentation built with mdbook
 
+---
 
-### Folder Structure:
+## Limitations
 
-* **hkj-api**: Defines the public API, including core interfaces for HKTs and Optics.
-* **hkj-annotations**: Contains the Java annotations used for code generation.
-* **hkj-core**: The core module containing the main implementation of the HKT and Optics patterns.
-* **hkj-processor**: The annotation processor that generates boilerplate code.
-* **hkj-processor-plugins**: Extensible plugins for the annotation processor.
-* **hkj-examples**: A collection of examples demonstrating how to use the library.
-* **hkj-book**: Contains the project's documentation, built with `mdbook`.
+While powerful, the HKT simulation has inherent trade-offs:
 
-### Code Structure
+* **Boilerplate:** Requires setup code for each simulated type
+* **Verbosity:** Usage involves explicit wrapping/unwrapping
+* **Type Inference:** Java's inference sometimes needs help with complex generics
 
-The code is organised into a multi-module structure to ensure clear separation of concerns:
+The Effect Path API significantly reduces this friction by providing a consistent, fluent interface.
 
-* **`org.higherkindedj.api`**: Defines the public API, including core functional interfaces and optics intended for developers using the library.
-  * `org.higherkindedj.optics`: Core Optics interfaces (`Lens`, `Prism`, `Traversal`, etc.) and their
-  * `org.higherkindedj.hkt`: Core interfaces (`Kind`, `Functor`, `Monad`, etc.).
-* **`org.higherkindedj.core`**: The core HKT/Optics module.
-  * `org.higherkindedj.hkt.*`: HKT simulations for various types (`Either`, `List`, `Optional`, `IO`, etc.) and Monad Transformers.
-  * `org.higherkindedj.optics`: Some utils for Optics
-* **`higher-kinded-j-annotations`**: Contains the Java annotations  that you use to mark your code for processing.
-  * `org.higherkindedj.optics.annotations`: (e.g., `@GeneratePrisms, @GenrateTraversals, @GenerateLenses`)
-* **`higher-kinded-j-processor`**: The main annotation processor. It scans for annotations from the `annotations` module and generates the required boilerplate code (e.g., Optics implementations).
-* **`higher-kinded-j-processor-plugins`**: Contains plugins for the annotation processor, providing Traversal support for many types by defining generators
+---
 
-### Code Examples
+## History
 
-* **`org.higherkindedj.examples`**: Practical examples demonstrating how to use the libraries.
-  * `org.higherkindedj.example.basic`: Examples demonstrating basic HKT usage.
-  * `org.higherkindedj.example.optics`: Examples showing how to use the generated Optics.
-  * `org.higherkindedj.example.draughts`: A Draughts game showcasing various HKT features.
-  * `org.higherkindedj.example.order`: An Order workflow showcasing various HKT features.
+**Higher-Kinded-J evolved from a simulation** originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html). Since then it has grown into a comprehensive functional programming toolkit, with the Effect Path API providing the unifying layer that connects HKTs, type classes, and optics into a coherent whole.
 
-### History
-**Higher-Kinded-J evolved from a simulation** that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.
-
+---
 
 ## Contributing
 
-Contributions to this project are very welcome! Whether it's adding new features, improving existing code, or enhancing documentation, your help is GREATLY appreciated. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are very welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 **Areas for Contribution:**
 
-* **Improve Annotation Processor:** Enhance the code generation capabilities to support more patterns or edge cases.
-* **Simulate More Types:** Add HKT simulations and type class instances for other common Java types (e.g., `Stream`, `java.time` types) or functional concepts.
-* **Implement More Type Classes:** Add implementations for other useful type classes like `Traverse`, `Semigroup`, etc., where applicable.
-* **Enhance Optics Library:** Extend the optics capabilities with new combinators, improve the fluent API, or add support for additional data structures.
-* **Enhance Existing Implementations:** Improve performance, clarity, or robustness of the current simulations and type class instances.
-* **Add Examples:** Create more diverse examples showcasing different use cases of Higher-Kinded Type simulation.
-* **Improve Documentation:** Clarify concepts, add tutorials, or improve the hkj-book/README.
-* **Refactor with New Java Features:** Explore opportunities to use features like Structured Concurrency, etc., to improve the simulation or examples.
-* **Testing:** Increase test coverage, particularly for type class laws and edge cases.
+* Enhance the Effect Path API with new patterns and Path types
+* Improve annotation processor capabilities
+* Add HKT simulations for more Java types
+* Extend optics with new combinators
+* Create more examples and tutorials
+* Improve documentation
 
 **How to Contribute:**
 
-1. **Fork the Repository:** Create your own fork of the project on GitHub.
-2. **Create a Branch:** Make your changes in a dedicated branch (e.g., `feature/add-stream-kind`, `fix/optional-monad-bug`).
-3. **Develop:** Implement your changes or fixes.
-4. **Add Tests:** Ensure your changes are well-tested. Verify that existing tests pass.
-5. **Commit:** Make clear, concise commit messages.
-6. **Push:** Push your branch to your fork.
-7. **Submit a Pull Request:** Open a Pull Request (PR) from your branch to the `main` branch of the original repository. Describe your changes clearly in the PR description.
+1. Fork the repository
+2. Create a feature branch
+3. Implement and test your changes
+4. Submit a Pull Request
 
-If you're unsure where to start or want to discuss an idea, feel free to open a GitHub Issue first.
+If you're unsure where to start, feel free to open a GitHub Issue first.

@@ -1,6 +1,6 @@
 [book]
-title = "Higher-Kinded Types and Optics for Java"
-description = "Explore Higher-Kinded Types (HKTs) and Optcs in Java with the Higher-Kinded-J library. Learn about Functors, Applicatives, Monads, Transformers, practical functional patterns, and how to write cleaner, more composable Java code for your projects using Optics."
+title = "Higher-Kinded-J: Composable Effects and Advanced Optics for Java"
+description = "The most comprehensive functional programming library for Java. Unify error handling, optional values, and immutable data navigation with the Effect Path API and Focus DSL. Features advanced optics with code generation for Java records, filtered traversals, indexed optics, and seamless Spring Boot integration."
 authors = ["The Higher-Kinded-J Team"]
 language = "en"
 multilingual = false
