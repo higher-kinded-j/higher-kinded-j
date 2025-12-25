@@ -14,11 +14,11 @@ The hkj-spring security integration brings functional programming patterns to Sp
 
 ### Key Benefits
 
-✅ **Type-safe error handling** - No exceptions, explicit error types
-✅ **Error accumulation** - Report ALL validation errors at once
-✅ **Composable security rules** - Chain checks with flatMap/map
-✅ **Better testability** - Pure functions, no side effects
-✅ **Clear success/failure semantics** - Left = error, Right = success
+- **Type-safe error handling** - No exceptions, explicit error types
+- **Error accumulation** - Report ALL validation errors at once
+- **Composable security rules** - Chain checks with flatMap/map
+- **Better testability** - Pure functions, no side effects
+- **Clear success/failure semantics** - Left = error, Right = success
 
 ---
 
@@ -92,10 +92,10 @@ public UserDetailsService userDetailsService() {
 Username: "a@"
 
 Traditional Spring Security:
-❌ "Username must be at least 3 characters"
+Error: "Username must be at least 3 characters"
 
 ValidatedUserDetailsService:
-❌ "Username must be at least 3 characters; Username can only contain letters, numbers, underscores, and hyphens"
+Error: "Username must be at least 3 characters; Username can only contain letters, numbers, underscores, and hyphens"
 ```
 
 #### Adding Custom Users
@@ -201,10 +201,10 @@ Either<AuthorizationError, AuthorizationSuccess> result =
 #### Built-in Rules
 
 The default `EitherAuthorizationManager` requires:
-1. ✅ Authentication present
-2. ✅ Authentication authenticated
-3. ✅ `ROLE_ADMIN` authority
-4. ❌ Blocks `/api/admin/dangerous` paths
+1. Authentication present
+2. Authentication authenticated
+3. `ROLE_ADMIN` authority
+4. Blocks `/api/admin/dangerous` paths
 
 ---
 
@@ -453,10 +453,10 @@ public UserDetails loadUserByUsername(String username) {
 ```
 
 **Benefits:**
-- ✅ Reports all validation errors (not just first)
-- ✅ More testable (pure functions)
-- ✅ Type-safe error handling
-- ✅ Composable validation rules
+- Reports all validation errors (not just first)
+- More testable (pure functions)
+- Type-safe error handling
+- Composable validation rules
 
 ---
 
@@ -557,7 +557,6 @@ when(authentication.getAuthorities()).thenReturn(
 - [Spring Security Reference](https://docs.spring.io/spring-security/reference/index.html)
 - [hkj-spring README](README.md) - Main documentation
 - [CONFIGURATION.md](CONFIGURATION.md) - Configuration properties
-- [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) - Development plan
 
 ---
 

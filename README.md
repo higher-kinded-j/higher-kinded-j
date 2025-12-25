@@ -221,6 +221,14 @@ Traversal<League, Player> activePlayers =
 * **Java Development Kit (JDK): Version 25** or later.
 * Gradle (the project includes a Gradle wrapper).
 
+### Version Compatibility
+
+| Higher-Kinded-J | Spring Boot | Jackson | Java |
+|-----------------|-------------|---------|------|
+| 1.x | 4.0.1+ | 3.x (tools.jackson) | 25+ |
+
+The hkj-spring-boot-starter requires Spring Boot 4.0.1 or later with Jackson 3.x (using the `tools.jackson` package namespace).
+
 ## How to Use This Library
 
 Add the following dependencies to your `build.gradle.kts`:
@@ -279,7 +287,7 @@ public class UserController {
 }
 ```
 
-Auto-configuration handles Either → HTTP response conversion, error accumulation with Validated, and async operations with EitherT.
+Auto-configuration handles Either to HTTP response conversion, error accumulation with Validated, and async operations with CompletableFuturePath.
 
 For complete documentation, see:
 - [Spring Boot Integration Guide](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html)

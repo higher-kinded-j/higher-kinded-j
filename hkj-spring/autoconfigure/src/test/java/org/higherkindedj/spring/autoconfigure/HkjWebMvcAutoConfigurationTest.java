@@ -5,17 +5,16 @@ package org.higherkindedj.spring.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
-import org.higherkindedj.spring.web.returnvalue.EitherReturnValueHandler;
-import org.higherkindedj.spring.web.returnvalue.ValidatedReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.webmvc.autoconfigure.DispatcherServletAutoConfiguration;
+import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
@@ -32,7 +31,6 @@ class HkjWebMvcAutoConfigurationTest {
       new WebApplicationContextRunner()
           .withConfiguration(
               AutoConfigurations.of(
-                  ServletWebServerFactoryAutoConfiguration.class,
                   DispatcherServletAutoConfiguration.class,
                   WebMvcAutoConfiguration.class,
                   JacksonAutoConfiguration.class,
@@ -58,9 +56,9 @@ class HkjWebMvcAutoConfigurationTest {
 
             // Verify both handlers are registered
             boolean hasEitherHandler =
-                handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
             boolean hasValidatedHandler =
-                handlers.stream().anyMatch(h -> h instanceof ValidatedReturnValueHandler);
+                handlers.stream().anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
 
             assertThat(hasEitherHandler).isTrue();
             assertThat(hasValidatedHandler).isTrue();
@@ -68,11 +66,11 @@ class HkjWebMvcAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("Should register only EitherReturnValueHandler when Validated is disabled")
-    void shouldRegisterOnlyEitherHandlerWhenValidatedDisabled() {
+    @DisplayName("Should register only EitherPathReturnValueHandler when Validation is disabled")
+    void shouldRegisterOnlyEitherHandlerWhenValidationDisabled() {
       contextRunner
           .withPropertyValues(
-              "hkj.web.either-response-enabled=true", "hkj.web.validated-response-enabled=false")
+              "hkj.web.either-path-enabled=true", "hkj.web.validation-path-enabled=false")
           .run(
               context -> {
                 RequestMappingHandlerAdapter adapter =
@@ -82,9 +80,9 @@ class HkjWebMvcAutoConfigurationTest {
                 assertThat(handlers).isNotNull();
 
                 boolean hasEitherHandler =
-                    handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
                 boolean hasValidatedHandler =
-                    handlers.stream().anyMatch(h -> h instanceof ValidatedReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
 
                 assertThat(hasEitherHandler).isTrue();
                 assertThat(hasValidatedHandler).isFalse();
@@ -92,11 +90,11 @@ class HkjWebMvcAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("Should register only ValidatedReturnValueHandler when Either is disabled")
+    @DisplayName("Should register only ValidationPathReturnValueHandler when Either is disabled")
     void shouldRegisterOnlyValidatedHandlerWhenEitherDisabled() {
       contextRunner
           .withPropertyValues(
-              "hkj.web.either-response-enabled=false", "hkj.web.validated-response-enabled=true")
+              "hkj.web.either-path-enabled=false", "hkj.web.validation-path-enabled=true")
           .run(
               context -> {
                 RequestMappingHandlerAdapter adapter =
@@ -106,9 +104,9 @@ class HkjWebMvcAutoConfigurationTest {
                 assertThat(handlers).isNotNull();
 
                 boolean hasEitherHandler =
-                    handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
                 boolean hasValidatedHandler =
-                    handlers.stream().anyMatch(h -> h instanceof ValidatedReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
 
                 assertThat(hasEitherHandler).isFalse();
                 assertThat(hasValidatedHandler).isTrue();
@@ -120,7 +118,7 @@ class HkjWebMvcAutoConfigurationTest {
     void shouldRegisterNoHandlersWhenBothDisabled() {
       contextRunner
           .withPropertyValues(
-              "hkj.web.either-response-enabled=false", "hkj.web.validated-response-enabled=false")
+              "hkj.web.either-path-enabled=false", "hkj.web.validation-path-enabled=false")
           .run(
               context -> {
                 RequestMappingHandlerAdapter adapter =
@@ -130,9 +128,9 @@ class HkjWebMvcAutoConfigurationTest {
                 assertThat(handlers).isNotNull();
 
                 boolean hasEitherHandler =
-                    handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
                 boolean hasValidatedHandler =
-                    handlers.stream().anyMatch(h -> h instanceof ValidatedReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
 
                 assertThat(hasEitherHandler).isFalse();
                 assertThat(hasValidatedHandler).isFalse();
@@ -161,9 +159,9 @@ class HkjWebMvcAutoConfigurationTest {
 
             for (int i = 0; i < handlers.size(); i++) {
               HandlerMethodReturnValueHandler handler = handlers.get(i);
-              if (handler instanceof EitherReturnValueHandler) {
+              if (handler instanceof EitherPathReturnValueHandler) {
                 eitherHandlerIndex = i;
-              } else if (handler instanceof ValidatedReturnValueHandler) {
+              } else if (handler instanceof ValidationPathReturnValueHandler) {
                 validatedHandlerIndex = i;
               }
             }
@@ -185,7 +183,7 @@ class HkjWebMvcAutoConfigurationTest {
   class PropertyIntegrationTests {
 
     @Test
-    @DisplayName("Should pass default-error-status to EitherReturnValueHandler")
+    @DisplayName("Should pass default-error-status to EitherPathReturnValueHandler")
     void shouldPassDefaultErrorStatusToHandler() {
       contextRunner
           .withPropertyValues("hkj.web.default-error-status=500")
@@ -202,7 +200,7 @@ class HkjWebMvcAutoConfigurationTest {
                 List<HandlerMethodReturnValueHandler> handlers = adapter.getReturnValueHandlers();
 
                 boolean hasEitherHandler =
-                    handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
 
                 assertThat(hasEitherHandler).isTrue();
               });
@@ -253,10 +251,10 @@ class HkjWebMvcAutoConfigurationTest {
     void shouldWorkWithCompleteWebConfiguration() {
       contextRunner
           .withPropertyValues(
-              "hkj.web.either-response-enabled=true",
-              "hkj.web.validated-response-enabled=true",
+              "hkj.web.either-path-enabled=true",
+              "hkj.web.validation-path-enabled=true",
               "hkj.web.default-error-status=400",
-              "hkj.web.async-either-t-enabled=true",
+              "hkj.web.completable-future-path-enabled=true",
               "hkj.web.error-status-mappings.UserNotFoundError=404",
               "hkj.web.error-status-mappings.ValidationError=400",
               "hkj.web.error-status-mappings.AuthorizationError=403",
@@ -265,8 +263,8 @@ class HkjWebMvcAutoConfigurationTest {
               context -> {
                 // Verify properties
                 HkjProperties properties = context.getBean(HkjProperties.class);
-                assertThat(properties.getWeb().isEitherResponseEnabled()).isTrue();
-                assertThat(properties.getWeb().isValidatedResponseEnabled()).isTrue();
+                assertThat(properties.getWeb().isEitherPathEnabled()).isTrue();
+                assertThat(properties.getWeb().isValidationPathEnabled()).isTrue();
                 assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(400);
                 assertThat(properties.getWeb().getErrorStatusMappings()).hasSize(4);
 
@@ -276,9 +274,9 @@ class HkjWebMvcAutoConfigurationTest {
                 List<HandlerMethodReturnValueHandler> handlers = adapter.getReturnValueHandlers();
 
                 boolean hasEitherHandler =
-                    handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
                 boolean hasValidatedHandler =
-                    handlers.stream().anyMatch(h -> h instanceof ValidatedReturnValueHandler);
+                    handlers.stream().anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
 
                 assertThat(hasEitherHandler).isTrue();
                 assertThat(hasValidatedHandler).isTrue();
@@ -296,8 +294,8 @@ class HkjWebMvcAutoConfigurationTest {
 
             // Verify default properties
             HkjProperties properties = context.getBean(HkjProperties.class);
-            assertThat(properties.getWeb().isEitherResponseEnabled()).isTrue();
-            assertThat(properties.getWeb().isValidatedResponseEnabled()).isTrue();
+            assertThat(properties.getWeb().isEitherPathEnabled()).isTrue();
+            assertThat(properties.getWeb().isValidationPathEnabled()).isTrue();
             assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(400);
 
             // Verify handlers are registered with defaults
@@ -306,9 +304,9 @@ class HkjWebMvcAutoConfigurationTest {
             List<HandlerMethodReturnValueHandler> handlers = adapter.getReturnValueHandlers();
 
             boolean hasEitherHandler =
-                handlers.stream().anyMatch(h -> h instanceof EitherReturnValueHandler);
+                handlers.stream().anyMatch(h -> h instanceof EitherPathReturnValueHandler);
             boolean hasValidatedHandler =
-                handlers.stream().anyMatch(h -> h instanceof ValidatedReturnValueHandler);
+                handlers.stream().anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
 
             assertThat(hasEitherHandler).isTrue();
             assertThat(hasValidatedHandler).isTrue();

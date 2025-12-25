@@ -5,11 +5,11 @@ package org.higherkindedj.spring.web.returnvalue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,10 +22,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Tests for {@link EitherPathReturnValueHandler}.
+ *
+ * <p>Verifies HTTP response mapping for EitherPath return types using Jackson 3.x.
+ */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("EitherReturnValueHandler Tests")
-class EitherReturnValueHandlerTest {
+@DisplayName("EitherPathReturnValueHandler Tests")
+class EitherPathReturnValueHandlerTest {
 
   @Mock private HttpServletResponse response;
 
@@ -35,15 +41,15 @@ class EitherReturnValueHandlerTest {
 
   @Mock private ModelAndViewContainer mavContainer;
 
-  private EitherReturnValueHandler handler;
+  private EitherPathReturnValueHandler handler;
   private StringWriter stringWriter;
   private PrintWriter printWriter;
-  private ObjectMapper objectMapper;
+  private JsonMapper jsonMapper;
 
   @BeforeEach
   void setUp() throws Exception {
-    objectMapper = new ObjectMapper();
-    handler = new EitherReturnValueHandler(objectMapper, HttpStatus.BAD_REQUEST.value());
+    jsonMapper = JsonMapper.builder().build();
+    handler = new EitherPathReturnValueHandler(jsonMapper, HttpStatus.BAD_REQUEST.value());
 
     stringWriter = new StringWriter();
     printWriter = new PrintWriter(stringWriter);
@@ -58,9 +64,9 @@ class EitherReturnValueHandlerTest {
   class SupportsReturnTypeTests {
 
     @Test
-    @DisplayName("Should support Either return type")
-    void shouldSupportEitherReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) Either.class);
+    @DisplayName("Should support EitherPath return type")
+    void shouldSupportEitherPathReturnType() {
+      when(returnType.getParameterType()).thenReturn((Class) EitherPath.class);
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -68,8 +74,8 @@ class EitherReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should not support non-Either return type")
-    void shouldNotSupportNonEitherReturnType() {
+    @DisplayName("Should not support non-EitherPath return type")
+    void shouldNotSupportNonEitherPathReturnType() {
       when(returnType.getParameterType()).thenReturn((Class) String.class);
 
       boolean result = handler.supportsReturnType(returnType);
@@ -86,9 +92,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should handle Right value with HTTP 200")
     void shouldHandleRightValueWith200() throws Exception {
       TestUser user = new TestUser("1", "alice@example.com");
-      Either<String, TestUser> either = Either.right(user);
+      EitherPath<String, TestUser> path = Path.right(user);
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(HttpStatus.OK.value());
       verify(response).setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -104,9 +110,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should handle Right value with null response gracefully")
     void shouldHandleRightValueWithNullResponse() throws Exception {
       when(webRequest.getNativeResponse(HttpServletResponse.class)).thenReturn(null);
-      Either<String, TestUser> either = Either.right(new TestUser("1", "test@example.com"));
+      EitherPath<String, TestUser> path = Path.right(new TestUser("1", "test@example.com"));
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(mavContainer).setRequestHandled(true);
       verify(response, never()).setStatus(anyInt());
@@ -116,9 +122,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should serialize Right value with complex object")
     void shouldSerializeRightValueWithComplexObject() throws Exception {
       TestComplexObject obj = new TestComplexObject("test", 42, true);
-      Either<String, TestComplexObject> either = Either.right(obj);
+      EitherPath<String, TestComplexObject> path = Path.right(obj);
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       printWriter.flush();
       String json = stringWriter.toString();
@@ -135,9 +141,9 @@ class EitherReturnValueHandlerTest {
     @Test
     @DisplayName("Should handle Left value with default error status")
     void shouldHandleLeftValueWithDefaultStatus() throws Exception {
-      Either<String, TestUser> either = Either.left("Error occurred");
+      EitherPath<String, TestUser> path = Path.left("Error occurred");
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(HttpStatus.BAD_REQUEST.value());
       verify(response).setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -152,9 +158,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should handle UserNotFoundError with HTTP 404")
     void shouldHandleUserNotFoundErrorWith404() throws Exception {
       TestUserNotFoundError error = new TestUserNotFoundError("123");
-      Either<TestUserNotFoundError, TestUser> either = Either.left(error);
+      EitherPath<TestUserNotFoundError, TestUser> path = Path.left(error);
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(HttpStatus.NOT_FOUND.value());
 
@@ -167,9 +173,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should handle ValidationError with HTTP 400")
     void shouldHandleValidationErrorWith400() throws Exception {
       TestValidationError error = new TestValidationError("Invalid input");
-      Either<TestValidationError, TestUser> either = Either.left(error);
+      EitherPath<TestValidationError, TestUser> path = Path.left(error);
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(HttpStatus.BAD_REQUEST.value());
 
@@ -182,9 +188,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should handle AuthorizationError with HTTP 403")
     void shouldHandleAuthorizationErrorWith403() throws Exception {
       TestAuthorizationError error = new TestAuthorizationError("Access denied");
-      Either<TestAuthorizationError, TestUser> either = Either.left(error);
+      EitherPath<TestAuthorizationError, TestUser> path = Path.left(error);
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(HttpStatus.FORBIDDEN.value());
     }
@@ -193,9 +199,9 @@ class EitherReturnValueHandlerTest {
     @DisplayName("Should handle AuthenticationError with HTTP 401")
     void shouldHandleAuthenticationErrorWith401() throws Exception {
       TestAuthenticationError error = new TestAuthenticationError("Not authenticated");
-      Either<TestAuthenticationError, TestUser> either = Either.left(error);
+      EitherPath<TestAuthenticationError, TestUser> path = Path.left(error);
 
-      handler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(HttpStatus.UNAUTHORIZED.value());
     }
@@ -208,10 +214,11 @@ class EitherReturnValueHandlerTest {
     @Test
     @DisplayName("Should use custom default error status")
     void shouldUseCustomDefaultErrorStatus() throws Exception {
-      EitherReturnValueHandler customHandler = new EitherReturnValueHandler(objectMapper, 500);
-      Either<String, TestUser> either = Either.left("Generic error");
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(jsonMapper, 500);
+      EitherPath<String, TestUser> path = Path.left("Generic error");
 
-      customHandler.handleReturnValue(either, returnType, mavContainer, webRequest);
+      customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(response).setStatus(500);
     }
@@ -231,11 +238,11 @@ class EitherReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should handle non-Either returnValue gracefully")
-    void shouldHandleNonEitherReturnValue() throws Exception {
-      String notAnEither = "just a string";
+    @DisplayName("Should handle non-EitherPath returnValue gracefully")
+    void shouldHandleNonEitherPathReturnValue() throws Exception {
+      String notAnEitherPath = "just a string";
 
-      handler.handleReturnValue(notAnEither, returnType, mavContainer, webRequest);
+      handler.handleReturnValue(notAnEitherPath, returnType, mavContainer, webRequest);
 
       verify(mavContainer).setRequestHandled(true);
       verify(response, never()).setStatus(anyInt());

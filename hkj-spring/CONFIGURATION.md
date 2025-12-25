@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document provides a complete reference for all configuration properties available in the higher-kinded-j Spring Boot integration.
+This document provides a complete reference for all configuration properties available in the higher-kinded-j Spring Boot 4.0.1+ integration.
 
 ## Table of Contents
 
@@ -32,11 +32,11 @@ hkj:
 
 ## Web/MVC Configuration
 
-Configure return value handlers for Spring MVC controllers.
+Configure return value handlers for Spring MVC controllers. The Effect Path API provides handlers for all major functional types.
 
-### `hkj.web.either-response-enabled`
+### `hkj.web.either-path-enabled`
 
-Enable or disable the `EitherReturnValueHandler`.
+Enable or disable the `EitherPathReturnValueHandler`.
 
 - **Type:** `boolean`
 - **Default:** `true`
@@ -46,12 +46,42 @@ Enable or disable the `EitherReturnValueHandler`.
 ```yaml
 hkj:
   web:
-    either-response-enabled: false  # Disable Either handler
+    either-path-enabled: false  # Disable EitherPath handler
 ```
 
-### `hkj.web.validated-response-enabled`
+### `hkj.web.maybe-path-enabled`
 
-Enable or disable the `ValidatedReturnValueHandler`.
+Enable or disable the `MaybePathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `Maybe<Value>` types with automatic handling of Nothing as HTTP 404
+
+**Example:**
+```yaml
+hkj:
+  web:
+    maybe-path-enabled: false  # Disable MaybePath handler
+```
+
+### `hkj.web.try-path-enabled`
+
+Enable or disable the `TryPathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `Try<Value>` types with automatic exception handling
+
+**Example:**
+```yaml
+hkj:
+  web:
+    try-path-enabled: false  # Disable TryPath handler
+```
+
+### `hkj.web.validation-path-enabled`
+
+Enable or disable the `ValidationPathReturnValueHandler`.
 
 - **Type:** `boolean`
 - **Default:** `true`
@@ -61,7 +91,37 @@ Enable or disable the `ValidatedReturnValueHandler`.
 ```yaml
 hkj:
   web:
-    validated-response-enabled: false  # Disable Validated handler
+    validation-path-enabled: false  # Disable ValidationPath handler
+```
+
+### `hkj.web.io-path-enabled`
+
+Enable or disable the `IOPathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `IO<Value>` types with automatic execution handling
+
+**Example:**
+```yaml
+hkj:
+  web:
+    io-path-enabled: false  # Disable IOPath handler
+```
+
+### `hkj.web.completable-future-path-enabled`
+
+Enable or disable the `CompletableFuturePathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `CompletableFuturePath<Value>` types for async operations with functional error handling
+
+**Example:**
+```yaml
+hkj:
+  web:
+    completable-future-path-enabled: false  # Disable async handler
 ```
 
 ### `hkj.web.default-error-status`
@@ -71,7 +131,7 @@ Default HTTP status code for Left/Invalid values when the error type is unknown.
 - **Type:** `int`
 - **Default:** `400`
 - **Valid values:** Any HTTP status code (100-599)
-- **Effect:** Used when error class name doesn't match any known patterns
+- **Effect:** Used when error class name does not match any known patterns
 
 **Example:**
 ```yaml
@@ -80,20 +140,94 @@ hkj:
     default-error-status: 500  # Use 500 for unknown errors
 ```
 
-### `hkj.web.async-either-t-enabled`
+### `hkj.web.maybe-nothing-status`
 
-Enable or disable EitherT async support (for future implementation).
+HTTP status code for MaybePath Nothing values.
 
-- **Type:** `boolean`
-- **Default:** `true`
-- **Effect:** Reserved for future EitherT async return value handler
-- **Note:** Not yet implemented
+- **Type:** `int`
+- **Default:** `404`
+- **Effect:** Status code returned when Maybe.nothing() is returned from a controller
 
 **Example:**
 ```yaml
 hkj:
   web:
-    async-either-t-enabled: false
+    maybe-nothing-status: 204  # Use 204 No Content instead of 404
+```
+
+### `hkj.web.try-failure-status`
+
+HTTP status code for TryPath Failure values.
+
+- **Type:** `int`
+- **Default:** `500`
+- **Effect:** Status code returned when Try.failure() is returned
+
+**Example:**
+```yaml
+hkj:
+  web:
+    try-failure-status: 400  # Use 400 for Try failures
+```
+
+### `hkj.web.validation-invalid-status`
+
+HTTP status code for ValidationPath Invalid values.
+
+- **Type:** `int`
+- **Default:** `400`
+- **Effect:** Status code returned when validation errors are present
+
+**Example:**
+```yaml
+hkj:
+  web:
+    validation-invalid-status: 422  # Use 422 Unprocessable Entity
+```
+
+### `hkj.web.try-include-exception-details`
+
+Include exception details in TryPath failure responses.
+
+- **Type:** `boolean`
+- **Default:** `false`
+- **Effect:** When true, includes exception message and type in failure responses
+
+**Example:**
+```yaml
+hkj:
+  web:
+    try-include-exception-details: true  # Enable for development
+```
+
+### `hkj.web.io-include-exception-details`
+
+Include exception details in IOPath failure responses.
+
+- **Type:** `boolean`
+- **Default:** `false`
+- **Effect:** When true, includes exception message and type in failure responses
+
+**Example:**
+```yaml
+hkj:
+  web:
+    io-include-exception-details: true  # Enable for development
+```
+
+### `hkj.web.async-include-exception-details`
+
+Include exception details in CompletableFuturePath failure responses.
+
+- **Type:** `boolean`
+- **Default:** `false`
+- **Effect:** When true, includes exception message and type in async failure responses
+
+**Example:**
+```yaml
+hkj:
+  web:
+    async-include-exception-details: true  # Enable for development
 ```
 
 ### `hkj.web.error-status-mappings`
@@ -118,19 +252,19 @@ hkj:
       ServerError: 500
 ```
 
-**Default behavior without mappings:**
+**Default behaviour without mappings:**
 ```java
 // Built-in heuristics (case-insensitive):
-// - Contains "notfound" → 404
-// - Contains "validation" or "invalid" → 400
-// - Contains "authorization" or "forbidden" → 403
-// - Contains "authentication" or "unauthorized" → 401
-// - Default → value of default-error-status property
+// - Contains "notfound" -> 404
+// - Contains "validation" or "invalid" -> 400
+// - Contains "authorization" or "forbidden" -> 403
+// - Contains "authentication" or "unauthorized" -> 401
+// - Default -> value of default-error-status property
 ```
 
 ## Validation Configuration
 
-Configure validation behavior for `Validated` types.
+Configure validation behaviour for `Validated` types.
 
 ### `hkj.validation.enabled`
 
@@ -161,7 +295,7 @@ Accumulate all validation errors vs. fail-fast on first error.
 ```yaml
 hkj:
   validation:
-    accumulate-errors: false  # Fail-fast behavior
+    accumulate-errors: false  # Fail-fast behaviour
 ```
 
 ### `hkj.validation.max-errors`
@@ -204,7 +338,7 @@ hkj:
 
 JSON output format for Either types (when serialized by Jackson).
 
-- **Type:** `EitherFormat` enum
+- **Type:** `SerializationFormat` enum
 - **Default:** `TAGGED`
 - **Valid values:**
   - `TAGGED`: `{"isRight": true/false, "right/left": value}`
@@ -241,9 +375,43 @@ hkj:
 }
 ```
 
+### `hkj.json.validated-format`
+
+JSON output format for Validated types (when serialized by Jackson).
+
+- **Type:** `SerializationFormat` enum
+- **Default:** `TAGGED`
+- **Valid values:**
+  - `TAGGED`: `{"valid": true/false, "value/errors": ...}`
+  - `SIMPLE`: `{"value": ...}` or `{"errors": ...}`
+
+**Example:**
+```yaml
+hkj:
+  json:
+    validated-format: SIMPLE
+```
+
+### `hkj.json.maybe-format`
+
+JSON output format for Maybe types (when serialized by Jackson).
+
+- **Type:** `SerializationFormat` enum
+- **Default:** `TAGGED`
+- **Valid values:**
+  - `TAGGED`: `{"present": true/false, "value": ...}`
+  - `SIMPLE`: `{"value": ...}` or null
+
+**Example:**
+```yaml
+hkj:
+  json:
+    maybe-format: SIMPLE
+```
+
 ## Async Configuration
 
-Configure async execution for future EitherT support.
+Configure async execution for CompletableFuturePath operations.
 
 ### `hkj.async.executor-core-pool-size`
 
@@ -252,7 +420,6 @@ Core thread pool size for async operations.
 - **Type:** `int`
 - **Default:** `10`
 - **Effect:** Minimum number of threads in the pool
-- **Note:** For future EitherT async support
 
 **Example:**
 ```yaml
@@ -268,7 +435,6 @@ Maximum thread pool size for async operations.
 - **Type:** `int`
 - **Default:** `20`
 - **Effect:** Maximum number of threads in the pool
-- **Note:** For future EitherT async support
 
 **Example:**
 ```yaml
@@ -284,7 +450,6 @@ Queue capacity for async executor.
 - **Type:** `int`
 - **Default:** `100`
 - **Effect:** Number of tasks to queue when all threads are busy
-- **Note:** For future EitherT async support
 
 **Example:**
 ```yaml
@@ -300,7 +465,6 @@ Thread name prefix for async executor threads.
 - **Type:** `String`
 - **Default:** `"hkj-async-"`
 - **Effect:** Makes threads identifiable in logs and profilers
-- **Note:** For future EitherT async support
 
 **Example:**
 ```yaml
@@ -316,7 +480,6 @@ Default timeout for async operations in milliseconds.
 - **Type:** `long`
 - **Default:** `30000` (30 seconds)
 - **Effect:** Maximum time to wait for async operations
-- **Note:** For future EitherT async support
 
 **Example:**
 ```yaml
@@ -327,15 +490,24 @@ hkj:
 
 ## Complete Example
 
-Here's a complete configuration file with all options:
+Here is a complete configuration file with all options:
 
 ```yaml
 hkj:
   web:
-    either-response-enabled: true
-    validated-response-enabled: true
+    either-path-enabled: true
+    maybe-path-enabled: true
+    try-path-enabled: true
+    validation-path-enabled: true
+    io-path-enabled: true
+    completable-future-path-enabled: true
     default-error-status: 400
-    async-either-t-enabled: true
+    maybe-nothing-status: 404
+    try-failure-status: 500
+    validation-invalid-status: 400
+    try-include-exception-details: false
+    io-include-exception-details: false
+    async-include-exception-details: false
     error-status-mappings:
       UserNotFoundError: 404
       ValidationError: 400
@@ -352,6 +524,8 @@ hkj:
   json:
     custom-serializers-enabled: true
     either-format: TAGGED
+    validated-format: TAGGED
+    maybe-format: TAGGED
 
   async:
     executor-core-pool-size: 10
@@ -368,24 +542,36 @@ hkj:
 ```yaml
 hkj:
   web:
-    either-response-enabled: false
+    either-path-enabled: false
 ```
 
 **Effect:**
 - Controllers returning `Either` will use default Spring MVC serialization
 - May result in unexpected JSON output
 
-### Disable Validated Support
+### Disable Validation Support
 
 ```yaml
 hkj:
   web:
-    validated-response-enabled: false
+    validation-path-enabled: false
 ```
 
 **Effect:**
 - Controllers returning `Validated` will use default Spring MVC serialization
-- Error accumulation features won't work
+- Error accumulation features will not work
+
+### Disable Async Support
+
+```yaml
+hkj:
+  web:
+    completable-future-path-enabled: false
+```
+
+**Effect:**
+- Controllers returning `CompletableFuturePath` will use default Spring MVC serialization
+- Async error handling will not work
 
 ### Disable Jackson Serializers
 
@@ -399,13 +585,17 @@ hkj:
 - Nested Either/Validated in DTOs will use default Jackson serialization
 - Will likely fail with serialization errors
 
-### Disable Everything
+### Disable All Effect Path Handlers
 
 ```yaml
 hkj:
   web:
-    either-response-enabled: false
-    validated-response-enabled: false
+    either-path-enabled: false
+    maybe-path-enabled: false
+    try-path-enabled: false
+    validation-path-enabled: false
+    io-path-enabled: false
+    completable-future-path-enabled: false
   json:
     custom-serializers-enabled: false
 ```
@@ -422,6 +612,9 @@ hkj:
 hkj:
   web:
     default-error-status: 500  # Show all errors as 500 for debugging
+    try-include-exception-details: true
+    io-include-exception-details: true
+    async-include-exception-details: true
   json:
     either-format: TAGGED  # More verbose for debugging
 ```
@@ -432,6 +625,9 @@ hkj:
 hkj:
   web:
     default-error-status: 400  # Client errors by default
+    try-include-exception-details: false  # Never expose exceptions
+    io-include-exception-details: false
+    async-include-exception-details: false
     error-status-mappings:
       # Explicit mappings for security
       UserNotFoundError: 404
@@ -447,6 +643,7 @@ hkj:
 hkj:
   web:
     default-error-status: 400
+    try-include-exception-details: true  # Helps debug test failures
   async:
     executor-core-pool-size: 2  # Smaller pool for tests
     executor-max-pool-size: 5
@@ -459,10 +656,17 @@ If you prefer `.properties` format:
 
 ```properties
 # Web configuration
-hkj.web.either-response-enabled=true
-hkj.web.validated-response-enabled=true
+hkj.web.either-path-enabled=true
+hkj.web.maybe-path-enabled=true
+hkj.web.try-path-enabled=true
+hkj.web.validation-path-enabled=true
+hkj.web.io-path-enabled=true
+hkj.web.completable-future-path-enabled=true
 hkj.web.default-error-status=400
-hkj.web.async-either-t-enabled=true
+hkj.web.maybe-nothing-status=404
+hkj.web.try-failure-status=500
+hkj.web.validation-invalid-status=400
+hkj.web.try-include-exception-details=false
 hkj.web.error-status-mappings.UserNotFoundError=404
 hkj.web.error-status-mappings.ValidationError=400
 
@@ -474,6 +678,8 @@ hkj.validation.max-errors=0
 # JSON configuration
 hkj.json.custom-serializers-enabled=true
 hkj.json.either-format=TAGGED
+hkj.json.validated-format=TAGGED
+hkj.json.maybe-format=TAGGED
 
 # Async configuration
 hkj.async.executor-core-pool-size=10
@@ -500,7 +706,7 @@ public class HkjConfig {
         properties.getWeb().getErrorStatusMappings().put("MyCustomError", 418);
 
         // Configure JSON
-        properties.getJson().setEitherFormat(HkjProperties.Json.EitherFormat.SIMPLE);
+        properties.getJson().setEitherFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
 
         return properties;
     }
@@ -511,4 +717,3 @@ public class HkjConfig {
 
 - [Testing Guide](./example/TESTING.md) - How to test your configured application
 - [Jackson Serialization](./JACKSON_SERIALIZATION.md) - Details on JSON serialization
-- [Implementation Roadmap](./IMPLEMENTATION_ROADMAP.md) - Future configuration options

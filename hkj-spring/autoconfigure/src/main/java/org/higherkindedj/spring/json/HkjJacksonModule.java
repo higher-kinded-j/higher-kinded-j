@@ -2,12 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.json;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.validated.Validated;
+import tools.jackson.databind.module.SimpleModule;
 
 /**
- * Jackson module that registers custom serializers and deserializers for higher-kinded-j types.
+ * Jackson 3.x module that registers custom serializers and deserializers for higher-kinded-j types.
  *
  * <p>This module provides JSON serialization support for:
  *
@@ -17,18 +17,18 @@ import org.higherkindedj.hkt.validated.Validated;
  * </ul>
  *
  * <p>The module is automatically registered when using Spring Boot's auto-configuration. For manual
- * registration:
+ * registration with Jackson 3.x:
  *
  * <pre>
- * ObjectMapper mapper = new ObjectMapper();
- * mapper.registerModule(new HkjJacksonModule());
+ * JsonMapper mapper = JsonMapper.builder()
+ *     .addModule(new HkjJacksonModule())
+ *     .build();
  * </pre>
  *
- * <p><b>Note on Return Value Handlers:</b> When Either or Validated are returned directly from
- * Spring controllers, the {@link org.higherkindedj.spring.web.returnvalue.EitherReturnValueHandler}
- * and {@link org.higherkindedj.spring.web.returnvalue.ValidatedReturnValueHandler} take precedence
- * and provide unwrapped responses for cleaner APIs. These Jackson serializers are primarily useful
- * when Either or Validated appear nested within other response objects.
+ * <p><b>Note on Return Value Handlers:</b> When Effect Path types (EitherPath, ValidationPath,
+ * etc.) are returned directly from Spring controllers, the Path-based return value handlers take
+ * precedence and provide unwrapped responses for cleaner APIs. These Jackson serializers are
+ * primarily useful when Either or Validated appear nested within other response objects.
  */
 public class HkjJacksonModule extends SimpleModule {
 

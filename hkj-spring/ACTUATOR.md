@@ -21,7 +21,7 @@ This guide covers the Spring Boot Actuator integration for higher-kinded-j, prov
 
 The higher-kinded-j Actuator integration provides:
 
-- **Metrics tracking** for Either, Validated, and EitherT operations
+- **Metrics tracking** for Either, Validated, and CompletableFuturePath operations
 - **Custom actuator endpoint** exposing HKJ configuration and metrics
 - **Health indicator** for async executor monitoring
 - **Micrometer integration** for metrics export to monitoring systems
@@ -29,7 +29,7 @@ The higher-kinded-j Actuator integration provides:
 ### Benefits
 
 - Monitor functional error handling in production
-- Track success/failure rates for Either and EitherT
+- Track success/failure rates for Either and CompletableFuturePath
 - Validate thread pool health for async operations
 - Export metrics to Prometheus, Graphite, or other systems
 - Gain insights into validation patterns with Validated
@@ -96,10 +96,10 @@ The `HkjMetricsService` tracks metrics for all functional constructs using Micro
 | `hkj.either.errors` | Counter | Either errors (tagged: error_type) |
 | `hkj.validated.invocations` | Counter | Validated invocations (tagged: valid/invalid) |
 | `hkj.validated.error_count` | Summary | Number of errors in Invalid cases |
-| `hkj.either_t.invocations` | Counter | EitherT invocations (tagged: success/error) |
-| `hkj.either_t.errors` | Counter | EitherT errors (tagged: error_type) |
-| `hkj.either_t.async.duration` | Timer | EitherT async operation duration |
-| `hkj.either_t.exceptions` | Counter | EitherT exceptions (tagged: exception_type) |
+| `hkj.async.invocations` | Counter | CompletableFuturePath invocations (tagged: success/error) |
+| `hkj.async.errors` | Counter | CompletableFuturePath errors (tagged: error_type) |
+| `hkj.async.duration` | Timer | CompletableFuturePath async operation duration |
+| `hkj.async.exceptions` | Counter | CompletableFuturePath exceptions (tagged: exception_type) |
 
 #### Usage
 
@@ -146,9 +146,9 @@ GET /actuator/hkj
 {
   "configuration": {
     "web": {
-      "eitherResponseEnabled": true,
-      "validatedResponseEnabled": true,
-      "asyncEitherTEnabled": true,
+      "eitherPathEnabled": true,
+      "validationPathEnabled": true,
+      "completableFuturePathEnabled": true,
       "defaultErrorStatus": 400
     },
     "jackson": {
@@ -171,7 +171,7 @@ GET /actuator/hkj
       "totalCount": 250,
       "validRate": 0.800
     },
-    "eitherT": {
+    "async": {
       "successCount": 75,
       "errorCount": 10,
       "totalCount": 85,
@@ -196,7 +196,7 @@ watch -n 5 'curl -s http://localhost:8080/actuator/hkj | jq .metrics'
 
 ### HkjAsyncHealthIndicator
 
-Monitors the health of the async thread pool executor used by EitherT operations.
+Monitors the health of the async thread pool executor used by CompletableFuturePath operations.
 
 #### Health Statuses
 
@@ -246,9 +246,9 @@ Monitors the health of the async thread pool executor used by EitherT operations
 hkj:
   # Web configuration
   web:
-    either-response-enabled: true
-    validated-response-enabled: true
-    async-either-t-enabled: true
+    either-path-enabled: true
+    validation-path-enabled: true
+    completable-future-path-enabled: true
     default-error-status: 400
 
   # Jackson serialization
@@ -258,12 +258,12 @@ hkj:
     validated-format: TAGGED
     maybe-format: TAGGED
 
-  # Async executor for EitherT
+  # Async executor for CompletableFuturePath
   async:
-    core-pool-size: 10
-    max-pool-size: 20
-    queue-capacity: 100
-    thread-name-prefix: "hkj-async-"
+    executor-core-pool-size: 10
+    executor-max-pool-size: 20
+    executor-queue-capacity: 100
+    executor-thread-name-prefix: "hkj-async-"
 
   # Actuator integration
   actuator:
@@ -354,7 +354,7 @@ rate(hkj_validated_error_count_sum[5m])
 rate(hkj_validated_error_count_count[5m])
 ```
 
-### EitherT Metrics
+### CompletableFuturePath Metrics
 
 Track async operations with success rates, durations, and exception handling.
 
@@ -367,15 +367,15 @@ Track async operations with success rates, durations, and exception handling.
 **Example Queries:**
 
 ```java
-// Prometheus query for EitherT latency (p95)
+// Prometheus query for CompletableFuturePath latency (p95)
 histogram_quantile(0.95,
-  rate(hkj_either_t_async_duration_seconds_bucket[5m]))
+  rate(hkj_async_duration_seconds_bucket[5m]))
 
-// EitherT error rate
-rate(hkj_either_t_invocations_total{result="error"}[5m])
+// CompletableFuturePath error rate
+rate(hkj_async_invocations_total{result="error"}[5m])
 
 // Exception types distribution
-sum by (exception_type) (hkj_either_t_exceptions_total)
+sum by (exception_type) (hkj_async_exceptions_total)
 ```
 
 ## Health Checks
@@ -786,7 +786,7 @@ class HkjEndpointIntegrationTest {
    private RequestMappingHandlerAdapter adapter;
 
    boolean hasEitherHandler = adapter.getReturnValueHandlers().stream()
-       .anyMatch(h -> h instanceof EitherReturnValueHandler);
+       .anyMatch(h -> h instanceof EitherPathReturnValueHandler);
    ```
 
 ### Health Check Always DOWN
@@ -834,12 +834,12 @@ class HkjEndpointIntegrationTest {
 
 The higher-kinded-j Actuator integration provides:
 
-✅ **Comprehensive metrics** for Either, Validated, and EitherT
-✅ **Health monitoring** for async thread pools
-✅ **Custom endpoint** for configuration and metrics snapshots
-✅ **Micrometer integration** for export to monitoring systems
-✅ **Production-ready** with security and performance considerations
-✅ **Testing support** with comprehensive test examples
+- **Comprehensive metrics** for Either, Validated, and CompletableFuturePath
+- **Health monitoring** for async thread pools
+- **Custom endpoint** for configuration and metrics snapshots
+- **Micrometer integration** for export to monitoring systems
+- **Production-ready** with security and performance considerations
+- **Testing support** with comprehensive test examples
 
 For more information:
 - [Main Documentation](README.md)

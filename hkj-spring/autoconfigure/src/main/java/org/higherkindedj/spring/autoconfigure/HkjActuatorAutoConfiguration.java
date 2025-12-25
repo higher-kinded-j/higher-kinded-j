@@ -7,13 +7,12 @@ import org.higherkindedj.spring.actuator.HkjAsyncHealthIndicator;
 import org.higherkindedj.spring.actuator.HkjMetricsEndpoint;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
-import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
-import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -94,7 +93,10 @@ public class HkjActuatorAutoConfiguration {
    * @return the health indicator
    */
   @Bean(name = "hkjAsyncHealthIndicator")
-  @ConditionalOnEnabledHealthIndicator("hkj-async")
+  @ConditionalOnProperty(
+      name = "management.health.hkj-async.enabled",
+      havingValue = "true",
+      matchIfMissing = true)
   @ConditionalOnBean(name = "hkjAsyncExecutor")
   public HkjAsyncHealthIndicator hkjAsyncHealthIndicator(ThreadPoolTaskExecutor executor) {
     return new HkjAsyncHealthIndicator(executor);

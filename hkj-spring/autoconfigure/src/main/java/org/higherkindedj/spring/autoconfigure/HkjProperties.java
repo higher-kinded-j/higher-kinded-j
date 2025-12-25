@@ -7,15 +7,25 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration properties for higher-kinded-j Spring Boot integration.
+ * Configuration properties for higher-kinded-j Spring Boot 4.0.1+ integration.
+ *
+ * <p>This version uses the Effect Path API exclusively. For Spring Boot 3.5.7, use hkj-spring
+ * version 0.2.7.
  *
  * <p>Configure via application.yml/properties with the prefix "hkj":
  *
  * <pre>
  * hkj:
  *   web:
- *     either-response-enabled: true
+ *     either-path-enabled: true
+ *     maybe-path-enabled: true
+ *     try-path-enabled: true
+ *     validation-path-enabled: true
+ *     io-path-enabled: true
+ *     completable-future-path-enabled: true
  *     default-error-status: 400
+ *     maybe-nothing-status: 404
+ *     try-include-exception-details: false
  *   validation:
  *     accumulate-errors: true
  *   json:
@@ -81,18 +91,30 @@ public class HkjProperties {
     this.security = security;
   }
 
-  /** Web/MVC configuration properties. */
+  /**
+   * Web/MVC configuration properties for Effect Path API handlers.
+   *
+   * <p>Spring Boot 4.0.1+ uses Effect Path API handlers exclusively. For Spring Boot 3.5.7, use
+   * hkj-spring version 0.2.7.
+   */
   public static class Web {
-    /**
-     * Enable automatic Either to ResponseEntity conversion via return value handler. Default: true
-     */
-    private boolean eitherResponseEnabled = true;
+    /** Enable EitherPath return value handler. Default: true */
+    private boolean eitherPathEnabled = true;
 
-    /**
-     * Enable automatic Validated to ResponseEntity conversion via return value handler. Default:
-     * true
-     */
-    private boolean validatedResponseEnabled = true;
+    /** Enable MaybePath return value handler. Default: true */
+    private boolean maybePathEnabled = true;
+
+    /** Enable TryPath return value handler. Default: true */
+    private boolean tryPathEnabled = true;
+
+    /** Enable ValidationPath return value handler. Default: true */
+    private boolean validationPathEnabled = true;
+
+    /** Enable IOPath return value handler. Default: true */
+    private boolean ioPathEnabled = true;
+
+    /** Enable CompletableFuturePath return value handler. Default: true */
+    private boolean completableFuturePathEnabled = true;
 
     /**
      * Default HTTP status code for Left values when error type is unknown. Default: 400 (Bad
@@ -100,8 +122,32 @@ public class HkjProperties {
      */
     private int defaultErrorStatus = 400;
 
-    /** Enable EitherT async support (for future implementation). Default: true */
-    private boolean asyncEitherTEnabled = true;
+    /** HTTP status code for MaybePath Nothing values. Default: 404 (Not Found) */
+    private int maybeNothingStatus = 404;
+
+    /** HTTP status code for TryPath Failure values. Default: 500 (Internal Server Error) */
+    private int tryFailureStatus = 500;
+
+    /** HTTP status code for ValidationPath Invalid values. Default: 400 (Bad Request) */
+    private int validationInvalidStatus = 400;
+
+    /** HTTP status code for IOPath execution failures. Default: 500 (Internal Server Error) */
+    private int ioFailureStatus = 500;
+
+    /** HTTP status code for CompletableFuturePath failures. Default: 500 (Internal Server Error) */
+    private int asyncFailureStatus = 500;
+
+    /** Include exception details in TryPath failure responses. Default: false (production safe) */
+    private boolean tryIncludeExceptionDetails = false;
+
+    /** Include exception details in IOPath failure responses. Default: false (production safe) */
+    private boolean ioIncludeExceptionDetails = false;
+
+    /**
+     * Include exception details in CompletableFuturePath failure responses. Default: false
+     * (production safe)
+     */
+    private boolean asyncIncludeExceptionDetails = false;
 
     /**
      * Custom error status code mappings.
@@ -122,20 +168,52 @@ public class HkjProperties {
      */
     private Map<String, Integer> errorStatusMappings = new HashMap<>();
 
-    public boolean isEitherResponseEnabled() {
-      return eitherResponseEnabled;
+    public boolean isEitherPathEnabled() {
+      return eitherPathEnabled;
     }
 
-    public void setEitherResponseEnabled(boolean eitherResponseEnabled) {
-      this.eitherResponseEnabled = eitherResponseEnabled;
+    public void setEitherPathEnabled(boolean eitherPathEnabled) {
+      this.eitherPathEnabled = eitherPathEnabled;
     }
 
-    public boolean isValidatedResponseEnabled() {
-      return validatedResponseEnabled;
+    public boolean isMaybePathEnabled() {
+      return maybePathEnabled;
     }
 
-    public void setValidatedResponseEnabled(boolean validatedResponseEnabled) {
-      this.validatedResponseEnabled = validatedResponseEnabled;
+    public void setMaybePathEnabled(boolean maybePathEnabled) {
+      this.maybePathEnabled = maybePathEnabled;
+    }
+
+    public boolean isTryPathEnabled() {
+      return tryPathEnabled;
+    }
+
+    public void setTryPathEnabled(boolean tryPathEnabled) {
+      this.tryPathEnabled = tryPathEnabled;
+    }
+
+    public boolean isValidationPathEnabled() {
+      return validationPathEnabled;
+    }
+
+    public void setValidationPathEnabled(boolean validationPathEnabled) {
+      this.validationPathEnabled = validationPathEnabled;
+    }
+
+    public boolean isIoPathEnabled() {
+      return ioPathEnabled;
+    }
+
+    public void setIoPathEnabled(boolean ioPathEnabled) {
+      this.ioPathEnabled = ioPathEnabled;
+    }
+
+    public boolean isCompletableFuturePathEnabled() {
+      return completableFuturePathEnabled;
+    }
+
+    public void setCompletableFuturePathEnabled(boolean completableFuturePathEnabled) {
+      this.completableFuturePathEnabled = completableFuturePathEnabled;
     }
 
     public int getDefaultErrorStatus() {
@@ -146,12 +224,68 @@ public class HkjProperties {
       this.defaultErrorStatus = defaultErrorStatus;
     }
 
-    public boolean isAsyncEitherTEnabled() {
-      return asyncEitherTEnabled;
+    public int getMaybeNothingStatus() {
+      return maybeNothingStatus;
     }
 
-    public void setAsyncEitherTEnabled(boolean asyncEitherTEnabled) {
-      this.asyncEitherTEnabled = asyncEitherTEnabled;
+    public void setMaybeNothingStatus(int maybeNothingStatus) {
+      this.maybeNothingStatus = maybeNothingStatus;
+    }
+
+    public int getTryFailureStatus() {
+      return tryFailureStatus;
+    }
+
+    public void setTryFailureStatus(int tryFailureStatus) {
+      this.tryFailureStatus = tryFailureStatus;
+    }
+
+    public int getValidationInvalidStatus() {
+      return validationInvalidStatus;
+    }
+
+    public void setValidationInvalidStatus(int validationInvalidStatus) {
+      this.validationInvalidStatus = validationInvalidStatus;
+    }
+
+    public int getIoFailureStatus() {
+      return ioFailureStatus;
+    }
+
+    public void setIoFailureStatus(int ioFailureStatus) {
+      this.ioFailureStatus = ioFailureStatus;
+    }
+
+    public int getAsyncFailureStatus() {
+      return asyncFailureStatus;
+    }
+
+    public void setAsyncFailureStatus(int asyncFailureStatus) {
+      this.asyncFailureStatus = asyncFailureStatus;
+    }
+
+    public boolean isTryIncludeExceptionDetails() {
+      return tryIncludeExceptionDetails;
+    }
+
+    public void setTryIncludeExceptionDetails(boolean tryIncludeExceptionDetails) {
+      this.tryIncludeExceptionDetails = tryIncludeExceptionDetails;
+    }
+
+    public boolean isIoIncludeExceptionDetails() {
+      return ioIncludeExceptionDetails;
+    }
+
+    public void setIoIncludeExceptionDetails(boolean ioIncludeExceptionDetails) {
+      this.ioIncludeExceptionDetails = ioIncludeExceptionDetails;
+    }
+
+    public boolean isAsyncIncludeExceptionDetails() {
+      return asyncIncludeExceptionDetails;
+    }
+
+    public void setAsyncIncludeExceptionDetails(boolean asyncIncludeExceptionDetails) {
+      this.asyncIncludeExceptionDetails = asyncIncludeExceptionDetails;
     }
 
     public Map<String, Integer> getErrorStatusMappings() {

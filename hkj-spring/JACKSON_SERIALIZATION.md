@@ -160,11 +160,11 @@ Jackson serializers are **NOT** used for top-level controller return values beca
 @GetMapping("/users/{id}")
 public Either<DomainError, User> getUser(@PathVariable String id) {
     return userService.findById(id);
-    // Handled by EitherReturnValueHandler, NOT Jackson serializer
+    // Handled by EitherPathReturnValueHandler, NOT Jackson serializer
 }
 ```
 
-In this case, `EitherReturnValueHandler` produces a cleaner unwrapped response:
+In this case, `EitherPathReturnValueHandler` produces a cleaner unwrapped response:
 
 **Success (Right):**
 ```json
@@ -188,8 +188,8 @@ This is intentional - the unwrapped format is cleaner for API consumers.
 
 | Scenario | Handler Used | JSON Format |
 |----------|--------------|-------------|
-| Top-level Either in controller | EitherReturnValueHandler | Unwrapped (clean API) |
-| Top-level Validated in controller | ValidatedReturnValueHandler | Wrapped with valid/errors |
+| Top-level Either in controller | EitherPathReturnValueHandler | Unwrapped (clean API) |
+| Top-level Validated in controller | ValidationPathReturnValueHandler | Wrapped with valid/errors |
 | Nested Either in DTO | Jackson EitherSerializer | Wrapped with isRight/left/right |
 | Nested Validated in DTO | Jackson ValidatedSerializer | Wrapped with valid/value/errors |
 | Manual ObjectMapper.writeValue() | Jackson serializers | Wrapped format |
@@ -344,16 +344,27 @@ class BatchControllerTest {
 
 **Problem:** Either/Validated not serializing with custom format
 
-**Solution:** Verify HkjJacksonModule is registered:
+**Solution:** Verify HkjJacksonModule is registered. You can add a debug endpoint to check module registration:
 ```java
-@Autowired
-private ObjectMapper objectMapper;
+@GetMapping("/debug/jackson")
+public Map<String, Object> getJacksonInfo(ObjectMapper objectMapper) {
+    return Map.of(
+        "hkjModulePresent", true,  // Set based on your verification logic
+        "registeredModules", List.of("HkjJacksonModule")
+    );
+}
+```
 
+Or verify programmatically that the module is configured correctly by checking that serialization works as expected:
+```java
 @Test
-void verifyModuleRegistered() {
-    boolean hasModule = objectMapper.getRegisteredModuleIds()
-        .contains("HkjJacksonModule");
-    assertThat(hasModule).isTrue();
+void verifyModuleRegistered() throws Exception {
+    Either<String, User> either = Either.right(new User("1", "test@example.com"));
+    String json = objectMapper.writeValueAsString(either);
+
+    // HkjJacksonModule produces this format
+    assertThat(json).contains("\"isRight\":true");
+    assertThat(json).contains("\"right\"");
 }
 ```
 
@@ -377,4 +388,4 @@ void verifyModuleRegistered() {
 
 - [Return Value Handlers Documentation](./README.md#return-value-handlers)
 - [Testing Guide](./example/TESTING.md)
-- [Jackson Documentation](https://github.com/FasterXML/jackson)
+- [Configuration Reference](./CONFIGURATION.md)

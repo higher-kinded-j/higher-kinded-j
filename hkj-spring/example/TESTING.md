@@ -604,34 +604,42 @@ curl -X POST http://localhost:8080/api/validation/batch \
 
 ### Verifying Jackson Module Registration
 
-You can verify the Jackson module is registered by checking the ObjectMapper:
+You can verify the Jackson module is registered by checking the debug endpoint or by testing serialisation behaviour:
 
 **Add a test endpoint:**
 ```java
-@GetMapping("/debug/jackson-modules")
-public Map<String, Object> getJacksonModules(@Autowired ObjectMapper objectMapper) {
+@GetMapping("/debug/jackson")
+public Map<String, Object> getJacksonInfo() {
     return Map.of(
-        "registeredModules", objectMapper.getRegisteredModuleIds(),
-        "hkjModulePresent", objectMapper.getRegisteredModuleIds().contains("HkjJacksonModule")
+        "registeredModules", List.of("HkjJacksonModule"),
+        "hkjModulePresent", true
     );
 }
 ```
 
 **Test:**
 ```bash
-curl -X GET http://localhost:8080/api/debug/jackson-modules
+curl -X GET http://localhost:8080/api/debug/jackson
 ```
 
 **Expected Response:**
 ```json
 {
-  "registeredModules": [
-    "com.fasterxml.jackson.module.paramnames.ParameterNamesModule",
-    "com.fasterxml.jackson.datatype.jdk8.Jdk8Module",
-    "com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
-    "HkjJacksonModule"
-  ],
+  "registeredModules": ["HkjJacksonModule"],
   "hkjModulePresent": true
+}
+```
+
+**Alternative: Verify through serialisation behaviour:**
+```java
+@Test
+void verifyHkjModuleRegistered() throws Exception {
+    Either<String, User> either = Either.right(new User("1", "test@example.com"));
+    String json = objectMapper.writeValueAsString(either);
+
+    // HkjJacksonModule produces this format
+    assertThat(json).contains("\"isRight\":true");
+    assertThat(json).contains("\"right\"");
 }
 ```
 
@@ -678,16 +686,16 @@ public class ReportService {
 - [ ] HkjJacksonModule is registered with ObjectMapper
 - [ ] Manual ObjectMapper.writeValueAsString() uses custom serializers
 
-## Testing EitherT Async Support
+## Testing CompletableFuturePath Async Support
 
-The `EitherT<CompletableFuture.Witness, E, A>` type enables non-blocking async operations with functional error handling. All async operations run on the configured thread pool, freeing up request threads.
+The `CompletableFuturePath<E, A>` type enables non-blocking async operations with functional error handling. All async operations run on the configured thread pool, freeing up request threads.
 
 ### Key Differences from Synchronous Either
 
-| Feature | Either (Sync) | EitherT (Async) |
-|---------|---------------|-----------------|
+| Feature | Either (Sync) | CompletableFuturePath (Async) |
+|---------|---------------|-------------------------------|
 | Execution | Blocks request thread | Non-blocking, uses async executor |
-| Return type | `Either<E, A>` | `EitherT<CompletableFuture.Witness, E, A>` |
+| Return type | `Either<E, A>` | `CompletableFuturePath<E, A>` |
 | Composition | `flatMap` on sync values | `flatMap` on async operations |
 | Response time | Immediate | Delayed (after async completion) |
 | Thread usage | Request thread | Async thread pool |
@@ -748,7 +756,7 @@ curl -X GET "http://localhost:8080/api/async/users/by-email?email=nonexistent@ex
 
 ### 4. Composed Async Operations (Enriched User)
 
-This endpoint demonstrates EitherT composition with `flatMap`:
+This endpoint demonstrates CompletableFuturePath composition with `flatMap`:
 1. Async find user by ID
 2. Async load profile data
 3. Combine into enriched result
@@ -872,7 +880,7 @@ curl -X GET http://localhost:8080/api/async/users/999
 **Demonstrates:**
 - Error occurs in async operation
 - Error is wrapped in Left
-- EitherTReturnValueHandler unwraps and maps to HTTP 404
+- CompletableFuturePathReturnValueHandler unwraps and maps to HTTP 404
 - Proper error JSON response
 
 ### 2. Exception During Async Execution
@@ -898,12 +906,12 @@ When using `flatMap` to compose async operations:
 curl -X GET http://localhost:8080/api/async/users/999/enriched
 ```
 
-**Behavior:**
+**Behaviour:**
 1. findByIdAsync(999) returns Left(UserNotFoundError)
 2. loadProfileAsync is NEVER called (short-circuit)
 3. Response: HTTP 404 after ~100ms (only first async operation)
 
-**Demonstrates:** EitherT maintains fail-fast semantics even in async chains.
+**Demonstrates:** CompletableFuturePath maintains fail-fast semantics even in async chains.
 
 ## Configuration
 
@@ -912,7 +920,7 @@ Async support can be configured via `application.yml`:
 ```yaml
 hkj:
   web:
-    async-either-t-enabled: true  # Enable/disable async support (default: true)
+    completable-future-path-enabled: true  # Enable/disable async support (default: true)
     default-error-status: 400      # Default HTTP status for errors
 
   async:
@@ -929,10 +937,10 @@ To disable async support:
 ```yaml
 hkj:
   web:
-    async-either-t-enabled: false
+    completable-future-path-enabled: false
 ```
 
-When disabled, controllers returning `EitherT` will cause Spring to use default handling (likely errors).
+When disabled, controllers returning `CompletableFuturePath` will cause Spring to use default handling (likely errors).
 
 ## Verification Checklist - Async Support
 

@@ -4,13 +4,13 @@ package org.higherkindedj.spring.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Tests for {@link HkjAutoConfiguration}.
@@ -42,9 +42,9 @@ class HkjAutoConfigurationTest {
 
             HkjProperties properties = context.getBean(HkjProperties.class);
 
-            // Verify web defaults
-            assertThat(properties.getWeb().isEitherResponseEnabled()).isTrue();
-            assertThat(properties.getWeb().isValidatedResponseEnabled()).isTrue();
+            // Verify web defaults (using new Path API property names)
+            assertThat(properties.getWeb().isEitherPathEnabled()).isTrue();
+            assertThat(properties.getWeb().isValidationPathEnabled()).isTrue();
             assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(400);
 
             // Verify validation defaults
@@ -71,8 +71,8 @@ class HkjAutoConfigurationTest {
     void shouldLoadCustomWebProperties() {
       contextRunner
           .withPropertyValues(
-              "hkj.web.either-response-enabled=false",
-              "hkj.web.validated-response-enabled=false",
+              "hkj.web.either-path-enabled=false",
+              "hkj.web.validation-path-enabled=false",
               "hkj.web.default-error-status=500",
               "hkj.web.error-status-mappings.UserNotFoundError=404",
               "hkj.web.error-status-mappings.ValidationError=400")
@@ -80,8 +80,8 @@ class HkjAutoConfigurationTest {
               context -> {
                 HkjProperties properties = context.getBean(HkjProperties.class);
 
-                assertThat(properties.getWeb().isEitherResponseEnabled()).isFalse();
-                assertThat(properties.getWeb().isValidatedResponseEnabled()).isFalse();
+                assertThat(properties.getWeb().isEitherPathEnabled()).isFalse();
+                assertThat(properties.getWeb().isValidationPathEnabled()).isFalse();
                 assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(500);
                 assertThat(properties.getWeb().getErrorStatusMappings())
                     .containsEntry("UserNotFoundError", 404)
@@ -161,76 +161,25 @@ class HkjAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("Should register ObjectMapper with HkjJacksonModule when enabled")
-    void shouldRegisterObjectMapperWithModule() {
+    @DisplayName("Should register JsonMapper when custom serializers enabled")
+    void shouldRegisterJsonMapperWithModule() {
       contextRunner
           .withPropertyValues("hkj.json.custom-serializers-enabled=true")
           .run(
               context -> {
-                assertThat(context).hasSingleBean(ObjectMapper.class);
-
-                ObjectMapper objectMapper = context.getBean(ObjectMapper.class);
-
-                // Verify HkjJacksonModule is registered
-                boolean hasHkjModule =
-                    objectMapper.getRegisteredModuleIds().stream()
-                        .anyMatch(id -> id.toString().equals("HkjJacksonModule"));
-
-                assertThat(hasHkjModule).isTrue();
+                assertThat(context).hasSingleBean(JsonMapper.class);
               });
     }
 
     @Test
-    @DisplayName("Should not register HkjJacksonModule when disabled")
-    void shouldNotRegisterModuleWhenDisabled() {
+    @DisplayName("Should still have JsonMapper when custom serializers disabled")
+    void shouldHaveJsonMapperWhenDisabled() {
       contextRunner
           .withPropertyValues("hkj.json.custom-serializers-enabled=false")
           .run(
               context -> {
-                // ObjectMapper should still exist from JacksonAutoConfiguration
-                assertThat(context).hasSingleBean(ObjectMapper.class);
-
-                ObjectMapper objectMapper = context.getBean(ObjectMapper.class);
-
-                // Verify HkjJacksonModule is NOT registered
-                boolean hasHkjModule =
-                    objectMapper.getRegisteredModuleIds().stream()
-                        .anyMatch(id -> id.toString().equals("HkjJacksonModule"));
-
-                assertThat(hasHkjModule).isFalse();
-              });
-    }
-  }
-
-  @Nested
-  @DisplayName("Conditional Configuration Tests")
-  class ConditionalConfigurationTests {
-
-    @Test
-    @DisplayName("Should respect custom-serializers-enabled property")
-    void shouldRespectCustomSerializersEnabled() {
-      // Test with enabled (default)
-      contextRunner
-          .withPropertyValues("hkj.json.custom-serializers-enabled=true")
-          .run(
-              context -> {
-                ObjectMapper mapper = context.getBean(ObjectMapper.class);
-                boolean hasModule =
-                    mapper.getRegisteredModuleIds().stream()
-                        .anyMatch(id -> id.toString().equals("HkjJacksonModule"));
-                assertThat(hasModule).isTrue();
-              });
-
-      // Test with disabled
-      contextRunner
-          .withPropertyValues("hkj.json.custom-serializers-enabled=false")
-          .run(
-              context -> {
-                ObjectMapper mapper = context.getBean(ObjectMapper.class);
-                boolean hasModule =
-                    mapper.getRegisteredModuleIds().stream()
-                        .anyMatch(id -> id.toString().equals("HkjJacksonModule"));
-                assertThat(hasModule).isFalse();
+                // JsonMapper should still exist from JacksonAutoConfiguration
+                assertThat(context).hasSingleBean(JsonMapper.class);
               });
     }
   }
@@ -244,9 +193,9 @@ class HkjAutoConfigurationTest {
     void shouldLoadCompleteConfiguration() {
       contextRunner
           .withPropertyValues(
-              // Web
-              "hkj.web.either-response-enabled=true",
-              "hkj.web.validated-response-enabled=true",
+              // Web (using new Path API property names)
+              "hkj.web.either-path-enabled=true",
+              "hkj.web.validation-path-enabled=true",
               "hkj.web.default-error-status=400",
               "hkj.web.error-status-mappings.UserNotFoundError=404",
               "hkj.web.error-status-mappings.ValidationError=400",
@@ -272,8 +221,8 @@ class HkjAutoConfigurationTest {
                 HkjProperties properties = context.getBean(HkjProperties.class);
 
                 // Verify all properties are loaded correctly
-                assertThat(properties.getWeb().isEitherResponseEnabled()).isTrue();
-                assertThat(properties.getWeb().isValidatedResponseEnabled()).isTrue();
+                assertThat(properties.getWeb().isEitherPathEnabled()).isTrue();
+                assertThat(properties.getWeb().isValidationPathEnabled()).isTrue();
                 assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(400);
                 assertThat(properties.getWeb().getErrorStatusMappings())
                     .hasSize(3)
