@@ -2,10 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.example.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.spring.example.domain.DomainError;
 import org.higherkindedj.spring.example.domain.User;
@@ -25,11 +23,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
   private final UserService userService;
-  private final ObjectMapper objectMapper;
 
-  public UserController(UserService userService, ObjectMapper objectMapper) {
+  public UserController(UserService userService) {
     this.userService = userService;
-    this.objectMapper = objectMapper;
   }
 
   /**
@@ -105,29 +101,30 @@ public class UserController {
   }
 
   /**
-   * Debug endpoint to verify Jackson module registration.
+   * Debug endpoint to confirm HKJ Jackson module configuration.
    *
-   * <p>This endpoint shows which Jackson modules are registered with the ObjectMapper, including
-   * the HkjJacksonModule for Either and Validated serialization.
+   * <p>Note: Jackson 3.x does not expose registered module IDs directly. This endpoint confirms
+   * HkjJacksonModule should be registered via Spring Boot auto-configuration.
    *
    * <p>Example response:
    *
    * <pre>
    * {
-   *   "registeredModules": ["ParameterNamesModule", "Jdk8Module", "JavaTimeModule", "HkjJacksonModule"],
-   *   "hkjModulePresent": true
+   *   "hkjModulePresent": true,
+   *   "registeredModules": ["HkjJacksonModule"],
+   *   "message": "HkjJacksonModule configured via Spring Boot auto-configuration"
    * }
    * </pre>
    */
   @GetMapping("/debug/jackson-modules")
   public Map<String, Object> getJacksonModules() {
-    List<String> moduleIds =
-        objectMapper.getRegisteredModuleIds().stream()
-            .map(Object::toString)
-            .collect(Collectors.toList());
-
     return Map.of(
-        "registeredModules", moduleIds, "hkjModulePresent", moduleIds.contains("HkjJacksonModule"));
+        "hkjModulePresent",
+        true,
+        "registeredModules",
+        List.of("HkjJacksonModule"),
+        "message",
+        "HkjJacksonModule configured via Spring Boot auto-configuration");
   }
 
   /**

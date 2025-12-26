@@ -43,27 +43,36 @@ class HkjMetricsEndpointTest {
       assertThat(config).containsKey("web");
 
       Map<String, Object> web = (Map<String, Object>) config.get("web");
-      assertThat(web.get("eitherResponseEnabled")).isEqualTo(true);
-      assertThat(web.get("validatedResponseEnabled")).isEqualTo(true);
-      assertThat(web.get("asyncEitherTEnabled")).isEqualTo(true);
+      assertThat(web.get("eitherPathEnabled")).isEqualTo(true);
+      assertThat(web.get("maybePathEnabled")).isEqualTo(true);
+      assertThat(web.get("tryPathEnabled")).isEqualTo(true);
+      assertThat(web.get("validationPathEnabled")).isEqualTo(true);
+      assertThat(web.get("ioPathEnabled")).isEqualTo(true);
+      assertThat(web.get("completableFuturePathEnabled")).isEqualTo(true);
       assertThat(web.get("defaultErrorStatus")).isEqualTo(400);
     }
 
     @Test
     @DisplayName("Should include web configuration with custom values")
     void shouldIncludeWebConfigurationWithCustomValues() {
-      properties.getWeb().setEitherResponseEnabled(false);
-      properties.getWeb().setValidatedResponseEnabled(false);
-      properties.getWeb().setAsyncEitherTEnabled(false);
+      properties.getWeb().setEitherPathEnabled(false);
+      properties.getWeb().setMaybePathEnabled(false);
+      properties.getWeb().setTryPathEnabled(false);
+      properties.getWeb().setValidationPathEnabled(false);
+      properties.getWeb().setIoPathEnabled(false);
+      properties.getWeb().setCompletableFuturePathEnabled(false);
       properties.getWeb().setDefaultErrorStatus(500);
 
       Map<String, Object> result = endpoint.hkjMetrics();
       Map<String, Object> config = (Map<String, Object>) result.get("configuration");
       Map<String, Object> web = (Map<String, Object>) config.get("web");
 
-      assertThat(web.get("eitherResponseEnabled")).isEqualTo(false);
-      assertThat(web.get("validatedResponseEnabled")).isEqualTo(false);
-      assertThat(web.get("asyncEitherTEnabled")).isEqualTo(false);
+      assertThat(web.get("eitherPathEnabled")).isEqualTo(false);
+      assertThat(web.get("maybePathEnabled")).isEqualTo(false);
+      assertThat(web.get("tryPathEnabled")).isEqualTo(false);
+      assertThat(web.get("validationPathEnabled")).isEqualTo(false);
+      assertThat(web.get("ioPathEnabled")).isEqualTo(false);
+      assertThat(web.get("completableFuturePathEnabled")).isEqualTo(false);
       assertThat(web.get("defaultErrorStatus")).isEqualTo(500);
     }
 

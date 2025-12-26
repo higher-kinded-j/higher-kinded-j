@@ -4,7 +4,6 @@ package org.higherkindedj.spring.json;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.either.Either;
@@ -13,16 +12,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("HkjJacksonModule Tests")
 class HkjJacksonModuleTest {
 
-  private ObjectMapper objectMapper;
+  private JsonMapper objectMapper;
 
   @BeforeEach
   void setUp() {
-    objectMapper = new ObjectMapper();
-    objectMapper.registerModule(new HkjJacksonModule());
+    objectMapper = JsonMapper.builder().addModule(new HkjJacksonModule()).build();
   }
 
   @Nested

@@ -17,9 +17,13 @@ truth = "1.4.4"
 jmh = "1.37"
 jol = "0.17"
 
-# Spring
-spring-boot = "3.5.7"
+# Spring Boot 4.0.1+ (requires Java 17+, Jakarta EE 11, Servlet 6.1)
+# Note: hkj-spring 0.2.7 supports Spring Boot 3.5.7, 0.2.8+ requires Spring Boot 4.0.1+
+spring-boot = "4.0.1"
 spring-dependency-management = "1.1.7"
+
+# Jackson 3.x (group ID changed from com.fasterxml.jackson to tools.jackson in Spring Boot 4)
+jackson = "3.0.0"
 
 # Code quality
 google-java-format = "1.32.0"
@@ -64,6 +68,10 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-actuator = { module = "org.springframework.boot:spring-boot-actuator" }
 spring-boot-actuator-autoconfigure = { module = "org.springframework.boot:spring-boot-actuator-autoconfigure" }
+spring-boot-health = { module = "org.springframework.boot:spring-boot-health" }
+spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-webmvc" }
+spring-boot-jackson = { module = "org.springframework.boot:spring-boot-jackson" }
+spring-boot-webmvc-test = { module = "org.springframework.boot:spring-boot-webmvc-test" }
 
 # Spring Framework
 spring-web = { module = "org.springframework:spring-web" }
@@ -78,8 +86,11 @@ spring-security-oauth2-jose = { module = "org.springframework.security:spring-se
 # Jakarta
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
 
-# Jackson
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+# Jackson 3.x (Spring Boot 4.0.1+ uses Jackson 3.x with new group ID)
+# Note: jackson-annotations remains at com.fasterxml.jackson
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
 
 # Micrometer
 micrometer-core = { module = "io.micrometer:micrometer-core" }
@@ -94,6 +105,6 @@ spring-dependency-management = { id = "io.spring.dependency-management", version
 
 [bundles]
 jqwik = ["jqwik", "jqwik-engine"]
-spring-web = ["spring-web", "spring-webmvc", "jakarta-servlet-api"]
-spring-actuator = ["spring-boot-actuator", "spring-boot-actuator-autoconfigure", "micrometer-core"]
+spring-web = ["spring-web", "spring-webmvc", "spring-boot-webmvc", "jakarta-servlet-api"]
+spring-actuator = ["spring-boot-actuator", "spring-boot-actuator-autoconfigure", "spring-boot-health", "micrometer-core"]
 spring-security = ["spring-security-core", "spring-security-web", "spring-security-config", "spring-security-oauth2-jose"]

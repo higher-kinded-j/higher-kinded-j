@@ -10,23 +10,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * Integration tests for AsyncController - EitherT async return value handling.
+ * Integration tests for AsyncController - CompletableFuturePath async return value handling.
  *
  * <p>Tests verify that:
  *
  * <ul>
- *   <li>EitherTReturnValueHandler correctly processes async return values
+ *   <li>CompletableFuturePathReturnValueHandler correctly processes async return values
  *   <li>CompletableFuture operations complete successfully
- *   <li>Either values (Left/Right) map to appropriate HTTP responses
+ *   <li>Success values map to HTTP 200 responses
+ *   <li>Exceptions map to HTTP 500 responses with error details
  *   <li>Async operations execute on the configured thread pool
- *   <li>Error handling works correctly in async context
  * </ul>
  */
 @SpringBootTest
@@ -38,7 +38,7 @@ class AsyncControllerIntegrationTest {
   /**
    * Test successful async user retrieval.
    *
-   * <p>Verifies that EitherT<CompletableFuture, Error, User> with Right value:
+   * <p>Verifies that CompletableFuturePath with successful completion:
    *
    * <ul>
    *   <li>Completes asynchronously on thread pool
@@ -64,16 +64,15 @@ class AsyncControllerIntegrationTest {
   /**
    * Test async user not found error.
    *
-   * <p>Verifies that EitherT with Left(UserNotFoundError):
+   * <p>Verifies that CompletableFuturePath with exception:
    *
    * <ul>
-   *   <li>Returns HTTP 404 (based on *NotFound* class name pattern)
+   *   <li>Returns HTTP 500 (default failure status)
    *   <li>Includes error wrapper with success=false
-   *   <li>Serializes error details correctly
    * </ul>
    */
   @Test
-  void getUserAsync_whenUserNotFound_returns404() throws Exception {
+  void getUserAsync_whenUserNotFound_returns500() throws Exception {
     MvcResult mvcResult =
         mockMvc
             .perform(get("/api/async/users/999"))
@@ -82,10 +81,9 @@ class AsyncControllerIntegrationTest {
 
     mockMvc
         .perform(asyncDispatch(mvcResult))
-        .andExpect(status().isNotFound())
+        .andExpect(status().isInternalServerError())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.userId").value("999"));
+        .andExpect(jsonPath("$.success").value(false));
   }
 
   /**
@@ -118,7 +116,7 @@ class AsyncControllerIntegrationTest {
 
   /** Test async email lookup not found. */
   @Test
-  void getUserByEmailAsync_whenEmailNotFound_returns404() throws Exception {
+  void getUserByEmailAsync_whenEmailNotFound_returns500() throws Exception {
     MvcResult mvcResult =
         mockMvc
             .perform(get("/api/async/users/by-email").param("email", "unknown@example.com"))
@@ -127,7 +125,7 @@ class AsyncControllerIntegrationTest {
 
     mockMvc
         .perform(asyncDispatch(mvcResult))
-        .andExpect(status().isNotFound())
+        .andExpect(status().isInternalServerError())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
@@ -140,7 +138,7 @@ class AsyncControllerIntegrationTest {
    * <ul>
    *   <li>First async call: findByIdAsync()
    *   <li>Second async call: load profile data
-   *   <li>Combination: map to EnrichedUser
+   *   <li>Combination: flatMap to EnrichedUser
    *   <li>All operations execute asynchronously
    *   <li>Result includes both user and profile data
    * </ul>
@@ -170,13 +168,13 @@ class AsyncControllerIntegrationTest {
    * <p>Verifies that flatMap chain short-circuits on first error:
    *
    * <ul>
-   *   <li>findByIdAsync() returns Left(error)
+   *   <li>findByIdAsync() throws exception
    *   <li>Subsequent async operations are skipped
    *   <li>Error propagates to HTTP response
    * </ul>
    */
   @Test
-  void getEnrichedUserAsync_whenUserNotFound_returns404() throws Exception {
+  void getEnrichedUserAsync_whenUserNotFound_returns500() throws Exception {
     MvcResult mvcResult =
         mockMvc
             .perform(get("/api/async/users/999/enriched"))
@@ -185,10 +183,9 @@ class AsyncControllerIntegrationTest {
 
     mockMvc
         .perform(asyncDispatch(mvcResult))
-        .andExpect(status().isNotFound())
+        .andExpect(status().isInternalServerError())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.userId").value("999"));
+        .andExpect(jsonPath("$.success").value(false));
   }
 
   /**
@@ -229,13 +226,11 @@ class AsyncControllerIntegrationTest {
    * <ul>
    *   <li>User lookup succeeds (async)
    *   <li>Validation fails (async)
-   *   <li>Returns error via Left path
+   *   <li>Returns error via exception path
    * </ul>
    */
   @Test
-  void updateEmailAsync_withInvalidEmail_returns404() throws Exception {
-    // Note: Current implementation uses UserNotFoundError for invalid email
-    // In production, you'd use a proper ValidationError type
+  void updateEmailAsync_withInvalidEmail_returns500() throws Exception {
     MvcResult mvcResult =
         mockMvc
             .perform(put("/api/async/users/1/email").param("newEmail", "invalid-email"))
@@ -244,7 +239,7 @@ class AsyncControllerIntegrationTest {
 
     mockMvc
         .perform(asyncDispatch(mvcResult))
-        .andExpect(status().isNotFound())
+        .andExpect(status().isInternalServerError())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
@@ -255,13 +250,13 @@ class AsyncControllerIntegrationTest {
    * <p>Verifies that flatMap chain short-circuits:
    *
    * <ul>
-   *   <li>findByIdAsync() returns Left(UserNotFoundError)
+   *   <li>findByIdAsync() throws UserNotFoundException
    *   <li>Update operation is skipped
    *   <li>Error propagates to response
    * </ul>
    */
   @Test
-  void updateEmailAsync_whenUserNotFound_returns404() throws Exception {
+  void updateEmailAsync_whenUserNotFound_returns500() throws Exception {
     MvcResult mvcResult =
         mockMvc
             .perform(put("/api/async/users/999/email").param("newEmail", "test@example.com"))
@@ -270,10 +265,9 @@ class AsyncControllerIntegrationTest {
 
     mockMvc
         .perform(asyncDispatch(mvcResult))
-        .andExpect(status().isNotFound())
+        .andExpect(status().isInternalServerError())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.userId").value("999"));
+        .andExpect(jsonPath("$.success").value(false));
   }
 
   /**
@@ -282,7 +276,7 @@ class AsyncControllerIntegrationTest {
    * <p>Verifies simple async operation that always succeeds:
    *
    * <ul>
-   *   <li>Always returns Right(message)
+   *   <li>Always returns successful result
    *   <li>Confirms async infrastructure is working
    * </ul>
    */
@@ -309,9 +303,6 @@ class AsyncControllerIntegrationTest {
    *   <li>Each completes independently
    *   <li>No shared state issues
    * </ul>
-   *
-   * <p>Note: For true concurrency testing, use the curl commands from TESTING.md with multiple
-   * simultaneous requests.
    */
   @Test
   void multipleAsyncRequests_completeIndependently() throws Exception {
@@ -340,6 +331,6 @@ class AsyncControllerIntegrationTest {
             .andExpect(request().asyncStarted())
             .andReturn();
 
-    mockMvc.perform(asyncDispatch(mvcResult3)).andExpect(status().isNotFound());
+    mockMvc.perform(asyncDispatch(mvcResult3)).andExpect(status().isInternalServerError());
   }
 }

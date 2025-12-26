@@ -1,6 +1,15 @@
 # Higher-Kinded-J Spring Boot Integration
 
-This module provides Spring Boot 3.5.7 integration for higher-kinded-j, enabling type-safe functional programming patterns in Spring applications.
+This module provides Spring Boot integration for higher-kinded-j, enabling type-safe functional programming patterns in Spring applications using the Effect Path API.
+
+## Version Compatibility
+
+| hkj-spring Version | Spring Boot Version | Jackson Version | Notes |
+|--------------------|---------------------|-----------------|-------|
+| 0.2.7 | 3.5.7 | 2.x | Legacy support |
+| 0.2.8+ | 4.0.1+ | 3.x | Effect Path API |
+
+> **Important**: Version 0.2.8+ introduces breaking changes. Use 0.2.7 for Spring Boot 3.5.7 compatibility.
 
 ## Quick Start
 
@@ -13,7 +22,7 @@ dependencies {
 }
 ```
 
-### 2. Use Either in Controllers
+### 2. Use Effect Path API in Controllers
 
 ```java
 @RestController
@@ -21,10 +30,24 @@ dependencies {
 public class UserController {
 
     @GetMapping("/{id}")
-    public Either<DomainError, User> getUser(@PathVariable String id) {
+    public EitherPath<UserError, User> getUser(@PathVariable String id) {
         return userService.findById(id);
         // Right(user) → HTTP 200 with JSON
         // Left(UserNotFoundError) → HTTP 404 with error JSON
+    }
+
+    @GetMapping("/{id}/optional")
+    public MaybePath<User> getUserOptional(@PathVariable String id) {
+        return Path.maybe(userRepository.findById(id));
+        // Just(user) → HTTP 200 with JSON
+        // Nothing → HTTP 404
+    }
+
+    @PostMapping
+    public ValidationPath<List<ValidationError>, User> createUser(@RequestBody CreateUserRequest req) {
+        return validateAndCreateUser(req);
+        // Valid(user) → HTTP 200 with JSON
+        // Invalid(errors) → HTTP 400 with all accumulated errors
     }
 }
 ```
@@ -33,35 +56,60 @@ That's it! The starter auto-configures everything.
 
 ## Features
 
-### ✅ Automatic Either → HTTP Response Conversion
+### Effect Path API Support (6 Handler Types)
 
-Return `Either<Error, Data>` from controllers and the framework automatically:
-- Converts `Right(data)` → HTTP 200 with JSON body
-- Converts `Left(error)` → HTTP 4xx/5xx based on error type
+| Path Type | Success | Failure | Use Case |
+|-----------|---------|---------|----------|
+| `EitherPath<E, A>` | HTTP 200 | HTTP 4xx/5xx (based on error type) | Railway-oriented programming |
+| `MaybePath<A>` | HTTP 200 | HTTP 404 | Optional values |
+| `TryPath<A>` | HTTP 200 | HTTP 500 | Exception handling |
+| `ValidationPath<E, A>` | HTTP 200 | HTTP 400 (with all errors) | Input validation |
+| `IOPath<A>` | HTTP 200 | HTTP 500 | Deferred side effects |
+| `CompletableFuturePath<A>` | HTTP 200 | HTTP 500 | Async operations |
 
-Error → Status Code mapping:
-- `NotFoundError` → 404
-- `ValidationError` → 400
-- `AuthorizationError` → 403
-- `AuthenticationError` → 401
-- Default → 400
+### Automatic Path → HTTP Response Conversion
 
-### ✅ Zero Configuration
+Return Effect Path types from controllers and the framework automatically:
+- Converts success cases → HTTP 200 with JSON body
+- Converts failure cases → Appropriate HTTP error status with JSON body
+
+Error → Status Code mapping for EitherPath:
+- `*NotFoundError` → 404
+- `*ValidationError` / `*InvalidError` → 400
+- `*AuthorizationError` / `*ForbiddenError` → 403
+- `*AuthenticationError` / `*UnauthorizedError` → 401
+- Default → 400 (configurable)
+
+### Zero Configuration
 
 Auto-configuration activates when:
 - higher-kinded-j is on the classpath
 - Spring Web MVC is present
 - Application is a servlet web app
 
-### ✅ Optics Support
+### Configurable via Properties
 
-Use `@GenerateLenses` on domain models:
+```yaml
+hkj:
+  web:
+    # Enable/disable individual handlers
+    either-path-enabled: true
+    maybe-path-enabled: true
+    try-path-enabled: true
+    validation-path-enabled: true
+    io-path-enabled: true
+    completable-future-path-enabled: true
 
-```java
-@GenerateLenses
-public record User(String id, String email, String name) {}
+    # Customize status codes
+    default-error-status: 400
+    maybe-nothing-status: 404
+    try-failure-status: 500
+    validation-invalid-status: 400
 
-// Auto-generates UserLenses.id(), UserLenses.email(), etc.
+    # Exception details (disable in production!)
+    try-include-exception-details: false
+    io-include-exception-details: false
+    async-include-exception-details: false
 ```
 
 ## Module Structure
@@ -71,12 +119,17 @@ hkj-spring/
 ├── autoconfigure/     # Auto-configuration classes
 │   ├── HkjAutoConfiguration
 │   ├── HkjWebMvcAutoConfiguration
-│   └── EitherReturnValueHandler
+│   ├── HkjProperties
+│   └── web/returnvalue/
+│       ├── EitherPathReturnValueHandler
+│       ├── MaybePathReturnValueHandler
+│       ├── TryPathReturnValueHandler
+│       ├── ValidationPathReturnValueHandler
+│       ├── IOPathReturnValueHandler
+│       ├── CompletableFuturePathReturnValueHandler
+│       └── ErrorStatusCodeMapper
 ├── starter/           # Dependency aggregator
 └── example/           # Working example application
-    ├── UserController
-    ├── UserService
-    └── Domain models
 ```
 
 ## Example Application
@@ -92,74 +145,98 @@ See `hkj-spring/example/` for a complete working example.
 ### Try These Endpoints
 
 ```bash
-# Get all users (200 OK)
-curl http://localhost:8080/api/users
-
-# Get user by ID (200 OK)
+# Get user by ID - EitherPath (200 OK)
 curl http://localhost:8080/api/users/1
 
-# Get non-existent user (404 Not Found)
+# Get non-existent user - EitherPath (404 Not Found)
 curl http://localhost:8080/api/users/999
 
-# Create user with valid data (200 OK)
+# Get user optional - MaybePath (200 OK or 404)
+curl http://localhost:8080/api/users/1/optional
+
+# Create user with validation - ValidationPath
 curl -X POST http://localhost:8080/api/users \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","firstName":"Test","lastName":"User"}'
 
-# Create user with invalid email (400 Bad Request)
-curl -X POST http://localhost:8080/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"email":"invalid","firstName":"Test","lastName":"User"}'
+# Config with deferred IO - IOPath
+curl http://localhost:8080/api/config
+
+# Async user fetch - CompletableFuturePath
+curl http://localhost:8080/api/users/1/async
 ```
 
 ## How It Works
 
-### 1. EitherReturnValueHandler
+### Path Return Value Handlers
 
-The core component that intercepts `Either` return values:
+Each Effect Path type has a dedicated handler:
 
 ```java
 @GetMapping("/{id}")
-public Either<DomainError, User> getUser(@PathVariable String id) {
-    return userService.findById(id);
+public EitherPath<DomainError, User> getUser(@PathVariable String id) {
+    return Path.right(userId)
+        .via(userService::findById)  // Returns EitherPath<Error, User>
+        .peek(user -> log.info("Found user: {}", user.id()));
 }
 ```
 
 The handler:
-1. Checks if return type is `Either`
-2. Calls `either.fold()` to handle both cases
-3. For `Left`: Writes error JSON with appropriate HTTP status
-4. For `Right`: Writes success JSON with HTTP 200
+1. Checks if return type is `EitherPath`
+2. Calls `path.run()` to get the underlying `Either`
+3. Uses `either.fold()` to handle both cases
+4. For `Left`: Writes error JSON with appropriate HTTP status
+5. For `Right`: Writes success JSON with HTTP 200
 
-### 2. Auto-Configuration
-
-`HkjWebMvcAutoConfiguration` registers the handler automatically:
+### Validation with Error Accumulation
 
 ```java
-@AutoConfiguration
-@ConditionalOnClass({DispatcherServlet.class, Kind.class})
-@ConditionalOnWebApplication(type = SERVLET)
-public class HkjWebMvcAutoConfiguration implements WebMvcConfigurer {
-
-    @Override
-    public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> handlers) {
-        handlers.add(new EitherReturnValueHandler());
-    }
+@PostMapping
+public ValidationPath<List<ValidationError>, User> createUser(@RequestBody CreateUserRequest req) {
+    return Path.<List<ValidationError>, String>valid(req.email(), Semigroups.list())
+        .zipWith3Accum(
+            validateName(req.firstName()),
+            validateAge(req.age()),
+            User::new
+        );
+    // All validation errors are accumulated, not fail-fast!
 }
 ```
 
-### 3. Error Type Detection
+Response for invalid input:
+```json
+{
+  "valid": false,
+  "errors": [
+    {"field": "email", "message": "Invalid email format"},
+    {"field": "firstName", "message": "Name is required"},
+    {"field": "age", "message": "Age must be positive"}
+  ],
+  "errorCount": 3
+}
+```
 
-HTTP status codes are determined by examining error class names:
+### Deferred IO Execution
 
 ```java
-public record UserNotFoundError(String userId) implements DomainError {
-    // Class name contains "NotFound" → HTTP 404
+@GetMapping("/report")
+public IOPath<Report> generateReport() {
+    return Path.io(() -> reportService.generate())
+        .peek(r -> log.info("Generated report: {}", r.id()))
+        .ensuring(() -> cleanupTempFiles());
 }
+// IO is executed at the edge (when response is written)
+```
 
-public record ValidationError(String field, String message) implements DomainError {
-    // Class name contains "Validation" → HTTP 400
+### Async with CompletableFuturePath
+
+```java
+@GetMapping("/users/{id}/async")
+public CompletableFuturePath<User> getUserAsync(@PathVariable String id) {
+    return Path.futureAsync(() -> remoteService.fetchUser(id))
+        .map(user -> enrichWithProfile(user));
 }
+// Non-blocking - request thread is released while waiting
 ```
 
 ## Benefits
@@ -173,55 +250,42 @@ public User getUser(String id) throws UserNotFoundException {
 }
 
 // After: Errors explicit in type signature
-public Either<DomainError, User> getUser(String id) {
+public EitherPath<DomainError, User> getUser(String id) {
     // Compiler enforces error handling
+}
+```
+
+### Railway-Oriented Programming
+
+```java
+@GetMapping("/{id}/orders")
+public EitherPath<DomainError, List<Order>> getUserOrders(@PathVariable String id) {
+    return Path.right(id)
+        .via(userService::findById)           // EitherPath<Error, User>
+        .via(orderService::getOrdersForUser); // EitherPath<Error, List<Order>>
+    // Errors short-circuit automatically
 }
 ```
 
 ### Composable Operations
 
 ```java
-@GetMapping("/{id}/email")
-public Either<DomainError, String> getUserEmail(@PathVariable String id) {
+@GetMapping("/{id}/profile")
+public EitherPath<DomainError, UserProfile> getUserProfile(@PathVariable String id) {
     return userService.findById(id)
-        .map(User::email);  // Functor composition
-}
-
-@GetMapping("/{id}/orders")
-public Either<DomainError, List<Order>> getUserOrders(@PathVariable String id) {
-    return userService.findById(id)
-        .flatMap(orderService::getOrdersForUser);  // Monadic composition
-}
-```
-
-### No Try-Catch Boilerplate
-
-```java
-// Before: Try-catch everywhere
-@GetMapping("/{id}")
-public ResponseEntity<?> getUser(@PathVariable String id) {
-    try {
-        User user = userService.findById(id);
-        return ResponseEntity.ok(user);
-    } catch (UserNotFoundException e) {
-        return ResponseEntity.notFound().build();
-    } catch (Exception e) {
-        return ResponseEntity.status(500).build();
-    }
-}
-
-// After: Clean functional style
-@GetMapping("/{id}")
-public Either<DomainError, User> getUser(@PathVariable String id) {
-    return userService.findById(id);
+        .map(User::toProfile)           // Functor composition
+        .peek(p -> metrics.record(p))   // Side effects
+        .mapError(e -> e.withContext("profile")); // Error transformation
 }
 ```
 
 ## Architecture
 
-### Spring Boot 3.x Compatibility
+### Spring Boot 4.x Compatibility
 
-Uses `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` for auto-configuration discovery (Spring Boot 3.x standard).
+- Uses `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` for auto-configuration discovery
+- Jackson 3.x for JSON serialization (`tools.jackson` package)
+- Jakarta EE 11 / Servlet 6.1
 
 ### Conditional Configuration
 
@@ -232,41 +296,7 @@ Only activates when required dependencies are present:
 
 ### Non-Invasive
 
-Doesn't modify existing Spring Boot behavior. Only adds support for functional return types.
-
-## Advanced Usage
-
-### Custom Error Mapping
-
-Extend or customize error → status code mapping:
-
-```java
-@Configuration
-public class CustomEitherConfiguration implements WebMvcConfigurer {
-
-    @Override
-    public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> handlers) {
-        // Register custom handler with different mapping logic
-        handlers.add(new CustomEitherReturnValueHandler());
-    }
-}
-```
-
-### Optics for Data Transformation
-
-```java
-@Service
-public class UserService {
-
-    private static final Lens<User, String> userToEmail = UserLenses.email();
-
-    public Either<DomainError, User> updateEmail(String id, String newEmail) {
-        return repository.findById(id)
-            .map(user -> userToEmail.set(newEmail, user))
-            .flatMap(repository::save);
-    }
-}
-```
+Doesn't modify existing Spring Boot behavior. Only adds support for Effect Path return types.
 
 ## Testing
 
@@ -290,31 +320,49 @@ class UserControllerTest {
         mockMvc.perform(get("/api/users/999"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.error.message").exists());
+            .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void shouldReturn400WithAccumulatedValidationErrors() throws Exception {
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"\",\"firstName\":\"\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.valid").value(false))
+            .andExpect(jsonPath("$.errorCount").value(greaterThan(1)));
     }
 }
 ```
 
 ## Requirements
 
-- Java 25+
-- Spring Boot 3.5.7+
+- Java 21+
+- Spring Boot 4.0.1+
 - higher-kinded-j core library
+
+## Related Documentation
+
+- [Configuration Reference](CONFIGURATION.md)
+- [Jackson Serialization](JACKSON_SERIALIZATION.md)
+- [Security Integration](SECURITY.md)
+- [Actuator Support](ACTUATOR.md)
 
 ## License
 
 MIT (same as higher-kinded-j)
 
-## Next Steps
+## Migration from 0.2.7
 
-- [ ] Validated return value handler (accumulating validation)
-- [ ] EitherT async support
-- [ ] Jackson custom serializers
-- [ ] Configuration properties
-- [ ] Spring Security integration
-- [ ] WebFlux support (reactive)
-- [ ] Actuator metrics
-- [ ] Comprehensive test suite
+If upgrading from 0.2.7 (Spring Boot 3.5.7):
+
+1. **Update Spring Boot**: Upgrade to Spring Boot 4.0.1+
+2. **Replace raw types with Path types**:
+   - `Either<E, A>` → `EitherPath<E, A>` (use `Path.right()`, `Path.left()`, `Path.either()`)
+   - `Validated<E, A>` → `ValidationPath<E, A>` (use `Path.valid()`, `Path.invalid()`)
+   - `EitherT<CompletableFuture.Witness, E, A>` → `CompletableFuturePath<A>` (use `Path.completableFuture()`)
+3. **Update Jackson imports**: `com.fasterxml.jackson` → `tools.jackson`
+4. **Update configuration properties**: See [Configuration Reference](CONFIGURATION.md)
 
 ## Contributing
 

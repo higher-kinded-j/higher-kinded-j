@@ -4,41 +4,27 @@ package org.higherkindedj.spring.example.service;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either_t.EitherT;
-import org.higherkindedj.hkt.either_t.EitherTKind;
-import org.higherkindedj.hkt.either_t.EitherTMonad;
-import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.effect.CompletableFuturePath;
+import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.spring.example.controller.AsyncController;
-import org.higherkindedj.spring.example.domain.DomainError;
 import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 /**
- * Service demonstrating async operations using EitherT with CompletableFuture.
+ * Service demonstrating async operations using CompletableFuturePath.
  *
- * <p>EitherT allows composing async operations while maintaining type-safe error handling. The key
- * advantage over plain Either is that EitherT enables:
- *
- * <ul>
- *   <li>Non-blocking I/O - async operations don't block request threads
- *   <li>Composable async chains - flatMap over async + error handling
- *   <li>Consistent error propagation across async boundaries
- * </ul>
+ * <p>CompletableFuturePath provides a clean API for async operations with the Effect Path API.
+ * Error handling uses exceptions which are automatically converted to appropriate HTTP responses by
+ * the CompletableFuturePathReturnValueHandler.
  *
  * <p>Example async chain:
  *
  * <pre>{@code
  * findByIdAsync(id)
+ *     .map(user -> enrichUser(user))
  *     .flatMap(user -> loadProfileAsync(user))
- *     .flatMap(profile -> enrichDataAsync(profile))
- *     // All operations async, all errors propagated as Left
  * }</pre>
  */
 @Service
@@ -46,15 +32,11 @@ public class AsyncUserService {
 
   private final UserService userService;
   private final Executor asyncExecutor;
-  private final Monad<CompletableFutureKind.Witness> futureMonad;
-  private final Monad<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>> eitherTMonad;
 
   public AsyncUserService(
       UserService userService, @Qualifier("hkjAsyncExecutor") Executor asyncExecutor) {
     this.userService = userService;
     this.asyncExecutor = asyncExecutor;
-    this.futureMonad = CompletableFutureMonad.INSTANCE;
-    this.eitherTMonad = new EitherTMonad<>(futureMonad);
   }
 
   /**
@@ -64,176 +46,131 @@ public class AsyncUserService {
    * async executor thread pool.
    *
    * @param id the user ID to find
-   * @return EitherT wrapping CompletableFuture<Either<DomainError, User>>
+   * @return CompletableFuturePath containing the User, or failing with UserNotFoundException
    */
-  public EitherT<CompletableFutureKind.Witness, DomainError, User> findByIdAsync(String id) {
-    // Create async computation that returns Either
-    CompletableFuture<Either<DomainError, User>> futureEither =
+  public CompletableFuturePath<User> findByIdAsync(String id) {
+    CompletableFuture<User> future =
         CompletableFuture.supplyAsync(
             () -> {
               // Simulate async I/O delay
               sleep(100);
 
-              // Delegate to synchronous service
-              // In real app, this would be async database call
-              return userService.findById(id);
+              // Delegate to synchronous service and convert Either to exception
+              return userService
+                  .findById(id)
+                  .fold(
+                      error -> {
+                        if (error instanceof UserNotFoundError notFound) {
+                          throw new UserNotFoundException(notFound.userId());
+                        }
+                        throw new RuntimeException(error.message());
+                      },
+                      user -> user);
             },
             asyncExecutor);
 
-    // Wrap in EitherT
-    Kind<CompletableFutureKind.Witness, Either<DomainError, User>> kind =
-        CompletableFutureKindHelper.FUTURE.widen(futureEither);
-
-    return EitherT.fromKind(kind);
+    return Path.future(future);
   }
 
   /**
    * Find user by email asynchronously.
    *
-   * <p>Demonstrates async operation that may fail with specific error.
-   *
    * @param email the email to search for
-   * @return EitherT wrapping async Either
+   * @return CompletableFuturePath containing the User
    */
-  public EitherT<CompletableFutureKind.Witness, DomainError, User> findByEmailAsync(String email) {
-    CompletableFuture<Either<DomainError, User>> futureEither =
+  public CompletableFuturePath<User> findByEmailAsync(String email) {
+    CompletableFuture<User> future =
         CompletableFuture.supplyAsync(
             () -> {
               sleep(150);
 
-              // Simple search through users (in real app, use async database)
-              return userService.findByEmail(email);
+              return userService
+                  .findByEmail(email)
+                  .fold(
+                      error -> {
+                        throw new UserNotFoundException(email);
+                      },
+                      user -> user);
             },
             asyncExecutor);
 
-    Kind<CompletableFutureKind.Witness, Either<DomainError, User>> kind =
-        CompletableFutureKindHelper.FUTURE.widen(futureEither);
-
-    return EitherT.fromKind(kind);
+    return Path.future(future);
   }
 
   /**
    * Get enriched user data by composing multiple async operations.
    *
-   * <p>Demonstrates EitherT composition with flatMap:
+   * <p>Demonstrates CompletableFuturePath composition with via:
    *
    * <ol>
-   *   <li>Find user by ID (async)
-   *   <li>Load additional profile data (async)
+   *   <li>Async find user by ID
+   *   <li>Async load profile data
    *   <li>Combine into enriched result
    * </ol>
    *
-   * <p>If any step fails (Left), the entire chain short-circuits and returns the error. All
-   * operations run asynchronously on the thread pool.
-   *
    * @param id the user ID
-   * @return EitherT with enriched user data
+   * @return CompletableFuturePath with enriched user data
    */
-  public EitherT<CompletableFutureKind.Witness, DomainError, EnrichedUser> getEnrichedUserAsync(
-      String id) {
-    // Step 1: Find user by ID
-    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, User> userKind =
-        findByIdAsync(id);
-
-    // Step 2: Use monad's flatMap to compose operations
-    // Note: flatMap signature is flatMap(Function, Kind)
-    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, EnrichedUser> result =
-        eitherTMonad.flatMap(
+  public CompletableFuturePath<EnrichedUser> getEnrichedUserAsync(String id) {
+    return findByIdAsync(id)
+        .via(
             user -> {
-              // Load profile data (simulated async operation)
-              CompletableFuture<Either<DomainError, Profile>> profileFuture =
+              CompletableFuture<EnrichedUser> profileFuture =
                   CompletableFuture.supplyAsync(
                       () -> {
                         sleep(100);
-                        return Either.<DomainError, Profile>right(
-                            new Profile(user.id(), "Premium", 100));
+                        Profile profile = new Profile(user.id(), "Premium", 100);
+                        return new EnrichedUser(user, profile);
                       },
                       asyncExecutor);
-
-              Kind<CompletableFutureKind.Witness, Either<DomainError, Profile>> profileKind =
-                  CompletableFutureKindHelper.FUTURE.widen(profileFuture);
-
-              EitherT<CompletableFutureKind.Witness, DomainError, Profile> profileEitherT =
-                  EitherT.fromKind(profileKind);
-
-              // Step 3: Combine user + profile into enriched result using monad's map
-              return eitherTMonad.map(profile -> new EnrichedUser(user, profile), profileEitherT);
-            },
-            userKind);
-
-    // Narrow back to EitherT
-    return (EitherT<CompletableFutureKind.Witness, DomainError, EnrichedUser>) result;
+              return Path.future(profileFuture);
+            });
   }
 
   /**
-   * Validate user data asynchronously and update.
-   *
-   * <p>Demonstrates async validation with error accumulation potential.
+   * Update user email asynchronously with validation.
    *
    * @param id the user ID to update
-   * @param newEmail the new email
-   * @return EitherT with updated user
+   * @param newEmail the new email address
+   * @return CompletableFuturePath with updated user
    */
-  public EitherT<CompletableFutureKind.Witness, DomainError, User> updateEmailAsync(
-      String id, String newEmail) {
-
-    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, User> userKind =
-        findByIdAsync(id);
-
-    // Note: flatMap signature is flatMap(Function, Kind)
-    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, User> result =
-        eitherTMonad.flatMap(
+  public CompletableFuturePath<User> updateEmailAsync(String id, String newEmail) {
+    return findByIdAsync(id)
+        .via(
             user -> {
-              CompletableFuture<Either<DomainError, User>> updateFuture =
+              CompletableFuture<User> updateFuture =
                   CompletableFuture.supplyAsync(
                       () -> {
                         sleep(100);
 
                         // Validate new email
                         if (newEmail == null || !newEmail.contains("@")) {
-                          return Either.left(
-                              new UserNotFoundError(id)); // Using UserNotFoundError as example
+                          throw new ValidationException("Invalid email format");
                         }
 
                         // Update user
-                        User updated =
-                            new User(user.id(), newEmail, user.firstName(), user.lastName());
-                        return Either.right(updated);
+                        return new User(user.id(), newEmail, user.firstName(), user.lastName());
                       },
                       asyncExecutor);
-
-              Kind<CompletableFutureKind.Witness, Either<DomainError, User>> updateKind =
-                  CompletableFutureKindHelper.FUTURE.widen(updateFuture);
-
-              return EitherT.fromKind(updateKind);
-            },
-            userKind);
-
-    return (EitherT<CompletableFutureKind.Witness, DomainError, User>) result;
+              return Path.future(updateFuture);
+            });
   }
 
   /**
    * Async health check endpoint.
    *
-   * <p>Simple async operation that always succeeds with a health status.
-   *
-   * @return EitherT with health status
+   * @return CompletableFuturePath with health status
    */
-  public EitherT<CompletableFutureKind.Witness, DomainError, AsyncController.HealthStatus>
-      getHealthAsync() {
-    CompletableFuture<Either<DomainError, AsyncController.HealthStatus>> futureEither =
+  public CompletableFuturePath<AsyncController.HealthStatus> getHealthAsync() {
+    CompletableFuture<AsyncController.HealthStatus> future =
         CompletableFuture.supplyAsync(
             () -> {
               sleep(50);
-              return Either.<DomainError, AsyncController.HealthStatus>right(
-                  new AsyncController.HealthStatus("healthy", "Async operations are working"));
+              return new AsyncController.HealthStatus("healthy", "Async operations are working");
             },
             asyncExecutor);
 
-    Kind<CompletableFutureKind.Witness, Either<DomainError, AsyncController.HealthStatus>> kind =
-        CompletableFutureKindHelper.FUTURE.widen(futureEither);
-
-    return EitherT.fromKind(kind);
+    return Path.future(future);
   }
 
   /** Simulates I/O delay for demonstration purposes. */
@@ -250,4 +187,25 @@ public class AsyncUserService {
 
   /** User profile data (simulated). */
   public record Profile(String userId, String tier, int points) {}
+
+  /** Exception thrown when a user is not found. */
+  public static class UserNotFoundException extends RuntimeException {
+    private final String userId;
+
+    public UserNotFoundException(String userId) {
+      super("User not found: " + userId);
+      this.userId = userId;
+    }
+
+    public String getUserId() {
+      return userId;
+    }
+  }
+
+  /** Exception thrown for validation errors. */
+  public static class ValidationException extends RuntimeException {
+    public ValidationException(String message) {
+      super(message);
+    }
+  }
 }

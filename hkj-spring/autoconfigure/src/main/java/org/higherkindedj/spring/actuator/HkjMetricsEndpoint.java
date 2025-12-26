@@ -110,9 +110,12 @@ public class HkjMetricsEndpoint {
 
   private Map<String, Object> getWebConfig() {
     Map<String, Object> web = new LinkedHashMap<>();
-    web.put("eitherResponseEnabled", properties.getWeb().isEitherResponseEnabled());
-    web.put("validatedResponseEnabled", properties.getWeb().isValidatedResponseEnabled());
-    web.put("asyncEitherTEnabled", properties.getWeb().isAsyncEitherTEnabled());
+    web.put("eitherPathEnabled", properties.getWeb().isEitherPathEnabled());
+    web.put("maybePathEnabled", properties.getWeb().isMaybePathEnabled());
+    web.put("tryPathEnabled", properties.getWeb().isTryPathEnabled());
+    web.put("validationPathEnabled", properties.getWeb().isValidationPathEnabled());
+    web.put("ioPathEnabled", properties.getWeb().isIoPathEnabled());
+    web.put("completableFuturePathEnabled", properties.getWeb().isCompletableFuturePathEnabled());
     web.put("defaultErrorStatus", properties.getWeb().getDefaultErrorStatus());
     return web;
   }

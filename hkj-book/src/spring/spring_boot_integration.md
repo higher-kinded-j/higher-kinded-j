@@ -2,7 +2,7 @@
 ## _Bringing Type-Safe Error Handling to Your REST APIs_
 
 ~~~admonish info title="What You'll Learn"
-- How to use Either, Validated, and EitherT as Spring controller return types
+- How to use Either, Validated, and CompletableFuturePath as Spring controller return types
 - Zero-configuration setup with the hkj-spring-boot-starter
 - Automatic JSON serialisation with customisable formats
 - Monitoring functional operations with Spring Boot Actuator
@@ -22,7 +22,7 @@ A complete working example is available in the [hkj-spring example module](https
 
 Building REST APIs with Spring Boot is straightforward, but error handling often becomes a source of complexity and inconsistency. Traditional exception-based approaches scatter error handling logic across `@ExceptionHandler` methods, lose type safety, and make it difficult to reason about what errors a given endpoint can produce.
 
-The **hkj-spring-boot-starter** solves these problems by bringing functional programming patterns seamlessly into Spring applications. Return `Either<Error, Data>`, `Validated<Errors, Data>`, or `EitherT` from your controllers, and the framework automatically handles the rest: converting functional types to appropriate HTTP responses whilst preserving type safety and composability.
+The **hkj-spring-boot-starter** solves these problems by bringing functional programming patterns seamlessly into Spring applications. Return `Either<Error, Data>`, `Validated<Errors, Data>`, or `CompletableFuturePath` from your controllers, and the framework automatically handles the rest: converting functional types to appropriate HTTP responses whilst preserving type safety and composability.
 
 **The key insight:** Errors become explicit in your method signatures, not hidden in implementation details or exception hierarchies.
 
@@ -80,11 +80,11 @@ public class UserController {
 ### Step 3: Run Your Application
 
 That's it! The starter auto-configures everything:
-- ✅ Either → HTTP response conversion with automatic status code mapping
-- ✅ Validated → HTTP response with error accumulation
-- ✅ EitherT support for async operations with CompletableFuture
-- ✅ JSON serialisation for functional types
-- ✅ Customisable error type → HTTP status code mapping
+- Either to HTTP response conversion with automatic status code mapping
+- Validated to HTTP response with error accumulation
+- CompletableFuturePath support for async operations
+- JSON serialisation for functional types
+- Customisable error type to HTTP status code mapping
 
 ---
 
@@ -112,11 +112,11 @@ public ResponseEntity<ErrorResponse> handleValidation(ValidationException ex) {
 ```
 
 **Problems:**
-- 🔴 Errors are invisible in the method signature
-- 🔴 No compile-time guarantee that all errors are handled
-- 🔴 Exception handlers become a catch-all for unrelated errors
-- 🔴 Difficult to compose operations whilst maintaining error information
-- 🔴 Testing requires catching exceptions or using `@ExceptionHandler` integration
+- Errors are invisible in the method signature
+- No compile-time guarantee that all errors are handled
+- Exception handlers become a catch-all for unrelated errors
+- Difficult to compose operations whilst maintaining error information
+- Testing requires catching exceptions or using `@ExceptionHandler` integration
 
 ### The Functional Solution
 
@@ -136,11 +136,11 @@ public Either<DomainError, List<Order>> getUserOrders(@PathVariable String id) {
 ```
 
 **Benefits:**
-- ✅ Errors are explicit in the type signature
-- ✅ Compiler ensures error handling at call sites
-- ✅ Functional composition with `map`, `flatMap`, `fold`
-- ✅ Automatic HTTP response conversion
-- ✅ Easy to test: no exception catching required
+- Errors are explicit in the type signature
+- Compiler ensures error handling at call sites
+- Functional composition with `map`, `flatMap`, `fold`
+- Automatic HTTP response conversion
+- Easy to test, no exception catching required
 
 ---
 
@@ -262,19 +262,17 @@ See the [Validated Monad documentation](../monads/validated_monad.md) for detail
 
 ---
 
-### 3. EitherT: Async Operations with Typed Errors
+### 3. CompletableFuturePath: Async Operations with Typed Errors
 
-`EitherT<F, L, R>` combines asynchronous computation (`CompletableFuture`) with typed errors (`Either`), allowing you to work with `CompletableFuture<Either<L, R>>` in a composable way.
+`CompletableFuturePath<A>` wraps asynchronous computation in the Effect Path API, allowing you to compose async operations with `map`, `via`, and `recover`.
 
 #### Basic Usage
 
 ```java
 @GetMapping("/{id}/async")
-public EitherT<CompletableFutureKind.Witness, DomainError, User> getUserAsync(
-        @PathVariable String id) {
-
+public CompletableFuturePath<User> getUserAsync(@PathVariable String id) {
     return asyncUserService.findByIdAsync(id);
-    // Automatically handles async → sync HTTP response conversion
+    // Automatically handles async to sync HTTP response conversion
 }
 ```
 
@@ -284,28 +282,28 @@ public EitherT<CompletableFutureKind.Witness, DomainError, User> getUserAsync(
 @Service
 public class AsyncOrderService {
 
-    public EitherT<CompletableFutureKind.Witness, DomainError, OrderSummary>
-    processOrderAsync(String userId, OrderRequest request) {
+    public CompletableFuturePath<OrderSummary> processOrderAsync(
+            String userId, OrderRequest request) {
 
         return asyncUserService.findByIdAsync(userId)
-            .flatMap(user -> asyncInventoryService.checkAvailability(request.items()))
-            .flatMap(availability -> asyncPaymentService.processPayment(request.payment()))
+            .via(user -> asyncInventoryService.checkAvailability(request.items()))
+            .via(availability -> asyncPaymentService.processPayment(request.payment()))
             .map(payment -> new OrderSummary(userId, request, payment));
 
         // Each step runs asynchronously
-        // Short-circuits on first error
+        // Composes naturally with other Path types
     }
 }
 ```
 
 **Response Handling:**
 The framework uses Spring's async request processing:
-1. Controller returns `EitherT`
-2. Framework extracts the `CompletableFuture<Either<L, R>>`
+1. Controller returns `CompletableFuturePath`
+2. Framework extracts the underlying `CompletableFuture`
 3. Spring's async mechanism handles the future
-4. When complete, Either is converted to HTTP response
+4. When complete, result is converted to HTTP response
 
-See the [EitherT Transformer documentation](../transformers/eithert_transformer.md) for comprehensive examples.
+See the [Effect Path API documentation](../effect/path_types.md) for comprehensive examples.
 
 ---
 
@@ -389,15 +387,15 @@ For complete serialisation details, see [hkj-spring/JACKSON_SERIALIZATION.md](ht
 ```yaml
 hkj:
   web:
-    either-response-enabled: true      # Enable Either handler (default: true)
-    validated-response-enabled: true   # Enable Validated handler (default: true)
-    async-either-t-enabled: true       # Enable EitherT handler (default: true)
-    default-error-status: 400          # Default HTTP status for unmapped errors
+    either-path-enabled: true               # Enable EitherPath handler (default: true)
+    validated-path-enabled: true            # Enable ValidationPath handler (default: true)
+    completable-future-path-enabled: true   # Enable CompletableFuturePath handler (default: true)
+    default-error-status: 400               # Default HTTP status for unmapped errors
 ```
 
 ### Async Executor Configuration
 
-For EitherT operations, configure the async thread pool:
+For CompletableFuturePath operations, configure the async thread pool:
 
 ```yaml
 hkj:
@@ -495,9 +493,7 @@ public class OrderController {
     private AsyncOrderService orderService;
 
     @PostMapping
-    public EitherT<CompletableFutureKind.Witness, DomainError, Order> createOrder(
-            @RequestBody OrderRequest request) {
-
+    public CompletableFuturePath<Order> createOrder(@RequestBody OrderRequest request) {
         return orderService.processOrder(request);
         // Each step runs asynchronously:
         // 1. Validate user
@@ -505,14 +501,12 @@ public class OrderController {
         // 3. Process payment
         // 4. Create order record
 
-        // Short-circuits on first error
+        // Composes naturally with other Path types
         // Returns 200 on success, appropriate error code on failure
     }
 
     @GetMapping("/{id}")
-    public EitherT<CompletableFutureKind.Witness, DomainError, Order> getOrder(
-            @PathVariable String id) {
-
+    public CompletableFuturePath<Order> getOrder(@PathVariable String id) {
         return orderService.findByIdAsync(id);
     }
 }
@@ -529,25 +523,22 @@ public class AsyncOrderService {
     @Autowired
     private OrderRepository orderRepository;
 
-    public EitherT<CompletableFutureKind.Witness, DomainError, Order>
-    processOrder(OrderRequest request) {
-
+    public CompletableFuturePath<Order> processOrder(OrderRequest request) {
         return userService.findByIdAsync(request.userId())
-            .flatMap(user -> inventoryService.checkAvailabilityAsync(request.items()))
-            .flatMap(availability -> {
+            .via(user -> inventoryService.checkAvailabilityAsync(request.items()))
+            .via(availability -> {
                 if (!availability.allAvailable()) {
-                    return EitherT.leftT(
-                        CompletableFutureKindHelper.FUTURE,
-                        new OutOfStockError(availability.unavailableItems())
+                    return Path.completableFuture(
+                        CompletableFuture.failedFuture(
+                            new OutOfStockException(availability.unavailableItems())
+                        )
                     );
                 }
-                return EitherT.rightT(
-                    CompletableFutureKindHelper.FUTURE,
-                    availability
+                return Path.completableFuture(
+                    CompletableFuture.completedFuture(availability)
                 );
             })
-            .flatMap(availability ->
-                paymentService.processPaymentAsync(request.payment()))
+            .via(availability -> paymentService.processPaymentAsync(request.payment()))
             .map(payment -> createOrderRecord(request, payment));
     }
 }
@@ -634,7 +625,7 @@ hkj:
       enabled: true                     # Enable metrics tracking
     health:
       async-executor:
-        enabled: true                   # Monitor EitherT thread pool
+        enabled: true                   # Monitor CompletableFuturePath thread pool
 
 management:
   endpoints:
@@ -647,9 +638,9 @@ management:
 
 The starter automatically tracks:
 
-- **Either metrics:** Success/error counts and rates
-- **Validated metrics:** Valid/invalid counts and error distributions
-- **EitherT metrics:** Async operation durations and success rates
+- **EitherPath metrics:** Success/error counts and rates
+- **ValidationPath metrics:** Valid/invalid counts and error distributions
+- **CompletableFuturePath metrics:** Async operation durations and success rates
 - **Thread pool health:** Active threads, queue size, saturation
 
 ### Custom HKJ Endpoint
@@ -665,9 +656,9 @@ Response:
 {
   "configuration": {
     "web": {
-      "eitherResponseEnabled": true,
-      "validatedResponseEnabled": true,
-      "asyncEitherTEnabled": true
+      "eitherPathEnabled": true,
+      "validatedPathEnabled": true,
+      "completableFuturePathEnabled": true
     },
     "jackson": {
       "eitherFormat": "TAGGED",
@@ -675,19 +666,19 @@ Response:
     }
   },
   "metrics": {
-    "either": {
+    "eitherPath": {
       "successCount": 1547,
       "errorCount": 123,
       "totalCount": 1670,
       "successRate": 0.926
     },
-    "validated": {
+    "validationPath": {
       "validCount": 892,
       "invalidCount": 45,
       "totalCount": 937,
       "validRate": 0.952
     },
-    "eitherT": {
+    "completableFuturePath": {
       "successCount": 234,
       "errorCount": 12,
       "totalCount": 246,
@@ -711,16 +702,16 @@ management:
 
 Example Prometheus queries:
 ```promql
-# Either error rate
-rate(hkj_either_invocations_total{result="error"}[5m])
+# EitherPath error rate
+rate(hkj_either_path_invocations_total{result="error"}[5m])
 
-# EitherT p95 latency
+# CompletableFuturePath p95 latency
 histogram_quantile(0.95,
-  rate(hkj_either_t_async_duration_seconds_bucket[5m]))
+  rate(hkj_completable_future_path_async_duration_seconds_bucket[5m]))
 
-# Validated success rate
-sum(rate(hkj_validated_invocations_total{result="valid"}[5m]))
-  / sum(rate(hkj_validated_invocations_total[5m]))
+# ValidationPath success rate
+sum(rate(hkj_validation_path_invocations_total{result="valid"}[5m]))
+  / sum(rate(hkj_validation_path_invocations_total[5m]))
 ```
 
 For complete Actuator integration details, see [hkj-spring/ACTUATOR.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/ACTUATOR.md).
@@ -783,19 +774,18 @@ void shouldAccumulateValidationErrors() throws Exception {
 }
 ```
 
-### Testing EitherT Async Responses
+### Testing CompletableFuturePath Async Responses
 
 ```java
 @Test
-void shouldHandleAsyncEitherTResponse() throws Exception {
+void shouldHandleAsyncCompletableFuturePathResponse() throws Exception {
     MvcResult result = mockMvc.perform(get("/api/users/1/async"))
         .andExpect(request().asyncStarted())  // Verify async started
         .andReturn();
 
     mockMvc.perform(asyncDispatch(result))   // Dispatch async result
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.value.id").value("1"));
+        .andExpect(jsonPath("$.id").value("1"));
 }
 ```
 
@@ -852,7 +842,7 @@ See the [Migration Guide](./migrating_to_functional_errors.md) for a complete st
 - Converting exception-throwing methods to Either
 - Replacing `@ExceptionHandler` methods with functional patterns
 - Migrating validation logic to Validated
-- Converting async operations to EitherT
+- Converting async operations to CompletableFuturePath
 - Maintaining backwards compatibility during migration
 
 ---
@@ -861,7 +851,7 @@ See the [Migration Guide](./migrating_to_functional_errors.md) for a complete st
 
 ### Auto-Configuration
 
-The starter uses Spring Boot 3.x auto-configuration:
+The starter uses Spring Boot 4.x auto-configuration:
 
 ```java
 @AutoConfiguration
@@ -871,9 +861,9 @@ public class HkjWebMvcAutoConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> handlers) {
-        handlers.add(new EitherReturnValueHandler(properties));
-        handlers.add(new ValidatedReturnValueHandler(properties));
-        handlers.add(new EitherTReturnValueHandler(properties));
+        handlers.add(new EitherPathReturnValueHandler(properties));
+        handlers.add(new ValidationPathReturnValueHandler(properties));
+        handlers.add(new CompletableFuturePathReturnValueHandler(properties));
     }
 }
 ```
@@ -887,9 +877,9 @@ Auto-configuration activates when:
 
 Each functional type has a dedicated handler:
 
-1. **EitherReturnValueHandler:** Converts `Either<L, R>` to HTTP responses
-2. **ValidatedReturnValueHandler:** Converts `Validated<E, A>` to HTTP responses
-3. **EitherTReturnValueHandler:** Unwraps `CompletableFuture<Either<L, R>>` for async processing
+1. **EitherPathReturnValueHandler:** Converts `EitherPath<L, R>` to HTTP responses
+2. **ValidationPathReturnValueHandler:** Converts `ValidationPath<E, A>` to HTTP responses
+3. **CompletableFuturePathReturnValueHandler:** Unwraps `CompletableFuturePath<A>` for async processing
 
 Handlers are registered automatically and integrated seamlessly with Spring's request processing lifecycle.
 
@@ -907,7 +897,7 @@ The integration doesn't modify existing Spring Boot behaviour:
 
 ### Can I mix functional and traditional exception handling?
 
-Yes! The integration is non-invasive. You can use `Either`, `Validated`, and `EitherT` alongside traditional `ResponseEntity` and exception-based endpoints in the same application.
+Yes! The integration is non-invasive. You can use `EitherPath`, `ValidationPath`, and `CompletableFuturePath` alongside traditional `ResponseEntity` and exception-based endpoints in the same application.
 
 ### Does this work with Spring WebFlux?
 
@@ -950,7 +940,7 @@ The integration focuses on functional validation patterns. For Spring's `@Valid`
 
 - [Either Monad](../monads/either_monad.md) - Comprehensive Either usage
 - [Validated Monad](../monads/validated_monad.md) - Validation patterns
-- [EitherT Transformer](../transformers/eithert_transformer.md) - Async composition
+- [Effect Path API](../effect/path_types.md) - Path types and async composition
 - [Migration Guide](./migrating_to_functional_errors.md) - Step-by-step migration
 - [Configuration Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/CONFIGURATION.md) - Complete configuration options
 - [Jackson Serialisation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/JACKSON_SERIALIZATION.md) - JSON format details
@@ -964,20 +954,13 @@ The integration focuses on functional validation patterns. For Spring's `@Valid`
 
 The hkj-spring-boot-starter brings functional programming patterns seamlessly into Spring Boot applications:
 
-- ✅ **Return functional types from controllers** - Either, Validated, EitherT
-
-- ✅ **Automatic HTTP response conversion** - No boilerplate required
-
-- ✅ **Explicit, type-safe error handling** - Errors in method signatures
-
-- ✅ **Composable operations** - Functional composition with map/flatMap
-
-- ✅ **Zero configuration** - Auto-configuration handles everything
-
-- ✅ **Production-ready** - Actuator metrics, security integration
-
-- ✅ **Easy to test** - No exception mocking required
-
+- **Return functional types from controllers:** EitherPath, ValidationPath, CompletableFuturePath
+- **Automatic HTTP response conversion:** No boilerplate required
+- **Explicit, type-safe error handling:** Errors in method signatures
+- **Composable operations:** Functional composition with map/via/flatMap
+- **Zero configuration:** Auto-configuration handles everything
+- **Production-ready:** Actuator metrics, security integration
+- **Easy to test:** No exception mocking required
 
 Get started today by adding the dependency and returning functional types from your controllers. The framework handles the rest!
 

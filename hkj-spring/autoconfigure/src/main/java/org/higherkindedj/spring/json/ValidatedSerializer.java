@@ -2,14 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.json;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import java.io.IOException;
 import org.higherkindedj.hkt.validated.Validated;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Jackson serializer for {@link Validated} types.
+ * Jackson 3.x serializer for {@link Validated} types.
  *
  * <p>Serializes Validated values as JSON objects with the following structure:
  *
@@ -28,35 +27,37 @@ import org.higherkindedj.hkt.validated.Validated;
  * </pre>
  *
  * <p>This format matches what the {@link
- * org.higherkindedj.spring.web.returnvalue.ValidatedReturnValueHandler} produces, ensuring
+ * org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler} produces, ensuring
  * consistency across nested and top-level Validated values.
  */
-public class ValidatedSerializer extends JsonSerializer<Validated<?, ?>> {
+public class ValidatedSerializer extends StdSerializer<Validated<?, ?>> {
+
+  private static final long serialVersionUID = 1L;
+
+  @SuppressWarnings("unchecked")
+  public ValidatedSerializer() {
+    super((Class<Validated<?, ?>>) (Class<?>) Validated.class);
+  }
 
   @Override
-  public void serialize(Validated<?, ?> value, JsonGenerator gen, SerializerProvider serializers)
-      throws IOException {
+  public void serialize(Validated<?, ?> value, JsonGenerator gen, SerializationContext ctxt) {
     value.fold(
         errors -> {
-          try {
-            gen.writeStartObject();
-            gen.writeBooleanField("valid", false);
-            gen.writeObjectField("errors", errors);
-            gen.writeEndObject();
-          } catch (IOException e) {
-            throw new RuntimeException("Failed to serialize Validated.Invalid", e);
-          }
+          gen.writeStartObject();
+          gen.writeName("valid");
+          gen.writeBoolean(false);
+          gen.writeName("errors");
+          gen.writePOJO(errors);
+          gen.writeEndObject();
           return null;
         },
         valid -> {
-          try {
-            gen.writeStartObject();
-            gen.writeBooleanField("valid", true);
-            gen.writeObjectField("value", valid);
-            gen.writeEndObject();
-          } catch (IOException e) {
-            throw new RuntimeException("Failed to serialize Validated.Valid", e);
-          }
+          gen.writeStartObject();
+          gen.writeName("valid");
+          gen.writeBoolean(true);
+          gen.writeName("value");
+          gen.writePOJO(valid);
+          gen.writeEndObject();
           return null;
         });
   }

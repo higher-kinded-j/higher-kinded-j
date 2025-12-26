@@ -4,8 +4,10 @@ package org.higherkindedj.spring.security;
 
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
@@ -49,15 +51,16 @@ public class EitherAuthorizationManager
     implements AuthorizationManager<RequestAuthorizationContext> {
 
   /**
-   * Checks authorization using Either for functional decision making.
+   * Authorizes access using Either for functional decision making.
    *
    * @param authentication the authentication supplier
    * @param context the request context
-   * @return authorization decision
+   * @return authorization result (may be null when abstaining)
    */
   @Override
-  public AuthorizationDecision check(
-      Supplier<Authentication> authentication, RequestAuthorizationContext context) {
+  public @Nullable AuthorizationResult authorize(
+      Supplier<? extends @Nullable Authentication> authentication,
+      RequestAuthorizationContext context) {
 
     Either<AuthorizationError, AuthorizationSuccess> result =
         checkAuthentication(authentication.get())

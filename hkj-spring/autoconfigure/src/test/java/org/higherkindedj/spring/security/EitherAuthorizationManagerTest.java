@@ -53,7 +53,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision).isNotNull();
       assertThat(decision.isGranted()).isTrue();
@@ -71,7 +72,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isTrue();
     }
@@ -86,7 +88,8 @@ class EitherAuthorizationManagerTest {
     void shouldDenyAccessWhenAuthenticationIsNull() {
       Supplier<Authentication> authSupplier = () -> null;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision).isNotNull();
       assertThat(decision.isGranted()).isFalse();
@@ -99,7 +102,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isFalse();
     }
@@ -112,7 +116,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isFalse();
     }
@@ -127,7 +132,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isFalse();
     }
@@ -140,7 +146,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isFalse();
     }
@@ -165,7 +172,8 @@ class EitherAuthorizationManagerTest {
         when(request.getRequestURI()).thenReturn(path);
         Supplier<Authentication> authSupplier = () -> authentication;
 
-        AuthorizationDecision decision = manager.check(authSupplier, context);
+        AuthorizationDecision decision =
+            (AuthorizationDecision) manager.authorize(authSupplier, context);
 
         assertThat(decision.isGranted()).as("Should grant access to path: " + path).isTrue();
       }
@@ -188,7 +196,8 @@ class EitherAuthorizationManagerTest {
         when(request.getRequestURI()).thenReturn(path);
         Supplier<Authentication> authSupplier = () -> authentication;
 
-        AuthorizationDecision decision = manager.check(authSupplier, context);
+        AuthorizationDecision decision =
+            (AuthorizationDecision) manager.authorize(authSupplier, context);
 
         assertThat(decision.isGranted()).as("Should deny access to path: " + path).isFalse();
       }
@@ -216,7 +225,8 @@ class EitherAuthorizationManagerTest {
         doReturn(createAuthorities(role)).when(authentication).getAuthorities();
         Supplier<Authentication> authSupplier = () -> authentication;
 
-        AuthorizationDecision decision = manager.check(authSupplier, context);
+        AuthorizationDecision decision =
+            (AuthorizationDecision) manager.authorize(authSupplier, context);
 
         assertThat(decision.isGranted()).as("Should deny access for role: " + role).isFalse();
       }
@@ -232,7 +242,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isTrue();
     }
@@ -249,7 +260,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isTrue();
     }
@@ -270,7 +282,7 @@ class EitherAuthorizationManagerTest {
       Supplier<Authentication> authSupplier = () -> authentication;
 
       // Should not throw exception
-      assertThatCode(() -> manager.check(authSupplier, context)).doesNotThrowAnyException();
+      assertThatCode(() -> manager.authorize(authSupplier, context)).doesNotThrowAnyException();
     }
 
     @Test
@@ -283,7 +295,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isTrue();
     }
@@ -298,7 +311,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isTrue();
     }
@@ -316,7 +330,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isFalse();
       // Should not have called getAuthorities since it short-circuited
@@ -333,7 +348,8 @@ class EitherAuthorizationManagerTest {
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      AuthorizationDecision decision = manager.check(authSupplier, context);
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
 
       assertThat(decision.isGranted()).isTrue();
 
