@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.util.validation;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Handles domain-specific validations for transformers, witnesses, etc.
@@ -37,7 +39,7 @@ public enum TransformerValidator {
    * // Error: "Outer Monad cannot be null for OptionalT.lift"
    * </pre>
    */
-  public <F> Monad<F> requireOuterMonad(
+  public <F extends WitnessArity<TypeArity.Unary>> Monad<F> requireOuterMonad(
       Monad<F> monad, Class<?> transformerClass, Operation methodName) {
 
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");

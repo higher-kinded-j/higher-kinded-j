@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.reader_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link ReaderT ReaderT&lt;F, R, A&gt;} monad transformer.
@@ -38,7 +40,8 @@ import org.higherkindedj.hkt.Kind;
  * @see ReaderTKindHelper
  * @see Kind
  */
-public interface ReaderTKind<F, R_ENV, A> extends Kind<ReaderTKind.Witness<F, R_ENV>, A> {
+public interface ReaderTKind<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>
+    extends Kind<ReaderTKind.Witness<F, R_ENV>, A> {
 
   /**
    * The phantom type marker (witness type) for the {@code ReaderT<F, R, ?>} type constructor. This
@@ -50,7 +53,7 @@ public interface ReaderTKind<F, R_ENV, A> extends Kind<ReaderTKind.Witness<F, R_
    * @param <OUTER_F> The witness type of the outer monad.
    * @param <ENV_R> The type of the environment {@code R} associated with this witness.
    */
-  final class Witness<OUTER_F, ENV_R> {
+  final class Witness<OUTER_F, ENV_R> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

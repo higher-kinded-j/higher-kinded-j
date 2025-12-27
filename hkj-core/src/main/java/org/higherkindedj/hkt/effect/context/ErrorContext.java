@@ -10,6 +10,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.Either;
@@ -57,7 +59,8 @@ import org.higherkindedj.hkt.lazy.ThrowableSupplier;
  * @param <E> the error type
  * @param <A> the success value type
  */
-public final class ErrorContext<F, E, A> implements EffectContext<F, A> {
+public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
+    implements EffectContext<F, A> {
 
   private final EitherT<F, E, A> transformer;
   private final Monad<F> outerMonad;

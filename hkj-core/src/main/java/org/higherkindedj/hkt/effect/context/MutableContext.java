@@ -10,7 +10,9 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.io.IO;
@@ -59,7 +61,8 @@ import org.higherkindedj.hkt.state_t.StateTMonad;
  * @param <S> the state type
  * @param <A> the value type
  */
-public final class MutableContext<F, S, A> implements EffectContext<F, A> {
+public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
+    implements EffectContext<F, A> {
 
   private final StateT<S, F, A> transformer;
   private final Monad<F> outerMonad;

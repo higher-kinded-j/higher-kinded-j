@@ -52,6 +52,10 @@ subprojects {
         gradlePluginPortal()
     }
 
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.addAll(listOf("-Xmaxerrs", "10000"))
+    }
+
     // Apply Spotless configuration to all java sources in subprojects
     spotless {
         lineEndings = com.diffplug.spotless.LineEnding.UNIX

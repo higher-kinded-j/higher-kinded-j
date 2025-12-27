@@ -7,6 +7,8 @@ import static java.util.Objects.requireNonNull;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Coyoneda is the "free functor" - it provides a Functor instance for any type constructor F
@@ -99,7 +101,7 @@ import org.higherkindedj.hkt.Kind;
  * @see CoyonedaFunctor
  * @see org.higherkindedj.hkt.Functor
  */
-public sealed interface Coyoneda<F, A> permits Coyoneda.Impl {
+public sealed interface Coyoneda<F extends WitnessArity<TypeArity.Unary>, A> permits Coyoneda.Impl {
 
   /**
    * Lifts a {@code Kind<F, A>} into Coyoneda with the identity transformation.
@@ -118,7 +120,7 @@ public sealed interface Coyoneda<F, A> permits Coyoneda.Impl {
    * @return A Coyoneda wrapping the value with identity transformation
    * @throws NullPointerException if fa is null
    */
-  static <F, A> Coyoneda<F, A> lift(Kind<F, A> fa) {
+  static <F extends WitnessArity<TypeArity.Unary>, A> Coyoneda<F, A> lift(Kind<F, A> fa) {
     requireNonNull(fa, "Kind to lift cannot be null");
     return new Impl<>(fa, Function.identity());
   }
@@ -137,7 +139,8 @@ public sealed interface Coyoneda<F, A> permits Coyoneda.Impl {
    * @return A Coyoneda with the given value and transformation
    * @throws NullPointerException if fx or transform is null
    */
-  static <F, X, A> Coyoneda<F, A> apply(Kind<F, X> fx, Function<? super X, ? extends A> transform) {
+  static <F extends WitnessArity<TypeArity.Unary>, X, A> Coyoneda<F, A> apply(
+      Kind<F, X> fx, Function<? super X, ? extends A> transform) {
     requireNonNull(fx, "Kind value cannot be null");
     requireNonNull(transform, "Transform function cannot be null");
     return new Impl<>(fx, transform);
@@ -212,8 +215,8 @@ public sealed interface Coyoneda<F, A> permits Coyoneda.Impl {
    * @param <X> The original value type (existential)
    * @param <A> The current result type
    */
-  record Impl<F, X, A>(Kind<F, X> fx, Function<? super X, ? extends A> transform)
-      implements Coyoneda<F, A> {
+  record Impl<F extends WitnessArity<TypeArity.Unary>, X, A>(
+      Kind<F, X> fx, Function<? super X, ? extends A> transform) implements Coyoneda<F, A> {
 
     /**
      * Creates a new Impl with validation.

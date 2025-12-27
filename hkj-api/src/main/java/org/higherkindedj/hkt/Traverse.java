@@ -136,7 +136,7 @@ import org.jspecify.annotations.NullMarked;
  * @see Foldable
  */
 @NullMarked
-public interface Traverse<T> extends Functor<T>, Foldable<T> {
+public interface Traverse<T extends WitnessArity<TypeArity.Unary>> extends Functor<T>, Foldable<T> {
 
   /**
    * Traverses this structure from left to right, applying an effectful function {@code f} to each
@@ -212,7 +212,7 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    * @throws NullPointerException if {@code applicative}, {@code f}, or {@code ta} is null
    *     (implementation-dependent).
    */
-  <G, A, B> Kind<G, Kind<T, B>> traverse(
+  <G extends WitnessArity<TypeArity.Unary>, A, B> Kind<G, Kind<T, B>> traverse(
       Applicative<G> applicative,
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<T, A> ta);
@@ -301,7 +301,7 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    * @throws NullPointerException if {@code applicative} or {@code tga} is null
    *     (implementation-dependent).
    */
-  default <G, A> Kind<G, Kind<T, A>> sequenceA(
+  default <G extends WitnessArity<TypeArity.Unary>, A> Kind<G, Kind<T, A>> sequenceA(
       Applicative<G> applicative, Kind<T, Kind<G, A>> tga) {
     // Implementation using traverse with identity function
     // The cast for '? extends A' to 'A' is generally safe here due to how sequence is used.

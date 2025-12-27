@@ -7,6 +7,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * An **Iso** (Isomorphism) is a reversible optic representing a lossless, two-way conversion
@@ -53,7 +55,8 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * to construct a new {@code S} from the result.
    */
   @Override
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
     return app.map(this::reverseGet, f.apply(this.get(s)));
   }
 
@@ -181,7 +184,8 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
   default Traversal<S, A> asTraversal() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         return Iso.this.modifyF(f, s, app);
       }
     };

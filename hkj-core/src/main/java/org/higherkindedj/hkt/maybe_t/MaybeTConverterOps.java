@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.maybe_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
@@ -25,7 +27,8 @@ public interface MaybeTConverterOps {
    * @return The {@code Kind} representation.
    * @throws NullPointerException if {@code maybeT} is {@code null}.
    */
-  <F, A> Kind<MaybeTKind.Witness<F>, A> widen(MaybeT<F, A> maybeT);
+  <F extends WitnessArity<TypeArity.Unary>, A> Kind<MaybeTKind.Witness<F>, A> widen(
+      MaybeT<F, A> maybeT);
 
   /**
    * Narrows a {@code Kind<MaybeTKind.Witness<F>, A>} back to its concrete {@link MaybeT
@@ -37,5 +40,6 @@ public interface MaybeTConverterOps {
    * @return The unwrapped, non-null {@link MaybeT MaybeT&lt;F, A&gt;} instance.
    * @throws KindUnwrapException if {@code kind} is null or not a valid {@link MaybeT} instance.
    */
-  <F, A> MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind);
+  <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> narrow(
+      @Nullable Kind<MaybeTKind.Witness<F>, A> kind);
 }

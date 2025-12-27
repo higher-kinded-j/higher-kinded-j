@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Composable;
 import org.higherkindedj.hkt.free_ap.FreeAp;
@@ -63,7 +65,8 @@ import org.higherkindedj.hkt.function.Function3;
  * @param <F> the functor witness type
  * @param <A> the result type
  */
-public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
+public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
+    implements Composable<A>, Combinable<A> {
 
   private final FreeAp<F, A> freeAp;
   private final Functor<F> functor;
@@ -85,7 +88,8 @@ public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
    * @return a FreeApPath containing the value
    * @throws NullPointerException if functor is null
    */
-  public static <F, A> FreeApPath<F, A> pure(A value, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> pure(
+      A value, Functor<F> functor) {
     Objects.requireNonNull(functor, "functor must not be null");
     return new FreeApPath<>(FreeAp.pure(value), functor);
   }
@@ -103,7 +107,8 @@ public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
    * @return a FreeApPath containing the lifted instruction
    * @throws NullPointerException if fa or functor is null
    */
-  public static <F, A> FreeApPath<F, A> liftF(Kind<F, A> fa, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> liftF(
+      Kind<F, A> fa, Functor<F> functor) {
     Objects.requireNonNull(fa, "fa must not be null");
     Objects.requireNonNull(functor, "functor must not be null");
     return new FreeApPath<>(FreeAp.lift(fa), functor);
@@ -119,7 +124,8 @@ public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
    * @return a FreeApPath wrapping the FreeAp
    * @throws NullPointerException if freeAp or functor is null
    */
-  public static <F, A> FreeApPath<F, A> of(FreeAp<F, A> freeAp, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> of(
+      FreeAp<F, A> freeAp, Functor<F> functor) {
     return new FreeApPath<>(freeAp, functor);
   }
 
@@ -137,7 +143,8 @@ public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
    * @return a GenericPath containing the interpreted result
    * @throws NullPointerException if interpreter or targetMonad is null
    */
-  public <G> GenericPath<G, A> foldMap(Natural<F, G> interpreter, Monad<G> targetMonad) {
+  public <G extends WitnessArity<TypeArity.Unary>> GenericPath<G, A> foldMap(
+      Natural<F, G> interpreter, Monad<G> targetMonad) {
     Objects.requireNonNull(interpreter, "interpreter must not be null");
     Objects.requireNonNull(targetMonad, "targetMonad must not be null");
     Kind<G, A> result = freeAp.foldMap(interpreter, targetMonad);
@@ -156,7 +163,8 @@ public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
    * @return the interpreted result as a Kind
    * @throws NullPointerException if interpreter or targetApplicative is null
    */
-  public <G> Kind<G, A> foldMapKind(Natural<F, G> interpreter, Applicative<G> targetApplicative) {
+  public <G extends WitnessArity<TypeArity.Unary>> Kind<G, A> foldMapKind(
+      Natural<F, G> interpreter, Applicative<G> targetApplicative) {
     Objects.requireNonNull(interpreter, "interpreter must not be null");
     Objects.requireNonNull(targetApplicative, "targetApplicative must not be null");
     return freeAp.foldMap(interpreter, targetApplicative);
@@ -171,7 +179,7 @@ public final class FreeApPath<F, A> implements Composable<A>, Combinable<A> {
    * @return the interpreted result as a Kind
    * @throws NullPointerException if interpreter or targetApplicative is null
    */
-  public <G> Kind<G, A> foldMapWith(
+  public <G extends WitnessArity<TypeArity.Unary>> Kind<G, A> foldMapWith(
       NaturalTransformation<F, G> interpreter, Applicative<G> targetApplicative) {
     Objects.requireNonNull(interpreter, "interpreter must not be null");
     Objects.requireNonNull(targetApplicative, "targetApplicative must not be null");

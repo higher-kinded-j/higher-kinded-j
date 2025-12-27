@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.effect.IOPath;
@@ -242,7 +244,8 @@ public final class ForPath {
    * @param <A> the value type
    * @return the first step of the builder
    */
-  public static <F, A> GenericPathSteps1<F, A> from(GenericPath<F, A> source) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> GenericPathSteps1<F, A> from(
+      GenericPath<F, A> source) {
     Objects.requireNonNull(source, "source must not be null");
     return new GenericPathSteps1<>(source);
   }
@@ -1261,7 +1264,7 @@ public final class ForPath {
   // ========================================================================
 
   /** First step in a GenericPath comprehension. */
-  public static final class GenericPathSteps1<F, A> {
+  public static final class GenericPathSteps1<F extends WitnessArity<TypeArity.Unary>, A> {
     private final Monad<F> monad;
     private final Kind<F, A> computation;
 
@@ -1294,7 +1297,7 @@ public final class ForPath {
   }
 
   /** Second step in a GenericPath comprehension. */
-  public static final class GenericPathSteps2<F, A, B> {
+  public static final class GenericPathSteps2<F extends WitnessArity<TypeArity.Unary>, A, B> {
     private final Monad<F> monad;
     private final Kind<F, Tuple2<A, B>> computation;
 
@@ -1333,7 +1336,7 @@ public final class ForPath {
   }
 
   /** Third step in a GenericPath comprehension. */
-  public static final class GenericPathSteps3<F, A, B, C> {
+  public static final class GenericPathSteps3<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
     private final Monad<F> monad;
     private final Kind<F, Tuple3<A, B, C>> computation;
 

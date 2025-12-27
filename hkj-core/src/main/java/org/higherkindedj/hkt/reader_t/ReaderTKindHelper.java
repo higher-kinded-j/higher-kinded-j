@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.reader_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -33,7 +35,8 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    * @throws NullPointerException if {@code readerT} is null.
    */
   @Override
-  public <F, R_ENV, A> Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(ReaderT<F, R_ENV, A> readerT) {
+  public <F extends WitnessArity<TypeArity.Unary>, R_ENV, A>
+      Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(ReaderT<F, R_ENV, A> readerT) {
     Validation.kind().requireForWiden(readerT, READER_T_CLASS);
     return readerT;
   }
@@ -51,7 +54,7 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    *     valid {@link ReaderT} instance.
    */
   @Override
-  public <F, R_ENV, A> ReaderT<F, R_ENV, A> narrow(
+  public <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> narrow(
       @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, READER_T_CLASS);
   }

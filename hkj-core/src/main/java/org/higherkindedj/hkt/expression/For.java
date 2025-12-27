@@ -10,6 +10,8 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
@@ -94,7 +96,8 @@ public final class For {
    * @param <A> The value type of the source.
    * @return The first step of the builder, ready for the next operation.
    */
-  public static <M, A> MonadicSteps1<M, A> from(Monad<M> monad, Kind<M, A> source) {
+  public static <M extends WitnessArity<TypeArity.Unary>, A> MonadicSteps1<M, A> from(
+      Monad<M> monad, Kind<M, A> source) {
     return new MonadicSteps1<>(monad, source);
   }
 
@@ -108,7 +111,8 @@ public final class For {
    * @param <A> The value type of the source.
    * @return The first step of the filterable builder, ready for the next operation.
    */
-  public static <M, A> FilterableSteps1<M, A> from(MonadZero<M> monad, Kind<M, A> source) {
+  public static <M extends WitnessArity<TypeArity.Unary>, A> FilterableSteps1<M, A> from(
+      MonadZero<M> monad, Kind<M, A> source) {
     return new FilterableSteps1<>(monad, source);
   }
 
@@ -118,7 +122,7 @@ public final class For {
    *
    * @param <M> The witness type of the Monad.
    */
-  public sealed interface Steps<M>
+  public sealed interface Steps<M extends WitnessArity<TypeArity.Unary>>
       permits MonadicSteps1,
           MonadicSteps2,
           MonadicSteps3,
@@ -139,7 +143,8 @@ public final class For {
    * @param <M> The witness type of the Monad.
    * @param <A> The value type of the initial computation.
    */
-  public static final class MonadicSteps1<M, A> implements Steps<M> {
+  public static final class MonadicSteps1<M extends WitnessArity<TypeArity.Unary>, A>
+      implements Steps<M> {
     private final Monad<M> monad;
     private final Kind<M, A> computation;
 
@@ -244,7 +249,8 @@ public final class For {
    * @param <A> The value type of the first result.
    * @param <B> The value type of the second result.
    */
-  public static final class MonadicSteps2<M, A, B> implements Steps<M> {
+  public static final class MonadicSteps2<M extends WitnessArity<TypeArity.Unary>, A, B>
+      implements Steps<M> {
     private final Monad<M> monad;
     private final Kind<M, Tuple2<A, B>> computation;
 
@@ -332,7 +338,8 @@ public final class For {
    * Represents the third step in a non-filterable for-comprehension, holding a tuple of three
    * results.
    */
-  public static final class MonadicSteps3<M, A, B, C> implements Steps<M> {
+  public static final class MonadicSteps3<M extends WitnessArity<TypeArity.Unary>, A, B, C>
+      implements Steps<M> {
     private final Monad<M> monad;
     private final Kind<M, Tuple3<A, B, C>> computation;
 
@@ -417,7 +424,8 @@ public final class For {
    * Represents the fourth step in a non-filterable for-comprehension, holding a tuple of four
    * results.
    */
-  public static final class MonadicSteps4<M, A, B, C, D> implements Steps<M> {
+  public static final class MonadicSteps4<M extends WitnessArity<TypeArity.Unary>, A, B, C, D>
+      implements Steps<M> {
     private final Monad<M> monad;
     private final Kind<M, Tuple4<A, B, C, D>> computation;
 
@@ -509,7 +517,8 @@ public final class For {
    * Represents the fifth (and final supported) step in a non-filterable for-comprehension, holding
    * a tuple of five results.
    */
-  public static final class MonadicSteps5<M, A, B, C, D, E> implements Steps<M> {
+  public static final class MonadicSteps5<M extends WitnessArity<TypeArity.Unary>, A, B, C, D, E>
+      implements Steps<M> {
     private final Monad<M> monad;
     private final Kind<M, Tuple5<A, B, C, D, E>> computation;
 
@@ -553,7 +562,8 @@ public final class For {
    * @param <M> The witness type of the Monad.
    * @param <A> The value type of the initial computation.
    */
-  public static final class FilterableSteps1<M, A> implements Steps<M> {
+  public static final class FilterableSteps1<M extends WitnessArity<TypeArity.Unary>, A>
+      implements Steps<M> {
     private final MonadZero<M> monad;
     private final Kind<M, A> computation;
 
@@ -684,7 +694,8 @@ public final class For {
    * @param <A> The value type of the first result.
    * @param <B> The value type of the second result.
    */
-  public static final class FilterableSteps2<M, A, B> implements Steps<M> {
+  public static final class FilterableSteps2<M extends WitnessArity<TypeArity.Unary>, A, B>
+      implements Steps<M> {
     private final MonadZero<M> monad;
     private final Kind<M, Tuple2<A, B>> computation;
 
@@ -799,7 +810,8 @@ public final class For {
   /**
    * Represents the third step in a filterable for-comprehension, holding a tuple of three results.
    */
-  public static final class FilterableSteps3<M, A, B, C> implements Steps<M> {
+  public static final class FilterableSteps3<M extends WitnessArity<TypeArity.Unary>, A, B, C>
+      implements Steps<M> {
     private final MonadZero<M> monad;
     private final Kind<M, Tuple3<A, B, C>> computation;
 
@@ -919,7 +931,8 @@ public final class For {
   /**
    * Represents the fourth step in a filterable for-comprehension, holding a tuple of four results.
    */
-  public static final class FilterableSteps4<M, A, B, C, D> implements Steps<M> {
+  public static final class FilterableSteps4<M extends WitnessArity<TypeArity.Unary>, A, B, C, D>
+      implements Steps<M> {
     private final MonadZero<M> monad;
     private final Kind<M, Tuple4<A, B, C, D>> computation;
 
@@ -1048,7 +1061,8 @@ public final class For {
   /**
    * Represents the fifth step in a filterable for-comprehension, holding a tuple of five results.
    */
-  public static final class FilterableSteps5<M, A, B, C, D, E> implements Steps<M> {
+  public static final class FilterableSteps5<M extends WitnessArity<TypeArity.Unary>, A, B, C, D, E>
+      implements Steps<M> {
     private final MonadZero<M> monad;
     private final Kind<M, Tuple5<A, B, C, D, E>> computation;
 

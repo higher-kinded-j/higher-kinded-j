@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.state;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link State}{@code <S, A>} type. In the HKT pattern {@code Kind<F,
@@ -34,7 +36,7 @@ public interface StateKind<S, A> extends Kind<StateKind.Witness<S>, A> {
    *
    * @param <TYPE_S> The type of the environment {@code S} associated with this witness.
    */
-  final class Witness<TYPE_S> {
+  final class Witness<TYPE_S> implements WitnessArity<TypeArity.Unary> {
     // Private constructor to prevent instantiation of the witness type itself.
     // Its purpose is purely for type-level representation.
     private Witness() {}

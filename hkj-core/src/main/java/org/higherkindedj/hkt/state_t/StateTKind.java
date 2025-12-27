@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.state_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -66,7 +68,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    * @param <S> The state type.
    * @param <F> The higher-kinded type witness for the underlying monad.
    */
-  final class Witness<S, F> {
+  final class Witness<S, F> implements WitnessArity<TypeArity.Unary> {
     // Private constructor to prevent instantiation of the witness type itself.
     // Its purpose is purely for type-level representation.
     private Witness() {}
@@ -80,7 +82,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *
    * @param <S> The state type.
    */
-  final class WitnessS<S> {
+  final class WitnessS<S> implements WitnessArity<TypeArity.Unary> {
     private WitnessS() {}
   }
 
@@ -92,7 +94,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *
    * @param <F> The higher-kinded type witness for the underlying monad.
    */
-  final class WitnessF<F> {
+  final class WitnessF<F> implements WitnessArity<TypeArity.Unary> {
     private WitnessF() {}
   }
 
@@ -114,7 +116,8 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
    *     not actually an instance of {@link StateT} (or a compatible subtype).
    */
-  static <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
+  static <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> narrow(
+      @Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
 
@@ -144,7 +147,8 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *     not actually an instance of {@link StateT}.
    */
   @SuppressWarnings("unchecked")
-  static <S, F, A> StateT<S, F, A> narrowK(@Nullable Kind<?, A> kind) {
+  static <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> narrowK(
+      @Nullable Kind<?, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
 }

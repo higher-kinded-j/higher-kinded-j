@@ -10,6 +10,8 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -290,7 +292,7 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return A single effect containing the list of results
    */
-  public static <F, A> Kind<F, List<A>> sequenceList(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> sequenceList(
       final List<Kind<F, A>> effects, final Applicative<F> app) {
     Kind<F, List<A>> result = app.of(new ArrayList<>());
 

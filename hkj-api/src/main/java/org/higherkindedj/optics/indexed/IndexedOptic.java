@@ -6,6 +6,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Optic;
 import org.jspecify.annotations.NullMarked;
 
@@ -54,7 +56,8 @@ public interface IndexedOptic<I, S, A> {
    * @param <F> The witness type for the Applicative context
    * @return The updated structure 'S' wrapped in the context 'F'
    */
-  <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app);
+  <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+      BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app);
 
   /**
    * Converts this indexed optic to a regular (non-indexed) optic by discarding the index
@@ -69,7 +72,8 @@ public interface IndexedOptic<I, S, A> {
     IndexedOptic<I, S, A> self = this;
     return new Optic<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         return self.imodifyF((i, a) -> f.apply(a), s, app);
       }
     };
@@ -108,7 +112,7 @@ public interface IndexedOptic<I, S, A> {
     IndexedOptic<I, S, A> self = this;
     return new IndexedOptic<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
           BiFunction<Pair<I, J>, B, Kind<F, B>> f, S source, Applicative<F> app) {
         return self.imodifyF(
             (i, a) -> other.imodifyF((j, b) -> f.apply(new Pair<>(i, j), b), a, app), source, app);
@@ -141,7 +145,8 @@ public interface IndexedOptic<I, S, A> {
     IndexedOptic<I, S, A> self = this;
     return new IndexedOptic<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(BiFunction<I, B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+          BiFunction<I, B, Kind<F, B>> f, S source, Applicative<F> app) {
         return self.imodifyF((i, a) -> other.modifyF(b -> f.apply(i, b), a, app), source, app);
       }
     };

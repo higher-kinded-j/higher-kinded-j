@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -27,7 +29,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * @param <F> The underlying instruction set type (not required to have any instances)
  */
-public class FreeApFunctor<F> implements Functor<FreeApKind.Witness<F>> {
+public class FreeApFunctor<F extends WitnessArity<TypeArity.Unary>>
+    implements Functor<FreeApKind.Witness<F>> {
 
   private static final Class<FreeApFunctor> FREE_AP_FUNCTOR_CLASS = FreeApFunctor.class;
 
@@ -43,7 +46,7 @@ public class FreeApFunctor<F> implements Functor<FreeApKind.Witness<F>> {
    * @return A FreeApFunctor instance
    */
   @SuppressWarnings("unchecked")
-  public static <F> FreeApFunctor<F> instance() {
+  public static <F extends WitnessArity<TypeArity.Unary>> FreeApFunctor<F> instance() {
     return (FreeApFunctor<F>) INSTANCE;
   }
 

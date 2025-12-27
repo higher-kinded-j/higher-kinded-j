@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.id;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -21,7 +23,7 @@ public interface IdKind<A> extends Kind<IdKind.Witness, A> {
    * The phantom type marker (witness type) for the {@link Id} type constructor. This is used as the
    * 'F' in {@code Kind<F, A>} for {@code Id}.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     // Private constructor to prevent instantiation of the witness type itself.
     private Witness() {}
   }

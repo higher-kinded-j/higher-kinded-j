@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.reader;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A higher-kinded type marker for the {@link Reader} monad.
@@ -55,7 +57,7 @@ public interface ReaderKind<R, A> extends Kind<ReaderKind.Witness<R>, A> {
    *
    * @param <TYPE_R> The type of the environment {@code R} associated with this witness.
    */
-  final class Witness<TYPE_R> {
+  final class Witness<TYPE_R> implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
   }
 }

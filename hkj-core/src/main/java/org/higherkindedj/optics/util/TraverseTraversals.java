@@ -11,6 +11,8 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
@@ -82,7 +84,8 @@ public final class TraverseTraversals {
    * @return a Traversal over the container's elements; never null
    * @throws NullPointerException if traverse is null
    */
-  public static <F, A> Traversal<Kind<F, A>, A> forTraverse(Traverse<F> traverse) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Traversal<Kind<F, A>, A> forTraverse(
+      Traverse<F> traverse) {
     Objects.requireNonNull(traverse, "traverse must not be null");
 
     return new Traversal<>() {

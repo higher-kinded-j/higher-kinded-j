@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.list; // Assuming a package structure
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Represents {@link java.util.List} as a Higher-Kinded Type. This interface, {@code ListKind<A>},
@@ -17,7 +19,7 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
    * The phantom type marker for the List type constructor. This is used as the 'F' in {@code
    * Kind<F, A>}.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
   }
 }

@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.either_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 
 /**
@@ -40,7 +42,8 @@ import org.higherkindedj.hkt.either.Either;
  * @see Kind
  * @see Either
  */
-public interface EitherTKind<F, L, R> extends Kind<EitherTKind.Witness<F, L>, R> {
+public interface EitherTKind<F extends WitnessArity<TypeArity.Unary>, L, R>
+    extends Kind<EitherTKind.Witness<F, L>, R> {
 
   /**
    * The phantom type marker (witness type) for the {@code EitherT<F, L, ?>} type constructor. This
@@ -52,7 +55,7 @@ public interface EitherTKind<F, L, R> extends Kind<EitherTKind.Witness<F, L>, R>
    * @param <OUTER_F> The witness type of the outer monad.
    * @param <TYPE_L> The type of the "Left" value {@code L} associated with this witness.
    */
-  final class Witness<OUTER_F, TYPE_L> {
+  final class Witness<OUTER_F, TYPE_L> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

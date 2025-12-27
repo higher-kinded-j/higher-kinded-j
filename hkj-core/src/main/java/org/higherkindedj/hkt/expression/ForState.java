@@ -6,6 +6,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 
 /**
@@ -59,7 +61,8 @@ public final class ForState {
    * @return A {@link Steps} builder for chaining operations.
    * @throws NullPointerException if any argument is null.
    */
-  public static <M, S> Steps<M, S> withState(Monad<M> monad, Kind<M, S> initialState) {
+  public static <M extends WitnessArity<TypeArity.Unary>, S> Steps<M, S> withState(
+      Monad<M> monad, Kind<M, S> initialState) {
     Objects.requireNonNull(monad, "monad must not be null");
     Objects.requireNonNull(initialState, "initialState must not be null");
     return new ForStateStepsImpl<>(monad, initialState);
@@ -71,7 +74,7 @@ public final class ForState {
    * @param <M> The witness type for the monad context.
    * @param <S> The type of the state.
    */
-  public interface Steps<M, S> {
+  public interface Steps<M extends WitnessArity<TypeArity.Unary>, S> {
 
     /**
      * Performs a monadic operation using the current state, keeping the state unchanged.
@@ -138,7 +141,8 @@ public final class ForState {
   }
 
   /** Implementation of the state steps builder. */
-  private static final class ForStateStepsImpl<M, S> implements Steps<M, S> {
+  private static final class ForStateStepsImpl<M extends WitnessArity<TypeArity.Unary>, S>
+      implements Steps<M, S> {
     private final Monad<M> monad;
     private final Kind<M, S> state;
 

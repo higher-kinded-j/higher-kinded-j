@@ -57,7 +57,7 @@ import org.jspecify.annotations.Nullable;
  * @see Kind
  */
 @NullMarked
-public interface Applicative<F> extends Functor<F> {
+public interface Applicative<F extends WitnessArity<TypeArity.Unary>> extends Functor<F> {
 
   /**
    * Lifts a pure value {@code value} into the applicative context {@code F}. This is also known in

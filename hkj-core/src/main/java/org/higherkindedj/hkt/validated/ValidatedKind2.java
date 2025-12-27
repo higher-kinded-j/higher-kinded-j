@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind2 interface marker for the {@link Validated Validated&lt;E, A&gt;} type in Higher-Kinded-J.
@@ -50,7 +52,7 @@ public interface ValidatedKind2<E, A> extends Kind2<ValidatedKind2.Witness, E, A
    * bifunctor operations. It is used as the first type argument to {@link Kind2} (i.e., {@code F}
    * in {@code Kind2<F, E, A>}) for {@code Validated} instances.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Binary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

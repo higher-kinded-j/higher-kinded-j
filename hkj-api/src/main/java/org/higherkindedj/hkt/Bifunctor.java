@@ -264,7 +264,7 @@ import org.jspecify.annotations.NullMarked;
  * @see Kind2
  */
 @NullMarked
-public interface Bifunctor<F> {
+public interface Bifunctor<F extends WitnessArity<TypeArity.Binary>> {
 
   /**
    * Maps over both type parameters simultaneously, applying {@code f} to the first parameter and

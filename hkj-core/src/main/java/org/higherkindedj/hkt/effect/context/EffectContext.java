@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.effect.context;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Base interface for effect contexts that add capabilities to computations.
@@ -30,7 +32,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <F> the underlying effect type witness (e.g., {@code IOKind.Witness})
  * @param <A> the value type
  */
-public sealed interface EffectContext<F, A>
+public sealed interface EffectContext<F extends WitnessArity<TypeArity.Unary>, A>
     permits ErrorContext, OptionalContext, JavaOptionalContext, ConfigContext, MutableContext {
 
   /**

@@ -9,6 +9,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Free Applicative functor for independent/parallel composition.
@@ -92,7 +94,8 @@ import org.higherkindedj.hkt.Natural;
  * @see org.higherkindedj.hkt.Applicative
  * @see org.higherkindedj.hkt.free.Free
  */
-public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap {
+public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
+    permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap {
 
   /**
    * Terminal case representing a pure value.
@@ -102,7 +105,7 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @param <F> The functor type
    * @param <A> The value type
    */
-  record Pure<F, A>(A value) implements FreeAp<F, A> {}
+  record Pure<F extends WitnessArity<TypeArity.Unary>, A>(A value) implements FreeAp<F, A> {}
 
   /**
    * Suspended computation lifting a single instruction in F.
@@ -112,7 +115,7 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @param <F> The functor type
    * @param <A> The result type
    */
-  record Lift<F, A>(Kind<F, A> fa) implements FreeAp<F, A> {
+  record Lift<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, A> fa) implements FreeAp<F, A> {
     public Lift {
       requireNonNull(fa, "Lifted Kind cannot be null");
     }
@@ -130,7 +133,8 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @param <X> The intermediate type (existential)
    * @param <A> The final result type
    */
-  record Ap<F, X, A>(FreeAp<F, Function<X, A>> ff, FreeAp<F, X> fa) implements FreeAp<F, A> {
+  record Ap<F extends WitnessArity<TypeArity.Unary>, X, A>(
+      FreeAp<F, Function<X, A>> ff, FreeAp<F, X> fa) implements FreeAp<F, A> {
     public Ap {
       requireNonNull(ff, "Function FreeAp cannot be null");
       requireNonNull(fa, "Value FreeAp cannot be null");
@@ -145,7 +149,7 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @param <A> The value type
    * @return A FreeAp containing the pure value
    */
-  static <F, A> FreeAp<F, A> pure(A value) {
+  static <F extends WitnessArity<TypeArity.Unary>, A> FreeAp<F, A> pure(A value) {
     return new Pure<>(value);
   }
 
@@ -158,7 +162,7 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @return A FreeAp containing the lifted instruction
    * @throws NullPointerException if fa is null
    */
-  static <F, A> FreeAp<F, A> lift(Kind<F, A> fa) {
+  static <F extends WitnessArity<TypeArity.Unary>, A> FreeAp<F, A> lift(Kind<F, A> fa) {
     requireNonNull(fa, "Kind to lift cannot be null");
     return new Lift<>(fa);
   }
@@ -242,7 +246,8 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @return The interpreted result in G
    * @throws NullPointerException if transform or applicative is null
    */
-  default <G> Kind<G, A> foldMap(Natural<F, G> transform, Applicative<G> applicative) {
+  default <G extends WitnessArity<TypeArity.Unary>> Kind<G, A> foldMap(
+      Natural<F, G> transform, Applicative<G> applicative) {
     requireNonNull(transform, "Natural transformation cannot be null");
     requireNonNull(applicative, "Applicative cannot be null");
     return interpretFreeAp(this, transform, applicative);
@@ -260,7 +265,8 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @return The analysis result in G
    * @throws NullPointerException if transform or applicative is null
    */
-  default <G> Kind<G, A> analyse(Natural<F, G> transform, Applicative<G> applicative) {
+  default <G extends WitnessArity<TypeArity.Unary>> Kind<G, A> analyse(
+      Natural<F, G> transform, Applicative<G> applicative) {
     return foldMap(transform, applicative);
   }
 
@@ -276,8 +282,10 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @param <A> The result type
    * @return The interpreted result in G
    */
-  private static <F, G, A> Kind<G, A> interpretFreeAp(
-      FreeAp<F, A> freeAp, Natural<F, G> transform, Applicative<G> applicative) {
+  private static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A>
+      Kind<G, A> interpretFreeAp(
+          FreeAp<F, A> freeAp, Natural<F, G> transform, Applicative<G> applicative) {
 
     return switch (freeAp) {
       case Pure<F, A> pure ->

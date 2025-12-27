@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -50,7 +52,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * @param <F> The underlying type constructor (not required to be a Functor)
  */
-public class CoyonedaFunctor<F> implements Functor<CoyonedaKind.Witness<F>> {
+public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
+    implements Functor<CoyonedaKind.Witness<F>> {
 
   private static final Class<CoyonedaFunctor> COYONEDA_FUNCTOR_CLASS = CoyonedaFunctor.class;
 
@@ -66,7 +69,7 @@ public class CoyonedaFunctor<F> implements Functor<CoyonedaKind.Witness<F>> {
    * @return A CoyonedaFunctor instance
    */
   @SuppressWarnings("unchecked")
-  public static <F> CoyonedaFunctor<F> instance() {
+  public static <F extends WitnessArity<TypeArity.Unary>> CoyonedaFunctor<F> instance() {
     return (CoyonedaFunctor<F>) INSTANCE;
   }
 

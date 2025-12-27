@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.free;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Helper for converting between Free and Kind representations.
@@ -27,7 +28,7 @@ public enum FreeKindHelper {
    * @param <F> The functor type
    * @param <A> The result type
    */
-  record FreeHolder<F, A>(Free<F, A> free) implements FreeKind<F, A> {}
+  record FreeHolder<F extends WitnessArity<?>, A>(Free<F, A> free) implements FreeKind<F, A> {}
 
   /**
    * Widens a concrete Free type to its Kind representation.
@@ -39,7 +40,7 @@ public enum FreeKindHelper {
    * @param <A> The result type
    * @return The Kind representation of the Free instance
    */
-  public <F, A> Kind<FreeKind.Witness<F>, A> widen(Free<F, A> free) {
+  public <F extends WitnessArity<?>, A> Kind<FreeKind.Witness<F>, A> widen(Free<F, A> free) {
     return new FreeHolder<>(free);
   }
 
@@ -54,7 +55,7 @@ public enum FreeKindHelper {
    * @return The concrete Free instance
    * @throws ClassCastException if the Kind is not a FreeHolder
    */
-  public <F, A> Free<F, A> narrow(Kind<FreeKind.Witness<F>, A> kind) {
+  public <F extends WitnessArity<?>, A> Free<F, A> narrow(Kind<FreeKind.Witness<F>, A> kind) {
     return ((FreeHolder<F, A>) kind).free();
   }
 }

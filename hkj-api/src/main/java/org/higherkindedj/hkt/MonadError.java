@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  *     instance {@code Unit.INSTANCE} passed to {@link #raiseError(Object)}.
  */
 @NullMarked
-public interface MonadError<F, E> extends Monad<F> {
+public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends Monad<F> {
 
   /**
    * Lifts an error value 'e' into the monadic context F. For {@code Either<E, A>}, this would be

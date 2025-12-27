@@ -150,7 +150,7 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 @FunctionalInterface
-public interface Natural<F, G> {
+public interface Natural<F extends WitnessArity<?>, G extends WitnessArity<?>> {
 
   /**
    * Applies this natural transformation to convert a value in context F to context G.
@@ -224,7 +224,7 @@ public interface Natural<F, G> {
    * @return A composed natural transformation from F to H
    * @throws NullPointerException if after is null
    */
-  default <H> Natural<F, H> andThen(Natural<G, H> after) {
+  default <H extends WitnessArity<?>> Natural<F, H> andThen(Natural<G, H> after) {
     requireNonNull(after, "after natural transformation cannot be null");
     return new Natural<>() {
       @Override
@@ -250,7 +250,7 @@ public interface Natural<F, G> {
    * @return A composed natural transformation from E to G
    * @throws NullPointerException if before is null
    */
-  default <E> Natural<E, G> compose(Natural<E, F> before) {
+  default <E extends WitnessArity<?>> Natural<E, G> compose(Natural<E, F> before) {
     requireNonNull(before, "before natural transformation cannot be null");
     return before.andThen(this);
   }
@@ -287,7 +287,7 @@ public interface Natural<F, G> {
    * @return The identity natural transformation
    */
   @SuppressWarnings("unchecked")
-  static <F> Natural<F, F> identity() {
+  static <F extends WitnessArity<?>> Natural<F, F> identity() {
     return (Natural<F, F>) IDENTITY;
   }
 

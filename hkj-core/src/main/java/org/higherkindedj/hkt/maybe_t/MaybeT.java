@@ -6,6 +6,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.util.validation.Validation;
 
@@ -25,7 +27,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see MaybeTMonad
  * @see MaybeTKindHelper
  */
-public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> {
+public record MaybeT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Maybe<A>> value)
+    implements MaybeTKind<F, A> {
 
   private static final Class<MaybeT> MAYBE_T_CLASS = MaybeT.class;
 
@@ -48,7 +51,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @return A new {@code MaybeT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, A> MaybeT<F, A> fromKind(Kind<F, Maybe<A>> value) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> fromKind(
+      Kind<F, Maybe<A>> value) {
     return new MaybeT<>(value);
   }
 
@@ -62,7 +66,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @return A new {@code MaybeT} instance representing {@code outerMonad.of(Maybe.just(a))}.
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
-  public static <F, A extends Object> MaybeT<F, A> just(Monad<F> outerMonad, A a) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A extends Object> MaybeT<F, A> just(
+      Monad<F> outerMonad, A a) {
     Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, JUST);
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.just(a));
     return new MaybeT<>(lifted);
@@ -78,7 +83,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @return A new {@code MaybeT} instance representing {@code outerMonad.of(Maybe.nothing())}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, A> MaybeT<F, A> nothing(Monad<F> outerMonad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> nothing(
+      Monad<F> outerMonad) {
     Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, NONE);
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.nothing());
     return new MaybeT<>(lifted);
@@ -94,7 +100,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @return A new {@code MaybeT} instance representing {@code outerMonad.of(maybe)}.
    * @throws NullPointerException if {@code outerMonad} or {@code maybe} is null.
    */
-  public static <F, A> MaybeT<F, A> fromMaybe(Monad<F> outerMonad, Maybe<A> maybe) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> fromMaybe(
+      Monad<F> outerMonad, Maybe<A> maybe) {
     Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, FROM_MAYBE);
     Validation.transformer()
         .requireTransformerComponent(maybe, "inner Maybe", MAYBE_T_CLASS, FROM_MAYBE);
@@ -115,7 +122,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    *     fa)}.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, A> MaybeT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> liftF(
+      Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, LIFT_F);
     Validation.kind().requireNonNull(fa, MAYBE_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Maybe<A>> mapped = outerMonad.map(Maybe::fromNullable, fa);

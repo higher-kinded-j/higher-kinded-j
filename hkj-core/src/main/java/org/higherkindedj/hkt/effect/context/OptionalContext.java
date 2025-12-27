@@ -10,7 +10,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.io.IO;
@@ -53,7 +55,8 @@ import org.jspecify.annotations.Nullable;
  * @param <F> the underlying effect type witness (e.g., {@code IOKind.Witness})
  * @param <A> the value type
  */
-public final class OptionalContext<F, A> implements EffectContext<F, A> {
+public final class OptionalContext<F extends WitnessArity<TypeArity.Unary>, A>
+    implements EffectContext<F, A> {
 
   private final MaybeT<F, A> transformer;
   private final Monad<F> outerMonad;

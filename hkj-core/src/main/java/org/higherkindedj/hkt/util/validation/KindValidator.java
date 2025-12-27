@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
@@ -35,7 +36,7 @@ public enum KindValidator {
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or narrowing fails
    */
-  public <F, A, T> T narrow(
+  public <F extends WitnessArity<?>, A, T> T narrow(
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Function<? super Kind<F, A>, ? extends T> narrower) {
@@ -68,7 +69,8 @@ public enum KindValidator {
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected type
    */
-  public <F, A, T> T narrowWithTypeCheck(@Nullable Kind<F, A> kind, Class<T> targetType) {
+  public <F extends WitnessArity<?>, A, T> T narrowWithTypeCheck(
+      @Nullable Kind<F, A> kind, Class<T> targetType) {
 
     var context = new KindContext(targetType, "narrow");
 
@@ -112,7 +114,7 @@ public enum KindValidator {
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected holder type
    */
-  public <F, A, T, H extends Kind<F, A>> T narrowWithPattern(
+  public <F extends WitnessArity<?>, A, T, H extends Kind<F, A>> T narrowWithPattern(
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Class<H> holderType,
@@ -161,7 +163,7 @@ public enum KindValidator {
    * // Error: "Kind for StateTMonad.map cannot be null"
    * </pre>
    */
-  public <F, A> Kind<F, A> requireNonNull(
+  public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Class<?> contextClass, Operation operation) {
 
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
@@ -181,7 +183,8 @@ public enum KindValidator {
    * @return The validated Kind
    * @throws NullPointerException if kind is null
    */
-  public <F, A> Kind<F, A> requireNonNull(Kind<F, A> kind, Operation operation) {
+  public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
+      Kind<F, A> kind, Operation operation) {
     return Objects.requireNonNull(kind, "Kind for " + operation + " cannot be null");
   }
 
@@ -210,7 +213,7 @@ public enum KindValidator {
    * // Error: "Kind for StateTMonad.ap (argument) cannot be null"
    * </pre>
    */
-  public <F, A> Kind<F, A> requireNonNull(
+  public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Class<?> contextClass, Operation operation, @Nullable String descriptor) {
 
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
@@ -234,7 +237,7 @@ public enum KindValidator {
    * @return The validated Kind
    * @throws NullPointerException if kind is null
    */
-  public <F, A> Kind<F, A> requireNonNull(
+  public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Operation operation, @Nullable String descriptor) {
 
     String contextMessage =
@@ -260,7 +263,7 @@ public enum KindValidator {
    * @param <B> output type
    * @throws NullPointerException if ff or fa is null
    */
-  public <F, A, B> void validateAp(
+  public <F extends WitnessArity<?>, A, B> void validateAp(
       Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa, Class<?> contextClass) {
     requireNonNull(ff, contextClass, AP, "function");
     requireNonNull(fa, contextClass, AP, "argument");

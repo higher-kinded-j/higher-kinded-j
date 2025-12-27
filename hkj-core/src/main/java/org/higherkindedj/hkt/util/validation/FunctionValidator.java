@@ -13,6 +13,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
@@ -291,7 +293,7 @@ public enum FunctionValidator {
    * @param <B> output type
    * @throws NullPointerException if f or ma is null
    */
-  public <F, A, B> void validateFlatMap(
+  public <F extends WitnessArity<?>, A, B> void validateFlatMap(
       Function<? super A, ? extends Kind<F, B>> f, Kind<F, A> ma, Class<?> contextClass) {
     requireFlatMapper(f, "f", contextClass, FLAT_MAP);
     Validation.kind().requireNonNull(ma, contextClass, FLAT_MAP);
@@ -312,7 +314,7 @@ public enum FunctionValidator {
    * @param <B> output element type
    * @throws NullPointerException if any parameter is null
    */
-  public <G, A, B> void validateTraverse(
+  public <G extends WitnessArity<TypeArity.Unary>, A, B> void validateTraverse(
       Applicative<G> applicative,
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<?, A> ta,
@@ -357,7 +359,7 @@ public enum FunctionValidator {
    * @param <E> the error type
    * @throws NullPointerException if ma or handler is null
    */
-  public <F, A, E> void validateHandleErrorWith(
+  public <F extends WitnessArity<?>, A, E> void validateHandleErrorWith(
       Kind<F, A> ma, Function<? super E, ? extends Kind<F, A>> handler, Class<?> contextClass) {
     Validation.kind().requireNonNull(ma, contextClass, HANDLE_ERROR_WITH, "source");
     requireFunction(handler, "handler", contextClass, HANDLE_ERROR_WITH);
