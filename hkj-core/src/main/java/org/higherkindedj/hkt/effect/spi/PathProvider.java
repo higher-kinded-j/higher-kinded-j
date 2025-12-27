@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.effect.spi;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 
 /**
@@ -45,7 +47,7 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
  *
  * @param <F> the witness type of the effect
  */
-public interface PathProvider<F> {
+public interface PathProvider<F extends WitnessArity<TypeArity.Unary>> {
 
   /**
    * Returns the witness type class this provider handles.

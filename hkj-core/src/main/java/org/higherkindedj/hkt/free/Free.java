@@ -7,6 +7,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 
 /**
@@ -33,7 +35,8 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
  * @param <F> The functor type representing the instruction set
  * @param <A> The result type
  */
-public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMapped {
+public sealed interface Free<F extends WitnessArity<?>, A>
+    permits Free.Pure, Free.Suspend, Free.FlatMapped {
 
   /**
    * Terminal case representing a pure value.
@@ -41,7 +44,7 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <F> The functor type
    * @param <A> The value type
    */
-  record Pure<F, A>(A value) implements Free<F, A> {}
+  record Pure<F extends WitnessArity<?>, A>(A value) implements Free<F, A> {}
 
   /**
    * Suspended computation wrapping a single instruction in F.
@@ -49,7 +52,8 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <F> The functor type
    * @param <A> The result type
    */
-  record Suspend<F, A>(Kind<F, Free<F, A>> computation) implements Free<F, A> {}
+  record Suspend<F extends WitnessArity<?>, A>(Kind<F, Free<F, A>> computation)
+      implements Free<F, A> {}
 
   /**
    * Chained computation representing flatMap. This constructor enables stack-safe execution of
@@ -59,8 +63,8 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <X> The intermediate result type
    * @param <A> The final result type
    */
-  record FlatMapped<F, X, A>(Free<F, X> sub, Function<X, Free<F, A>> continuation)
-      implements Free<F, A> {}
+  record FlatMapped<F extends WitnessArity<?>, X, A>(
+      Free<F, X> sub, Function<X, Free<F, A>> continuation) implements Free<F, A> {}
 
   /**
    * Creates a Free monad from a pure value.
@@ -70,7 +74,7 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <A> The value type
    * @return A Free monad containing the value
    */
-  static <F, A> Free<F, A> pure(A value) {
+  static <F extends WitnessArity<?>, A> Free<F, A> pure(A value) {
     return new Pure<>(value);
   }
 
@@ -82,7 +86,7 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <A> The result type
    * @return A Free monad suspending the computation
    */
-  static <F, A> Free<F, A> suspend(Kind<F, Free<F, A>> computation) {
+  static <F extends WitnessArity<?>, A> Free<F, A> suspend(Kind<F, Free<F, A>> computation) {
     return new Suspend<>(computation);
   }
 
@@ -95,7 +99,8 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <A> The result type
    * @return A Free monad containing the lifted instruction
    */
-  static <F, A> Free<F, A> liftF(Kind<F, A> fa, Functor<F> functor) {
+  static <F extends WitnessArity<TypeArity.Unary>, A> Free<F, A> liftF(
+      Kind<F, A> fa, Functor<F> functor) {
     return new Suspend<>(functor.map(Free::pure, fa));
   }
 
@@ -158,7 +163,8 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @return The interpreted result in monad M
    * @see Natural
    */
-  default <M> Kind<M, A> foldMap(Natural<F, M> transform, Monad<M> monad) {
+  default <M extends WitnessArity<TypeArity.Unary>> Kind<M, A> foldMap(
+      Natural<F, M> transform, Monad<M> monad) {
     return interpretFreeNatural(this, transform, monad).run();
   }
 
@@ -178,7 +184,8 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @return The interpreted result in monad M
    * @see #foldMap(Natural, Monad)
    */
-  default <M> Kind<M, A> foldMap(Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
+  default <M extends WitnessArity<TypeArity.Unary>> Kind<M, A> foldMap(
+      Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
     return interpretFree(this, transform, monad).run();
   }
 
@@ -193,8 +200,9 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <A> The result type
    * @return A Trampoline that produces the interpreted result in monad M
    */
-  private static <F, M, A> Trampoline<Kind<M, A>> interpretFree(
-      Free<F, A> free, Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
+  private static <F extends WitnessArity<?>, M extends WitnessArity<TypeArity.Unary>, A>
+      Trampoline<Kind<M, A>> interpretFree(
+          Free<F, A> free, Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
 
     return switch (free) {
       case Pure<F, A> pure ->
@@ -245,8 +253,9 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
    * @param <A> The result type
    * @return A Trampoline that produces the interpreted result in monad M
    */
-  private static <F, M, A> Trampoline<Kind<M, A>> interpretFreeNatural(
-      Free<F, A> free, Natural<F, M> transform, Monad<M> monad) {
+  private static <F extends WitnessArity<?>, M extends WitnessArity<TypeArity.Unary>, A>
+      Trampoline<Kind<M, A>> interpretFreeNatural(
+          Free<F, A> free, Natural<F, M> transform, Monad<M> monad) {
 
     return switch (free) {
       case Pure<F, A> pure ->

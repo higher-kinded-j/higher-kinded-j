@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link Validated Validated&lt;E, A&gt;} type in Higher-Kinded-J.
@@ -53,7 +55,7 @@ public interface ValidatedKind<E, A> extends Kind<ValidatedKind.Witness<E>, A> {
    *
    * @param <ERROR_TYPE> The type of the "Error" value {@code E} associated with this witness.
    */
-  final class Witness<ERROR_TYPE> {
+  final class Witness<ERROR_TYPE> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.writer;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A higher-kinded type marker for the {@link Writer} monad.
@@ -49,7 +51,7 @@ public interface WriterKind<W, A> extends Kind<WriterKind.Witness<W>, A> {
    *
    * @param <TYPE_W> The type of the log {@code W} associated with this witness.
    */
-  final class Witness<TYPE_W> {
+  final class Witness<TYPE_W> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

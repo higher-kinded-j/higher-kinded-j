@@ -6,6 +6,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -68,7 +70,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value) implements EitherTKi
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.right(r))}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, L, R> EitherT<F, L, R> right(Monad<F> outerMonad, @Nullable R r) {
+  public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> right(Monad<F> outerMonad, @Nullable R r) {
     Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, RIGHT);
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.right(r));
     return new EitherT<>(lifted);
@@ -85,7 +87,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value) implements EitherTKi
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.left(l))}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, L, R> EitherT<F, L, R> left(Monad<F> outerMonad, @Nullable L l) {
+  public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> left(Monad<F> outerMonad, @Nullable L l) {
     Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, LEFT);
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.left(l));
     return new EitherT<>(lifted);
@@ -103,7 +105,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value) implements EitherTKi
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(either)}.
    * @throws NullPointerException if {@code outerMonad} or {@code either} is null.
    */
-  public static <F, L, R> EitherT<F, L, R> fromEither(Monad<F> outerMonad, Either<L, R> either) {
+  public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> fromEither(Monad<F> outerMonad, Either<L, R> either) {
     Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, FROM_EITHER);
     Validation.transformer()
         .requireTransformerComponent(either, "inner Either", EITHER_T_CLASS, FROM_EITHER);
@@ -124,7 +126,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value) implements EitherTKi
    * @return A new {@code EitherT} instance.
    * @throws NullPointerException if {@code outerMonad} or {@code fr} is null.
    */
-  public static <F, L, R> EitherT<F, L, R> liftF(Monad<F> outerMonad, Kind<F, R> fr) {
+  public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> liftF(Monad<F> outerMonad, Kind<F, R> fr) {
     Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, LIFT_F);
     Validation.kind().requireNonNull(fr, EITHER_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Either<L, R>> mapped = outerMonad.map(Either::right, fr);

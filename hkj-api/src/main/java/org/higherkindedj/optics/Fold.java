@@ -10,7 +10,9 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A **Fold** is a read-only optic for querying and extracting data from a structure. Think of it as
@@ -100,7 +102,8 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * other query methods.
    */
   @Override
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
     // For Fold, modifyF must traverse and apply effects from f, even though
     // we don't use the results to modify the structure (it's read-only).
     // We combine effects using a Monoid that sequences them via the Applicative.

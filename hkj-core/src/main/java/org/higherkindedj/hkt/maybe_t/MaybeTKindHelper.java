@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.maybe_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -33,7 +35,8 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    * @throws NullPointerException if {@code maybeT} is null.
    */
   @Override
-  public <F, A> Kind<MaybeTKind.Witness<F>, A> widen(MaybeT<F, A> maybeT) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<MaybeTKind.Witness<F>, A> widen(
+      MaybeT<F, A> maybeT) {
     Validation.kind().requireForWiden(maybeT, MAYBE_T_CLASS);
     return maybeT;
   }
@@ -50,7 +53,8 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    *     valid {@link MaybeT} instance.
    */
   @Override
-  public <F, A> MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> narrow(
+      @Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, MAYBE_T_CLASS);
   }
 }

@@ -10,6 +10,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -96,7 +98,7 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ta} cannot be unwrapped.
    */
   @Override
-  public <G, A, B> Kind<G, Kind<IdKind.Witness, B>> traverse(
+  public <G extends WitnessArity<TypeArity.Unary>, A, B> Kind<G, Kind<IdKind.Witness, B>> traverse(
       Applicative<G> applicative,
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<IdKind.Witness, A> ta) {

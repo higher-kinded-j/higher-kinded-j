@@ -9,6 +9,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -33,7 +35,8 @@ import org.jspecify.annotations.Nullable;
  * @see Applicative
  * @see ReaderTKindHelper
  */
-public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_ENV>> {
+public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
+    implements Monad<ReaderTKind.Witness<F, R_ENV>> {
 
   private static final Class<ReaderTMonad> READER_T_MONAD_CLASS = ReaderTMonad.class;
   private final Monad<F> outerMonad;

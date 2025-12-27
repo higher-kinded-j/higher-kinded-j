@@ -11,6 +11,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
@@ -58,7 +60,7 @@ import org.jspecify.annotations.Nullable;
  * @param <F> the underlying effect type witness (e.g., {@code IOKind.Witness})
  * @param <A> the value type
  */
-public final class JavaOptionalContext<F, A> implements EffectContext<F, A> {
+public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, A> implements EffectContext<F, A> {
 
   private final OptionalT<F, A> transformer;
   private final Monad<F> outerMonad;

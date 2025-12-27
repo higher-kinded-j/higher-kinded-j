@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.func;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -17,7 +19,9 @@ import org.jspecify.annotations.NullMarked;
 public final class FunctionKind<A, B> implements Kind2<FunctionKind.Witness, A, B> {
 
   /** Witness type for the Function type constructor. */
-  public static final class Witness {}
+  public static final class Witness implements WitnessArity<TypeArity.Binary> {
+    private Witness() {}
+  }
 
   private final Function<A, B> function;
 

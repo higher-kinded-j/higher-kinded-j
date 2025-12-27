@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.free_ap;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
@@ -41,7 +43,8 @@ public enum FreeApKindHelper {
    * @param <F> The instruction set type
    * @param <A> The result type
    */
-  record FreeApHolder<F, A>(FreeAp<F, A> freeAp) implements FreeApKind<F, A> {}
+  record FreeApHolder<F extends WitnessArity<TypeArity.Unary>, A>(FreeAp<F, A> freeAp)
+      implements FreeApKind<F, A> {}
 
   /**
    * Widens a concrete FreeAp type to its Kind representation.
@@ -54,7 +57,8 @@ public enum FreeApKindHelper {
    * @return The Kind representation of the FreeAp instance
    * @throws NullPointerException if freeAp is null
    */
-  public <F, A> Kind<FreeApKind.Witness<F>, A> widen(FreeAp<F, A> freeAp) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<FreeApKind.Witness<F>, A> widen(
+      FreeAp<F, A> freeAp) {
     if (freeAp == null) {
       throw new NullPointerException("FreeAp to widen cannot be null");
     }
@@ -73,7 +77,8 @@ public enum FreeApKindHelper {
    * @throws KindUnwrapException if kind is null or not a valid FreeApKind representation
    */
   @SuppressWarnings("unchecked")
-  public <F, A> FreeAp<F, A> narrow(@Nullable Kind<FreeApKind.Witness<F>, A> kind) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> FreeAp<F, A> narrow(
+      @Nullable Kind<FreeApKind.Witness<F>, A> kind) {
     if (kind == null) {
       throw new KindUnwrapException("Cannot narrow null Kind to FreeAp");
     }
@@ -92,7 +97,7 @@ public enum FreeApKindHelper {
    * @param <A> The value type
    * @return A Kind representing FreeAp containing the pure value
    */
-  public <F, A> Kind<FreeApKind.Witness<F>, A> pure(A value) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<FreeApKind.Witness<F>, A> pure(A value) {
     return widen(FreeAp.pure(value));
   }
 
@@ -105,7 +110,8 @@ public enum FreeApKindHelper {
    * @return A Kind representing FreeAp containing the lifted instruction
    * @throws NullPointerException if fa is null
    */
-  public <F, A> Kind<FreeApKind.Witness<F>, A> lift(Kind<F, A> fa) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<FreeApKind.Witness<F>, A> lift(
+      Kind<F, A> fa) {
     return widen(FreeAp.lift(fa));
   }
 }

@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.trymonad;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link Try} type in Higher-Kinded-J. Represents {@code Try} as a
@@ -36,7 +38,7 @@ public interface TryKind<T> extends Kind<TryKind.Witness, T> {
    * The phantom type marker (witness type) for the Try type constructor. This is used as the 'F' in
    * {@code Kind<F, T>} for Try.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     // Private constructor to prevent instantiation of the witness type itself.
     // Its purpose is purely for type-level representation.
     private Witness() {}

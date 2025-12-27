@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.coyoneda;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
@@ -41,7 +43,8 @@ public enum CoyonedaKindHelper {
    * @param <F> The underlying type constructor
    * @param <A> The result type
    */
-  record CoyonedaHolder<F, A>(Coyoneda<F, A> coyoneda) implements CoyonedaKind<F, A> {}
+  record CoyonedaHolder<F extends WitnessArity<TypeArity.Unary>, A>(Coyoneda<F, A> coyoneda)
+      implements CoyonedaKind<F, A> {}
 
   /**
    * Widens a concrete Coyoneda type to its Kind representation.
@@ -54,7 +57,8 @@ public enum CoyonedaKindHelper {
    * @return The Kind representation of the Coyoneda instance
    * @throws NullPointerException if coyoneda is null
    */
-  public <F, A> Kind<CoyonedaKind.Witness<F>, A> widen(Coyoneda<F, A> coyoneda) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<CoyonedaKind.Witness<F>, A> widen(
+      Coyoneda<F, A> coyoneda) {
     if (coyoneda == null) {
       throw new NullPointerException("Coyoneda to widen cannot be null");
     }
@@ -73,7 +77,8 @@ public enum CoyonedaKindHelper {
    * @throws KindUnwrapException if kind is null or not a valid CoyonedaKind representation
    */
   @SuppressWarnings("unchecked")
-  public <F, A> Coyoneda<F, A> narrow(@Nullable Kind<CoyonedaKind.Witness<F>, A> kind) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Coyoneda<F, A> narrow(
+      @Nullable Kind<CoyonedaKind.Witness<F>, A> kind) {
     if (kind == null) {
       throw new KindUnwrapException("Cannot narrow null Kind to Coyoneda");
     }
@@ -96,7 +101,8 @@ public enum CoyonedaKindHelper {
    * @return A Kind representing Coyoneda containing the lifted value
    * @throws NullPointerException if fa is null
    */
-  public <F, A> Kind<CoyonedaKind.Witness<F>, A> lift(Kind<F, A> fa) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<CoyonedaKind.Witness<F>, A> lift(
+      Kind<F, A> fa) {
     return widen(Coyoneda.lift(fa));
   }
 }

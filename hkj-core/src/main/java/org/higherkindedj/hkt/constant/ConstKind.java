@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.constant;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for partially-applied {@link Const Const&lt;M, ?&gt;} in Higher-Kinded-J.
@@ -36,7 +38,7 @@ public interface ConstKind<M, A> extends Kind<ConstKind.Witness<M>, A> {
    *
    * @param <M> The fixed constant value type
    */
-  final class Witness<M> {
+  final class Witness<M> implements WitnessArity<TypeArity.Unary> {
     private Witness() {} // Private constructor to prevent instantiation.
   }
 }

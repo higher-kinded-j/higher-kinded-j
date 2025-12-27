@@ -35,7 +35,7 @@ import org.jspecify.annotations.NullMarked;
  * @see Unit
  */
 @NullMarked
-public interface Selective<F> extends Applicative<F> {
+public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Applicative<F> {
 
   /**
    * The core selective operation. Given an effectful choice {@code fab} and an effectful function

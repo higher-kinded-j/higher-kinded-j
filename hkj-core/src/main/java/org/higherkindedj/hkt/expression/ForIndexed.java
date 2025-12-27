@@ -11,6 +11,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
@@ -74,8 +76,9 @@ public final class ForIndexed {
    * @return An {@link IndexedSteps} builder for chaining operations.
    * @throws NullPointerException if any argument is null.
    */
-  public static <F, I, S, A> IndexedSteps<F, I, S, A> overIndexed(
-      IndexedTraversal<I, S, A> traversal, S source, Applicative<F> applicative) {
+  public static <F extends WitnessArity<TypeArity.Unary>, I, S, A>
+      IndexedSteps<F, I, S, A> overIndexed(
+          IndexedTraversal<I, S, A> traversal, S source, Applicative<F> applicative) {
     Objects.requireNonNull(traversal, "traversal must not be null");
     Objects.requireNonNull(source, "source must not be null");
     Objects.requireNonNull(applicative, "applicative must not be null");
@@ -90,7 +93,7 @@ public final class ForIndexed {
    * @param <S> The type of the source structure.
    * @param <A> The type of the focused elements.
    */
-  public interface IndexedSteps<F, I, S, A> {
+  public interface IndexedSteps<F extends WitnessArity<TypeArity.Unary>, I, S, A> {
 
     /**
      * Filters elements based on their index only.
@@ -153,7 +156,8 @@ public final class ForIndexed {
   }
 
   /** Implementation of the indexed traversal steps builder. */
-  private static final class IndexedStepsImpl<F, I, S, A> implements IndexedSteps<F, I, S, A> {
+  private static final class IndexedStepsImpl<F extends WitnessArity<TypeArity.Unary>, I, S, A>
+      implements IndexedSteps<F, I, S, A> {
     private final IndexedTraversal<I, S, A> traversal;
     private final S source;
     private final Applicative<F> applicative;

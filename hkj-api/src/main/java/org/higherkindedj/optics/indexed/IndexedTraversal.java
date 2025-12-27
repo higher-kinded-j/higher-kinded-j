@@ -10,6 +10,8 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 
@@ -54,7 +56,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
    * @return The updated structure {@code S}, itself wrapped in the context {@code F}
    */
   @Override
-  <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app);
+  <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+      BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app);
 
   /**
    * Composes this {@code IndexedTraversal<I, S, A>} with another {@code IndexedTraversal<J, A, B>}
@@ -72,7 +75,7 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
           BiFunction<Pair<I, J>, B, Kind<F, B>> f, S source, Applicative<F> app) {
         return self.imodifyF(
             (i, a) -> other.imodifyF((j, b) -> f.apply(new Pair<>(i, j), b), a, app), source, app);
@@ -95,7 +98,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(BiFunction<I, B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+          BiFunction<I, B, Kind<F, B>> f, S source, Applicative<F> app) {
         return self.imodifyF((i, a) -> other.modifyF(b -> f.apply(i, b), a, app), source, app);
       }
     };
@@ -131,7 +135,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+          BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
         return self.imodifyF((i, a) -> predicate.test(i) ? f.apply(i, a) : app.of(a), source, app);
       }
     };
@@ -162,7 +167,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+          BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
         return self.imodifyF((i, a) -> predicate.test(a) ? f.apply(i, a) : app.of(a), source, app);
       }
     };
@@ -188,7 +194,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+          BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
         return self.imodifyF(
             (i, a) -> predicate.apply(i, a) ? f.apply(i, a) : app.of(a), source, app);
       }
@@ -208,7 +215,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S source, Applicative<F> app) {
         return self.imodifyF((i, a) -> f.apply(a), source, app);
       }
     };
@@ -230,10 +238,10 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
         // identity-like applicative inline.
         final List<Pair<I, A>> collected = new ArrayList<>();
 
-        // Define a simple identity wrapper that implements Kind
+        // Define a simple identity wrapper that implements Kind and WitnessArity
         // This is a local class to avoid circular dependencies
         @SuppressWarnings("rawtypes")
-        final class IdWrapper implements Kind {
+        final class IdWrapper implements Kind, WitnessArity<TypeArity.Unary> {
           final Object value;
 
           IdWrapper(Object value) {

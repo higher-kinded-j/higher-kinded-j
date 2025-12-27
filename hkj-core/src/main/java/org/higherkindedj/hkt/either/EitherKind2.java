@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind2 interface marker for {@link Either Either&lt;L, R&gt;} in Higher-Kinded-J.
@@ -30,7 +32,7 @@ public interface EitherKind2<L, R> extends Kind2<EitherKind2.Witness, L, R> {
    * non-instantiable class acts as a tag to represent the {@code Either} type constructor for
    * bifunctor operations.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Binary> {
     private Witness() {} // Private constructor to prevent instantiation.
   }
 }

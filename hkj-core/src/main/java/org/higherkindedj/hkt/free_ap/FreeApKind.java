@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.free_ap;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface for FreeAp, enabling higher-kinded type representation.
@@ -26,7 +28,7 @@ public interface FreeApKind<F, A> extends Kind<FreeApKind.Witness<F>, A> {
    *
    * @param <F> The instruction set type constructor
    */
-  final class Witness<F> {
+  final class Witness<F> implements WitnessArity<TypeArity.Unary> {
     private Witness() {
       // Prevents instantiation - this is a phantom type
     }
