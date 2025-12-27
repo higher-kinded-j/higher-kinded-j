@@ -5,6 +5,8 @@ package org.higherkindedj.optics.util;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -62,7 +64,7 @@ public final class EitherTraversals {
   public static <L, R> Traversal<Either<L, R>, R> right() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Either<L, R>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Either<L, R>> modifyF(
           Function<R, Kind<F, R>> f, Either<L, R> source, Applicative<F> applicative) {
         return source.isRight()
             ? applicative.map(Either::<L, R>right, f.apply(source.getRight()))
@@ -114,7 +116,7 @@ public final class EitherTraversals {
   public static <L, R> Traversal<Either<L, R>, L> left() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Either<L, R>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Either<L, R>> modifyF(
           Function<L, Kind<F, L>> f, Either<L, R> source, Applicative<F> applicative) {
         return source.isLeft()
             ? applicative.map(Either::<L, R>left, f.apply(source.getLeft()))

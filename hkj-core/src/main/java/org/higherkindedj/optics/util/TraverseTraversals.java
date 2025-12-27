@@ -90,7 +90,7 @@ public final class TraverseTraversals {
 
     return new Traversal<>() {
       @Override
-      public <G> Kind<G, Kind<F, A>> modifyF(
+      public <G extends WitnessArity<TypeArity.Unary>> Kind<G, Kind<F, A>> modifyF(
           Function<A, Kind<G, A>> f, Kind<F, A> source, Applicative<G> applicative) {
         // Use Traverse.traverse to map over elements with the effectful function
         return traverse.traverse(applicative, f, source);
@@ -154,7 +154,7 @@ public final class TraverseTraversals {
   public static <A> Traversal<Maybe<A>, A> forMaybe() {
     return new Traversal<>() {
       @Override
-      public <G> Kind<G, Maybe<A>> modifyF(
+      public <G extends WitnessArity<TypeArity.Unary>> Kind<G, Maybe<A>> modifyF(
           Function<A, Kind<G, A>> f, Maybe<A> source, Applicative<G> applicative) {
         if (source.isJust()) {
           return applicative.map(Maybe::just, f.apply(source.get()));
@@ -176,7 +176,7 @@ public final class TraverseTraversals {
   public static <A> Traversal<Kind<MaybeKind.Witness, A>, A> forMaybeKind() {
     return new Traversal<>() {
       @Override
-      public <G> Kind<G, Kind<MaybeKind.Witness, A>> modifyF(
+      public <G extends WitnessArity<TypeArity.Unary>> Kind<G, Kind<MaybeKind.Witness, A>> modifyF(
           Function<A, Kind<G, A>> f,
           Kind<MaybeKind.Witness, A> source,
           Applicative<G> applicative) {
@@ -228,7 +228,7 @@ public final class TraverseTraversals {
   public static <A> Traversal<Set<A>, A> forSet() {
     return new Traversal<>() {
       @Override
-      public <G> Kind<G, Set<A>> modifyF(
+      public <G extends WitnessArity<TypeArity.Unary>> Kind<G, Set<A>> modifyF(
           Function<A, Kind<G, A>> f, Set<A> source, Applicative<G> applicative) {
         // Convert Set to List for traversal, then collect back to Set
         List<A> asList = List.copyOf(source);
@@ -261,7 +261,7 @@ public final class TraverseTraversals {
   public static <A> Traversal<Stream<A>, A> forStream() {
     return new Traversal<>() {
       @Override
-      public <G> Kind<G, Stream<A>> modifyF(
+      public <G extends WitnessArity<TypeArity.Unary>> Kind<G, Stream<A>> modifyF(
           Function<A, Kind<G, A>> f, Stream<A> source, Applicative<G> applicative) {
         // Collect stream to list (consuming it), traverse, then convert back to stream
         List<A> asList = source.collect(Collectors.toList());

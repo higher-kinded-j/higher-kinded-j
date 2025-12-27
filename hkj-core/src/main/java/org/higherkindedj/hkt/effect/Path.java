@@ -926,7 +926,7 @@ public final class Path {
    * @see org.higherkindedj.hkt.effect.spi.PathRegistry
    * @see org.higherkindedj.hkt.effect.spi.PathProvider
    */
-  public static <F extends WitnessArity<?>, A> Optional<Chainable<A>> from(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Optional<Chainable<A>> from(
       Kind<F, A> kind, Class<?> witnessType) {
     Objects.requireNonNull(kind, "kind must not be null");
     Objects.requireNonNull(witnessType, "witnessType must not be null");

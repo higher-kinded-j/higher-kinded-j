@@ -55,7 +55,7 @@ public record EitherT<F extends WitnessArity<TypeArity.Unary>, L, R>(Kind<F, Eit
    * @return A new {@code EitherT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, L, R> EitherT<F, L, R> fromKind(Kind<F, Either<L, R>> value) {
+  public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> fromKind(Kind<F, Either<L, R>> value) {
     return new EitherT<>(value);
   }
 

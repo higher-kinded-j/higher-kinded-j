@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 
@@ -51,7 +52,7 @@ public final class PathRegistry {
    * @param <A> the value type
    * @return an Optional containing the path if a provider is found
    */
-  public static <F extends WitnessArity<?>, A> Optional<Chainable<A>> createPath(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Optional<Chainable<A>> createPath(
       Kind<F, A> value, Class<?> witnessType) {
     ensureLoaded();
     @SuppressWarnings("unchecked")

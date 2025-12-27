@@ -8,6 +8,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 
@@ -76,7 +78,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> taking(final int n) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (n <= 0 || source.isEmpty()) {
           return applicative.of(source);
@@ -129,7 +131,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> dropping(final int n) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (n <= 0) {
           // Drop nothing, focus on all elements
@@ -187,7 +189,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> takingLast(final int n) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (n <= 0 || source.isEmpty()) {
           return applicative.of(source);
@@ -241,7 +243,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> droppingLast(final int n) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (n <= 0) {
           // Drop nothing from end, focus on all elements
@@ -303,7 +305,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> slicing(final int from, final int to) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         final int size = source.size();
 
@@ -367,7 +369,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> takingWhile(final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (source.isEmpty()) {
           return applicative.of(source);
@@ -431,7 +433,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> droppingWhile(final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (source.isEmpty()) {
           return applicative.of(source);
@@ -503,7 +505,7 @@ public final class ListTraversals {
   public static <A> Traversal<List<A>, A> element(final int index) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         if (index < 0 || index >= source.size()) {
           // Index out of bounds, no modification

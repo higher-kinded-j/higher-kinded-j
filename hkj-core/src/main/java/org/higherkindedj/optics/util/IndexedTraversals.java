@@ -68,7 +68,7 @@ public final class IndexedTraversals {
   public static <A> IndexedTraversal<Integer, List<A>, A> forList() {
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, List<A>> imodifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> imodifyF(
           BiFunction<Integer, A, Kind<F, A>> f, List<A> source, Applicative<F> app) {
         if (source.isEmpty()) {
           return app.of(source);
@@ -118,7 +118,7 @@ public final class IndexedTraversals {
   public static <K, V> IndexedTraversal<K, Map<K, V>, V> forMap() {
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, Map<K, V>> imodifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> imodifyF(
           BiFunction<K, V, Kind<F, V>> f, Map<K, V> source, Applicative<F> app) {
         if (source.isEmpty()) {
           return app.of(source);
@@ -326,7 +326,7 @@ public final class IndexedTraversals {
       final Predicate<? super I> indexPredicate) {
     return new IndexedTraversal<>() {
       @Override
-      public <F> Kind<F, Pair<I, A>> imodifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Pair<I, A>> imodifyF(
           BiFunction<I, A, Kind<F, A>> f, Pair<I, A> source, Applicative<F> app) {
         if (indexPredicate.test(source.first())) {
           return app.map(

@@ -5,6 +5,8 @@ package org.higherkindedj.optics.util;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
@@ -82,7 +84,7 @@ public final class TupleTraversals {
   public static <A> Traversal<Tuple2<A, A>, A> both() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Tuple2<A, A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Tuple2<A, A>> modifyF(
           final Function<A, Kind<F, A>> f,
           final Tuple2<A, A> source,
           final Applicative<F> applicative) {

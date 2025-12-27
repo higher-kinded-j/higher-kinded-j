@@ -54,7 +54,7 @@ public record OptionalT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Opti
    * @return A new {@code OptionalT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value) {
     return new OptionalT<>(value);
   }
 

@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.Ixed;
 import org.higherkindedj.optics.Prism;
@@ -189,7 +191,7 @@ public final class IxedInstances {
     return index ->
         new Traversal<>() {
           @Override
-          public <F> Kind<F, S> modifyF(
+          public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
               Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
             Optional<A> optValue = at.at(index).get(source);
             if (optValue.isEmpty()) {

@@ -128,7 +128,7 @@ public final class Traversals {
   public static <A> Traversal<A, A> filtered(final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, A> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, A> modifyF(
           final Function<A, Kind<F, A>> f, final A source, final Applicative<F> applicative) {
         return predicate.test(source) ? f.apply(source) : applicative.of(source);
       }
@@ -147,7 +147,7 @@ public final class Traversals {
   public static <A> Traversal<List<A>, A> forList() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         Kind<F, Kind<ListKind.Witness, A>> traversed =
             ListTraverse.INSTANCE.traverse(applicative, f, ListKindHelper.LIST.widen(source));
@@ -171,7 +171,7 @@ public final class Traversals {
   public static <K, V> Traversal<Map<K, V>, V> forMap(final K key) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Map<K, V>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           Function<V, Kind<F, V>> f, Map<K, V> source, Applicative<F> applicative) {
         V currentValue = source.get(key);
         if (currentValue == null) {
@@ -229,7 +229,7 @@ public final class Traversals {
   public static <A> Traversal<Optional<A>, A> forOptional() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Optional<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Optional<A>> modifyF(
           final Function<A, Kind<F, A>> f,
           final Optional<A> source,
           final Applicative<F> applicative) {
@@ -274,7 +274,7 @@ public final class Traversals {
   public static <K, V> Traversal<Map<K, V>, V> forMapValues() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Map<K, V>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           final Function<V, Kind<F, V>> f,
           final Map<K, V> source,
           final Applicative<F> applicative) {

@@ -5,6 +5,8 @@ package org.higherkindedj.optics.util;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -63,7 +65,7 @@ public final class ValidatedTraversals {
   public static <E, A> Traversal<Validated<E, A>, A> valid() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Validated<E, A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Validated<E, A>> modifyF(
           Function<A, Kind<F, A>> f, Validated<E, A> source, Applicative<F> applicative) {
         return source.isValid()
             ? applicative.map(Validated::<E, A>valid, f.apply(source.get()))
@@ -116,7 +118,7 @@ public final class ValidatedTraversals {
   public static <E, A> Traversal<Validated<E, A>, E> invalid() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Validated<E, A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Validated<E, A>> modifyF(
           Function<E, Kind<F, E>> f, Validated<E, A> source, Applicative<F> applicative) {
         return source.isInvalid()
             ? applicative.map(Validated::<E, A>invalid, f.apply(source.getError()))
