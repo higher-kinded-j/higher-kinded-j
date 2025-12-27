@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.free.test;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface for Identity.
@@ -12,7 +14,7 @@ import org.higherkindedj.hkt.Kind;
 public interface IdentityKind<A> extends Kind<IdentityKind.Witness, A> {
 
   /** Witness type for Identity. */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
   }
 }
