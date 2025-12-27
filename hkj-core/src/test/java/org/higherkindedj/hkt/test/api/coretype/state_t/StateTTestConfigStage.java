@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.coretype.state_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigStage;
 
@@ -18,7 +20,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigS
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class StateTTestConfigStage<S, F, A, B>
+public final class StateTTestConfigStage<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     extends BaseTransformerTestConfigStage<StateTTestConfigStage<S, F, A, B>> {
 
   private final Class<?> contextClass;

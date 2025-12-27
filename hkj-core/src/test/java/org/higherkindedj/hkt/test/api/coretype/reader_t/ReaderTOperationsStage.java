@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.coretype.reader_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 
 /**
@@ -15,7 +17,7 @@ import org.higherkindedj.hkt.reader_t.ReaderT;
  * @param <R> The environment type
  * @param <A> The value type
  */
-public final class ReaderTOperationsStage<F, R, A> {
+public final class ReaderTOperationsStage<F extends WitnessArity<TypeArity.Unary>, R, A> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final ReaderT<F, R, A> readerTInstance;

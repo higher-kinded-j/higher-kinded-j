@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.coretype.either_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either_t.EitherT;
 
 /**
@@ -15,7 +17,7 @@ import org.higherkindedj.hkt.either_t.EitherT;
  * @param <L> The Left type
  * @param <R> The Right type
  */
-public final class EitherTOperationsStage<F, L, R> {
+public final class EitherTOperationsStage<F extends WitnessArity<TypeArity.Unary>, L, R> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final EitherT<F, L, R> leftInstance;

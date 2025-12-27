@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -21,7 +23,7 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class ReaderTTestExecutor<F, R, A, B> {
+final class ReaderTTestExecutor<F extends WitnessArity<TypeArity.Unary>, R, A, B> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final ReaderT<F, R, A> readerTInstance;

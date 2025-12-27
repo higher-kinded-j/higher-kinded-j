@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.either_t;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationStage;
 
 /**
@@ -15,7 +17,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationS
  * @param <R> The Right type
  * @param <S> The mapped type
  */
-public final class EitherTValidationStage<F, L, R, S>
+public final class EitherTValidationStage<F extends WitnessArity<TypeArity.Unary>, L, R, S>
     extends BaseTransformerValidationStage<EitherTValidationStage<F, L, R, S>> {
 
   private final EitherTTestConfigStage<F, L, R, S> configStage;

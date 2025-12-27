@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.reader_t;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationStage;
 
 /**
@@ -15,7 +17,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationS
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class ReaderTValidationStage<F, R, A, B>
+public final class ReaderTValidationStage<F extends WitnessArity<TypeArity.Unary>, R, A, B>
     extends BaseTransformerValidationStage<ReaderTValidationStage<F, R, A, B>> {
 
   private final ReaderTTestConfigStage<F, R, A, B> configStage;

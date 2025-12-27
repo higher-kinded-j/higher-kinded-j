@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -22,7 +24,7 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class StateTTestExecutor<S, F, A, B> {
+final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final StateT<S, F, A> firstInstance;

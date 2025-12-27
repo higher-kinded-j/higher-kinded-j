@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api.coretype.state_t;
 
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state_t.StateT;
 
 /**
@@ -14,7 +16,7 @@ import org.higherkindedj.hkt.state_t.StateT;
  * @param <F> The outer monad witness type
  * @param <A> The value type
  */
-public final class StateTInstanceStage<S, F, A> {
+public final class StateTInstanceStage<S, F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final StateT<S, F, A> firstInstance;

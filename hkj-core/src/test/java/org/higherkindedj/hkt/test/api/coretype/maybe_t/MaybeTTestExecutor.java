@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -21,7 +23,7 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <A> The type of the value potentially held by the inner Maybe
  * @param <B> The mapped type
  */
-final class MaybeTTestExecutor<F, A, B> {
+final class MaybeTTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final MaybeT<F, A> justInstance;
