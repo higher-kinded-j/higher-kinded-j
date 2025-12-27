@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api.coretype.maybe_t;
 
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 
 /**
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.maybe_t.MaybeT;
  * @param <F> The outer monad witness type
  * @param <A> The type of the value potentially held by the inner Maybe
  */
-public final class MaybeTCoreTestStage<F, A> {
+public final class MaybeTCoreTestStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
 
