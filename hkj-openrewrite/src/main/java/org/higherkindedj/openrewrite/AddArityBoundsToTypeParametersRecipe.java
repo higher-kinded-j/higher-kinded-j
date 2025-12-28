@@ -205,13 +205,7 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
         // Create TypeArity.Unary as a FieldAccess
         J.Identifier typeArityId =
             new J.Identifier(
-                Tree.randomId(),
-                Space.EMPTY,
-                Markers.EMPTY,
-                List.of(),
-                "TypeArity",
-                null,
-                null);
+                Tree.randomId(), Space.EMPTY, Markers.EMPTY, List.of(), "TypeArity", null, null);
 
         J.Identifier unaryId =
             new J.Identifier(
@@ -246,7 +240,12 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
             JContainer.build(Space.EMPTY, List.of(typeArg), Markers.EMPTY);
 
         return new J.ParameterizedType(
-            Tree.randomId(), Space.SINGLE_SPACE, Markers.EMPTY, witnessArityId, typeArguments, null);
+            Tree.randomId(),
+            Space.SINGLE_SPACE,
+            Markers.EMPTY,
+            witnessArityId,
+            typeArguments,
+            null);
       }
 
       private boolean hasWitnessArityBound(J.TypeParameter tp) {
