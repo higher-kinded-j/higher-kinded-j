@@ -82,7 +82,7 @@ public enum ReaderTKindHelper {
 
 The `ReaderTMonad<F, R>` class implements the `Monad<ReaderTKind.Witness<F, R>>` interface, providing the standard monadic operations (`of`, `map`, `flatMap`, `ap`) for the `ReaderT` structure.
 
-* It requires a `Monad<F>` instance for the outer monad `F` to be provided during its construction. This `outerMonad` is used internally to sequence operations within the `F` context.
+* It requires a `Monad<F>` instance for the outer monad `F` (where `F extends WitnessArity<TypeArity.Unary>`) to be provided during its construction. This `outerMonad` is used internally to sequence operations within the `F` context.
 * `R` is the fixed environment type for this monad instance.
 
 ```java

@@ -2,10 +2,12 @@
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
 
-interface Kind<F, A> <<HKT Bridge>>
+interface Kind<F extends WitnessArity<?>, A> <<HKT Bridge>>
 
-interface IOKind<A> extends Kind<IOKind<?>, A> {
-  ' Witness F = IOKind<?>
+note "Witness implements\nWitnessArity<TypeArity.Unary>" as WitnessNote
+
+interface IOKind<A> extends Kind<IOKind.Witness, A> {
+  ' Witness implements WitnessArity<TypeArity.Unary>
 }
 
 interface IO<A> {

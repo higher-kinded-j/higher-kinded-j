@@ -4,28 +4,28 @@
 
 
 package "HKT Core - Type Classes" {
-    interface "Kind<F_WITNESS, A>" as Kind {
-      ' F_WITNESS is the phantom type (e.g., XKind.Witness)
+    interface "Kind<F extends WitnessArity<?>, A>" as Kind {
+      ' F is the phantom type (e.g., XKind.Witness)
       ' A is the value type
     }
-    interface "Functor<F_WITNESS>" as Functor {}
-    interface "Applicative<F_WITNESS>" as Applicative {
+    interface "WitnessArity<A extends TypeArity>" as WitnessArity {}
+    interface "Functor<F extends WitnessArity<Unary>>" as Functor {}
+    interface "Applicative<F extends WitnessArity<Unary>>" as Applicative {
     }
-    interface "Monad<F_WITNESS>" as Monad {}
-    interface "MonadError<F_WITNESS, E>" as MonadError {}
+    interface "Monad<F extends WitnessArity<Unary>>" as Monad {}
+    interface "MonadError<F extends WitnessArity<Unary>, E>" as MonadError {}
 
     interface "Monoid<A>" as Monoid {}
 
-     interface "Traverse<A>" as Traverse {}
+    interface "Traverse<T extends WitnessArity<Unary>>" as Traverse {}
 
+    Kind ..> WitnessArity : F extends
     Functor ..> Kind : (operates on)
     Applicative --|> Functor
     Monad --|> Applicative
     MonadError --|> Monad
     Traverse --|> Functor
 
-
-}
 
 }
 @enduml

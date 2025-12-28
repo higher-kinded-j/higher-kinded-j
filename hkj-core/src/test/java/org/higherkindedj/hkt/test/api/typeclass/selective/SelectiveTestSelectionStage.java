@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.selective;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage 8: Fine-grained test selection for Selective.
  *
@@ -12,7 +15,7 @@ package org.higherkindedj.hkt.test.api.typeclass.selective;
  * @param <B> The output type
  * @param <C> The result type
  */
-public final class SelectiveTestSelectionStage<F, A, B, C> {
+public final class SelectiveTestSelectionStage<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
   private final SelectiveHandlerStage<F, A, B, C> handlerStage;
   private final SelectiveLawsStage<F, A, B, C> lawsStage;
   private final SelectiveValidationStage<F, A, B, C> validationStage;

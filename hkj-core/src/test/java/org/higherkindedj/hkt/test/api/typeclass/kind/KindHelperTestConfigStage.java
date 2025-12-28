@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.kind;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 
-public final class KindHelperTestConfigStage<T, F, A> {
+public final class KindHelperTestConfigStage<T, F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<T> targetClass;
   private final KindHelperTestPattern.KindHelper<T, F, A> helper;
   private final T validInstance;

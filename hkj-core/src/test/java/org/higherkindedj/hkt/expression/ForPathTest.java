@@ -642,7 +642,8 @@ class ForPathTest {
     @DisplayName("should throw on null GenericPath source")
     void throwsOnNullGenericPathSource() {
       assertThrows(
-          NullPointerException.class, () -> ForPath.from((GenericPath<Object, Object>) null));
+          NullPointerException.class,
+          () -> ForPath.from((GenericPath<MaybeKind.Witness, Object>) null));
     }
 
     @Test

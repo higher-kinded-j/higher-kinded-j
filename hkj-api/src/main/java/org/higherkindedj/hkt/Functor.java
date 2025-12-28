@@ -235,7 +235,7 @@ import org.jspecify.annotations.NullMarked;
  * @see Kind
  */
 @NullMarked
-public interface Functor<F> {
+public interface Functor<F extends WitnessArity<TypeArity.Unary>> {
 
   /**
    * Applies a pure function to the value(s) contained within the Functor context, producing a new

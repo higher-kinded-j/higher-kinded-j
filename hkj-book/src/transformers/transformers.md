@@ -54,6 +54,8 @@ Key characteristics:
 
 ## Transformers in Higher-Kinded-J
 
+> **Note:** All transformers require an outer monad `F` where `F extends WitnessArity<TypeArity.Unary>`. This ensures the transformer can work with any properly-typed monad in the framework.
+
 ![supported_transformers.svg](../images/puml/supported_transformers.svg)
 
 ### 1. `EitherT<F, L, R>` (Monad Transformer)

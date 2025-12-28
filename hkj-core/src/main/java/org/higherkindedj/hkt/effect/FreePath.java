@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.free.Free;
@@ -53,7 +55,7 @@ import org.higherkindedj.hkt.free.Free;
  * @param <F> the functor witness type for the DSL
  * @param <A> the result type
  */
-public final class FreePath<F, A> implements Chainable<A> {
+public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A> implements Chainable<A> {
 
   private final Free<F, A> free;
   private final Functor<F> functor;
@@ -75,7 +77,8 @@ public final class FreePath<F, A> implements Chainable<A> {
    * @return a FreePath containing the value
    * @throws NullPointerException if functor is null
    */
-  public static <F, A> FreePath<F, A> pure(A value, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> pure(
+      A value, Functor<F> functor) {
     Objects.requireNonNull(functor, "functor must not be null");
     return new FreePath<>(Free.pure(value), functor);
   }
@@ -93,7 +96,8 @@ public final class FreePath<F, A> implements Chainable<A> {
    * @return a FreePath containing the lifted instruction
    * @throws NullPointerException if fa or functor is null
    */
-  public static <F, A> FreePath<F, A> liftF(Kind<F, A> fa, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> liftF(
+      Kind<F, A> fa, Functor<F> functor) {
     Objects.requireNonNull(fa, "fa must not be null");
     Objects.requireNonNull(functor, "functor must not be null");
     return new FreePath<>(Free.liftF(fa, functor), functor);
@@ -109,7 +113,8 @@ public final class FreePath<F, A> implements Chainable<A> {
    * @return a FreePath wrapping the Free monad
    * @throws NullPointerException if free or functor is null
    */
-  public static <F, A> FreePath<F, A> of(Free<F, A> free, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> of(
+      Free<F, A> free, Functor<F> functor) {
     return new FreePath<>(free, functor);
   }
 
@@ -127,7 +132,8 @@ public final class FreePath<F, A> implements Chainable<A> {
    * @return a GenericPath containing the interpreted result
    * @throws NullPointerException if interpreter or targetMonad is null
    */
-  public <G> GenericPath<G, A> foldMap(Natural<F, G> interpreter, Monad<G> targetMonad) {
+  public <G extends WitnessArity<TypeArity.Unary>> GenericPath<G, A> foldMap(
+      Natural<F, G> interpreter, Monad<G> targetMonad) {
     Objects.requireNonNull(interpreter, "interpreter must not be null");
     Objects.requireNonNull(targetMonad, "targetMonad must not be null");
     Kind<G, A> result = free.foldMap(interpreter, targetMonad);
@@ -145,7 +151,7 @@ public final class FreePath<F, A> implements Chainable<A> {
    * @return a GenericPath containing the interpreted result
    * @throws NullPointerException if interpreter or targetMonad is null
    */
-  public <G> GenericPath<G, A> foldMapWith(
+  public <G extends WitnessArity<TypeArity.Unary>> GenericPath<G, A> foldMapWith(
       NaturalTransformation<F, G> interpreter, Monad<G> targetMonad) {
     Objects.requireNonNull(interpreter, "interpreter must not be null");
     Objects.requireNonNull(targetMonad, "targetMonad must not be null");

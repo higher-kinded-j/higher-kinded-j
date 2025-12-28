@@ -9,6 +9,7 @@ import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -166,12 +167,14 @@ public final class KindAssertions {
     return assertKindUnwrapException(
         executable,
         () -> {
-          Kind<Object, Object> nullKind = null;
+          // Use MaybeKind.Witness as a valid witness type for null validation testing
+          Kind<MaybeKind.Witness, Object> nullKind = null;
           // Cast targetType to Class<Object> for the generic method call
           @SuppressWarnings("unchecked")
           Class<Object> objectTargetType = (Class<Object>) targetType;
           Validation.kind()
-              .<Object, Object, Object>narrow(nullKind, objectTargetType, kind -> new Object());
+              .<MaybeKind.Witness, Object, Object>narrow(
+                  nullKind, objectTargetType, kind -> new Object());
         });
   }
 

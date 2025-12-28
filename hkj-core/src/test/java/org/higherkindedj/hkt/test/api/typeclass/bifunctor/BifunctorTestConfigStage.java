@@ -6,6 +6,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Configuration stage with optional settings and test execution methods.
@@ -16,7 +18,7 @@ import org.higherkindedj.hkt.Kind2;
  * @param <C> The first output type parameter
  * @param <D> The second output type parameter
  */
-public final class BifunctorTestConfigStage<F, A, B, C, D> {
+public final class BifunctorTestConfigStage<F extends WitnessArity<TypeArity.Binary>, A, B, C, D> {
 
   final Class<?> contextClass;
   final Bifunctor<F> bifunctor;

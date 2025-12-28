@@ -20,7 +20,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <M> The witness type for the Monad (e.g., ListKind.class, OptionalKind.class)
  */
 @NullMarked
-public interface Monad<M> extends Applicative<M> {
+public interface Monad<M extends WitnessArity<TypeArity.Unary>> extends Applicative<M> {
 
   // 'of' is  inherited from Applicative
   // 'map' is inherited from Functor (via Applicative)

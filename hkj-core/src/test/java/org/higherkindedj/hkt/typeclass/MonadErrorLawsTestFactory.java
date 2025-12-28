@@ -18,7 +18,9 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
@@ -68,14 +70,14 @@ class MonadErrorLawsTestFactory {
    * @param <F> the monad type constructor
    * @param <E> the error type
    */
-  record MonadErrorTestData<F, E>(
+  record MonadErrorTestData<F extends WitnessArity<TypeArity.Unary>, E>(
       String name,
       MonadError<F, E> monadError,
       Kind<F, Integer> successValue,
       E errorValue,
       EqualityChecker<F> equalityChecker) {
 
-    static <F, E> MonadErrorTestData<F, E> of(
+    static <F extends WitnessArity<TypeArity.Unary>, E> MonadErrorTestData<F, E> of(
         String name,
         MonadError<F, E> monadError,
         Kind<F, Integer> successValue,
@@ -87,7 +89,7 @@ class MonadErrorLawsTestFactory {
 
   /** Functional interface for checking equality of Kind values */
   @FunctionalInterface
-  interface EqualityChecker<M> {
+  interface EqualityChecker<M extends WitnessArity<TypeArity.Unary>> {
     <A> boolean areEqual(Kind<M, A> a, Kind<M, A> b);
   }
 
@@ -203,8 +205,8 @@ class MonadErrorLawsTestFactory {
                     data.name() + " satisfies left zero law", () -> testLeftZeroLaw(data)));
   }
 
-  @SuppressWarnings("unchecked")
-  private <F, E> void testLeftZeroLaw(MonadErrorTestData<F, E> data) {
+  private <F extends WitnessArity<TypeArity.Unary>, E> void testLeftZeroLaw(
+      MonadErrorTestData<F, E> data) {
     MonadError<F, E> monadError = data.monadError();
     E error = data.errorValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -241,8 +243,8 @@ class MonadErrorLawsTestFactory {
                     data.name() + " satisfies recovery law", () -> testRecoveryLaw(data)));
   }
 
-  @SuppressWarnings("unchecked")
-  private <F, E> void testRecoveryLaw(MonadErrorTestData<F, E> data) {
+  private <F extends WitnessArity<TypeArity.Unary>, E> void testRecoveryLaw(
+      MonadErrorTestData<F, E> data) {
     MonadError<F, E> monadError = data.monadError();
     E error = data.errorValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -280,8 +282,8 @@ class MonadErrorLawsTestFactory {
                     () -> testSuccessPassthroughLaw(data)));
   }
 
-  @SuppressWarnings("unchecked")
-  private <F, E> void testSuccessPassthroughLaw(MonadErrorTestData<F, E> data) {
+  private <F extends WitnessArity<TypeArity.Unary>, E> void testSuccessPassthroughLaw(
+      MonadErrorTestData<F, E> data) {
     MonadError<F, E> monadError = data.monadError();
     Kind<F, Integer> successValue = data.successValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -316,8 +318,8 @@ class MonadErrorLawsTestFactory {
                     () -> testRaiseErrorRecoverable(data)));
   }
 
-  @SuppressWarnings("unchecked")
-  private <F, E> void testRaiseErrorRecoverable(MonadErrorTestData<F, E> data) {
+  private <F extends WitnessArity<TypeArity.Unary>, E> void testRaiseErrorRecoverable(
+      MonadErrorTestData<F, E> data) {
     MonadError<F, E> monadError = data.monadError();
     E error = data.errorValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -352,8 +354,8 @@ class MonadErrorLawsTestFactory {
                     data.name() + " recoverWith provides fallback", () -> testRecoverWith(data)));
   }
 
-  @SuppressWarnings("unchecked")
-  private <F, E> void testRecoverWith(MonadErrorTestData<F, E> data) {
+  private <F extends WitnessArity<TypeArity.Unary>, E> void testRecoverWith(
+      MonadErrorTestData<F, E> data) {
     MonadError<F, E> monadError = data.monadError();
     E error = data.errorValue();
     EqualityChecker<F> checker = data.equalityChecker();

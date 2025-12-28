@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -35,8 +37,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see Monad
  * @see Kind
  */
-public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
-    implements ReaderTKind<F, R_ENV, A> {
+public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
+    Function<R_ENV, Kind<F, A>> run) implements ReaderTKind<F, R_ENV, A> {
 
   private static final Class<ReaderT> READER_T_CLASS = ReaderT.class;
 
@@ -62,7 +64,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} instance. Never null.
    * @throws NullPointerException if {@code runFunction} is null.
    */
-  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> of(Function<R_ENV, Kind<F, A>> runFunction) {
+  public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> of(
+      Function<R_ENV, Kind<F, A>> runFunction) {
     return new ReaderT<>(runFunction);
   }
 
@@ -79,7 +82,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} that wraps {@code fa}. Never null.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
+  public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> liftF(
+      Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);
     Validation.kind().requireNonNull(fa, READER_T_CLASS, LIFT_F, "source Kind");
     return new ReaderT<>(r -> fa);
@@ -98,7 +102,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} instance. Never null.
    * @throws NullPointerException if {@code outerMonad} or {@code f} is null.
    */
-  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> reader(
+  public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> reader(
       Monad<F> outerMonad, Function<R_ENV, A> f) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, READER);
     Validation.function().requireFunction(f, "environment function", READER_T_CLASS, READER);
@@ -115,7 +119,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} that, when run, yields {@code outerMonad.of(r)}. Never null.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, R_ENV> ReaderT<F, R_ENV, R_ENV> ask(Monad<F> outerMonad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, R_ENV> ReaderT<F, R_ENV, R_ENV> ask(
+      Monad<F> outerMonad) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, ASK);
     return new ReaderT<>(r -> outerMonad.of(r));
   }

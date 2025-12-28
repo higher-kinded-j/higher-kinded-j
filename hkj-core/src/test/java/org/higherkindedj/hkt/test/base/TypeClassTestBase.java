@@ -6,6 +6,8 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.junit.jupiter.api.BeforeEach;
 
 /**
@@ -73,7 +75,7 @@ import org.junit.jupiter.api.BeforeEach;
  * @param <A> The input type for test values
  * @param <B> The output type for mapped values
  */
-public abstract class TypeClassTestBase<F, A, B> {
+public abstract class TypeClassTestBase<F extends WitnessArity<TypeArity.Unary>, A, B> {
 
   // ============================================================================
   // Standard Test Fixtures

@@ -5,6 +5,8 @@ package org.higherkindedj.optics.util;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -59,7 +61,7 @@ public final class MaybeTraversals {
   public static <A> Traversal<Maybe<A>, A> just() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Maybe<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Maybe<A>> modifyF(
           Function<A, Kind<F, A>> f, Maybe<A> source, Applicative<F> applicative) {
         return source.isJust()
             ? applicative.map(Maybe::just, f.apply(source.get()))

@@ -9,7 +9,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -28,7 +30,7 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <B> The output type
  * @param <C> The result type
  */
-final class SelectiveTestExecutor<F, A, B, C> {
+final class SelectiveTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
   private final Class<?> contextClass;
   private final Selective<F> selective;
   private final Kind<F, A> validKind;

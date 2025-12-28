@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
@@ -117,7 +118,7 @@ public final class TypeClassAssertions {
    * @param <A> The input type
    * @param <B> The output type
    */
-  public static <F, A, B> void assertAllFunctorOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void assertAllFunctorOperations(
       Functor<F> functor, Class<?> contextClass, Kind<F, A> validKind, Function<A, B> validMapper) {
 
     assertFunctorMapFunctionNull(() -> functor.map(null, validKind), "f", contextClass);
@@ -203,7 +204,7 @@ public final class TypeClassAssertions {
    * @param <A> The input type
    * @param <B> The output type
    */
-  public static <F, A, B> void assertAllApplicativeOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void assertAllApplicativeOperations(
       Applicative<F> applicative,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -271,7 +272,7 @@ public final class TypeClassAssertions {
    * @param <A> The input type
    * @param <B> The output type
    */
-  public static <F, A, B> void assertAllMonadOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void assertAllMonadOperations(
       Monad<F> monad,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -378,15 +379,16 @@ public final class TypeClassAssertions {
    * @param <A> The input type
    * @param <B> The output type
    */
-  public static <F, E, A, B> void assertAllMonadErrorOperations(
-      MonadError<F, E> monadError,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind,
-      Function<E, Kind<F, A>> validHandler,
-      Kind<F, A> validFallback) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A, B>
+      void assertAllMonadErrorOperations(
+          MonadError<F, E> monadError,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Function<A, Kind<F, B>> validFlatMapper,
+          Kind<F, Function<A, B>> validFunctionKind,
+          Function<E, Kind<F, A>> validHandler,
+          Kind<F, A> validFallback) {
 
     // Monad operations (inherited)
     assertAllMonadOperations(
@@ -455,7 +457,7 @@ public final class TypeClassAssertions {
    * @param <A> The element type
    * @param <M> The Monoid type
    */
-  public static <F, A, M> void assertAllFoldableOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, M> void assertAllFoldableOperations(
       Foldable<F> foldable,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -614,17 +616,18 @@ public final class TypeClassAssertions {
    * @param <B> The output type
    * @param <C> The result type
    */
-  public static <F, A, B, C> void assertAllSelectiveOperations(
-      Selective<F> selective,
-      Class<?> contextClass,
-      Kind<F, Choice<A, B>> validChoiceKind,
-      Kind<F, Function<A, B>> validFunctionKind,
-      Kind<F, Function<A, C>> validLeftHandler,
-      Kind<F, Function<B, C>> validRightHandler,
-      Kind<F, Boolean> validCondition,
-      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
-      Kind<F, A> validThenBranch,
-      Kind<F, A> validElseBranch) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C>
+      void assertAllSelectiveOperations(
+          Selective<F> selective,
+          Class<?> contextClass,
+          Kind<F, Choice<A, B>> validChoiceKind,
+          Kind<F, Function<A, B>> validFunctionKind,
+          Kind<F, Function<A, C>> validLeftHandler,
+          Kind<F, Function<B, C>> validRightHandler,
+          Kind<F, Boolean> validCondition,
+          Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
+          Kind<F, A> validThenBranch,
+          Kind<F, A> validElseBranch) {
 
     // Applicative operations (inherited) - create valid test data
     @SuppressWarnings("unchecked")
@@ -754,15 +757,17 @@ public final class TypeClassAssertions {
    * @param <B> The target element type
    * @param <M> The Monoid type
    */
-  public static <F, G, A, B, M> void assertAllTraverseOperations(
-      Traverse<F> traverse,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Applicative<G> validApplicative,
-      Function<A, Kind<G, B>> validTraverseFunction,
-      Monoid<M> validMonoid,
-      Function<A, M> validFoldMapFunction) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
+      void assertAllTraverseOperations(
+          Traverse<F> traverse,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Applicative<G> validApplicative,
+          Function<A, Kind<G, B>> validTraverseFunction,
+          Monoid<M> validMonoid,
+          Function<A, M> validFoldMapFunction) {
 
     // Functor operations (inherited)
     assertAllFunctorOperations(traverse, contextClass, validKind, validMapper);
@@ -800,12 +805,13 @@ public final class TypeClassAssertions {
    * @param <C> The first output type
    * @param <D> The second output type
    */
-  public static <F, A, B, C, D> void assertAllBifunctorOperations(
-      Bifunctor<F> bifunctor,
-      Class<?> contextClass,
-      Kind2<F, A, B> validKind,
-      Function<A, C> firstMapper,
-      Function<B, D> secondMapper) {
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D>
+      void assertAllBifunctorOperations(
+          Bifunctor<F> bifunctor,
+          Class<?> contextClass,
+          Kind2<F, A, B> validKind,
+          Function<A, C> firstMapper,
+          Function<B, D> secondMapper) {
 
     // bimap validations
     assertBimapFirstMapperNull(

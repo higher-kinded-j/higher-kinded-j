@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.patterns;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
@@ -60,7 +62,7 @@ public final class KindHelperTestConfig {
   // =============================================================================
 
   /** Base class for KindHelper test configurations. */
-  public abstract static class BaseKindHelperTest<T, F, A> {
+  public abstract static class BaseKindHelperTest<T, F extends WitnessArity<TypeArity.Unary>, A> {
     protected final T validInstance;
 
     private boolean includeRoundTrip = true;

@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A **Lens** is an optic that provides a focused view into a part of a data structure. Think of it
@@ -72,7 +74,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param functor The {@link Functor} instance for the context {@code F}.
    * @return The updated structure {@code S}, itself wrapped in the context {@code F}.
    */
-  <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Functor<F> functor);
+  <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S source, Functor<F> functor);
 
   /**
    * {@inheritDoc}
@@ -82,7 +85,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * Functor}.
    */
   @Override
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
     return this.modifyF(f, s, (Functor<F>) app);
   }
 
@@ -97,7 +101,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
   default Traversal<S, A> asTraversal() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         return Lens.this.modifyF(f, s, app);
       }
     };
@@ -146,7 +151,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Functor<F> functor) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Functor<F> functor) {
         return self.modifyF(a -> other.modifyF(f, a, functor), source, functor);
       }
     };
@@ -330,7 +336,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
     Lens<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
         A a = self.get(source);
         Kind<F, A> modifiedA = traversal.modifyF(f, a, app);
         return app.map(newA -> self.set(newA, source), modifiedA);
@@ -360,7 +367,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
         Kind<F, A> fa = f.apply(this.get(source));
         return functor.map(a -> this.set(a, source), fa);
       }
@@ -383,7 +391,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * );
    * }</pre>
    */
-  default <F> Kind<F, S> setIf(
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> setIf(
       Predicate<? super A> predicate, A newValue, S source, Selective<F> selective) {
     return selective.ifS(
         selective.of(predicate.test(newValue)),
@@ -407,7 +415,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * );
    * }</pre>
    */
-  default <F> Kind<F, S> modifyWhen(
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyWhen(
       Predicate<? super A> shouldModify,
       Function<A, A> modifier,
       S source,
@@ -435,7 +443,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * );
    * }</pre>
    */
-  default <F> Kind<F, S> modifyBranch(
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyBranch(
       Predicate<? super A> predicate,
       Function<A, A> thenModifier,
       Function<A, A> elseModifier,

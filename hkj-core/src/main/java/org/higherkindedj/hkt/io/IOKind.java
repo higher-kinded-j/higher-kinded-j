@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.io;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the IO type in Higher-Kinded-J. Represents IO as a type constructor 'F'
@@ -15,7 +17,7 @@ public interface IOKind<A> extends Kind<IOKind.Witness, A> {
    * The phantom type marker for the IO type constructor. This is used as the 'F' in {@code Kind<F,
    * A>}.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {} // Private constructor to prevent instantiation
   }
 }

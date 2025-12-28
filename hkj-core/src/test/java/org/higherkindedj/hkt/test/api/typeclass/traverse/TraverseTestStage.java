@@ -3,8 +3,10 @@
 package org.higherkindedj.hkt.test.api.typeclass.traverse;
 
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
-public final class TraverseTestStage<F> {
+public final class TraverseTestStage<F extends WitnessArity<TypeArity.Unary>> {
   private final Class<?> contextClass;
 
   public TraverseTestStage(Class<?> contextClass) {

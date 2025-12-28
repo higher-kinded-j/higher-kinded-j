@@ -6,6 +6,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 4: Configure applicative for traverse operations.
@@ -16,7 +18,7 @@ import org.higherkindedj.hkt.Traverse;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class TraverseMapperStage<F, A, B> {
+public final class TraverseMapperStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Traverse<F> traverse;
   private final Kind<F, A> validKind;
@@ -42,8 +44,9 @@ public final class TraverseMapperStage<F, A, B> {
    * @param <G> The Applicative witness type (automatically inferred)
    * @return Next stage for configuring foldable operations
    */
-  public <G> TraverseApplicativeStage<F, G, A, B> withApplicative(
-      Applicative<G> applicative, Function<A, Kind<G, B>> traverseFunction) {
+  public <G extends WitnessArity<TypeArity.Unary>>
+      TraverseApplicativeStage<F, G, A, B> withApplicative(
+          Applicative<G> applicative, Function<A, Kind<G, B>> traverseFunction) {
 
     return new TraverseApplicativeStage<>(
         contextClass, traverse, validKind, mapper, applicative, traverseFunction);

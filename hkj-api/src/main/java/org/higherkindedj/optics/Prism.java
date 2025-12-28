@@ -8,6 +8,8 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A **Prism** is an optic that provides a focused view into a part of a sum type (e.g., a {@code
@@ -58,7 +60,8 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * structure {@code s} wrapped in the {@link Applicative} context, effectively performing a no-op.
    */
   @Override
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
     return getOptional(s).map(a -> app.map(this::build, f.apply(a))).orElse(app.of(s));
   }
 
@@ -74,7 +77,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
     Prism<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
           Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
         return self.modifyF(f, source, applicative);
       }
@@ -322,7 +325,8 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
     Prism<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
         return self.getOptional(source)
             .map(a -> app.map(self::build, traversal.modifyF(f, a, app)))
             .orElse(app.of(source));

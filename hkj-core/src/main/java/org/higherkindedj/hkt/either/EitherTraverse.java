@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -100,10 +102,11 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
    *     to a valid {@code Either} representation.
    */
   @Override
-  public <G, A, B> Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
-      Applicative<G> applicative,
-      Function<? super A, ? extends Kind<G, ? extends B>> f,
-      Kind<EitherKind.Witness<E>, A> ta) {
+  public <G extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
+          Applicative<G> applicative,
+          Function<? super A, ? extends Kind<G, ? extends B>> f,
+          Kind<EitherKind.Witness<E>, A> ta) {
 
     Validation.function().validateTraverse(applicative, f, ta, EITHER_TRAVERSE_CLASS);
 

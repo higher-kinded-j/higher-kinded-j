@@ -8,6 +8,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 
 /**
@@ -21,7 +23,8 @@ import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
  * @param <B> The output type
  * @param <M> The Monoid type
  */
-public final class TraverseTestConfigStage<F, G, A, B, M> {
+public final class TraverseTestConfigStage<
+    F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M> {
   private final Class<?> contextClass;
   private final Traverse<F> traverse;
   private final Kind<F, A> validKind;

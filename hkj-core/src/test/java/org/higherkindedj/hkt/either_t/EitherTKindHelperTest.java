@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -172,5 +174,7 @@ class EitherTKindHelperTest {
   }
 
   // Dummy Kind for testing invalid type unwrap
-  private static class OtherKind<F_Witness, L, R> implements Kind<OtherKind<F_Witness, L, ?>, R> {}
+  private interface OtherWitness extends WitnessArity<TypeArity.Unary> {}
+
+  private static class OtherKind<F_Witness, L, R> implements Kind<OtherWitness, R> {}
 }

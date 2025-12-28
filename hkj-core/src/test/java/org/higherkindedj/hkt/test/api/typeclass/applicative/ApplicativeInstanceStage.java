@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.applicative;
 
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 2: Configure test data with Kind instance.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <F> The Applicative witness type
  * @param <A> The input type
  */
-public final class ApplicativeInstanceStage<F, A> {
+public final class ApplicativeInstanceStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Applicative<F> applicative;
 

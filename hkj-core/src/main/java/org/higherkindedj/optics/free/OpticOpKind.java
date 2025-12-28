@@ -3,6 +3,8 @@
 package org.higherkindedj.optics.free;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -17,7 +19,7 @@ import org.jspecify.annotations.NullMarked;
 public interface OpticOpKind<A> extends Kind<OpticOpKind.Witness, A> {
 
   /** Witness type for OpticOp in the Kind encoding. */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {
       throw new UnsupportedOperationException("Witness class");
     }

@@ -6,7 +6,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 4: Configure additional operation parameters and optional law testing.
@@ -19,7 +21,7 @@ import org.higherkindedj.hkt.Unit;
  * @param <B> The output type
  * @param <C> The result type for branch operations
  */
-public final class SelectiveOperationsStage<F, A, B, C> {
+public final class SelectiveOperationsStage<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
   private final Class<?> contextClass;
   private final Selective<F> selective;
   private final Kind<F, A> validKind;

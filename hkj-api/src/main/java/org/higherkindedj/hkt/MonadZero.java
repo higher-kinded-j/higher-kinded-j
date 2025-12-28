@@ -30,7 +30,8 @@ import org.jspecify.annotations.NullMarked;
  * @see Alternative
  */
 @NullMarked
-public interface MonadZero<F> extends Monad<F>, Alternative<F> {
+public interface MonadZero<F extends WitnessArity<TypeArity.Unary>>
+    extends Monad<F>, Alternative<F> {
 
   /**
    * Returns the "zero" or "empty" value for this Monad.

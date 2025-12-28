@@ -10,6 +10,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
 
 /**
@@ -40,19 +41,19 @@ public final class TypeClassTestPattern {
   // FUNCTOR TESTING
   // =============================================================================
 
-  public static <F, A, B> void testFunctorOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testFunctorOperations(
       Functor<F> functor, Kind<F, A> validKind, Function<A, B> validMapper) {
     assertThat(functor.map(validMapper, validKind))
         .as("map should return non-null result")
         .isNotNull();
   }
 
-  public static <F, A, B> void testFunctorValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testFunctorValidations(
       Functor<F> functor, Class<?> contextClass, Kind<F, A> validKind, Function<A, B> validMapper) {
     TypeClassAssertions.assertAllFunctorOperations(functor, contextClass, validKind, validMapper);
   }
 
-  public static <F, A> void testFunctorExceptionPropagation(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testFunctorExceptionPropagation(
       Functor<F> functor, Kind<F, A> validKind) {
     RuntimeException testException = createTestException("functor test");
     Function<A, String> throwingMapper =
@@ -69,7 +70,7 @@ public final class TypeClassTestPattern {
    *
    * <p>This method tests the Identity and Composition laws without performing validation tests.
    */
-  public static <F, A, B, C> void testFunctorLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C> void testFunctorLaws(
       Functor<F> functor,
       Kind<F, A> validKind,
       Function<A, B> f,
@@ -85,7 +86,7 @@ public final class TypeClassTestPattern {
   // APPLICATIVE TESTING
   // =============================================================================
 
-  public static <F, A, B> void testApplicativeOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testApplicativeOperations(
       Applicative<F> applicative,
       Kind<F, A> validKind,
       Kind<F, A> validKind2,
@@ -106,7 +107,7 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
-  public static <F, A, B> void testApplicativeValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testApplicativeValidations(
       Applicative<F> applicative,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -125,8 +126,8 @@ public final class TypeClassTestPattern {
         validCombiningFunction);
   }
 
-  public static <F, A> void testApplicativeExceptionPropagation(
-      Applicative<F> applicative, Kind<F, A> validKind) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A>
+      void testApplicativeExceptionPropagation(Applicative<F> applicative, Kind<F, A> validKind) {
 
     RuntimeException testException = createTestException("applicative test");
     Function<A, String> throwingMapper =
@@ -147,7 +148,7 @@ public final class TypeClassTestPattern {
    *
    * <p><strong>Note:</strong> This now includes the Interchange law which was previously missing.
    */
-  public static <F, A, B> void testApplicativeLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testApplicativeLaws(
       Applicative<F> applicative,
       Kind<F, A> validKind,
       A testValue,
@@ -166,7 +167,7 @@ public final class TypeClassTestPattern {
   // MONAD TESTING
   // =============================================================================
 
-  public static <F, A, B> void testMonadOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testMonadOperations(
       Monad<F> monad,
       Kind<F, A> validKind,
       Function<A, B> validMapper,
@@ -186,7 +187,7 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
-  public static <F, A, B> void testMonadValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testMonadValidations(
       Monad<F> monad,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -198,7 +199,8 @@ public final class TypeClassTestPattern {
         monad, contextClass, validKind, validMapper, validFlatMapper, validFunctionKind);
   }
 
-  public static <F, A> void testMonadExceptionPropagation(Monad<F> monad, Kind<F, A> validKind) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testMonadExceptionPropagation(
+      Monad<F> monad, Kind<F, A> validKind) {
     RuntimeException testException = createTestException("monad test");
 
     Function<A, String> throwingMapper =
@@ -224,7 +226,7 @@ public final class TypeClassTestPattern {
    * <p>This method tests Left Identity, Right Identity, and Associativity laws without performing
    * validation tests.
    */
-  public static <F, A, B> void testMonadLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testMonadLaws(
       Monad<F> monad,
       Kind<F, A> validKind,
       A testValue,
@@ -243,7 +245,7 @@ public final class TypeClassTestPattern {
   // MONAD ERROR TESTING
   // =============================================================================
 
-  public static <F, E, A, B> void testMonadErrorOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A, B> void testMonadErrorOperations(
       MonadError<F, E> monadError,
       Kind<F, A> validKind,
       Function<A, B> validMapper,
@@ -263,7 +265,7 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
-  public static <F, E, A, B> void testMonadErrorValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A, B> void testMonadErrorValidations(
       MonadError<F, E> monadError,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -284,8 +286,8 @@ public final class TypeClassTestPattern {
         validFallback);
   }
 
-  public static <F, E, A> void testMonadErrorExceptionPropagation(
-      MonadError<F, E> monadError, Kind<F, A> validKind) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A>
+      void testMonadErrorExceptionPropagation(MonadError<F, E> monadError, Kind<F, A> validKind) {
 
     testMonadExceptionPropagation(monadError, validKind);
   }
@@ -315,7 +317,7 @@ public final class TypeClassTestPattern {
    * @param <B> The output type
    * @param <C> The result type
    */
-  public static <F, A, B, C> void testSelectiveOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C> void testSelectiveOperations(
       Selective<F> selective,
       Kind<F, Choice<A, B>> validChoiceKind,
       Kind<F, Function<A, B>> validFunctionKind,
@@ -364,7 +366,7 @@ public final class TypeClassTestPattern {
    * @param <B> The output type
    * @param <C> The result type
    */
-  public static <F, A, B, C> void testSelectiveValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C> void testSelectiveValidations(
       Selective<F> selective,
       Class<?> contextClass,
       Kind<F, Choice<A, B>> validChoiceKind,
@@ -389,10 +391,11 @@ public final class TypeClassTestPattern {
         validElseBranch);
   }
 
-  public static <F, A, B> void testSelectiveExceptionPropagation(
-      Selective<F> selective,
-      Kind<F, Choice<A, B>> validChoiceKind,
-      Kind<F, Function<A, B>> validFunctionKind) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      void testSelectiveExceptionPropagation(
+          Selective<F> selective,
+          Kind<F, Choice<A, B>> validChoiceKind,
+          Kind<F, Function<A, B>> validFunctionKind) {
 
     RuntimeException testException = createTestException("selective test");
 
@@ -417,7 +420,7 @@ public final class TypeClassTestPattern {
    *
    * <p>This method tests Identity and Distributivity laws without performing validation tests.
    */
-  public static <F, A, B> void testSelectiveLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testSelectiveLaws(
       Selective<F> selective,
       Kind<F, Choice<A, B>> choiceKind,
       B testValue,
@@ -459,7 +462,7 @@ public final class TypeClassTestPattern {
    * @param <B> The output type
    * @param <C> The result type
    */
-  public static <F, A, B, C> void testCompleteSelective(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C> void testCompleteSelective(
       Selective<F> selective,
       Class<?> contextClass,
       Kind<F, Choice<A, B>> validChoiceKind,
@@ -506,7 +509,7 @@ public final class TypeClassTestPattern {
   // FOLDABLE TESTING
   // =============================================================================
 
-  public static <F, A, M> void testFoldableOperations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, M> void testFoldableOperations(
       Foldable<F> foldable,
       Kind<F, A> validKind,
       Monoid<M> validMonoid,
@@ -517,7 +520,7 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
-  public static <F, A, M> void testFoldableValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, M> void testFoldableValidations(
       Foldable<F> foldable,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -528,8 +531,9 @@ public final class TypeClassTestPattern {
         foldable, contextClass, validKind, validMonoid, validFoldMapFunction);
   }
 
-  public static <F, A, M> void testFoldableExceptionPropagation(
-      Foldable<F> foldable, Kind<F, A> validKind, Monoid<M> validMonoid) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, M>
+      void testFoldableExceptionPropagation(
+          Foldable<F> foldable, Kind<F, A> validKind, Monoid<M> validMonoid) {
 
     RuntimeException testException = createTestException("foldable test");
     Function<A, M> throwingFunction =
@@ -546,14 +550,16 @@ public final class TypeClassTestPattern {
   // TRAVERSE TESTING
   // =============================================================================
 
-  public static <F, G, A, B, M> void testTraverseOperations(
-      Traverse<F> traverse,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Applicative<G> validApplicative,
-      Function<A, Kind<G, B>> validTraverseFunction,
-      Monoid<M> validMonoid,
-      Function<A, M> validFoldMapFunction) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
+      void testTraverseOperations(
+          Traverse<F> traverse,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Applicative<G> validApplicative,
+          Function<A, Kind<G, B>> validTraverseFunction,
+          Monoid<M> validMonoid,
+          Function<A, M> validFoldMapFunction) {
 
     assertThat(traverse.map(validMapper, validKind))
         .as("map should return non-null result")
@@ -568,15 +574,17 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
-  public static <F, G, A, B, M> void testTraverseValidations(
-      Traverse<F> traverse,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Applicative<G> validApplicative,
-      Function<A, Kind<G, B>> validTraverseFunction,
-      Monoid<M> validMonoid,
-      Function<A, M> validFoldMapFunction) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
+      void testTraverseValidations(
+          Traverse<F> traverse,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Applicative<G> validApplicative,
+          Function<A, Kind<G, B>> validTraverseFunction,
+          Monoid<M> validMonoid,
+          Function<A, M> validFoldMapFunction) {
 
     TypeClassAssertions.assertAllTraverseOperations(
         traverse,
@@ -589,11 +597,13 @@ public final class TypeClassTestPattern {
         validFoldMapFunction);
   }
 
-  public static <F, G, A, M> void testTraverseExceptionPropagation(
-      Traverse<F> traverse,
-      Kind<F, A> validKind,
-      Applicative<G> validApplicative,
-      Monoid<M> validMonoid) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, M>
+      void testTraverseExceptionPropagation(
+          Traverse<F> traverse,
+          Kind<F, A> validKind,
+          Applicative<G> validApplicative,
+          Monoid<M> validMonoid) {
 
     RuntimeException testException = createTestException("traverse test");
 
@@ -628,12 +638,14 @@ public final class TypeClassTestPattern {
    *
    * <p>This method tests structure preservation without performing validation tests.
    */
-  public static <F, G, A, B> void testTraverseLaws(
-      Traverse<F> traverse,
-      Applicative<G> applicative,
-      Kind<F, A> validKind,
-      Function<A, Kind<G, B>> testFunction,
-      BiPredicate<Kind<G, ?>, Kind<G, ?>> equalityChecker) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B>
+      void testTraverseLaws(
+          Traverse<F> traverse,
+          Applicative<G> applicative,
+          Kind<F, A> validKind,
+          Function<A, Kind<G, B>> testFunction,
+          BiPredicate<Kind<G, ?>, Kind<G, ?>> equalityChecker) {
 
     // Delegate to LawTestPattern - tests only structure preservation law
     LawTestPattern.testTraverseStructurePreservationLaw(
@@ -644,12 +656,13 @@ public final class TypeClassTestPattern {
   // UTILITY METHODS
   // =============================================================================
 
-  public static <F> BiPredicate<Kind<F, ?>, Kind<F, ?>> referenceEquality() {
+  public static <F extends WitnessArity<TypeArity.Unary>>
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> referenceEquality() {
     return (k1, k2) -> k1 == k2;
   }
 
-  public static <F, T> BiPredicate<Kind<F, ?>, Kind<F, ?>> equalsEquality(
-      Function<Kind<F, ?>, T> narrower) {
+  public static <F extends WitnessArity<TypeArity.Unary>, T>
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalsEquality(Function<Kind<F, ?>, T> narrower) {
     return (k1, k2) -> {
       T t1 = narrower.apply(k1);
       T t2 = narrower.apply(k2);
@@ -665,7 +678,7 @@ public final class TypeClassTestPattern {
   // COMBINED TEST METHODS FOR BACKWARD COMPATIBILITY
   // =============================================================================
 
-  public static <F, A, B> void testCompleteFunctor(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testCompleteFunctor(
       Functor<F> functor,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -679,7 +692,7 @@ public final class TypeClassTestPattern {
     testFunctorLaws(functor, validKind, validMapper, secondMapper, equalityChecker);
   }
 
-  public static <F, E, A, B> void testCompleteMonadError(
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A, B> void testCompleteMonadError(
       MonadError<F, E> monadError,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -714,7 +727,7 @@ public final class TypeClassTestPattern {
     testMonadLaws(monadError, validKind, testValue, testFunction, chainFunction, equalityChecker);
   }
 
-  public static <F, A, B> void testCompleteMonad(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testCompleteMonad(
       Monad<F> monad,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -733,7 +746,7 @@ public final class TypeClassTestPattern {
     testMonadLaws(monad, validKind, testValue, testFunction, chainFunction, equalityChecker);
   }
 
-  public static <F, A, B> void testCompleteApplicative(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testCompleteApplicative(
       Applicative<F> applicative,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -759,7 +772,7 @@ public final class TypeClassTestPattern {
     testApplicativeLaws(applicative, validKind, testValue, testFunction, equalityChecker);
   }
 
-  public static <F, A, M> void testCompleteFoldable(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, M> void testCompleteFoldable(
       Foldable<F> foldable,
       Class<?> contextClass,
       Kind<F, A> validKind,
@@ -771,16 +784,18 @@ public final class TypeClassTestPattern {
     testFoldableExceptionPropagation(foldable, validKind, validMonoid);
   }
 
-  public static <F, G, A, B, M> void testCompleteTraverse(
-      Traverse<F> traverse,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Applicative<G> validApplicative,
-      Function<A, Kind<G, B>> validTraverseFunction,
-      Monoid<M> validMonoid,
-      Function<A, M> validFoldMapFunction,
-      BiPredicate<Kind<G, ?>, Kind<G, ?>> equalityChecker) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
+      void testCompleteTraverse(
+          Traverse<F> traverse,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Applicative<G> validApplicative,
+          Function<A, Kind<G, B>> validTraverseFunction,
+          Monoid<M> validMonoid,
+          Function<A, M> validFoldMapFunction,
+          BiPredicate<Kind<G, ?>, Kind<G, ?>> equalityChecker) {
 
     testTraverseOperations(
         traverse,
@@ -807,7 +822,7 @@ public final class TypeClassTestPattern {
   // BIFUNCTOR TESTING
   // =============================================================================
 
-  public static <F, A, B, C, D> void testBifunctorOperations(
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D> void testBifunctorOperations(
       Bifunctor<F> bifunctor,
       Kind2<F, A, B> validKind,
       Function<A, C> firstMapper,
@@ -826,22 +841,24 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
-  public static <F, A, B, C, D> void testBifunctorValidations(
-      Bifunctor<F> bifunctor,
-      Class<?> contextClass,
-      Kind2<F, A, B> validKind,
-      Function<A, C> firstMapper,
-      Function<B, D> secondMapper) {
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D>
+      void testBifunctorValidations(
+          Bifunctor<F> bifunctor,
+          Class<?> contextClass,
+          Kind2<F, A, B> validKind,
+          Function<A, C> firstMapper,
+          Function<B, D> secondMapper) {
 
     TypeClassAssertions.assertAllBifunctorOperations(
         bifunctor, contextClass, validKind, firstMapper, secondMapper);
   }
 
-  public static <F, A, B> void testBifunctorExceptionPropagation(
-      Bifunctor<F> bifunctor,
-      Kind2<F, A, B> validKind,
-      Kind2<F, A, B> firstExceptionKind,
-      Kind2<F, A, B> secondExceptionKind) {
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B>
+      void testBifunctorExceptionPropagation(
+          Bifunctor<F> bifunctor,
+          Kind2<F, A, B> validKind,
+          Kind2<F, A, B> firstExceptionKind,
+          Kind2<F, A, B> secondExceptionKind) {
 
     RuntimeException testException = createTestException("bifunctor test");
     Function<A, String> throwingFirstMapper =
@@ -881,7 +898,7 @@ public final class TypeClassTestPattern {
    *
    * <p>This method tests the Identity and Composition laws without performing validation tests.
    */
-  public static <F, A, B, C, D, E> void testBifunctorLaws(
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D, E> void testBifunctorLaws(
       Bifunctor<F> bifunctor,
       Kind2<F, A, B> validKind,
       Function<A, C> f1,

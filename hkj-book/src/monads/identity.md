@@ -21,7 +21,7 @@ While it might seem trivial on its own, the Identity Monad plays a crucial role 
    * `StateT<S, IdKind.Witness, A>` is conceptually equivalent to `State<S, A>`.
    * `MaybeT<IdKind.Witness, A>` is conceptually equivalent to `Maybe<A>`.
      This allows for a unified way to define transformers and derive base monads.
-2. **Generic Programming**: When writing functions that are generic over any `Monad<F>`, `Id` can serve as the "no-effect" monad, allowing you to use these generic functions with pure values without introducing unnecessary complexity.
+2. **Generic Programming**: When writing functions that are generic over any `Monad<F>` (where `F extends WitnessArity<TypeArity.Unary>`), `Id` can serve as the "no-effect" monad, allowing you to use these generic functions with pure values without introducing unnecessary complexity.
 3. **Understanding Monads**: It provides a clear example of the monadic structure (`of`, `flatMap`, `map`) without any distracting side effects or additional computational context.
 
 ## What is Id?

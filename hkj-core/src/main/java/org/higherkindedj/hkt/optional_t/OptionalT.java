@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -28,7 +30,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see OptionalTKindHelper
  * @see OptionalTMonad
  */
-public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKind<F, A> {
+public record OptionalT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Optional<A>> value)
+    implements OptionalTKind<F, A> {
 
   private static final Class<OptionalT> OPTIONAL_T_CLASS = OptionalT.class;
 
@@ -51,7 +54,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @return A new {@code OptionalT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> fromKind(
+      Kind<F, Optional<A>> value) {
     return new OptionalT<>(value);
   }
 
@@ -66,7 +70,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @return A new {@code OptionalT} instance representing {@code outerMonad.of(Optional.of(a))}.
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
-  public static <F, A extends Object> OptionalT<F, A> some(Monad<F> outerMonad, A a) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A extends Object> OptionalT<F, A> some(
+      Monad<F> outerMonad, A a) {
     Validation.transformer().requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, SOME);
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
@@ -82,7 +87,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @return A new {@code OptionalT} instance representing {@code outerMonad.of(Optional.empty())}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, A> OptionalT<F, A> none(Monad<F> outerMonad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> none(
+      Monad<F> outerMonad) {
     Validation.transformer().requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, NONE);
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.empty());
     return new OptionalT<>(lifted);
@@ -99,7 +105,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @return A new {@code OptionalT} instance representing {@code outerMonad.of(optional)}.
    * @throws NullPointerException if {@code outerMonad} or {@code optional} is null.
    */
-  public static <F, A> OptionalT<F, A> fromOptional(Monad<F> outerMonad, Optional<A> optional) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> fromOptional(
+      Monad<F> outerMonad, Optional<A> optional) {
     Validation.transformer().requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, FROM_OPTIONAL);
     Validation.transformer()
         .requireTransformerComponent(optional, "inner Optional", OPTIONAL_T_CLASS, FROM_OPTIONAL);
@@ -120,7 +127,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    *     outerMonad.map(Optional::ofNullable, fa)}.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, A> OptionalT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> liftF(
+      Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, LIFT_F);
     Validation.kind().requireNonNull(fa, OPTIONAL_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);

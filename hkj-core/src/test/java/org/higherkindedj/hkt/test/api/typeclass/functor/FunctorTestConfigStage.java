@@ -6,6 +6,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 4: Configure optional parameters and execute tests.
@@ -17,7 +19,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class FunctorTestConfigStage<F, A, B> {
+public final class FunctorTestConfigStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   final Class<?> contextClass;
   final Functor<F> functor;
   final Kind<F, A> validKind;

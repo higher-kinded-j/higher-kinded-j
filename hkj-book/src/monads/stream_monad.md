@@ -21,7 +21,7 @@ The `StreamMonad` in the `Higher-Kinded-J` library provides a monadic interface 
 Key benefits include:
 
 * **Lazy Evaluation:** Operations are not performed until a terminal operation is invoked, allowing for efficient processing of large or infinite sequences.
-* **HKT Integration:** `StreamKind` (the higher-kinded wrapper for `Stream`) and `StreamMonad` allow `Stream` to be used with generic functions and type classes expecting `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, or `Monad<F>`.
+* **HKT Integration:** `StreamKind` (the higher-kinded wrapper for `Stream`) and `StreamMonad` allow `Stream` to be used with generic functions and type classes expecting `Kind<F, A>` where `F extends WitnessArity<?>`, along with type classes like `Functor<F>`, `Applicative<F>`, or `Monad<F>` where `F extends WitnessArity<TypeArity.Unary>`.
 * **MonadZero Instance:** Provides an empty stream via `zero()`, useful for filtering and conditional logic.
 * **Functional Composition:** Easily chain operations on streams where each operation maintains laziness and allows composition of complex data transformations.
 

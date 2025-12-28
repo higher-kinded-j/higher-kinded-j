@@ -685,12 +685,12 @@ sealed interface ConsoleOp<A> { ... }
 Free<ConsoleOp, Result> program = ...;
 
 // Tagless Final approach
-interface Console<F> {
+interface Console<F extends WitnessArity<?>> {
     Kind<F, Unit> printLine(String text);
     Kind<F, String> readLine();
 }
 
-<F> Kind<F, Unit> program(Console<F> console, Monad<F> monad) {
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, Unit> program(Console<F> console, Monad<F> monad) {
     Kind<F, Unit> printName = console.printLine("What is your name?");
     Kind<F, String> readName = monad.flatMap(ignored -> console.readLine(), printName);
     return monad.flatMap(name -> console.printLine("Hello, " + name + "!"), readName);

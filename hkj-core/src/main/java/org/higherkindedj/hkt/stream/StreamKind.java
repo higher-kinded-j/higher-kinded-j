@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.stream;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Represents {@link java.util.stream.Stream} as a Higher-Kinded Type. This interface, {@code
@@ -57,7 +59,7 @@ public interface StreamKind<A> extends Kind<StreamKind.Witness, A> {
    * The phantom type marker for the Stream type constructor. This is used as the 'F' in {@code
    * Kind<F, A>}.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
   }
 }

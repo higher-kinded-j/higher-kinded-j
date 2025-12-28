@@ -12,7 +12,9 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Fold;
 import org.jspecify.annotations.NullMarked;
 
@@ -73,7 +75,8 @@ public interface IndexedFold<I, S, A> extends IndexedOptic<I, S, A> {
    * <p>Default implementation that uses ifoldMap to apply the effectful function to each element.
    */
   @Override
-  default <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+      BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
     // For IndexedFold, we traverse and apply effects but don't modify the structure
     // Note: We use Unit.INSTANCE instead of null to avoid issues with Applicatives
     // where of(null) produces an empty/failure result (e.g., OptionalMonad).

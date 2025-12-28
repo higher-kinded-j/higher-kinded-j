@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.util.validation.Validation;
 
@@ -26,7 +28,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @param monadF The {@link Monad} instance for the underlying monad {@code F}, used to sequence
  *     operations within that monad.
  */
-public record StateT<S, F, A>(Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF)
+public record StateT<S, F extends WitnessArity<TypeArity.Unary>, A>(
+    Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF)
     implements StateTKind<S, F, A> {
 
   private static final Class<StateT> STATE_T_CLASS = StateT.class;
@@ -55,7 +58,7 @@ public record StateT<S, F, A>(Function<S, Kind<F, StateTuple<S, A>>> runStateTFn
    * @return A new StateT instance.
    * @throws NullPointerException if {@code runStateTFn} or {@code monadF} is null.
    */
-  public static <S, F, A> StateT<S, F, A> create(
+  public static <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> create(
       Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
     return new StateT<>(runStateTFn, monadF);
   }

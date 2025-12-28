@@ -5,6 +5,8 @@ package org.higherkindedj.optics.util;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -61,7 +63,7 @@ public final class TryTraversals {
   public static <A> Traversal<Try<A>, A> success() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Try<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Try<A>> modifyF(
           Function<A, Kind<F, A>> f, Try<A> source, Applicative<F> applicative) {
         return switch (source) {
           case Try.Success<A>(var value) -> applicative.map(Try::success, f.apply(value));
@@ -113,7 +115,7 @@ public final class TryTraversals {
   public static <A> Traversal<Try<A>, Throwable> failure() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Try<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Try<A>> modifyF(
           Function<Throwable, Kind<F, Throwable>> f, Try<A> source, Applicative<F> applicative) {
         return switch (source) {
           case Try.Failure<A>(var cause) -> applicative.map(Try::<A>failure, f.apply(cause));

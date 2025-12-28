@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.maybe;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the Maybe type in Higher-Kinded-J. Represents Maybe as a type
@@ -15,7 +17,7 @@ public interface MaybeKind<A> extends Kind<MaybeKind.Witness, A> {
    * The phantom type marker (witness type) for the Maybe type constructor. This is used as the 'F'
    * in {@code Kind<F, A>} for Maybe.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     // Private constructor to prevent instantiation of the witness type itself.
     private Witness() {}
   }

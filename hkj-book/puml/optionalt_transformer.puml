@@ -3,6 +3,8 @@
 
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>\nWitness<F> also implements WitnessArity<Unary>" as ArityNote
+
 interface Kind<F_HKT, A_VAL>
 interface Monad<F_HKT>
 interface "MonadError<F_HKT, E_ERR>" as MonadError

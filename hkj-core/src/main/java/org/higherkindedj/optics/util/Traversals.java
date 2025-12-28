@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -126,7 +128,7 @@ public final class Traversals {
   public static <A> Traversal<A, A> filtered(final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, A> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, A> modifyF(
           final Function<A, Kind<F, A>> f, final A source, final Applicative<F> applicative) {
         return predicate.test(source) ? f.apply(source) : applicative.of(source);
       }
@@ -145,7 +147,7 @@ public final class Traversals {
   public static <A> Traversal<List<A>, A> forList() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         Kind<F, Kind<ListKind.Witness, A>> traversed =
             ListTraverse.INSTANCE.traverse(applicative, f, ListKindHelper.LIST.widen(source));
@@ -169,7 +171,7 @@ public final class Traversals {
   public static <K, V> Traversal<Map<K, V>, V> forMap(final K key) {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Map<K, V>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           Function<V, Kind<F, V>> f, Map<K, V> source, Applicative<F> applicative) {
         V currentValue = source.get(key);
         if (currentValue == null) {
@@ -227,7 +229,7 @@ public final class Traversals {
   public static <A> Traversal<Optional<A>, A> forOptional() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Optional<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Optional<A>> modifyF(
           final Function<A, Kind<F, A>> f,
           final Optional<A> source,
           final Applicative<F> applicative) {
@@ -272,7 +274,7 @@ public final class Traversals {
   public static <K, V> Traversal<Map<K, V>, V> forMapValues() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Map<K, V>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           final Function<V, Kind<F, V>> f,
           final Map<K, V> source,
           final Applicative<F> applicative) {
@@ -298,7 +300,7 @@ public final class Traversals {
    * @return A {@code Kind<F, List<B>>}, representing the collected results within the applicative
    *     context.
    */
-  public static <F, A, B> Kind<F, List<B>> traverseList(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, List<B>> traverseList(
       final List<A> list, final Function<A, Kind<F, B>> f, final Applicative<F> applicative) {
 
     final List<Kind<F, B>> listOfEffects = list.stream().map(f).collect(Collectors.toList());
@@ -329,10 +331,11 @@ public final class Traversals {
    * @param <B> The element type of the resulting optional.
    * @return A {@code Kind<F, Optional<B>>}, representing the result within the applicative context.
    */
-  public static <F, A, B> Kind<F, Optional<B>> traverseOptional(
-      final Optional<A> optional,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<F, Optional<B>> traverseOptional(
+          final Optional<A> optional,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     final Kind<OptionalKind.Witness, A> optionalKind = OptionalKindHelper.OPTIONAL.widen(optional);
     final Kind<F, Kind<OptionalKind.Witness, B>> traversed =
@@ -361,10 +364,11 @@ public final class Traversals {
    * @return A {@code Kind<F, Map<K, W>>}, representing the transformed map within the applicative
    *     context.
    */
-  public static <F, K, V, W> Kind<F, Map<K, W>> traverseMapValues(
-      final Map<K, V> map,
-      final Function<? super V, ? extends Kind<F, ? extends W>> f,
-      final Applicative<F> applicative) {
+  public static <F extends WitnessArity<TypeArity.Unary>, K, V, W>
+      Kind<F, Map<K, W>> traverseMapValues(
+          final Map<K, V> map,
+          final Function<? super V, ? extends Kind<F, ? extends W>> f,
+          final Applicative<F> applicative) {
 
     if (map.isEmpty()) {
       return applicative.of(new HashMap<>());
@@ -404,10 +408,11 @@ public final class Traversals {
    * @return A {@code Kind<F, Tuple2<B, B>>}, representing the transformed tuple within the
    *     applicative context.
    */
-  public static <F, A, B> Kind<F, Tuple2<B, B>> traverseTuple2Both(
-      final Tuple2<A, A> tuple,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<F, Tuple2<B, B>> traverseTuple2Both(
+          final Tuple2<A, A> tuple,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     @SuppressWarnings("unchecked")
     final Kind<F, B> first = (Kind<F, B>) f.apply(tuple._1());
@@ -445,12 +450,13 @@ public final class Traversals {
    * @param <B> The element type of the output list
    * @return The transformed list wrapped in the effect
    */
-  public static <F, A, B> Kind<F, List<B>> speculativeTraverseList(
-      final List<A> list,
-      final Predicate<? super A> predicate,
-      final Function<? super A, ? extends Kind<F, B>> thenBranch,
-      final Function<? super A, ? extends Kind<F, B>> elseBranch,
-      final Selective<F> selective) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<F, List<B>> speculativeTraverseList(
+          final List<A> list,
+          final Predicate<? super A> predicate,
+          final Function<? super A, ? extends Kind<F, B>> thenBranch,
+          final Function<? super A, ? extends Kind<F, B>> elseBranch,
+          final Selective<F> selective) {
     // Wrap each element in a selective conditional
     final Function<A, Kind<F, B>> selectiveF =
         a ->
@@ -486,7 +492,7 @@ public final class Traversals {
    * @param <A> The element type
    * @return The transformed list wrapped in the effect
    */
-  public static <F, A> Kind<F, List<A>> traverseListIf(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> traverseListIf(
       final List<A> list,
       final Predicate<? super A> predicate,
       final Function<? super A, ? extends Kind<F, A>> f,
@@ -531,7 +537,7 @@ public final class Traversals {
    * @param <A> The element type
    * @return The transformed list wrapped in the effect
    */
-  public static <F, A> Kind<F, List<A>> traverseListUntil(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> traverseListUntil(
       final List<A> list,
       final Predicate<? super A> stopCondition,
       final Function<? super A, ? extends Kind<F, A>> f,

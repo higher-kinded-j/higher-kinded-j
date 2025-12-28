@@ -11,6 +11,8 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.either.Either;
@@ -64,7 +66,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  * @see Monad
  * @see Kind
  */
-public final class GenericPath<F, A> implements Chainable<A> {
+public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> implements Chainable<A> {
 
   private final Kind<F, A> value;
   private final Monad<F> monad;
@@ -94,7 +96,8 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <A> the value type
    * @return a new GenericPath
    */
-  public static <F, A> GenericPath<F, A> of(Kind<F, A> value, Monad<F> monad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> GenericPath<F, A> of(
+      Kind<F, A> value, Monad<F> monad) {
     return new GenericPath<>(value, monad, null);
   }
 
@@ -111,7 +114,8 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <A> the value type
    * @return a new GenericPath with error recovery support
    */
-  public static <F, E, A> GenericPath<F, A> of(Kind<F, A> value, MonadError<F, E> monadError) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A> GenericPath<F, A> of(
+      Kind<F, A> value, MonadError<F, E> monadError) {
     Objects.requireNonNull(monadError, "monad must not be null");
     return new GenericPath<>(value, monadError, monadError);
   }
@@ -125,7 +129,8 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <A> the value type
    * @return a new GenericPath containing the value
    */
-  public static <F, A> GenericPath<F, A> pure(A value, Monad<F> monad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> GenericPath<F, A> pure(
+      A value, Monad<F> monad) {
     Objects.requireNonNull(monad, "monad must not be null");
     return new GenericPath<>(monad.of(value), monad, null);
   }
@@ -142,7 +147,8 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <A> the value type
    * @return a new GenericPath containing the value with error recovery support
    */
-  public static <F, E, A> GenericPath<F, A> pure(A value, MonadError<F, E> monadError) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A> GenericPath<F, A> pure(
+      A value, MonadError<F, E> monadError) {
     Objects.requireNonNull(monadError, "monad must not be null");
     return new GenericPath<>(monadError.of(value), monadError, monadError);
   }
@@ -159,7 +165,8 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <A> the value type
    * @return a new GenericPath representing an error
    */
-  public static <F, E, A> GenericPath<F, A> raiseError(E error, MonadError<F, E> monadError) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A> GenericPath<F, A> raiseError(
+      E error, MonadError<F, E> monadError) {
     Objects.requireNonNull(monadError, "monadError must not be null");
     return new GenericPath<>(monadError.raiseError(error), monadError, monadError);
   }
@@ -308,7 +315,8 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <G> the target witness type
    * @return a new GenericPath with the transformed effect type
    */
-  public <G> GenericPath<G, A> mapK(NaturalTransformation<F, G> transform, Monad<G> targetMonad) {
+  public <G extends WitnessArity<TypeArity.Unary>> GenericPath<G, A> mapK(
+      NaturalTransformation<F, G> transform, Monad<G> targetMonad) {
     Objects.requireNonNull(transform, "transform must not be null");
     Objects.requireNonNull(targetMonad, "targetMonad must not be null");
     Kind<G, A> transformed = transform.apply(value);
@@ -325,7 +333,7 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @param <E> the error type
    * @return a new GenericPath with the transformed effect type and error recovery support
    */
-  public <G, E> GenericPath<G, A> mapK(
+  public <G extends WitnessArity<TypeArity.Unary>, E> GenericPath<G, A> mapK(
       NaturalTransformation<F, G> transform, MonadError<G, E> targetMonadError) {
     Objects.requireNonNull(transform, "transform must not be null");
     Objects.requireNonNull(targetMonadError, "targetMonadError must not be null");

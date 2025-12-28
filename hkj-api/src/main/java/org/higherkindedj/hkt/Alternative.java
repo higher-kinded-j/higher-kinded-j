@@ -83,7 +83,7 @@ import org.jspecify.annotations.NullMarked;
  * @see Kind
  */
 @NullMarked
-public interface Alternative<F> extends Applicative<F> {
+public interface Alternative<F extends WitnessArity<TypeArity.Unary>> extends Applicative<F> {
 
   /**
    * Returns the identity element for the {@code orElse} operation, representing failure or an empty

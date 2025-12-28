@@ -49,7 +49,7 @@ Where:
 * **`StateT<S, F, A>`**: The primary data type representing the stateful computation stacked on monad `F`. It holds the function `S -> Kind<F, StateTuple<S, A>>`.
 * **`StateTKind<S, F, A>`**: The `Kind` representation for `StateT`, allowing it to be used with `higher-kinded-j`'s typeclasses like `Monad`. This is what you'll mostly interact with when using `StateT` in a generic monadic context.
 * **`StateTKind.Witness<S, F>`**: The higher-kinded type witness for `StateT<S, F, _>`. Note that both the state type `S` and the underlying monad witness `F` are part of the `StateT` witness.
-* **`StateTMonad<S, F>`**: The `Monad` instance for `StateT<S, F, _>`. It requires a `Monad` instance for the underlying monad `F` to function.
+* **`StateTMonad<S, F>`**: The `Monad` instance for `StateT<S, F, _>`. It requires a `Monad` instance for the underlying monad `F` (where `F extends WitnessArity<TypeArity.Unary>`) to function.
 * **`StateTKindHelper`**: A utility class providing static methods for working with `StateTKind`, such as `narrow` (to convert `Kind<StateTKind.Witness<S, F>, A>` back to `StateT<S, F, A>`), `runStateT`, `evalStateT`, and `execStateT`.
 * **`StateTuple<S, A>`**: A simple record-like class holding the pair `(S state, A value)`.
 

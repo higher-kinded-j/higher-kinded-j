@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.functor;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage 5: Fine-grained test selection.
  *
@@ -11,7 +14,7 @@ package org.higherkindedj.hkt.test.api.typeclass.functor;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class FunctorTestSelectionStage<F, A, B> {
+public final class FunctorTestSelectionStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final FunctorTestConfigStage<F, A, B> config;
   private final FunctorLawsStage<F, A, B> lawsStage;
   private final FunctorValidationStage<F, A, B> validationStage;

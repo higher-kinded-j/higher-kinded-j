@@ -12,6 +12,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
@@ -1408,7 +1410,7 @@ class FocusPathEnhancementsTest {
       Traversal<Person, Person> identityTraversal =
           new Traversal<>() {
             @Override
-            public <F> Kind<F, Person> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Person> modifyF(
                 Function<Person, Kind<F, Person>> f, Person source, Applicative<F> applicative) {
               return f.apply(source);
             }

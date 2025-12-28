@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Custom AssertJ assertion for OptionalT transformer types.
@@ -50,9 +52,10 @@ public class OptionalTAssert {
    * @param outerUnwrapper function to unwrap outer monad to Optional
    * @return a new {@link OptionalTOptionalAssert} instance
    */
-  public static <F, A> OptionalTOptionalAssert<F, A> assertThatOptionalT(
-      Kind<OptionalTKind.Witness<F>, A> actual,
-      Function<Kind<F, Optional<A>>, Optional<Optional<A>>> outerUnwrapper) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A>
+      OptionalTOptionalAssert<F, A> assertThatOptionalT(
+          Kind<OptionalTKind.Witness<F>, A> actual,
+          Function<Kind<F, Optional<A>>, Optional<Optional<A>>> outerUnwrapper) {
     return new OptionalTOptionalAssert<>(actual, outerUnwrapper);
   }
 
@@ -64,7 +67,7 @@ public class OptionalTAssert {
    * @param <F> the witness type of the outer monad
    * @param <A> the value type
    */
-  public static class OptionalTOptionalAssert<F, A>
+  public static class OptionalTOptionalAssert<F extends WitnessArity<TypeArity.Unary>, A>
       extends AbstractAssert<OptionalTOptionalAssert<F, A>, Kind<OptionalTKind.Witness<F>, A>> {
 
     private final Function<Kind<F, Optional<A>>, Optional<Optional<A>>> outerUnwrapper;

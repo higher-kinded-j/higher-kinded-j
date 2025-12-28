@@ -34,8 +34,8 @@ The interface for `Profunctor` in `hkj-api` works with `Kind2<P, A, B>`:
 
 ```java
 @NullMarked
-public interface Profunctor<P> {
-  
+public interface Profunctor<P extends WitnessArity<TypeArity.Binary>> {
+
     // Map over the input (contravariant)
     default <A, B, C> Kind2<P, C, B> lmap(
         Function<? super C, ? extends A> f, 

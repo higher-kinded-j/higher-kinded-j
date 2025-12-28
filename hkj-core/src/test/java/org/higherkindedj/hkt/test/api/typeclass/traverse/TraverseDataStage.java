@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.traverse;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 3: Configure basic functor operation.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Traverse;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class TraverseDataStage<F, A, B> {
+public final class TraverseDataStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Traverse<F> traverse;
   private final Kind<F, A> validKind;

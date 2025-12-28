@@ -52,7 +52,7 @@ You'll primarily interact with this type when providing type signatures or recei
 
 * The EitherTMonad class implements `MonadError<EitherTKind.Witness<F, L>, L>`.
 
-- It requires a Monad<F> instance for the outer monad F to be provided during construction. This outer monad instance is used internally to handle the effects of `F`.
+- It requires a `Monad<F>` instance for the outer monad `F` (where `F extends WitnessArity<TypeArity.Unary>`) to be provided during construction. This outer monad instance is used internally to handle the effects of `F`.
 - It uses `EITHER_T.widen` and `EITHER_T.narrow` internally to manage the conversion between the `Kind` and the concrete `EitherT`.
 - The error type E for MonadError is fixed to L, the 'Left' type of the inner Either. Error handling operations like `raiseError(L l)` will create an `EitherT` representing `F<Left(l)>`, and `handleErrorWith` allows recovering from such Left states.
 

@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.functor;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 3: Configure mapper function.
@@ -15,7 +17,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class FunctorDataStage<F, A, B> {
+public final class FunctorDataStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Functor<F> functor;
   private final Kind<F, A> validKind;

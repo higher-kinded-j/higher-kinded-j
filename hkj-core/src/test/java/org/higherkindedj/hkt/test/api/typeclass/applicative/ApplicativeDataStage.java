@@ -6,6 +6,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 3: Configure Applicative operations.
@@ -16,7 +18,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class ApplicativeDataStage<F, A, B> {
+public final class ApplicativeDataStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Applicative<F> applicative;
   private final Kind<F, A> validKind;

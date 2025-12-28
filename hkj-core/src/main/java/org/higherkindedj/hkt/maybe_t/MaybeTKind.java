@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.maybe_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 
 /**
@@ -39,7 +41,8 @@ import org.higherkindedj.hkt.maybe.Maybe;
  * @see Kind
  * @see Maybe
  */
-public interface MaybeTKind<F, A> extends Kind<MaybeTKind.Witness<F>, A> {
+public interface MaybeTKind<F extends WitnessArity<TypeArity.Unary>, A>
+    extends Kind<MaybeTKind.Witness<F>, A> {
 
   /**
    * The phantom type marker (witness type) for the {@code MaybeT<F, ?>} type constructor. This
@@ -49,7 +52,7 @@ public interface MaybeTKind<F, A> extends Kind<MaybeTKind.Witness<F>, A> {
    *
    * @param <OUTER_F> The witness type of the outer monad.
    */
-  final class Witness<OUTER_F> {
+  final class Witness<OUTER_F> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

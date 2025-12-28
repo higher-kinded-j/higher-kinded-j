@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.FreeApPath;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
@@ -89,7 +91,7 @@ public class FreePathExample {
   }
 
   /** Witness type for ConsoleOp. */
-  interface ConsoleOpWitness {}
+  interface ConsoleOpWitness extends WitnessArity<TypeArity.Unary> {}
 
   /** Kind wrapper for ConsoleOp to work with HKT system. */
   record ConsoleOpKind<A>(ConsoleOp<A> op) implements Kind<ConsoleOpWitness, A> {}
@@ -187,7 +189,7 @@ public class FreePathExample {
     record Delete<A>(String key, A next) implements KVStoreOp<A> {}
   }
 
-  interface KVStoreWitness {}
+  interface KVStoreWitness extends WitnessArity<TypeArity.Unary> {}
 
   record KVStoreKind<A>(KVStoreOp<A> op) implements Kind<KVStoreWitness, A> {}
 

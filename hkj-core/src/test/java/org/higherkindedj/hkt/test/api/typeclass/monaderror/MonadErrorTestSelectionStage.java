@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.monaderror;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage 8: Fine-grained test selection for MonadError.
  *
@@ -12,7 +15,7 @@ package org.higherkindedj.hkt.test.api.typeclass.monaderror;
  * @param <A> The input type
  * @param <B> The mapped type
  */
-public final class MonadErrorTestSelectionStage<F, E, A, B> {
+public final class MonadErrorTestSelectionStage<F extends WitnessArity<TypeArity.Unary>, E, A, B> {
   private final MonadErrorHandlerStage<F, E, A, B> handlerStage;
   private final MonadErrorLawsStage<F, E, A, B> lawsStage;
   private final MonadErrorValidationStage<F, E, A, B> validationStage;

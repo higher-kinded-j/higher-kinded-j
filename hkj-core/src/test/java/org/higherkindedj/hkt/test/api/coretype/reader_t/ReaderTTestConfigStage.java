@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.coretype.reader_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigStage;
 
@@ -18,7 +20,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigS
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class ReaderTTestConfigStage<F, R, A, B>
+public final class ReaderTTestConfigStage<F extends WitnessArity<TypeArity.Unary>, R, A, B>
     extends BaseTransformerTestConfigStage<ReaderTTestConfigStage<F, R, A, B>> {
 
   private final Class<?> contextClass;

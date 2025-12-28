@@ -15,6 +15,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,7 +31,7 @@ class ListTraverseTest {
   // --- Mock/Simple Optional HKT for Testing Traverse ---
 
   /** HKT marker for TestOptional. Made non-generic. */
-  static final class TestOptionalKindWitness {
+  static final class TestOptionalKindWitness implements WitnessArity<TypeArity.Unary> {
     private TestOptionalKindWitness() {}
   }
 

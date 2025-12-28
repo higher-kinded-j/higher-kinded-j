@@ -15,6 +15,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -261,10 +263,11 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ta cannot be unwrapped.
    */
   @Override
-  public <G, A, B> Kind<G, Kind<StreamKind.Witness, B>> traverse(
-      Applicative<G> applicative,
-      Function<? super A, ? extends Kind<G, ? extends B>> f,
-      Kind<StreamKind.Witness, A> ta) {
+  public <G extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<G, Kind<StreamKind.Witness, B>> traverse(
+          Applicative<G> applicative,
+          Function<? super A, ? extends Kind<G, ? extends B>> f,
+          Kind<StreamKind.Witness, A> ta) {
 
     Validation.function().validateTraverse(applicative, f, ta, STREAM_TRAVERSE_CLASS);
 

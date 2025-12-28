@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.trampoline;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link Trampoline} type in Higher-Kinded-J. Represents {@code
@@ -19,7 +21,7 @@ public interface TrampolineKind<A> extends Kind<TrampolineKind.Witness, A> {
    * The phantom type marker (witness type) for the {@link Trampoline} type constructor. This is
    * used as the 'F' in {@code Kind<F, A>} for {@code Trampoline}.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     // Private constructor to prevent instantiation of the witness type itself.
     private Witness() {}
   }

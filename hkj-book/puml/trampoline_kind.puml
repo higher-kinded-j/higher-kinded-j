@@ -1,11 +1,14 @@
 @startuml trampoline_kind
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 hide empty members
 
-interface Kind<F, A>
+note "Witness implements\nWitnessArity<TypeArity.Unary>" as WitnessNote
+
+interface Kind<F extends WitnessArity<?>, A>
 
 interface "TrampolineKind<A>" {
-  {nested} class Witness
+  {nested} class Witness implements WitnessArity<Unary>
 }
 
 class TrampolineKindHelper {

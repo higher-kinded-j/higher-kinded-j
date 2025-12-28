@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api.typeclass.selective;
 
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 1: Configure the Selective instance.
@@ -11,7 +13,7 @@ import org.higherkindedj.hkt.Selective;
  *
  * @param <F> The Selective witness type
  */
-public final class SelectiveTestStage<F> {
+public final class SelectiveTestStage<F extends WitnessArity<TypeArity.Unary>> {
   private final Class<?> contextClass;
 
   public SelectiveTestStage(Class<?> contextClass) {

@@ -35,7 +35,7 @@ The interface for `Monad` in `hkj-api` extends `Applicative` and adds `flatMap` 
 
 ```java
 @NullMarked
-public interface Monad<M> extends Applicative<M> {
+public interface Monad<M extends WitnessArity<TypeArity.Unary>> extends Applicative<M> {
   // Core sequencing method
   <A, B> @NonNull Kind<M, B> flatMap(
       final Function<? super A, ? extends Kind<M, B>> f, final Kind<M, A> ma);

@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.monaderror;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 import org.higherkindedj.hkt.test.patterns.FlexibleValidationConfig;
 
@@ -19,7 +21,7 @@ import org.higherkindedj.hkt.test.patterns.FlexibleValidationConfig;
  * @param <A> The input type
  * @param <B> The mapped type
  */
-final class MonadErrorTestExecutor<F, E, A, B> {
+final class MonadErrorTestExecutor<F extends WitnessArity<TypeArity.Unary>, E, A, B> {
   private final Class<?> contextClass;
   private final MonadError<F, E> monadError;
   private final Kind<F, A> validKind;

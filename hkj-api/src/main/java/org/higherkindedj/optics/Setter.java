@@ -7,6 +7,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A **Setter** is a write-only optic that can modify focused elements without necessarily reading
@@ -101,7 +103,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S s, Applicative<F> app) {
         return self.modifyF(a -> other.modifyF(f, a, app), s, app);
       }
     };
@@ -119,7 +122,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
     Setter<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         return self.modifyF(f, s, app);
       }
     };
@@ -158,7 +162,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         // Cannot implement modifyF without access to the focused element.
         // Use Setter.fromGetSet() for effectful modifications.
         throw new UnsupportedOperationException(
@@ -197,7 +202,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         Kind<F, A> fa = f.apply(getter.apply(s));
         return app.map(a -> setter.apply(s, a), fa);
       }
@@ -226,7 +232,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, List<A>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
           Function<A, Kind<F, A>> f, List<A> s, Applicative<F> app) {
         // Collect all effectful results first
         List<Kind<F, A>> effects = new ArrayList<>(s.size());
@@ -282,7 +288,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, Map<K, V>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           Function<V, Kind<F, V>> f, Map<K, V> s, Applicative<F> app) {
         // Collect all keys and effectful values
         List<K> keys = new ArrayList<>(s.size());
@@ -338,7 +344,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<S, Kind<F, S>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<S, Kind<F, S>> f, S s, Applicative<F> app) {
         return f.apply(s);
       }
     };

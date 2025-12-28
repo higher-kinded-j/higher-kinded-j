@@ -1,22 +1,7 @@
 @startuml free_ap_structure
 
 skinparam backgroundColor #24273A
-skinparam class {
-  BackgroundColor #24273A
-  BorderColor #C6A0F6
-  ArrowColor #F5BDE6
-  AttributeFontColor #A6DA95
-  AttributeFontSize 12
-  FontColor #A6DA95
-  FontSize 16
-  HeaderBackgroundColor #363A4F
-}
-skinparam note {
-  BackgroundColor #EED49F
-  BorderColor #A80036
-}
-skinparam stereotypeCBackgroundColor #B4A7E5
-skinparam stereotypeIBackgroundColor #B4A7E5
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 hide empty members
 

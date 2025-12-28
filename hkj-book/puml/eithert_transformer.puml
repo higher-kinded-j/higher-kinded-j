@@ -3,6 +3,8 @@
 
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>\nWitness<F,L> also implements WitnessArity<Unary>" as ArityNote
+
   interface Kind<WITNESS, VAL> {
   }
 

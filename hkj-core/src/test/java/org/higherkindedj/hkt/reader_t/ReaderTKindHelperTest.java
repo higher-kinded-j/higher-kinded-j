@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -165,6 +167,9 @@ class ReaderTKindHelperTest {
     }
   }
 
-  // Dummy Kind for testing invalid type unwrap
-  private static class OtherKind<F_Witness, R, A> implements Kind<OtherKind<F_Witness, R, ?>, A> {}
+  // Dummy Kind for testing invalid type unwrap - witness is the class itself with wildcard
+  private static class OtherKindWitness<F_Witness, R> implements WitnessArity<TypeArity.Unary> {}
+
+  private static class OtherKind<F_Witness, R, A>
+      implements Kind<OtherKindWitness<F_Witness, R>, A> {}
 }

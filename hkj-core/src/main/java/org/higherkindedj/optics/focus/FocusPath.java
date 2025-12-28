@@ -8,6 +8,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IdPath;
 import org.higherkindedj.hkt.effect.MaybePath;
@@ -132,7 +134,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <F> the effect type (e.g., Optional, Validated, IO)
    * @return the modified structure wrapped in the effect
    */
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
     return toLens().modifyF(f, source, functor);
   }
 
@@ -467,7 +470,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @see org.higherkindedj.optics.util.TraverseTraversals
    */
   @SuppressWarnings("unchecked")
-  default <F, E> TraversalPath<S, E> traverseOver(Traverse<F> traverse) {
+  default <F extends WitnessArity<TypeArity.Unary>, E> TraversalPath<S, E> traverseOver(
+      Traverse<F> traverse) {
     Traversal<Kind<F, E>, E> traversal = TraverseTraversals.forTraverse(traverse);
     return via((Traversal<A, E>) traversal);
   }

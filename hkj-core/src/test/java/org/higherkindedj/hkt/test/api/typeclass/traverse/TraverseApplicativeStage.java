@@ -7,6 +7,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 5: Configure foldable operations.
@@ -18,7 +20,8 @@ import org.higherkindedj.hkt.Traverse;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class TraverseApplicativeStage<F, G, A, B> {
+public final class TraverseApplicativeStage<
+    F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Traverse<F> traverse;
   private final Kind<F, A> validKind;

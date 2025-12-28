@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
@@ -84,7 +86,7 @@ public class FluentValidationExample {
   static final Traversal<OrderForm, BigDecimal> ALL_ITEM_PRICES =
       new Traversal<OrderForm, BigDecimal>() {
         @Override
-        public <F> Kind<F, OrderForm> modifyF(
+        public <F extends WitnessArity<TypeArity.Unary>> Kind<F, OrderForm> modifyF(
             Function<BigDecimal, Kind<F, BigDecimal>> f, OrderForm source, Applicative<F> app) {
           BiFunction<OrderForm, List<BigDecimal>, OrderForm> setter =
               (order, newPrices) ->
@@ -120,7 +122,7 @@ public class FluentValidationExample {
   static final Traversal<DataImport, String> ALL_EMAILS =
       new Traversal<DataImport, String>() {
         @Override
-        public <F> Kind<F, DataImport> modifyF(
+        public <F extends WitnessArity<TypeArity.Unary>> Kind<F, DataImport> modifyF(
             Function<String, Kind<F, String>> f, DataImport source, Applicative<F> app) {
           BiFunction<DataImport, List<String>, DataImport> setter =
               (d, newEmails) -> new DataImport(newEmails, d.importedBy());

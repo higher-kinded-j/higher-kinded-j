@@ -20,7 +20,7 @@ The `ListMonad` in the `Higher-Kinded-J` library provides a monadic interface fo
 Key benefits include:
 
 * **Functional Composition:** Easily chain operations on lists, where each operation might return a list itself.
-* **HKT Integration:** `ListKind` (the higher-kinded wrapper for `List`) and `ListMonad` allow `List` to be used with generic functions and type classes expecting `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, or `Monad<F>`.
+* **HKT Integration:** `ListKind` (the higher-kinded wrapper for `List`) and `ListMonad` allow `List` to be used with generic functions and type classes expecting `Kind<F, A>` where `F extends WitnessArity<?>`, along with type classes like `Functor<F>`, `Applicative<F>`, or `Monad<F>` where `F extends WitnessArity<TypeArity.Unary>`.
 * **Standard List Behavior:** Leverages the familiar behaviour of Java lists, such as non-uniqueness of elements and order preservation. `flatMap` corresponds to applying a function that returns a list to each element and then concatenating the results.
 
 It implements `Monad<ListKind<A>>`, inheriting from `Functor<ListKind<A>>` and `Applicative<ListKind<A>>`.

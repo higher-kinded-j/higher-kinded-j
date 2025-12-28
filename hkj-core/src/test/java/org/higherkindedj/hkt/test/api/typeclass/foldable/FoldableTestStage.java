@@ -3,8 +3,10 @@
 package org.higherkindedj.hkt.test.api.typeclass.foldable;
 
 import org.higherkindedj.hkt.Foldable;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
-public final class FoldableTestStage<F> {
+public final class FoldableTestStage<F extends WitnessArity<TypeArity.Unary>> {
   private final Class<?> contextClass;
 
   public FoldableTestStage(Class<?> contextClass) {

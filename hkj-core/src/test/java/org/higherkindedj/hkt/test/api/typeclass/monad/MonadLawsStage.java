@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.monad;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 5: Law testing configuration for Monad.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class MonadLawsStage<F, A, B> {
+public final class MonadLawsStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final MonadOperationsStage<F, A, B> operationsStage;
   private final A testValue;
   private final Function<A, Kind<F, B>> testFunction;

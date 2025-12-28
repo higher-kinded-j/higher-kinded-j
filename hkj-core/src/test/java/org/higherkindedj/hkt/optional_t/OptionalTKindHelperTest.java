@@ -10,6 +10,8 @@ import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
@@ -135,7 +137,7 @@ class OptionalTKindHelperTest {
     }
 
     // Dummy Kind for testing invalid type unwrap
-    private static class OtherKindWitness<F_Witness> {}
+    private static class OtherKindWitness<F_Witness> implements WitnessArity<TypeArity.Unary> {}
 
     private static class OtherKind<F_Witness, A> implements Kind<OtherKindWitness<F_Witness>, A> {}
 

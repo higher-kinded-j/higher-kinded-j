@@ -14,7 +14,7 @@ The `Alternative` type class represents applicative functors that support choice
 The interface for Alternative in hkj-api extends Applicative:
 
 ```java
-public interface Alternative<F> extends Applicative<F> {
+public interface Alternative<F extends WitnessArity<TypeArity.Unary>> extends Applicative<F> {
     <A> Kind<F, A> empty();
     <A> Kind<F, A> orElse(Kind<F, A> fa, Supplier<Kind<F, A>> fb);
     default Kind<F, Unit> guard(boolean condition);

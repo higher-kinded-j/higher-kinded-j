@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.functor;
 
 import java.util.function.BiPredicate;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 5: Law testing configuration for Functor.
@@ -14,7 +16,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class FunctorLawsStage<F, A, B> {
+public final class FunctorLawsStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final FunctorTestConfigStage<F, A, B> configStage;
   final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
 

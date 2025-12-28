@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.writer;
 
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind2 interface marker for {@link Writer Writer&lt;W, A&gt;} in Higher-Kinded-J.
@@ -30,7 +32,7 @@ public interface WriterKind2<W, A> extends Kind2<WriterKind2.Witness, W, A> {
    * non-instantiable class acts as a tag to represent the {@code Writer} type constructor for
    * bifunctor operations.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Binary> {
     private Witness() {} // Private constructor to prevent instantiation.
   }
 }

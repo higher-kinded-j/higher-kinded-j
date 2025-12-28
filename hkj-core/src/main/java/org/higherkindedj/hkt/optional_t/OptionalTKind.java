@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.optional_t;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link OptionalT OptionalT&lt;F, A&gt;} monad transformer.
@@ -39,7 +41,8 @@ import org.higherkindedj.hkt.Kind;
  * @see Kind
  * @see Optional
  */
-public interface OptionalTKind<F, A> extends Kind<OptionalTKind.Witness<F>, A> {
+public interface OptionalTKind<F extends WitnessArity<TypeArity.Unary>, A>
+    extends Kind<OptionalTKind.Witness<F>, A> {
 
   /**
    * The phantom type marker (witness type) for the {@code OptionalT<F, ?>} type constructor. This
@@ -49,7 +52,7 @@ public interface OptionalTKind<F, A> extends Kind<OptionalTKind.Witness<F>, A> {
    *
    * @param <OUTER_F> The witness type of the outer monad.
    */
-  final class Witness<OUTER_F> {
+  final class Witness<OUTER_F> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

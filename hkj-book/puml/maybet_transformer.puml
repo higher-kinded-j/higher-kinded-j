@@ -3,12 +3,12 @@
 
 hide empty members
 
-
+note "F extends WitnessArity<TypeArity.Unary>\nWitness<F> also implements WitnessArity<Unary>" as ArityNote
 
   interface MaybeTKind<F, A> extends Kind<MaybeTKind.Witness<F>, A> {
     + {static} class Witness<OUTER_F> << (W,lightblue) >>
   }
-'  note right of MaybeTKind.Witness : Phantom type for HKT simulation.
+  '  note right of MaybeTKind.Witness : Phantom type for HKT simulation.
 
   class "MaybeT<F, A>" implements MaybeTKind<F, A> {
     + value: Kind<F, Maybe<A>>
@@ -55,11 +55,11 @@ MaybeT ..> Monad : uses in static methods
 MaybeTMonad o--> "outerMonad" Monad
 MaybeTMonad ..> MaybeTKindHelper : uses
 MaybeTMonad ..> MaybeT : uses via KindHelper
-MaybeTMonad ..> MaybeTKind.Witness : uses in signature
+'MaybeTMonad ..> MaybeTKind.Witness : uses in signature
 MaybeTMonad ..> Maybe : manipulates
 
 MaybeTKindHelper ..> MaybeT : widen/narrow
-MaybeTKindHelper ..> MaybeTKind.Witness : uses in signature
+'MaybeTKindHelper ..> MaybeTKind.Witness : uses in signature
 
 
 @enduml

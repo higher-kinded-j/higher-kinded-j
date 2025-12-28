@@ -10,6 +10,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.LIFT_F;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -319,5 +321,6 @@ class StateTKindHelperTest {
   }
 
   // Dummy Kind for testing invalid type unwrap
-  private static class OtherKind<S, F_Witness, A> implements Kind<OtherKind<S, F_Witness, ?>, A> {}
+  private static class OtherKind<S, F_Witness, A>
+      implements Kind<OtherKind<S, F_Witness, ?>, A>, WitnessArity<TypeArity.Unary> {}
 }

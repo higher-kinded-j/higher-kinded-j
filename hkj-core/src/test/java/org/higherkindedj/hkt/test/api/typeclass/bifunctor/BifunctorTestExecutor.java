@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.bifunctor;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 
 /**
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
  * @param <C> The first output type parameter
  * @param <D> The second output type parameter
  */
-final class BifunctorTestExecutor<F, A, B, C, D> {
+final class BifunctorTestExecutor<F extends WitnessArity<TypeArity.Binary>, A, B, C, D> {
 
   private final BifunctorTestConfigStage<F, A, B, C, D> config;
 

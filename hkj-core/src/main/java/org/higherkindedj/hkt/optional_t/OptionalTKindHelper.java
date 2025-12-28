@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.optional_t;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -33,7 +35,8 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    * @throws NullPointerException if {@code optionalT} is {@code null}.
    */
   @Override
-  public <F, A> Kind<OptionalTKind.Witness<F>, A> widen(OptionalT<F, A> optionalT) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<OptionalTKind.Witness<F>, A> widen(
+      OptionalT<F, A> optionalT) {
     Validation.kind().requireForWiden(optionalT, OPTIONAL_T_CLASS);
     return optionalT;
   }
@@ -50,7 +53,8 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    *     valid {@link OptionalT} instance.
    */
   @Override
-  public <F, A> OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> narrow(
+      @Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, OPTIONAL_T_CLASS);
   }
 }

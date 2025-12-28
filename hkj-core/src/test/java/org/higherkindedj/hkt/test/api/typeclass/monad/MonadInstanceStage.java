@@ -4,8 +4,10 @@ package org.higherkindedj.hkt.test.api.typeclass.monad;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
-public final class MonadInstanceStage<F, A> {
+public final class MonadInstanceStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Monad<F> monad;
 

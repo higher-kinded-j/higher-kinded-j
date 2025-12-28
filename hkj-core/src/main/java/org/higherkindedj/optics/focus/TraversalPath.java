@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.constant.Const;
 import org.higherkindedj.hkt.constant.ConstApplicative;
 import org.higherkindedj.hkt.constant.ConstKind;
@@ -431,7 +433,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <F> the effect type (e.g., Optional, Validated, IO)
    * @return the modified structure wrapped in the effect
    */
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
     return toTraversal().modifyF(f, source, applicative);
   }
 
@@ -576,7 +579,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @see org.higherkindedj.optics.util.TraverseTraversals
    */
   @SuppressWarnings("unchecked")
-  default <F, E> TraversalPath<S, E> traverseOver(Traverse<F> traverse) {
+  default <F extends WitnessArity<TypeArity.Unary>, E> TraversalPath<S, E> traverseOver(
+      Traverse<F> traverse) {
     Traversal<Kind<F, E>, E> traversal = TraverseTraversals.forTraverse(traverse);
     return via((Traversal<A, E>) traversal);
   }

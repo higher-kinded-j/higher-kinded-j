@@ -3,11 +3,14 @@
 
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>\nfor all type classes" as ArityNote
 
 interface "Kind<F, A>" as Kind
 interface "Functor<F>" as Functor
 interface "Applicative<F>" as Applicative
 interface "Monad<M>" as MonadBase
+
+ArityNote .. Kind
 
 interface "ListKind<A>" as ListKindBase << (L,orchid) >> {
   ' Witness type for List

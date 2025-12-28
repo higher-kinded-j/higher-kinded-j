@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.bifunctor;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Fine-grained test selection stage.
  *
@@ -13,7 +16,8 @@ package org.higherkindedj.hkt.test.api.typeclass.bifunctor;
  * @param <C> The first output type parameter
  * @param <D> The second output type parameter
  */
-public final class BifunctorTestSelectionStage<F, A, B, C, D> {
+public final class BifunctorTestSelectionStage<
+    F extends WitnessArity<TypeArity.Binary>, A, B, C, D> {
 
   private final BifunctorTestConfigStage<F, A, B, C, D> config;
 

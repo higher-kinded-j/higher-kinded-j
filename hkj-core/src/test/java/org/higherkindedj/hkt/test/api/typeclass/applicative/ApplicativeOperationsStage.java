@@ -7,6 +7,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 4: Optional configuration and test execution.
@@ -18,7 +20,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class ApplicativeOperationsStage<F, A, B> {
+public final class ApplicativeOperationsStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Applicative<F> applicative;
   private final Kind<F, A> validKind;

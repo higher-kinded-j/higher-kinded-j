@@ -1,22 +1,13 @@
 @startuml free_kind
 
-skinparam backgroundColor #24273A
-skinparam class {
-  BackgroundColor #24273A
-  BorderColor #C6A0F6
-  ArrowColor #F5BDE6
-  AttributeFontColor #A6DA95
-  AttributeFontSize 12
-  FontColor #A6DA95
-  FontSize 16
-  HeaderBackgroundColor #363A4F
-}
-skinparam stereotypeCBackgroundColor #ADD1B2
-skinparam stereotypeIBackgroundColor #B4A7E5
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
 
 hide empty members
 
-interface "Kind<F, A>" <<interface>>
+note "Witness<F> implements\nWitnessArity<TypeArity.Unary>" as WitnessNote
+
+interface "Kind<F extends WitnessArity<?>, A>" <<interface>>
 
 interface "FreeKind<F, A>" <<interface>>
 

@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.monaderror;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 6: Law testing configuration for MonadError.
@@ -16,7 +18,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <A> The input type
  * @param <B> The mapped type
  */
-public final class MonadErrorLawsStage<F, E, A, B> {
+public final class MonadErrorLawsStage<F extends WitnessArity<TypeArity.Unary>, E, A, B> {
   private final MonadErrorHandlerStage<F, E, A, B> handlerStage;
   private final A testValue;
   private final Function<A, Kind<F, B>> testFunction;

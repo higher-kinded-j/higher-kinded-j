@@ -32,7 +32,7 @@ The interface for `MonadError` in `hkj-api` extends `Monad`:
 
 ``` java
 @NullMarked
-public interface MonadError<F, E> extends Monad<F> {
+public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends Monad<F> {
 
   <A> @NonNull Kind<F, A> raiseError(@Nullable final E error);
 

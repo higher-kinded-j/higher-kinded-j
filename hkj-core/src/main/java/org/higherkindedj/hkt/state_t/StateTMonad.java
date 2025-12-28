@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -28,7 +30,8 @@ import org.jspecify.annotations.Nullable;
  * @see StateT
  * @see Monad
  */
-public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> {
+public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
+    implements Monad<StateTKind.Witness<S, F>> {
 
   private static final Class<StateTMonad> STATE_T_MONAD_CLASS = StateTMonad.class;
   private final Monad<F> monadF;
@@ -49,7 +52,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    * @return A {@code Monad<StateTKind.Witness<S, F>>} instance.
    * @throws NullPointerException if {@code monadF} is null.
    */
-  public static <S, F> StateTMonad<S, F> instance(Monad<F> monadF) {
+  public static <S, F extends WitnessArity<TypeArity.Unary>> StateTMonad<S, F> instance(
+      Monad<F> monadF) {
     return new StateTMonad<>(monadF);
   }
 

@@ -8,7 +8,7 @@ You can add support for new Java types (type constructors) to the Higher-Kinded-
 - How to integrate new types into the Higher-Kinded-J framework
 - The pattern for adapting external types you don't control using holder records
 - How to design custom library types that directly implement Kind interfaces
-- Creating Kind interfaces with Witness types for type-level programming
+- Creating Kind interfaces with Witness types that implement WitnessArity
 - Building ConverterOps interfaces and KindHelper enums for type conversions
 - Best practices for implementing type class instances for custom types
 ~~~
@@ -22,7 +22,7 @@ There are two main scenarios:
 
 The core pattern involves creating:
 
-* An `XxxKind` interface with a nested `Witness` type (this remains the same).
+* An `XxxKind` interface with a nested `Witness` type that implements `WitnessArity<TypeArity.Unary>` (or `Binary` for two-parameter types).
 * An `XxxConverterOps` interface defining the `widen` and `narrow` operations for the specific type.
 * An `XxxKindHelper` **enum** that implements `XxxConverterOps` and provides a singleton instance (e.g., `SET`, `MY_TYPE`) for accessing these operations as instance methods.
 * Type class instances (e.g., for `Functor`, `Monad`).
@@ -42,12 +42,14 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
 
 1.  **Create the `Kind` Interface with Witness (`SetKind.java`)**:
     * Define a marker interface that extends `Kind<SetKind.Witness, A>`.
-    * Inside this interface, define a `static final class Witness {}` which will serve as the phantom type `F` for `Set`.
+    * Inside this interface, define a `static final class Witness implements WitnessArity<TypeArity.Unary>` which will serve as the phantom type `F` for `Set`. The `WitnessArity` bound ensures this witness can be used with unary type classes like `Functor` and `Monad`.
 
     ```java
     package org.higherkindedj.hkt.set; // Example package
 
     import org.higherkindedj.hkt.Kind;
+    import org.higherkindedj.hkt.TypeArity;
+    import org.higherkindedj.hkt.WitnessArity;
     import org.jspecify.annotations.NullMarked;
 
     /**
@@ -59,9 +61,10 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
     public interface SetKind<A> extends Kind<SetKind.Witness, A> {
       /**
        * Witness type for {@link java.util.Set} to be used with {@link Kind}.
+       * Implements WitnessArity to declare this is a unary type constructor.
        */
-      final class Witness {
-        private Witness() {} 
+      final class Witness implements WitnessArity<TypeArity.Unary> {
+        private Witness() {}
       }
     }
     ```
@@ -145,19 +148,23 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 
 1.  **Define Your Type and its `Kind` Interface**:
     * Your custom type (e.g., `MyType<A>`) directly implements its corresponding `MyTypeKind<A>` interface.
-    * `MyTypeKind<A>` extends `Kind<MyType.Witness, A>` and defines the nested `Witness` class. (This part remains unchanged).
+    * `MyTypeKind<A>` extends `Kind<MyType.Witness, A>` and defines the nested `Witness` class that implements `WitnessArity<TypeArity.Unary>`.
 
     ```java
     package org.example.mytype;
 
     import org.higherkindedj.hkt.Kind;
+    import org.higherkindedj.hkt.TypeArity;
+    import org.higherkindedj.hkt.WitnessArity;
     import org.jspecify.annotations.NullMarked;
 
     // 1. The Kind Interface with Witness
     @NullMarked
     public interface MyTypeKind<A> extends Kind<MyType.Witness, A> {
-      /** Witness type for MyType. */
-      final class Witness { private Witness() {} }
+      /** Witness type for MyType - implements WitnessArity to declare arity. */
+      final class Witness implements WitnessArity<TypeArity.Unary> {
+        private Witness() {}
+      }
     }
 
     // 2. Your Custom Type directly implements its Kind interface

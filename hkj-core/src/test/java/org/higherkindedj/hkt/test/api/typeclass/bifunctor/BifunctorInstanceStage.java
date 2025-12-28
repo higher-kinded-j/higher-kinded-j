@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.bifunctor;
 
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage for providing the Kind2 instance to test with.
@@ -12,7 +14,7 @@ import org.higherkindedj.hkt.Kind2;
  * @param <A> The first type parameter
  * @param <B> The second type parameter
  */
-public final class BifunctorInstanceStage<F, A, B> {
+public final class BifunctorInstanceStage<F extends WitnessArity<TypeArity.Binary>, A, B> {
 
   private final Class<?> contextClass;
   private final Bifunctor<F> bifunctor;

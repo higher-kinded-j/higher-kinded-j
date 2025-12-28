@@ -11,6 +11,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOMonad;
@@ -24,10 +26,11 @@ public class GenericExample {
 
   // Generic function: Doubles the number inside any Functor context F_WITNESS.
   // Requires the specific Functor<F_WITNESS> instance to be passed in.
-  public static <F_WITNESS, A, B> Kind<F_WITNESS, B> mapWithFunctor(
-      Functor<F_WITNESS> functorInstance, // Pass the type class instance for F_WITNESS
-      Function<A, B> fn,
-      Kind<F_WITNESS, A> kindABox) { // The value wrapped in Kind
+  public static <F_WITNESS extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<F_WITNESS, B> mapWithFunctor(
+          Functor<F_WITNESS> functorInstance, // Pass the type class instance for F_WITNESS
+          Function<A, B> fn,
+          Kind<F_WITNESS, A> kindABox) { // The value wrapped in Kind
 
     // Use the map method from the provided Functor instance
     return functorInstance.map(fn, kindABox);

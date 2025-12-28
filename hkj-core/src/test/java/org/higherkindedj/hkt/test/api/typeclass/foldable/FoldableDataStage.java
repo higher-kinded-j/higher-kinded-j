@@ -6,6 +6,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 3: Configure Foldable operations.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Monoid;
  * @param <F> The Foldable witness type
  * @param <A> The input type
  */
-public final class FoldableDataStage<F, A> {
+public final class FoldableDataStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Foldable<F> foldable;
   private final Kind<F, A> validKind;

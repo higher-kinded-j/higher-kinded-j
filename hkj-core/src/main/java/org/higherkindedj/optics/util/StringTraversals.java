@@ -8,6 +8,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 
@@ -79,7 +81,7 @@ public final class StringTraversals {
   public static Traversal<String, Character> chars() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, String> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> modifyF(
           final Function<Character, Kind<F, Character>> f,
           final String source,
           final Applicative<F> applicative) {
@@ -151,7 +153,7 @@ public final class StringTraversals {
   public static Traversal<String, String> worded() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, String> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> modifyF(
           final Function<String, Kind<F, String>> f,
           final String source,
           final Applicative<F> applicative) {
@@ -215,7 +217,7 @@ public final class StringTraversals {
   public static Traversal<String, String> lined() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, String> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> modifyF(
           final Function<String, Kind<F, String>> f,
           final String source,
           final Applicative<F> applicative) {

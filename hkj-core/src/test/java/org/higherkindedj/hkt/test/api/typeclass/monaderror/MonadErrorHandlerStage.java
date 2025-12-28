@@ -6,6 +6,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 5: Optional configuration and test execution.
@@ -18,7 +20,7 @@ import org.higherkindedj.hkt.MonadError;
  * @param <A> The input type
  * @param <B> The mapped type
  */
-public final class MonadErrorHandlerStage<F, E, A, B> {
+public final class MonadErrorHandlerStage<F extends WitnessArity<TypeArity.Unary>, E, A, B> {
   private final Class<?> contextClass;
   private final MonadError<F, E> monadError;
   private final Kind<F, A> validKind;

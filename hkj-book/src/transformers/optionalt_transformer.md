@@ -78,7 +78,7 @@ public enum OptionalTKindHelper {
 
 **The** `OptionalTMonad<F>` class implements `MonadError<OptionalTKind.Witness<F>, Unit>`. This provides the standard monadic operations (`of`, `map`, `flatMap`, `ap`) and error handling capabilities for the `OptionalT` structure. The error type `E` for `MonadError` is fixed to `Unit` signifying that an "error" in this context is the `Optional.empty()` state within `F<Optional<A>>`.
 
-* **It requires a** `Monad<F>` instance for the outer monad `F`, which must be supplied during construction. This `outerMonad` is used to manage and sequence the effects of `F`.
+* **It requires a** `Monad<F>` instance for the outer monad `F` (where `F extends WitnessArity<TypeArity.Unary>`), which must be supplied during construction. This `outerMonad` is used to manage and sequence the effects of `F`.
 
 ```java
 // Example: F = CompletableFutureKind.Witness
