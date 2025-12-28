@@ -27,11 +27,13 @@ Think of a `Functor` as a generic "box" that holds a value. The `map` function l
 The interface for `Functor` in `hkj-api` is simple and elegant:
 
 
-``` java 
-public interface Functor<F> {
+``` java
+public interface Functor<F extends WitnessArity<TypeArity.Unary>> {
   <A, B> @NonNull Kind<F, B> map(final Function<? super A, ? extends B> f, final Kind<F, A> fa);
 }
 ```
+
+The `F extends WitnessArity<TypeArity.Unary>` bound ensures that only valid unary witness types (representing single-parameter type constructors like `List<_>` or `Optional<_>`) can be used with Functor.
 
 * `f`: The function to apply to the value inside the Functor.
 * `fa`: The higher-kinded `Functor` instance (e.g., a `Kind<Optional.Witness, String>`).

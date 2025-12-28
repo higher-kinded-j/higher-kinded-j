@@ -27,7 +27,7 @@ The interface for `Selective` in `hkj-api` extends `Applicative`:
 
 ```java
 @NullMarked
-public interface Selective<F> extends Applicative<F> {
+public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Applicative<F> {
   // Core operation
   <A, B> Kind<F, B> select(Kind<F, Choice<A, B>> fab, Kind<F, Function<A, B>> ff);
 

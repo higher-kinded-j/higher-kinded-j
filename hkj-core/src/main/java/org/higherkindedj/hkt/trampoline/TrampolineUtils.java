@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -106,10 +108,11 @@ public final class TrampolineUtils {
    * @param applicative The applicative instance
    * @return The traversed list wrapped in the applicative effect
    */
-  public static <F, A, B> Kind<F, List<B>> traverseListStackSafe(
-      final List<A> list,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<F, List<B>> traverseListStackSafe(
+          final List<A> list,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     final Trampoline<Kind<F, List<B>>> trampoline =
         traverseListTrampoline(list, 0, applicative.of(new ArrayList<>()), f, applicative);
@@ -130,12 +133,13 @@ public final class TrampolineUtils {
    * @param <B> Output element type
    * @return A Trampoline that will produce the final result when run
    */
-  private static <F, A, B> Trampoline<Kind<F, List<B>>> traverseListTrampoline(
-      final List<A> list,
-      final int index,
-      final Kind<F, List<B>> accumulator,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  private static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      Trampoline<Kind<F, List<B>>> traverseListTrampoline(
+          final List<A> list,
+          final int index,
+          final Kind<F, List<B>> accumulator,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     // Base case: processed all elements
     if (index >= list.size()) {
@@ -188,7 +192,7 @@ public final class TrampolineUtils {
    * @param applicative The applicative instance
    * @return All effects sequenced into a single effect containing a list
    */
-  public static <F, A> Kind<F, List<A>> sequenceStackSafe(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> sequenceStackSafe(
       final List<Kind<F, A>> effects, final Applicative<F> applicative) {
 
     return traverseListStackSafe(effects, Function.identity(), applicative);

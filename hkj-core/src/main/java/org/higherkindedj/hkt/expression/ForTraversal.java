@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 
@@ -69,7 +71,7 @@ public final class ForTraversal {
    * @return A {@link TraversalSteps} builder for chaining operations.
    * @throws NullPointerException if any argument is null.
    */
-  public static <F, S, A> TraversalSteps<F, S, A> over(
+  public static <F extends WitnessArity<TypeArity.Unary>, S, A> TraversalSteps<F, S, A> over(
       Traversal<S, A> traversal, S source, Applicative<F> applicative) {
     Objects.requireNonNull(traversal, "traversal must not be null");
     Objects.requireNonNull(source, "source must not be null");
@@ -84,7 +86,7 @@ public final class ForTraversal {
    * @param <S> The type of the source structure.
    * @param <A> The type of the focused elements.
    */
-  public interface TraversalSteps<F, S, A> {
+  public interface TraversalSteps<F extends WitnessArity<TypeArity.Unary>, S, A> {
 
     /**
      * Filters elements, only applying subsequent operations to those that match the predicate.
@@ -139,7 +141,8 @@ public final class ForTraversal {
   }
 
   /** Implementation of the traversal steps builder. */
-  private static final class TraversalStepsImpl<F, S, A> implements TraversalSteps<F, S, A> {
+  private static final class TraversalStepsImpl<F extends WitnessArity<TypeArity.Unary>, S, A>
+      implements TraversalSteps<F, S, A> {
     private final Traversal<S, A> traversal;
     private final S source;
     private final Applicative<F> applicative;

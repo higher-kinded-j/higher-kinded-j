@@ -1,24 +1,10 @@
 @startuml natural_transformation
 
-skinparam backgroundColor #24273A
-skinparam class {
-  BackgroundColor #24273A
-  BorderColor #C6A0F6
-  ArrowColor #F5BDE6
-  AttributeFontColor #A6DA95
-  AttributeFontSize 12
-  FontColor #A6DA95
-  FontSize 16
-  HeaderBackgroundColor #363A4F
-}
-skinparam note {
-  BackgroundColor #EED49F
-  BorderColor #A80036
-}
-skinparam stereotypeCBackgroundColor #ADD1B2
-skinparam stereotypeIBackgroundColor #B4A7E5
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 hide empty members
+
+note "F, G extend WitnessArity<?>" as ArityNote
 
 interface "Natural<F, G>" <<functional interface>> {
   + <A> Kind<G, A> apply(Kind<F, A> fa)

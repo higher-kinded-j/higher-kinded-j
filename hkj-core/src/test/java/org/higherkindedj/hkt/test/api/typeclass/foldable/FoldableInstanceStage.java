@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.foldable;
 
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 2: Configure test data with Kind instance.
@@ -11,7 +13,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <F> The Foldable witness type
  * @param <A> The input type
  */
-public final class FoldableInstanceStage<F, A> {
+public final class FoldableInstanceStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Foldable<F> foldable;
 

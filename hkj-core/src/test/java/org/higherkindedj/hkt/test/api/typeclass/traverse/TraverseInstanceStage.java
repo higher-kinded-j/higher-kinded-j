@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.traverse;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 2: Configure test data with Kind instance.
@@ -11,7 +13,7 @@ import org.higherkindedj.hkt.Traverse;
  * @param <F> The Traverse witness type
  * @param <A> The input type
  */
-public final class TraverseInstanceStage<F, A> {
+public final class TraverseInstanceStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Traverse<F> traverse;
 

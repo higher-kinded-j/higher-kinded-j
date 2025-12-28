@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 
@@ -40,7 +42,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests round-trip widen/narrow preserves identity. */
-  public static <T, F, A> void testRoundTripWithHelper(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testRoundTripWithHelper(
       T validInstance, KindHelper<T, F, A> helper) {
     Kind<F, A> widened = helper.widen(validInstance);
     T narrowed = helper.narrow(widened);
@@ -51,7 +53,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests null parameter validations using production validators. */
-  public static <T, F, A> void testValidationsWithHelper(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testValidationsWithHelper(
       Class<T> targetType, KindHelper<T, F, A> helper) {
     ValidationTestBuilder.create()
         .assertWidenNull(() -> helper.widen(null), targetType)
@@ -60,7 +62,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests invalid Kind type validation with proper error handling. */
-  public static <T, F, A> void testInvalidTypeWithHelper(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testInvalidTypeWithHelper(
       Class<T> targetType, KindHelper<T, F, A> helper) {
     Kind<F, A> invalidKind = createDummyKind("invalid_" + targetType.getSimpleName());
 
@@ -81,7 +83,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests multiple round-trips preserve idempotency. */
-  public static <T, F, A> void testIdempotencyWithHelper(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testIdempotencyWithHelper(
       T validInstance, KindHelper<T, F, A> helper) {
     T current = validInstance;
     for (int i = 0; i < 3; i++) {
@@ -93,7 +95,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests edge cases and boundary conditions. */
-  public static <T, F, A> void testEdgeCasesWithHelper(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testEdgeCasesWithHelper(
       T validInstance, Class<T> targetType, KindHelper<T, F, A> helper) {
 
     Kind<F, A> widened = helper.widen(validInstance);
@@ -132,7 +134,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests performance characteristics of widen/narrow operations. */
-  public static <T, F, A> void testPerformance(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testPerformance(
       T validInstance, Function<T, Kind<F, A>> widenFunc, Function<Kind<F, A>, T> narrowFunc) {
 
     int iterations = 10000;
@@ -169,7 +171,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests concurrent access to ensure thread safety. */
-  public static <T, F, A> void testConcurrentAccess(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> void testConcurrentAccess(
       T validInstance, Function<T, Kind<F, A>> widenFunc, Function<Kind<F, A>, T> narrowFunc) {
 
     CompletableFuture<Void>[] futures = new CompletableFuture[10];
@@ -196,14 +198,14 @@ public final class KindHelperTestPattern {
   // =============================================================================
 
   /** Interface for KindHelper implementations to provide better type safety. */
-  public interface KindHelper<T, F, A> {
+  public interface KindHelper<T, F extends WitnessArity<TypeArity.Unary>, A> {
     Kind<F, A> widen(T instance);
 
     T narrow(Kind<F, A> kind);
   }
 
   /** Adapter for existing enum-based KindHelpers. */
-  public static <T, F, A> KindHelper<T, F, A> adapt(
+  public static <T, F extends WitnessArity<TypeArity.Unary>, A> KindHelper<T, F, A> adapt(
       Function<T, Kind<F, A>> widenFunc, Function<Kind<F, A>, T> narrowFunc) {
     return new KindHelper<T, F, A>() {
       @Override
@@ -218,7 +220,8 @@ public final class KindHelperTestPattern {
     };
   }
 
-  static <F, A> Kind<F, A> createDummyKind(String identifier) {
+  static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, A> createDummyKind(
+      String identifier) {
     return new Kind<F, A>() {
       @Override
       public String toString() {

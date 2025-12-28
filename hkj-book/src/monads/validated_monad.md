@@ -23,7 +23,7 @@ The `ValidatedMonad<E>` provides a monadic interface for `Validated<E, A>` (wher
 
 * **Explicit Validation Outcome:** The type signature `Validated<E, A>` makes it clear that a computation can result in either a success (`Valid<A>`) or an error (`Invalid<E>`).
 * **Functional Composition:** Enables chaining of operations using `map`, `flatMap`, and `ap`. If an operation results in an `Invalid`, subsequent operations in the chain are typically short-circuited, propagating the `Invalid` state.
-* **HKT Integration:** `ValidatedKind<E, A>` (the HKT wrapper for `Validated<E, A>`) and `ValidatedMonad<E>` allow `Validated` to be used with generic functions and type classes that expect `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, or `Monad<M>`.
+* **HKT Integration:** `ValidatedKind<E, A>` (the HKT wrapper for `Validated<E, A>`) and `ValidatedMonad<E>` allow `Validated` to be used with generic functions and type classes that expect `Kind<F, A>` where `F extends WitnessArity<?>`, along with type classes like `Functor<F>`, `Applicative<F>`, or `Monad<M>` where `F extends WitnessArity<TypeArity.Unary>`.
 * **Clear Error Handling:** Provides methods like `fold`, `ifValid`, `ifInvalid` to handle both `Valid` and `Invalid` cases explicitly.
 * **Standardized Error Handling:** As a `MonadError<ValidatedKind.Witness<E>, E>`, it offers `raiseError` to construct error states and `handleErrorWith` for recovery, integrating with generic error-handling combinators.
 ~~~

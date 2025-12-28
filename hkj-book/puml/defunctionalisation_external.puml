@@ -5,9 +5,10 @@
 
 package "Defunctionalisation Pattern For External Types (Optional, CompletableFuture etc)" {
 
+    note "All Witness types implement\nWitnessArity<TypeArity.Unary>" as WitnessNote
 
     interface "OptionalKind<A>" as OptionalKindInterface extends Kind<OptionalKind.Witness, A> {
-        class Witness {} ' Nested phantom Witness type
+        class Witness implements WitnessArity<Unary> {} ' Nested phantom Witness type
     }
     class "java.util.Optional<A>" as JavaOptional {}
 

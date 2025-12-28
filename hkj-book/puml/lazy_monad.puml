@@ -2,7 +2,7 @@
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
 
-
+note "F extends WitnessArity<TypeArity.Unary>\nfor all type classes" as ArityNote
 
 class LazyKindHelper {
  {static} Kind<LazyKind.Witness, A> widen(Lazy<A>)

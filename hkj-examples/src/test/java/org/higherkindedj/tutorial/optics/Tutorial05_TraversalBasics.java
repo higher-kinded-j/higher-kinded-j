@@ -9,6 +9,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -92,7 +94,8 @@ public class Tutorial05_TraversalBasics {
       Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         // 1. Extract the list field from the structure
         List<A> list = getter.apply(s);
         // 2. Traverse the list elements (this uses Traversals.traverseList from hkj-core)

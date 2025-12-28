@@ -34,7 +34,7 @@ The interface for `Foldable` in `hkj-api` is as follows:
 
 
 ``` java
-public interface Foldable<F> {
+public interface Foldable<F extends WitnessArity<TypeArity.Unary>> {
   <A, M> M foldMap(
       Monoid<M> monoid,
       Function<? super A, ? extends M> f,
@@ -118,9 +118,9 @@ The interface for `Traverse` in `hkj-api` extends `Functor` and `Foldable`:
 
 **Java**
 
-```
-public interface Traverse<T> extends Functor<T>, Foldable<T> {
-  <F, A, B> Kind<F, Kind<T, B>> traverse(
+```java
+public interface Traverse<T extends WitnessArity<TypeArity.Unary>> extends Functor<T>, Foldable<T> {
+  <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, Kind<T, B>> traverse(
       Applicative<F> applicative,
       Function<A, Kind<F, B>> f,
       Kind<T, A> ta

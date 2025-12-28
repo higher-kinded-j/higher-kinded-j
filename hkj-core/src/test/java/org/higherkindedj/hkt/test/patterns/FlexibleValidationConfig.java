@@ -9,6 +9,7 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Flexible validation configuration for type class testing.
@@ -21,7 +22,7 @@ public final class FlexibleValidationConfig {
   private FlexibleValidationConfig() {}
 
   /** Configuration for Functor validation expectations. */
-  public static class FunctorValidation<F, A, B> {
+  public static class FunctorValidation<F extends WitnessArity<TypeArity.Unary>, A, B> {
     protected final Functor<F> functor;
     protected final Kind<F, A> validKind;
     protected final Function<A, B> validMapper;
@@ -91,7 +92,7 @@ public final class FlexibleValidationConfig {
   }
 
   /** Configuration for Applicative validation expectations. */
-  public static class ApplicativeValidation<F, A, B> {
+  public static class ApplicativeValidation<F extends WitnessArity<TypeArity.Unary>, A, B> {
     protected final Applicative<F> applicative;
     protected final Kind<F, A> validKind;
     protected final Kind<F, A> validKind2;
@@ -276,7 +277,8 @@ public final class FlexibleValidationConfig {
   }
 
   /** Configuration for Monad validation expectations. */
-  public static class MonadValidation<F, A, B> extends ApplicativeValidation<F, A, B> {
+  public static class MonadValidation<F extends WitnessArity<TypeArity.Unary>, A, B>
+      extends ApplicativeValidation<F, A, B> {
     protected final Monad<F> monad;
     protected final Function<A, Kind<F, B>> validFlatMapper;
 
@@ -379,7 +381,8 @@ public final class FlexibleValidationConfig {
   }
 
   /** Configuration for MonadError validation expectations. */
-  public static class MonadErrorValidation<F, E, A, B> extends MonadValidation<F, A, B> {
+  public static class MonadErrorValidation<F extends WitnessArity<TypeArity.Unary>, E, A, B>
+      extends MonadValidation<F, A, B> {
     private final MonadError<F, E> monadError;
     private final Function<E, Kind<F, A>> validHandler;
     private final Kind<F, A> validFallback;

@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api.typeclass.monad;
 
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 1: Configure the Monad instance.
@@ -11,7 +13,7 @@ import org.higherkindedj.hkt.Monad;
  *
  * @param <F> The Monad witness type
  */
-public final class MonadTestStage<F> {
+public final class MonadTestStage<F extends WitnessArity<TypeArity.Unary>> {
   private final Class<?> contextClass;
 
   public MonadTestStage(Class<?> contextClass) {

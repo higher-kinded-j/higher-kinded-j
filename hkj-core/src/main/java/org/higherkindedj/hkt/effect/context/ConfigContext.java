@@ -11,6 +11,8 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.io.IO;
@@ -54,7 +56,8 @@ import org.higherkindedj.hkt.reader_t.ReaderTMonad;
  * @param <R> the configuration/environment type
  * @param <A> the value type
  */
-public final class ConfigContext<F, R, A> implements EffectContext<F, A> {
+public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
+    implements EffectContext<F, A> {
 
   private final ReaderT<F, R, A> transformer;
   private final Monad<F> outerMonad;

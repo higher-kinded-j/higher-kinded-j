@@ -47,7 +47,7 @@ The lazy evaluation feature revolves around these key types:
 * **Memoization**: The result (or exception) of the computation is stored after the first call to `force()`, subsequent calls return the cached result without re-computation.
 * **Exception Handling**: Computations wrapped in `Lazy.defer` can throw any `Throwable`. This exception is caught, memoised, and re-thrown by `force()`.
 * **Functional Composition**: `LazyMonad` allows chaining lazy computations using `map` and `flatMap` while preserving laziness. The composition itself doesn't trigger evaluation; only forcing the final `LazyKind` does.
-* **HKT Integration**: `LazyKind` and `LazyMonad` enable using lazy computations within generic functional code expecting `Kind<F, A>` and `Monad<F>`.
+* **HKT Integration**: `LazyKind` and `LazyMonad` enable using lazy computations within generic functional code expecting `Kind<F, A>` where `F extends WitnessArity<?>` and `Monad<F>` where `F extends WitnessArity<TypeArity.Unary>`.
 
 ~~~admonish example title="Example: Creating Lazy Instances"
 

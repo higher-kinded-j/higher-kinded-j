@@ -109,6 +109,7 @@
 - [Introduction](hkts/ch_intro.md)
   - [HKT Introduction](hkts/hkt_introduction.md)
   - [Concepts](hkts/core-concepts.md)
+  - [Type Arity](hkts/type-arity.md)
   - [Usage Guide](hkts/usage-guide.md)
   - [Basic HKT Examples](hkts/hkt_basic_examples.md)
   - [Quick Reference](hkts/quick_reference.md)

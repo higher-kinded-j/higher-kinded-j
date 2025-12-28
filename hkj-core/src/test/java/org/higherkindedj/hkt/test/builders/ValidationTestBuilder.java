@@ -11,6 +11,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.assertj.core.api.ThrowableAssert;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.assertions.FunctionAssertions;
 import org.higherkindedj.hkt.test.assertions.KindAssertions;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
@@ -407,8 +408,12 @@ public final class ValidationTestBuilder {
    * @param <B> The output type
    * @return This builder for chaining
    */
-  public <F, A, B> ValidationTestBuilder assertAllFunctorOperations(
-      Functor<F> functor, Class<?> contextClass, Kind<F, A> validKind, Function<A, B> validMapper) {
+  public <F extends WitnessArity<TypeArity.Unary>, A, B>
+      ValidationTestBuilder assertAllFunctorOperations(
+          Functor<F> functor,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper) {
 
     assertMapperNull(() -> functor.map(null, validKind), "f", contextClass, Operation.MAP);
     assertKindNull(() -> functor.map(validMapper, null), contextClass, Operation.MAP);
@@ -430,14 +435,15 @@ public final class ValidationTestBuilder {
    * @param <B> The output type
    * @return This builder for chaining
    */
-  public <F, A, B> ValidationTestBuilder assertAllApplicativeOperations(
-      Applicative<F> applicative,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Kind<F, A> validKind2,
-      Function<A, B> validMapper,
-      Kind<F, Function<A, B>> validFunctionKind,
-      BiFunction<A, A, B> validCombiningFunction) {
+  public <F extends WitnessArity<TypeArity.Unary>, A, B>
+      ValidationTestBuilder assertAllApplicativeOperations(
+          Applicative<F> applicative,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Kind<F, A> validKind2,
+          Function<A, B> validMapper,
+          Kind<F, Function<A, B>> validFunctionKind,
+          BiFunction<A, A, B> validCombiningFunction) {
 
     // Functor operations (inherited)
     assertAllFunctorOperations(applicative, contextClass, validKind, validMapper);
@@ -480,13 +486,14 @@ public final class ValidationTestBuilder {
    * @param <B> The output type
    * @return This builder for chaining
    */
-  public <F, A, B> ValidationTestBuilder assertAllMonadOperations(
-      Monad<F> monad,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind) {
+  public <F extends WitnessArity<TypeArity.Unary>, A, B>
+      ValidationTestBuilder assertAllMonadOperations(
+          Monad<F> monad,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Function<A, Kind<F, B>> validFlatMapper,
+          Kind<F, Function<A, B>> validFunctionKind) {
 
     // Applicative operations (inherited) - using BiFunction for map2
     BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
@@ -523,15 +530,16 @@ public final class ValidationTestBuilder {
    * @param <B> The output type
    * @return This builder for chaining
    */
-  public <F, E, A, B> ValidationTestBuilder assertAllMonadErrorOperations(
-      MonadError<F, E> monadError,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind,
-      Function<E, Kind<F, A>> validHandler,
-      Kind<F, A> validFallback) {
+  public <F extends WitnessArity<TypeArity.Unary>, E, A, B>
+      ValidationTestBuilder assertAllMonadErrorOperations(
+          MonadError<F, E> monadError,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Function<A, Kind<F, B>> validFlatMapper,
+          Kind<F, Function<A, B>> validFunctionKind,
+          Function<E, Kind<F, A>> validHandler,
+          Kind<F, A> validFallback) {
 
     // Monad operations (inherited)
     assertAllMonadOperations(
@@ -569,12 +577,13 @@ public final class ValidationTestBuilder {
    * @param <M> The Monoid type
    * @return This builder for chaining
    */
-  public <F, A, M> ValidationTestBuilder assertAllFoldableOperations(
-      Foldable<F> foldable,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Monoid<M> validMonoid,
-      Function<A, M> validFoldMapFunction) {
+  public <F extends WitnessArity<TypeArity.Unary>, A, M>
+      ValidationTestBuilder assertAllFoldableOperations(
+          Foldable<F> foldable,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Monoid<M> validMonoid,
+          Function<A, M> validFoldMapFunction) {
 
     assertMonoidNull(
         () -> foldable.foldMap(null, validFoldMapFunction, validKind),
@@ -607,15 +616,16 @@ public final class ValidationTestBuilder {
    * @param <M> The Monoid type
    * @return This builder for chaining
    */
-  public <F, G, A, B, M> ValidationTestBuilder assertAllTraverseOperations(
-      Traverse<F> traverse,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Applicative<G> validApplicative,
-      Function<A, Kind<G, B>> validTraverseFunction,
-      Monoid<M> validMonoid,
-      Function<A, M> validFoldMapFunction) {
+  public <F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
+      ValidationTestBuilder assertAllTraverseOperations(
+          Traverse<F> traverse,
+          Class<?> contextClass,
+          Kind<F, A> validKind,
+          Function<A, B> validMapper,
+          Applicative<G> validApplicative,
+          Function<A, Kind<G, B>> validTraverseFunction,
+          Monoid<M> validMonoid,
+          Function<A, M> validFoldMapFunction) {
 
     // Functor operations (inherited)
     assertAllFunctorOperations(traverse, contextClass, validKind, validMapper);

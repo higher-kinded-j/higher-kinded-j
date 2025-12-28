@@ -7,6 +7,8 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A **Traversal** is a versatile optic that can focus on zero or more parts 'A' within a larger
@@ -48,7 +50,8 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @return The updated structure {@code S}, itself wrapped in the context {@code F}.
    */
   @Override
-  <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Applicative<F> applicative);
+  <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S source, Applicative<F> applicative);
 
   /**
    * Composes this {@code Traversal<S, A>} with another {@code Traversal<A, B>} to create a new
@@ -69,7 +72,8 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
     final Optic<S, S, B, B> composedOptic = Optic.super.andThen(other);
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S s, Applicative<F> app) {
         // The actual composition logic is handled by the parent.
         return composedOptic.modifyF(f, s, app);
       }
@@ -94,7 +98,8 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
         // For each A in the traversal, use the lens to modify B
         return self.modifyF(
             a -> {
@@ -127,7 +132,8 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
         // For each A in the traversal, use the prism to optionally modify B
         return self.modifyF(
             a -> prism.getOptional(a).map(b -> app.map(prism::build, f.apply(b))).orElse(app.of(a)),
@@ -162,7 +168,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @param <F> The effect type
    * @return The modified structure wrapped in the effect
    */
-  default <F> Kind<F, S> branch(
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> branch(
       Predicate<? super A> predicate,
       Function<A, Kind<F, A>> thenBranch,
       Function<A, Kind<F, A>> elseBranch,
@@ -199,7 +205,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @param <F> The effect type
    * @return The modified structure wrapped in the effect
    */
-  default <F> Kind<F, S> modifyWhen(
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyWhen(
       Predicate<? super A> shouldModify,
       Function<A, Kind<F, A>> f,
       S source,
@@ -245,7 +251,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
           Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
         // Apply f only to matching elements, leave others unchanged
         Function<A, Kind<F, A>> conditionalF =
@@ -288,7 +294,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
           Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
         Function<A, Kind<F, A>> conditionalF =
             a -> query.exists(predicate, a) ? f.apply(a) : applicative.of(a);

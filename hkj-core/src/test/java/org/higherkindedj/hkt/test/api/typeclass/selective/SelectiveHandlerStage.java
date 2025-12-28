@@ -7,7 +7,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 5: Optional configuration and test execution.
@@ -20,7 +22,7 @@ import org.higherkindedj.hkt.Unit;
  * @param <B> The output type
  * @param <C> The result type
  */
-public final class SelectiveHandlerStage<F, A, B, C> {
+public final class SelectiveHandlerStage<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
   private final Class<?> contextClass;
   private final Selective<F> selective;
   private final Kind<F, A> validKind;

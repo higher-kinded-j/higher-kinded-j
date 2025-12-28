@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either_t.EitherT;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -22,7 +24,7 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <R> The Right type
  * @param <S> The mapped type
  */
-final class EitherTTestExecutor<F, L, R, S> {
+final class EitherTTestExecutor<F extends WitnessArity<TypeArity.Unary>, L, R, S> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final EitherT<F, L, R> leftInstance;

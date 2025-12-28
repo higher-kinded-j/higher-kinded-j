@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api.typeclass.bifunctor;
 
 import org.higherkindedj.hkt.Bifunctor;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Entry point for Bifunctor implementation testing.
@@ -20,7 +22,7 @@ import org.higherkindedj.hkt.Bifunctor;
  *
  * @param <F> The Bifunctor witness type
  */
-public final class BifunctorTestStage<F> {
+public final class BifunctorTestStage<F extends WitnessArity<TypeArity.Binary>> {
 
   private final Class<?> contextClass;
 

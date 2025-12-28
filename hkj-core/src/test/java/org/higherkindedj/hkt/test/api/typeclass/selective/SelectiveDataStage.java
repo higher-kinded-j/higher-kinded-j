@@ -6,6 +6,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 3: Configure Selective-specific operations.
@@ -16,7 +18,7 @@ import org.higherkindedj.hkt.Selective;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class SelectiveDataStage<F, A, B> {
+public final class SelectiveDataStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Selective<F> selective;
   private final Kind<F, A> validKind;

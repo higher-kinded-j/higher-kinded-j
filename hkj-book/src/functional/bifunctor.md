@@ -34,7 +34,7 @@ The interface for `Bifunctor` in `hkj-api` works with `Kind2<F, A, B>`:
 
 ```java
 @NullMarked
-public interface Bifunctor<F> {
+public interface Bifunctor<F extends WitnessArity<TypeArity.Binary>> {
 
     // Transform only the first parameter
     default <A, B, C> Kind2<F, C, B> first(

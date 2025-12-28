@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
@@ -59,7 +61,7 @@ public final class FocusPaths {
   public static <E> Traversal<List<E>, E> listElements() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<E>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<E>> modifyF(
           Function<E, Kind<F, E>> f, List<E> source, Applicative<F> app) {
         if (source.isEmpty()) {
           return app.of(source);
@@ -147,7 +149,7 @@ public final class FocusPaths {
   public static <K, V> Traversal<Map<K, V>, V> mapValues() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Map<K, V>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           Function<V, Kind<F, V>> f, Map<K, V> source, Applicative<F> app) {
         if (source.isEmpty()) {
           return app.of(source);
@@ -261,7 +263,8 @@ public final class FocusPaths {
     return new Traversal<>() {
       @Override
       @SuppressWarnings("unchecked")
-      public <F> Kind<F, E[]> modifyF(Function<E, Kind<F, E>> f, E[] source, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, E[]> modifyF(
+          Function<E, Kind<F, E>> f, E[] source, Applicative<F> app) {
         if (source.length == 0) {
           return app.of(source);
         }

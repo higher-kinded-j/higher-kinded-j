@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.free.console;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface for ConsoleInstruction, enabling higher-kinded type representation.
@@ -12,7 +14,7 @@ import org.higherkindedj.hkt.Kind;
 public interface ConsoleInstructionKind<A> extends Kind<ConsoleInstructionKind.Witness, A> {
 
   /** Witness type for ConsoleInstruction. */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {
       // Phantom type - prevents instantiation
     }

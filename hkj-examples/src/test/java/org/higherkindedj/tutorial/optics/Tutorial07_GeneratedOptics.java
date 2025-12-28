@@ -10,6 +10,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -85,7 +87,8 @@ public class Tutorial07_GeneratedOptics {
       Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
         Kind<F, List<A>> traversedList = Traversals.traverseList(list, f, applicative);
         return applicative.map(newList -> setter.apply(s, newList), traversedList);
@@ -101,7 +104,8 @@ public class Tutorial07_GeneratedOptics {
       Function<S, Map<K, V>> getter, BiFunction<S, Map<K, V>, S> setter) {
     return new Traversal<S, V>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<V, Kind<F, V>> f, S s, Applicative<F> applicative) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<V, Kind<F, V>> f, S s, Applicative<F> applicative) {
         Map<K, V> map = getter.apply(s);
         // Note: traverseMap doesn't exist in the library, so we'll convert to list
         var values = new ArrayList<>(map.values());

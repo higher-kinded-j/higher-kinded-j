@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.coretype.maybe_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigStage;
 
@@ -17,7 +19,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigS
  * @param <A> The type of the value potentially held by the inner Maybe
  * @param <B> The mapped type
  */
-public final class MaybeTTestConfigStage<F, A, B>
+public final class MaybeTTestConfigStage<F extends WitnessArity<TypeArity.Unary>, A, B>
     extends BaseTransformerTestConfigStage<MaybeTTestConfigStage<F, A, B>> {
 
   private final Class<?> contextClass;

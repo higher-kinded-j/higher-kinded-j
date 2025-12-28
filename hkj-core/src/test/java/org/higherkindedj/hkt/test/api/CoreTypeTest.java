@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api;
 
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
@@ -253,12 +255,12 @@ public final class CoreTypeTest {
    * @param <R> The Right type
    * @return Stage for providing test instances
    */
-  public static <F, L, R> EitherTCoreTestStage<F, L, R> eitherT(
-      Class<?> contextClass, Monad<F> outerMonad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, L, R>
+      EitherTCoreTestStage<F, L, R> eitherT(Class<?> contextClass, Monad<F> outerMonad) {
     return new EitherTCoreTestStage<>(contextClass, outerMonad);
   }
 
-  public static <F, A> MaybeTCoreTestStage<F, A> maybeT(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> MaybeTCoreTestStage<F, A> maybeT(
       Class<?> contextClass, Monad<F> outerMonad) {
     return new MaybeTCoreTestStage<>(contextClass, outerMonad);
   }
@@ -274,7 +276,7 @@ public final class CoreTypeTest {
    * @param <A> The value type
    * @return Stage for providing test instances
    */
-  public static <S, F, A> StateTCoreTestStage<S, F, A> stateT(
+  public static <S, F extends WitnessArity<TypeArity.Unary>, A> StateTCoreTestStage<S, F, A> stateT(
       Class<?> contextClass, Monad<F> outerMonad) {
     return new StateTCoreTestStage<>(contextClass, outerMonad);
   }
@@ -290,8 +292,8 @@ public final class CoreTypeTest {
    * @param <A> The value type
    * @return Stage for providing test instances
    */
-  public static <F, R, A> ReaderTCoreTestStage<F, R, A> readerT(
-      Class<?> contextClass, Monad<F> outerMonad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, R, A>
+      ReaderTCoreTestStage<F, R, A> readerT(Class<?> contextClass, Monad<F> outerMonad) {
     return new ReaderTCoreTestStage<>(contextClass, outerMonad);
   }
 

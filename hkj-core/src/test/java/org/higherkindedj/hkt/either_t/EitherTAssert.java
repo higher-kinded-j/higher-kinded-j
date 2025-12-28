@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 
 /**
@@ -53,9 +55,10 @@ public class EitherTAssert {
    * @param outerUnwrapper function to unwrap outer monad to Optional
    * @return a new {@link EitherTOptionalAssert} instance
    */
-  public static <F, E, A> EitherTOptionalAssert<F, E, A> assertThatEitherT(
-      Kind<EitherTKind.Witness<F, E>, A> actual,
-      Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E, A>
+      EitherTOptionalAssert<F, E, A> assertThatEitherT(
+          Kind<EitherTKind.Witness<F, E>, A> actual,
+          Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper) {
     return new EitherTOptionalAssert<>(actual, outerUnwrapper);
   }
 
@@ -68,7 +71,7 @@ public class EitherTAssert {
    * @param <E> the error type
    * @param <A> the success type
    */
-  public static class EitherTOptionalAssert<F, E, A>
+  public static class EitherTOptionalAssert<F extends WitnessArity<TypeArity.Unary>, E, A>
       extends AbstractAssert<EitherTOptionalAssert<F, E, A>, Kind<EitherTKind.Witness<F, E>, A>> {
 
     private final Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper;

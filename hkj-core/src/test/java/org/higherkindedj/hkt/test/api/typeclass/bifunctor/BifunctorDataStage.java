@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.bifunctor;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage for providing mapping functions for both type parameters.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Kind2;
  * @param <A> The first type parameter
  * @param <B> The second type parameter
  */
-public final class BifunctorDataStage<F, A, B> {
+public final class BifunctorDataStage<F extends WitnessArity<TypeArity.Binary>, A, B> {
 
   private final Class<?> contextClass;
   private final Bifunctor<F> bifunctor;

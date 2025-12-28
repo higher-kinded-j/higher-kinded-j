@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.kind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern.KindHelper;
 
@@ -75,14 +77,14 @@ public final class KindHelperTestStage {
      * @param <A> The value type
      * @return Configuration stage for testing
      */
-    public <F, A> BaseKindHelperConfig<T, F, A> withHelper(
+    public <F extends WitnessArity<TypeArity.Unary>, A> BaseKindHelperConfig<T, F, A> withHelper(
         Function<T, Kind<F, A>> widenFunc, Function<Kind<F, A>, T> narrowFunc) {
       return new BaseKindHelperConfig<>(instance, targetClass, widenFunc, narrowFunc);
     }
   }
 
   /** Base configuration with fluent API. */
-  public static class BaseKindHelperConfig<T, F, A> {
+  public static class BaseKindHelperConfig<T, F extends WitnessArity<TypeArity.Unary>, A> {
     protected final T instance;
     protected final Class<T> targetClass;
     protected final Function<T, Kind<F, A>> widenFunc;

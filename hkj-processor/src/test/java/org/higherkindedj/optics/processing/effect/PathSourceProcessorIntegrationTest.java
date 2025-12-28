@@ -40,9 +40,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface ApiResultKind<A> extends Kind<ApiResultKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -118,9 +120,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface ResultKind<A> extends Kind<ResultKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -155,9 +159,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface ErrResultKind<A> extends Kind<ErrResultKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -206,9 +212,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface SimpleKind<A> extends Kind<SimpleKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -256,9 +264,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface FactoryKind<A> extends Kind<FactoryKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -296,9 +306,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface TerminalKind<A> extends Kind<TerminalKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -335,9 +347,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface ObjectKind<A> extends Kind<ObjectKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -408,9 +422,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface PkgKind<A> extends Kind<PkgKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -453,9 +469,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -496,9 +514,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface PairKind<A> extends Kind<PairKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -541,9 +561,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface TaskKind<A> extends Kind<TaskKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -586,9 +608,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface ValidatedKind<A> extends Kind<ValidatedKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -634,9 +658,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface AnnotatedKind<A> extends Kind<AnnotatedKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -669,9 +695,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface SafeKind<A> extends Kind<SafeKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -708,9 +736,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface FirstKind<A> extends Kind<FirstKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -721,9 +751,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface SecondKind<A> extends Kind<SecondKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -799,9 +831,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface PeekKind<A> extends Kind<PeekKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -835,9 +869,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface ChainKind<A> extends Kind<ChainKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -880,9 +916,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface OuterKind<A> extends Kind<OuterKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -919,9 +957,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface StringableKind<A> extends Kind<StringableKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 
@@ -955,9 +995,11 @@ class PathSourceProcessorIntegrationTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
 
               public interface NoErrorKind<A> extends Kind<NoErrorKind.Witness, A> {
-                  final class Witness {}
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
               }
               """);
 

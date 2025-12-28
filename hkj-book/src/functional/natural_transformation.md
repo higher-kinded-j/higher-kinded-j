@@ -31,6 +31,10 @@ F[A] ────Natural<F, G>────> G[A]
 
 The key insight is that this transformation works for **any** type `A`. It transforms the "container" without knowing or caring about what's inside.
 
+![natural_transformation.svg](../images/puml/natural_transformation.svg)
+
+
+
 ### Everyday Examples
 
 You've likely encountered natural transformations without realising it:

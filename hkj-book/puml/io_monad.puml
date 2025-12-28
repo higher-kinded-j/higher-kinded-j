@@ -2,6 +2,8 @@
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>\nfor all type classes" as ArityNote
+
 interface Functor<F> {
   + Kind<F, B> map(Function<A, B>, Kind<F, A>)
 }

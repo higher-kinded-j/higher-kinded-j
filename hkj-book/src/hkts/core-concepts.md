@@ -5,6 +5,7 @@
 ~~~admonish info title="What You'll Learn"
 - How the Kind<F, A> interface simulates higher-kinded types in Java
 - The role of witness types in representing type constructors
+- How WitnessArity enforces type safety at compile time
 - Understanding defunctionalisation and how it enables HKT simulation
 - The difference between internal library types and external Java types
 - How type classes provide generic operations across different container types
@@ -31,18 +32,32 @@ You'll often see Higher-Kinded Types represented with an underscore, such as `F<
 
 At the very centre of the library are the `Kind` interfaces, which make higher-kinded types possible in Java.
 
-* **`Kind<F, A>`**: This is the foundational interface that emulates a higher-kinded type. It represents a type `F` that is generic over a type `A`. For example, `Kind<ListKind.Witness, String>` represents a `List<String>`. You will see this interface used everywhere as the common currency for all our functional abstractions.
+* **`Kind<F extends WitnessArity<?>, A>`**: This is the foundational interface that emulates a higher-kinded type. It represents a type `F` that is generic over a type `A`. For example, `Kind<ListKind.Witness, String>` represents a `List<String>`. You will see this interface used everywhere as the common currency for all our functional abstractions.
 
-* **`Kind2<F, A, B>`**: This interface extends the concept to types that take two type parameters, such as `Function<A, B>` or `Either<L, R>`. For example, `Kind2<FunctionKind.Witness, String, Integer>` represents a `Function<String, Integer>`. This is essential for working with profunctors and other dual-parameter abstractions.
+* **`Kind2<F extends WitnessArity<?>, A, B>`**: This interface extends the concept to types that take two type parameters, such as `Function<A, B>` or `Either<L, R>`. For example, `Kind2<FunctionKind.Witness, String, Integer>` represents a `Function<String, Integer>`. This is essential for working with profunctors and other dual-parameter abstractions.
+
+### The WitnessArity Bound
+
+The `F extends WitnessArity<?>` bound ensures that only valid witness types can be used with `Kind`. Every witness must declare its *arity* - whether it represents a unary type constructor (like `List<_>`) or a binary type constructor (like `Either<_,_>`):
+
+```java
+// Unary: takes one type parameter (* -> *)
+final class Witness implements WitnessArity<TypeArity.Unary> {}
+
+// Binary: takes two type parameters (* -> * -> *)
+final class Witness implements WitnessArity<TypeArity.Binary> {}
+```
+
+This compile-time constraint prevents accidental misuse of witness types and enables the type system to enforce correct usage of type classes. For a deeper understanding, see [Type Arity](type-arity.md).
 
 ![defunctionalisation_internal.svg](../images/puml/defunctionalisation_internal.svg)
 
 * **Purpose:** To simulate the application of a type constructor `F` (like `List`, `Optional`, `IO`) to a type argument `A` (like `String`, `Integer`), representing the concept of `F<A>`.
-* **`F` (Witness Type):** This is the crucial part of the simulation. Since `F<_>` isn't a real Java type parameter, we use a *marker type* (often an empty interface specific to the constructor) as a "witness" or stand-in for `F`. Examples:
-  * `ListKind<ListKind.Witness>` represents the `List` type constructor.
-  * `OptionalKind<OptionalKind.Witness>` represents the `Optional` type constructor.
-  * `EitherKind.Witness<L>` represents the `Either<L, _>` type constructor (where `L` is fixed).
-  * `IOKind<IOKind.Witness>` represents the `IO` type constructor.
+* **`F` (Witness Type):** This is the crucial part of the simulation. Since `F<_>` isn't a real Java type parameter, we use a *marker type* (often an empty interface specific to the constructor) as a "witness" or stand-in for `F`. Each witness implements `WitnessArity` to declare its arity. Examples:
+  * `ListKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `List` type constructor.
+  * `OptionalKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `Optional` type constructor.
+  * `EitherKind.Witness<L> implements WitnessArity<TypeArity.Unary>` represents the `Either<L, _>` type constructor (where `L` is fixed).
+  * `IOKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `IO` type constructor.
 * **`A` (Type Argument):** The concrete type contained within or parametrised by the constructor (e.g., `Integer` in `List<Integer>`).
 * **How it Works:** The library provides a seamless bridge between a standard java type, like a `java.util.List<Integer>`and its `Kind` representation `Kind<ListKind.Witness, Integer>`. Instead of requiring you to manually wrap objects, this conversion is handled by static helper methods, typically `widen` and `narrow`.
   * To treat a `List<Integer>` as a `Kind`, you use a helper function like `LIST.widen()`.
@@ -57,26 +72,28 @@ For quick definitions of HKT concepts like Kind, Witness Types, and Defunctional
 
 These are interfaces that define standard functional operations that work *generically* over any simulated type constructor `F` (represented by its witness type) for which an instance of the type class exists. They operate on `Kind<F, A>` objects.
 
+All type classes require that `F` extends `WitnessArity<?>`, ensuring only valid witness types are used. Most type classes work with unary type constructors (`WitnessArity<TypeArity.Unary>`), whilst `Bifunctor` and `Profunctor` work with binary type constructors (`WitnessArity<TypeArity.Binary>`).
+
 ![core_typeclasses_high_level.svg](../images/puml/core_typeclasses_high_level.svg)
 
-* **`Functor<F>`:**
+* **`Functor<F extends WitnessArity<TypeArity.Unary>>`:**
   * Defines `map(Function<A, B> f, Kind<F, A> fa)`: Applies a function `f: A -> B` to the value(s) inside the context `F` without changing the context's structure, resulting in a `Kind<F, B>`. Think `List.map`, `Optional.map`.
   * Laws: Identity (`map(id) == id`), Composition (`map(g.compose(f)) == map(g).compose(map(f))`).
   * Reference: [`Functor.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Functor.java)
-* **`Applicative<F>`:**
+* **`Applicative<F extends WitnessArity<TypeArity.Unary>>`:**
   * Extends `Functor<F>`.
   * Adds `of(A value)`: Lifts a pure value `A` into the context `F`, creating a `Kind<F, A>`. (e.g., `1` becomes `Optional.of(1)` wrapped in `Kind`).
   * Adds `ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa)`: Applies a function wrapped in context `F` to a value wrapped in context `F`, returning a `Kind<F, B>`. This enables combining multiple independent values within the context.
   * Provides default `mapN` methods (e.g., `map2`, `map3`) built upon `ap` and `map`.
   * Laws: Identity, Homomorphism, Interchange, Composition.
   * Reference: [`Applicative.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Applicative.java)
-* **`Monad<F>`:**
+* **`Monad<F extends WitnessArity<TypeArity.Unary>>`:**
   * Extends `Applicative<F>`.
   * Adds `flatMap(Function<A, Kind<F, B>> f, Kind<F, A> ma)`: Sequences operations within the context `F`. Takes a value `A` from context `F`, applies a function `f` that returns a *new context* `Kind<F, B>`, and returns the result flattened into a single `Kind<F, B>`. Essential for chaining dependent computations (e.g., chaining `Optional` calls, sequencing `CompletableFuture`s, combining `IO` actions). Also known in functional languages as `bind` or `>>=`.
   * Provides default `flatMapN` methods (e.g., `flatMap2`, `flatMap3`, `flatMap4`, `flatMap5`) for combining multiple monadic values with an effectful function. These methods sequence operations where the combining function itself returns a monadic value, unlike `mapN` which uses a pure function.
   * Laws: Left Identity, Right Identity, Associativity.
   * Reference: [`Monad.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Monad.java)
-* **`MonadError<F, E>`:**
+* **`MonadError<F extends WitnessArity<TypeArity.Unary>, E>`:**
   * Extends `Monad<F>`.
   * Adds error handling capabilities for contexts `F` that have a defined error type `E`.
   * Adds `raiseError(E error)`: Lifts an error `E` into the context `F`, creating a `Kind<F, A>` representing the error state (e.g., `Either.Left`, `Try.Failure` or failed `CompletableFuture`).
@@ -91,8 +108,15 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
 **Common Components:**
 
 * **The `XxxKind` Interface:** A specific marker interface, for example, `OptionalKind<A>`. This interface extends `Kind<F, A>`, where `F` is the witness type representing the type constructor.
-  * **Example:** `public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> { /* ... Witness class ... */ }`
-  * The `Witness` (e.g., `OptionalKind.Witness`) is a static nested final class (or a separate, accessible class) within `OptionalKind`. This `Witness` type is what's used as the `F` parameter in generic type classes like `Monad<F>`.
+  * **Example:**
+    ```java
+    public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> {
+        final class Witness implements WitnessArity<TypeArity.Unary> {
+            private Witness() {}
+        }
+    }
+    ```
+  * The `Witness` (e.g., `OptionalKind.Witness`) is a static nested final class that implements `WitnessArity<TypeArity.Unary>` to declare it represents a unary type constructor. This `Witness` type is what's used as the `F` parameter in generic type classes like `Monad<F>`.
 
 * **The `KindHelper` Class (e.g., `OptionalKindHelper`):** A crucial utility `widen` and `narrow` methods:
   * `widen(...)`: Converts the standard Java type (e.g., `Optional<String>`) into its `Kind<F, A>` representation.
@@ -155,4 +179,4 @@ Practice Kind basics in [Tutorial 01: Kind Basics](https://github.com/higher-kin
 ---
 
 **Previous:** [HKT Introduction](hkt_introduction.md)
-**Next:** [Usage Guide](usage-guide.md)
+**Next:** [Type Arity](type-arity.md)

@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
@@ -132,28 +134,30 @@ public class StateTExample {
         "Is empty from small initial (state 5 for combined): " + combinedEmptyResult.isEmpty());
   }
 
-  public static <S, F> Kind<StateTKind.Witness<S, F>, S> get(Monad<F> monadF) {
+  public static <S, F extends WitnessArity<TypeArity.Unary>> Kind<StateTKind.Witness<S, F>, S> get(
+      Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, S>>> runFn = s -> monadF.of(StateTuple.of(s, s));
     return StateT.create(runFn, monadF);
   }
 
   // Usage: stateTMonad.flatMap(currentState -> ..., get(optionalMonad))
 
-  public static <S, F> Kind<StateTKind.Witness<S, F>, Void> set(S newState, Monad<F> monadF) {
+  public static <S, F extends WitnessArity<TypeArity.Unary>>
+      Kind<StateTKind.Witness<S, F>, Void> set(S newState, Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, Void>>> runFn =
         s -> monadF.of(StateTuple.of(newState, (Void) null));
     return StateT.create(runFn, monadF);
   }
 
-  public static <S, F> Kind<StateTKind.Witness<S, F>, Void> modify(
-      Function<S, S> f, Monad<F> monadF) {
+  public static <S, F extends WitnessArity<TypeArity.Unary>>
+      Kind<StateTKind.Witness<S, F>, Void> modify(Function<S, S> f, Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, Void>>> runFn =
         s -> monadF.of(StateTuple.of(f.apply(s), (Void) null));
     return StateT.create(runFn, monadF);
   }
 
-  public static <S, F, A> Kind<StateTKind.Witness<S, F>, A> gets(
-      Function<S, A> f, Monad<F> monadF) {
+  public static <S, F extends WitnessArity<TypeArity.Unary>, A>
+      Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, f.apply(s)));
     return StateT.create(runFn, monadF);
   }

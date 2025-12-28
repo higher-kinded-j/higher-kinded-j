@@ -9,6 +9,8 @@ import static org.higherkindedj.optics.extensions.GetterExtensions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -262,7 +264,7 @@ class GetterExtensionsTest {
             }
 
             @Override
-            public <F> Kind<F, User> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, User> modifyF(
                 Function<String, Kind<F, String>> f, User user, Functor<F> functor) {
               return functor.map(newName -> set(newName, user), f.apply(get(user)));
             }
@@ -294,7 +296,7 @@ class GetterExtensionsTest {
             }
 
             @Override
-            public <F> Kind<F, User> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, User> modifyF(
                 Function<String, Kind<F, String>> f, User user, Functor<F> functor) {
               return functor.map(newEmail -> set(newEmail, user), f.apply(get(user)));
             }

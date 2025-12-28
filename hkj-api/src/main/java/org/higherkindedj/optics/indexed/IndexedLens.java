@@ -8,6 +8,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.jspecify.annotations.NullMarked;
 
@@ -116,7 +118,8 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
    * <p>Modifies the focused part with an effectful function that receives both index and value.
    */
   @Override
-  default <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> imodifyF(
+      BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
     Kind<F, A> fa = f.apply(index(), get(source));
     return app.map(a -> set(a, source), fa);
   }
@@ -130,7 +133,8 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <F> The witness type for the Functor context
    * @return The updated structure wrapped in the context F
    */
-  default <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
+  default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+      Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
     Kind<F, A> fa = f.apply(get(source));
     return functor.map(a -> set(a, source), fa);
   }
@@ -211,7 +215,8 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
         return self.modifyF(f, source, functor);
       }
     };
@@ -321,7 +326,8 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
       }
 
       @Override
-      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S source, Functor<F> functor) {
         return lens.modifyF(f, source, functor);
       }
     };

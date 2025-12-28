@@ -10,6 +10,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -34,10 +36,11 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   }
 
   @Override
-  public <G, A, B> Kind<G, Kind<MaybeKind.Witness, B>> traverse(
-      Applicative<G> applicative,
-      Function<? super A, ? extends Kind<G, ? extends B>> f,
-      Kind<MaybeKind.Witness, A> ta) {
+  public <G extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<G, Kind<MaybeKind.Witness, B>> traverse(
+          Applicative<G> applicative,
+          Function<? super A, ? extends Kind<G, ? extends B>> f,
+          Kind<MaybeKind.Witness, A> ta) {
 
     Validation.function().validateTraverse(applicative, f, ta, MAYBE_TRAVERSE_CLASS);
 

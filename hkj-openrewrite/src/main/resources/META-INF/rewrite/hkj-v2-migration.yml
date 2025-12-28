@@ -1,0 +1,67 @@
+# Higher-Kinded-J v2.0 Migration Recipes
+# These recipes help migrate code from v1.x to v2.0 embedded kind system
+#
+# Usage:
+#   rewrite {
+#     activeRecipe("org.higherkindedj.openrewrite.UpgradeToV2")
+#   }
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.UpgradeToV2
+displayName: Upgrade Higher-Kinded-J to v2.0
+description: >
+  Migrates Higher-Kinded-J code from v1.x to v2.0, adding WitnessArity bounds
+  to witness types and type parameters that use Kind.
+tags:
+  - higher-kinded-j
+  - migration
+  - hkt
+recipeList:
+  - org.higherkindedj.openrewrite.AddWitnessArityImports
+  - org.higherkindedj.openrewrite.AddWitnessArityToWitness
+  - org.higherkindedj.openrewrite.AddArityBoundsToTypeParameters
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.AddWitnessArityImports
+displayName: Add WitnessArity and TypeArity imports
+description: >
+  Adds imports for org.higherkindedj.hkt.WitnessArity and
+  org.higherkindedj.hkt.TypeArity to files that need them.
+tags:
+  - higher-kinded-j
+  - imports
+recipeList:
+  - org.openrewrite.java.AddImport:
+      type: org.higherkindedj.hkt.WitnessArity
+      onlyIfReferenced: true
+  - org.openrewrite.java.AddImport:
+      type: org.higherkindedj.hkt.TypeArity
+      onlyIfReferenced: true
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.AddWitnessArityToWitness
+displayName: Add WitnessArity to witness classes
+description: >
+  Adds 'implements WitnessArity<TypeArity.Unary>' or 'implements WitnessArity<TypeArity.Binary>'
+  to witness class definitions that implement Kind or Kind2.
+tags:
+  - higher-kinded-j
+  - witness
+recipeList:
+  - org.higherkindedj.openrewrite.AddWitnessArityToWitnessClass
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.AddArityBoundsToTypeParameters
+displayName: Add arity bounds to type parameters
+description: >
+  Adds 'F extends WitnessArity<TypeArity.Unary>' bounds to generic type parameters
+  that are used with Kind<F, ?> or type class interfaces like Monad<F>.
+tags:
+  - higher-kinded-j
+  - bounds
+recipeList:
+  - org.higherkindedj.openrewrite.AddArityBoundsToTypeParametersRecipe

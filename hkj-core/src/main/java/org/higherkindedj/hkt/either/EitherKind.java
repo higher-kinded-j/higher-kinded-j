@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface marker for the {@link Either Either&lt;L, R&gt;} type in Higher-Kinded-J.
@@ -51,7 +53,7 @@ public interface EitherKind<L, R> extends Kind<EitherKind.Witness<L>, R> {
    *
    * @param <TYPE_L> The type of the "Left" value {@code L} associated with this witness.
    */
-  final class Witness<TYPE_L> {
+  final class Witness<TYPE_L> implements WitnessArity<TypeArity.Unary> {
     private Witness() { // Private constructor to prevent instantiation.
     }
   }

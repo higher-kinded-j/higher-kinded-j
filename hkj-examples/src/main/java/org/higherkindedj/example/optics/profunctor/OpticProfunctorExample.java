@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.Lens;
@@ -162,7 +164,7 @@ public class OpticProfunctorExample {
     Traversal<PersonDto, String> interestsTraversal =
         new Traversal<PersonDto, String>() {
           @Override
-          public <F> Kind<F, PersonDto> modifyF(
+          public <F extends WitnessArity<TypeArity.Unary>> Kind<F, PersonDto> modifyF(
               Function<String, Kind<F, String>> f, PersonDto source, Applicative<F> applicative) {
 
             // Convert PersonDto -> Person

@@ -430,10 +430,12 @@ public class FocusProcessorKindFieldTest {
               package com.example;
 
               import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               // Custom witness type not in registry
-              interface CustomWitness {}
+              interface CustomWitness extends WitnessArity<TypeArity.Unary> {}
 
               @GenerateFocus
               public record UnknownKindRecord(

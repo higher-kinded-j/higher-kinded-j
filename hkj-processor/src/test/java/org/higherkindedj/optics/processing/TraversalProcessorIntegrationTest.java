@@ -31,7 +31,7 @@ public class TraversalProcessorIntegrationTest {
         public static Traversal<Playlist, String> songTitles() {
             return new Traversal<Playlist, String>() {
                 @Override
-                public <F> Kind<F, Playlist> modifyF(
+                public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Playlist> modifyF(
                     Function<String, Kind<F, String>> f,
                     Playlist source,
                     Applicative<F> applicative

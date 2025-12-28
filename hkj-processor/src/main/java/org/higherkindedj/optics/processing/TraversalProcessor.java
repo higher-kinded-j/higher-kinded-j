@@ -28,6 +28,8 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
@@ -146,6 +148,11 @@ public class TraversalProcessor extends AbstractProcessor {
     final CodeBlock modifyFBody =
         generator.generateModifyF(component, recordClassName, recordElement.getRecordComponents());
 
+    // Create F extends WitnessArity<TypeArity.Unary>
+    final ParameterizedTypeName witnessArityBound =
+        ParameterizedTypeName.get(
+            ClassName.get(WitnessArity.class), ClassName.get(TypeArity.class).nestedClass("Unary"));
+
     final TypeSpec traversalImpl =
         TypeSpec.anonymousClassBuilder("")
             .addSuperinterface(traversalTypeName)
@@ -153,7 +160,7 @@ public class TraversalProcessor extends AbstractProcessor {
                 MethodSpec.methodBuilder("modifyF")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addTypeVariable(TypeVariableName.get("F"))
+                    .addTypeVariable(TypeVariableName.get("F", witnessArityBound))
                     .addParameter(
                         ParameterizedTypeName.get(
                             ClassName.get(Function.class),

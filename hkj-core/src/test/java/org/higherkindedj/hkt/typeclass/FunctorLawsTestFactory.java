@@ -15,6 +15,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.list.ListMonad;
@@ -58,13 +60,13 @@ class FunctorLawsTestFactory {
    *
    * @param <F> the functor type constructor
    */
-  record FunctorTestData<F>(
+  record FunctorTestData<F extends WitnessArity<TypeArity.Unary>>(
       String name,
       Functor<F> functor,
       Kind<F, Integer> testValue,
       Function<Kind<F, Integer>, Integer> extractor) {
 
-    static <F> FunctorTestData<F> of(
+    static <F extends WitnessArity<TypeArity.Unary>> FunctorTestData<F> of(
         String name,
         Functor<F> functor,
         Kind<F, Integer> testValue,
@@ -115,7 +117,7 @@ class FunctorLawsTestFactory {
   }
 
   /** Helper method to test identity law for a specific functor */
-  private <F> void testIdentityLaw(FunctorTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testIdentityLaw(FunctorTestData<F> data) {
     Functor<F> functor = data.functor();
     Kind<F, Integer> testValue = data.testValue();
     Function<Kind<F, Integer>, Integer> extractor = data.extractor();
@@ -146,7 +148,8 @@ class FunctorLawsTestFactory {
   }
 
   /** Helper method to test composition law for a specific functor */
-  private <F> void testCompositionLaw(FunctorTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testCompositionLaw(
+      FunctorTestData<F> data) {
     Functor<F> functor = data.functor();
     Kind<F, Integer> testValue = data.testValue();
     Function<Kind<F, Integer>, Integer> extractor = data.extractor();
@@ -186,7 +189,8 @@ class FunctorLawsTestFactory {
   }
 
   /** Helper method to test that map applies function correctly */
-  private <F> void testMapAppliesFunction(FunctorTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testMapAppliesFunction(
+      FunctorTestData<F> data) {
     Functor<F> functor = data.functor();
     Kind<F, Integer> testValue = data.testValue();
     Function<Kind<F, Integer>, Integer> extractor = data.extractor();

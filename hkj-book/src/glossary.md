@@ -177,11 +177,11 @@ increment(ListFunctor.INSTANCE, LIST.widen(List.of(1, 2, 3)));        // [2, 3, 
 
 ### Kind
 
-**Definition:** The core interface in Higher-Kinded-J that simulates higher-kinded types. `Kind<F, A>` represents a type constructor `F` applied to a type `A`.
+**Definition:** The core interface in Higher-Kinded-J that simulates higher-kinded types. `Kind<F, A>` represents a type constructor `F` applied to a type `A`. The `F` parameter must implement `WitnessArity` to ensure type safety.
 
 **Structure:**
-- `Kind<F, A>` - Single type parameter (e.g., `List<A>`, `Optional<A>`)
-- `Kind2<F, A, B>` - Two type parameters (e.g., `Either<A, B>`, `Function<A, B>`)
+- `Kind<F extends WitnessArity<?>, A>` - Single type parameter (e.g., `List<A>`, `Optional<A>`)
+- `Kind2<F extends WitnessArity<?>, A, B>` - Two type parameters (e.g., `Either<A, B>`, `Function<A, B>`)
 
 **Example:**
 ```java
@@ -235,25 +235,119 @@ Optional<String> // Concrete type
 
 ---
 
+### TypeArity
+
+**Definition:** A sealed interface that classifies type constructors by the number of type parameters they accept. Used with `WitnessArity` to provide compile-time safety for the Kind system.
+
+**Structure:**
+```java
+public sealed interface TypeArity {
+    // Unary: one type parameter (* -> *)
+    final class Unary implements TypeArity {}
+
+    // Binary: two type parameters (* -> * -> *)
+    final class Binary implements TypeArity {}
+}
+```
+
+**Arities:**
+- `TypeArity.Unary` - For type constructors with one parameter: `List<_>`, `Optional<_>`, `IO<_>`
+- `TypeArity.Binary` - For type constructors with two parameters: `Either<_,_>`, `Function<_,_>`, `Tuple<_,_>`
+
+**Example:**
+```java
+// List is unary: * -> *
+final class Witness implements WitnessArity<TypeArity.Unary> {}
+
+// Either (when used with Bifunctor) is binary: * -> * -> *
+final class Witness implements WitnessArity<TypeArity.Binary> {}
+```
+
+**Why It Matters:** TypeArity enables the compiler to verify that witness types are used correctly with the appropriate type classes. Unary witnesses work with `Functor`, `Monad`, etc., whilst binary witnesses work with `Bifunctor` and `Profunctor`.
+
+**Related:** [WitnessArity](#witnessarity), [Witness Type](#witness-type), [Type Arity](hkts/type-arity.md)
+
+---
+
+### WitnessArity
+
+**Definition:** A marker interface that witness types implement to declare their arity (number of type parameters). This creates a compile-time bound on the `Kind` interface, preventing misuse of witness types.
+
+**Structure:**
+```java
+public interface WitnessArity<A extends TypeArity> {}
+```
+
+**Usage:**
+```java
+// Witness for a unary type constructor (List, Optional, IO)
+final class Witness implements WitnessArity<TypeArity.Unary> {
+    private Witness() {}
+}
+
+// Witness for a binary type constructor (Either, Function)
+final class Witness implements WitnessArity<TypeArity.Binary> {
+    private Witness() {}
+}
+```
+
+**How It Enforces Safety:**
+```java
+// Kind requires F to implement WitnessArity
+public interface Kind<F extends WitnessArity<?>, A> {}
+
+// Type classes specify the required arity
+public interface Functor<F extends WitnessArity<TypeArity.Unary>> {}
+public interface Bifunctor<F extends WitnessArity<TypeArity.Binary>> {}
+```
+
+**Example:**
+```java
+// This compiles: ListKind.Witness implements WitnessArity<Unary>
+Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
+
+// This would NOT compile: EitherKind2.Witness implements WitnessArity<Binary>
+// Functor<EitherKind2.Witness> invalid;  // Error: Binary not compatible with Unary
+```
+
+**Why It Matters:** WitnessArity provides compile-time guarantees that witness types are used with compatible type classes. You cannot accidentally use a binary witness with a unary type class.
+
+**Related:** [TypeArity](#typearity), [Witness Type](#witness-type), [Type Arity](hkts/type-arity.md)
+
+---
+
 ### Witness Type
 
-**Definition:** A marker type used to represent a type constructor in the defunctionalisation pattern. Each type constructor has a corresponding witness type.
+**Definition:** A marker type used to represent a type constructor in the defunctionalisation pattern. Each type constructor has a corresponding witness type that implements `WitnessArity` to declare its arity.
 
 **Examples:**
 ```java
-// List type constructor → ListKind.Witness
+// List type constructor → ListKind.Witness (unary)
 public interface ListKind<A> extends Kind<ListKind.Witness, A> {
-    final class Witness { private Witness() {} }
+    final class Witness implements WitnessArity<TypeArity.Unary> {
+        private Witness() {}
+    }
 }
 
-// Optional type constructor → OptionalKind.Witness
+// Optional type constructor → OptionalKind.Witness (unary)
 public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> {
-    final class Witness { private Witness() {} }
+    final class Witness implements WitnessArity<TypeArity.Unary> {
+        private Witness() {}
+    }
 }
 
-// Either type constructor → EitherKind.Witness<L>
-public interface EitherKind<L, R> extends Kind2<EitherKind.Witness<L>, L, R> {
-    final class Witness<L> { private Witness() {} }
+// Either type constructor → EitherKind.Witness<L> (unary, with fixed L)
+public interface EitherKind<L, R> extends Kind<EitherKind.Witness<L>, R> {
+    final class Witness<L> implements WitnessArity<TypeArity.Unary> {
+        private Witness() {}
+    }
+}
+
+// Either for Bifunctor → EitherKind2.Witness (binary)
+public interface EitherKind2<L, R> extends Kind2<EitherKind2.Witness, L, R> {
+    final class Witness implements WitnessArity<TypeArity.Binary> {
+        private Witness() {}
+    }
 }
 ```
 
@@ -263,11 +357,14 @@ public interface EitherKind<L, R> extends Kind2<EitherKind.Witness<L>, L, R> {
 Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
 Functor<OptionalKind.Witness> optionalFunctor = OptionalFunctor.INSTANCE;
 MonadError<EitherKind.Witness<String>, String> eitherMonad = EitherMonadError.instance();
+
+// Binary witnesses for Bifunctor/Profunctor:
+Bifunctor<EitherKind2.Witness> eitherBifunctor = EitherBifunctor.INSTANCE;
 ```
 
-**Think Of It As:** A compile-time tag that identifies which type constructor we're working with.
+**Think Of It As:** A compile-time tag that identifies which type constructor we're working with and its arity.
 
-**Related:** [Core Concepts](hkts/core-concepts.md)
+**Related:** [WitnessArity](#witnessarity), [TypeArity](#typearity), [Core Concepts](hkts/core-concepts.md)
 
 ---
 

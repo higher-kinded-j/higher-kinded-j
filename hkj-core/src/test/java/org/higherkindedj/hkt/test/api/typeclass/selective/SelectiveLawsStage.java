@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.selective;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 6: Law testing configuration for Selective.
@@ -16,7 +18,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <B> The output type
  * @param <C> The result type
  */
-public final class SelectiveLawsStage<F, A, B, C> {
+public final class SelectiveLawsStage<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
   private final SelectiveHandlerStage<F, A, B, C> handlerStage;
   private final B testValue;
   private final Function<A, B> testFunction;

@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.test.api.typeclass.monaderror;
 
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 1: Configure the MonadError instance.
@@ -12,7 +14,7 @@ import org.higherkindedj.hkt.MonadError;
  * @param <F> The MonadError witness type
  * @param <E> The error type
  */
-public final class MonadErrorTestStage<F, E> {
+public final class MonadErrorTestStage<F extends WitnessArity<TypeArity.Unary>, E> {
   private final Class<?> contextClass;
 
   public MonadErrorTestStage(Class<?> contextClass) {

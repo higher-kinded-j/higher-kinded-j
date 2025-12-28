@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.optional;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -18,7 +20,7 @@ public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> {
    * The phantom type marker for the Optional type constructor. This is used as the 'F' in {@code
    * Kind<F, A>}.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {} // Private constructor to prevent instantiation
   }
 }

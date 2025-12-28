@@ -15,7 +15,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.spi.PathRegistry;
 import org.higherkindedj.hkt.either.Either;
@@ -462,7 +464,8 @@ public final class Path {
    * @return a GenericPath wrapping the Kind
    * @throws NullPointerException if value or monad is null
    */
-  public static <F, A> GenericPath<F, A> generic(Kind<F, A> value, Monad<F> monad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> GenericPath<F, A> generic(
+      Kind<F, A> value, Monad<F> monad) {
     return GenericPath.of(value, monad);
   }
 
@@ -476,7 +479,8 @@ public final class Path {
    * @return a GenericPath containing the lifted value
    * @throws NullPointerException if monad is null
    */
-  public static <F, A> GenericPath<F, A> genericPure(A value, Monad<F> monad) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> GenericPath<F, A> genericPure(
+      A value, Monad<F> monad) {
     return GenericPath.pure(value, monad);
   }
 
@@ -922,7 +926,8 @@ public final class Path {
    * @see org.higherkindedj.hkt.effect.spi.PathRegistry
    * @see org.higherkindedj.hkt.effect.spi.PathProvider
    */
-  public static <F, A> Optional<Chainable<A>> from(Kind<F, A> kind, Class<?> witnessType) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Optional<Chainable<A>> from(
+      Kind<F, A> kind, Class<?> witnessType) {
     Objects.requireNonNull(kind, "kind must not be null");
     Objects.requireNonNull(witnessType, "witnessType must not be null");
     return PathRegistry.createPath(kind, witnessType);
@@ -980,7 +985,8 @@ public final class Path {
    * @return a FreePath containing the value
    * @throws NullPointerException if functor is null
    */
-  public static <F, A> FreePath<F, A> freePure(A value, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> freePure(
+      A value, Functor<F> functor) {
     return FreePath.pure(value, functor);
   }
 
@@ -994,7 +1000,8 @@ public final class Path {
    * @return a FreePath containing the lifted instruction
    * @throws NullPointerException if fa or functor is null
    */
-  public static <F, A> FreePath<F, A> freeLift(Kind<F, A> fa, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> freeLift(
+      Kind<F, A> fa, Functor<F> functor) {
     return FreePath.liftF(fa, functor);
   }
 
@@ -1008,7 +1015,8 @@ public final class Path {
    * @return a FreePath wrapping the Free monad
    * @throws NullPointerException if free or functor is null
    */
-  public static <F, A> FreePath<F, A> free(Free<F, A> free, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> free(
+      Free<F, A> free, Functor<F> functor) {
     return FreePath.of(free, functor);
   }
 
@@ -1024,7 +1032,8 @@ public final class Path {
    * @return a FreeApPath containing the value
    * @throws NullPointerException if functor is null
    */
-  public static <F, A> FreeApPath<F, A> freeApPure(A value, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> freeApPure(
+      A value, Functor<F> functor) {
     return FreeApPath.pure(value, functor);
   }
 
@@ -1038,7 +1047,8 @@ public final class Path {
    * @return a FreeApPath containing the lifted instruction
    * @throws NullPointerException if fa or functor is null
    */
-  public static <F, A> FreeApPath<F, A> freeApLift(Kind<F, A> fa, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> freeApLift(
+      Kind<F, A> fa, Functor<F> functor) {
     return FreeApPath.liftF(fa, functor);
   }
 
@@ -1052,7 +1062,8 @@ public final class Path {
    * @return a FreeApPath wrapping the FreeAp
    * @throws NullPointerException if freeAp or functor is null
    */
-  public static <F, A> FreeApPath<F, A> freeAp(FreeAp<F, A> freeAp, Functor<F> functor) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> freeAp(
+      FreeAp<F, A> freeAp, Functor<F> functor) {
     return FreeApPath.of(freeAp, functor);
   }
 }

@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.free;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind interface for the Free monad, enabling higher-kinded type representation.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <F> The functor type (witness)
  * @param <A> The result type
  */
-public interface FreeKind<F, A> extends Kind<FreeKind.Witness<F>, A> {
+public interface FreeKind<F extends WitnessArity<?>, A> extends Kind<FreeKind.Witness<F>, A> {
 
   /**
    * Witness type for the Free monad. This is used as a type-level marker to represent the Free type
@@ -21,7 +23,7 @@ public interface FreeKind<F, A> extends Kind<FreeKind.Witness<F>, A> {
    *
    * @param <F> The functor type over which Free is constructed
    */
-  final class Witness<F> {
+  final class Witness<F extends WitnessArity<?>> implements WitnessArity<TypeArity.Unary> {
     private Witness() {
       // Prevents instantiation - this is a phantom type
     }

@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.tuple;
 
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind2 interface marker for {@link Tuple2 Tuple2&lt;A, B&gt;} in Higher-Kinded-J.
@@ -26,7 +28,7 @@ public interface Tuple2Kind2<A, B> extends Kind2<Tuple2Kind2.Witness, A, B> {
    * non-instantiable class acts as a tag to represent the {@code Tuple2} type constructor for
    * bifunctor operations.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Binary> {
     private Witness() {} // Private constructor to prevent instantiation.
   }
 }

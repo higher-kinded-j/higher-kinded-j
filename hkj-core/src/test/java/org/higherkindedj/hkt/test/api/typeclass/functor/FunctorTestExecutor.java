@@ -6,6 +6,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 
 /**
@@ -18,7 +20,7 @@ import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
  * @param <A> The input type
  * @param <B> The output type
  */
-final class FunctorTestExecutor<F, A, B> {
+final class FunctorTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final Class<?> contextClass;
   private final Functor<F> functor;
   private final Kind<F, A> validKind;

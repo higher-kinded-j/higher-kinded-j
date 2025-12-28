@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -186,5 +188,7 @@ class MaybeTKindHelperTest {
   }
 
   // Dummy Kind for testing invalid type unwrap
-  private static class OtherKind<F_Witness, A> implements Kind<OtherKind<F_Witness, ?>, A> {}
+  private interface OtherWitness extends WitnessArity<TypeArity.Unary> {}
+
+  private static class OtherKind<F_Witness, A> implements Kind<OtherWitness, A> {}
 }

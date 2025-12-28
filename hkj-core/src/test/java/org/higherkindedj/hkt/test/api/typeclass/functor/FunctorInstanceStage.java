@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.functor;
 
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 2: Configure test data with Kind instance.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Kind;
  * @param <F> The Functor witness type
  * @param <A> The input type
  */
-public final class FunctorInstanceStage<F, A> {
+public final class FunctorInstanceStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Functor<F> functor;
 

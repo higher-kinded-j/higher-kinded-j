@@ -9,7 +9,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -26,7 +28,8 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
  */
-public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
+public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
+    implements MonadError<MaybeTKind.Witness<F>, Unit> {
 
   private static final Class<MaybeTMonad> MAYBE_T_MONAD_CLASS = MaybeTMonad.class;
   private final Monad<F> outerMonad;

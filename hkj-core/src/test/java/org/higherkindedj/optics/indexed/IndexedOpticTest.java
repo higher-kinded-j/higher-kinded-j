@@ -11,6 +11,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -38,7 +40,7 @@ class IndexedOpticTest {
     indexedNameOptic =
         new IndexedOptic<>() {
           @Override
-          public <F> Kind<F, Person> imodifyF(
+          public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Person> imodifyF(
               BiFunction<Integer, String, Kind<F, String>> f, Person source, Applicative<F> app) {
             return app.map(newName -> new Person(newName, source.age()), f.apply(0, source.name()));
           }
@@ -93,7 +95,7 @@ class IndexedOpticTest {
       IndexedOptic<String, String, Character> innerOptic =
           new IndexedOptic<>() {
             @Override
-            public <F> Kind<F, String> imodifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> imodifyF(
                 BiFunction<String, Character, Kind<F, Character>> f,
                 String source,
                 Applicative<F> app) {
@@ -138,7 +140,7 @@ class IndexedOpticTest {
       IndexedOptic<String, String, Character> charOptic =
           new IndexedOptic<>() {
             @Override
-            public <F> Kind<F, String> imodifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> imodifyF(
                 BiFunction<String, Character, Kind<F, Character>> f,
                 String source,
                 Applicative<F> app) {
@@ -205,7 +207,7 @@ class IndexedOpticTest {
       Optic<String, String, Integer, Integer> emptyOptic =
           new Optic<>() {
             @Override
-            public <F> Kind<F, String> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> modifyF(
                 Function<Integer, Kind<F, Integer>> f, String s, Applicative<F> app) {
               return app.map(i -> "x".repeat(i), f.apply(s.length()));
             }

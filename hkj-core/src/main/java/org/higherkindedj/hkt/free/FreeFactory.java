@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.free;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A type-parameterised factory for creating {@link Free} monad instances with improved type
@@ -47,7 +49,7 @@ import org.higherkindedj.hkt.Monad;
  * @see Free#pure(Object)
  * @see Free#suspend(Kind)
  */
-public final class FreeFactory<F> {
+public final class FreeFactory<F extends WitnessArity<TypeArity.Unary>> {
 
   /** Private constructor to enforce factory method usage. */
   private FreeFactory() {}
@@ -61,7 +63,7 @@ public final class FreeFactory<F> {
    * @param <F> The functor type for the Free monad
    * @return A new {@link FreeFactory} instance. Never null.
    */
-  public static <F> FreeFactory<F> of() {
+  public static <F extends WitnessArity<TypeArity.Unary>> FreeFactory<F> of() {
     return new FreeFactory<>();
   }
 
@@ -78,7 +80,7 @@ public final class FreeFactory<F> {
    * @param <F> The functor type for the Free monad (inferred from monad parameter)
    * @return A new {@link FreeFactory} instance. Never null.
    */
-  public static <F> FreeFactory<F> withMonad(Monad<F> monad) {
+  public static <F extends WitnessArity<TypeArity.Unary>> FreeFactory<F> withMonad(Monad<F> monad) {
     // The monad is used purely for type inference - we don't actually need to store it
     return new FreeFactory<>();
   }

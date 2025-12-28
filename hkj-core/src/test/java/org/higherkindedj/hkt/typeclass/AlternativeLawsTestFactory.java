@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -78,7 +80,7 @@ class AlternativeLawsTestFactory {
    *
    * @param <F> the functor type constructor
    */
-  record AlternativeTestData<F>(
+  record AlternativeTestData<F extends WitnessArity<TypeArity.Unary>>(
       String name,
       Alternative<F> alternative,
       AlternativeSemantics semantics,
@@ -86,7 +88,7 @@ class AlternativeLawsTestFactory {
       Kind<F, Integer> testValue2,
       EqualityChecker<F> equalityChecker) {
 
-    static <F> AlternativeTestData<F> of(
+    static <F extends WitnessArity<TypeArity.Unary>> AlternativeTestData<F> of(
         String name,
         Alternative<F> alternative,
         AlternativeSemantics semantics,
@@ -100,7 +102,7 @@ class AlternativeLawsTestFactory {
 
   /** Functional interface for checking equality of Kind values */
   @FunctionalInterface
-  interface EqualityChecker<M> {
+  interface EqualityChecker<M extends WitnessArity<TypeArity.Unary>> {
     <A> boolean areEqual(Kind<M, A> a, Kind<M, A> b);
   }
 
@@ -180,7 +182,8 @@ class AlternativeLawsTestFactory {
                     data.name() + " satisfies left identity law", () -> testLeftIdentityLaw(data)));
   }
 
-  private <F> void testLeftIdentityLaw(AlternativeTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testLeftIdentityLaw(
+      AlternativeTestData<F> data) {
     Alternative<F> alt = data.alternative();
     Kind<F, Integer> fa = data.testValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -213,7 +216,8 @@ class AlternativeLawsTestFactory {
                     () -> testRightIdentityLaw(data)));
   }
 
-  private <F> void testRightIdentityLaw(AlternativeTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testRightIdentityLaw(
+      AlternativeTestData<F> data) {
     Alternative<F> alt = data.alternative();
     Kind<F, Integer> fa = data.testValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -249,7 +253,8 @@ class AlternativeLawsTestFactory {
                     () -> testAssociativityLaw(data)));
   }
 
-  private <F> void testAssociativityLaw(AlternativeTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testAssociativityLaw(
+      AlternativeTestData<F> data) {
     Alternative<F> alt = data.alternative();
     EqualityChecker<F> checker = data.equalityChecker();
 
@@ -283,7 +288,8 @@ class AlternativeLawsTestFactory {
                     () -> testEmptyCreatesZero(data)));
   }
 
-  private <F> void testEmptyCreatesZero(AlternativeTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testEmptyCreatesZero(
+      AlternativeTestData<F> data) {
     Alternative<F> alt = data.alternative();
     Kind<F, Integer> fa = data.testValue();
     EqualityChecker<F> checker = data.equalityChecker();
@@ -317,7 +323,8 @@ class AlternativeLawsTestFactory {
                     data.name() + " guard() works correctly", () -> testGuardBehavior(data)));
   }
 
-  private <F> void testGuardBehavior(AlternativeTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testGuardBehavior(
+      AlternativeTestData<F> data) {
     Alternative<F> alt = data.alternative();
 
     // guard(false) should behave like empty()
@@ -366,7 +373,8 @@ class AlternativeLawsTestFactory {
                     () -> testOrElseFirstNonEmpty(data)));
   }
 
-  private <F> void testOrElseFirstNonEmpty(AlternativeTestData<F> data) {
+  private <F extends WitnessArity<TypeArity.Unary>> void testOrElseFirstNonEmpty(
+      AlternativeTestData<F> data) {
     Alternative<F> alt = data.alternative();
     Kind<F, Integer> first = data.testValue();
     Kind<F, Integer> second = data.testValue2();

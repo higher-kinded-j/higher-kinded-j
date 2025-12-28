@@ -30,7 +30,7 @@ The interface for `Applicative` in `hkj-api` extends `Functor`:
 
 ``` java
 @NullMarked
-public interface Applicative<F> extends Functor<F> {
+public interface Applicative<F extends WitnessArity<TypeArity.Unary>> extends Functor<F> {
 
   <A> @NonNull Kind<F, A> of(@Nullable A value);
 
@@ -48,6 +48,8 @@ public interface Applicative<F> extends Functor<F> {
   }
 }
 ```
+
+The bound `F extends WitnessArity<TypeArity.Unary>` is inherited from `Functor<F>`, ensuring type safety.
 
 ---
 

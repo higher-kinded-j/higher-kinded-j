@@ -14,6 +14,7 @@ include(
     "hkj-annotations", "hkj-api",
     "hkj-processor-plugins",
     "hkj-benchmarks",
+    "hkj-openrewrite",
     // Spring Boot integration modules
     "hkj-spring:autoconfigure",
     "hkj-spring:starter",

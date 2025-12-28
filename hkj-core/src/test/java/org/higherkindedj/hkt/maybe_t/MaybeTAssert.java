@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 
 /**
@@ -51,9 +53,10 @@ public class MaybeTAssert {
    * @param outerUnwrapper function to unwrap outer monad to Optional
    * @return a new {@link MaybeTOptionalAssert} instance
    */
-  public static <F, A> MaybeTOptionalAssert<F, A> assertThatMaybeT(
-      Kind<MaybeTKind.Witness<F>, A> actual,
-      Function<Kind<F, Maybe<A>>, Optional<Maybe<A>>> outerUnwrapper) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A>
+      MaybeTOptionalAssert<F, A> assertThatMaybeT(
+          Kind<MaybeTKind.Witness<F>, A> actual,
+          Function<Kind<F, Maybe<A>>, Optional<Maybe<A>>> outerUnwrapper) {
     return new MaybeTOptionalAssert<>(actual, outerUnwrapper);
   }
 
@@ -65,7 +68,7 @@ public class MaybeTAssert {
    * @param <F> the witness type of the outer monad
    * @param <A> the value type
    */
-  public static class MaybeTOptionalAssert<F, A>
+  public static class MaybeTOptionalAssert<F extends WitnessArity<TypeArity.Unary>, A>
       extends AbstractAssert<MaybeTOptionalAssert<F, A>, Kind<MaybeTKind.Witness<F>, A>> {
 
     private final Function<Kind<F, Maybe<A>>, Optional<Maybe<A>>> outerUnwrapper;

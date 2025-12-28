@@ -9,6 +9,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.free.Free;
 
 /**
@@ -59,7 +61,7 @@ public class ConsoleProgram {
 
   /** Kind interface for ConsoleOp. */
   public interface ConsoleOpKind<A> extends Kind<ConsoleOpKind.Witness, A> {
-    final class Witness {
+    final class Witness implements WitnessArity<TypeArity.Unary> {
       private Witness() {}
     }
   }
@@ -215,7 +217,7 @@ public class ConsoleProgram {
   record IO<A>(A value) {}
 
   interface IOKind<A> extends Kind<IOKind.Witness, A> {
-    final class Witness {
+    final class Witness implements WitnessArity<TypeArity.Unary> {
       private Witness() {}
     }
   }
@@ -275,7 +277,7 @@ public class ConsoleProgram {
   record TestResult<A>(A value) {}
 
   interface TestResultKind<A> extends Kind<TestResultKind.Witness, A> {
-    final class Witness {
+    final class Witness implements WitnessArity<TypeArity.Unary> {
       private Witness() {}
     }
   }

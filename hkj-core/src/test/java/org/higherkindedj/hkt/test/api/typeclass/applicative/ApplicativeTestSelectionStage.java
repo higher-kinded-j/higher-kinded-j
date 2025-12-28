@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.applicative;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage 6: Fine-grained test selection for Applicative.
  *
@@ -9,7 +12,7 @@ package org.higherkindedj.hkt.test.api.typeclass.applicative;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class ApplicativeTestSelectionStage<F, A, B> {
+public final class ApplicativeTestSelectionStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final ApplicativeOperationsStage<F, A, B> operationsStage;
   private final ApplicativeLawsStage<F, A, B> lawsStage;
   private final ApplicativeValidationStage<F, A, B> validationStage;

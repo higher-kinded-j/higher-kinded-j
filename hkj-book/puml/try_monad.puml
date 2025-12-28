@@ -4,6 +4,7 @@
 
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>\nfor all type classes" as ArityNote
 
 interface "Try<T>" as Try
 

@@ -13,8 +13,10 @@ This section provides at-a-glance summaries of all type classes in Higher-Kinded
 
 ## Core Type Classes
 
+All type classes require `F extends WitnessArity<?>`. Most work with unary types (`WitnessArity<TypeArity.Unary>`), whilst `Bifunctor` and `Profunctor` require binary types (`WitnessArity<TypeArity.Binary>`).
+
 ### Functor
-~~~admonish tip title="Functor Quick Reference"
+~~~admonish tip title="Functor<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
 **Core Method:** `map(Function<A,B> f, Kind<F,A> fa) -> Kind<F,B>`
 
 **Purpose:** Transform values inside a context without changing the context structure
@@ -41,7 +43,7 @@ Kind<OptionalKind.Witness, Integer> lengths =
 ~~~
 
 ### Applicative
-~~~admonish tip title="Applicative Quick Reference"
+~~~admonish tip title="Applicative<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
 **Core Methods:** 
 - `of(A value) -> Kind<F,A>` (lift pure value)
 - `ap(Kind<F,Function<A,B>> ff, Kind<F,A> fa) -> Kind<F,B>` (apply wrapped function)
@@ -77,7 +79,7 @@ Kind<ValidatedKind.Witness<List<String>>, User> userLogin =
 ~~~
 
 ### Monad
-~~~admonish tip title="Monad Quick Reference"
+~~~admonish tip title="Monad<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
 **Core Method:** `flatMap(Function<A,Kind<F,B>> f, Kind<F,A> fa) -> Kind<F,B>`
 
 **Purpose:** Sequence dependent computations within a context
@@ -122,7 +124,7 @@ Kind<OptionalKind.Witness, Order> order =
 ~~~
 
 ### MonadError
-~~~admonish tip title="MonadError Quick Reference"
+~~~admonish tip title="MonadError<F extends WitnessArity<TypeArity.Unary>, E> Quick Reference"
 **Core Methods:**
 - `raiseError(E error) -> Kind<F,A>` (create error state)
 - `handleErrorWith(Kind<F,A> fa, Function<E,Kind<F,A>> handler) -> Kind<F,A>` (recover from error)
@@ -159,7 +161,7 @@ Kind<EitherKind.Witness<String>, Double> result =
 ~~~
 
 ### Selective
-~~~admonish tip title="Selective Quick Reference"
+~~~admonish tip title="Selective<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
 **Core Methods:**
 - `select(Kind<F,Choice<A,B>> fab, Kind<F,Function<A,B>> ff) -> Kind<F,B>` (conditional function application)
 - `whenS(Kind<F,Boolean> cond, Kind<F,Unit> effect) -> Kind<F,Unit>` (conditional effect)
@@ -270,7 +272,7 @@ Integer sum = listFoldable.foldMap(
 ## Structure-Iterating Type Classes
 
 ### Foldable
-~~~admonish tip title="Foldable Quick Reference"
+~~~admonish tip title="Foldable<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
 **Core Method:** `foldMap(Monoid<M> monoid, Function<A,M> f, Kind<F,A> fa) -> M`
 
 **Purpose:** Reduce a data structure to a single summary value
@@ -310,7 +312,7 @@ Boolean allPositive = foldable.foldMap(Monoids.booleanAnd(),
 ~~~
 
 ### Traverse
-~~~admonish tip title="Traverse Quick Reference"
+~~~admonish tip title="Traverse<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
 **Core Method:** `traverse(Applicative<G> app, Function<A,Kind<G,B>> f, Kind<F,A> fa) -> Kind<G,Kind<F,B>>`
 
 **Purpose:** Apply an effectful function to each element and "flip" the contexts
@@ -350,7 +352,7 @@ Kind<ValidatedKind.Witness<List<String>>, Kind<ListKind.Witness, Integer>> resul
 ## Dual-Parameter Type Classes
 
 ### Profunctor
-~~~admonish tip title="Profunctor Quick Reference"
+~~~admonish tip title="Profunctor<P extends WitnessArity<TypeArity.Binary>> Quick Reference"
 **Core Methods:**
 - `lmap(Function<C,A> f, Kind2<P,A,B> pab) -> Kind2<P,C,B>` (contravariant on input)
 - `rmap(Function<B,D> g, Kind2<P,A,B> pab) -> Kind2<P,A,D>` (covariant on output)  

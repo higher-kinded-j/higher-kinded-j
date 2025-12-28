@@ -14,6 +14,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -94,10 +96,11 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ta cannot be unwrapped.
    */
   @Override
-  public <G, A, B> Kind<G, Kind<ListKind.Witness, B>> traverse(
-      Applicative<G> applicative,
-      Function<? super A, ? extends Kind<G, ? extends B>> f,
-      Kind<ListKind.Witness, A> ta) {
+  public <G extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<G, Kind<ListKind.Witness, B>> traverse(
+          Applicative<G> applicative,
+          Function<? super A, ? extends Kind<G, ? extends B>> f,
+          Kind<ListKind.Witness, A> ta) {
 
     Validation.function().validateTraverse(applicative, f, ta, LIST_TRAVERSE_CLASS);
 

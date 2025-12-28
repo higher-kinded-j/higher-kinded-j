@@ -2,9 +2,13 @@
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>" as ArityNote
+
 interface "Functor<F>"
 interface "Applicative<F>" extends "Functor<F>"
 interface "Monad<F>" extends "Applicative<F>"
 interface "MonadError<F, E>" extends "Monad<F>"
+
+ArityNote .. "Functor<F>"
 
 @enduml

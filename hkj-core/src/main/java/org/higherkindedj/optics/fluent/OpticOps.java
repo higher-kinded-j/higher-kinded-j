@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.constant.Const;
 import org.higherkindedj.hkt.constant.ConstApplicative;
 import org.higherkindedj.hkt.constant.ConstKind;
@@ -431,7 +433,7 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The modified structure wrapped in the effect
    */
-  public static <F, S, A> Kind<F, S> modifyF(
+  public static <F extends WitnessArity<TypeArity.Unary>, S, A> Kind<F, S> modifyF(
       S source, Lens<S, A> lens, Function<A, Kind<F, A>> modifier, Functor<F> functor) {
     return lens.modifyF(modifier, source, functor);
   }
@@ -459,7 +461,7 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The modified structure wrapped in the effect
    */
-  public static <F, S, A> Kind<F, S> modifyAllF(
+  public static <F extends WitnessArity<TypeArity.Unary>, S, A> Kind<F, S> modifyAllF(
       S source,
       Traversal<S, A> traversal,
       Function<A, Kind<F, A>> modifier,
@@ -1172,7 +1174,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The modified structure wrapped in the effect
      */
-    public <F, A> Kind<F, S> throughF(
+    public <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> throughF(
         Lens<S, A> lens, Function<A, Kind<F, A>> modifier, Functor<F> functor) {
       return lens.modifyF(modifier, source, functor);
     }
@@ -1187,7 +1189,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The modified structure wrapped in the effect
      */
-    public <F, A> Kind<F, S> allThroughF(
+    public <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> allThroughF(
         Traversal<S, A> traversal, Function<A, Kind<F, A>> modifier, Applicative<F> applicative) {
       return traversal.modifyF(modifier, source, applicative);
     }

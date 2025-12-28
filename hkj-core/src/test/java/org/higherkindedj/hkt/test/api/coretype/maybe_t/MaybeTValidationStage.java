@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.maybe_t;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationStage;
 
 /**
@@ -14,7 +16,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationS
  * @param <A> The type of the value potentially held by the inner Maybe
  * @param <B> The mapped type
  */
-public final class MaybeTValidationStage<F, A, B>
+public final class MaybeTValidationStage<F extends WitnessArity<TypeArity.Unary>, A, B>
     extends BaseTransformerValidationStage<MaybeTValidationStage<F, A, B>> {
 
   private final MaybeTTestConfigStage<F, A, B> configStage;

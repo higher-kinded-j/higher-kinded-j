@@ -14,7 +14,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <F> The higher-kinded type witness for the data structure (e.g., ListKind.Witness).
  */
 @NullMarked
-public interface Foldable<F> {
+public interface Foldable<F extends WitnessArity<TypeArity.Unary>> {
 
   /**
    * Maps each element of the structure to a Monoid {@code M} and combines the results.

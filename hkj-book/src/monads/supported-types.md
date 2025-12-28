@@ -26,7 +26,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 * **Type:** The Java type or custom type being simulated.
 * **`XxxKind<A>` Interface:** The specific `Kind` interface for this type (e.g., `OptionalKind<A>`). It extends `Kind<XxxKind.Witness, A>` and usually contains the nested `final class Witness {}`.
-* **Witness Type `F_WITNESS`:** The phantom type used as the first parameter to `Kind` (e.g., `OptionalKind.Witness`). This is what parameterizes the type classes (e.g., `Monad<OptionalKind.Witness>`).
+* **Witness Type `F_WITNESS`:** The phantom type used as the first parameter to `Kind` (e.g., `OptionalKind.Witness`). Each witness implements `WitnessArity<TypeArity.Unary>` or `WitnessArity<TypeArity.Binary>` to declare its arity. This is what parameterizes the type classes (e.g., `Monad<OptionalKind.Witness>`).
 * **`XxxKindHelper` Class:** Provides `widen` and `narrow` methods.
   * For **external types** (like `java.util.List`, `java.util.Optional`), `widen` typically creates an internal `XxxHolder` record which implements `XxxKind<A>`, and `narrow` extracts the Java type from this holder.
   * For **library-defined types** (`Id`, `IO`, `Maybe`, `Either`, `Validated`, `Try`, monad transformers), the type itself directly implements `XxxKind<A>`. This means `widen` performs a null check and direct cast (zero overhead), and `narrow` checks `instanceof` the actual type and casts.

@@ -4,25 +4,35 @@
 
 
 package "HKT Core - Type Classes" {
-    interface "Kind<F_WITNESS, A>" as Kind {
-      ' F_WITNESS is the phantom type (e.g., XKind.Witness)
+    interface "Kind<F extends WitnessArity<?>, A>" as Kind {
+      ' F is the phantom type (e.g., XKind.Witness)
       ' A is the value type
     }
-    interface "Functor<F_WITNESS>" as Functor {
-        + map(fn: Function<A,B>, fa: Kind<F_WITNESS,A>) : Kind<F_WITNESS,B>
+
+    interface "WitnessArity<A extends TypeArity>" as WitnessArity {
+      ' Marker interface for arity classification
     }
-    interface "Applicative<F_WITNESS>" as Applicative {
-        + of(value: A) : Kind<F_WITNESS,A>
-        + ap(ff: Kind<F_WITNESS, Function<A,B>>, fa: Kind<F_WITNESS,A>) : Kind<F_WITNESS,B>
+
+    enum "TypeArity" as TypeArity {
+      Unary
+      Binary
+    }
+
+    interface "Functor<F extends WitnessArity<Unary>>" as Functor {
+        + map(fn: Function<A,B>, fa: Kind<F,A>) : Kind<F,B>
+    }
+    interface "Applicative<F extends WitnessArity<Unary>>" as Applicative {
+        + of(value: A) : Kind<F,A>
+        + ap(ff: Kind<F, Function<A,B>>, fa: Kind<F,A>) : Kind<F,B>
         ' mapN methods can be shown if desired, but are often defaults
-        ' + map2(Kind<F_WITNESS,A>, Kind<F_WITNESS,B>, BiFunction<A,B,C>) : Kind<F_WITNESS,C>
+        ' + map2(Kind<F,A>, Kind<F,B>, BiFunction<A,B,C>) : Kind<F,C>
     }
-    interface "Monad<F_WITNESS>" as Monad {
-        + flatMap(fn: Function<A, Kind<F_WITNESS,B>>, ma: Kind<F_WITNESS,A>) : Kind<F_WITNESS,B>
+    interface "Monad<F extends WitnessArity<Unary>>" as Monad {
+        + flatMap(fn: Function<A, Kind<F,B>>, ma: Kind<F,A>) : Kind<F,B>
     }
-    interface "MonadError<F_WITNESS, E>" as MonadError {
-        + raiseError(error: E) : Kind<F_WITNESS,A>
-        + handleErrorWith(ma: Kind<F_WITNESS,A>, handler: Function<E, Kind<F_WITNESS,A>>) : Kind<F_WITNESS,A>
+    interface "MonadError<F extends WitnessArity<Unary>, E>" as MonadError {
+        + raiseError(error: E) : Kind<F,A>
+        + handleErrorWith(ma: Kind<F,A>, handler: Function<E, Kind<F,A>>) : Kind<F,A>
         ' Other recovery methods can be shown if desired
     }
 
@@ -34,11 +44,13 @@ package "HKT Core - Type Classes" {
         + empty() : A
     }
 
-     interface "Traverse<A>" as Traverse {
-        + traverse(a: Applicative<G>, f : Function<? super A, ? extends Kind<G, ? extends B>>, ta : Kind<T, A>) : <G, A, B> Kind<G, Kind<T, B>>
-        + sequence(a: Applicative<G>, tga : Kind<T, Kind<G, A>>) : <G, A> Kind<G, Kind<T, A>>
+     interface "Traverse<T extends WitnessArity<Unary>>" as Traverse {
+        + traverse(a: Applicative<G>, f : Function<A, Kind<G, B>>, ta : Kind<T, A>) : Kind<G, Kind<T, B>>
+        + sequence(a: Applicative<G>, tga : Kind<T, Kind<G, A>>) : Kind<G, Kind<T, A>>
      }
 
+    WitnessArity ..> TypeArity : parameterised by
+    Kind ..> WitnessArity : F extends
     Functor ..> Kind : (operates on)
     Applicative --|> Functor
     Monad --|> Applicative

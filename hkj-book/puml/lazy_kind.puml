@@ -4,10 +4,12 @@
 
 hide empty members
 
-interface Kind<LazyKind.Witness, A> <<HKT Bridge>>
+interface Kind<F extends WitnessArity<?>, A> <<HKT Bridge>>
+
+note "Witness implements\nWitnessArity<TypeArity.Unary>" as WitnessNote
 
 interface LazyKind<A> extends Kind<LazyKind.Witness, A> {
-  ' Witness F = LazyKind.Witness
+  ' Witness implements WitnessArity<TypeArity.Unary>
 }
 
 class Lazy<A> implements LazyKind<A>{

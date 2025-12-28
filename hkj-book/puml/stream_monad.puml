@@ -3,6 +3,7 @@
 
 hide empty members
 
+note "F extends WitnessArity<TypeArity.Unary>\nfor all type classes" as ArityNote
 
 interface "Kind<F, A>" as Kind
 interface "Functor<F>" as Functor
@@ -11,6 +12,8 @@ interface "Monad<M>" as MonadBase
 interface "MonadZero<M>" as MonadZero
 interface "Traverse<T>" as Traverse
 interface "Foldable<T>" as Foldable
+
+ArityNote .. Kind
 
 interface "StreamKind<A>" as StreamKindBase << (L,orchid) >> {
   ' Witness type for Stream

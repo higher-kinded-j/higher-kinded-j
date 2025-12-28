@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.constant;
 
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Kind2 interface marker for {@link Const Const&lt;C, A&gt;} in Higher-Kinded-J.
@@ -26,7 +28,7 @@ public interface ConstKind2<C, A> extends Kind2<ConstKind2.Witness, C, A> {
    * non-instantiable class acts as a tag to represent the {@code Const} type constructor for
    * bifunctor operations.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Binary> {
     private Witness() {} // Private constructor to prevent instantiation.
   }
 }

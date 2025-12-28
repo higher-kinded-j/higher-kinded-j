@@ -6,9 +6,11 @@
 package "Defunctionalisation Pattern Details" {
     class KindUnwrapException
 
+    note "All Witness types implement\nWitnessArity<TypeArity.Unary>" as WitnessNote
+
     package "For External Types (Optional etc)" {
         interface "OptionalKind<A>" as OptionalKindInterface extends Kind<OptionalKind.Witness, A> {
-            class Witness {} ' Nested phantom Witness type
+            class Witness implements WitnessArity<Unary> {} ' Nested phantom Witness type
         }
         class "java.util.Optional<A>" as JavaOptional {}
 
@@ -34,7 +36,7 @@ package "Defunctionalisation Pattern Details" {
 
     package "For Library-Defined Types (Id, Maybe, IO, Transformers)" {
         interface "IdKind<A>" as IdKindInterface extends Kind<IdKind.Witness, A> {
-            class Witness {} ' Nested phantom Witness type
+            class Witness implements WitnessArity<Unary> {} ' Nested phantom Witness type
         }
         ' Id<A> itself implements IdKind<A>
         class "Id<A>(value: A)" as IdRecord implements IdKindInterface {

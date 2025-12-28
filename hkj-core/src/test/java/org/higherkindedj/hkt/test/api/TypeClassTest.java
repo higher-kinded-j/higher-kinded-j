@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.applicative.ApplicativeTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.bifunctor.BifunctorTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.foldable.FoldableTestStage;
@@ -70,7 +72,8 @@ public final class TypeClassTest {
    * @param <F> The Functor witness type
    * @return Stage for providing the Functor instance
    */
-  public static <F> FunctorTestStage<F> functor(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>> FunctorTestStage<F> functor(
+      Class<?> contextClass) {
     return new FunctorTestStage<>(contextClass);
   }
 
@@ -83,7 +86,8 @@ public final class TypeClassTest {
    * @param <F> The Applicative witness type
    * @return Stage for providing the Applicative instance
    */
-  public static <F> ApplicativeTestStage<F> applicative(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>> ApplicativeTestStage<F> applicative(
+      Class<?> contextClass) {
     return new ApplicativeTestStage<>(contextClass);
   }
 
@@ -96,7 +100,8 @@ public final class TypeClassTest {
    * @param <F> The Monad witness type
    * @return Stage for providing the Monad instance
    */
-  public static <F> MonadTestStage<F> monad(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>> MonadTestStage<F> monad(
+      Class<?> contextClass) {
     return new MonadTestStage<>(contextClass);
   }
 
@@ -110,7 +115,8 @@ public final class TypeClassTest {
    * @param <E> The error type
    * @return Stage for providing the MonadError instance
    */
-  public static <F, E> MonadErrorTestStage<F, E> monadError(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>, E> MonadErrorTestStage<F, E> monadError(
+      Class<?> contextClass) {
     return new MonadErrorTestStage<>(contextClass);
   }
 
@@ -122,7 +128,8 @@ public final class TypeClassTest {
    * @param <F> The Selective witness type
    * @return Stage for providing the Selective instance
    */
-  public static <F> SelectiveTestStage<F> selective(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>> SelectiveTestStage<F> selective(
+      Class<?> contextClass) {
     return new SelectiveTestStage<>(contextClass);
   }
 
@@ -135,7 +142,8 @@ public final class TypeClassTest {
    * @param <F> The Traverse witness type
    * @return Stage for providing the Traverse instance
    */
-  public static <F> TraverseTestStage<F> traverse(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>> TraverseTestStage<F> traverse(
+      Class<?> contextClass) {
     return new TraverseTestStage<>(contextClass);
   }
 
@@ -148,7 +156,8 @@ public final class TypeClassTest {
    * @param <F> The Foldable witness type
    * @return Stage for providing the Foldable instance
    */
-  public static <F> FoldableTestStage<F> foldable(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Unary>> FoldableTestStage<F> foldable(
+      Class<?> contextClass) {
     return new FoldableTestStage<>(contextClass);
   }
 
@@ -172,7 +181,8 @@ public final class TypeClassTest {
    * @param <F> The Bifunctor witness type
    * @return Stage for providing the Bifunctor instance
    */
-  public static <F> BifunctorTestStage<F> bifunctor(Class<?> contextClass) {
+  public static <F extends WitnessArity<TypeArity.Binary>> BifunctorTestStage<F> bifunctor(
+      Class<?> contextClass) {
     return new BifunctorTestStage<>(contextClass);
   }
 

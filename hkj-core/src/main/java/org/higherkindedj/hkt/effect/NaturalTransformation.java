@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.effect;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A natural transformation from functor F to functor G.
@@ -56,7 +58,8 @@ import org.higherkindedj.hkt.Kind;
  * @param <G> the target witness type
  */
 @FunctionalInterface
-public interface NaturalTransformation<F, G> {
+public interface NaturalTransformation<
+    F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>> {
 
   /**
    * Applies this natural transformation to a Kind value.
@@ -77,7 +80,8 @@ public interface NaturalTransformation<F, G> {
    * @param <H> the final target witness type
    * @return a composed natural transformation
    */
-  default <H> NaturalTransformation<F, H> andThen(NaturalTransformation<G, H> after) {
+  default <H extends WitnessArity<TypeArity.Unary>> NaturalTransformation<F, H> andThen(
+      NaturalTransformation<G, H> after) {
     return new NaturalTransformation<>() {
       @Override
       public <A> Kind<H, A> apply(Kind<F, A> fa) {
@@ -96,7 +100,8 @@ public interface NaturalTransformation<F, G> {
    * @param <E> the initial source witness type
    * @return a composed natural transformation
    */
-  default <E> NaturalTransformation<E, G> compose(NaturalTransformation<E, F> before) {
+  default <E extends WitnessArity<TypeArity.Unary>> NaturalTransformation<E, G> compose(
+      NaturalTransformation<E, F> before) {
     return new NaturalTransformation<>() {
       @Override
       public <A> Kind<G, A> apply(Kind<E, A> ea) {
@@ -111,7 +116,7 @@ public interface NaturalTransformation<F, G> {
    * @param <F> the witness type
    * @return the identity natural transformation
    */
-  static <F> NaturalTransformation<F, F> identity() {
+  static <F extends WitnessArity<TypeArity.Unary>> NaturalTransformation<F, F> identity() {
     return new NaturalTransformation<>() {
       @Override
       public <A> Kind<F, A> apply(Kind<F, A> fa) {

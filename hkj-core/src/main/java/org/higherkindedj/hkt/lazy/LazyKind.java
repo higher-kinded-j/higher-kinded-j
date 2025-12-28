@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.lazy;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * A higher-kinded type marker for the {@link Lazy} monad.
@@ -49,7 +51,7 @@ public interface LazyKind<A> extends Kind<LazyKind.Witness, A> {
    * The phantom type marker (witness type) for the Lazy type constructor. This is used as the 'F'
    * in {@code Kind<F, A>} for Lazy.
    */
-  final class Witness {
+  final class Witness implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
   }
 }

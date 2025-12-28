@@ -5,6 +5,8 @@ package org.higherkindedj.optics;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -36,7 +38,8 @@ public interface Optic<S, T, A, B> {
    * @param <F> The witness type for the Applicative context.
    * @return The updated structure 'T' wrapped in the context 'F'.
    */
-  <F> Kind<F, T> modifyF(Function<A, Kind<F, B>> f, S s, Applicative<F> app);
+  <F extends WitnessArity<TypeArity.Unary>> Kind<F, T> modifyF(
+      Function<A, Kind<F, B>> f, S s, Applicative<F> app);
 
   /**
    * Composes this optic with another optic. This is the universal composition method that works for
@@ -51,7 +54,8 @@ public interface Optic<S, T, A, B> {
     Optic<S, T, A, B> self = this;
     return new Optic<>() {
       @Override
-      public <F> Kind<F, T> modifyF(Function<C, Kind<F, D>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, T> modifyF(
+          Function<C, Kind<F, D>> f, S s, Applicative<F> app) {
         return self.modifyF(a -> other.modifyF(f, a, app), s, app);
       }
     };
@@ -69,7 +73,8 @@ public interface Optic<S, T, A, B> {
     Optic<S, T, A, B> self = this;
     return new Optic<C, T, A, B>() {
       @Override
-      public <F> Kind<F, T> modifyF(Function<A, Kind<F, B>> g, C c, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, T> modifyF(
+          Function<A, Kind<F, B>> g, C c, Applicative<F> app) {
         return self.modifyF(g, f.apply(c), app);
       }
     };
@@ -87,7 +92,8 @@ public interface Optic<S, T, A, B> {
     Optic<S, T, A, B> self = this;
     return new Optic<S, U, A, B>() {
       @Override
-      public <F> Kind<F, U> modifyF(Function<A, Kind<F, B>> f, S s, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, U> modifyF(
+          Function<A, Kind<F, B>> f, S s, Applicative<F> app) {
         return app.map(g, self.modifyF(f, s, app));
       }
     };
@@ -109,7 +115,8 @@ public interface Optic<S, T, A, B> {
     Optic<S, T, A, B> self = this;
     return new Optic<C, U, A, B>() {
       @Override
-      public <F> Kind<F, U> modifyF(Function<A, Kind<F, B>> h, C c, Applicative<F> app) {
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, U> modifyF(
+          Function<A, Kind<F, B>> h, C c, Applicative<F> app) {
         S s = f.apply(c);
         Kind<F, T> result = self.modifyF(h, s, app);
         return app.map(g, result);

@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -50,7 +52,7 @@ class TraversalTest {
   private <T> Traversal<List<T>, T> listElements() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, List<T>> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<T>> modifyF(
           Function<T, Kind<F, T>> f, List<T> source, Applicative<F> applicative) {
         Kind<F, Kind<ListKind.Witness, T>> traversed =
             ListTraverse.INSTANCE.traverse(applicative, f, ListKindHelper.LIST.widen(source));
@@ -626,7 +628,7 @@ class TraversalTest {
       Traversal<Order, Item> itemsTraversal =
           new Traversal<>() {
             @Override
-            public <F> Kind<F, Order> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Order> modifyF(
                 Function<Item, Kind<F, Item>> f, Order source, Applicative<F> applicative) {
               Kind<F, Kind<ListKind.Witness, Item>> traversed =
                   ListTraverse.INSTANCE.traverse(
@@ -663,7 +665,7 @@ class TraversalTest {
       Traversal<Order, Item> itemsTraversal =
           new Traversal<>() {
             @Override
-            public <F> Kind<F, Order> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Order> modifyF(
                 Function<Item, Kind<F, Item>> f, Order source, Applicative<F> applicative) {
               Kind<F, Kind<ListKind.Witness, Item>> traversed =
                   ListTraverse.INSTANCE.traverse(

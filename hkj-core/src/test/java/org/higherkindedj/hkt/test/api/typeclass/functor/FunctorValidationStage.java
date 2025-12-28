@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.functor;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage for configuring validation contexts in Functor tests.
  *
@@ -12,7 +15,7 @@ package org.higherkindedj.hkt.test.api.typeclass.functor;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class FunctorValidationStage<F, A, B> {
+public final class FunctorValidationStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final FunctorTestConfigStage<F, A, B> configStage;
   private final FunctorLawsStage<F, A, B> lawsStage;
 

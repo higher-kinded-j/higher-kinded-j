@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.test.api.typeclass.selective;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 2: Configure the base Kind for testing.
@@ -13,7 +15,7 @@ import org.higherkindedj.hkt.Selective;
  * @param <F> The Selective witness type
  * @param <A> The value type
  */
-public final class SelectiveInstanceStage<F, A> {
+public final class SelectiveInstanceStage<F extends WitnessArity<TypeArity.Unary>, A> {
   private final Class<?> contextClass;
   private final Selective<F> selective;
 

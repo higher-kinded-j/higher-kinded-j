@@ -29,7 +29,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <P> The profunctor type constructor witness (e.g., {@code FunctionKind.Witness})
  */
 @NullMarked
-public interface Profunctor<P> {
+public interface Profunctor<P extends WitnessArity<TypeArity.Binary>> {
 
   /**
    * Map over the input (contravariant).

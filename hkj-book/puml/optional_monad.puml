@@ -1,11 +1,16 @@
 @startuml optional_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
+
+note "F extends WitnessArity<TypeArity.Unary>\nfor all type classes" as ArityNote
+
 interface "Kind<F, A>" as Kind
 interface "Functor<F>" as Functor
 interface "Applicative<F>" as Applicative
 interface "Monad<M>" as MonadBase
 interface "MonadError<M, E>" as MonadErrorBase
+
+ArityNote .. Kind
 
 interface "OptionalKind<A>" as OptionalKindBase << (O,lightblue) >> {
 }

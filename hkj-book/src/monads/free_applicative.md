@@ -71,6 +71,11 @@ Ask yourself: "Does step B need the **result** of step A?"
 
 ## Core Structure
 
+![free_ap_structure.svg](../images/puml/free_ap_structure.svg)
+
+![free_ap_applicative.svg](../images/puml/free_ap_applicative.svg)
+
+
 `FreeAp<F, A>` is a sealed interface with three constructors:
 
 ```java

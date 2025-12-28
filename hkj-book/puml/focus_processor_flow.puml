@@ -7,7 +7,7 @@ title Focus DSL - Annotation Processing Flow
 actor Developer
 
 package "Source Code" {
-    class "User.java" as UserSource <<record>> {
+    class "UserSource" <<record>> {
         @GenerateLenses
         @GenerateFocus
         --
@@ -31,14 +31,14 @@ package "Annotation Processors" {
 }
 
 package "Generated Code" {
-    class "UserLenses.java" as UserLenses <<generated>> {
+    class "UserLenses" <<generated>> {
         + name() : Lens<User, String>
         + age() : Lens<User, Integer>
         + email() : Lens<User, Optional<String>>
         + skills() : Lens<User, List<Skill>>
     }
 
-    class "UserFocus.java" as UserFocus <<generated>> {
+    class "UserFocus" <<generated>> {
         + name() : FocusPath<User, String>
         + age() : FocusPath<User, Integer>
         + email() : AffinePath<User, String>

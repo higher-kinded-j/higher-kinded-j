@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.test.api.typeclass.monaderror;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 
 /**
  * Stage 3: Configure Monad operations (map, flatMap, ap).
@@ -17,7 +19,7 @@ import org.higherkindedj.hkt.MonadError;
  * @param <A> The input type
  * @param <B> The mapped type
  */
-public final class MonadErrorDataStage<F, E, A, B> {
+public final class MonadErrorDataStage<F extends WitnessArity<TypeArity.Unary>, E, A, B> {
   private final Class<?> contextClass;
   private final MonadError<F, E> monadError;
   private final Kind<F, A> validKind;

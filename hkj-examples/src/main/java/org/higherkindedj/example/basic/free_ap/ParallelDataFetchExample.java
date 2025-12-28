@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.free_ap.FreeApApplicative;
 import org.higherkindedj.hkt.free_ap.FreeApKind;
@@ -102,7 +104,7 @@ public class ParallelDataFetchExample {
 
   /** HKT bridge for FetchOp. */
   interface FetchOpKind<A> extends Kind<FetchOpKind.Witness, A> {
-    final class Witness {
+    final class Witness implements WitnessArity<TypeArity.Unary> {
       private Witness() {}
     }
   }

@@ -71,7 +71,7 @@ MaybeT<F, A> unwrappedMaybeT = MAYBE_T.narrow(kind);
 The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`. The error type `E` for `MonadError` is fixed to `Unit`, signifying that an "error" in this context is the `Maybe.nothing()` state within the `F<Maybe<A>>` structure.
 `MaybeT` represents failure (or absence) as `Nothing`, which doesn't carry an error value itself.
 
-* It requires a `Monad<F>` instance for the outer monad `F`, provided during construction. This instance is used to
+* It requires a `Monad<F>` instance for the outer monad `F` (where `F extends WitnessArity<TypeArity.Unary>`), provided during construction. This instance is used to
   manage the effects of `F`.
 * It uses `MaybeTKindHelper.wrap` and `MaybeTKindHelper.unwrap` for conversions.
 * Operations like `raiseError(Unit.INSTANCE)` will create a `MaybeT` representing `F<Nothing>`.

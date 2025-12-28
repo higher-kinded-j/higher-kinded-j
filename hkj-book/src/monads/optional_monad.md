@@ -20,7 +20,7 @@ The `OptionalMonad` in the `Higher-Kinded-J` library provides a monadic interfac
 Key benefits include:
 
 * **Functional Composition:** Easily chain operations on `Optional`s, where each operation might return an `Optional` itself. If any step results in an `Optional.empty()`, subsequent operations are typically short-circuited, propagating the empty state.
-* **HKT Integration:** `OptionalKind<A>` (the higher-kinded wrapper for `Optional<A>`) and `OptionalMonad` allow `Optional` to be used with generic functions and type classes expecting `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, `Monad<M>`, or even `MonadError<M, E>`.
+* **HKT Integration:** `OptionalKind<A>` (the higher-kinded wrapper for `Optional<A>`) and `OptionalMonad` allow `Optional` to be used with generic functions and type classes expecting `Kind<F, A>` where `F extends WitnessArity<?>`, along with type classes like `Functor<F>`, `Applicative<F>`, `Monad<M>`, or `MonadError<M, E>` where `F extends WitnessArity<TypeArity.Unary>`.
 * **Error Handling for Absence:** `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`. In this context, `Optional.empty()` is treated as the "error" state, and `Unit` is used as the phantom error type, signifying absence rather than a traditional exception.
 
 It implements `MonadError<OptionalKind.Witness, Unit>`, which means it also transitively implements `Monad<OptionalKind.Witness>`, `Applicative<OptionalKind.Witness>`, and `Functor<OptionalKind.Witness>`.

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 
 public final class LawTestPattern {
@@ -21,7 +22,7 @@ public final class LawTestPattern {
   // =============================================================================
 
   /** Tests Functor Identity Law only: {@code map(id, fa) == fa} */
-  public static <F, A> void testFunctorIdentityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testFunctorIdentityLaw(
       Functor<F> functor,
       Kind<F, A> validKind,
       BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
@@ -35,7 +36,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Functor Identity validations only (no law testing) */
-  public static <F, A> void testFunctorIdentityValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testFunctorIdentityValidations(
       Functor<F> functor, Kind<F, A> validKind) {
 
     Function<A, A> identity = a -> a;
@@ -47,7 +48,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Functor Identity Law with validations */
-  public static <F, A> void testFunctorIdentity(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testFunctorIdentity(
       Functor<F> functor,
       Kind<F, A> validKind,
       BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
@@ -57,7 +58,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Functor Composition Law only: {@code map(g ∘ f, fa) == map(g, map(f, fa))} */
-  public static <F, A, B, C> void testFunctorCompositionLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C> void testFunctorCompositionLaw(
       Functor<F> functor,
       Kind<F, A> validKind,
       Function<A, B> f,
@@ -83,7 +84,7 @@ public final class LawTestPattern {
    * <p>This method is designed for delegation from TypeClassTestPattern and tests only the
    * algebraic laws without parameter validation.
    */
-  public static <F, A, B, C> void testAllFunctorLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C> void testAllFunctorLaws(
       Functor<F> functor,
       Kind<F, A> validKind,
       Function<A, B> f,
@@ -99,7 +100,7 @@ public final class LawTestPattern {
   // =============================================================================
 
   /** Tests Applicative Identity Law only: {@code ap(of(id), fa) == fa} */
-  public static <F, A> void testApplicativeIdentityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testApplicativeIdentityLaw(
       Applicative<F> applicative,
       Kind<F, A> validKind,
       BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
@@ -114,7 +115,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Applicative Homomorphism Law only: {@code ap(of(f), of(x)) == of(f(x))} */
-  public static <F, A, B> void testApplicativeHomomorphismLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testApplicativeHomomorphismLaw(
       Applicative<F> applicative,
       A testValue,
       Function<A, B> testFunction,
@@ -135,7 +136,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Applicative Interchange Law only: {@code ap(ff, of(x)) == ap(of(f -> f(x)), ff)} */
-  public static <F, A, B> void testApplicativeInterchangeLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testApplicativeInterchangeLaw(
       Applicative<F> applicative,
       A testValue,
       Function<A, B> testFunction,
@@ -163,7 +164,7 @@ public final class LawTestPattern {
    * <p>This method is designed for delegation from TypeClassTestPattern and tests only the
    * algebraic laws without parameter validation.
    */
-  public static <F, A, B> void testAllApplicativeLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testAllApplicativeLaws(
       Applicative<F> applicative,
       Kind<F, A> validKind,
       A testValue,
@@ -180,7 +181,7 @@ public final class LawTestPattern {
   // =============================================================================
 
   /** Tests Left Identity Law only: {@code flatMap(of(a), f) == f(a)} */
-  public static <F, A, B> void testLeftIdentityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testLeftIdentityLaw(
       Monad<F> monad,
       A testValue,
       Function<A, Kind<F, B>> testFunction,
@@ -196,7 +197,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Left Identity validations only (no law testing) */
-  public static <F, A, B> void testLeftIdentityValidations(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testLeftIdentityValidations(
       Monad<F> monad, A testValue, Function<A, Kind<F, B>> testFunction) {
 
     Kind<F, A> ofValue = monad.of(testValue);
@@ -208,7 +209,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Left Identity Law with validations */
-  public static <F, A, B> void testLeftIdentity(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testLeftIdentity(
       Monad<F> monad,
       A testValue,
       Function<A, Kind<F, B>> testFunction,
@@ -219,7 +220,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Right Identity Law only: {@code flatMap(m, of) == m} */
-  public static <F, A> void testRightIdentityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> void testRightIdentityLaw(
       Monad<F> monad, Kind<F, A> validKind, BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
     Function<A, Kind<F, A>> ofFunc = monad::of;
@@ -234,7 +235,7 @@ public final class LawTestPattern {
    * Tests Associativity Law only: {@code flatMap(flatMap(m, f), g) == flatMap(m, x -> flatMap(f(x),
    * g))}
    */
-  public static <F, A, B> void testAssociativityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testAssociativityLaw(
       Monad<F> monad,
       Kind<F, A> validKind,
       Function<A, Kind<F, B>> f,
@@ -263,7 +264,7 @@ public final class LawTestPattern {
    * <p>This method is designed for delegation from TypeClassTestPattern and tests only the
    * algebraic laws without parameter validation.
    */
-  public static <F, A, B> void testAllMonadLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testAllMonadLaws(
       Monad<F> monad,
       Kind<F, A> validKind,
       A testValue,
@@ -281,7 +282,7 @@ public final class LawTestPattern {
   // =============================================================================
 
   /** Tests Selective Identity Law only: {@code select(of(Right(x)), f) == of(x)} */
-  public static <F, A, B> void testSelectiveIdentityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testSelectiveIdentityLaw(
       Selective<F> selective, B testValue, BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
     // Create Right(x) wrapped in F
@@ -304,10 +305,11 @@ public final class LawTestPattern {
   }
 
   /** Tests Selective Identity validations only (no law testing) */
-  public static <F, A, B> void testSelectiveIdentityValidations(
-      Selective<F> selective,
-      Kind<F, Choice<A, B>> validChoice,
-      Kind<F, Function<A, B>> validFunction) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      void testSelectiveIdentityValidations(
+          Selective<F> selective,
+          Kind<F, Choice<A, B>> validChoice,
+          Kind<F, Function<A, B>> validFunction) {
 
     ValidationTestBuilder.create()
         .assertKindNull(() -> selective.select(null, validFunction), SELECT, "choice")
@@ -316,7 +318,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Selective Identity Law with validations */
-  public static <F, A, B> void testSelectiveIdentity(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testSelectiveIdentity(
       Selective<F> selective,
       B testValue,
       Kind<F, Choice<A, B>> validChoice,
@@ -337,7 +339,7 @@ public final class LawTestPattern {
    *
    * <p>This tests that select with a pure function behaves properly for both Left and Right cases.
    */
-  public static <F, A, B> void testSelectiveDistributivityLaw(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testSelectiveDistributivityLaw(
       Selective<F> selective,
       Kind<F, Choice<A, B>> choiceKind,
       Function<A, B> testFunction,
@@ -366,12 +368,13 @@ public final class LawTestPattern {
    * <p>The full associativity law is complex and implementation-dependent. This simplified form
    * just verifies that nested selects work correctly.
    */
-  public static <F, A, B, C> void testSelectiveAssociativityLaw(
-      Selective<F> selective,
-      Kind<F, Choice<A, B>> choiceKind,
-      Kind<F, Function<A, B>> firstFunc,
-      Kind<F, Function<B, C>> secondFunc,
-      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C>
+      void testSelectiveAssociativityLaw(
+          Selective<F> selective,
+          Kind<F, Choice<A, B>> choiceKind,
+          Kind<F, Function<A, B>> firstFunc,
+          Kind<F, Function<B, C>> secondFunc,
+          BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
     // Left side: select(select(x, f), g)
     Kind<F, B> innerSelect = selective.select(choiceKind, firstFunc);
@@ -391,7 +394,7 @@ public final class LawTestPattern {
    * <p>Note: Associativity law is complex and implementation-dependent, so we focus on identity and
    * distributivity as core laws.
    */
-  public static <F, A, B> void testAllSelectiveLaws(
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> void testAllSelectiveLaws(
       Selective<F> selective,
       Kind<F, Choice<A, B>> choiceKind,
       B testValue,
@@ -407,11 +410,13 @@ public final class LawTestPattern {
   // =============================================================================
 
   /** Tests that traverse preserves structure (basic property) - law testing only */
-  public static <T, G, A, B> void testTraverseStructurePreservationLaw(
-      Traverse<T> traverse,
-      Applicative<G> applicative,
-      Kind<T, A> validKind,
-      Function<A, Kind<G, B>> testFunction) {
+  public static <
+          T extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B>
+      void testTraverseStructurePreservationLaw(
+          Traverse<T> traverse,
+          Applicative<G> applicative,
+          Kind<T, A> validKind,
+          Function<A, Kind<G, B>> testFunction) {
 
     Kind<G, Kind<T, B>> result = traverse.traverse(applicative, testFunction, validKind);
 
@@ -421,11 +426,13 @@ public final class LawTestPattern {
   }
 
   /** Tests traverse structure preservation validations only (no law testing) */
-  public static <T, G, A, B> void testTraverseStructurePreservationValidations(
-      Traverse<T> traverse,
-      Applicative<G> applicative,
-      Kind<T, A> validKind,
-      Function<A, Kind<G, B>> testFunction) {
+  public static <
+          T extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B>
+      void testTraverseStructurePreservationValidations(
+          Traverse<T> traverse,
+          Applicative<G> applicative,
+          Kind<T, A> validKind,
+          Function<A, Kind<G, B>> testFunction) {
 
     ValidationTestBuilder.create()
         .assertApplicativeNull(
@@ -436,11 +443,13 @@ public final class LawTestPattern {
   }
 
   /** Tests traverse structure preservation with validations */
-  public static <T, G, A, B> void testTraverseStructurePreservation(
-      Traverse<T> traverse,
-      Applicative<G> applicative,
-      Kind<T, A> validKind,
-      Function<A, Kind<G, B>> testFunction) {
+  public static <
+          T extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B>
+      void testTraverseStructurePreservation(
+          Traverse<T> traverse,
+          Applicative<G> applicative,
+          Kind<T, A> validKind,
+          Function<A, Kind<G, B>> testFunction) {
 
     testTraverseStructurePreservationLaw(traverse, applicative, validKind, testFunction);
     testTraverseStructurePreservationValidations(traverse, applicative, validKind, testFunction);
@@ -456,7 +465,7 @@ public final class LawTestPattern {
    * <p>This law states that applying identity functions to both parameters should return the
    * original value unchanged.
    */
-  public static <F, A, B> void testBifunctorIdentityLaw(
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B> void testBifunctorIdentityLaw(
       Bifunctor<F> bifunctor,
       Kind2<F, A, B> validKind,
       BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
@@ -472,8 +481,8 @@ public final class LawTestPattern {
   }
 
   /** Tests Bifunctor Identity validations only (no law testing) */
-  public static <F, A, B> void testBifunctorIdentityValidations(
-      Bifunctor<F> bifunctor, Kind2<F, A, B> validKind) {
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B>
+      void testBifunctorIdentityValidations(Bifunctor<F> bifunctor, Kind2<F, A, B> validKind) {
 
     Function<A, A> identityA = a -> a;
     Function<B, B> identityB = b -> b;
@@ -486,7 +495,7 @@ public final class LawTestPattern {
   }
 
   /** Tests Bifunctor Identity Law with validations */
-  public static <F, A, B> void testBifunctorIdentity(
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B> void testBifunctorIdentity(
       Bifunctor<F> bifunctor,
       Kind2<F, A, B> validKind,
       BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
@@ -502,14 +511,15 @@ public final class LawTestPattern {
    * <p>This law states that composing functions before bimap should be equivalent to bimapping
    * sequentially.
    */
-  public static <F, A, B, C, D, E> void testBifunctorCompositionLaw(
-      Bifunctor<F> bifunctor,
-      Kind2<F, A, B> validKind,
-      Function<A, C> f1,
-      Function<C, E> f2,
-      Function<B, D> g1,
-      Function<D, E> g2,
-      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D, E>
+      void testBifunctorCompositionLaw(
+          Bifunctor<F> bifunctor,
+          Kind2<F, A, B> validKind,
+          Function<A, C> f1,
+          Function<C, E> f2,
+          Function<B, D> g1,
+          Function<D, E> g2,
+          BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
 
     // Left side: bimap(f2∘f1, g2∘g1, fab)
     Function<A, E> composedF = a -> f2.apply(f1.apply(a));
@@ -533,7 +543,7 @@ public final class LawTestPattern {
    * <p>This method is designed for delegation from TypeClassTestPattern and tests only the
    * algebraic laws without parameter validation.
    */
-  public static <F, A, B, C, D, E> void testAllBifunctorLaws(
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D, E> void testAllBifunctorLaws(
       Bifunctor<F> bifunctor,
       Kind2<F, A, B> validKind,
       Function<A, C> f1,

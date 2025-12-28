@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.monad;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage 6: Fine-grained test selection for Monad.
  *
@@ -9,7 +12,7 @@ package org.higherkindedj.hkt.test.api.typeclass.monad;
  * @param <A> The input type
  * @param <B> The output type
  */
-public final class MonadTestSelectionStage<F, A, B> {
+public final class MonadTestSelectionStage<F extends WitnessArity<TypeArity.Unary>, A, B> {
   private final MonadOperationsStage<F, A, B> operationsStage;
   private final MonadLawsStage<F, A, B> lawsStage;
   private final MonadValidationStage<F, A, B> validationStage;

@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
@@ -107,7 +109,7 @@ class PrismTest {
     private <T> Traversal<List<T>, T> listElements() {
       return new Traversal<>() {
         @Override
-        public <F> Kind<F, List<T>> modifyF(
+        public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<T>> modifyF(
             Function<T, Kind<F, T>> f, List<T> source, Applicative<F> applicative) {
           Kind<F, Kind<ListKind.Witness, T>> traversed =
               ListTraverse.INSTANCE.traverse(applicative, f, ListKindHelper.LIST.widen(source));
@@ -473,7 +475,7 @@ class PrismTest {
       Traversal<Container, String> itemsTraversal =
           new Traversal<>() {
             @Override
-            public <F> Kind<F, Container> modifyF(
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Container> modifyF(
                 Function<String, Kind<F, String>> f, Container source, Applicative<F> app) {
               Kind<F, Kind<ListKind.Witness, String>> traversed =
                   ListTraverse.INSTANCE.traverse(app, f, ListKindHelper.LIST.widen(source.items()));

@@ -2,13 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.selective;
 
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
 /**
  * Stage 7 for configuring validation contexts in Selective tests.
  *
  * <p>Allows specifying which implementation class should be used in validation error messages for
  * each operation, supporting inheritance hierarchies.
  */
-public final class SelectiveValidationStage<F, A, B, C> {
+public final class SelectiveValidationStage<F extends WitnessArity<TypeArity.Unary>, A, B, C> {
   private final SelectiveHandlerStage<F, A, B, C> handlerStage;
   private final SelectiveLawsStage<F, A, B, C> lawsStage;
 

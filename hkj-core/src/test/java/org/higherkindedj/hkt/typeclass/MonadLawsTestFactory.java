@@ -16,6 +16,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
@@ -66,10 +68,10 @@ class MonadLawsTestFactory {
    *
    * @param <M> the monad type constructor
    */
-  record MonadTestData<M>(
+  record MonadTestData<M extends WitnessArity<TypeArity.Unary>>(
       String name, Monad<M> monad, Kind<M, Integer> testValue, EqualityChecker<M> equalityChecker) {
 
-    static <M> MonadTestData<M> of(
+    static <M extends WitnessArity<TypeArity.Unary>> MonadTestData<M> of(
         String name, Monad<M> monad, Kind<M, Integer> testValue, EqualityChecker<M> checker) {
       return new MonadTestData<>(name, monad, testValue, checker);
     }
@@ -77,7 +79,7 @@ class MonadLawsTestFactory {
 
   /** Functional interface for checking equality of Kind values */
   @FunctionalInterface
-  interface EqualityChecker<M> {
+  interface EqualityChecker<M extends WitnessArity<TypeArity.Unary>> {
     <A> boolean areEqual(Kind<M, A> a, Kind<M, A> b);
   }
 
@@ -176,26 +178,25 @@ class MonadLawsTestFactory {
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " satisfies left identity law",
-                    () -> {
-                      @SuppressWarnings("unchecked")
-                      Monad<Object> monad = (Monad<Object>) data.monad();
-                      @SuppressWarnings("unchecked")
-                      EqualityChecker<Object> checker =
-                          (EqualityChecker<Object>) data.equalityChecker();
+                    data.name() + " satisfies left identity law", () -> runLeftIdentityTest(data)));
+  }
 
-                      int testValue = 5;
-                      Function<Integer, Kind<Object, String>> f = i -> monad.of("result:" + i);
+  private static <M extends WitnessArity<TypeArity.Unary>> void runLeftIdentityTest(
+      MonadTestData<M> data) {
+    Monad<M> monad = data.monad();
+    EqualityChecker<M> checker = data.equalityChecker();
 
-                      // Left side: flatMap(of(a), f)
-                      Kind<Object, Integer> ofValue = monad.of(testValue);
-                      Kind<Object, String> leftSide = monad.flatMap(f, ofValue);
+    int testValue = 5;
+    Function<Integer, Kind<M, String>> f = i -> monad.of("result:" + i);
 
-                      // Right side: f(a)
-                      Kind<Object, String> rightSide = f.apply(testValue);
+    // Left side: flatMap(of(a), f)
+    Kind<M, Integer> ofValue = monad.of(testValue);
+    Kind<M, String> leftSide = monad.flatMap(f, ofValue);
 
-                      assertThat(checker.areEqual(leftSide, rightSide)).isTrue();
-                    }));
+    // Right side: f(a)
+    Kind<M, String> rightSide = f.apply(testValue);
+
+    assertThat(checker.areEqual(leftSide, rightSide)).isTrue();
   }
 
   /**
@@ -212,20 +213,19 @@ class MonadLawsTestFactory {
             data ->
                 DynamicTest.dynamicTest(
                     data.name() + " satisfies right identity law",
-                    () -> {
-                      @SuppressWarnings("unchecked")
-                      Monad<Object> monad = (Monad<Object>) data.monad();
-                      @SuppressWarnings("unchecked")
-                      Kind<Object, Integer> testValue = (Kind<Object, Integer>) data.testValue();
-                      @SuppressWarnings("unchecked")
-                      EqualityChecker<Object> checker =
-                          (EqualityChecker<Object>) data.equalityChecker();
+                    () -> runRightIdentityTest(data)));
+  }
 
-                      // flatMap(m, of)
-                      Kind<Object, Integer> result = monad.flatMap(monad::of, testValue);
+  private static <M extends WitnessArity<TypeArity.Unary>> void runRightIdentityTest(
+      MonadTestData<M> data) {
+    Monad<M> monad = data.monad();
+    Kind<M, Integer> testValue = data.testValue();
+    EqualityChecker<M> checker = data.equalityChecker();
 
-                      assertThat(checker.areEqual(result, testValue)).isTrue();
-                    }));
+    // flatMap(m, of)
+    Kind<M, Integer> result = monad.flatMap(monad::of, testValue);
+
+    assertThat(checker.areEqual(result, testValue)).isTrue();
   }
 
   /**
@@ -243,29 +243,27 @@ class MonadLawsTestFactory {
             data ->
                 DynamicTest.dynamicTest(
                     data.name() + " satisfies associativity law",
-                    () -> {
-                      @SuppressWarnings("unchecked")
-                      Monad<Object> monad = (Monad<Object>) data.monad();
-                      @SuppressWarnings("unchecked")
-                      Kind<Object, Integer> testValue = (Kind<Object, Integer>) data.testValue();
-                      @SuppressWarnings("unchecked")
-                      EqualityChecker<Object> checker =
-                          (EqualityChecker<Object>) data.equalityChecker();
+                    () -> runAssociativityTest(data)));
+  }
 
-                      Function<Integer, Kind<Object, String>> f = i -> monad.of("step1:" + i);
-                      Function<String, Kind<Object, Integer>> g = s -> monad.of(s.length());
+  private static <M extends WitnessArity<TypeArity.Unary>> void runAssociativityTest(
+      MonadTestData<M> data) {
+    Monad<M> monad = data.monad();
+    Kind<M, Integer> testValue = data.testValue();
+    EqualityChecker<M> checker = data.equalityChecker();
 
-                      // Left side: flatMap(flatMap(m, f), g)
-                      Kind<Object, String> innerFlatMap = monad.flatMap(f, testValue);
-                      Kind<Object, Integer> leftSide = monad.flatMap(g, innerFlatMap);
+    Function<Integer, Kind<M, String>> f = i -> monad.of("step1:" + i);
+    Function<String, Kind<M, Integer>> g = s -> monad.of(s.length());
 
-                      // Right side: flatMap(m, x -> flatMap(f(x), g))
-                      Function<Integer, Kind<Object, Integer>> composed =
-                          x -> monad.flatMap(g, f.apply(x));
-                      Kind<Object, Integer> rightSide = monad.flatMap(composed, testValue);
+    // Left side: flatMap(flatMap(m, f), g)
+    Kind<M, String> innerFlatMap = monad.flatMap(f, testValue);
+    Kind<M, Integer> leftSide = monad.flatMap(g, innerFlatMap);
 
-                      assertThat(checker.areEqual(leftSide, rightSide)).isTrue();
-                    }));
+    // Right side: flatMap(m, x -> flatMap(f(x), g))
+    Function<Integer, Kind<M, Integer>> composed = x -> monad.flatMap(g, f.apply(x));
+    Kind<M, Integer> rightSide = monad.flatMap(composed, testValue);
+
+    assertThat(checker.areEqual(leftSide, rightSide)).isTrue();
   }
 
   /**
@@ -280,21 +278,20 @@ class MonadLawsTestFactory {
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " of lifts values correctly",
-                    () -> {
-                      @SuppressWarnings("unchecked")
-                      Monad<Object> monad = (Monad<Object>) data.monad();
+                    data.name() + " of lifts values correctly", () -> runOfLiftsValueTest(data)));
+  }
 
-                      int testValue = 100;
-                      Kind<Object, Integer> result = monad.of(testValue);
+  private static <M extends WitnessArity<TypeArity.Unary>> void runOfLiftsValueTest(
+      MonadTestData<M> data) {
+    Monad<M> monad = data.monad();
+    EqualityChecker<M> checker = data.equalityChecker();
 
-                      // Verify by extracting with flatMap and identity
-                      Kind<Object, Integer> extracted = monad.flatMap(monad::of, result);
+    int testValue = 100;
+    Kind<M, Integer> result = monad.of(testValue);
 
-                      @SuppressWarnings("unchecked")
-                      EqualityChecker<Object> checker =
-                          (EqualityChecker<Object>) data.equalityChecker();
-                      assertThat(checker.areEqual(result, extracted)).isTrue();
-                    }));
+    // Verify by extracting with flatMap and identity
+    Kind<M, Integer> extracted = monad.flatMap(monad::of, result);
+
+    assertThat(checker.areEqual(result, extracted)).isTrue();
   }
 }

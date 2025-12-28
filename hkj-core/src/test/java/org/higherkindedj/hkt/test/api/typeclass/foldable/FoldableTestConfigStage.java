@@ -6,6 +6,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 
 /**
@@ -15,7 +17,7 @@ import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
  * @param <A> The input type
  * @param <M> The Monoid type
  */
-public final class FoldableTestConfigStage<F, A, M> {
+public final class FoldableTestConfigStage<F extends WitnessArity<TypeArity.Unary>, A, M> {
   private final Class<?> contextClass;
   private final Foldable<F> foldable;
   private final Kind<F, A> validKind;

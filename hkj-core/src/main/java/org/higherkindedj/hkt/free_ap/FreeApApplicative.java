@@ -10,6 +10,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -44,7 +46,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <F> The underlying instruction set type (not required to have any instances)
  */
-public class FreeApApplicative<F> extends FreeApFunctor<F>
+public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends FreeApFunctor<F>
     implements Applicative<FreeApKind.Witness<F>> {
 
   private static final Class<FreeApApplicative> FREE_AP_APPLICATIVE_CLASS = FreeApApplicative.class;
@@ -63,7 +65,7 @@ public class FreeApApplicative<F> extends FreeApFunctor<F>
    * @return A FreeApApplicative instance
    */
   @SuppressWarnings("unchecked")
-  public static <F> FreeApApplicative<F> instance() {
+  public static <F extends WitnessArity<TypeArity.Unary>> FreeApApplicative<F> instance() {
     return (FreeApApplicative<F>) INSTANCE;
   }
 

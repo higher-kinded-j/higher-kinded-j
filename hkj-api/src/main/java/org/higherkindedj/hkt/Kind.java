@@ -16,8 +16,28 @@ import org.jspecify.annotations.NullMarked;
  * Kind<ListKind.Witness, String>}, where {@code ListKind.Witness} is the marker type that
  * represents the {@code List} type constructor.
  *
- * @param <F> The witness type for the type constructor.
+ * <h2>Witness Arity</h2>
+ *
+ * <p>The witness type {@code F} must implement {@link WitnessArity} to declare its arity. This
+ * enables compile-time verification that witnesses are used correctly:
+ *
+ * <pre>{@code
+ * // Unary witness (for Functor, Monad, etc.)
+ * final class Witness implements WitnessArity<TypeArity.Unary> {
+ *     private Witness() {}
+ * }
+ *
+ * // Parameterized unary witness (partial application)
+ * final class Witness<L> implements WitnessArity<TypeArity.Unary> {
+ *     private Witness() {}
+ * }
+ * }</pre>
+ *
+ * @param <F> The witness type for the type constructor. Must implement {@link WitnessArity}.
  * @param <A> The type of the value contained within the context.
+ * @see WitnessArity
+ * @see TypeArity
+ * @see Kind2
  */
 @NullMarked
-public interface Kind<F, A> {}
+public interface Kind<F extends WitnessArity<?>, A> {}
