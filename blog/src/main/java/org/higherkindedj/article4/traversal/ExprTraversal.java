@@ -10,7 +10,10 @@ import org.higherkindedj.article4.ast.Expr.Binary;
 import org.higherkindedj.article4.ast.Expr.Conditional;
 import org.higherkindedj.article4.ast.Expr.Literal;
 import org.higherkindedj.article4.ast.Expr.Variable;
-import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 
@@ -58,7 +61,7 @@ public final class ExprTraversal {
   public static Traversal<Expr, Expr> children() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Expr> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Expr> modifyF(
           Function<Expr, Kind<F, Expr>> f, Expr source, Applicative<F> applicative) {
         return switch (source) {
           case Literal _ -> applicative.of(source);
@@ -93,7 +96,7 @@ public final class ExprTraversal {
   public static Traversal<Expr, Expr> self() {
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, Expr> modifyF(
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Expr> modifyF(
           Function<Expr, Kind<F, Expr>> f, Expr source, Applicative<F> applicative) {
         return f.apply(source);
       }
