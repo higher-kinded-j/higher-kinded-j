@@ -1,0 +1,33 @@
+[book]
+title = "Higher-Kinded Types and Optics for Java"
+description = "Explore Higher-Kinded Types (HKTs) and Optcs in Java with the Higher-Kinded-J library. Learn about Functors, Applicatives, Monads, Transformers, practical functional patterns, and how to write cleaner, more composable Java code for your projects using Optics."
+authors = ["The Higher-Kinded-J Team"]
+language = "en"
+src = "src"
+[output.html]
+theme = "theme"
+additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/additional-hkj.css"]
+additional-js = ["./theme/version-switcher.js"]
+default-theme = "latte"
+preferred-dark-theme = "macchiato"
+site-url = "https://higher-kinded-j.github.io"
+canonical-site-url = "https://higher-kinded-j.github.io"
+git-repository-url = "https://github.com/higher-kinded-j/higher-kinded-j"
+git-repository-icon = "fa-github"
+edit-url-template = "https://github.com/higher-kinded-j/higher-kinded-j/edit/main/hkj-book/{path}"
+input-404 = "404.md"
+[output.html.fold]
+enable = true
+level = 1
+[output.html.redirect]
+"/usage-guide.html" = "https://higher-kinded-j.github.io/hkts/usage-guide.html"
+"/core-concepts.html" = "https://higher-kinded-j.github.io/hkts/core-concepts.html"
+"/draughts.html" = "https://higher-kinded-j.github.io/hkts/draughts.html"
+"/extending-simulation.html" = "https://higher-kinded-j.github.io/hkts/extending-simulation.html"
+"/for-comprehension.html" = "https://higher-kinded-j.github.io/functional/for-comprehension.html"
+
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "3.1.0" # do not edit: managed by `mdbook-admonish install`
+

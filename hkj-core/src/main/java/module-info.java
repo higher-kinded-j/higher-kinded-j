@@ -39,6 +39,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.writer;
   exports org.higherkindedj.optics.util;
   exports org.higherkindedj.optics.extensions;
+  exports org.higherkindedj.optics.each;
   exports org.higherkindedj.optics.at;
   exports org.higherkindedj.optics.ixed;
   exports org.higherkindedj.optics.free;

@@ -204,6 +204,7 @@ Examples demonstrating fundamental optic types: Lens, Prism, Iso, and Traversal.
 | [AtUsageExample.java](src/main/java/org/higherkindedj/example/optics/AtUsageExample.java) | Shows At type class for indexed access | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.AtUsageExample` | [At](https://higher-kinded-j.github.io/latest/optics/at.html) |
 | [IxedUsageExample.java](src/main/java/org/higherkindedj/example/optics/IxedUsageExample.java) | Demonstrates Ixed type class | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.IxedUsageExample` | [Ixed](https://higher-kinded-j.github.io/latest/optics/ixed.html) |
 | [IndexedOpticsExample.java](src/main/java/org/higherkindedj/example/optics/IndexedOpticsExample.java) | Shows indexed optics usage | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.IndexedOpticsExample` | [Indexed Optics](https://higher-kinded-j.github.io/latest/optics/indexed_optics.html) |
+| [EachInstancesExample.java](src/main/java/org/higherkindedj/example/optics/EachInstancesExample.java) | Demonstrates Each typeclass for canonical element-wise traversal | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.EachInstancesExample` | [Each Typeclass](https://higher-kinded-j.github.io/latest/optics/each_typeclass.html) |
 
 ### Traversals
 

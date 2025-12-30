@@ -436,10 +436,53 @@ public class Tutorial05_TraversalBasics {
   /**
    * Congratulations! You've completed Tutorial 05: Traversal Basics
    *
-   * <p>You now understand: ✓ How to use Traversals to modify multiple elements at once ✓ How to
-   * compose Traversals to reach nested collections ✓ How to combine Traversals with Lenses ✓ How to
-   * filter elements with filtered() ✓ How to extract all values with getAll() ✓ How to apply
-   * complex conditional updates ✓ When to use Traversals (bulk operations on collections)
+   * <p>You now understand:
+   *
+   * <ul>
+   *   <li>✓ How to use Traversals to modify multiple elements at once
+   *   <li>✓ How to compose Traversals to reach nested collections
+   *   <li>✓ How to combine Traversals with Lenses
+   *   <li>✓ How to filter elements with filtered()
+   *   <li>✓ How to extract all values with getAll()
+   *   <li>✓ How to apply complex conditional updates
+   *   <li>✓ When to use Traversals (bulk operations on collections)
+   * </ul>
+   *
+   * <p>═══════════════════════════════════════════════════════════════════════ <b>Alternative: Each
+   * Typeclass for Canonical Traversals</b>
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * <p>This tutorial showed manual and generated traversal creation. For many common container
+   * types, the <b>Each typeclass</b> provides canonical traversals out of the box:
+   *
+   * <pre>{@code
+   * import org.higherkindedj.optics.each.EachInstances;
+   * import org.higherkindedj.optics.extensions.EachExtensions;
+   *
+   * // Java types via EachInstances
+   * Each<List<String>, String> listEach = EachInstances.listEach();
+   * Each<Map<K, V>, V> mapEach = EachInstances.mapValuesEach();
+   * Each<Optional<A>, A> optEach = EachInstances.optionalEach();
+   *
+   * // HKT types via EachExtensions
+   * Each<Maybe<A>, A> maybeEach = EachExtensions.maybeEach();
+   * Each<Either<E, A>, A> eitherEach = EachExtensions.eitherRightEach();
+   *
+   * // Use with Focus DSL
+   * TraversalPath<Order, Item> items = FocusPath.of(itemsLens)
+   *     .each(EachInstances.listEach());
+   * }</pre>
+   *
+   * <p><b>Key Benefits of Each:</b>
+   *
+   * <ul>
+   *   <li>Uniform interface for any container type
+   *   <li>Optional indexed access via {@code eachWithIndex()}
+   *   <li>Integrates with Focus DSL via {@code .each(Each)}
+   *   <li>Extensible for custom containers
+   * </ul>
+   *
+   * <p>See {@code EachInstancesExample.java} and the Each Typeclass documentation.
    *
    * <p>Next: Tutorial 06 - Optics Composition
    */

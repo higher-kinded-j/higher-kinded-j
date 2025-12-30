@@ -456,7 +456,7 @@ public class Tutorial02_EffectPathAdvanced_Solution {
   }
 
   /**
-   * Congratulations! You have completed Tutorial 02: Effect Path Advanced 🎉
+   * Congratulations! You have completed Tutorial 02: Effect Path Advanced
    *
    * <p>You now understand:
    *
@@ -479,12 +479,38 @@ public class Tutorial02_EffectPathAdvanced_Solution {
    *   <li>Focus-Effect integration combines optics with effect handling
    * </ul>
    *
-   * <p>Next Steps:
+   * <p>═══════════════════════════════════════════════════════════════════════ <b>Next Steps:
+   * Optics for Data Manipulation</b>
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * <p>Now that you've mastered Effect Paths for computation sequencing, explore the <b>Optics</b>
+   * module for powerful data manipulation:
+   *
+   * <p><b>Recommended Optics Tutorials:</b>
    *
    * <ul>
-   *   <li>Explore the Core Types track for deeper HKT understanding
-   *   <li>Explore the Optics track for comprehensive Focus DSL coverage
-   *   <li>See the examples in hkj-examples for production patterns
+   *   <li><b>Tutorial 05</b>: Traversal Basics - Focus on multiple elements
+   *   <li><b>Tutorial 12</b>: Focus DSL - Type-safe path navigation
+   *   <li><b>Tutorial 13</b>: Advanced Focus DSL - Type class integration
+   *   <li><b>Tutorial 14</b>: Focus-Effect Bridge - Combine optics with effects
    * </ul>
+   *
+   * <p><b>Each Typeclass for Container Traversal:</b>
+   *
+   * <p>The {@code Each} typeclass provides canonical traversals for containers. Instead of manually
+   * creating traversals, use {@code EachInstances} for Java types (List, Map, Optional, arrays,
+   * String) or {@code EachExtensions} for HKT types (Maybe, Either, Try):
+   *
+   * <pre>{@code
+   * // Traverse all map values with custom Each instance
+   * TraversalPath<Config, Setting> allSettings =
+   *     FocusPath.of(settingsLens).each(EachInstances.mapValuesEach());
+   *
+   * // Traverse Maybe values from HKT types
+   * TraversalPath<Wrapper, Value> maybeValues =
+   *     FocusPath.of(maybeLens).each(EachExtensions.maybeEach());
+   * }</pre>
+   *
+   * <p>See {@code EachInstancesExample.java} for comprehensive examples.
    */
 }

@@ -67,6 +67,7 @@ When position matters:
 ~~~admonish info title="In This Chapter"
 - **Filtered Optics** – Apply predicates to narrow which elements a Traversal affects. Only modify items over a certain price, or extract elements matching a condition.
 - **Indexed Optics** – Carry position information alongside values. Know which index you're modifying, or transform values based on their position in a collection.
+- **Each Typeclass** – Provides canonical traversals for container types. Get a Traversal for any List, Map, Optional, or custom container through a uniform interface, with optional indexed access.
 - **String Traversals** – Treat strings as collections of characters. Modify individual characters, filter by character properties, or transform text character-by-character.
 - **At and Ixed** – Type classes for indexed access. `At` handles keys that may or may not exist (like Map entries); `Ixed` handles indices that should exist (like List positions).
 - **Advanced Prism Patterns** – Beyond basic sum types: `nearly` matches values close to a target, `doesNotMatch` inverts a Prism's focus, and complex hierarchies compose cleanly.
@@ -79,10 +80,11 @@ When position matters:
 
 1. [Filtered Optics](filtered_optics.md) - Predicate-based targeting within traversals
 2. [Indexed Optics](indexed_optics.md) - Position-aware operations on collections
-3. [String Traversals](string_traversals.md) - Character-level operations on text
-4. [Indexed Access](indexed_access.md) - At and Ixed type classes for indexed access patterns
-5. [Advanced Prism Patterns](advanced_prism_patterns.md) - `nearly`, `doesNotMatch`, and complex matching
-6. [Profunctor Optics](profunctor_optics.md) - Type adaptation with contramap, map, and dimap
+3. [Each Typeclass](each_typeclass.md) - Canonical element-wise traversal for containers
+4. [String Traversals](string_traversals.md) - Character-level operations on text
+5. [Indexed Access](indexed_access.md) - At and Ixed type classes for indexed access patterns
+6. [Advanced Prism Patterns](advanced_prism_patterns.md) - `nearly`, `doesNotMatch`, and complex matching
+7. [Profunctor Optics](profunctor_optics.md) - Type adaptation with contramap, map, and dimap
 
 ---
 

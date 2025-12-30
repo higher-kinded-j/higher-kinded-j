@@ -7,7 +7,7 @@
 - Using `@GenerateFocus` to generate path builders automatically
 - **Fluent cross-type navigation** with generated navigators (no `.via()` needed)
 - The difference between `FocusPath`, `AffinePath`, and `TraversalPath`
-- Collection navigation with `.each()`, `.at()`, `.some()`, `.nullable()`, and `.traverseOver()`
+- Collection navigation with `.each()`, `.each(Each)`, `.at()`, `.some()`, `.nullable()`, and `.traverseOver()`
 - **Seamless nullable field handling** with `@Nullable` annotation detection
 - Type class integration: effectful operations, monoid aggregation, and Traverse support
 - Working with sum types using `instanceOf()` and conditional modification with `modifyWhen()`
@@ -224,6 +224,37 @@ TraversalPath<Company, Department> allDepts = CompanyFocus.departments();
 
 // Equivalent to calling .each() on a FocusPath to List<T>
 ```
+
+### `.each(Each)` - Traverse with Custom Each Instance
+
+For containers that aren't automatically recognised by `.each()`, provide an explicit `Each` instance:
+
+```java
+import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.extensions.EachExtensions;
+
+// Custom container with Each instance
+record Container(Map<String, Value> values) {}
+
+Lens<Container, Map<String, Value>> valuesLens =
+    Lens.of(Container::values, (c, v) -> new Container(v));
+
+// Use mapValuesEach() to traverse map values
+TraversalPath<Container, Value> allValues =
+    FocusPath.of(valuesLens).each(EachInstances.mapValuesEach());
+
+// HKT types via EachExtensions
+record Wrapper(Maybe<Config> config) {}
+
+TraversalPath<Wrapper, Config> maybeConfig =
+    FocusPath.of(configLens).each(EachExtensions.maybeEach());
+```
+
+This method is available on `FocusPath`, `AffinePath`, and `TraversalPath`, enabling fluent navigation through any container type with an `Each` instance.
+
+~~~admonish tip title="See Also"
+For available `Each` instances and how to create custom ones, see [Each Typeclass](each_typeclass.md).
+~~~
 
 ### `.at(index)` - Access by Index
 
