@@ -16,6 +16,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -771,6 +772,132 @@ class AffinePathTest {
 
       assertThat(safeValuePath.mapOptional(String::length, withValue)).contains(5);
       assertThat(safeValuePath.mapOptional(String::length, withNullValue)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("List Decomposition Navigation")
+  class ListDecompositionNavigation {
+
+    @Test
+    @DisplayName("cons() should decompose list into head and tail")
+    void consShouldDecomposeList() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, Pair<String, List<String>>> consPath = listPath.cons();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+      Optional<List<String>> empty = Optional.empty();
+
+      Optional<Pair<String, List<String>>> result = consPath.getOptional(present);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).isEqualTo("a");
+      assertThat(result.get().second()).containsExactly("b", "c");
+
+      assertThat(consPath.getOptional(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("headTail() should be alias for cons()")
+    void headTailShouldBeAliasForCons() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, Pair<String, List<String>>> headTailPath =
+          listPath.headTail();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+
+      Optional<Pair<String, List<String>>> result = headTailPath.getOptional(present);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("snoc() should decompose list into init and last")
+    void snocShouldDecomposeList() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, Pair<List<String>, String>> snocPath = listPath.snoc();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+
+      Optional<Pair<List<String>, String>> result = snocPath.getOptional(present);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).containsExactly("a", "b");
+      assertThat(result.get().second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("initLast() should be alias for snoc()")
+    void initLastShouldBeAliasForSnoc() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, Pair<List<String>, String>> initLastPath =
+          listPath.initLast();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+
+      Optional<Pair<List<String>, String>> result = initLastPath.getOptional(present);
+      assertThat(result).isPresent();
+      assertThat(result.get().second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("head() should focus on first element")
+    void headShouldFocusOnFirstElement() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, String> headPath = listPath.head();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+      Optional<List<String>> emptyList = Optional.of(List.of());
+      Optional<List<String>> absent = Optional.empty();
+
+      assertThat(headPath.getOptional(present)).contains("a");
+      assertThat(headPath.getOptional(emptyList)).isEmpty();
+      assertThat(headPath.getOptional(absent)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("last() should focus on last element")
+    void lastShouldFocusOnLastElement() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, String> lastPath = listPath.last();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+      Optional<List<String>> emptyList = Optional.of(List.of());
+
+      assertThat(lastPath.getOptional(present)).contains("c");
+      assertThat(lastPath.getOptional(emptyList)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("tail() should focus on tail of list")
+    void tailShouldFocusOnTail() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, List<String>> tailPath = listPath.tail();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+      Optional<List<String>> emptyList = Optional.of(List.of());
+
+      assertThat(tailPath.getOptional(present)).contains(List.of("b", "c"));
+      assertThat(tailPath.getOptional(emptyList)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("init() should focus on init of list")
+    void initShouldFocusOnInit() {
+      AffinePath<Optional<List<String>>, List<String>> listPath =
+          AffinePath.of(FocusPaths.optionalSome());
+      AffinePath<Optional<List<String>>, List<String>> initPath = listPath.init();
+
+      Optional<List<String>> present = Optional.of(List.of("a", "b", "c"));
+      Optional<List<String>> emptyList = Optional.of(List.of());
+
+      assertThat(initPath.getOptional(present)).contains(List.of("a", "b"));
+      assertThat(initPath.getOptional(emptyList)).isEmpty();
     }
   }
 

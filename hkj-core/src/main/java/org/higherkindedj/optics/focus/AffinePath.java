@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.focus;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -24,6 +25,7 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.TraverseTraversals;
 import org.jspecify.annotations.NullMarked;
 
@@ -495,6 +497,104 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
       Traverse<F> traverse) {
     Traversal<Kind<F, E>, E> traversal = TraverseTraversals.forTraverse(traverse);
     return via((Traversal<A, E>) traversal);
+  }
+
+  // ===== List Decomposition Methods =====
+
+  /**
+   * When the focused type is {@code List<E>}, decomposes into head and tail.
+   *
+   * <p>This method returns an AffinePath because either this path may have no focus, or the list
+   * may be empty.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to a (head, tail) pair
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @see #headTail() for Java-familiar alias
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, Pair<E, List<E>>> cons() {
+    return via((Prism<A, Pair<E, List<E>>>) (Prism<?, ?>) FocusPaths.<E>listCons());
+  }
+
+  /**
+   * Alias for {@link #cons()} using Java-familiar naming.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to a (head, tail) pair
+   */
+  default <E> AffinePath<S, Pair<E, List<E>>> headTail() {
+    return cons();
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, decomposes into init and last.
+   *
+   * <p>This method returns an AffinePath because either this path may have no focus, or the list
+   * may be empty.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to an (init, last) pair
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @see #initLast() for Java-familiar alias
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, Pair<List<E>, E>> snoc() {
+    return via((Prism<A, Pair<List<E>, E>>) (Prism<?, ?>) FocusPaths.<E>listSnoc());
+  }
+
+  /**
+   * Alias for {@link #snoc()} using Java-familiar naming.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to an (init, last) pair
+   */
+  default <E> AffinePath<S, Pair<List<E>, E>> initLast() {
+    return snoc();
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the head (first element).
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the head element
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, E> head() {
+    return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead());
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the last element.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the last element
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, E> last() {
+    return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast());
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the tail (all elements except first).
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the tail
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, List<E>> tail() {
+    return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail());
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the init (all elements except last).
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the init
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, List<E>> init() {
+    return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit());
   }
 
   // ===== Conversion Methods =====

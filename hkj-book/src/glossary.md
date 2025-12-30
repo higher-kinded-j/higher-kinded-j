@@ -955,6 +955,44 @@ Kind<F, Integer> result = selective.select(input, parser);
 
 ---
 
+### Cons
+
+**Definition:** A list decomposition pattern that views a non-empty list as a pair of its first element (head) and the remaining elements (tail). The name comes from Lisp's `cons` function (construct), which builds a list by prepending an element to another list.
+
+**Structure:** A list `[a, b, c, d, e]` is decomposed as `Pair.of(a, [b, c, d, e])`.
+
+**Example:**
+```java
+import org.higherkindedj.optics.util.ListPrisms;
+
+// Cons prism decomposes list as (head, tail)
+Prism<List<String>, Pair<String, List<String>>> cons = ListPrisms.cons();
+
+List<String> names = List.of("Alice", "Bob", "Charlie");
+Optional<Pair<String, List<String>>> decomposed = cons.getOptional(names);
+// decomposed = Optional.of(Pair.of("Alice", ["Bob", "Charlie"]))
+
+// Empty lists return Optional.empty()
+Optional<Pair<String, List<String>>> empty = cons.getOptional(List.of());
+// empty = Optional.empty()
+
+// Build a list by prepending
+List<String> built = cons.build(Pair.of("New", List.of("List")));
+// built = ["New", "List"]
+```
+
+**When To Use:**
+- Processing lists from front to back
+- Implementing recursive algorithms that peel off the first element
+- Pattern matching on list structure
+- Building lists by prepending elements
+
+**Relationship to Snoc:** Cons and Snoc are dual patterns. Cons works from the front (head/tail), Snoc works from the back (init/last).
+
+**Related:** [Snoc](#snoc), [List Decomposition](optics/list_decomposition.md)
+
+---
+
 ### Unit
 
 **Definition:** A type with exactly one value (`Unit.INSTANCE`), representing the completion of an operation that doesn't produce a meaningful result. The functional equivalent of `void`, but usable as a type parameter.
@@ -1013,6 +1051,44 @@ System.out.println(intConst.value()); // 5
 - Building optics that extract rather than modify data
 
 **Related:** [Phantom Type](#phantom-type), [Bifunctor](#bifunctor), [Const Type Documentation](monads/const_type.md)
+
+---
+
+### Snoc
+
+**Definition:** A list decomposition pattern that views a non-empty list as a pair of all elements except the last (init) and the last element. The name "snoc" is "cons" spelled backwards, reflecting that it works from the opposite end of the list.
+
+**Structure:** A list `[a, b, c, d, e]` is decomposed as `Pair.of([a, b, c, d], e)`.
+
+**Example:**
+```java
+import org.higherkindedj.optics.util.ListPrisms;
+
+// Snoc prism decomposes list as (init, last)
+Prism<List<Integer>, Pair<List<Integer>, Integer>> snoc = ListPrisms.snoc();
+
+List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+Optional<Pair<List<Integer>, Integer>> decomposed = snoc.getOptional(numbers);
+// decomposed = Optional.of(Pair.of([1, 2, 3, 4], 5))
+
+// Empty lists return Optional.empty()
+Optional<Pair<List<Integer>, Integer>> empty = snoc.getOptional(List.of());
+// empty = Optional.empty()
+
+// Build a list by appending
+List<Integer> built = snoc.build(Pair.of(List.of(1, 2, 3), 4));
+// built = [1, 2, 3, 4]
+```
+
+**When To Use:**
+- Processing lists from back to front
+- Algorithms that need the final element
+- Pattern matching on "everything before last" structure
+- Building lists by appending elements
+
+**Relationship to Cons:** Cons and Snoc are dual patterns. Cons works from the front (head/tail), Snoc works from the back (init/last).
+
+**Related:** [Cons](#cons), [List Decomposition](optics/list_decomposition.md)
 
 ---
 

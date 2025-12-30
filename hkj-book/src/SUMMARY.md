@@ -74,6 +74,7 @@
   - [Setters](optics/setters.md)
   - [Common Data Structures](optics/common_data_structure_traversals.md)
   - [Limiting Traversals](optics/limiting_traversals.md)
+  - [List Decomposition](optics/list_decomposition.md)
 
 # Optics III: Precision and Filtering
 - [Introduction](optics/ch3_intro.md)

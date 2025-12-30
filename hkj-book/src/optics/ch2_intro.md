@@ -62,6 +62,7 @@ Both can read. Only Traversal can write. Choose based on intent.
 - **Setters** – A write-only optic. Modify values without reading them first, useful when the modification doesn't depend on the current value.
 - **Common Data Structures** – Ready-made traversals for Java's standard collections. Iterate over List elements, Map entries, Set members, and more.
 - **Limiting Traversals** – Take the first N elements, skip elements, or focus only on specific indices. Control exactly which elements a Traversal affects.
+- **List Decomposition** – Functional list patterns using cons (head/tail) and snoc (init/last). Decompose lists from either end for pattern matching and recursive algorithms.
 ~~~
 
 ---
@@ -74,6 +75,7 @@ Both can read. Only Traversal can write. Choose based on intent.
 4. [Setters](setters.md) - Write-only modification without reading
 5. [Common Data Structures](common_data_structure_traversals.md) - Patterns for List, Map, Set, and more
 6. [Limiting Traversals](limiting_traversals.md) - First-N, take, and drop operations
+7. [List Decomposition](list_decomposition.md) - Cons and snoc patterns for list manipulation
 
 ---
 

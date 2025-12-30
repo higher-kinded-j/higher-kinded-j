@@ -11,9 +11,12 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -131,6 +134,184 @@ public final class FocusPaths {
             return result;
           }
           return list;
+        });
+  }
+
+  /**
+   * Creates a prism that decomposes a list into its head (first element) and tail (remaining
+   * elements).
+   *
+   * <p>This is the classic functional programming "cons" pattern, where a non-empty list is viewed
+   * as a pair of its first element and the rest. Also known as "headTail" decomposition.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<List<String>, Pair<String, List<String>>> cons = FocusPaths.listCons();
+   *
+   * // Decompose: [a, b, c] -> Pair(a, [b, c])
+   * Optional<Pair<String, List<String>>> result = cons.getOptional(List.of("a", "b", "c"));
+   *
+   * // Build: Pair(x, [y, z]) -> [x, y, z]
+   * List<String> built = cons.build(Pair.of("x", List.of("y", "z")));
+   * }</pre>
+   *
+   * @param <E> the element type
+   * @return a prism from list to (head, tail) pair
+   * @see #listSnoc() for the reverse decomposition (init, last)
+   */
+  public static <E> Prism<List<E>, Pair<E, List<E>>> listCons() {
+    return Prism.of(
+        list -> {
+          if (list.isEmpty()) {
+            return Optional.empty();
+          }
+          return Optional.of(Pair.of(list.get(0), List.copyOf(list.subList(1, list.size()))));
+        },
+        pair -> {
+          List<E> result = new ArrayList<>(pair.second().size() + 1);
+          result.add(pair.first());
+          result.addAll(pair.second());
+          return List.copyOf(result);
+        });
+  }
+
+  /**
+   * Alias for {@link #listCons()} using Java-familiar naming.
+   *
+   * @param <E> the element type
+   * @return a prism from list to (head, tail) pair
+   * @see #listCons()
+   */
+  public static <E> Prism<List<E>, Pair<E, List<E>>> listHeadTail() {
+    return listCons();
+  }
+
+  /**
+   * Creates a prism that decomposes a list into its init (all but last element) and last element.
+   *
+   * <p>This is the reverse of "cons", known as "snoc" (cons spelled backwards). A non-empty list is
+   * viewed as a pair of all elements except the last, and the last element. Also known as
+   * "initLast" decomposition.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<List<Integer>, Pair<List<Integer>, Integer>> snoc = FocusPaths.listSnoc();
+   *
+   * // Decompose: [1, 2, 3] -> Pair([1, 2], 3)
+   * Optional<Pair<List<Integer>, Integer>> result = snoc.getOptional(List.of(1, 2, 3));
+   *
+   * // Build: Pair([1, 2], 3) -> [1, 2, 3]
+   * List<Integer> built = snoc.build(Pair.of(List.of(1, 2), 3));
+   * }</pre>
+   *
+   * @param <E> the element type
+   * @return a prism from list to (init, last) pair
+   * @see #listCons() for the opposite decomposition (head, tail)
+   */
+  public static <E> Prism<List<E>, Pair<List<E>, E>> listSnoc() {
+    return Prism.of(
+        list -> {
+          if (list.isEmpty()) {
+            return Optional.empty();
+          }
+          int lastIndex = list.size() - 1;
+          return Optional.of(Pair.of(List.copyOf(list.subList(0, lastIndex)), list.get(lastIndex)));
+        },
+        pair -> {
+          List<E> result = new ArrayList<>(pair.first().size() + 1);
+          result.addAll(pair.first());
+          result.add(pair.second());
+          return List.copyOf(result);
+        });
+  }
+
+  /**
+   * Alias for {@link #listSnoc()} using Java-familiar naming.
+   *
+   * @param <E> the element type
+   * @return a prism from list to (init, last) pair
+   * @see #listSnoc()
+   */
+  public static <E> Prism<List<E>, Pair<List<E>, E>> listInitLast() {
+    return listSnoc();
+  }
+
+  /**
+   * Creates a prism that matches empty lists.
+   *
+   * <p>This prism is the complement of {@link #listCons()} and {@link #listSnoc()}. It matches only
+   * empty lists and builds empty lists from {@link Unit}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<List<String>, Unit> empty = FocusPaths.listEmpty();
+   *
+   * // Check if list is empty
+   * boolean isEmpty = empty.matches(List.of());  // true
+   * boolean hasElements = empty.matches(List.of("a"));  // false
+   *
+   * // Build an empty list
+   * List<String> emptyList = empty.build(Unit.INSTANCE);  // []
+   * }</pre>
+   *
+   * @param <E> the element type
+   * @return a prism matching empty lists
+   */
+  public static <E> Prism<List<E>, Unit> listEmpty() {
+    return Prism.of(
+        list -> list.isEmpty() ? Optional.of(Unit.INSTANCE) : Optional.empty(), _ -> List.of());
+  }
+
+  /**
+   * Creates an affine focusing on the tail (all elements except the first) of a list.
+   *
+   * <p>The affine returns empty for empty lists. Setting replaces all elements after the first.
+   *
+   * @param <E> the element type
+   * @return an affine focusing on the tail
+   */
+  public static <E> Affine<List<E>, List<E>> listTail() {
+    return Affine.of(
+        list ->
+            list.isEmpty()
+                ? Optional.empty()
+                : Optional.of(List.copyOf(list.subList(1, list.size()))),
+        (list, newTail) -> {
+          if (list.isEmpty()) {
+            return list;
+          }
+          List<E> result = new ArrayList<>(newTail.size() + 1);
+          result.add(list.get(0));
+          result.addAll(newTail);
+          return List.copyOf(result);
+        });
+  }
+
+  /**
+   * Creates an affine focusing on the init (all elements except the last) of a list.
+   *
+   * <p>The affine returns empty for empty lists. Setting replaces all elements before the last.
+   *
+   * @param <E> the element type
+   * @return an affine focusing on the init
+   */
+  public static <E> Affine<List<E>, List<E>> listInit() {
+    return Affine.of(
+        list ->
+            list.isEmpty()
+                ? Optional.empty()
+                : Optional.of(List.copyOf(list.subList(0, list.size() - 1))),
+        (list, newInit) -> {
+          if (list.isEmpty()) {
+            return list;
+          }
+          List<E> result = new ArrayList<>(newInit.size() + 1);
+          result.addAll(newInit);
+          result.add(list.get(list.size() - 1));
+          return List.copyOf(result);
         });
   }
 
