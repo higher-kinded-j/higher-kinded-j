@@ -3,13 +3,14 @@
 package org.higherkindedj.article4.traversal;
 
 import java.util.function.Function;
+import java.util.function.Predicate;
+
 import org.higherkindedj.article4.ast.Expr;
 import org.higherkindedj.article4.ast.Expr.Binary;
 import org.higherkindedj.article4.ast.Expr.Conditional;
 import org.higherkindedj.article4.ast.Expr.Literal;
 import org.higherkindedj.article4.ast.Expr.Variable;
-import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.*;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 

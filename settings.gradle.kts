@@ -18,5 +18,7 @@ include(
     // Spring Boot integration modules
     "hkj-spring:autoconfigure",
     "hkj-spring:starter",
-    "hkj-spring:example"
+    "hkj-spring:example",
+    "blog"
+
 )
