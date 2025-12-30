@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.focus;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -22,6 +23,7 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.TraverseTraversals;
 import org.jspecify.annotations.NullMarked;
 
@@ -509,6 +511,173 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
       Traverse<F> traverse) {
     Traversal<Kind<F, E>, E> traversal = TraverseTraversals.forTraverse(traverse);
     return via((Traversal<A, E>) traversal);
+  }
+
+  // ===== List Decomposition Methods =====
+
+  /**
+   * When the focused type is {@code List<E>}, decomposes into head and tail.
+   *
+   * <p>This method returns an AffinePath because the list may be empty. The decomposition follows
+   * the classic functional programming "cons" pattern, viewing a non-empty list as a pair of its
+   * first element (head) and remaining elements (tail).
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Given: FocusPath<Order, List<Item>> itemsPath
+   * AffinePath<Order, Pair<Item, List<Item>>> headTail = itemsPath.cons();
+   *
+   * // Get head and tail
+   * Optional<Pair<Item, List<Item>>> decomposed = headTail.getOptional(order);
+   * decomposed.ifPresent(pair -> {
+   *     Item firstItem = pair.first();
+   *     List<Item> remainingItems = pair.second();
+   * });
+   * }</pre>
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to a (head, tail) pair
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @see #headTail() for Java-familiar alias
+   * @see #snoc() for init/last decomposition
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, Pair<E, List<E>>> cons() {
+    return via((Prism<A, Pair<E, List<E>>>) (Prism<?, ?>) FocusPaths.<E>listCons());
+  }
+
+  /**
+   * Alias for {@link #cons()} using Java-familiar naming.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to a (head, tail) pair
+   * @see #cons()
+   */
+  default <E> AffinePath<S, Pair<E, List<E>>> headTail() {
+    return cons();
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, decomposes into init and last.
+   *
+   * <p>This method returns an AffinePath because the list may be empty. The decomposition follows
+   * the "snoc" pattern (cons spelled backwards), viewing a non-empty list as a pair of all elements
+   * except the last (init) and the last element.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Given: FocusPath<Order, List<Item>> itemsPath
+   * AffinePath<Order, Pair<List<Item>, Item>> initLast = itemsPath.snoc();
+   *
+   * // Get init and last
+   * Optional<Pair<List<Item>, Item>> decomposed = initLast.getOptional(order);
+   * decomposed.ifPresent(pair -> {
+   *     List<Item> allButLast = pair.first();
+   *     Item lastItem = pair.second();
+   * });
+   * }</pre>
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to an (init, last) pair
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @see #initLast() for Java-familiar alias
+   * @see #cons() for head/tail decomposition
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, Pair<List<E>, E>> snoc() {
+    return via((Prism<A, Pair<List<E>, E>>) (Prism<?, ?>) FocusPaths.<E>listSnoc());
+  }
+
+  /**
+   * Alias for {@link #snoc()} using Java-familiar naming.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to an (init, last) pair
+   * @see #snoc()
+   */
+  default <E> AffinePath<S, Pair<List<E>, E>> initLast() {
+    return snoc();
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the head (first element).
+   *
+   * <p>This method returns an AffinePath because the list may be empty.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Given: FocusPath<Order, List<Item>> itemsPath
+   * AffinePath<Order, Item> first = itemsPath.head();
+   *
+   * // Get the first item
+   * Optional<Item> firstItem = first.getOptional(order);
+   *
+   * // Modify the first item
+   * Order updated = first.modify(item -> item.withDiscount(10), order);
+   * }</pre>
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the head element
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, E> head() {
+    return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead());
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the last element.
+   *
+   * <p>This method returns an AffinePath because the list may be empty.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Given: FocusPath<Order, List<Item>> itemsPath
+   * AffinePath<Order, Item> lastItem = itemsPath.last();
+   *
+   * // Get the last item
+   * Optional<Item> last = lastItem.getOptional(order);
+   * }</pre>
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the last element
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, E> last() {
+    return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast());
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the tail (all elements except first).
+   *
+   * <p>This method returns an AffinePath because the list may be empty.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the tail
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, List<E>> tail() {
+    return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail());
+  }
+
+  /**
+   * When the focused type is {@code List<E>}, focuses on the init (all elements except last).
+   *
+   * <p>This method returns an AffinePath because the list may be empty.
+   *
+   * @param <E> the element type of the list
+   * @return an AffinePath to the init
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, List<E>> init() {
+    return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit());
   }
 
   // ===== Conversion Methods =====

@@ -8,9 +8,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -110,6 +113,189 @@ class FocusPathsTest {
 
       // Setter on empty list should return the empty list unchanged
       assertThat(affine.set("X", emptyList)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("List Decomposition Optics")
+  class ListDecompositionOptics {
+
+    @Test
+    @DisplayName("listCons should decompose list into head and tail")
+    void listConsShouldDecomposeList() {
+      Prism<List<String>, Pair<String, List<String>>> prism = FocusPaths.listCons();
+
+      List<String> list = List.of("a", "b", "c");
+
+      Optional<Pair<String, List<String>>> result = prism.getOptional(list);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).isEqualTo("a");
+      assertThat(result.get().second()).containsExactly("b", "c");
+    }
+
+    @Test
+    @DisplayName("listCons should return empty for empty list")
+    void listConsShouldReturnEmptyForEmptyList() {
+      Prism<List<String>, Pair<String, List<String>>> prism = FocusPaths.listCons();
+
+      assertThat(prism.getOptional(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listCons should build list from head and tail")
+    void listConsShouldBuildList() {
+      Prism<List<String>, Pair<String, List<String>>> prism = FocusPaths.listCons();
+
+      List<String> built = prism.build(Pair.of("x", List.of("y", "z")));
+      assertThat(built).containsExactly("x", "y", "z");
+    }
+
+    @Test
+    @DisplayName("listHeadTail should be alias for listCons")
+    void listHeadTailShouldBeAliasForListCons() {
+      Prism<List<String>, Pair<String, List<String>>> prism = FocusPaths.listHeadTail();
+
+      List<String> list = List.of("a", "b", "c");
+      Optional<Pair<String, List<String>>> result = prism.getOptional(list);
+
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("listSnoc should decompose list into init and last")
+    void listSnocShouldDecomposeList() {
+      Prism<List<String>, Pair<List<String>, String>> prism = FocusPaths.listSnoc();
+
+      List<String> list = List.of("a", "b", "c");
+
+      Optional<Pair<List<String>, String>> result = prism.getOptional(list);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).containsExactly("a", "b");
+      assertThat(result.get().second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("listSnoc should return empty for empty list")
+    void listSnocShouldReturnEmptyForEmptyList() {
+      Prism<List<String>, Pair<List<String>, String>> prism = FocusPaths.listSnoc();
+
+      assertThat(prism.getOptional(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listSnoc should build list from init and last")
+    void listSnocShouldBuildList() {
+      Prism<List<String>, Pair<List<String>, String>> prism = FocusPaths.listSnoc();
+
+      List<String> built = prism.build(Pair.of(List.of("x", "y"), "z"));
+      assertThat(built).containsExactly("x", "y", "z");
+    }
+
+    @Test
+    @DisplayName("listInitLast should be alias for listSnoc")
+    void listInitLastShouldBeAliasForListSnoc() {
+      Prism<List<String>, Pair<List<String>, String>> prism = FocusPaths.listInitLast();
+
+      List<String> list = List.of("a", "b", "c");
+      Optional<Pair<List<String>, String>> result = prism.getOptional(list);
+
+      assertThat(result).isPresent();
+      assertThat(result.get().second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("listEmpty should match empty list")
+    void listEmptyShouldMatchEmptyList() {
+      Prism<List<String>, Unit> prism = FocusPaths.listEmpty();
+
+      assertThat(prism.getOptional(List.of())).contains(Unit.INSTANCE);
+      assertThat(prism.getOptional(List.of("a"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listEmpty should build empty list")
+    void listEmptyShouldBuildEmptyList() {
+      Prism<List<String>, Unit> prism = FocusPaths.listEmpty();
+
+      List<String> built = prism.build(Unit.INSTANCE);
+      assertThat(built).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listTail should focus on tail of list")
+    void listTailShouldFocusOnTail() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listTail();
+
+      List<String> list = List.of("a", "b", "c");
+
+      assertThat(affine.getOptional(list)).contains(List.of("b", "c"));
+    }
+
+    @Test
+    @DisplayName("listTail should return empty for empty list")
+    void listTailShouldReturnEmptyForEmptyList() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listTail();
+
+      assertThat(affine.getOptional(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listTail should set new tail")
+    void listTailShouldSetNewTail() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listTail();
+
+      List<String> list = List.of("a", "b", "c");
+      List<String> updated = affine.set(List.of("x", "y"), list);
+
+      assertThat(updated).containsExactly("a", "x", "y");
+    }
+
+    @Test
+    @DisplayName("listTail setter should return empty list unchanged")
+    void listTailSetterShouldReturnEmptyListUnchanged() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listTail();
+
+      List<String> result = affine.set(List.of("x"), List.of());
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listInit should focus on init of list")
+    void listInitShouldFocusOnInit() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listInit();
+
+      List<String> list = List.of("a", "b", "c");
+
+      assertThat(affine.getOptional(list)).contains(List.of("a", "b"));
+    }
+
+    @Test
+    @DisplayName("listInit should return empty for empty list")
+    void listInitShouldReturnEmptyForEmptyList() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listInit();
+
+      assertThat(affine.getOptional(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listInit should set new init")
+    void listInitShouldSetNewInit() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listInit();
+
+      List<String> list = List.of("a", "b", "c");
+      List<String> updated = affine.set(List.of("x", "y"), list);
+
+      assertThat(updated).containsExactly("x", "y", "c");
+    }
+
+    @Test
+    @DisplayName("listInit setter should return empty list unchanged")
+    void listInitSetterShouldReturnEmptyListUnchanged() {
+      Affine<List<String>, List<String>> affine = FocusPaths.listInit();
+
+      List<String> result = affine.set(List.of("x"), List.of());
+      assertThat(result).isEmpty();
     }
   }
 

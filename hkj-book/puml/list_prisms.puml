@@ -1,0 +1,106 @@
+@startuml list_prisms
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title List Decomposition Prisms
+
+package "ListPrisms - Decomposition Patterns" {
+
+    class "ListPrisms" as ListPrisms {
+        {static} + cons<A>() : Prism<List<A>, Pair<A, List<A>>>
+        {static} + snoc<A>() : Prism<List<A>, Pair<List<A>, A>>
+        {static} + headTail<A>() : Prism<List<A>, Pair<A, List<A>>>
+        {static} + initLast<A>() : Prism<List<A>, Pair<List<A>, A>>
+        --
+        {static} + head<A>() : Affine<List<A>, A>
+        {static} + last<A>() : Affine<List<A>, A>
+        {static} + tail<A>() : Prism<List<A>, List<A>>
+        {static} + init<A>() : Prism<List<A>, List<A>>
+        {static} + empty<A>() : Prism<List<A>, Unit>
+        --
+        {static} + foldRight<A,B>(list, initial, f) : B
+        {static} + mapTrampoline<A,B>(list, f) : List<B>
+        {static} + filterTrampoline<A>(list, pred) : List<A>
+        {static} + reverseTrampoline<A>(list) : List<A>
+        {static} + flatMapTrampoline<A,B>(list, f) : List<B>
+        {static} + zipWithTrampoline<A,B,C>(l1, l2, f) : List<C>
+        {static} + takeTrampoline<A>(list, n) : List<A>
+        {static} + dropTrampoline<A>(list, n) : List<A>
+    }
+
+    note top of ListPrisms
+        Utility class for functional
+        list decomposition patterns
+    end note
+}
+
+package "Decomposition Patterns" {
+    object "cons / headTail" as Cons {
+        [A, B, C, D] → Pair(A, [B, C, D])
+        --
+        focus: (head, tail)
+        direction: front-to-back
+    }
+
+    object "snoc / initLast" as Snoc {
+        [A, B, C, D] → Pair([A, B, C], D)
+        --
+        focus: (init, last)
+        direction: back-to-front
+    }
+}
+
+package "Convenience Accessors" {
+    object "head" as Head {
+        List<A> → Optional<A>
+        --
+        first element
+    }
+
+    object "last" as Last {
+        List<A> → Optional<A>
+        --
+        final element
+    }
+
+    object "tail" as Tail {
+        List<A> → Optional<List<A>>
+        --
+        all but first
+    }
+
+    object "init" as Init {
+        List<A> → Optional<List<A>>
+        --
+        all but last
+    }
+}
+
+package "Core Optics" {
+    interface "Prism<S, A>" as Prism {
+        + getOptional(s: S) : Optional<A>
+        + build(a: A) : S
+        + matches(s: S) : boolean
+    }
+
+    interface "Affine<S, A>" as Affine {
+        + getOptional(s: S) : Optional<A>
+        + set(a: A, s: S) : S
+    }
+}
+
+ListPrisms ..> Cons : creates
+ListPrisms ..> Snoc : creates
+ListPrisms ..> Head : creates
+ListPrisms ..> Last : creates
+ListPrisms ..> Tail : creates
+ListPrisms ..> Init : creates
+
+Cons ..> Prism : implements
+Snoc ..> Prism : implements
+Head ..> Affine : implements
+Last ..> Affine : implements
+Tail ..> Prism : implements
+Init ..> Prism : implements
+
+@enduml

@@ -16,6 +16,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -339,6 +340,141 @@ class FocusPathTest {
 
       // Missing key
       assertThat(settingsPath.atKey("missing").getOptional(settings)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("List Decomposition Navigation")
+  class ListDecompositionNavigation {
+
+    record Container(List<String> items) {}
+
+    Lens<Container, List<String>> itemsLens = Lens.of(Container::items, (c, i) -> new Container(i));
+
+    @Test
+    @DisplayName("cons() should decompose list into head and tail")
+    void consShouldDecomposeList() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, Pair<String, List<String>>> consPath = containerPath.cons();
+
+      Container container = new Container(List.of("a", "b", "c"));
+
+      Optional<Pair<String, List<String>>> result = consPath.getOptional(container);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).isEqualTo("a");
+      assertThat(result.get().second()).containsExactly("b", "c");
+    }
+
+    @Test
+    @DisplayName("cons() should return empty for empty list")
+    void consShouldReturnEmptyForEmptyList() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, Pair<String, List<String>>> consPath = containerPath.cons();
+
+      Container empty = new Container(List.of());
+      assertThat(consPath.getOptional(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("headTail() should be alias for cons()")
+    void headTailShouldBeAliasForCons() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, Pair<String, List<String>>> headTailPath = containerPath.headTail();
+
+      Container container = new Container(List.of("a", "b", "c"));
+
+      Optional<Pair<String, List<String>>> result = headTailPath.getOptional(container);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("snoc() should decompose list into init and last")
+    void snocShouldDecomposeList() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, Pair<List<String>, String>> snocPath = containerPath.snoc();
+
+      Container container = new Container(List.of("a", "b", "c"));
+
+      Optional<Pair<List<String>, String>> result = snocPath.getOptional(container);
+      assertThat(result).isPresent();
+      assertThat(result.get().first()).containsExactly("a", "b");
+      assertThat(result.get().second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("snoc() should return empty for empty list")
+    void snocShouldReturnEmptyForEmptyList() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, Pair<List<String>, String>> snocPath = containerPath.snoc();
+
+      Container empty = new Container(List.of());
+      assertThat(snocPath.getOptional(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("initLast() should be alias for snoc()")
+    void initLastShouldBeAliasForSnoc() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, Pair<List<String>, String>> initLastPath = containerPath.initLast();
+
+      Container container = new Container(List.of("a", "b", "c"));
+
+      Optional<Pair<List<String>, String>> result = initLastPath.getOptional(container);
+      assertThat(result).isPresent();
+      assertThat(result.get().second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("head() should focus on first element")
+    void headShouldFocusOnFirstElement() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, String> headPath = containerPath.head();
+
+      Container container = new Container(List.of("a", "b", "c"));
+      Container empty = new Container(List.of());
+
+      assertThat(headPath.getOptional(container)).contains("a");
+      assertThat(headPath.getOptional(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("last() should focus on last element")
+    void lastShouldFocusOnLastElement() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, String> lastPath = containerPath.last();
+
+      Container container = new Container(List.of("a", "b", "c"));
+      Container empty = new Container(List.of());
+
+      assertThat(lastPath.getOptional(container)).contains("c");
+      assertThat(lastPath.getOptional(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("tail() should focus on tail of list")
+    void tailShouldFocusOnTail() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, List<String>> tailPath = containerPath.tail();
+
+      Container container = new Container(List.of("a", "b", "c"));
+      Container empty = new Container(List.of());
+
+      assertThat(tailPath.getOptional(container)).contains(List.of("b", "c"));
+      assertThat(tailPath.getOptional(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("init() should focus on init of list")
+    void initShouldFocusOnInit() {
+      FocusPath<Container, List<String>> containerPath = FocusPath.of(itemsLens);
+      AffinePath<Container, List<String>> initPath = containerPath.init();
+
+      Container container = new Container(List.of("a", "b", "c"));
+      Container empty = new Container(List.of());
+
+      assertThat(initPath.getOptional(container)).contains(List.of("a", "b"));
+      assertThat(initPath.getOptional(empty)).isEmpty();
     }
   }
 

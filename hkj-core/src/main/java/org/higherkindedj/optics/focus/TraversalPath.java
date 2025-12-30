@@ -29,6 +29,7 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.TraverseTraversals;
 import org.jspecify.annotations.NullMarked;
 
@@ -599,6 +600,114 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
       Traverse<F> traverse) {
     Traversal<Kind<F, E>, E> traversal = TraverseTraversals.forTraverse(traverse);
     return via((Traversal<A, E>) traversal);
+  }
+
+  // ===== List Decomposition Methods =====
+
+  /**
+   * When each focused element is a {@code List<E>}, decomposes into head and tail pairs.
+   *
+   * <p>Empty lists are skipped (do not produce a focus).
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over (head, tail) pairs
+   */
+  @SuppressWarnings("unchecked")
+  default <E> TraversalPath<S, Pair<E, List<E>>> cons() {
+    Prism<A, Pair<E, List<E>>> prism =
+        (Prism<A, Pair<E, List<E>>>) (Prism<?, ?>) FocusPaths.<E>listCons();
+    return via(prism.asTraversal());
+  }
+
+  /**
+   * Alias for {@link #cons()} using Java-familiar naming.
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over (head, tail) pairs
+   */
+  default <E> TraversalPath<S, Pair<E, List<E>>> headTail() {
+    return cons();
+  }
+
+  /**
+   * When each focused element is a {@code List<E>}, decomposes into init and last pairs.
+   *
+   * <p>Empty lists are skipped (do not produce a focus).
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over (init, last) pairs
+   */
+  @SuppressWarnings("unchecked")
+  default <E> TraversalPath<S, Pair<List<E>, E>> snoc() {
+    Prism<A, Pair<List<E>, E>> prism =
+        (Prism<A, Pair<List<E>, E>>) (Prism<?, ?>) FocusPaths.<E>listSnoc();
+    return via(prism.asTraversal());
+  }
+
+  /**
+   * Alias for {@link #snoc()} using Java-familiar naming.
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over (init, last) pairs
+   */
+  default <E> TraversalPath<S, Pair<List<E>, E>> initLast() {
+    return snoc();
+  }
+
+  /**
+   * When each focused element is a {@code List<E>}, focuses on head elements.
+   *
+   * <p>Empty lists are skipped.
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over head elements
+   */
+  @SuppressWarnings("unchecked")
+  default <E> TraversalPath<S, E> head() {
+    Affine<A, E> affine = (Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead();
+    return via(affine.asTraversal());
+  }
+
+  /**
+   * When each focused element is a {@code List<E>}, focuses on last elements.
+   *
+   * <p>Empty lists are skipped.
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over last elements
+   */
+  @SuppressWarnings("unchecked")
+  default <E> TraversalPath<S, E> last() {
+    Affine<A, E> affine = (Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast();
+    return via(affine.asTraversal());
+  }
+
+  /**
+   * When each focused element is a {@code List<E>}, focuses on tails.
+   *
+   * <p>Empty lists are skipped.
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over tails
+   */
+  @SuppressWarnings("unchecked")
+  default <E> TraversalPath<S, List<E>> tail() {
+    Affine<A, List<E>> affine = (Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail();
+    return via(affine.asTraversal());
+  }
+
+  /**
+   * When each focused element is a {@code List<E>}, focuses on inits.
+   *
+   * <p>Empty lists are skipped.
+   *
+   * @param <E> the element type of the lists
+   * @return a TraversalPath over inits
+   */
+  @SuppressWarnings("unchecked")
+  default <E> TraversalPath<S, List<E>> init() {
+    Affine<A, List<E>> affine = (Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit();
+    return via(affine.asTraversal());
   }
 
   // ===== Narrowing Methods =====

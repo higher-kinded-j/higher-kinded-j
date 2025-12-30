@@ -679,9 +679,7 @@ public final class PathOps {
     }
 
     List<CompletableFuture<B>> futures =
-        items.stream()
-            .map(item -> f.apply(item).toCompletableFuture())
-            .collect(Collectors.toList());
+        items.stream().map(item -> f.apply(item).toCompletableFuture()).toList();
 
     CompletableFuture<List<B>> combined =
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
@@ -764,7 +762,7 @@ public final class PathOps {
               List<CompletableFuture<A>> futures =
                   paths.stream()
                       .map(path -> CompletableFuture.supplyAsync(path::unsafeRun))
-                      .collect(Collectors.toList());
+                      .toList();
 
               try {
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();

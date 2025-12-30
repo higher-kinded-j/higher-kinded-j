@@ -299,6 +299,46 @@ AffinePath<Employee, String> emailPath = EmployeeFocus.email();
 Optional<String> email = emailPath.getOptional(employee);
 ```
 
+### List Decomposition with `.via()`
+
+For list decomposition patterns (cons/snoc), compose with `ListPrisms` using `.via()`:
+
+```java
+import org.higherkindedj.optics.util.ListPrisms;
+
+// Focus on the first item in a container
+TraversalPath<Container, Item> items = ContainerFocus.items();
+AffinePath<Container, Item> firstItem = items.via(ListPrisms.head());
+Optional<Item> first = firstItem.getOptional(container);
+
+// Focus on the last element
+AffinePath<Container, Item> lastItem = items.via(ListPrisms.last());
+
+// Pattern match with cons (head, tail)
+TraversalPath<Container, Pair<Item, List<Item>>> consPath = items.via(ListPrisms.cons());
+consPath.preview(container).ifPresent(pair -> {
+    Item head = pair.first();
+    List<Item> tail = pair.second();
+    // Process head and tail...
+});
+
+// Alternative: use headOption() for first element access
+AffinePath<Container, Item> firstViaHeadOption = items.headOption();
+```
+
+| ListPrisms Method | Type | Description |
+|-------------------|------|-------------|
+| `ListPrisms.head()` | `Affine<List<A>, A>` | Focus on first element |
+| `ListPrisms.last()` | `Affine<List<A>, A>` | Focus on last element |
+| `ListPrisms.tail()` | `Affine<List<A>, List<A>>` | Focus on all but first |
+| `ListPrisms.init()` | `Affine<List<A>, List<A>>` | Focus on all but last |
+| `ListPrisms.cons()` | `Prism<List<A>, Pair<A, List<A>>>` | Decompose as (head, tail) |
+| `ListPrisms.snoc()` | `Prism<List<A>, Pair<List<A>, A>>` | Decompose as (init, last) |
+
+~~~admonish tip title="See Also"
+For comprehensive documentation on list decomposition patterns, including stack-safe operations for large lists, see [List Decomposition](list_decomposition.md).
+~~~
+
 ### `.nullable()` - Handle Null Values
 
 For fields that may be null, use `.nullable()` to treat null as absent:

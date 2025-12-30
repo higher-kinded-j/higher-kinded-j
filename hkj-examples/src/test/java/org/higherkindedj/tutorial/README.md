@@ -5,8 +5,8 @@ Welcome to the Higher-Kinded-J tutorial series! These hands-on tutorials will te
 ## Overview
 
 This tutorial series consists of two tracks:
-1. **Core Types** (7 tutorials, ~60 minutes) - Learn about Functors, Applicatives, Monads, and more
-2. **Optics** (9 tutorials, ~90 minutes) - Learn about Lenses, Prisms, Traversals, and advanced patterns
+1. **Core Types** (10 tutorials, ~80 minutes) - Learn about Functors, Applicatives, Monads, and more
+2. **Optics** (15 tutorials, ~150 minutes) - Learn about Lenses, Prisms, Traversals, Focus DSL, and advanced patterns
 
 Each tutorial contains exercises where you need to replace `___` placeholders with working code. The tests will fail until you complete the exercises correctly.
 
@@ -93,32 +93,38 @@ Learn to work with sum types:
 - Pattern matching
 - Sealed interfaces
 
-### Tutorial 04: Traversal Basics (~10 minutes)
+### Tutorial 04: Affine Basics (~10 minutes)
+Learn to work with optional fields:
+- Zero-or-one focus
+- Lens + Prism composition
+- Optional field access
+
+### Tutorial 05: Traversal Basics (~10 minutes)
 Learn to work with multiple values:
 - Bulk modifications
 - Filtering
 - Composing traversals
 
-### Tutorial 05: Optics Composition (~10 minutes)
+### Tutorial 06: Optics Composition (~10 minutes)
 Learn to combine different optic types:
 - Lens + Prism
 - Lens + Traversal
 - Complex compositions
 
-### Tutorial 06: Generated Optics (~8 minutes)
+### Tutorial 07: Generated Optics (~8 minutes)
 Learn annotation-based generation:
 - `@GenerateLenses`
 - `@GeneratePrisms`
 - `@GenerateTraversals`
 
-### Tutorial 07: Real World Optics (~12 minutes)
+### Tutorial 08: Real World Optics (~12 minutes)
 Apply optics to real problems:
 - User profile management
 - API response processing
 - E-commerce orders
 - Data validation
 
-### Tutorial 08: Fluent Optics API (~12 minutes)
+### Tutorial 09: Fluent Optics API (~12 minutes)
 Learn the ergonomic fluent API:
 - OpticOps static methods (source-first)
 - Collection operations: getAll, modifyAll, setAll
@@ -126,7 +132,13 @@ Learn the ergonomic fluent API:
 - Validation with Either, Maybe, Validated
 - Real-world form validation
 
-### Tutorial 09: Advanced Optics DSL (~15 minutes)
+### Tutorial 10: Advanced Prism Patterns (~10 minutes)
+Master advanced prism techniques:
+- Predicate-based matching with `nearly`
+- Exclusion filtering with `doesNotMatch`
+- Cross-optic composition patterns
+
+### Tutorial 11: Advanced Optics DSL (~15 minutes)
 Master the Free Monad DSL:
 - Building programs as data structures
 - Composing with flatMap
@@ -134,7 +146,31 @@ Master the Free Monad DSL:
 - Multi-step transformations
 - Logging interpreter (audit trails)
 - Validation interpreter (dry-runs)
-- Real-world order processing pipeline
+
+### Tutorial 12: Focus DSL (~12 minutes)
+Learn type-safe path navigation:
+- FocusPath and AffinePath
+- Fluent chaining with `andThen`
+- Pattern matching with Focus DSL
+
+### Tutorial 13: Advanced Focus DSL (~12 minutes)
+Type class integration with Focus DSL:
+- Functor, Applicative, and Monad integration
+- Effect-aware transformations
+- Complex path compositions
+
+### Tutorial 14: Focus-Effect Bridge (~15 minutes)
+Connecting optics with effects:
+- Bridging Focus DSL and Effect paths
+- Combining optic access with effectful operations
+- Real-world integration patterns
+
+### Tutorial 15: List Prisms (~12 minutes)
+Functional list decomposition:
+- Cons (head/tail) and snoc (init/last) patterns
+- head, last, tail, init accessors
+- Stack-safe trampoline operations
+- Composing with other optics
 
 ## Solutions
 

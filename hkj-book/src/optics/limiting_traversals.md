@@ -803,6 +803,6 @@ Limiting traversals represent the natural evolution of optics for list manipulat
 
 ---
 
-**Previous:** [Filtered Optics: Predicate-Based Composition](filtered_optics.md)
-**Next:** [String Traversals: Declarative Text Processing](string_traversals.md)
+**Previous:** [Common Data Structures](common_data_structure_traversals.md)
+**Next:** [List Decomposition](list_decomposition.md)
 

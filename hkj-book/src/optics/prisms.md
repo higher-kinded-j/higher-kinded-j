@@ -926,6 +926,22 @@ List<String> updated = firstLens.modify(String::toUpperCase, names);
 ```
 ~~~
 
+~~~admonish tip title="Advanced List Decomposition"
+For more comprehensive list manipulation, including cons/snoc patterns, head/tail and init/last decomposition, and stack-safe operations for large lists, see **[List Decomposition](list_decomposition.md)** and the `ListPrisms` utility class.
+
+```java
+import org.higherkindedj.optics.util.ListPrisms;
+
+// Cons pattern: decompose as (head, tail)
+Prism<List<String>, Pair<String, List<String>>> cons = ListPrisms.cons();
+Optional<Pair<String, List<String>>> decomposed = cons.getOptional(names);
+// decomposed = Optional.of(Pair.of("Alice", ["Bob", "Charlie"]))
+
+// Snoc pattern: decompose as (init, last)
+Prism<List<String>, Pair<List<String>, String>> snoc = ListPrisms.snoc();
+```
+~~~
+
 ### Composing Utility Prisms
 
 The real power emerges when composing these utility prisms with your domain optics:

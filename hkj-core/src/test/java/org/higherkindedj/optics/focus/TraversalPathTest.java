@@ -14,6 +14,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -358,6 +359,137 @@ class TraversalPathTest {
       List<Optional<String>> opts = List.of(Optional.of("a"), Optional.empty(), Optional.of("c"));
 
       assertThat(valuesPath.getAll(opts)).containsExactly("a", "c");
+    }
+  }
+
+  @Nested
+  @DisplayName("List Decomposition Navigation")
+  class ListDecompositionNavigation {
+
+    @Test
+    @DisplayName("cons() should decompose lists into head and tail pairs")
+    void consShouldDecomposeListsIntoHeadTailPairs() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, Pair<String, List<String>>> consPath = outerPath.cons();
+
+      List<List<String>> nested = List.of(List.of("a", "b", "c"), List.of("x", "y"), List.of());
+
+      List<Pair<String, List<String>>> results = consPath.getAll(nested);
+
+      // Empty list is skipped
+      assertThat(results).hasSize(2);
+      assertThat(results.get(0).first()).isEqualTo("a");
+      assertThat(results.get(0).second()).containsExactly("b", "c");
+      assertThat(results.get(1).first()).isEqualTo("x");
+      assertThat(results.get(1).second()).containsExactly("y");
+    }
+
+    @Test
+    @DisplayName("headTail() should be alias for cons()")
+    void headTailShouldBeAliasForCons() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, Pair<String, List<String>>> headTailPath =
+          outerPath.headTail();
+
+      List<List<String>> nested = List.of(List.of("a", "b", "c"));
+
+      List<Pair<String, List<String>>> results = headTailPath.getAll(nested);
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0).first()).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("snoc() should decompose lists into init and last pairs")
+    void snocShouldDecomposeListsIntoInitLastPairs() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, Pair<List<String>, String>> snocPath = outerPath.snoc();
+
+      List<List<String>> nested = List.of(List.of("a", "b", "c"), List.of("x", "y"), List.of());
+
+      List<Pair<List<String>, String>> results = snocPath.getAll(nested);
+
+      // Empty list is skipped
+      assertThat(results).hasSize(2);
+      assertThat(results.get(0).first()).containsExactly("a", "b");
+      assertThat(results.get(0).second()).isEqualTo("c");
+      assertThat(results.get(1).first()).containsExactly("x");
+      assertThat(results.get(1).second()).isEqualTo("y");
+    }
+
+    @Test
+    @DisplayName("initLast() should be alias for snoc()")
+    void initLastShouldBeAliasForSnoc() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, Pair<List<String>, String>> initLastPath =
+          outerPath.initLast();
+
+      List<List<String>> nested = List.of(List.of("a", "b", "c"));
+
+      List<Pair<List<String>, String>> results = initLastPath.getAll(nested);
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0).second()).isEqualTo("c");
+    }
+
+    @Test
+    @DisplayName("head() should focus on head elements of all sublists")
+    void headShouldFocusOnHeadElements() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, String> headPath = outerPath.head();
+
+      List<List<String>> nested = List.of(List.of("a", "b"), List.of("x", "y", "z"), List.of());
+
+      // Empty list is skipped
+      assertThat(headPath.getAll(nested)).containsExactly("a", "x");
+    }
+
+    @Test
+    @DisplayName("last() should focus on last elements of all sublists")
+    void lastShouldFocusOnLastElements() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, String> lastPath = outerPath.last();
+
+      List<List<String>> nested = List.of(List.of("a", "b"), List.of("x", "y", "z"), List.of());
+
+      // Empty list is skipped
+      assertThat(lastPath.getAll(nested)).containsExactly("b", "z");
+    }
+
+    @Test
+    @DisplayName("tail() should focus on tails of all sublists")
+    void tailShouldFocusOnTails() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, List<String>> tailPath = outerPath.tail();
+
+      List<List<String>> nested = List.of(List.of("a", "b", "c"), List.of("x"), List.of());
+
+      // Empty list is skipped, single element list has empty tail
+      List<List<String>> tails = tailPath.getAll(nested);
+      assertThat(tails).hasSize(2);
+      assertThat(tails.get(0)).containsExactly("b", "c");
+      assertThat(tails.get(1)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("init() should focus on inits of all sublists")
+    void initShouldFocusOnInits() {
+      TraversalPath<List<List<String>>, List<String>> outerPath =
+          TraversalPath.of(Traversals.forList());
+      TraversalPath<List<List<String>>, List<String>> initPath = outerPath.init();
+
+      List<List<String>> nested = List.of(List.of("a", "b", "c"), List.of("x"), List.of());
+
+      // Empty list is skipped, single element list has empty init
+      List<List<String>> inits = initPath.getAll(nested);
+      assertThat(inits).hasSize(2);
+      assertThat(inits.get(0)).containsExactly("a", "b");
+      assertThat(inits.get(1)).isEmpty();
     }
   }
 
