@@ -633,6 +633,106 @@ All through composable, declarative transformations.
 
 ---
 
+## Bridging to the Effect Path API
+
+The TraversalPath we've built throughout this article navigates and transforms data structures. But what happens when transformations might fail, or when we need to accumulate errors from multiple elements?
+
+Higher-Kinded-J's **Effect Path API** provides the answer. Effect Paths wrap computations in contexts like `Maybe` (optional), `Either` (fail-fast errors), or `Validated` (accumulated errors). The Focus DSL bridges directly to these effect types.
+
+### From Focus Paths to Effect Paths
+
+Every Focus path type provides bridge methods to enter the effect world:
+
+```java
+// FocusPath<S, A> bridges to effects
+FocusPath<Employee, String> namePath = EmployeeFocus.name();
+
+MaybePath<String> maybeName = namePath.toMaybePath(employee);
+EitherPath<Error, String> eitherName = namePath.toEitherPath(employee);
+```
+
+For AffinePath (which might not find a value), the bridge handles the missing case:
+
+```java
+// AffinePath<S, A> handles optionality
+AffinePath<User, String> nicknamePath = UserFocus.nickname();  // Optional field
+
+MaybePath<String> maybeNickname = nicknamePath.toMaybePath(user);
+// Returns Maybe.just(name) or Maybe.nothing()
+
+EitherPath<String, String> eitherNickname =
+    nicknamePath.toEitherPath(user, "No nickname set");
+// Returns Either.right(name) or Either.left("No nickname set")
+```
+
+### Effect Paths with Traversals
+
+TraversalPath works with Effect Paths through `modifyF`. This is the bridge to effect-polymorphic operations:
+
+```java
+// Validate all employees in a company
+TraversalPath<Company, Employee> allEmployees = CompanyFocus
+    .departments().each()
+    .employees().each();
+
+// Bridge to ValidationPath for error accumulation
+ValidationPath<List<Error>, Company> validated = Path.valid(company, Semigroups.list())
+    .via(c -> {
+        // Use modifyF with Validated applicative for error accumulation
+        Kind<ValidatedKind.Witness<List<Error>>, Company> result = allEmployees.modifyF(
+            emp -> validateEmployee(emp),
+            c,
+            validatedApplicative
+        );
+        return VALIDATED.narrow(result);
+    });
+```
+
+### The Railway Model
+
+Effect Paths follow the "railway" pattern where values travel along success or failure tracks:
+
+```
+Input: Company with employees to validate
+         |
+         v
+   +--[Employee 1]---> [validate] ---> Valid ----+
+   |                                              |
+   +--[Employee 2]---> [validate] ---> Invalid --+---> Accumulate
+   |                                              |
+   +--[Employee 3]---> [validate] ---> Valid ----+
+         |
+         v
+Output: ValidationPath<List<Error>, Company>
+        (all errors collected, or valid company)
+```
+
+This pattern enables comprehensive validation rather than fail-fast behaviour. The `ValidationPath` accumulates all errors using a `Semigroup`, so users see every problem at once.
+
+### Preview: Effect-Polymorphic Traversals
+
+In Article 5, we'll explore the Effect Path API in depth. The key insight is that the same Focus paths work with different effect types:
+
+```java
+// Same path, different effects
+TraversalPath<Expr, Expr> allChildren = ExprFocus.children();
+
+// Pure transformation
+Expr optimised = allChildren.modifyAll(this::optimise, expr);
+
+// With Maybe (might fail)
+MaybePath<Expr> maybeResult = Path.just(expr)
+    .via(e -> allChildren.modifyF(this::tryOptimise, e, maybeApplicative));
+
+// With Validated (accumulate errors)
+ValidationPath<List<Error>, Expr> validated = Path.valid(expr, Semigroups.list())
+    .via(e -> allChildren.modifyF(this::validateNode, e, validatedApplicative));
+```
+
+The Effect Path API turns the theoretical power of `modifyF` into a practical, fluent interface.
+
+---
+
 ## Summary
 
 This article introduced traversals and the Focus DSL's `TraversalPath` for recursive manipulation:

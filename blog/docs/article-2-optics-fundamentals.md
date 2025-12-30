@@ -542,6 +542,43 @@ The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalP
 
 We'll introduce the Focus DSL properly in Article 3 and use it extensively from Article 4 onwards. For now, understanding the underlying optics gives you the conceptual foundation that makes the DSL's elegance possible.
 
+### What's Ahead: The Effect Path API
+
+Beyond optics and the Focus DSL, Higher-Kinded-J provides the **Effect Path API**: a fluent interface for computations that might fail, accumulate errors, or require deferred execution. The Effect Path types follow the "railway" metaphor where values travel along success or failure tracks:
+
+```
+Success Track:  ----[value]----> [transform] ----> [result]
+                        \            |
+Failure Track:           `--------->[error]------> [accumulated errors]
+```
+
+The core Effect Path types include:
+
+| Effect Path | Wraps | Use Case |
+|-------------|-------|----------|
+| `MaybePath<A>` | `Maybe` | Optional values (might be absent) |
+| `EitherPath<E, A>` | `Either` | Fail-fast error handling |
+| `ValidationPath<E, A>` | `Validated` | Error accumulation |
+| `TryPath<A>` | `Try` | Exception handling |
+| `IOPath<A>` | `IO` | Deferred side effects |
+
+These types integrate seamlessly with Focus paths via bridge methods:
+
+```java
+// Navigate to a field, then enter the Effect Path world
+FocusPath<User, String> emailPath = UserFocus.email();
+
+MaybePath<String> maybeEmail = emailPath.toMaybePath(user)
+    .map(String::toLowerCase)
+    .filter(e -> e.contains("@"));
+
+// Or use ValidationPath for comprehensive error checking
+ValidationPath<List<Error>, String> validated = emailPath.toValidationPath(user)
+    .via(email -> validateEmail(email));
+```
+
+The Effect Path API becomes the primary focus in Article 5, where we use it for type checking with error accumulation and interpretation with state. The combination of Focus paths (for navigation) with Effect paths (for computation) gives you a complete toolkit for data-oriented programming.
+
 ---
 
 ## Introducing the Expression Language

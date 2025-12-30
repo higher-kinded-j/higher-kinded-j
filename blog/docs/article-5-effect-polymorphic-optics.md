@@ -1,269 +1,421 @@
-# Building an Expression Language: Part 3, Effect-Polymorphic Optics
+# Building an Expression Language: Part 3, The Effect Path API
 
 *Part 5 of the Functional Optics for Modern Java series*
 
 In Article 4, we built traversals that visit every node in our expression tree. We implemented constant folding, identity simplification, and dead branch elimination. But all our transformations were pure: they took an expression and returned a new expression, with no side effects.
 
-Real compilers and interpreters need more. Type checking should report *all* errors, not just the first one. Interpretation must track variable bindings as it descends through the tree. Logging might help debug complex transformations. These are *effects*, and they change everything about how we structure our code.
+Real compilers and interpreters need more. Type checking should report *all* errors, not just the first one. Interpretation must track variable bindings as it descends through the tree. These are *effects*, and they change everything about how we structure our code.
 
-This is where Higher-Kinded-J reveals its full potential. The Focus DSL paths we built in Article 4 work unchanged with effectful operations. We simply call `modifyF` instead of `modify`. It's rather like discovering your trusty Swiss Army knife also works underwater.
+Higher-Kinded-J provides the **Effect Path API**: a fluent interface for computations that might fail, accumulate errors, or require deferred execution. This is the practical face of effect polymorphism, making powerful abstractions accessible through an ergonomic API.
 
 ---
 
-## The Problem with Effects
+## The Railway Model
 
-Consider type checking. A naïve approach fails on the first error:
+Effect Paths follow the "railway" metaphor popularised by Scott Wlaschin. Values travel along tracks, and computations can switch between success and failure:
 
-```java
-public Type typeCheck(Expr expr, Environment env) throws TypeError {
-    return switch (expr) {
-        case Literal(Integer _) -> Type.INT;
-        case Literal(Boolean _) -> Type.BOOL;
-        case Variable(var name) -> {
-            Type t = env.lookup(name);
-            if (t == null) throw new TypeError("Undefined variable: " + name);
-            yield t;
-        }
-        case Binary(var left, var op, var right) -> {
-            Type leftType = typeCheck(left, env);   // Might throw
-            Type rightType = typeCheck(right, env); // Never reached if left fails
-            yield checkBinaryOp(op, leftType, rightType);
-        }
-        // ...
-    };
-}
+```
+                    Success Track
+Input ---> [validate] ---> [transform] ---> [combine] ---> Output
+               |               |               |
+               v               v               v
+            [error]         [error]         [error]
+               |               |               |
+               +--------> Failure Track ------+---> Accumulated Errors
 ```
 
-The problem: if `left` has an error, we never check `right`. Users see one error, fix it, recompile, see another error, and repeat. Anyone who's wrestled with a particularly unhelpful C++ template error message knows this frustrating cycle.
+The key insight: instead of throwing exceptions or returning null, Effect Paths make failure explicit in the type system. A `MaybePath<String>` might contain a string or might be empty. An `EitherPath<Error, User>` contains either an error or a user. A `ValidationPath<List<Error>, Form>` contains either accumulated errors or a valid form.
 
-We want *error accumulation*: collect all type errors in a single pass, then report them together. But this requires threading an error collection through every recursive call. The code becomes cluttered with accumulator parameters.
+This explicitness has practical benefits:
 
-Similarly, interpretation needs environment threading:
+1. **Compiler enforcement**: You cannot ignore a potential failure; the types require handling it
+2. **Composition**: Effect Paths chain naturally with `map`, `via`, and `zipWith`
+3. **Flexibility**: Choose fail-fast (`EitherPath`) or accumulating (`ValidationPath`) behaviour
+
+---
+
+## The Effect Path Types
+
+Higher-Kinded-J provides five core Effect Path types, each suited to different use cases:
+
+| Effect Path | Contains | Use Case |
+|-------------|----------|----------|
+| `MaybePath<A>` | Value or nothing | Optional data, silent failures |
+| `EitherPath<E, A>` | Error or value | Fail-fast error handling |
+| `TryPath<A>` | Exception or value | Wrapping throwing code |
+| `ValidationPath<E, A>` | Errors or value | Accumulating all problems |
+| `IOPath<A>` | Deferred computation | Side effects, resource management |
+
+### Creating Effect Paths
+
+The `Path` factory class provides convenient constructors:
 
 ```java
-public Object interpret(Expr expr, Environment env) {
-    return switch (expr) {
-        case Literal(var v) -> v;
-        case Variable(var name) -> env.lookup(name);
-        case Binary(var left, var op, var right) -> {
-            Object leftVal = interpret(left, env);
-            Object rightVal = interpret(right, env);
-            return applyOp(op, leftVal, rightVal);
-        }
-        case Conditional(var cond, var then_, var else_) -> {
-            Object condVal = interpret(cond, env);
-            if ((Boolean) condVal) {
-                return interpret(then_, env);
-            } else {
-                return interpret(else_, env);
-            }
-        }
-    };
-}
+import org.higherkindedj.hkt.effect.Path;
+
+// MaybePath
+MaybePath<String> present = Path.just("hello");
+MaybePath<String> absent = Path.nothing();
+MaybePath<String> nullable = Path.maybe(possiblyNullValue);
+
+// EitherPath
+EitherPath<String, Integer> success = Path.right(42);
+EitherPath<String, Integer> failure = Path.left("Something went wrong");
+
+// TryPath
+TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(input));
+TryPath<Integer> safe = Path.success(42);
+TryPath<Integer> failed = Path.failure(new IllegalArgumentException("bad input"));
+
+// ValidationPath (requires a Semigroup for error accumulation)
+ValidationPath<List<Error>, User> valid = Path.valid(user, Semigroups.list());
+ValidationPath<List<Error>, User> invalid = Path.invalid(errors, Semigroups.list());
+
+// IOPath (deferred execution)
+IOPath<String> readFile = Path.io(() -> Files.readString(path));
+IOPath<Unit> sideEffect = Path.ioRunnable(() -> System.out.println("Hello"));
 ```
 
-This looks clean, but what if we add `let` bindings that extend the environment? Or mutable references? The environment threading becomes explicit and error-prone. Pass the wrong environment to a recursive call, and you've got a subtle bug that only manifests in deeply nested expressions.
-
 ---
 
-## Effect Polymorphism: The Core Idea
+## MaybePath: Optional Values
 
-Effect polymorphism means writing code once that works with many different effects. Instead of hardcoding error handling or state threading, we abstract over the *computational context*.
-
-In Higher-Kinded-J, this abstraction is the `Kind<F, A>` type: a value of type `A` wrapped in some effect `F`. Different choices of `F` give different behaviours:
-
-| Effect Type | `Kind<F, A>` represents | Behaviour |
-|-------------|------------------------|-----------|
-| `Id` | Just `A` | Pure computation, no effects |
-| `Maybe` | `A` or nothing | Computation that might fail silently |
-| `Either<E, ?>` | `A` or error `E` | Fail-fast error handling |
-| `Validated<E, ?>` | `A` or accumulated errors | Error accumulation |
-| `State<S, ?>` | `A` with state `S` | Stateful computation |
-| `IO` | Deferred `A` | Side effects |
-
-The key insight: if we write our traversals to work with any `Kind<F, A>`, we get all these behaviours for free. Write once, run with any effect. It's polymorphism, but for computational context rather than data types.
-
-For Java developers used to thinking in terms of `Optional<T>` or `CompletableFuture<T>`, this is the next level: abstracting over *which* wrapper type you're using, not just what's inside it.
-
----
-
-## The modifyF Operation
-
-Every optic in Higher-Kinded-J supports `modifyF`, and the Focus DSL exposes it through path types. Here's how it looks:
+`MaybePath<A>` represents a computation that might not produce a value. It wraps Higher-Kinded-J's `Maybe` type.
 
 ```java
-// FocusPath, AffinePath, and TraversalPath all support modifyF
-FocusPath<Employee, String> namePath = EmployeeFocus.name();
+MaybePath<String> greeting = Path.just("Hello")
+    .map(String::toUpperCase)
+    .filter(s -> s.length() > 3)
+    .map(s -> s + "!");
 
-// Pure modification (what we've been doing)
-Employee updated = namePath.modify(String::toUpperCase, employee);
+// Extract the result
+String result = greeting.getOrElse("default");  // "HELLO!"
 
-// Effectful modification (the new capability)
-Kind<ValidatedKind.Witness<List<Error>>, Employee> result = namePath.modifyF(
-    name -> validateName(name),  // Returns Validated<List<Error>, String>
-    employee,
-    validatedApplicative
+// Or pattern match
+greeting.run().fold(
+    () -> System.out.println("No value"),
+    value -> System.out.println("Got: " + value)
 );
 ```
 
-The underlying interface shows what's happening:
+### Chaining with via
+
+The `via` method chains dependent computations:
 
 ```java
-public interface Traversal<S, A> {
-    <F> Kind<F, S> modifyF(
-        Function<A, Kind<F, A>> f,
-        S source,
-        Applicative<F> applicative
-    );
-}
+MaybePath<User> userPath = Path.just(userId)
+    .via(id -> lookupUser(id))        // Returns MaybePath<User>
+    .via(user -> validateUser(user)); // Returns MaybePath<User>
+
+// If any step returns nothing, the chain short-circuits
 ```
 
-The `Applicative<F>` parameter provides two essential operations:
-
-1. **`of(a)`**: Wrap a pure value in the effect (also called `pure`)
-2. **`map2(fa, fb, combine)`**: Combine two effectful values
-
-With just these two operations, we can sequence independent computations whilst accumulating their effects. For dependent computations (where the result of one affects what we do next), we need `Monad` and its `flatMap`.
-
-### Example: Pure Transformation
-
-With the Focus DSL, pure transformations use `modify` or `modifyAll`:
+### Converting to Other Effect Paths
 
 ```java
-import org.higherkindedj.optics.focus.TraversalPath;
+MaybePath<String> maybe = Path.just("hello");
 
-// Using Focus DSL for pure transformations
-TraversalPath<Company, Employee> allEmployees = CompanyFocus
-    .departments().each()
-    .employees().each();
+// To EitherPath (provide error for empty case)
+EitherPath<String, String> either = maybe.toEitherPath("Value was missing");
 
-// Pure transformation: promote all employees
-Company updated = allEmployees.modifyAll(Employee::promote, company);
+// To TryPath (provide exception for empty case)
+TryPath<String> tryPath = maybe.toTryPath(() -> new NoSuchElementException());
+
+// To ValidationPath (provide error and semigroup)
+ValidationPath<List<Error>, String> validated =
+    maybe.toValidationPath(List.of(new Error("missing")), Semigroups.list());
 ```
-
-For the expression language, we can wrap our traversal in a TraversalPath:
-
-```java
-TraversalPath<Expr, Expr> childrenPath = TraversalPath.fromTraversal(children());
-
-// Pure transformation: double all literals
-Expr result = childrenPath.modifyAll(e -> {
-    if (e instanceof Literal(Integer i)) {
-        return new Literal(i * 2);
-    }
-    return e;
-}, expression);
-```
-
-### Example: Stateful Transformation
-
-Using Higher-Kinded-J's `State` monad, Focus paths can track state through transformations:
-
-```java
-import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.state.State;
-import org.higherkindedj.hkt.state.StateKind;
-import org.higherkindedj.hkt.state.StateMonad;
-import org.higherkindedj.hkt.state.StateTuple;
-
-// Using Focus DSL with State effect
-TraversalPath<Expr, Expr> childrenPath = TraversalPath.fromTraversal(children());
-StateMonad<Integer> stateMonad = new StateMonad<>();
-
-// Count and transform literals using modifyF with State effect
-Kind<StateKind.Witness<Integer>, Expr> stateKind = childrenPath.modifyF(
-    e -> {
-        if (e instanceof Literal(Integer i)) {
-            // State.modify returns Unit, so we use _ to indicate the unused parameter
-            State<Integer, Expr> countAndTransform =
-                State.<Integer>modify(count -> count + 1).map(_ -> new Literal(i * 10));
-            return STATE.widen(countAndTransform);
-        }
-        // Use STATE.pure() directly - it returns Kind, avoiding manual widen()
-        return STATE.pure(e);
-    },
-    expr,
-    stateMonad);
-
-StateTuple<Integer, Expr> stateResult = STATE.narrow(stateKind).run(0);
-System.out.printf("Transformed: %s, count = %d%n",
-    stateResult.value().format(), stateResult.state());
-```
-
-The Focus DSL's `modifyF` delegates to the underlying traversal's effect-polymorphic implementation. Your Focus paths gain stateful operations without any additional code.
-
-Notice the `_` in `.map(_ -> new Literal(i * 10))`. Since `State.modify` returns `Unit` (it modifies state but produces no meaningful value), we use Java's unnamed variable pattern to indicate we're deliberately ignoring it. It signals intent clearly to anyone reading the code.
-
-Also note `STATE.pure(e)` instead of `STATE.widen(State.pure(e))`. The `StateKindHelper` provides convenience methods that return `Kind` directly, saving you from the ceremony of manual widening. It's the little things that make a library pleasant to use.
 
 ---
 
-## Type Checking with Validated
+## EitherPath: Fail-Fast Error Handling
 
-`Validated<E, A>` is the key to error accumulation. Unlike `Either`, which short-circuits on the first error, `Validated` collects all errors before failing.
-
-### The Validated Type
+`EitherPath<E, A>` represents a computation that either succeeds with a value or fails with a typed error. Unlike exceptions, the error type is explicit in the signature.
 
 ```java
-public sealed interface Validated<E, A> {
-    record Valid<E, A>(A value) implements Validated<E, A> {}
-    record Invalid<E, A>(E errors) implements Validated<E, A> {}
+EitherPath<String, Integer> divide(int a, int b) {
+    if (b == 0) {
+        return Path.left("Division by zero");
+    }
+    return Path.right(a / b);
+}
+
+EitherPath<String, Integer> result = divide(10, 2)
+    .map(n -> n * 2)
+    .via(n -> divide(n, 3));
+
+// Pattern match on the result
+result.run().fold(
+    error -> System.out.println("Error: " + error),
+    value -> System.out.println("Result: " + value)
+);
+```
+
+### Error Transformation
+
+```java
+// Map over the error type
+EitherPath<Integer, String> withErrorCode =
+    Path.<String, String>left("Not found")
+        .mapError(msg -> 404);
+
+// Recover from errors
+EitherPath<String, Integer> recovered =
+    Path.<String, Integer>left("Error")
+        .recover(error -> -1);  // Replace error with default value
+
+// Recover with another EitherPath
+EitherPath<String, Integer> fallback =
+    Path.<String, Integer>left("Primary failed")
+        .recoverWith(error -> fetchFromBackup());
+```
+
+---
+
+## ValidationPath: Error Accumulation
+
+`ValidationPath<E, A>` is the key type for comprehensive error reporting. Unlike `EitherPath`, which stops at the first error, `ValidationPath` collects all errors.
+
+```java
+// Create validators that return ValidationPath
+ValidationPath<List<String>, String> validateName(String name) {
+    if (name == null || name.isBlank()) {
+        return Path.invalid(List.of("Name is required"), Semigroups.list());
+    }
+    return Path.valid(name.trim(), Semigroups.list());
+}
+
+ValidationPath<List<String>, Integer> validateAge(int age) {
+    if (age < 0) {
+        return Path.invalid(List.of("Age cannot be negative"), Semigroups.list());
+    }
+    if (age > 150) {
+        return Path.invalid(List.of("Age seems unrealistic"), Semigroups.list());
+    }
+    return Path.valid(age, Semigroups.list());
+}
+
+ValidationPath<List<String>, String> validateEmail(String email) {
+    if (!email.contains("@")) {
+        return Path.invalid(List.of("Invalid email format"), Semigroups.list());
+    }
+    return Path.valid(email, Semigroups.list());
 }
 ```
 
-The crucial difference from `Either`: `Validated` forms an `Applicative` but *not* a `Monad`. This isn't a limitation; it's the feature. Without `flatMap`, independent validations run in parallel (logically), accumulating all their errors. You can't accidentally short-circuit because there's no way to express sequential dependency.
+### Combining Validations: Short-Circuit vs Accumulating
 
-### Building a Type Checker with ValidatedMonad
+ValidationPath offers two composition modes:
 
-First, define our type and error types:
+**Short-circuit** (via `via`): Stops at first error, like EitherPath
+
+```java
+// Sequential: second validation only runs if first succeeds
+ValidationPath<List<String>, User> sequential = validateName(name)
+    .via(n -> validateAge(age).map(a -> new User(n, a, null)));
+```
+
+**Accumulating** (via `zipWithAccum`): Collects all errors
+
+```java
+// Parallel: all validations run, errors accumulate
+ValidationPath<List<String>, User> accumulated = validateName(name)
+    .zipWithAccum(validateAge(age), (n, a) -> new Pair<>(n, a))
+    .zipWithAccum(validateEmail(email), (pair, e) -> new User(pair.first(), pair.second(), e));
+```
+
+For multiple validations, use `zipWith3Accum`:
+
+```java
+ValidationPath<List<String>, User> user = validateName(name)
+    .zipWith3Accum(
+        validateAge(age),
+        validateEmail(email),
+        (n, a, e) -> new User(n, a, e)
+    );
+```
+
+### The Semigroup Requirement
+
+ValidationPath requires a `Semigroup<E>` to combine errors. Higher-Kinded-J provides common semigroups:
+
+```java
+import org.higherkindedj.hkt.Semigroups;
+
+// List semigroup: concatenates lists
+Semigroup<List<String>> listSemigroup = Semigroups.list();
+
+// String semigroup: concatenates strings
+Semigroup<String> stringSemigroup = Semigroups.string();
+
+// Custom semigroup
+Semigroup<ErrorReport> reportSemigroup = (a, b) -> a.merge(b);
+```
+
+---
+
+## TryPath: Exception Handling
+
+`TryPath<A>` wraps computations that might throw exceptions, converting them to values:
+
+```java
+// Wrap throwing code
+TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(userInput));
+
+// Chain operations safely
+TryPath<Double> calculation = Path.tryOf(() -> Integer.parseInt(a))
+    .map(x -> x * 2.0)
+    .via(x -> Path.tryOf(() -> x / Double.parseDouble(b)));
+
+// Handle the result
+calculation.run().fold(
+    value -> System.out.println("Result: " + value),
+    ex -> System.out.println("Error: " + ex.getMessage())
+);
+```
+
+### Recovery from Exceptions
+
+```java
+TryPath<Integer> withDefault = Path.tryOf(() -> Integer.parseInt(input))
+    .recover(ex -> -1);  // Use -1 on parse failure
+
+TryPath<Integer> withFallback = Path.tryOf(() -> fetchFromPrimary())
+    .recoverWith(ex -> Path.tryOf(() -> fetchFromBackup()));
+```
+
+---
+
+## IOPath: Deferred Side Effects
+
+`IOPath<A>` represents a computation that will be executed later. Nothing happens until you call `unsafeRun()` or `runSafe()`.
+
+```java
+// Define computations without executing them
+IOPath<String> readConfig = Path.io(() -> Files.readString(Path.of("config.json")));
+IOPath<Unit> writeLog = Path.ioRunnable(() -> logger.info("Operation complete"));
+
+// Compose deferred computations
+IOPath<Config> loadConfig = readConfig
+    .map(json -> parseJson(json))
+    .via(parsed -> validateConfig(parsed));
+
+// Execute when ready
+Config config = loadConfig.unsafeRun();  // Throws on error
+Try<Config> safe = loadConfig.runSafe(); // Captures exceptions
+```
+
+### Resource Management
+
+IOPath provides safe resource handling with `bracket` and `withResource`:
+
+```java
+// Bracket pattern: acquire, use, release
+IOPath<String> content = IOPath.bracket(
+    () -> Files.newBufferedReader(path),  // Acquire
+    reader -> reader.lines().collect(Collectors.joining("\n")),  // Use
+    reader -> reader.close()  // Release (always runs)
+);
+
+// For AutoCloseable resources
+IOPath<String> simpler = IOPath.withResource(
+    () -> Files.newBufferedReader(path),
+    reader -> reader.lines().collect(Collectors.joining("\n"))
+);
+```
+
+### Parallel Execution and Retry
+
+```java
+// Run two computations in parallel
+IOPath<UserProfile> profile = fetchUser.parZipWith(
+    fetchOrders,
+    (user, orders) -> new UserProfile(user, orders)
+);
+
+// Retry with exponential backoff
+IOPath<String> resilient = Path.io(() -> httpClient.get(url))
+    .retry(3, Duration.ofMillis(100));  // 3 attempts, 100ms initial delay
+```
+
+---
+
+## Bridging Focus Paths and Effect Paths
+
+The Focus DSL (FocusPath, AffinePath, TraversalPath) integrates seamlessly with Effect Paths. This bridge is where navigation meets computation.
+
+### From Focus Paths to Effect Paths
+
+```java
+// FocusPath to MaybePath (always succeeds since FocusPath has exactly one focus)
+FocusPath<User, String> namePath = UserFocus.name();
+MaybePath<String> name = namePath.toMaybePath(user);  // Always Just(value)
+
+// AffinePath to MaybePath (may be empty)
+AffinePath<User, String> nicknamePath = UserFocus.nickname();
+MaybePath<String> nickname = nicknamePath.toMaybePath(user);  // Just or Nothing
+
+// AffinePath to EitherPath (provide error for missing case)
+EitherPath<String, String> nicknameOrError =
+    nicknamePath.toEitherPath(user, "No nickname set");
+```
+
+### Applying Focus Paths Within Effect Contexts
+
+Effect Paths have a `focus` method that applies a FocusPath:
+
+```java
+// Start with an Effect Path containing a User
+EitherPath<Error, User> userPath = fetchUser(userId);
+
+// Focus on a field within the effect context
+EitherPath<Error, String> emailPath = userPath.focus(UserFocus.email());
+// Equivalent to: userPath.map(user -> UserFocus.email().get(user))
+
+// Chain multiple focuses
+EitherPath<Error, String> city = userPath
+    .focus(UserFocus.address())
+    .focus(AddressFocus.city());
+```
+
+For AffinePath (which might not find a value), provide an error:
+
+```java
+MaybePath<User> maybeUser = Path.just(user);
+MaybePath<String> nickname = maybeUser.focus(
+    UserFocus.nickname()  // AffinePath for optional field
+);
+// Returns Nothing if nickname is absent
+
+EitherPath<String, User> eitherUser = Path.right(user);
+EitherPath<String, String> nickname = eitherUser.focus(
+    UserFocus.nickname(),
+    "User has no nickname"  // Error if absent
+);
+```
+
+---
+
+## Type Checking with ValidationPath
+
+Let's apply the Effect Path API to our expression language. Type checking is a perfect use case for `ValidationPath`: we want to report all type errors, not just the first one.
+
+### Defining Types and Errors
 
 ```java
 public enum Type { INT, BOOL, STRING }
 
-/**
- * A type error with a descriptive message.
- */
-public record TypeError(String message) {
-
-    /**
-     * Get a Semigroup for combining lists of TypeErrors.
-     * Uses Higher-Kinded-J's built-in list semigroup.
-     */
-    public static Semigroup<List<TypeError>> semigroup() {
-        return Semigroups.list();
-    }
-
-    /**
-     * Create a single-element error list.
-     */
-    public static List<TypeError> single(String message) {
-        return List.of(new TypeError(message));
-    }
-}
+public record TypeError(String message) {}
 ```
 
-Now the type checker. This is where Higher-Kinded-J really shines. We use `ValidatedMonad` with its `map2` and `map3` methods to combine multiple validations whilst accumulating all errors:
+### The Type Checker
 
 ```java
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
-
 public final class ExprTypeChecker {
 
-    private static final Semigroup<List<TypeError>> ERROR_SEMIGROUP = TypeError.semigroup();
+    private static final Semigroup<List<TypeError>> ERRORS = Semigroups.list();
 
-    /** ValidatedMonad instance for applicative-style error accumulation. */
-    private static final ValidatedMonad<List<TypeError>> VALIDATED_MONAD =
-        ValidatedMonad.instance(ERROR_SEMIGROUP);
-
-    public static Validated<List<TypeError>, Type> typeCheck(Expr expr, TypeEnv env) {
+    public static ValidationPath<List<TypeError>, Type> typeCheck(Expr expr, TypeEnv env) {
         return switch (expr) {
             case Literal(var value) -> typeCheckLiteral(value);
             case Variable(var name) -> typeCheckVariable(name, env);
@@ -273,391 +425,251 @@ public final class ExprTypeChecker {
         };
     }
 
-    private static Validated<List<TypeError>, Type> typeCheckLiteral(Object value) {
+    private static ValidationPath<List<TypeError>, Type> typeCheckLiteral(Object value) {
         return switch (value) {
-            case Integer _ -> Validated.valid(Type.INT);
-            case Boolean _ -> Validated.valid(Type.BOOL);
-            case String _ -> Validated.valid(Type.STRING);
-            default -> Validated.invalid(
-                TypeError.single("Unknown literal type: %s"
-                    .formatted(value.getClass().getSimpleName())));
+            case Integer _ -> Path.valid(Type.INT, ERRORS);
+            case Boolean _ -> Path.valid(Type.BOOL, ERRORS);
+            case String _ -> Path.valid(Type.STRING, ERRORS);
+            default -> Path.invalid(
+                List.of(new TypeError("Unknown literal type: " + value.getClass().getSimpleName())),
+                ERRORS
+            );
         };
     }
 
-    private static Validated<List<TypeError>, Type> typeCheckVariable(String name, TypeEnv env) {
+    private static ValidationPath<List<TypeError>, Type> typeCheckVariable(String name, TypeEnv env) {
         return env.lookup(name)
-            .map(Validated::<List<TypeError>, Type>valid)
-            .orElseGet(() -> Validated.invalid(TypeError.single("Undefined variable: " + name)));
+            .map(type -> Path.valid(type, ERRORS))
+            .orElseGet(() -> Path.invalid(
+                List.of(new TypeError("Undefined variable: " + name)),
+                ERRORS
+            ));
     }
 
-    private static Validated<List<TypeError>, Type> typeCheckBinary(
+    private static ValidationPath<List<TypeError>, Type> typeCheckBinary(
             Expr left, BinaryOp op, Expr right, TypeEnv env) {
-        Validated<List<TypeError>, Type> leftResult = typeCheck(left, env);
-        Validated<List<TypeError>, Type> rightResult = typeCheck(right, env);
-
-        // Use Higher-Kinded-J's ValidatedMonad.map2 for applicative-style error accumulation.
-        // map2 combines two Validated values: if both are Valid, it applies the combining
-        // function; if either (or both) are Invalid, it accumulates all errors using the
-        // semigroup. We then flatMap to handle the type constraint validation.
-        Kind<ValidatedKind.Witness<List<TypeError>>, Validated<List<TypeError>, Type>> combined =
-            VALIDATED_MONAD.map2(
-                VALIDATED.widen(leftResult),
-                VALIDATED.widen(rightResult),
-                (lt, rt) -> checkBinaryTypes(op, lt, rt));
-
-        // Flatten the nested Validated: if sub-expression checking succeeded, return the type check
-        return VALIDATED.narrow(combined).flatMap(innerResult -> innerResult);
+        // Use zipWithAccum to accumulate errors from both operands
+        return typeCheck(left, env)
+            .zipWithAccum(typeCheck(right, env), (lt, rt) -> checkBinaryTypes(op, lt, rt))
+            .via(result -> result);  // Flatten nested validation
     }
 
-    private static Validated<List<TypeError>, Type> typeCheckConditional(
+    private static ValidationPath<List<TypeError>, Type> typeCheckConditional(
             Expr cond, Expr then_, Expr else_, TypeEnv env) {
-        Validated<List<TypeError>, Type> condResult = typeCheck(cond, env);
-        Validated<List<TypeError>, Type> thenResult = typeCheck(then_, env);
-        Validated<List<TypeError>, Type> elseResult = typeCheck(else_, env);
-
-        // Use Higher-Kinded-J's ValidatedMonad.map3 for applicative-style error accumulation.
-        // This elegantly handles three sub-expressions: if any have errors, all errors are
-        // accumulated. Only when all three are Valid do we proceed to check the constraints.
-        Kind<ValidatedKind.Witness<List<TypeError>>, Validated<List<TypeError>, Type>> combined =
-            VALIDATED_MONAD.map3(
-                VALIDATED.widen(condResult),
-                VALIDATED.widen(thenResult),
-                VALIDATED.widen(elseResult),
-                ExprTypeChecker::checkConditionalTypes);
-
-        return VALIDATED.narrow(combined).flatMap(innerResult -> innerResult);
+        // Accumulate errors from all three sub-expressions
+        return typeCheck(cond, env)
+            .zipWith3Accum(
+                typeCheck(then_, env),
+                typeCheck(else_, env),
+                ExprTypeChecker::checkConditionalTypes
+            )
+            .via(result -> result);
     }
 
-    // ... checkBinaryTypes and checkConditionalTypes methods
+    private static ValidationPath<List<TypeError>, Type> checkBinaryTypes(
+            BinaryOp op, Type left, Type right) {
+        return switch (op) {
+            case ADD, SUB, MUL, DIV -> {
+                if (left == Type.INT && right == Type.INT) {
+                    yield Path.valid(Type.INT, ERRORS);
+                }
+                yield Path.invalid(List.of(new TypeError(
+                    "Arithmetic operator '%s' requires INT operands, got %s and %s"
+                        .formatted(op, left, right)
+                )), ERRORS);
+            }
+            case AND, OR -> {
+                if (left == Type.BOOL && right == Type.BOOL) {
+                    yield Path.valid(Type.BOOL, ERRORS);
+                }
+                yield Path.invalid(List.of(new TypeError(
+                    "Logical operator '%s' requires BOOL operands, got %s and %s"
+                        .formatted(op, left, right)
+                )), ERRORS);
+            }
+            case EQ, NE -> Path.valid(Type.BOOL, ERRORS);
+            case LT, LE, GT, GE -> {
+                if (left == Type.INT && right == Type.INT) {
+                    yield Path.valid(Type.BOOL, ERRORS);
+                }
+                yield Path.invalid(List.of(new TypeError(
+                    "Comparison operator '%s' requires INT operands, got %s and %s"
+                        .formatted(op, left, right)
+                )), ERRORS);
+            }
+        };
+    }
+
+    private static ValidationPath<List<TypeError>, Type> checkConditionalTypes(
+            Type cond, Type then_, Type else_) {
+        List<TypeError> errors = new ArrayList<>();
+
+        if (cond != Type.BOOL) {
+            errors.add(new TypeError("Condition must be BOOL, got " + cond));
+        }
+        if (then_ != else_) {
+            errors.add(new TypeError(
+                "Branches must have same type, got %s and %s".formatted(then_, else_)
+            ));
+        }
+
+        if (errors.isEmpty()) {
+            return Path.valid(then_, ERRORS);
+        }
+        return Path.invalid(errors, ERRORS);
+    }
 }
 ```
-
-### The Elegance of map2 and map3
-
-Look at what `map2` and `map3` buy us. Without them, we'd write tedious nested pattern matching:
-
-```java
-// The manual approach - what ValidatedMonad.map2 does for us automatically
-return switch (leftResult) {
-    case Valid(var lt) -> switch (rightResult) {
-        case Valid(var rt) -> checkBinaryTypes(op, lt, rt);
-        case Invalid(var errors) -> Validated.invalid(errors);
-    };
-    case Invalid(var leftErrors) -> switch (rightResult) {
-        case Valid(_) -> Validated.invalid(leftErrors);
-        case Invalid(var rightErrors) ->
-            Validated.invalid(ERROR_SEMIGROUP.combine(leftErrors, rightErrors));
-    };
-};
-```
-
-That's four cases for two operands. For three operands (like a conditional), you'd have eight cases. For four operands, sixteen. The pattern is clear.
-
-Higher-Kinded-J's `map2` and `map3` abstract this pattern entirely. They handle the error accumulation logic once, correctly, and you simply provide the combining function.
 
 ### Running the Type Checker
 
 ```java
-// Build an expression with multiple errors: (1 + true) * (false && 42)
-Expr leftError = new Binary(new Literal(1), BinaryOp.ADD, new Literal(true));
-Expr rightError = new Binary(new Literal(false), BinaryOp.AND, new Literal(42));
-Expr expr = new Binary(leftError, BinaryOp.MUL, rightError);
+// Expression with multiple errors: (1 + true) * (false && 42)
+Expr expr = new Binary(
+    new Binary(new Literal(1), BinaryOp.ADD, new Literal(true)),
+    BinaryOp.MUL,
+    new Binary(new Literal(false), BinaryOp.AND, new Literal(42))
+);
 
-Validated<List<TypeError>, Type> result = ExprTypeChecker.typeCheck(expr, TypeEnv.empty());
+ValidationPath<List<TypeError>, Type> result = ExprTypeChecker.typeCheck(expr, TypeEnv.empty());
 
-switch (result) {
-    case Valid(var type) -> System.out.println("Type: " + type);
-    case Invalid(var errors) -> {
+result.run().fold(
+    errors -> {
         System.out.println("Type errors:");
         for (TypeError error : errors) {
             System.out.println("  - " + error.message());
         }
-    }
-}
+    },
+    type -> System.out.println("Type: " + type)
+);
 ```
 
 Output:
 ```
 Type errors:
-  - Arithmetic operator '+' requires INT operands, got INT and BOOL
-  - Logical operator '&&' requires BOOL operands, got BOOL and INT
+  - Arithmetic operator 'ADD' requires INT operands, got INT and BOOL
+  - Logical operator 'AND' requires BOOL operands, got BOOL and INT
 ```
 
-Both errors are reported in a single pass. The user can fix them both at once. This is the power of `Validated` with `Applicative`, and `ValidatedMonad.map2` makes it straightforward to use.
+Both errors are reported in a single pass. The user can fix them both at once.
 
 ---
 
-## Interpretation with State
+## Understanding the Underlying Abstractions
 
-For interpretation, we need to thread an environment through the computation. The `State` monad captures this pattern elegantly.
+The Effect Path API is built on Higher-Kinded-J's type class hierarchy. Understanding these abstractions helps when you need maximum flexibility.
 
-### Higher-Kinded-J's State Type
+### The modifyF Operation
 
-Higher-Kinded-J provides `State<S, A>` in `org.higherkindedj.hkt.state`:
-
-```java
-import org.higherkindedj.hkt.state.State;
-import org.higherkindedj.hkt.state.StateTuple;
-
-// Key operations:
-State.pure(value)           // Wrap a value without changing state
-State.<S>get()              // Access the current state
-State.<S>modify(f)          // Transform the state
-state.flatMap(f)            // Chain dependent computations
-state.map(f)                // Transform the result
-state.run(initialState)     // Run and get StateTuple<S, A>
-```
-
-The result of `run()` is a `StateTuple<S, A>` with `value()` for the result and `state()` for the final state.
-
-### Building an Interpreter
+Every optic supports `modifyF`, which generalises modification to work with any effect:
 
 ```java
-import org.higherkindedj.hkt.state.State;
-import org.higherkindedj.hkt.state.StateTuple;
-
-public final class ExprInterpreter {
-
-    public static State<Environment, Object> interpret(Expr expr) {
-        return switch (expr) {
-            case Literal(var value) -> State.pure(value);
-            case Variable(var name) -> State.<Environment>get().map(env -> env.lookup(name));
-            case Binary(var left, var op, var right) -> interpretBinary(left, op, right);
-            case Conditional(var cond, var then_, var else_) ->
-                interpretConditional(cond, then_, else_);
-        };
-    }
-
-    private static State<Environment, Object> interpretBinary(
-            Expr left, BinaryOp op, Expr right) {
-        return interpret(left)
-            .flatMap(leftVal -> interpret(right)
-                .map(rightVal -> applyBinaryOp(op, leftVal, rightVal)));
-    }
-
-    private static State<Environment, Object> interpretConditional(
-            Expr cond, Expr then_, Expr else_) {
-        return interpret(cond)
-            .flatMap(condVal -> interpret((Boolean) condVal ? then_ : else_));
-    }
-
-    private static Object applyBinaryOp(BinaryOp op, Object left, Object right) {
-        return switch (op) {
-            case ADD -> (Integer) left + (Integer) right;
-            case SUB -> (Integer) left - (Integer) right;
-            case MUL -> (Integer) left * (Integer) right;
-            case DIV -> (Integer) left / (Integer) right;
-            case AND -> (Boolean) left && (Boolean) right;
-            case OR -> (Boolean) left || (Boolean) right;
-            case EQ -> left.equals(right);
-            case NE -> !left.equals(right);
-            case LT -> (Integer) left < (Integer) right;
-            case LE -> (Integer) left <= (Integer) right;
-            case GT -> (Integer) left > (Integer) right;
-            case GE -> (Integer) left >= (Integer) right;
-        };
-    }
-
-    /** Convenience method to interpret directly with an environment. */
-    public static Object eval(Expr expr, Environment env) {
-        StateTuple<Environment, Object> result = interpret(expr).run(env);
-        return result.value();
-    }
+public interface Traversal<S, A> {
+    <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+        Function<A, Kind<F, A>> f,
+        S source,
+        Applicative<F> applicative
+    );
 }
 ```
 
-### Running the Interpreter
+The `Applicative<F>` parameter provides:
+
+1. **`of(a)`**: Wrap a pure value in the effect
+2. **`map2(fa, fb, combine)`**: Combine two effectful values
+
+With just these operations, we can sequence independent computations while accumulating their effects.
+
+### Effect Path Types as Kind Wrappers
+
+Each Effect Path type wraps a corresponding `Kind<F, A>`:
 
 ```java
-// Build expression: (x + 1) * 2
-Expr expr = new Binary(
-    new Binary(new Variable("x"), BinaryOp.ADD, new Literal(1)),
-    BinaryOp.MUL,
-    new Literal(2)
-);
-Environment env = Environment.of("x", 10);
+// MaybePath wraps Kind<Maybe.Witness, A>
+MaybePath<String> maybePath = Path.just("hello");
+Maybe<String> underlying = maybePath.run();
 
-Object result = ExprInterpreter.eval(expr, env);
-// result = 22
-
-// Or using State directly for more control:
-StateTuple<Environment, Object> tuple = ExprInterpreter.interpret(expr).run(env);
-Object value = tuple.value();      // 22
-Environment finalEnv = tuple.state();  // unchanged environment
+// EitherPath wraps Kind<Either.Witness<E, ?>, A>
+EitherPath<String, Integer> eitherPath = Path.right(42);
+Either<String, Integer> underlying = eitherPath.run();
 ```
 
-The environment is threaded implicitly through `flatMap`. We never pass it explicitly after the initial `eval` call. The State monad handles all the plumbing, and we focus on the logic. It's rather liberating.
+The Effect Path API provides ergonomic methods that delegate to these underlying types.
 
----
+### When to Use modifyF Directly
 
-## Combining Validated and State
+For most use cases, the Effect Path API suffices. Use `modifyF` directly when:
 
-Our type checker uses `Validated` for error accumulation, whilst our interpreter uses `State` for environment threading. Each effect serves a distinct purpose:
-
-- **Validated**: Independent sub-expression checks that accumulate all errors
-- **State**: Sequential interpretation where results flow through `flatMap`
-
-This separation is intentional. Type checking sub-expressions is *independent*: the type of the left operand doesn't determine whether we check the right. Interpretation is *sequential*: we must evaluate the condition before choosing a branch.
-
-Higher-Kinded-J's design makes this distinction explicit through its type class hierarchy: `Validated` is an `Applicative` (for independent combination), whilst `State` is a `Monad` (for sequential dependency). Choosing the right abstraction isn't just academic; it affects whether errors accumulate or short-circuit. Get it wrong, and your users will notice.
-
----
-
-## Focus DSL and Effects Together
-
-The real power comes when we combine Focus paths with effects. Every path type (`FocusPath`, `AffinePath`, `TraversalPath`) supports `modifyF`:
+- You're building reusable library code
+- You need to work with custom effect types
+- You want maximum composability with optics
 
 ```java
-// A Focus path built from the DSL
+// Using modifyF directly with a traversal
 TraversalPath<Company, Employee> allEmployees = CompanyFocus
     .departments().each()
     .employees().each();
 
-// The same path works with any effect:
-
-// 1. Pure transformations (what we've been doing)
-Company promoted = allEmployees.modifyAll(Employee::promote, company);
-
-// 2. Validated (error accumulation)
-Kind<ValidatedKind.Witness<List<Error>>, Company> validated = allEmployees.modifyF(
+Kind<ValidatedKind.Witness<List<Error>>, Company> result = allEmployees.modifyF(
     emp -> validateEmployee(emp),
     company,
-    validatedApplicative
+    ValidatedApplicative.instance(Semigroups.list())
 );
-
-// 3. State (context threading)
-Kind<StateKind.Witness<AuditLog>, Company> audited = allEmployees.modifyF(
-    emp -> auditAndTransform(emp),
-    company,
-    stateMonad
-);
-```
-
-One path definition. Multiple effect behaviours. The `Applicative<F>` parameter is the switch that determines which effect system we're using. It's polymorphism at the effect level.
-
-Under the hood, Focus paths delegate to their underlying optics:
-
-```java
-public static Traversal<Expr, Expr> children() {
-    return new Traversal<>() {
-        @Override
-        public <F> Kind<F, Expr> modifyF(
-                Function<Expr, Kind<F, Expr>> f,
-                Expr source,
-                Applicative<F> applicative) {
-            return switch (source) {
-                case Literal _ -> applicative.of(source);
-                case Variable _ -> applicative.of(source);
-                case Binary(var l, var op, var r) ->
-                    applicative.map2(f.apply(l), f.apply(r),
-                        (newL, newR) -> new Binary(newL, op, newR));
-                case Conditional(var c, var t, var e) ->
-                    applicative.map3(f.apply(c), f.apply(t), f.apply(e),
-                        (newC, newT, newE) -> new Conditional(newC, newT, newE));
-            };
-        }
-    };
-}
-```
-
-The Focus DSL wraps this power in an ergonomic API. You get fluent path construction AND effect polymorphism.
-
-### Example: Collecting Variables with State
-
-```java
-import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.higherkindedj.hkt.state.State;
-import org.higherkindedj.hkt.state.StateTuple;
-
-// Define a collector that adds variable names to an immutable Set.
-// State.modify returns Unit, so we use _ to indicate the unused parameter.
-Function<Expr, State<Set<String>, Expr>> collector = e ->
-    e instanceof Variable(var name)
-        ? State.<Set<String>>modify(vars ->
-              Stream.concat(vars.stream(), Stream.of(name))
-                  .collect(Collectors.toUnmodifiableSet()))
-            .map(_ -> e)  // _ indicates Unit is unused
-        : State.pure(e);
-
-// Use a recursive approach to visit all nodes
-private static State<Set<String>, Expr> collectVariablesRecursive(
-        Expr expr, Function<Expr, State<Set<String>, Expr>> collector) {
-    State<Set<String>, Expr> thisNode = collector.apply(expr);
-    return thisNode.flatMap(e -> switch (e) {
-        case Literal _, Variable _ -> State.pure(e);
-        case Binary(var l, var op, var r) ->
-            collectVariablesRecursive(l, collector).flatMap(newL ->
-                collectVariablesRecursive(r, collector).map(newR ->
-                    new Binary(newL, op, newR)));
-        case Conditional(var c, var t, var el) ->
-            collectVariablesRecursive(c, collector).flatMap(newC ->
-                collectVariablesRecursive(t, collector).flatMap(newT ->
-                    collectVariablesRecursive(el, collector).map(newE ->
-                        new Conditional(newC, newT, newE))));
-    });
-}
-
-// Run the collection
-StateTuple<Set<String>, Expr> result =
-    collectVariablesRecursive(expr, collector).run(new HashSet<>());
-Set<String> variables = result.state();
 ```
 
 ---
 
-## Modern Java and Higher-Kinded-J: The Complete Picture
+## Effect Path API vs modifyF: Choosing Your Level
 
-This article demonstrates something remarkable: Java can express the same effect-polymorphic patterns found in Haskell and Scala. Higher-Kinded-J makes this possible through a carefully designed encoding of higher-kinded types using witness types and defunctionalisation.
+Higher-Kinded-J gives you two levels of abstraction:
 
-### Why This Matters for Data-Oriented Programming
+| Level | API | Best For |
+|-------|-----|----------|
+| **High** | Effect Path API | Most application code, clear intent |
+| **Low** | `modifyF` with `Kind<F, A>` | Libraries, custom effects, maximum flexibility |
 
-Modern Java (21+) has embraced data-oriented programming:
+### High-Level: Effect Path API
 
-- **Records** give us immutable data carriers
-- **Sealed interfaces** enable exhaustive sum types
-- **Pattern matching** makes destructuring elegant
-- **Switch expressions** replace verbose visitor patterns
+```java
+// Clear, fluent, discoverable
+ValidationPath<List<Error>, User> validated = Path.valid(user, Semigroups.list())
+    .via(u -> validateName(u.name()))
+    .zipWithAccum(validateAge(user.age()), (u, age) -> u);
+```
 
-Higher-Kinded-J adds the missing piece: *effect-polymorphic operations* over these data structures. You can define a transformation once and run it with different effect systems (pure, stateful, error-accumulating, or asynchronous) without changing the core logic.
+### Low-Level: modifyF with Applicative
 
-This is the "special sauce" that takes Java's data-oriented features to the next level. Records and sealed interfaces define your data. Pattern matching reads it. Optics write it. And Higher-Kinded-J lets you do all of this with effects cleanly abstracted away. It's data-oriented programming with superpowers.
+```java
+// Maximum control, composable with any optic
+Traversal<User, String> nameLens = UserLenses.name().asTraversal();
+Kind<ValidatedKind.Witness<List<Error>>, User> result = nameLens.modifyF(
+    name -> validateName(name),
+    user,
+    ValidatedApplicative.instance(Semigroups.list())
+);
+```
 
-### What Sets Higher-Kinded-J Apart
-
-1. **Genuine abstraction, not simulation**: The `Kind<F, A>` encoding isn't a workaround; it's a principled approach that preserves the full power of higher-kinded polymorphism. When you write `modifyF`, you're writing truly generic code that works with any effect, not code that pattern-matches on a fixed set of cases.
-
-2. **Lawful type classes**: The `Applicative` and `Monad` instances in Higher-Kinded-J satisfy their mathematical laws. This means your intuitions transfer directly from functional programming literature. `map2` on `Validated` accumulates errors because that's what the Applicative laws require for a type that isn't a Monad.
-
-3. **Composition scales**: We've now seen optics compose with optics (Article 2), traversals compose with transformations (Article 4), and effects compose with optics (this article). Each composition multiplies capability without multiplying complexity. This compositional scaling is Higher-Kinded-J's central achievement.
-
-4. **Java remains Java**: Despite these powerful abstractions, the code remains idiomatic Java. Records, sealed interfaces, pattern matching, and switch expressions all work naturally with Higher-Kinded-J's types. You're not fighting the language; you're extending its reach.
-
-The expression language we've built across these articles now has type checking that reports all errors, interpretation that threads state cleanly, and optimisation that composes declaratively. All of this runs on the same traversal infrastructure, demonstrating that effect polymorphism is practical engineering that makes real code better.
+Start with the Effect Path API. Drop to `modifyF` when you need its power.
 
 ---
 
 ## Summary
 
-This article explored effect-polymorphic optics through the Focus DSL:
+This article introduced the Effect Path API for effectful programming:
 
-1. **Focus DSL with effects**: Same paths work for pure and effectful operations via `modifyF`
-2. **Effect polymorphism**: Abstract over computational context with `Kind<F, A>`
-3. **Validated**: Accumulate all errors instead of failing fast
-4. **State**: Thread context through computations implicitly
-5. **Applicative and Monad**: The type classes that enable effect composition
-6. **ValidatedMonad.map2/map3**: The idiomatic way to combine validations
+1. **Effect Path types**: `MaybePath`, `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`
+2. **Railway model**: Values travel success/failure tracks with explicit error handling
+3. **ValidationPath**: Accumulate all errors with `zipWithAccum` and `zipWith3Accum`
+4. **Bridge methods**: Connect Focus paths to Effect paths via `toMaybePath`, `toEitherPath`
+5. **Type checking example**: Comprehensive error reporting with ValidationPath
 
-The key takeaway: The Focus DSL paths you build for pure operations work unchanged with effects. Call `modifyF` instead of `modify`, pass an `Applicative`, and your fluent navigation gains error accumulation, state threading, or any other effect you need.
+The Effect Path API makes effect polymorphism practical. The same patterns that work for optional values work for error handling, validation, and deferred execution. Choose the right Effect Path type for your use case, and let composition do the rest.
 
 ---
 
 ## What's Next
 
-We've built a substantial expression language: AST definition, optics generation, tree traversals, optimisation passes, type checking, and interpretation. The foundation is solid, but there's more to explore.
+We've built a substantial expression language: AST definition, optics generation, tree traversals, optimisation passes, type checking, and the Effect Path API for error accumulation.
 
 In Article 6, we'll step back and reflect on what we've built:
 
@@ -666,39 +678,29 @@ In Article 6, we'll step back and reflect on what we've built:
 - **Performance considerations**: When to use optics and when simpler approaches suffice
 - **Real-world applications**: Applying these techniques beyond expression languages
 
-Higher-Kinded-J has shown us that Java can be a first-class functional programming language without abandoning its object-oriented roots. The combination of modern Java's data-oriented features with Higher-Kinded-J's effect abstractions creates a powerful toolkit for building robust, maintainable software. It's rather exciting, actually.
-
 ---
 
 ## Further Reading
 
 ### Effect Systems and Functional Programming
 
-- **Philip Wadler, ["Monads for functional programming"](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf)** (1992): The foundational paper explaining how monads structure effectful computation. Still remarkably accessible.
+- **Scott Wlaschin, ["Railway Oriented Programming"](https://fsharpforfunandprofit.com/rop/)**: The visual explanation of error handling that inspired the railway metaphor.
+
+- **Philip Wadler, ["Monads for functional programming"](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf)** (1992): The foundational paper explaining how monads structure effectful computation.
 
 - **Conor McBride & Ross Paterson, ["Applicative programming with effects"](https://www.staff.city.ac.uk/~ross/papers/Applicative.html)** (JFP, 2008): The paper that introduced `Applicative` as distinct from `Monad`, directly relevant to understanding why `Validated` accumulates errors.
 
-- **John A. De Goes, ["A Beginner's Guide to Free Monads"](https://www.tweag.io/blog/2018-02-05-free-monads/)**: If you're curious about the Free monad mentioned in this article, this is a clear introduction.
-
 ### Error Handling Patterns
-
-- **Scott Wlaschin, ["Railway Oriented Programming"](https://fsharpforfunandprofit.com/rop/)**: A visual explanation of error handling with types like `Either` and `Validated`, from the F# community.
 
 - **Cats Documentation, [Validated](https://typelevel.org/cats/datatypes/validated.html)**: The Scala Cats library's `Validated` type, which inspired Higher-Kinded-J's implementation.
 
-### Higher-Kinded Types in Java
-
-- The `Kind<F, A>` encoding used by Higher-Kinded-J is sometimes called "defunctionalised higher-kinded types". It's a practical technique that brings parametric polymorphism over type constructors to languages that don't natively support it.
-
-- **[Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)** (Yallop & White): The academic paper describing the technique, adapted here for Java.
-
 ### Higher-Kinded-J
 
-- **[Validated Type](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)**: API reference for error-accumulating validation.
+- **[Effect Path API](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect)**: API reference for the Effect Path types.
 
-- **[State Monad](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)**: API reference for stateful computation.
+- **[Path Factory](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect/Path.java)**: Factory methods for creating Effect Paths.
 
-- **[Applicative Type Class](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/typeclass/applicative/Applicative.java)**: The foundation for `map2`, `map3`, and effect-polymorphic traversals.
+- **[Semigroups](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/Semigroups.java)**: Common semigroup implementations for error accumulation.
 
 ---
 
