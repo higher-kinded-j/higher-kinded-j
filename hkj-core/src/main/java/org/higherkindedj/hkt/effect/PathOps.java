@@ -18,6 +18,8 @@ import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * Utility operations for working with Path types.
@@ -960,5 +962,185 @@ public final class PathOps {
                 throw new RuntimeException(cause);
               }
             }));
+  }
+
+  // ===== Each-based Traversal Operations =====
+  //
+  // Performance Note: These methods use a two-pass approach:
+  // 1. First pass: Collect all elements from the structure into an intermediate List
+  // 2. Second pass: Apply the effectful function to each element with fail-fast semantics
+  //
+  // This approach was chosen to provide fail-fast behavior for Maybe/Either/Try - once a
+  // failure is encountered, processing stops immediately without evaluating remaining elements.
+  // However, the intermediate List allocation may be inefficient for very large structures.
+  //
+  // For traverseEachValidated, which accumulates all errors rather than failing fast, a
+  // single-pass foldMap-based approach could avoid the intermediate allocation. This
+  // optimization may be added in a future version.
+
+  /**
+   * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying a
+   * MaybePath-returning function to each element.
+   *
+   * <p>This method extracts all elements from the structure using the Each instance, applies the
+   * effectful function to each element, and collects the results. If any element produces Nothing,
+   * the entire result is Nothing (fail-fast semantics).
+   *
+   * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
+   * list, then processes them. The fail-fast behavior means processing stops at the first Nothing,
+   * but the initial element collection traverses the entire structure. For very large structures
+   * where early failure is likely, consider streaming approaches or lazy evaluation patterns.
+   *
+   * <pre>{@code
+   * // Validate all orders in a user's order list
+   * Each<List<Order>, Order> listEach = EachInstances.listEach();
+   * MaybePath<List<Order>> validated = PathOps.traverseEachMaybe(
+   *     user.orders(),
+   *     listEach,
+   *     order -> validateOrder(order)  // Returns MaybePath<Order>
+   * );
+   * }</pre>
+   *
+   * @param structure the structure to traverse; must not be null
+   * @param each the Each instance for extracting elements; must not be null
+   * @param f the function to apply to each element; must not be null
+   * @param <S> the structure type
+   * @param <A> the element type
+   * @return a MaybePath containing a list of results, or Nothing if any element fails
+   * @throws NullPointerException if any argument is null
+   */
+  public static <S, A> MaybePath<List<A>> traverseEachMaybe(
+      S structure, Each<S, A> each, Function<A, MaybePath<A>> f) {
+    Objects.requireNonNull(structure, "structure must not be null");
+    Objects.requireNonNull(each, "each must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    List<A> elements = Traversals.getAll(each.each(), structure);
+    return traverseMaybe(elements, f);
+  }
+
+  /**
+   * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying an
+   * EitherPath-returning function to each element.
+   *
+   * <p>If any element produces a Left error, the entire result is that Left error (fail-fast
+   * semantics).
+   *
+   * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
+   * list, then processes them. The fail-fast behavior means processing stops at the first Left, but
+   * the initial element collection traverses the entire structure. For very large structures where
+   * early failure is likely, consider streaming approaches or lazy evaluation patterns.
+   *
+   * <pre>{@code
+   * Each<List<Order>, Order> listEach = EachInstances.listEach();
+   * EitherPath<String, List<Order>> result = PathOps.traverseEachEither(
+   *     user.orders(),
+   *     listEach,
+   *     order -> processOrder(order)  // Returns EitherPath<String, Order>
+   * );
+   * }</pre>
+   *
+   * @param structure the structure to traverse; must not be null
+   * @param each the Each instance for extracting elements; must not be null
+   * @param f the function to apply to each element; must not be null
+   * @param <E> the error type
+   * @param <S> the structure type
+   * @param <A> the element type
+   * @return an EitherPath containing a list of results, or the first error
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, S, A> EitherPath<E, List<A>> traverseEachEither(
+      S structure, Each<S, A> each, Function<A, EitherPath<E, A>> f) {
+    Objects.requireNonNull(structure, "structure must not be null");
+    Objects.requireNonNull(each, "each must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    List<A> elements = Traversals.getAll(each.each(), structure);
+    return traverseEither(elements, f);
+  }
+
+  /**
+   * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying a
+   * ValidationPath-returning function to each element with error accumulation.
+   *
+   * <p>Unlike {@link #traverseEachEither}, this method accumulates all errors using the provided
+   * Semigroup instead of failing on the first error. All elements are processed regardless of
+   * earlier failures.
+   *
+   * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
+   * list, then processes them. Since error accumulation requires processing all elements anyway, a
+   * future optimization could use a single-pass foldMap approach with a suitable Monoid to avoid
+   * the intermediate list allocation for very large structures.
+   *
+   * <pre>{@code
+   * Each<List<Order>, Order> listEach = EachInstances.listEach();
+   * Semigroup<List<String>> errorSemigroup = Semigroups.listConcat();
+   *
+   * ValidationPath<List<String>, List<Order>> result = PathOps.traverseEachValidated(
+   *     user.orders(),
+   *     listEach,
+   *     order -> validateOrder(order),  // Returns ValidationPath<List<String>, Order>
+   *     errorSemigroup
+   * );
+   * // Result contains all validation errors if any, or all valid orders
+   * }</pre>
+   *
+   * @param structure the structure to traverse; must not be null
+   * @param each the Each instance for extracting elements; must not be null
+   * @param f the function to apply to each element; must not be null
+   * @param semigroup the Semigroup for accumulating errors; must not be null
+   * @param <E> the error type
+   * @param <S> the structure type
+   * @param <A> the element type
+   * @return a ValidationPath containing a list of results, or all accumulated errors
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, S, A> ValidationPath<E, List<A>> traverseEachValidated(
+      S structure, Each<S, A> each, Function<A, ValidationPath<E, A>> f, Semigroup<E> semigroup) {
+    Objects.requireNonNull(structure, "structure must not be null");
+    Objects.requireNonNull(each, "each must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+
+    List<A> elements = Traversals.getAll(each.each(), structure);
+    return traverseValidated(elements, f, semigroup);
+  }
+
+  /**
+   * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying a
+   * TryPath-returning function to each element.
+   *
+   * <p>If any element throws an exception, the entire result is that failure (fail-fast semantics).
+   *
+   * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
+   * list, then processes them. The fail-fast behavior means processing stops at the first failure,
+   * but the initial element collection traverses the entire structure. For very large structures
+   * where early failure is likely, consider streaming approaches or lazy evaluation patterns.
+   *
+   * <pre>{@code
+   * Each<List<Order>, Order> listEach = EachInstances.listEach();
+   * TryPath<List<Order>> result = PathOps.traverseEachTry(
+   *     user.orders(),
+   *     listEach,
+   *     order -> processOrderUnsafe(order)  // Returns TryPath<Order>
+   * );
+   * }</pre>
+   *
+   * @param structure the structure to traverse; must not be null
+   * @param each the Each instance for extracting elements; must not be null
+   * @param f the function to apply to each element; must not be null
+   * @param <S> the structure type
+   * @param <A> the element type
+   * @return a TryPath containing a list of results, or the first failure
+   * @throws NullPointerException if any argument is null
+   */
+  public static <S, A> TryPath<List<A>> traverseEachTry(
+      S structure, Each<S, A> each, Function<A, TryPath<A>> f) {
+    Objects.requireNonNull(structure, "structure must not be null");
+    Objects.requireNonNull(each, "each must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    List<A> elements = Traversals.getAll(each.each(), structure);
+    return traverseTry(elements, f);
   }
 }

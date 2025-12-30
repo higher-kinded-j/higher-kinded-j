@@ -407,5 +407,35 @@ public class Tutorial01_EffectPathBasics {
    * </ul>
    *
    * <p>Next: Tutorial 02 - Effect Path Advanced (ForPath, Contexts, Annotations)
+   *
+   * <p>═══════════════════════════════════════════════════════════════════════ <b>Related Topics:
+   * Optics for Structural Navigation</b>
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * <p>Effect Paths handle <i>effectful computations</i> (Maybe, Either, Try, IO). For
+   * <i>structural navigation</i> through nested data (records, lists, maps), see the <b>Optics</b>
+   * module:
+   *
+   * <ul>
+   *   <li><b>Focus DSL</b> ({@code FocusPath}, {@code AffinePath}, {@code TraversalPath}):
+   *       Type-safe navigation through nested records. See Tutorial 12-13.
+   *   <li><b>Each Typeclass</b> ({@code EachInstances}, {@code EachExtensions}): Canonical
+   *       traversals for containers (List, Map, Optional, Maybe, Either, etc.). Use {@code
+   *       .each(EachInstances.listEach())} for custom container traversal.
+   *   <li><b>Focus-Effect Bridge</b>: Tutorial 14 shows how to combine FocusPath with EffectPath
+   *       for powerful data manipulation workflows.
+   * </ul>
+   *
+   * <p>Example: Combining Effect Path with Optics
+   *
+   * <pre>{@code
+   * // Navigate to all order items, then validate each
+   * TraversalPath<Order, Item> itemsPath = FocusPath.of(orderItemsLens)
+   *     .each(EachInstances.listEach());
+   *
+   * // Use toEitherPath for effectful validation
+   * EitherPath<Error, Order> validated = itemsPath.toEitherPath(order)
+   *     .via(items -> validateItems(items));
+   * }</pre>
    */
 }

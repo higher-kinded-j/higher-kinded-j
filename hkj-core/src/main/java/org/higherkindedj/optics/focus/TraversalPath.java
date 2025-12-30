@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
@@ -502,6 +503,21 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
   @SuppressWarnings("unchecked")
   default <E> TraversalPath<S, E> each() {
     return via((Traversal<A, E>) FocusPaths.listElements());
+  }
+
+  /**
+   * Traverses all elements using the provided {@link org.higherkindedj.optics.Each} instance.
+   *
+   * <p>This method provides type-safe traversal for any container type that has an Each instance.
+   *
+   * @param eachInstance the Each instance for the focused container type
+   * @param <E> the element type within the container
+   * @return a TraversalPath focusing on all elements
+   * @see org.higherkindedj.optics.Each
+   * @see org.higherkindedj.optics.each.EachInstances
+   */
+  default <E> TraversalPath<S, E> each(Each<A, E> eachInstance) {
+    return via(eachInstance.each());
   }
 
   /**

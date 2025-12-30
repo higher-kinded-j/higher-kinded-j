@@ -79,6 +79,7 @@
 - [Introduction](optics/ch3_intro.md)
   - [Filtered Optics](optics/filtered_optics.md)
   - [Indexed Optics](optics/indexed_optics.md)
+  - [Each Typeclass](optics/each_typeclass.md)
   - [String Traversals](optics/string_traversals.md)
   - [Indexed Access](optics/indexed_access.md)
   - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)

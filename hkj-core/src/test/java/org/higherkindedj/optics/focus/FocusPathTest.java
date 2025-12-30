@@ -9,11 +9,13 @@ import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -259,6 +261,23 @@ class FocusPathTest {
       assertThat(itemsPath.getAll(container)).containsExactly("a", "b", "c");
       Container modified = itemsPath.modifyAll(String::toUpperCase, container);
       assertThat(modified.items()).containsExactly("A", "B", "C");
+    }
+
+    @Test
+    @DisplayName("each(Each) should traverse using provided Each instance")
+    void eachWithInstanceShouldTraverseElements() {
+      record MapContainer(Map<String, Integer> values) {}
+
+      Lens<MapContainer, Map<String, Integer>> valuesLens =
+          Lens.of(MapContainer::values, (c, v) -> new MapContainer(v));
+      FocusPath<MapContainer, Map<String, Integer>> containerPath = FocusPath.of(valuesLens);
+
+      Each<Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
+      TraversalPath<MapContainer, Integer> valuesPath = containerPath.each(mapEach);
+
+      MapContainer container = new MapContainer(Map.of("a", 1, "b", 2, "c", 3));
+
+      assertThat(valuesPath.getAll(container)).containsExactlyInAnyOrder(1, 2, 3);
     }
 
     @Test

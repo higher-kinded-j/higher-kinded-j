@@ -9,11 +9,13 @@ import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -271,6 +273,22 @@ class AffinePathTest {
 
       assertThat(elementsPath.getAll(present)).containsExactly("a", "b");
       assertThat(elementsPath.getAll(empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("each(Each) should traverse using provided Each instance")
+    void eachWithInstanceShouldTraverseOptionalMapElements() {
+      AffinePath<Optional<Map<String, Integer>>, Map<String, Integer>> mapPath =
+          AffinePath.of(FocusPaths.optionalSome());
+
+      Each<Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
+      TraversalPath<Optional<Map<String, Integer>>, Integer> valuesPath = mapPath.each(mapEach);
+
+      Optional<Map<String, Integer>> present = Optional.of(Map.of("a", 1, "b", 2));
+      Optional<Map<String, Integer>> empty = Optional.empty();
+
+      assertThat(valuesPath.getAll(present)).containsExactlyInAnyOrder(1, 2);
+      assertThat(valuesPath.getAll(empty)).isEmpty();
     }
 
     @Test
