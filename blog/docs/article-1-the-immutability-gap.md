@@ -6,6 +6,15 @@ Modern Java has embraced immutability. Records give us concise, immutable data c
 
 This article introduces *optics*, a family of composable abstractions that complete the immutability story. If pattern matching is how we *read* nested data, optics are how we *write* it.
 
+### Introducing Higher-Kinded-J
+
+Throughout this series, we use [Higher-Kinded-J](https://github.com/higher-kinded-j/higher-kinded-j), a library that unifies two powerful paradigms:
+
+- **Optics** for navigating and modifying immutable data structures
+- **Effects** for computations that might fail, accumulate errors, or require deferred execution
+
+The first half of this series focuses on optics: lenses, prisms, and traversals. The second half introduces the Effect Path API, showing how navigation and computation work together. By the end, you will have a complete toolkit for data-oriented programming in Java.
+
 ---
 
 ## The Promise of Modern Java
@@ -113,6 +122,8 @@ public static Company updateManagerStreet(Company company, String deptName, Stri
 
 Twenty-five lines of code to change a single string. Every record in the path must be manually reconstructed, copying all unchanged fields. This is the *copy constructor cascade*, an anti-pattern that plagues immutable codebases.
 
+**Don't despair.** By the end of this article, you will see this same operation reduced to a single line. First, let's understand why simpler approaches fall short.
+
 You might think: "Just add `withX()` methods to each record." Indeed, you could:
 
 ```java
@@ -191,8 +202,6 @@ Other languages have recognised this gap. Haskell has lenses. Scala has Monocle.
 This asymmetry isn't just inconvenient; it actively discourages immutability. Developers facing the copy-constructor cascade often reach for mutability instead. "Just make the fields non-final," they say. "It's simpler." And in the short term, it is. But mutability brings its own problems: thread safety issues, defensive copying, spooky action at a distance when an object you thought you owned gets modified by code you didn't control.
 
 The promise of modern Java (clean, immutable, data-oriented code) remains half-fulfilled. Pattern matching gave us elegant reading. Now we need elegant writing.
-
-[Higher-Kinded-J](https://github.com/higher-kinded-j/higher-kinded-j) is a new library that brings the full power of optics to Java. Throughout this series, we'll use it to demonstrate how these patterns work in practice, with annotation-driven generation that eliminates boilerplate while preserving type safety.
 
 **Pattern matching is half the puzzle; optics complete it.**
 
@@ -290,37 +299,52 @@ A traversal focuses on zero or more values simultaneously. It's the optic for co
 Traversals let you modify all focused values at once:
 
 ```java
-// Update the street for ALL staff members
-Traversal<Department, String> allStaffStreets = ...;
-Department updated = allStaffStreets.modify(s -> s.toUpperCase(), dept);
+// Give every employee in the department a raise
+Traversal<Department, BigDecimal> allSalaries = ...;
+Department updated = allSalaries.modify(s -> s.multiply(RAISE_FACTOR), dept);
 ```
 
-Every staff member's street is now uppercase. The traversal handled the iteration internally.
+Every employee's salary is updated. The traversal handled the iteration internally.
 
-### The Composition Table
+### How Optics Compose
 
-Optics compose, but the result type depends on what you're composing:
+Optics form a hierarchy based on their focusing power. Think of it as a lattice where each optic can be viewed as a more general one:
 
-| First | Second | Result |
-|-------|--------|--------|
-| Lens | Lens | Lens |
-| Lens | Prism | Affine |
-| Lens | Affine | Affine |
-| Lens | Traversal | Traversal |
-| Prism | Lens | Affine |
-| Prism | Prism | Prism |
-| Prism | Affine | Affine |
-| Prism | Traversal | Traversal |
-| Affine | Lens | Affine |
-| Affine | Prism | Affine |
-| Affine | Affine | Affine |
-| Affine | Traversal | Traversal |
-| Traversal | Lens | Traversal |
-| Traversal | Prism | Traversal |
-| Traversal | Affine | Traversal |
-| Traversal | Traversal | Traversal |
+```
+                  ┌─────────────┐
+                  │  Traversal  │  Zero or more targets
+                  │  (0..n)     │
+                  └──────┬──────┘
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+       ┌──────┴──────┐       ┌──────┴──────┐
+       │   Affine    │       │    Fold     │  (read-only)
+       │   (0..1)    │       │             │
+       └──────┬──────┘       └─────────────┘
+              │
+    ┌─────────┴─────────┐
+    │                   │
+┌───┴───┐          ┌────┴────┐
+│ Lens  │          │  Prism  │
+│ (1)   │          │ (0..1)  │
+└───┬───┘          └────┬────┘
+    │                   │
+    └─────────┬─────────┘
+              │
+        ┌─────┴─────┐
+        │    Iso    │  Exactly one, reversible
+        │   (1↔1)   │
+        └───────────┘
+```
 
-The intuition: composing optics that might fail to focus yields an optic that reflects that uncertainty.
+When you compose two optics, the result is the "least powerful" optic that can represent both:
+
+- **Lens + Lens = Lens**: Both always focus on exactly one value
+- **Lens + Prism = Affine**: The prism might not match, so the result might focus on zero or one
+- **Anything + Traversal = Traversal**: Once you have multiple potential targets, you stay there
+
+The intuition: composing optics that might fail to focus yields an optic that reflects that uncertainty. A lens through a prism becomes an Affine because the prism might not match.
 
 ### Affine: Focus on Zero or One
 
@@ -339,7 +363,7 @@ Higher-Kinded-J provides full Affine support, completing the optics hierarchy.
 - **Affine**: Navigate to a value that might not exist (zero or one)
 - **Traversal**: Navigate to multiple elements in a collection (zero to many)
 
-In practice, you'll compose all four. Navigating to "the radius of every circle in a list of shapes" requires a traversal (for the list), a prism (for circles), and a lens (for the radius). Accessing an optional configuration value uses an Affine.
+In practice, you'll compose all four. Navigating to "the salary of every full-time employee in a company" requires a traversal (for the department list), another traversal (for the employee list), a prism (for full-time employees), and a lens (for the salary). Accessing an optional configuration value uses an Affine.
 
 ---
 
@@ -384,16 +408,20 @@ public static Department updateManagerStreet(Department dept, String newStreet) 
 
 Define the path once. Use it anywhere. The lens composition handles all the intermediate reconstruction automatically.
 
-Want to update *all* employee streets in a department? With manual code, you'd need nested loops. With optics:
+Want to give *all* employees in a department a 10% raise? With manual code, you'd need nested loops and careful reconstruction. With optics:
 
 ```java
-public static Department updateAllStreets(Department dept, String newStreet) {
-    Department withManager = managerStreet.set(newStreet, dept);
-    return allStaffStreets().modify(_ -> newStreet, withManager);
+// Define the path to all salaries once
+private static final Traversal<Department, BigDecimal> allSalaries =
+    Department.Lenses.staff().andThen(Traversals.list())
+        .andThen(Employee.Lenses.salary());
+
+public static Department giveEveryoneARaise(Department dept) {
+    return allSalaries.modify(salary -> salary.multiply(new BigDecimal("1.10")), dept);
 }
 ```
 
-Two lines. No loops. No manual reconstruction. The traversal handles the collection, the lenses handle the path.
+A single expression. No loops. No manual reconstruction. The traversal handles the collection, the lenses handle the path. Every employee gets their raise, and every intermediate record is reconstructed correctly.
 
 **If this intrigues you, read on for the how and why.**
 
@@ -480,18 +508,24 @@ This article introduced the problem (the immutability gap) and sketched the solu
 - The basic optics family: lens, prism, traversal
 - A quick win showing the dramatic code reduction
 
-### Introducing higher-kinded-j
+### What Higher-Kinded-J Provides
 
-Throughout this series, we'll use [Higher-Kinded-J](https://github.com/higher-kinded-j/higher-kinded-j), a library that brings functional programming abstractions to modern Java. It provides:
+As introduced at the start, Higher-Kinded-J unifies optics and effects. For optics, it provides:
 
-- **Production-ready optics**: Lens, Prism, Traversal, and more, with proper composition and laws
-- **Annotation-driven generation**: The `@GenerateLenses` annotation eliminates boilerplate by generating lens accessors for your records automatically
-- **Higher-kinded types**: The foundation that makes optics (and other abstractions like functors and monads) possible in Java's type system
+- **Production-ready optics**: Lens, Prism, Affine, Traversal, Iso, and more, with proper composition and laws
+- **Annotation-driven generation**: `@GenerateLenses`, `@GeneratePrisms`, and `@GenerateFocus` eliminate boilerplate
+- **The Focus DSL**: A fluent API for navigation without explicit composition
 - **Zero runtime overhead**: All the abstraction happens at compile time
 
-The library fills a gap in the Java ecosystem. While Scala has Monocle and Haskell has the `lens` library, Java has lacked a mature, idiomatic optics implementation. higher-kinded-j brings these patterns to Java without sacrificing type safety or requiring exotic language features.
+For effects (covered from Article 5 onwards):
 
-You don't need to understand higher-kinded types to use the library effectively. The optics API is intuitive: compose lenses with `andThen`, get values with `get`, set values with `set`. The underlying type machinery stays out of your way.
+- **Effect Path API**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
+- **Railway-style error handling**: Explicit success/failure tracks with composition
+- **Bridge methods**: Seamlessly connect Focus paths to Effect paths
+
+The library fills a gap in the Java ecosystem. While Scala has Monocle and Haskell has the `lens` library, Java has lacked a mature, idiomatic implementation. Higher-Kinded-J brings these patterns to Java without sacrificing type safety.
+
+You don't need to understand higher-kinded types to use the library effectively. The APIs are intuitive: compose lenses with `andThen`, navigate with Focus paths, handle errors with Effect paths. The underlying type machinery stays out of your way.
 
 ### The Road Ahead
 
