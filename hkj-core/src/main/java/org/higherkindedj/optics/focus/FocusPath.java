@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
@@ -354,6 +355,40 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
   default <E> TraversalPath<S, E> each() {
     // This cast is safe when A is List<E>
     return via((Traversal<A, E>) FocusPaths.listElements());
+  }
+
+  /**
+   * Traverses all elements using the provided {@link org.higherkindedj.optics.Each} instance.
+   *
+   * <p>This method provides type-safe traversal for any container type that has an Each instance.
+   * Unlike the no-arg {@link #each()} method which only works with {@code List}, this method works
+   * with any type that has an Each instance: Map, Set, Optional, Maybe, arrays, etc.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Using Each with a Map
+   * Each<Map<String, Order>, Order> mapEach = EachInstances.mapValuesEach();
+   * FocusPath<User, Map<String, Order>> ordersPath = UserFocus.orderMap();
+   * TraversalPath<User, Order> allOrders = ordersPath.each(mapEach);
+   *
+   * // Using Each with Maybe (from EachExtensions)
+   * Each<Maybe<Address>, Address> maybeEach = EachExtensions.maybeEach();
+   * FocusPath<User, Maybe<Address>> addressPath = UserFocus.address();
+   * TraversalPath<User, Address> address = addressPath.each(maybeEach);
+   *
+   * // Get all orders from all users
+   * List<Order> orders = allOrders.getAll(user);
+   * }</pre>
+   *
+   * @param eachInstance the Each instance for the focused container type
+   * @param <E> the element type within the container
+   * @return a TraversalPath focusing on all elements
+   * @see org.higherkindedj.optics.Each
+   * @see org.higherkindedj.optics.each.EachInstances
+   */
+  default <E> TraversalPath<S, E> each(Each<A, E> eachInstance) {
+    return via(eachInstance.each());
   }
 
   /**

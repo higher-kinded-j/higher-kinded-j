@@ -157,6 +157,19 @@ Map<String, String> metadata = Map.of(
 
 The `forMap()` factory creates a traversal where each value is paired with its key.
 
+~~~admonish tip title="Alternative: Each.eachWithIndex()"
+You can also obtain indexed traversals through the [Each typeclass](each_typeclass.md). If a container's `Each` instance supports indexed access, `eachWithIndex()` returns an `Optional<IndexedTraversal>`:
+
+```java
+Each<List<String>, String> listEach = EachInstances.listEach();
+listEach.<Integer>eachWithIndex().ifPresent(indexed -> {
+    // Use the indexed traversal
+});
+```
+
+This is useful when working with custom containers that implement `Each` or when integrating with the Focus DSL.
+~~~
+
 ---
 
 ### Step 2: Accessing Index-Value Pairs
@@ -1172,6 +1185,6 @@ Indexed optics represent the fusion of position awareness with functional compos
 
 ---
 
-**Previous:** [Common Data Structure Traversals](common_data_structure_traversals.md)
-**Next:** [Getters: Read-Only Optics](getters.md)
+**Previous:** [Filtered Optics](filtered_optics.md)
+**Next:** [Each Typeclass](each_typeclass.md)
 

@@ -519,5 +519,5 @@ Validated<List<String>, String> result = VALIDATED.narrow(
 
 ---
 
-**Previous:** [Limiting Traversals: Focusing on List Portions](limiting_traversals.md)
-**Next:** [Common Data Structure Traversals](common_data_structure_traversals.md)
+**Previous:** [Each Typeclass](each_typeclass.md)
+**Next:** [Indexed Access](indexed_access.md)

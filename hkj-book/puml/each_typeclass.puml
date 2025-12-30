@@ -1,0 +1,92 @@
+@startuml each_typeclass
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title Each Typeclass - Canonical Element-Wise Traversal
+
+package "Each Typeclass" {
+    interface "Each<S, A>" as Each {
+        + each() : Traversal<S, A>
+        + eachWithIndex<I>() : Optional<IndexedTraversal<I, S, A>>
+        + supportsIndexed() : boolean
+        --
+        + {static} fromTraversal(trav: Traversal) : Each
+        + {static} fromIndexedTraversal(iTrav: IndexedTraversal) : Each
+    }
+
+    note right of Each
+        Provides canonical traversal
+        for any container type
+    end note
+}
+
+package "Available Instances" {
+    class "EachInstances" as EachInstances {
+        + {static} listEach<A>() : Each<List<A>, A>
+        + {static} setEach<A>() : Each<Set<A>, A>
+        + {static} mapValuesEach<K,V>() : Each<Map<K,V>, V>
+        + {static} optionalEach<A>() : Each<Optional<A>, A>
+        + {static} arrayEach<A>() : Each<A[], A>
+        + {static} streamEach<A>() : Each<Stream<A>, A>
+        + {static} stringCharsEach() : Each<String, Character>
+    }
+
+    class "EachExtensions" as EachExtensions {
+        + {static} maybeEach<A>() : Each<Maybe<A>, A>
+        + {static} eitherRightEach<L,R>() : Each<Either<L,R>, R>
+        + {static} trySuccessEach<A>() : Each<Try<A>, A>
+        + {static} validatedEach<E,A>() : Each<Validated<E,A>, A>
+    }
+
+    note bottom of EachInstances
+        Java standard types
+        (with indexed support for
+        List, Map, Array, String)
+    end note
+
+    note bottom of EachExtensions
+        HKT core types
+        (no indexed support)
+    end note
+}
+
+package "Core Optics" {
+    interface "Traversal<S, A>" as Traversal {
+        + modifyF(f, source, app) : Kind<F, S>
+    }
+
+    interface "IndexedTraversal<I, S, A>" as IndexedTraversal {
+        + imodifyF(f, source, app) : Kind<F, S>
+        + asTraversal() : Traversal<S, A>
+    }
+}
+
+package "Focus DSL Integration" {
+    interface "FocusPath<S, A>" as FocusPath {
+        + each() : TraversalPath<S, E>
+        + each(Each<A, B>) : TraversalPath<S, B>
+    }
+
+    interface "AffinePath<S, A>" as AffinePath {
+        + each() : TraversalPath<S, E>
+        + each(Each<A, B>) : TraversalPath<S, B>
+    }
+
+    interface "TraversalPath<S, A>" as TraversalPath {
+        + each() : TraversalPath<S, E>
+        + each(Each<A, B>) : TraversalPath<S, B>
+    }
+}
+
+Each --> Traversal : each()
+Each --> IndexedTraversal : eachWithIndex()
+IndexedTraversal --> Traversal : asTraversal()
+
+EachInstances ..|> Each : creates
+EachExtensions ..|> Each : creates
+
+FocusPath ..> Each : uses
+AffinePath ..> Each : uses
+TraversalPath ..> Each : uses
+
+@enduml

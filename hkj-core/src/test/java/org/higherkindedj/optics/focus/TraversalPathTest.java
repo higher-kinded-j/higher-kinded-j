@@ -5,12 +5,15 @@ package org.higherkindedj.optics.focus;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -316,6 +319,20 @@ class TraversalPathTest {
       List<List<String>> nested = List.of(List.of("a", "b"), List.of("c"), List.of("d", "e"));
 
       assertThat(innerPath.getAll(nested)).containsExactly("a", "b", "c", "d", "e");
+    }
+
+    @Test
+    @DisplayName("each(Each) should traverse using provided Each instance")
+    void eachWithInstanceShouldFlattenNestedMaps() {
+      TraversalPath<List<Map<String, Integer>>, Map<String, Integer>> outerPath =
+          TraversalPath.of(Traversals.forList());
+
+      Each<Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
+      TraversalPath<List<Map<String, Integer>>, Integer> valuesPath = outerPath.each(mapEach);
+
+      List<Map<String, Integer>> maps = List.of(Map.of("a", 1, "b", 2), Map.of("c", 3));
+
+      assertThat(valuesPath.getAll(maps)).containsExactlyInAnyOrder(1, 2, 3);
     }
 
     @Test

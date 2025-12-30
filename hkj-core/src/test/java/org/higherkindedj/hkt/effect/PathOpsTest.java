@@ -6,11 +6,17 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1411,6 +1417,452 @@ class PathOpsTest {
               () ->
                   PathOps.traverseValidated(List.of("a"), s -> Path.valid(s, LIST_SEMIGROUP), null))
           .withMessageContaining("semigroup must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Each-based Traversal Operations")
+  class EachBasedTraversalTests {
+
+    @Nested
+    @DisplayName("traverseEachMaybe() Operation")
+    class TraverseEachMaybeTests {
+
+      @Test
+      @DisplayName("traverseEachMaybe() traverses list structure successfully")
+      void traverseEachMaybeTraversesList() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        MaybePath<List<Integer>> result =
+            PathOps.traverseEachMaybe(list, listEach, n -> Path.just(n * 2));
+
+        assertThat(result.run().isJust()).isTrue();
+        assertThat(result.run().get()).containsExactly(2, 4, 6);
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() returns Nothing if any element fails")
+      void traverseEachMaybeReturnsNothingOnFailure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, -1, 3);
+
+        MaybePath<List<Integer>> result =
+            PathOps.traverseEachMaybe(
+                list, listEach, n -> n > 0 ? Path.just(n * 2) : Path.nothing());
+
+        assertThat(result.run().isNothing()).isTrue();
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() handles empty structure")
+      void traverseEachMaybeHandlesEmptyStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> emptyList = List.of();
+
+        MaybePath<List<Integer>> result =
+            PathOps.traverseEachMaybe(emptyList, listEach, n -> Path.just(n * 2));
+
+        assertThat(result.run().isJust()).isTrue();
+        assertThat(result.run().get()).isEmpty();
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() works with Optional structure")
+      void traverseEachMaybeWithOptional() {
+        Each<Optional<String>, String> optionalEach = EachInstances.optionalEach();
+        Optional<String> opt = Optional.of("hello");
+
+        MaybePath<List<String>> result =
+            PathOps.traverseEachMaybe(opt, optionalEach, s -> Path.just(s.toUpperCase()));
+
+        assertThat(result.run().isJust()).isTrue();
+        assertThat(result.run().get()).containsExactly("HELLO");
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() works with empty Optional")
+      void traverseEachMaybeWithEmptyOptional() {
+        Each<Optional<String>, String> optionalEach = EachInstances.optionalEach();
+        Optional<String> opt = Optional.empty();
+
+        MaybePath<List<String>> result =
+            PathOps.traverseEachMaybe(opt, optionalEach, s -> Path.just(s.toUpperCase()));
+
+        assertThat(result.run().isJust()).isTrue();
+        assertThat(result.run().get()).isEmpty();
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() works with Set structure")
+      void traverseEachMaybeWithSet() {
+        Each<Set<Integer>, Integer> setEach = EachInstances.setEach();
+        Set<Integer> set = Set.of(1, 2, 3);
+
+        MaybePath<List<Integer>> result =
+            PathOps.traverseEachMaybe(set, setEach, n -> Path.just(n * 10));
+
+        assertThat(result.run().isJust()).isTrue();
+        assertThat(result.run().get()).containsExactlyInAnyOrder(10, 20, 30);
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() validates non-null structure")
+      void traverseEachMaybeValidatesNonNullStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachMaybe(null, listEach, n -> Path.just(n)))
+            .withMessageContaining("structure must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() validates non-null each")
+      void traverseEachMaybeValidatesNonNullEach() {
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachMaybe(list, null, n -> Path.just(n)))
+            .withMessageContaining("each must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachMaybe() validates non-null function")
+      void traverseEachMaybeValidatesNonNullFunction() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachMaybe(list, listEach, null))
+            .withMessageContaining("f must not be null");
+      }
+    }
+
+    @Nested
+    @DisplayName("traverseEachEither() Operation")
+    class TraverseEachEitherTests {
+
+      @Test
+      @DisplayName("traverseEachEither() traverses list structure successfully")
+      void traverseEachEitherTraversesList() {
+        Each<List<String>, String> listEach = EachInstances.listEach();
+        List<String> list = List.of("a", "b", "c");
+
+        EitherPath<String, List<String>> result =
+            PathOps.traverseEachEither(list, listEach, s -> Path.right(s.toUpperCase()));
+
+        assertThat(result.run().isRight()).isTrue();
+        assertThat(result.run().getRight()).containsExactly("A", "B", "C");
+      }
+
+      @Test
+      @DisplayName("traverseEachEither() returns first Left error")
+      void traverseEachEitherReturnsFirstError() {
+        Each<List<String>, String> listEach = EachInstances.listEach();
+        List<String> list = List.of("valid", "", "also-valid");
+
+        EitherPath<String, List<String>> result =
+            PathOps.traverseEachEither(
+                list,
+                listEach,
+                s -> {
+                  if (s.isEmpty()) {
+                    return Path.left("Empty string not allowed");
+                  }
+                  return Path.right(s.toUpperCase());
+                });
+
+        assertThat(result.run().isLeft()).isTrue();
+        assertThat(result.run().getLeft()).isEqualTo("Empty string not allowed");
+      }
+
+      @Test
+      @DisplayName("traverseEachEither() handles empty structure")
+      void traverseEachEitherHandlesEmptyStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> emptyList = List.of();
+
+        EitherPath<String, List<Integer>> result =
+            PathOps.traverseEachEither(emptyList, listEach, n -> Path.right(n * 2));
+
+        assertThat(result.run().isRight()).isTrue();
+        assertThat(result.run().getRight()).isEmpty();
+      }
+
+      @Test
+      @DisplayName("traverseEachEither() works with Map values")
+      void traverseEachEitherWithMapValues() {
+        Each<Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
+        Map<String, Integer> map = Map.of("a", 1, "b", 2);
+
+        EitherPath<String, List<Integer>> result =
+            PathOps.traverseEachEither(map, mapEach, n -> Path.right(n * 100));
+
+        assertThat(result.run().isRight()).isTrue();
+        assertThat(result.run().getRight()).containsExactlyInAnyOrder(100, 200);
+      }
+
+      @Test
+      @DisplayName("traverseEachEither() validates non-null structure")
+      void traverseEachEitherValidatesNonNullStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachEither(null, listEach, n -> Path.right(n)))
+            .withMessageContaining("structure must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachEither() validates non-null each")
+      void traverseEachEitherValidatesNonNullEach() {
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachEither(list, null, n -> Path.right(n)))
+            .withMessageContaining("each must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachEither() validates non-null function")
+      void traverseEachEitherValidatesNonNullFunction() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachEither(list, listEach, null))
+            .withMessageContaining("f must not be null");
+      }
+    }
+
+    @Nested
+    @DisplayName("traverseEachValidated() Operation")
+    class TraverseEachValidatedTests {
+
+      @Test
+      @DisplayName("traverseEachValidated() traverses list structure successfully")
+      void traverseEachValidatedTraversesList() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        ValidationPath<List<String>, List<Integer>> result =
+            PathOps.traverseEachValidated(
+                list, listEach, n -> Path.valid(n * 2, LIST_SEMIGROUP), LIST_SEMIGROUP);
+
+        assertThat(result.run().isValid()).isTrue();
+        assertThat(result.run().get()).containsExactly(2, 4, 6);
+      }
+
+      @Test
+      @DisplayName("traverseEachValidated() accumulates all errors")
+      void traverseEachValidatedAccumulatesErrors() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, -1, 2, -2, 3);
+
+        ValidationPath<List<String>, List<Integer>> result =
+            PathOps.traverseEachValidated(
+                list,
+                listEach,
+                n ->
+                    n > 0
+                        ? Path.valid(n, LIST_SEMIGROUP)
+                        : Path.invalid(List.of("Invalid: " + n), LIST_SEMIGROUP),
+                LIST_SEMIGROUP);
+
+        assertThat(result.run().isInvalid()).isTrue();
+        assertThat(result.run().getError()).containsExactly("Invalid: -1", "Invalid: -2");
+      }
+
+      @Test
+      @DisplayName("traverseEachValidated() handles empty structure")
+      void traverseEachValidatedHandlesEmptyStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> emptyList = List.of();
+
+        ValidationPath<List<String>, List<Integer>> result =
+            PathOps.traverseEachValidated(
+                emptyList, listEach, n -> Path.valid(n * 2, LIST_SEMIGROUP), LIST_SEMIGROUP);
+
+        assertThat(result.run().isValid()).isTrue();
+        assertThat(result.run().get()).isEmpty();
+      }
+
+      @Test
+      @DisplayName("traverseEachValidated() validates non-null structure")
+      void traverseEachValidatedValidatesNonNullStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+
+        assertThatNullPointerException()
+            .isThrownBy(
+                () ->
+                    PathOps.traverseEachValidated(
+                        null, listEach, n -> Path.valid(n, LIST_SEMIGROUP), LIST_SEMIGROUP))
+            .withMessageContaining("structure must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachValidated() validates non-null each")
+      void traverseEachValidatedValidatesNonNullEach() {
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(
+                () ->
+                    PathOps.traverseEachValidated(
+                        list, null, n -> Path.valid(n, LIST_SEMIGROUP), LIST_SEMIGROUP))
+            .withMessageContaining("each must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachValidated() validates non-null function")
+      void traverseEachValidatedValidatesNonNullFunction() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachValidated(list, listEach, null, LIST_SEMIGROUP))
+            .withMessageContaining("f must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachValidated() validates non-null semigroup")
+      void traverseEachValidatedValidatesNonNullSemigroup() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(
+                () ->
+                    PathOps.traverseEachValidated(
+                        list, listEach, n -> Path.valid(n, LIST_SEMIGROUP), null))
+            .withMessageContaining("semigroup must not be null");
+      }
+    }
+
+    @Nested
+    @DisplayName("traverseEachTry() Operation")
+    class TraverseEachTryTests {
+
+      @Test
+      @DisplayName("traverseEachTry() traverses list structure successfully")
+      void traverseEachTryTraversesList() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        TryPath<List<Integer>> result =
+            PathOps.traverseEachTry(list, listEach, n -> Path.success(n * 2));
+
+        assertThat(result.run().isSuccess()).isTrue();
+        assertThat(result.run().orElse(null)).containsExactly(2, 4, 6);
+      }
+
+      @Test
+      @DisplayName("traverseEachTry() returns first failure")
+      void traverseEachTryReturnsFirstFailure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, -1, 3);
+
+        TryPath<List<Integer>> result =
+            PathOps.traverseEachTry(
+                list,
+                listEach,
+                n -> {
+                  if (n < 0) {
+                    return Path.failure(new IllegalArgumentException("Negative: " + n));
+                  }
+                  return Path.success(n * 2);
+                });
+
+        assertThat(result.run().isFailure()).isTrue();
+      }
+
+      @Test
+      @DisplayName("traverseEachTry() handles empty structure")
+      void traverseEachTryHandlesEmptyStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> emptyList = List.of();
+
+        TryPath<List<Integer>> result =
+            PathOps.traverseEachTry(emptyList, listEach, n -> Path.success(n * 2));
+
+        assertThat(result.run().isSuccess()).isTrue();
+        assertThat(result.run().orElse(null)).isEmpty();
+      }
+
+      @Test
+      @DisplayName("traverseEachTry() works with array structure")
+      void traverseEachTryWithArray() {
+        Each<String[], String> arrayEach = EachInstances.arrayEach();
+        String[] array = {"hello", "world"};
+
+        TryPath<List<String>> result =
+            PathOps.traverseEachTry(array, arrayEach, s -> Path.success(s.toUpperCase()));
+
+        assertThat(result.run().isSuccess()).isTrue();
+        assertThat(result.run().orElse(null)).containsExactly("HELLO", "WORLD");
+      }
+
+      @Test
+      @DisplayName("traverseEachTry() validates non-null structure")
+      void traverseEachTryValidatesNonNullStructure() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachTry(null, listEach, n -> Path.success(n)))
+            .withMessageContaining("structure must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachTry() validates non-null each")
+      void traverseEachTryValidatesNonNullEach() {
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachTry(list, null, n -> Path.success(n)))
+            .withMessageContaining("each must not be null");
+      }
+
+      @Test
+      @DisplayName("traverseEachTry() validates non-null function")
+      void traverseEachTryValidatesNonNullFunction() {
+        Each<List<Integer>, Integer> listEach = EachInstances.listEach();
+        List<Integer> list = List.of(1, 2, 3);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> PathOps.traverseEachTry(list, listEach, null))
+            .withMessageContaining("f must not be null");
+      }
+    }
+
+    @Nested
+    @DisplayName("Each Integration with Various Types")
+    class EachIntegrationTests {
+
+      @Test
+      @DisplayName("traverseEach* methods work with String chars")
+      void traverseEachWithStringChars() {
+        Each<String, Character> stringEach = EachInstances.stringCharsEach();
+        String str = "abc";
+
+        MaybePath<List<Character>> result =
+            PathOps.traverseEachMaybe(str, stringEach, c -> Path.just(Character.toUpperCase(c)));
+
+        assertThat(result.run().isJust()).isTrue();
+        assertThat(result.run().get()).containsExactly('A', 'B', 'C');
+      }
+
+      @Test
+      @DisplayName("traverseEach* methods work with custom Each from Traversal")
+      void traverseEachWithCustomEach() {
+        // Create Each from existing traversal
+        Each<List<String>, String> customEach = Each.fromTraversal(Traversals.forList());
+        List<String> list = List.of("a", "b", "c");
+
+        EitherPath<String, List<String>> result =
+            PathOps.traverseEachEither(list, customEach, s -> Path.right(s + "!"));
+
+        assertThat(result.run().isRight()).isTrue();
+        assertThat(result.run().getRight()).containsExactly("a!", "b!", "c!");
+      }
     }
   }
 }
