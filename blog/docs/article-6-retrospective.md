@@ -16,11 +16,11 @@ Let's trace the arc of what we've built:
 
 **Article 1** identified the problem: the immutability gap. Modern Java gives us beautiful, immutable data structures but leaves us struggling when we need to update them. The copy-constructor cascade is verbose, error-prone, and obscures intent.
 
-**Article 2** introduced the toolkit: lenses for product types (records), prisms for sum types (sealed interfaces), and the crucial insight that these optics compose. We previewed the Focus DSL as an ergonomic layer over raw optics.
+**Article 2** introduced the toolkit: lenses for product types (records), prisms for sum types (sealed interfaces), and the crucial insight that these optics compose. We previewed both the Focus DSL and the Effect Path API as ergonomic layers over raw abstractions.
 
 **Article 3** applied these ideas to a real domain: an expression language AST. We introduced `@GenerateFocus` alongside `@GenerateLenses` and `@GeneratePrisms`. The Focus DSL started showing its value: fluent navigation without explicit composition.
 
-**Article 4** showcased the Focus DSL's power with `TraversalPath`. Collection navigation with `each()`, conditional updates with `modifyWhen()`, and sum type targeting with `AffinePath.instanceOf()`. The fluent API made tree traversal remarkably clean:
+**Article 4** showcased the Focus DSL's power with `TraversalPath`. Collection navigation with `each()`, conditional updates with `modifyWhen()`, and sum type targeting with `AffinePath.instanceOf()`. We introduced the bridge to Effect Paths, showing how navigation meets computation:
 
 ```java
 TraversalPath<Company, Address> allAddresses = CompanyFocus
@@ -29,9 +29,14 @@ TraversalPath<Company, Address> allAddresses = CompanyFocus
     .address();
 ```
 
-**Article 5** unified everything through effect polymorphism. The same Focus paths work with `Validated` for error accumulation, `State` for threading context, and any other effect. The `modifyF` method extends fluent navigation to effectful operations.
+**Article 5** introduced the Effect Path API as the primary interface for effectful programming. `MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, and `IOPath` follow the railway model: values travel success/failure tracks with explicit error handling. The type checker demonstrates error accumulation:
 
-The result is a small but complete language implementation with an ergonomic API: AST definition, Focus DSL generation, fluent traversals, optimisation passes, type checking with comprehensive error reporting, and interpretation. Each piece composes with the others, and the Focus DSL makes it all accessible.
+```java
+ValidationPath<List<TypeError>, Type> result = typeCheck(expr, env)
+    .zipWithAccum(typeCheck(right, env), (lt, rt) -> checkBinaryTypes(op, lt, rt));
+```
+
+The result is a small but complete language implementation with an ergonomic API: AST definition, Focus DSL generation, fluent traversals, optimisation passes, type checking with comprehensive error reporting via the Effect Path API, and interpretation. Each piece composes with the others, and the two APIs (Focus DSL for navigation, Effect Path API for computation) provide a complete toolkit.
 
 ---
 
@@ -128,9 +133,12 @@ This is data-oriented architecture at the system level, not just the type level.
 
 ---
 
-## The Focus DSL: The Recommended API
+## The Two APIs: Focus DSL and Effect Path API
 
-Throughout this series, we've progressively introduced the Focus DSL. It's time to be explicit: **the Focus DSL with navigators is the recommended way to use Higher-Kinded-J optics**.
+Throughout this series, we've introduced two complementary APIs. Together, they form the recommended way to use Higher-Kinded-J:
+
+- **Focus DSL** for navigating and modifying data structures
+- **Effect Path API** for computations that might fail or accumulate errors
 
 ### Why Focus DSL?
 
@@ -139,8 +147,18 @@ The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalP
 1. **Fluent navigation**: Chain through nested structures naturally
 2. **Built-in collection operations**: `each()`, `at()`, `atKey()`, `some()`
 3. **Conditional updates**: `modifyWhen()` for predicate-based transformations
-4. **Effect polymorphism**: `modifyF()` for validation, state, and other effects
+4. **Bridge to Effect Paths**: `toMaybePath()`, `toEitherPath()` for effectful operations
 5. **Navigator generation**: Cross-type navigation without explicit composition
+
+### Why Effect Path API?
+
+The Effect Path API wraps effect types in fluent paths (`MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, `IOPath`) that provide:
+
+1. **Railway model**: Explicit success/failure tracks with type safety
+2. **Error accumulation**: `ValidationPath.zipWithAccum()` collects all errors
+3. **Fail-fast handling**: `EitherPath` short-circuits on first error
+4. **Exception wrapping**: `TryPath` converts throwing code to values
+5. **Deferred execution**: `IOPath` for side effects with resource management
 
 Compare these two approaches for accessing all employee addresses in a company:
 
@@ -179,15 +197,16 @@ record Employee(String name, Address address) {}
 
 With navigators, you don't even need `.via()` calls for cross-type navigation. The generated navigator classes handle composition automatically.
 
-### When to Use Raw Optics
+### When to Use Lower-Level APIs
 
-The Focus DSL covers most use cases, but raw optics remain valuable for:
+The Focus DSL and Effect Path API cover most use cases, but lower-level APIs remain valuable for:
 
-- **Custom traversals**: When you need effect-polymorphic behaviour not covered by the DSL
+- **Custom traversals**: When you need behaviours not covered by the DSLs
+- **Custom effect types**: When working with effect types beyond the standard five
 - **Maximum performance**: In rare cases where the abstraction overhead matters
-- **Library development**: When building reusable optics that others will consume
+- **Library development**: When building reusable optics or effects that others will consume
 
-For application code, start with the Focus DSL. Drop to raw optics only when you have a specific reason.
+For application code, start with Focus DSL for navigation and Effect Path API for computation. Drop to `modifyF` with `Kind<F, A>` when you need maximum flexibility.
 
 ---
 
@@ -388,7 +407,11 @@ Beyond feature parity, Higher-Kinded-J offers something unique:
 
 **The Focus DSL**: No other Java optics library provides this level of ergonomics. The combination of `@GenerateFocus`, navigators, `each()`/`at()`/`atKey()`, and `modifyWhen()` makes Higher-Kinded-J feel like it was designed for Java's data-oriented ecosystem.
 
-**Type class integration**: Focus paths integrate with `Validated`, `State`, and other effects through `modifyF()`. This isn't bolted on; it's the foundation.
+**The Effect Path API**: A fluent interface for effectful programming that follows the railway model. `MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, and `IOPath` make error handling, validation, and side effects composable and type-safe. No other Java library provides this combination of ergonomics and power.
+
+**Bridge between navigation and computation**: Focus paths bridge seamlessly to Effect paths via `toMaybePath()`, `toEitherPath()`, and `focus()` methods. Navigate your data structure, then enter the effect world for validation or error handling.
+
+**Type class integration**: Both APIs integrate with Higher-Kinded-J's type class hierarchy (`Applicative`, `Monad`). When you need maximum flexibility, `modifyF()` with `Kind<F, A>` is always available.
 
 **Native Java design**: Higher-Kinded-J is designed for Java's type system and idioms. There's no language boundary to cross, no interop overhead.
 
@@ -446,12 +469,13 @@ Compared to established libraries:
 | Indexed optics | ✓ | ✓ | ✓ | ✓ |
 | At/Ixed | ✓ | ✓ | ✓ | ✓ |
 | **Focus DSL** | - | - | - | **✓** |
+| **Effect Path API** | - | - | - | **✓** |
 | **Navigators** | - | - | - | **✓** |
 | Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
 | IDE support | Excellent | Good | Good | Growing |
 | Java integration | N/A | Interop | Interop | Native |
 
-The key differentiators are the **Focus DSL** and **navigator generation**. No other library provides this level of fluent, ergonomic optics for Java. Combined with native Java integration, Higher-Kinded-J is designed specifically for Java's data-oriented ecosystem.
+The key differentiators are the **Focus DSL**, **Effect Path API**, and **navigator generation**. No other library provides this combination of fluent navigation, railway-style error handling, and ergonomic optics for Java. Combined with native Java integration, Higher-Kinded-J is designed specifically for Java's data-oriented ecosystem.
 
 ### Future Directions
 
@@ -506,7 +530,10 @@ We've covered considerable ground. Time for some reflection.
 
 Java 25 and its predecessors have given us remarkable tools for data-oriented programming. Records provide concise, immutable data carriers. Sealed interfaces enable exhaustive sum types. Pattern matching makes destructuring elegant. Switch expressions replace verbose visitor patterns.
 
-Higher-Kinded-J's Focus DSL completes the picture by providing the "write" side that pattern matching lacks. The fluent API mirrors the natural structure of your data:
+Higher-Kinded-J completes the picture with two complementary APIs:
+
+- **Focus DSL** provides the "write" side that pattern matching lacks
+- **Effect Path API** provides composable error handling and validation
 
 ```java
 // Pattern matching reads:
@@ -521,9 +548,13 @@ Company updated = CompanyFocus.departments().each()
     .employees().each()
     .salary()
     .modifyAll(s -> s.multiply(1.1), company);
+
+// Effect Path API validates:
+ValidationPath<List<Error>, Company> validated = Path.valid(company, Semigroups.list())
+    .via(c -> validateAllEmployees(c));
 ```
 
-The combination is powerful: define your data with records and sealed interfaces, read it with pattern matching, write it with Focus paths, and choose your effects based on what the operation requires. It's data-oriented programming with a complete toolkit.
+The combination is powerful: define your data with records and sealed interfaces, read it with pattern matching, write it with Focus paths, validate with Effect paths, and choose your error handling strategy based on what the operation requires. It's data-oriented programming with a complete toolkit.
 
 ### The Composability Principle
 
@@ -556,11 +587,21 @@ Either way, we're not waiting.
 
 ### Final Reflection
 
-We've shown one path through the territory. Your domain will suggest its own patterns. The goal isn't Focus paths everywhere, but Focus paths where they clarify.
+We've shown one path through the territory. Your domain will suggest its own patterns. The goal isn't these APIs everywhere, but these APIs where they clarify.
 
-Some problems genuinely benefit from these abstractions. Deep nesting, collection navigation, effect polymorphism, configurable transformations: these are the sweet spots. The Focus DSL makes them accessible. Other problems are better served by simpler tools. Knowing the difference is engineering judgement, not ideology.
+Some problems genuinely benefit from these abstractions:
 
-Start with `@GenerateFocus(generateNavigators = true)` on your domain types. Build paths that match your data's shape. Call `modify()` for pure operations, `modifyF()` for effects. Let the DSL guide you.
+- **Deep nesting**: Focus paths shine for structures three or more levels deep
+- **Collection navigation**: `each()`, `at()`, `atKey()` make list and map traversal trivial
+- **Error accumulation**: ValidationPath collects all problems rather than failing fast
+- **Deferred execution**: IOPath manages side effects and resources safely
+- **Configurable transformations**: Paths as first-class values enable runtime composition
+
+Other problems are better served by simpler tools. A single-level record update might not need optics. A validation with one possible error might not need ValidationPath. Knowing the difference is engineering judgement, not ideology.
+
+Start with `@GenerateFocus(generateNavigators = true)` on your domain types. Build Focus paths that match your data's shape. When computations might fail, reach for the Effect Path API. Call `modify()` for pure operations, bridge to `MaybePath` or `ValidationPath` when you need error handling.
+
+The two APIs work in harmony: Focus DSL for navigation, Effect Path API for computation. Together, they provide a complete functional programming toolkit for Java.
 
 It's been rather interesting to explore. We hope you find it useful.
 
@@ -597,6 +638,8 @@ It's been rather interesting to explore. We hope you find it useful.
 ### Higher-Kinded-J
 
 - **Documentation and tutorials**: [higher-kinded-j.github.io](https://higher-kinded-j.github.io/)
+- **[Effect Path API](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
+- **[Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics/focus)**: FocusPath, AffinePath, TraversalPath
 - **API reference and examples**: Available on the documentation site
 - **Contributing guide**: For those interested in helping develop the library
 
