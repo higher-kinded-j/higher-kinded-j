@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.article1.problem;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,8 +14,35 @@ import java.util.List;
  */
 public class NestedUpdateProblem {
 
+  private static final BigDecimal RAISE_MULTIPLIER = new BigDecimal("1.10"); // 10% raise
+
   /**
-   * The task: Update the manager's street address in the Engineering department.
+   * The task: Give all employees in a department a 10% raise.
+   *
+   * <p>This seemingly simple operation requires reconstructing every record in the path. Notice how
+   * the actual business logic (multiplying salary by 1.10) is buried in layers of boilerplate.
+   */
+  public static Department giveEveryoneARaise(Department dept) {
+    // Update manager's salary
+    Employee manager = dept.manager();
+    BigDecimal newManagerSalary = manager.salary().multiply(RAISE_MULTIPLIER);
+    Employee newManager =
+        new Employee(manager.id(), manager.name(), newManagerSalary, manager.address());
+
+    // Update all staff salaries
+    List<Employee> updatedStaff = new ArrayList<>();
+    for (Employee emp : dept.staff()) {
+      BigDecimal newSalary = emp.salary().multiply(RAISE_MULTIPLIER);
+      Employee newEmp = new Employee(emp.id(), emp.name(), newSalary, emp.address());
+      updatedStaff.add(newEmp);
+    }
+
+    // Rebuild department with updated employees
+    return new Department(dept.name(), newManager, List.copyOf(updatedStaff));
+  }
+
+  /**
+   * The task: Update the manager's street address.
    *
    * <p>This seemingly simple operation requires reconstructing every record in the path from root
    * to leaf.
@@ -33,7 +61,8 @@ public class NestedUpdateProblem {
         Address newAddress = new Address(newStreet, oldAddress.city(), oldAddress.postcode());
 
         // Rebuild employee with new address
-        Employee newManager = new Employee(manager.id(), manager.name(), newAddress);
+        Employee newManager =
+            new Employee(manager.id(), manager.name(), manager.salary(), newAddress);
 
         // Rebuild department with new manager
         Department newDept = new Department(dept.name(), newManager, dept.staff());
@@ -48,61 +77,35 @@ public class NestedUpdateProblem {
     return new Company(company.name(), company.headquarters(), List.copyOf(updatedDepts));
   }
 
-  /**
-   * Even worse: Update the street for ALL employees in a department.
-   *
-   * <p>The nested loops and reconstruction become deeply nested and error-prone.
-   */
-  public static Company updateAllEmployeeStreets(
-      Company company, String deptName, String newStreet) {
-    List<Department> updatedDepts = new ArrayList<>();
-
-    for (Department dept : company.departments()) {
-      if (dept.name().equals(deptName)) {
-        // Update manager
-        Employee manager = dept.manager();
-        Address managerAddr = manager.address();
-        Address newManagerAddr = new Address(newStreet, managerAddr.city(), managerAddr.postcode());
-        Employee newManager = new Employee(manager.id(), manager.name(), newManagerAddr);
-
-        // Update all staff
-        List<Employee> updatedStaff = new ArrayList<>();
-        for (Employee emp : dept.staff()) {
-          Address empAddr = emp.address();
-          Address newEmpAddr = new Address(newStreet, empAddr.city(), empAddr.postcode());
-          Employee newEmp = new Employee(emp.id(), emp.name(), newEmpAddr);
-          updatedStaff.add(newEmp);
-        }
-
-        Department newDept = new Department(dept.name(), newManager, List.copyOf(updatedStaff));
-        updatedDepts.add(newDept);
-      } else {
-        updatedDepts.add(dept);
-      }
-    }
-
-    return new Company(company.name(), company.headquarters(), List.copyOf(updatedDepts));
-  }
-
   /** Creates sample data for demonstration. */
-  public static Company sampleCompany() {
-    Address hqAddress = new Address("1 Innovation Way", "London", "EC1A 1BB");
-
+  public static Department sampleDepartment() {
     Address aliceAddr = new Address("10 Oak Lane", "Cambridge", "CB1 2AB");
     Address bobAddr = new Address("20 Elm Street", "Cambridge", "CB2 3CD");
     Address charlieAddr = new Address("30 Pine Road", "Oxford", "OX1 4EF");
 
-    Employee alice = new Employee("E001", "Alice Chen", aliceAddr);
-    Employee bob = new Employee("E002", "Bob Smith", bobAddr);
-    Employee charlie = new Employee("E003", "Charlie Brown", charlieAddr);
+    Employee alice =
+        new Employee("E001", "Alice Chen", new BigDecimal("95000.00"), aliceAddr);
+    Employee bob =
+        new Employee("E002", "Bob Smith", new BigDecimal("75000.00"), bobAddr);
+    Employee charlie =
+        new Employee("E003", "Charlie Brown", new BigDecimal("72000.00"), charlieAddr);
 
-    Department engineering = new Department("Engineering", alice, List.of(bob, charlie));
+    return new Department("Engineering", alice, List.of(bob, charlie));
+  }
+
+  /** Creates sample company data for demonstration. */
+  public static Company sampleCompany() {
+    Address hqAddress = new Address("1 Innovation Way", "London", "EC1A 1BB");
+
+    Department engineering = sampleDepartment();
 
     Address daveAddr = new Address("40 Maple Ave", "Bristol", "BS1 5GH");
     Address eveAddr = new Address("50 Cedar Close", "Bristol", "BS2 6IJ");
 
-    Employee dave = new Employee("E004", "Dave Wilson", daveAddr);
-    Employee eve = new Employee("E005", "Eve Taylor", eveAddr);
+    Employee dave =
+        new Employee("E004", "Dave Wilson", new BigDecimal("85000.00"), daveAddr);
+    Employee eve =
+        new Employee("E005", "Eve Taylor", new BigDecimal("68000.00"), eveAddr);
 
     Department sales = new Department("Sales", dave, List.of(eve));
 
@@ -110,33 +113,29 @@ public class NestedUpdateProblem {
   }
 
   public static void main(String[] args) {
-    Company company = sampleCompany();
+    Department engineering = sampleDepartment();
 
     System.out.println("=== The Nested Update Problem ===\n");
-    System.out.println("Original manager address:");
-    printManagerAddress(company, "Engineering");
+    System.out.println("Task: Give everyone in the department a 10% raise\n");
 
-    // Task: Change the Engineering manager's street to "100 New Street"
-    Company updated = updateManagerStreet(company, "Engineering", "100 New Street");
+    System.out.println("Original salaries:");
+    printSalaries(engineering);
 
-    System.out.println("\nAfter update:");
-    printManagerAddress(updated, "Engineering");
+    // The verbose approach
+    Department updated = giveEveryoneARaise(engineering);
 
-    System.out.println("\n--- Lines of code for a simple street change: ~20 ---");
-    System.out.println("--- Error opportunities: numerous ---");
+    System.out.println("\nAfter 10% raise:");
+    printSalaries(updated);
+
+    System.out.println("\n--- Lines of code for a simple salary update: ~15 ---");
+    System.out.println("--- Business logic buried in boilerplate ---");
     System.out.println("--- Pattern matching helps here: not at all ---");
   }
 
-  private static void printManagerAddress(Company company, String deptName) {
-    company.departments().stream()
-        .filter(d -> d.name().equals(deptName))
-        .findFirst()
-        .ifPresent(
-            dept -> {
-              Address addr = dept.manager().address();
-              System.out.printf(
-                  "  %s: %s, %s, %s%n",
-                  dept.manager().name(), addr.street(), addr.city(), addr.postcode());
-            });
+  private static void printSalaries(Department dept) {
+    System.out.printf("  Manager - %s: £%,.2f%n", dept.manager().name(), dept.manager().salary());
+    for (Employee emp : dept.staff()) {
+      System.out.printf("  Staff   - %s: £%,.2f%n", emp.name(), emp.salary());
+    }
   }
 }
