@@ -261,7 +261,15 @@ For Java developers, the practical takeaway is this: optics let you treat deeply
 
 ## The Optics Family
 
-Lenses are just one member of a family of optics. Each type handles a different kind of focus:
+Lenses are just one member of a family of optics. Each type handles a different kind of *focus*, a concept worth unpacking.
+
+When we say an optic "focuses" on a value, we mean it provides a way to zoom in on that value within a larger structure. The focus might be:
+
+- **Guaranteed** (always exactly one target)
+- **Conditional** (zero or one target, depending on the data)
+- **Multiple** (zero to many targets)
+
+Different optic types encode these different guarantees. Understanding which optic to use comes down to asking: "How many values might this path target, and is the targeting guaranteed to succeed?"
 
 ### Lens: Focus on Exactly One (Has-A)
 
@@ -283,11 +291,13 @@ record Circle(double radius) implements Shape {}
 record Rectangle(double width, double height) implements Shape {}
 ```
 
-A prism for `Circle` can:
-- **Get** the `Circle` from a `Shape`, if it is one (returning `Optional`)
-- **Build** a `Shape` from a `Circle` (always succeeds)
+A prism for `Circle` provides two operations:
+- **Match**: Extract the `Circle` from a `Shape`, if it is one (returning `Optional`)
+- **Build**: Construct a `Shape` from a `Circle` (always succeeds)
 
-Prisms handle the uncertainty of sum types. Not every `Shape` is a `Circle`, so `get` might fail. But every `Circle` is a `Shape`, so `build` always works.
+The key insight is that prisms are *partial isomorphisms*. They can always go one direction (build), but might fail in the other (match). Not every `Shape` is a `Circle`, so matching might fail. But every `Circle` is a `Shape`, so building always works.
+
+This asymmetry is what distinguishes prisms. They're perfect for sealed interfaces and enums, where you want to focus on a specific variant.
 
 ### Traversal: Focus on Many (Has-Many)
 
@@ -306,9 +316,9 @@ Department updated = allSalaries.modify(s -> s.multiply(RAISE_FACTOR), dept);
 
 Every employee's salary is updated. The traversal handled the iteration internally.
 
-### How Optics Compose
+### The Optics Hierarchy
 
-Optics form a hierarchy based on their focusing power. Think of it as a lattice where each optic can be viewed as a more general one:
+Optics form a hierarchy based on their focusing power. The diagram below shows how they relate. Read it from bottom to top: more specific optics (at the bottom) can always be used where more general ones (at the top) are expected.
 
 ```
                   ┌─────────────┐
@@ -338,6 +348,20 @@ Optics form a hierarchy based on their focusing power. Think of it as a lattice 
         └───────────┘
 ```
 
+**Reading the diagram:**
+
+- **Iso** (bottom): The most specific optic. It focuses on exactly one value and can convert in both directions without loss. Think of it as a reversible transformation, like converting between Celsius and Fahrenheit, or between a record and its tuple representation.
+
+- **Lens and Prism** (next level up): Both focus on at most one value, but in different ways. A Lens always succeeds (the field exists); a Prism might fail (the variant might not match). They converge at Iso because an Iso can do both: it always succeeds and always has a reverse.
+
+- **Affine** (middle): Combines the "might not exist" aspect of Prism with the "no construction" aspect of Lens. An Affine focuses on zero or one value without guaranteeing either. Use it for optional fields, map lookups, or any path that might not resolve.
+
+- **Fold** (read-only branch): Like a Traversal but only for reading. Useful when you need to extract or aggregate values without modifying them.
+
+- **Traversal** (top): The most general. It can focus on any number of values (zero, one, or many). Every other optic can be used as a Traversal.
+
+### How Composition Works
+
 When you compose two optics, the result is the "least powerful" optic that can represent both:
 
 - **Lens + Lens = Lens**: Both always focus on exactly one value
@@ -346,24 +370,33 @@ When you compose two optics, the result is the "least powerful" optic that can r
 
 The intuition: composing optics that might fail to focus yields an optic that reflects that uncertainty. A lens through a prism becomes an Affine because the prism might not match.
 
-### Affine: Focus on Zero or One
+### Affine vs Prism: The Subtle Difference
 
-Between Prism and Lens sits another useful optic: the *Affine* (sometimes called "Optional"). An Affine focuses on at most one value that might not exist:
+Both Affine and Prism focus on zero or one value, so what's the difference?
 
-- A lens composed with a prism yields an Affine
-- Accessing an optional field uses an Affine
-- Looking up a key in a map uses an Affine
+**Prism**: Can *construct* the whole from the part. A `Circle` prism can build a `Shape` from a `Circle`. Prisms are for sum types where the part *is* a valid whole.
+
+**Affine**: Cannot construct, only access. Looking up a key in a map might fail, but you cannot "build" a map from a single value. Affines are for optional access without construction.
+
+The practical distinction:
+- **Use Prism** for sealed interface variants, enum cases, or any "is-a" relationship where you might want to construct the parent type
+- **Use Affine** for optional fields, map lookups, list indexing, or paths through a prism followed by a lens
+
+When you compose a Lens with a Prism, the result is an Affine. You've lost the Prism's ability to construct (the Lens doesn't know how) but kept the "might not exist" semantics.
 
 Higher-Kinded-J provides full Affine support, completing the optics hierarchy.
 
 ### When to Use Each
 
-- **Lens**: Navigate to a field that always exists (exactly one)
-- **Prism**: Navigate to a variant that might or might not apply (zero or one, with construction)
-- **Affine**: Navigate to a value that might not exist (zero or one)
-- **Traversal**: Navigate to multiple elements in a collection (zero to many)
+| Optic | Targets | Can Construct? | Use Case |
+|-------|---------|----------------|----------|
+| **Iso** | Exactly 1, reversible | Yes (both ways) | Lossless conversions, newtype wrappers |
+| **Lens** | Exactly 1 | No | Record fields, guaranteed "has-a" |
+| **Prism** | 0 or 1 | Yes (one way) | Sealed interface variants, enum cases |
+| **Affine** | 0 or 1 | No | Optional fields, map lookups |
+| **Traversal** | 0 to many | No | Collections, bulk operations |
 
-In practice, you'll compose all four. Navigating to "the salary of every full-time employee in a company" requires a traversal (for the department list), another traversal (for the employee list), a prism (for full-time employees), and a lens (for the salary). Accessing an optional configuration value uses an Affine.
+In practice, you'll compose these freely. Navigating to "the salary of every full-time employee in a company" requires a traversal (for the department list), another traversal (for the employee list), a prism (for full-time employees), and a lens (for the salary). Accessing an optional configuration value uses an Affine. Converting between a record and its field tuple uses an Iso.
 
 ---
 
@@ -505,7 +538,7 @@ This article introduced the problem (the immutability gap) and sketched the solu
 
 - Why nested immutable updates are painful in Java
 - How pattern matching solves reading but not writing
-- The basic optics family: lens, prism, traversal
+- The optics family: iso, lens, prism, affine, traversal
 - A quick win showing the dramatic code reduction
 
 ### What Higher-Kinded-J Provides
