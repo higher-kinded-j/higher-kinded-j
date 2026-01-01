@@ -7,7 +7,7 @@ import org.higherkindedj.article2.optics.Lens;
 /**
  * An address with street, city, and postcode.
  *
- * <p>In production with higher-kinded-j, you would annotate this with {@code @GenerateLenses} to
+ * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses} to
  * auto-generate the lens accessors.
  */
 public record Address(String street, String city, String postcode) {

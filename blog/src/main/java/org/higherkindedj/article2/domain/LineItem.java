@@ -8,7 +8,7 @@ import org.higherkindedj.article2.optics.Lens;
 /**
  * A line item in an order.
  *
- * <p>In production with higher-kinded-j, you would annotate this with {@code @GenerateLenses}.
+ * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
  */
 public record LineItem(String productId, int quantity, BigDecimal price) {
 

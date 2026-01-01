@@ -4,7 +4,7 @@
 
 In Articles 1 and 2, we established why optics matter and how they work. Now it's time to apply them to a real domain: an expression language interpreter.
 
-Expression languages are the backbone of modern Java infrastructure, from Spring Expression Language (SpEL) to rule engines like Drools. If you've ever configured a complex Spring application or written business rules, you've used one. This article shows how Java 25's data-oriented programming features, combined with higher-kinded-j optics, make building such systems remarkably clean.
+Expression languages are the backbone of modern Java infrastructure, from Spring Expression Language (SpEL) to rule engines like Drools. If you've ever configured a complex Spring application or written business rules, you've used one. This article shows how Java 25's data-oriented programming features, combined with Higher-Kinded-J optics, make building such systems remarkably clean.
 
 This is the canonical showcase for optics: the domain where they truly shine.
 
@@ -152,7 +152,7 @@ public sealed interface Expr {
 }
 ```
 
-At compile time, higher-kinded-j's annotation processor generates:
+At compile time, Higher-Kinded-J's annotation processor generates:
 
 ### Prisms for Each Variant
 

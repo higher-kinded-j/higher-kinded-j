@@ -8,7 +8,7 @@ import org.higherkindedj.article2.optics.Lens;
 /**
  * An employee with id, name, address, and salary.
  *
- * <p>In production with higher-kinded-j, you would annotate this with {@code @GenerateLenses}.
+ * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
  */
 public record Employee(String id, String name, Address address, BigDecimal salary) {
 

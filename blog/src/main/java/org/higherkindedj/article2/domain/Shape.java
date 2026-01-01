@@ -8,7 +8,7 @@ import org.higherkindedj.article2.optics.Prism;
 /**
  * A sealed interface representing different shapes.
  *
- * <p>This demonstrates prisms for sum types. In production with higher-kinded-j, you would annotate
+ * <p>This demonstrates prisms for sum types. In production with Higher-Kinded-J, you would annotate
  * this with {@code @GeneratePrisms} to auto-generate the prism accessors.
  */
 public sealed interface Shape permits Shape.Circle, Shape.Rectangle, Shape.Triangle {

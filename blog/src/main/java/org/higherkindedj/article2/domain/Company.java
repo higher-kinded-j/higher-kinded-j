@@ -8,7 +8,7 @@ import org.higherkindedj.article2.optics.Lens;
 /**
  * A company with a name, headquarters, and departments.
  *
- * <p>In production with higher-kinded-j, you would annotate this with {@code @GenerateLenses}.
+ * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
  */
 public record Company(String name, Address headquarters, List<Department> departments) {
 

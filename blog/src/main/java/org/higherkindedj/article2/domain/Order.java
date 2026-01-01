@@ -9,7 +9,7 @@ import org.higherkindedj.article2.optics.Lens;
 /**
  * An order with items and status.
  *
- * <p>In production with higher-kinded-j, you would annotate this with {@code @GenerateLenses}.
+ * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
  */
 public record Order(String orderId, List<LineItem> items, OrderStatus status) {
 

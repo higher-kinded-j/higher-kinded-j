@@ -8,7 +8,7 @@ import org.higherkindedj.article2.optics.Lens;
 /**
  * A department with a name, manager, and staff.
  *
- * <p>In production with higher-kinded-j, you would annotate this with {@code @GenerateLenses}.
+ * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
  */
 public record Department(String name, Employee manager, List<Employee> staff) {
 
