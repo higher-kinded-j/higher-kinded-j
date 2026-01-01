@@ -128,7 +128,7 @@ public final class TraversalDemo {
             new Employee(
                 "E001",
                 "Alice",
-                new Address("1 London Road", "London", "E1 1AA"),
+                new Address("1 Grey Street", "Newcastle", "NE1 1AA"),
                 new BigDecimal("75000")),
             new Employee(
                 "E002",
@@ -138,7 +138,7 @@ public final class TraversalDemo {
             new Employee(
                 "E003",
                 "Carol",
-                new Address("3 London Lane", "London", "E1 3CC"),
+                new Address("3 Quayside", "Newcastle", "NE1 3CC"),
                 new BigDecimal("80000")),
             new Employee(
                 "E004",
@@ -148,21 +148,21 @@ public final class TraversalDemo {
 
     System.out.println("All employees: " + employees.stream().map(Employee::name).toList());
 
-    // Only employees in London
-    Traversal<List<Employee>, Employee> londonEmployees =
-        Traversal.<Employee>list().filtered(e -> e.address().city().equals("London"));
+    // Only employees in Newcastle
+    Traversal<List<Employee>, Employee> newcastleEmployees =
+        Traversal.<Employee>list().filtered(e -> e.address().city().equals("Newcastle"));
 
-    List<Employee> inLondon = londonEmployees.getAll(employees);
-    System.out.println("London employees: " + inLondon.stream().map(Employee::name).toList());
+    List<Employee> inNewcastle = newcastleEmployees.getAll(employees);
+    System.out.println("Newcastle employees: " + inNewcastle.stream().map(Employee::name).toList());
 
-    // Give London employees a 10% raise
-    Traversal<List<Employee>, BigDecimal> londonSalaries =
-        londonEmployees.andThen(Employee.Lenses.salary());
+    // Give Newcastle employees a 10% raise
+    Traversal<List<Employee>, BigDecimal> newcastleSalaries =
+        newcastleEmployees.andThen(Employee.Lenses.salary());
 
     List<Employee> afterRaise =
-        londonSalaries.modify(sal -> sal.multiply(new BigDecimal("1.10")), employees);
+        newcastleSalaries.modify(sal -> sal.multiply(new BigDecimal("1.10")), employees);
 
-    System.out.println("\nAfter 10% raise for London employees:");
+    System.out.println("\nAfter 10% raise for Newcastle employees:");
     afterRaise.forEach(e -> System.out.println("  " + e.name() + ": £" + e.salary()));
     System.out.println();
   }

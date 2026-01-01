@@ -510,7 +510,7 @@ public record Address(String street, String city, String postcode) {
 }
 ```
 
-The pattern is mechanical: the getter is the record accessor, the setter creates a new record with one field changed. In production code with higher-kinded-j, the `@GenerateLenses` annotation generates these automatically.
+The pattern is mechanical: the getter is the record accessor, the setter creates a new record with one field changed. In production code with Higher-Kinded-J, the `@GenerateLenses` annotation generates these automatically.
 
 Composition is where the magic happens:
 
@@ -567,7 +567,7 @@ In Article 2, we'll dive deeper into optics fundamentals:
 - Prisms for sum types and sealed interfaces
 - Affines for optional values
 - Traversals for collections and bulk operations
-- Setting up higher-kinded-j for annotation-driven lens generation
+- Setting up Higher-Kinded-J for annotation-driven lens generation
 
 From Article 3 onwards, we'll build an expression language interpreter, the canonical optics showcase, demonstrating how these abstractions shine for AST manipulation, tree transformations, and effectful operations.
 

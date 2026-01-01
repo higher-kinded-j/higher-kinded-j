@@ -12,7 +12,7 @@ import java.util.function.Function;
  * <p>Prisms represent "is-a" relationships: a Shape <em>might be a</em> Circle. Unlike lenses, the
  * focused value might not exist (the shape might be a Rectangle instead).
  *
- * <p>This implementation demonstrates the concepts from Article 2. With higher-kinded-j, you would
+ * <p>This implementation demonstrates the concepts from Article 2. With Higher-Kinded-J, you would
  * use {@code @GeneratePrisms} to auto-generate these.
  *
  * @param <S> the sum type (e.g., Shape)

@@ -11,7 +11,7 @@ import java.util.function.Function;
  * <p>Lenses represent "has-a" relationships: an Employee <em>has an</em> Address; an Address
  * <em>has a</em> street. The focused value is guaranteed to exist.
  *
- * <p>This implementation demonstrates the concepts from Article 2. With higher-kinded-j, you would
+ * <p>This implementation demonstrates the concepts from Article 2. With Higher-Kinded-J, you would
  * use {@code @GenerateLenses} to auto-generate these.
  *
  * @param <S> the type of the whole structure

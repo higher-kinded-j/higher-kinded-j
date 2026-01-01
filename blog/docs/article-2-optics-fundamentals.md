@@ -8,9 +8,9 @@ Now it's time to get practical. This article dives deep into the three core opti
 
 ---
 
-## Setting Up higher-kinded-j
+## Setting Up Higher-Kinded-J
 
-Before we explore optics in depth, let's configure our project to use higher-kinded-j's annotation-driven generation.
+Before we explore optics in depth, let's configure our project to use Higher-Kinded-J's annotation-driven generation.
 
 ### Gradle Configuration
 
@@ -103,7 +103,7 @@ A lens focuses on exactly one value within a larger structure. It represents a "
 
 ### Generating Lenses
 
-The `@GenerateLenses` annotation instructs higher-kinded-j to generate lens accessors for each record component:
+The `@GenerateLenses` annotation instructs Higher-Kinded-J to generate lens accessors for each record component:
 
 ```java
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -158,6 +158,18 @@ The `modify` operation is particularly powerful: it combines get and set in a si
 ### Lens Composition
 
 The real power emerges when you compose lenses. The `andThen` method chains lenses to reach deeper into nested structures:
+
+```
+┌──────────────┐      ┌─────────────┐      ┌────────────┐
+│   Employee   │─────▶│   Address   │─────▶│   String   │
+│              │      │             │      │  (street)  │
+└──────────────┘      └─────────────┘      └────────────┘
+       │                    │                    │
+       │    addressLens     │    streetLens      │
+       │                    │                    │
+       └────────────────────┴────────────────────┘
+                employeeStreet (composed)
+```
 
 ```java
 // Compose: Employee → Address → String
@@ -247,6 +259,18 @@ public final class ShapePrisms {
 ### Using Prisms
 
 Prisms provide different operations than lenses, reflecting their optional nature:
+
+```
+                          match (might fail)
+    ┌───────────┐     ─────────────────────▶     ┌───────────┐
+    │   Shape   │        Optional<Circle>        │  Circle   │
+    │           │     ◀─────────────────────     │           │
+    └───────────┘        build (always works)    └───────────┘
+         │                                             │
+         ├─── Circle ──┐                               │
+         ├─── Rectangle│  (only one variant matches)   │
+         └─── Triangle─┘                               │
+```
 
 ```java
 Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
@@ -368,14 +392,14 @@ One composed traversal replaces what would otherwise be nested loops with manual
 Sometimes you want to focus on only a subset of elements. The `filtered` method creates a traversal that only matches elements satisfying a predicate:
 
 ```java
-// Only employees in London
-Traversal<List<Employee>, Employee> londonStaff =
+// Only employees in Newcastle
+Traversal<List<Employee>, Employee> newcastleStaff =
     Traversals.<Employee>list()
-        .filtered(e -> e.address().city().equals("London"));
+        .filtered(e -> e.address().city().equals("Newcastle"));
 
-// Give London staff a raise
+// Give Newcastle staff a raise
 List<Employee> updated = Traversals.modify(
-    londonStaff,
+    newcastleStaff,
     e -> new Employee(e.id(), e.name(), e.address(), e.salary().multiply(new BigDecimal("1.1"))),
     employees
 );
@@ -387,7 +411,7 @@ Filters compose naturally with other optics, enabling precise targeting deep wit
 
 Traversals support folding, which aggregates all focused values into a single result. If you've used Java's `Stream.reduce()`, you already understand the core idea.
 
-**What is a Fold?** A fold combines multiple values into one. Java developers use this pattern constantly:
+**What is a Fold?** A fold combines multiple values into one. Java developers use this pattern all the time:
 
 ```java
 // This is a fold using Stream API
@@ -413,7 +437,7 @@ Set<String> uniqueCities = Traversals.getAll(allStaffCities, department)
     .collect(Collectors.toSet());
 ```
 
-**Understanding Monoids (the Java way):** The term "monoid" might sound intimidating, but you use them daily:
+**Understanding Monoids (the Java way):** The term "monoid" might sound unfamiliar, but you use them daily:
 
 - **Addition**: combine with `+`, start with `0`
 - **Multiplication**: combine with `*`, start with `1`
@@ -561,6 +585,18 @@ The core Effect Path types include:
 | `ValidationPath<E, A>` | `Validated` | Error accumulation |
 | `TryPath<A>` | `Try` | Exception handling |
 | `IOPath<A>` | `IO` | Deferred side effects |
+
+**Understanding the underlying effect types:**
+
+- **[Maybe](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)**: Represents a value that might be absent, similar to `Optional` but with richer composition. Use when a value simply might not exist.
+
+- **[Either](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/Either.java)**: Represents a value that is either a `Left` (typically an error) or a `Right` (the success value). Fails fast on the first error encountered.
+
+- **[Validated](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)**: Like `Either`, but designed for error *accumulation*. When combining multiple validations, collects all errors rather than stopping at the first.
+
+- **[Try](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trymonad/Try.java)**: Captures computations that might throw exceptions. Converts exception-throwing code into values you can compose safely.
+
+- **[IO](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IO.java)**: Represents a deferred side effect. The computation is described but not executed until explicitly run, enabling pure functional composition of effectful operations.
 
 These types integrate seamlessly with Focus paths via bridge methods:
 
