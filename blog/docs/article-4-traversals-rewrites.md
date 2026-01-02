@@ -22,6 +22,18 @@ No manual recursion. No reconstruction boilerplate. Just a fluent path that desc
 
 ---
 
+## Traversals as Garden Pruning
+
+Before diving into code, consider an analogy. Imagine you're pruning a tree in a garden. You need to visit every branch, decide what to do at each one, and rebuild the tree with your changes. You have two strategies:
+
+- **Bottom-up (leaves first)**: Start at the leaf tips, prune outward branches, then work your way down. Each branch is trimmed after its sub-branches are done. This is perfect when you need to see the final state of sub-branches before deciding on the parent.
+
+- **Top-down (trunk first)**: Start at the trunk, make decisions about major branches first, then work outward. Each branch is examined before its sub-branches. This works when you want to make early decisions that affect the whole subtree.
+
+In programming, a *traversal* is exactly this: a systematic way to visit every node in a tree structure, with a strategy for when to act on each node relative to its children. The Focus DSL makes this as natural as describing which branches to visit.
+
+---
+
 ## The Recursive Challenge
 
 Consider our expression AST. When we write `(x + 1) * (y + 2)`, we get:
@@ -32,6 +44,16 @@ new Binary(
     MUL,
     new Binary(new Variable("y"), ADD, new Literal(2))
 )
+```
+
+Visualised as a tree:
+
+```
+                    Binary(*)
+                   /         \
+            Binary(+)        Binary(+)
+           /        \       /        \
+     Variable(x)  Literal(1)  Variable(y)  Literal(2)
 ```
 
 This tree has seven nodes: three `Binary` expressions, two `Variable` nodes, and two `Literal` nodes. If we want to find all variables, we can't just look at the top level; we need to descend into every branch.
@@ -173,6 +195,20 @@ The choice between bottom-up and top-down matters:
 - **Bottom-up**: Children are transformed first. Use this when transformations depend on the structure of children (like constant folding, where we need to fold `1 + 2` before we can simplify `(1 + 2) * 3`).
 
 - **Top-down**: The node is transformed first. Use this when you want to pattern-match on the original structure before children change (like macro expansion).
+
+Here's the traversal order visualised:
+
+```
+Bottom-up (leaves → root):              Top-down (root → leaves):
+
+        Binary(*)  ⑦                            Binary(*)  ①
+       /         \                             /         \
+   Binary(+) ④   Binary(+) ⑥              Binary(+) ②   Binary(+) ⑤
+   /       \     /        \               /       \     /        \
+ x ①    1 ②    y ③     2 ⑤             x ③    1 ④    y ⑥     2 ⑦
+```
+
+For constant folding, bottom-up is essential: we need to evaluate `1 + 2` at the leaves before we can recognise that the parent is now `3 * 5`.
 
 ### Focus DSL: The Practical Choice
 
@@ -596,7 +632,24 @@ public final class ExprOptimiser {
 }
 ```
 
-The fixed-point iteration ensures we catch cascading simplifications. For example:
+The fixed-point iteration ensures we catch cascading simplifications:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Optimisation Pipeline                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Input ──▶ [Constant Fold] ──▶ [Simplify] ──▶ [Dead Branch] │
+│              │                                     │         │
+│              └─────────────◀── Loop ◀─────────────┘         │
+│                           (until fixed point)                │
+│                                  │                           │
+│                                  ▼                           │
+│                               Output                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+For example:
 
 ```
 (0 * x) + (1 + 2)
@@ -851,6 +904,10 @@ We'll see how `Validated` differs from `Either` (accumulating all errors rather 
 - **Franz Baader & Tobias Nipkow, *Term Rewriting and All That***: For readers interested in the theoretical foundations of pattern-based rewriting systems.
 
 - The optimisation passes in this article are simple term rewrites. Industrial strength rewriting (like in GHC's rule system) adds phases, termination proofs, and confluent rule ordering.
+
+### Algebraic Data Types in Java
+
+- **["Algebraic Data Types with Java"](https://blog.scottlogic.com/2025/01/20/algebraic-data-types-with-java.html)** (Scott Logic, 2025): A thorough introduction to algebraic data types using Java's sealed interfaces and records. Covers how sum types (like our expression AST) and product types compose to model complex domains.
 
 ### Higher-Kinded-J
 
