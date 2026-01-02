@@ -26,7 +26,7 @@ repositories {
     }
 }
 
-val hkjVersion = "0.2.2-SNAPSHOT"
+val hkjVersion = "0.3.0-RELEASE"
 
 dependencies {
     // Core library with optics
@@ -58,7 +58,7 @@ java {
 </repositories>
 
 <properties>
-    <hkj.version>0.2.2-SNAPSHOT</hkj.version>
+    <hkj.version>0.3.0-RELEASE</hkj.version>
 </properties>
 
 <dependencies>
@@ -186,7 +186,7 @@ Each composed lens handles all the intermediate reconstruction automatically. Th
 
 ### Lens Laws
 
-Well-behaved lenses satisfy three laws that ensure predictable behaviour:
+Well-behaved lenses must satisfy three laws that ensure predictable behaviour:
 
 1. **Get-Set**: If you get a value and then set it back, the structure is unchanged.
    ```java
@@ -203,11 +203,11 @@ Well-behaved lenses satisfy three laws that ensure predictable behaviour:
    lens.set(a2, lens.set(a1, s)) == lens.set(a2, s)
    ```
 
-These laws aren't just theoretical; they guarantee that lenses behave like mathematical getters and setters. The annotation processor generates lenses that satisfy these laws automatically.
+These laws aren't just theoretical; they form the guarantee that lenses behave like mathematical getters and setters. The annotation processor generates lenses that will satisfy these laws automatically.
 
 ### Pattern: Lens as Structural Path
 
-Think of a lens as a "structural JSON pointer" for your objects. Just as `/employee/address/street` navigates a JSON document, `employeeAddress.andThen(addressStreet)` navigates a Java object graph. The difference: it's type-safe, and it works bidirectionally.
+Think of a lens as a "structural pointer" for your objects. Just as `/employee/address/street` navigates a JSON document, `employeeAddress.andThen(addressStreet)` navigates a Java object graph. The difference: it's type-safe, and it works bidirectionally.
 
 ---
 
@@ -288,7 +288,7 @@ boolean isCircle = circlePrism.matches(shape);
 Shape doubled = circlePrism.modify(c -> new Circle(c.radius() * 2), shape);
 ```
 
-The `modify` on a prism is particularly elegant: it applies the transformation only if the prism matches, otherwise returning the original value unchanged. No explicit pattern matching required.
+The `modify` on a prism is particularly elegant: it applies the transformation only if the prism matches, otherwise returning the original value unchanged. No explicit pattern matching is required.
 
 ### Composing Prisms with Lenses
 
@@ -314,7 +314,7 @@ Notice the type: composing a `Prism` with a `Lens` yields a `Traversal`. This re
 
 ### Pattern: Type-Safe Downcasting
 
-Prisms provide type-safe downcasting without explicit `instanceof` checks:
+Prisms provide type-safe downcasting without the need for explicit `instanceof` checks:
 
 ```java
 // Traditional approach
@@ -337,7 +337,7 @@ Traversals generalise lenses to focus on zero or more values simultaneously. The
 
 ### Basic List Traversal
 
-Higher-kinded-j provides a built-in traversal for lists:
+Higher-Kinded-J provides a built-in traversal for lists:
 
 ```java
 Traversal<List<String>, String> listTraversal = Traversals.list();
@@ -355,7 +355,7 @@ List<String> all = Traversals.getAll(listTraversal, names);
 
 ### Composing Traversals for Nested Collections
 
-The real power comes when composing traversals with lenses to reach into nested structures:
+We can go even further composing traversals with lenses to reach into nested structures:
 
 ```java
 // Lens: Department → List<Employee>
@@ -411,7 +411,7 @@ Filters compose naturally with other optics, enabling precise targeting deep wit
 
 Traversals support folding, which aggregates all focused values into a single result. If you've used Java's `Stream.reduce()`, you already understand the core idea.
 
-**What is a Fold?** A fold combines multiple values into one. Java developers use this pattern all the time:
+**What is a Fold?** A fold combines multiple values into one. In Java, we use this pattern all the time:
 
 ```java
 // This is a fold using Stream API
@@ -442,10 +442,10 @@ Set<String> uniqueCities = Traversals.getAll(allStaffCities, department)
 - **Addition**: combine with `+`, start with `0`
 - **Multiplication**: combine with `*`, start with `1`
 - **String concatenation**: combine with `+`, start with `""`
-- **List concatenation**: combine with `addAll`, start with empty list
-- **Set union**: combine with `union`, start with empty set
+- **List concatenation**: combine with `addAll`, start with an empty list
+- **Set union**: combine with `union`, start with an empty set
 
-A monoid is simply: (1) a way to combine two values, and (2) an "empty" starting value. That's exactly what `Stream.reduce(identity, combiner)` expects! When the documentation mentions monoids, think "something I can reduce over".
+A monoid is simply: (1) a way to combine two values, and (2) an "empty" starting value. That's exactly what `Stream.reduce(identity, combiner)` expects! When the documentation mentions monoids, think "something I can reduce over."
 
 ---
 
@@ -523,7 +523,7 @@ The path is declarative and reusable. Need to calculate the total value? Use the
 
 So far, our optics have performed pure transformations. But real applications need effects: validation that might fail, state that accumulates, logging for debugging.
 
-Higher-kinded-j's optics support *effect-polymorphic* operations through `modifyF`:
+Higher-Kinded-J's optics support *effect-polymorphic* operations through `modifyF`:
 
 ```java
 // Pure modification
@@ -566,43 +566,6 @@ The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalP
 
 We'll introduce the Focus DSL properly in Article 3 and use it extensively from Article 4 onwards. For now, understanding the underlying optics gives you the conceptual foundation that makes the DSL's elegance possible.
 
-### What's Ahead: The Effect Path API
-
-Beyond optics and the Focus DSL, Higher-Kinded-J provides the **Effect Path API**: a fluent interface for computations that might fail, accumulate errors, or require deferred execution. The Effect Path types follow the "railway" metaphor where values travel along success or failure tracks:
-
-```
-Success Track:  ----[value]----> [transform] ----> [result]
-                        \            |
-Failure Track:           `--------->[error]------> [accumulated errors]
-```
-
-The core Effect Path types include:
-
-| Effect Path | Wraps | Use Case |
-|-------------|-------|----------|
-| `MaybePath<A>` | `Maybe` | Optional values (might be absent) |
-| `EitherPath<E, A>` | `Either` | Fail-fast error handling |
-| `ValidationPath<E, A>` | `Validated` | Error accumulation |
-| `TryPath<A>` | `Try` | Exception handling |
-| `IOPath<A>` | `IO` | Deferred side effects |
-
-**Understanding the underlying effect types:**
-
-- **[Maybe](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)**: Represents a value that might be absent, similar to `Optional` but with richer composition. Use when a value simply might not exist.
-
-- **[Either](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/Either.java)**: Represents a value that is either a `Left` (typically an error) or a `Right` (the success value). Fails fast on the first error encountered.
-
-- **[Validated](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)**: Like `Either`, but designed for error *accumulation*. When combining multiple validations, collects all errors rather than stopping at the first.
-
-- **[Try](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trymonad/Try.java)**: Captures computations that might throw exceptions. Converts exception-throwing code into values you can compose safely.
-
-- **[IO](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IO.java)**: Represents a deferred side effect. The computation is described but not executed until explicitly run, enabling pure functional composition of effectful operations.
-
-These types integrate seamlessly with Focus paths via bridge methods:
-
-```java
-// Navigate to a field, then enter the Effect Path world
-FocusPath<User, String> emailPath = UserFocus.email();
 
 MaybePath<String> maybeEmail = emailPath.toMaybePath(user)
     .map(String::toLowerCase)

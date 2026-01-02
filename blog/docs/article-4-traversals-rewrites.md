@@ -665,6 +665,46 @@ EitherPath<String, String> eitherNickname =
 // Returns Either.right(name) or Either.left("No nickname set")
 ```
 
+
+### What's Ahead: The Effect Path API
+
+Beyond optics and the Focus DSL, Higher-Kinded-J provides the **Effect Path API**: a fluent interface for computations that might fail, accumulate errors, or require deferred execution. The Effect Path types follow the "railway" metaphor where values travel along success or failure tracks:
+
+```
+Success Track:  ----[value]----> [transform] ----> [result]
+                        \            |
+Failure Track:           `--------->[error]------> [accumulated errors]
+```
+
+The core Effect Path types include:
+
+| Effect Path | Wraps | Use Case |
+|-------------|-------|----------|
+| `MaybePath<A>` | `Maybe` | Optional values (might be absent) |
+| `EitherPath<E, A>` | `Either` | Fail-fast error handling |
+| `ValidationPath<E, A>` | `Validated` | Error accumulation |
+| `TryPath<A>` | `Try` | Exception handling |
+| `IOPath<A>` | `IO` | Deferred side effects |
+
+**Understanding the underlying effect types:**
+
+- **[Maybe](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)**: Represents a value that might be absent, similar to `Optional` but with richer composition. Use when a value simply might not exist.
+
+- **[Either](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/Either.java)**: Represents a value that is either a `Left` (typically an error) or a `Right` (the success value). Fails fast on the first error encountered.
+
+- **[Validated](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)**: Like `Either`, but designed for error *accumulation*. When combining multiple validations, collects all errors rather than stopping at the first.
+
+- **[Try](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trymonad/Try.java)**: Captures computations that might throw exceptions. Converts exception-throwing code into values you can compose safely.
+
+- **[IO](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IO.java)**: Represents a deferred side effect. The computation is described but not executed until explicitly run, enabling pure functional composition of effectful operations.
+
+These types integrate seamlessly with Focus paths via bridge methods:
+
+```java
+// Navigate to a field, then enter the Effect Path world
+FocusPath<User, String> emailPath = UserFocus.email();
+
+
 ### Effect Paths with Traversals
 
 TraversalPath works with Effect Paths through `modifyF`. This is the bridge to effect-polymorphic operations:
