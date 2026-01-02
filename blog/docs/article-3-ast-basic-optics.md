@@ -6,7 +6,7 @@ In Articles 1 and 2, we established why optics matter and how they work. Now it'
 
 Expression languages are the backbone of modern Java infrastructure, from Spring Expression Language (SpEL) to rule engines like Drools. If you've ever configured a complex Spring application or written business rules, you've used one. This article shows how Java 25's data-oriented programming features, combined with Higher-Kinded-J optics, make building such systems remarkably clean.
 
-This is the canonical showcase for optics: the domain where they truly shine.
+This is a domain where optics really shine.
 
 Over the next three articles, we'll build a complete expression language with parsing, type checking, optimisation, and interpretation. Along the way, you'll see how optics transform what would otherwise be tedious tree manipulation into elegant, composable operations.
 
