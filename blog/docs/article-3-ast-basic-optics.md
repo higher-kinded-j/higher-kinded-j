@@ -438,12 +438,14 @@ if (expr instanceof Binary binary) {
 With the Focus DSL, we compose the checks fluently:
 
 ```java
-// AffinePath handles the "might not exist" cases automatically
+// Compose prism and lens with andThen(), yielding an Affine
+// Then wrap in AffinePath for fluent operations
 AffinePath<Expr, Object> leftLiteralValue =
-    AffinePath.of(ExprPrisms.binary().asAffine())
-        .via(BinaryFocus.left().toLens())
-        .via(ExprPrisms.literal())
-        .via(LiteralFocus.value().toLens());
+    AffinePath.of(
+        ExprPrisms.binary()
+            .andThen(BinaryLenses.left())
+            .andThen(ExprPrisms.literal())
+            .andThen(LiteralLenses.value()));
 
 Optional<Object> value = leftLiteralValue.getOptional(expr);
 ```
