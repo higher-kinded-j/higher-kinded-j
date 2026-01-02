@@ -4,8 +4,10 @@ package org.higherkindedj.article2.demo;
 
 import java.math.BigDecimal;
 import org.higherkindedj.article2.domain.Address;
+import org.higherkindedj.article2.domain.AddressLenses;
 import org.higherkindedj.article2.domain.Employee;
-import org.higherkindedj.article2.optics.Lens;
+import org.higherkindedj.article2.domain.EmployeeLenses;
+import org.higherkindedj.optics.Lens;
 
 /**
  * Demonstrates lens operations from Article 2.
@@ -17,6 +19,8 @@ import org.higherkindedj.article2.optics.Lens;
  *   <li>Lens composition with andThen()
  *   <li>The lens laws in action
  * </ul>
+ *
+ * @see <a href="../../docs/article-2-optics-fundamentals.md">Article 2: Optics Fundamentals</a>
  */
 public final class LensDemo {
 
@@ -32,7 +36,9 @@ public final class LensDemo {
     System.out.println("--- Basic Lens Operations ---\n");
 
     Address address = new Address("10 Downing Street", "London", "SW1A 2AA");
-    Lens<Address, String> streetLens = Address.Lenses.street();
+
+    // Generated lens from @GenerateLenses annotation
+    Lens<Address, String> streetLens = AddressLenses.street();
 
     // Get: extract the focused value
     String street = streetLens.get(address);
@@ -61,9 +67,9 @@ public final class LensDemo {
             new Address("221B Baker Street", "London", "NW1 6XE"),
             new BigDecimal("75000"));
 
-    // Compose: Employee → Address → String
+    // Compose: Employee -> Address -> String (street)
     Lens<Employee, String> employeeStreet =
-        Employee.Lenses.address().andThen(Address.Lenses.street());
+        EmployeeLenses.address().andThen(AddressLenses.street());
 
     // Now we can get/set/modify the street directly on an Employee
     String street = employeeStreet.get(employee);
@@ -75,8 +81,9 @@ public final class LensDemo {
     Employee transformed = employeeStreet.modify(s -> s + " (verified)", employee);
     System.out.println("MODIFY nested street: " + transformed.address().street());
 
-    // Deeper composition: Employee → Address → City
-    Lens<Employee, String> employeeCity = Employee.Lenses.address().andThen(Address.Lenses.city());
+    // Deeper composition: Employee -> Address -> City
+    Lens<Employee, String> employeeCity =
+        EmployeeLenses.address().andThen(AddressLenses.city());
 
     Employee relocated = employeeCity.set("Manchester", employee);
     System.out.println("Relocated to: " + relocated.address().city());
@@ -87,18 +94,18 @@ public final class LensDemo {
     System.out.println("--- Lens Laws ---\n");
 
     Address address = new Address("Original Street", "London", "SW1A 1AA");
-    Lens<Address, String> streetLens = Address.Lenses.street();
+    Lens<Address, String> streetLens = AddressLenses.street();
 
     // Law 1: Get-Set - If you get a value and then set it back, the structure is unchanged
     Address afterGetSet = streetLens.set(streetLens.get(address), address);
     boolean getSetLaw = address.equals(afterGetSet);
-    System.out.println("Get-Set Law: lens.set(lens.get(s), s) == s → " + getSetLaw);
+    System.out.println("Get-Set Law: lens.set(lens.get(s), s) == s -> " + getSetLaw);
 
     // Law 2: Set-Get - If you set a value, getting it returns what you set
     String newStreet = "New Street";
     String afterSetGet = streetLens.get(streetLens.set(newStreet, address));
     boolean setGetLaw = newStreet.equals(afterSetGet);
-    System.out.println("Set-Get Law: lens.get(lens.set(a, s)) == a → " + setGetLaw);
+    System.out.println("Set-Get Law: lens.get(lens.set(a, s)) == a -> " + setGetLaw);
 
     // Law 3: Set-Set - Setting twice is the same as setting once with the final value
     String street1 = "First Street";
@@ -107,7 +114,7 @@ public final class LensDemo {
     Address setOnce = streetLens.set(street2, address);
     boolean setSetLaw = setTwice.equals(setOnce);
     System.out.println(
-        "Set-Set Law: lens.set(a2, lens.set(a1, s)) == lens.set(a2, s) → " + setSetLaw);
+        "Set-Set Law: lens.set(a2, lens.set(a1, s)) == lens.set(a2, s) -> " + setSetLaw);
     System.out.println();
   }
 }

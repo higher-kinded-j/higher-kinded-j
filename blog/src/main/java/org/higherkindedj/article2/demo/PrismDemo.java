@@ -8,8 +8,10 @@ import org.higherkindedj.article2.domain.Shape;
 import org.higherkindedj.article2.domain.Shape.Circle;
 import org.higherkindedj.article2.domain.Shape.Rectangle;
 import org.higherkindedj.article2.domain.Shape.Triangle;
-import org.higherkindedj.article2.optics.Optionall;
-import org.higherkindedj.article2.optics.Prism;
+import org.higherkindedj.article2.domain.ShapePrisms;
+import org.higherkindedj.article2.domain.Shape_CircleLenses;
+import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Prism;
 
 /**
  * Demonstrates prism operations from Article 2.
@@ -21,6 +23,8 @@ import org.higherkindedj.article2.optics.Prism;
  *   <li>Composing prisms with lenses
  *   <li>Type-safe downcasting pattern
  * </ul>
+ *
+ * @see <a href="../../docs/article-2-optics-fundamentals.md">Article 2: Optics Fundamentals</a>
  */
 public final class PrismDemo {
 
@@ -35,7 +39,8 @@ public final class PrismDemo {
   private static void basicPrismOperations() {
     System.out.println("--- Basic Prism Operations ---\n");
 
-    Prism<Shape, Circle> circlePrism = Shape.Prisms.circle();
+    // Generated prism from @GeneratePrisms annotation
+    Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
     Shape circle = new Circle(5.0);
     Shape rectangle = new Rectangle(3.0, 4.0);
@@ -67,11 +72,12 @@ public final class PrismDemo {
   private static void prismWithLensComposition() {
     System.out.println("--- Prism + Lens Composition ---\n");
 
-    // Prism: Shape → Circle, then Lens: Circle → radius
-    Prism<Shape, Circle> circlePrism = Shape.Prisms.circle();
+    // Prism: Shape -> Circle, then Lens: Circle -> radius
+    Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
-    // Compose into an Optional (affine traversal)
-    Optionall<Shape, Double> shapeRadius = circlePrism.andThen(Circle.Lenses.radius());
+    // Compose into an Affine (0 or 1 focus)
+    Affine<Shape, Double> shapeRadius =
+        circlePrism.andThen(Shape_CircleLenses.radius());
 
     Shape circle = new Circle(5.0);
     Shape rectangle = new Rectangle(3.0, 4.0);
@@ -101,13 +107,13 @@ public final class PrismDemo {
             new Triangle(3.0, 4.0, 5.0),
             new Circle(5.0));
 
-    Prism<Shape, Circle> circlePrism = Shape.Prisms.circle();
+    Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
     // Traditional approach with instanceof
     System.out.println("Traditional instanceof approach:");
     for (Shape shape : shapes) {
-      if (shape instanceof Circle circle) {
-        System.out.println("  Found circle with radius: " + circle.radius());
+      if (shape instanceof Circle c) {
+        System.out.println("  Found circle with radius: " + c.radius());
       }
     }
 

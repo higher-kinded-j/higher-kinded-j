@@ -95,6 +95,24 @@ java {
 
 With the dependencies in place, we're ready to explore each optic type in depth.
 
+### Running the Examples
+
+All code examples in this article have runnable demos in the companion code:
+
+```bash
+./gradlew :blog:run
+```
+
+This executes the demos in [`org.higherkindedj.article2.demo`](../src/main/java/org/higherkindedj/article2/demo/), which demonstrate:
+
+- **[LensDemo](../src/main/java/org/higherkindedj/article2/demo/LensDemo.java)**: Basic lens operations and composition
+- **[PrismDemo](../src/main/java/org/higherkindedj/article2/demo/PrismDemo.java)**: Prism operations and type-safe downcasting
+- **[TraversalDemo](../src/main/java/org/higherkindedj/article2/demo/TraversalDemo.java)**: List traversals and filtering
+- **[CompositionDemo](../src/main/java/org/higherkindedj/article2/demo/CompositionDemo.java)**: Deep path composition for nested updates
+- **[ExpressionPreviewDemo](../src/main/java/org/higherkindedj/article2/demo/ExpressionPreviewDemo.java)**: Preview of the expression language from Article 3
+
+The domain classes use Higher-Kinded-J's annotation-driven generation, defined in [`org.higherkindedj.article2.domain`](../src/main/java/org/higherkindedj/article2/domain/).
+
 ---
 
 ## Lenses: The Foundation
@@ -297,20 +315,20 @@ Prisms compose with lenses to reach into variant-specific fields:
 ```java
 // Prism: Shape → Circle, then Lens: Circle → radius
 Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
-Lens<Circle, Double> radiusLens = CircleLenses.radius();
+Lens<Circle, Double> radiusLens = Shape_CircleLenses.radius();
 
-// Compose into a Traversal (zero or one focus)
-Traversal<Shape, Double> shapeRadius =
-    circlePrism.asTraversal().andThen(radiusLens.asTraversal());
+// Compose into an Affine (zero or one focus)
+Affine<Shape, Double> shapeRadius =
+    circlePrism.andThen(radiusLens);
 
-// Get the radius if it's a circle (returns a list with 0 or 1 element)
-List<Double> radii = Traversals.getAll(shapeRadius, shape);
+// Get the radius if it's a circle
+Optional<Double> radius = shapeRadius.getOptional(shape);
 
 // Double the radius if it's a circle
-Shape modified = Traversals.modify(shapeRadius, r -> r * 2, shape);
+Shape modified = shapeRadius.modify(r -> r * 2, shape);
 ```
 
-Notice the type: composing a `Prism` with a `Lens` yields a `Traversal`. This reflects the reality: we might find zero elements (if it's not a circle) or one element (if it is). The traversal handles both cases elegantly.
+Notice the type: composing a `Prism` with a `Lens` yields an `Affine`. This reflects the reality: we might find zero elements (if it's not a circle) or one element (if it is). The affine handles both cases elegantly.
 
 ### Pattern: Type-Safe Downcasting
 
@@ -340,7 +358,7 @@ Traversals generalise lenses to focus on zero or more values simultaneously. The
 Higher-Kinded-J provides a built-in traversal for lists:
 
 ```java
-Traversal<List<String>, String> listTraversal = Traversals.list();
+Traversal<List<String>, String> listTraversal = Traversals.forList();
 
 List<String> names = List.of("alice", "bob", "charlie");
 
@@ -362,7 +380,7 @@ We can go even further composing traversals with lenses to reach into nested str
 Lens<Department, List<Employee>> staffLens = DepartmentLenses.staff();
 
 // Traversal: List<Employee> → Employee
-Traversal<List<Employee>, Employee> eachEmployee = Traversals.list();
+Traversal<List<Employee>, Employee> eachEmployee = Traversals.forList();
 
 // Lens: Employee → Address
 Lens<Employee, Address> addressLens = EmployeeLenses.address();
@@ -394,7 +412,7 @@ Sometimes you want to focus on only a subset of elements. The `filtered` method 
 ```java
 // Only employees in Newcastle
 Traversal<List<Employee>, Employee> newcastleStaff =
-    Traversals.<Employee>list()
+    Traversals.<Employee>forList()
         .filtered(e -> e.address().city().equals("Newcastle"));
 
 // Give Newcastle staff a raise
@@ -470,7 +488,7 @@ In practice, you'll build paths incrementally:
 
 Traversal<Company, String> allManagerCities =
     CompanyLenses.departments().asTraversal()
-        .andThen(Traversals.list())
+        .andThen(Traversals.forList())
         .andThen(DepartmentLenses.manager().asTraversal())
         .andThen(EmployeeLenses.address().asTraversal())
         .andThen(AddressLenses.city().asTraversal());
@@ -502,9 +520,9 @@ To apply a 10% discount to all items across all orders for a customer:
 // Optics approach: define the path once
 Traversal<Customer, BigDecimal> allItemPrices =
     CustomerLenses.orders().asTraversal()
-        .andThen(Traversals.list())
+        .andThen(Traversals.forList())
         .andThen(OrderLenses.items().asTraversal())
-        .andThen(Traversals.list())
+        .andThen(Traversals.forList())
         .andThen(LineItemLenses.price().asTraversal());
 
 // Apply discount

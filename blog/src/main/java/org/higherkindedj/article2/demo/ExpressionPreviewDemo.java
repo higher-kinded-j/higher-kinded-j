@@ -2,14 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.article2.demo;
 
-import java.util.Optional;
-import org.higherkindedj.article2.optics.Lens;
-import org.higherkindedj.article2.optics.Prism;
-
 /**
  * Preview of the Expression Language domain from Article 2.
  *
- * <p>This demo introduces the AST structure that will be fully developed in Articles 3-5.
+ * <p>This demo introduces the AST structure that will be fully developed in Articles 3-5, where
+ * Higher-Kinded-J's {@code @GenerateLenses} and {@code @GeneratePrisms} annotations will generate
+ * all the optics automatically.
+ *
+ * @see <a href="../../docs/article-2-optics-fundamentals.md">Article 2: Optics Fundamentals</a>
  */
 public final class ExpressionPreviewDemo {
 
@@ -28,9 +28,13 @@ public final class ExpressionPreviewDemo {
     OR
   }
 
-  /** The expression AST - a sealed interface with record variants. */
+  /**
+   * The expression AST - a sealed interface with record variants.
+   *
+   * <p>In Article 3, this will be annotated with {@code @GeneratePrisms} to generate prisms for
+   * each variant, and each record will use {@code @GenerateLenses}.
+   */
   public sealed interface Expr {
-
     record Literal(Object value) implements Expr {}
 
     record Variable(String name) implements Expr {}
@@ -38,82 +42,6 @@ public final class ExpressionPreviewDemo {
     record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
 
     record Conditional(Expr cond, Expr then_, Expr else_) implements Expr {}
-
-    // ========== Prisms for Expr variants ==========
-
-    final class Prisms {
-      private Prisms() {}
-
-      public static Prism<Expr, Literal> literal() {
-        return Prism.of(e -> e instanceof Literal l ? Optional.of(l) : Optional.empty(), l -> l);
-      }
-
-      public static Prism<Expr, Variable> variable() {
-        return Prism.of(e -> e instanceof Variable v ? Optional.of(v) : Optional.empty(), v -> v);
-      }
-
-      public static Prism<Expr, Binary> binary() {
-        return Prism.of(e -> e instanceof Binary b ? Optional.of(b) : Optional.empty(), b -> b);
-      }
-
-      public static Prism<Expr, Conditional> conditional() {
-        return Prism.of(
-            e -> e instanceof Conditional c ? Optional.of(c) : Optional.empty(), c -> c);
-      }
-    }
-  }
-
-  // ========== Lenses for each record ==========
-
-  public static final class LiteralLenses {
-    private LiteralLenses() {}
-
-    public static Lens<Expr.Literal, Object> value() {
-      return Lens.of(Expr.Literal::value, (v, _) -> new Expr.Literal(v));
-    }
-  }
-
-  public static final class VariableLenses {
-    private VariableLenses() {}
-
-    public static Lens<Expr.Variable, String> name() {
-      return Lens.of(Expr.Variable::name, (n, _) -> new Expr.Variable(n));
-    }
-  }
-
-  public static final class BinaryLenses {
-    private BinaryLenses() {}
-
-    public static Lens<Expr.Binary, Expr> left() {
-      return Lens.of(Expr.Binary::left, (l, b) -> new Expr.Binary(l, b.op(), b.right()));
-    }
-
-    public static Lens<Expr.Binary, BinaryOp> op() {
-      return Lens.of(Expr.Binary::op, (o, b) -> new Expr.Binary(b.left(), o, b.right()));
-    }
-
-    public static Lens<Expr.Binary, Expr> right() {
-      return Lens.of(Expr.Binary::right, (r, b) -> new Expr.Binary(b.left(), b.op(), r));
-    }
-  }
-
-  public static final class ConditionalLenses {
-    private ConditionalLenses() {}
-
-    public static Lens<Expr.Conditional, Expr> cond() {
-      return Lens.of(
-          Expr.Conditional::cond, (c, cnd) -> new Expr.Conditional(c, cnd.then_(), cnd.else_()));
-    }
-
-    public static Lens<Expr.Conditional, Expr> then_() {
-      return Lens.of(
-          Expr.Conditional::then_, (t, cnd) -> new Expr.Conditional(cnd.cond(), t, cnd.else_()));
-    }
-
-    public static Lens<Expr.Conditional, Expr> else_() {
-      return Lens.of(
-          Expr.Conditional::else_, (e, cnd) -> new Expr.Conditional(cnd.cond(), cnd.then_(), e));
-    }
   }
 
   // ========== Demo ==========
@@ -122,8 +50,8 @@ public final class ExpressionPreviewDemo {
     System.out.println("=== Expression Language Preview (Article 2) ===\n");
 
     buildingExpressions();
-    usingPrisms();
-    basicTransformations();
+    patternMatchingPreview();
+    transformationPreview();
   }
 
   private static void buildingExpressions() {
@@ -151,84 +79,55 @@ public final class ExpressionPreviewDemo {
     System.out.println();
   }
 
-  private static void usingPrisms() {
-    System.out.println("--- Using Prisms on Expressions ---\n");
+  private static void patternMatchingPreview() {
+    System.out.println("--- Pattern Matching (Java 21+) ---\n");
 
     Expr literal = new Expr.Literal(42);
     Expr variable = new Expr.Variable("x");
     Expr binary = new Expr.Binary(new Expr.Literal(1), BinaryOp.ADD, new Expr.Literal(2));
 
-    Prism<Expr, Expr.Literal> literalPrism = Expr.Prisms.literal();
-    Prism<Expr, Expr.Variable> variablePrism = Expr.Prisms.variable();
-    Prism<Expr, Expr.Binary> binaryPrism = Expr.Prisms.binary();
+    // Java's pattern matching excels at reading
+    System.out.println("Pattern matching for reading:");
+    System.out.println("  " + describe(literal));
+    System.out.println("  " + describe(variable));
+    System.out.println("  " + describe(binary));
 
-    System.out.println("literalPrism.matches(Literal(42)): " + literalPrism.matches(literal));
-    System.out.println("literalPrism.matches(Variable(x)): " + literalPrism.matches(variable));
-    System.out.println("binaryPrism.matches(Binary(...)): " + binaryPrism.matches(binary));
-
-    // Extract the value from a literal
-    Optional<Object> value = literalPrism.andThen(LiteralLenses.value()).getOptional(literal);
-    System.out.println("Literal value: " + value);
-
-    // Extract the name from a variable
-    Optional<String> name = variablePrism.andThen(VariableLenses.name()).getOptional(variable);
-    System.out.println("Variable name: " + name);
+    System.out.println("\nBut for writing/transforming, we need optics!");
+    System.out.println("(Coming in Article 3 with @GenerateLenses and @GeneratePrisms)");
     System.out.println();
   }
 
-  private static void basicTransformations() {
-    System.out.println("--- Basic Transformations ---\n");
-
-    // x + y
-    Expr expr = new Expr.Binary(new Expr.Variable("x"), BinaryOp.ADD, new Expr.Variable("y"));
-
-    System.out.println("Original: " + format(expr));
-
-    // Rename 'x' to 'a' using prism + lens composition
-    Prism<Expr, Expr.Variable> variablePrism = Expr.Prisms.variable();
-    Lens<Expr.Variable, String> nameLens = VariableLenses.name();
-
-    // This only renames top-level variables (we'll do recursive traversal in Article 3)
-    Expr renamed =
-        variablePrism.modify(v -> v.name().equals("x") ? new Expr.Variable("a") : v, expr);
-    System.out.println("After renaming x→a (top-level only): " + format(renamed));
-
-    // Constant folding preview: 1 + 2 → 3
-    Expr foldable = new Expr.Binary(new Expr.Literal(1), BinaryOp.ADD, new Expr.Literal(2));
-    System.out.println("\nConstant folding preview:");
-    System.out.println("Before: " + format(foldable));
-
-    Prism<Expr, Expr.Binary> binaryPrism = Expr.Prisms.binary();
-    Expr folded = binaryPrism.modify(ExpressionPreviewDemo::tryFold, foldable);
-    System.out.println("After: " + format(folded));
-
-    System.out.println("\n(Full recursive transformations coming in Article 3!)");
-    System.out.println();
+  private static String describe(Expr expr) {
+    return switch (expr) {
+      case Expr.Literal(var v) -> "Literal with value: " + v;
+      case Expr.Variable(var n) -> "Variable named: " + n;
+      case Expr.Binary(var l, var op, var r) ->
+          "Binary " + op + " with left=" + describe(l) + ", right=" + describe(r);
+      case Expr.Conditional(var c, var t, var e) -> "Conditional expression";
+    };
   }
 
-  /** Try to fold a binary expression if both operands are integer literals. */
-  private static Expr.Binary tryFold(Expr.Binary binary) {
-    if (binary.left() instanceof Expr.Literal(Object lv)
-        && binary.right() instanceof Expr.Literal(Object rv)
-        && lv instanceof Integer li
-        && rv instanceof Integer ri) {
+  private static void transformationPreview() {
+    System.out.println("--- Transformation Preview ---\n");
 
-      Integer result =
-          switch (binary.op()) {
-            case ADD -> li + ri;
-            case SUB -> li - ri;
-            case MUL -> li * ri;
-            case DIV -> ri != 0 ? li / ri : null;
-            default -> null;
-          };
-
-      if (result != null) {
-        // Return a "folded" binary that will be recognized as constant
-        // (In Article 3, we'll properly return a Literal instead)
-        return new Expr.Binary(new Expr.Literal(result), binary.op(), new Expr.Literal(0));
-      }
-    }
-    return binary;
+    // What we want to achieve in Article 3:
+    System.out.println("In Article 3, with generated optics, we'll be able to:");
+    System.out.println();
+    System.out.println("  // Rename all variables from 'x' to 'a'");
+    System.out.println("  Expr renamed = ExprTraversals.allVariables()");
+    System.out.println("      .andThen(VariableLenses.name())");
+    System.out.println("      .modify(n -> n.equals(\"x\") ? \"a\" : n, expr);");
+    System.out.println();
+    System.out.println("  // Constant folding: evaluate 1 + 2 to 3");
+    System.out.println("  Expr folded = ExprTraversals.allBinaries()");
+    System.out.println("      .modify(ConstantFolder::fold, expr);");
+    System.out.println();
+    System.out.println("  // Collect all variable names in the expression");
+    System.out.println("  List<String> vars = Traversals.getAll(");
+    System.out.println("      ExprTraversals.allVariables().andThen(VariableLenses.name()), expr);");
+    System.out.println();
+    System.out.println("Stay tuned for the full implementation!");
+    System.out.println();
   }
 
   /** Simple expression formatter for demo output. */
