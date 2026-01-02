@@ -583,6 +583,8 @@ By the end of this series, you'll never want to update nested data manually agai
 
 - **Brian Goetz, ["Data-Oriented Programming in Java"](https://www.infoq.com/articles/data-oriented-programming-java/)** (InfoQ, 2022): Goetz's foundational article explaining the philosophy behind Java's DOP features.
 
+- **Scott Logic, ["Algebraic Data Types and Pattern Matching with Java"](https://blog.scottlogic.com/2025/01/20/algebraic-data-types-with-java.html)**: An excellent introduction to ADTs in modern Java, explaining product types, sum types, and how sealed interfaces with pattern matching supersede the Visitor pattern.
+
 - **[JEP 395: Records](https://openjdk.org/jeps/395)**, **[JEP 409: Sealed Classes](https://openjdk.org/jeps/409)**, **[JEP 441: Pattern Matching for switch](https://openjdk.org/jeps/441)**: The JDK Enhancement Proposals that brought DOP to Java, essential for understanding the design rationale.
 
 - **[JEP 468: Derived Record Creation (Preview)](https://openjdk.org/jeps/468)**: The `with` expression for records (preview in JDK 25), addressing single-level updates (though not nested ones).
