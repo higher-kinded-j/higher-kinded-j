@@ -11,7 +11,7 @@ import org.higherkindedj.article3.ast.Expr.Conditional;
 import org.higherkindedj.article3.ast.Expr.Literal;
 import org.higherkindedj.article3.ast.Expr.Variable;
 import org.higherkindedj.article3.ast.ExprPrisms;
-import org.higherkindedj.article3.ast.LiteralFocus;
+import org.higherkindedj.article3.ast.LiteralLenses;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -137,10 +137,11 @@ public final class ExprDemo {
     Binary transformed = leftPath.modify(l -> new Binary(l, BinaryOp.MUL, new Literal(10)), bin);
     System.out.println("Transform left to (left * 10): " + transformed.format());
 
-    // Compose with prisms using via() for optional navigation
+    // Compose with prisms using andThen() for optional navigation
+    // Prism.andThen(Lens) yields Affine, which we wrap in AffinePath
     // AffinePath: Expr → Literal → value (may not exist if not a Literal)
     AffinePath<Expr, Object> literalValuePath =
-        AffinePath.of(ExprPrisms.literal().asAffine()).via(LiteralFocus.value().toLens());
+        AffinePath.of(ExprPrisms.literal().andThen(LiteralLenses.value()));
 
     Expr lit = new Literal(42);
     Expr var = new Variable("x");
@@ -153,8 +154,9 @@ public final class ExprDemo {
     System.out.println("Double literal value: " + doubled.format());
 
     // Deep composition: Binary → left → as Literal → value
+    // Compose the prism and lens first, then use via() on the FocusPath
     AffinePath<Binary, Object> leftLiteralValue =
-        BinaryFocus.left().asAffine().via(ExprPrisms.literal()).via(LiteralFocus.value().toLens());
+        BinaryFocus.left().via(ExprPrisms.literal().andThen(LiteralLenses.value()));
 
     Optional<Object> deepValue = leftLiteralValue.getOptional(bin);
     System.out.println("\nDeep access (1+2).left.value: " + deepValue);
