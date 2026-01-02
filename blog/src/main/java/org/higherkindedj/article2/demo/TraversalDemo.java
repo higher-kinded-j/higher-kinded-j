@@ -101,7 +101,8 @@ public final class TraversalDemo {
 
     // Compose them: staffLens.asTraversal().andThen(eachEmployee).andThen(...)
     Traversal<Department, String> allStaffCities =
-        staffLens.asTraversal()
+        staffLens
+            .asTraversal()
             .andThen(eachEmployee)
             .andThen(addressLens.asTraversal())
             .andThen(cityLens.asTraversal());
@@ -116,7 +117,8 @@ public final class TraversalDemo {
 
     // Compose for streets
     Traversal<Department, String> allStaffStreets =
-        staffLens.asTraversal()
+        staffLens
+            .asTraversal()
             .andThen(eachEmployee)
             .andThen(addressLens.asTraversal())
             .andThen(AddressLenses.street().asTraversal());
@@ -160,15 +162,15 @@ public final class TraversalDemo {
         Traversals.<Employee>forList().filtered(e -> e.address().city().equals("Newcastle"));
 
     List<Employee> inNewcastle = Traversals.getAll(newcastleEmployees, employees);
-    System.out.println(
-        "Newcastle employees: " + inNewcastle.stream().map(Employee::name).toList());
+    System.out.println("Newcastle employees: " + inNewcastle.stream().map(Employee::name).toList());
 
     // Give Newcastle employees a 10% raise
     Traversal<List<Employee>, BigDecimal> newcastleSalaries =
         newcastleEmployees.andThen(EmployeeLenses.salary().asTraversal());
 
     List<Employee> afterRaise =
-        Traversals.modify(newcastleSalaries, sal -> sal.multiply(new BigDecimal("1.10")), employees);
+        Traversals.modify(
+            newcastleSalaries, sal -> sal.multiply(new BigDecimal("1.10")), employees);
 
     System.out.println("\nAfter 10% raise for Newcastle employees:");
     afterRaise.forEach(e -> System.out.println("  " + e.name() + ": £" + e.salary()));

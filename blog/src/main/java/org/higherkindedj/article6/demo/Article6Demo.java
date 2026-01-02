@@ -22,7 +22,8 @@ import org.higherkindedj.hkt.either.Either;
  *   <li>Interpretation (with environment state)
  * </ul>
  *
- * <p>Run with: {@code ./gradlew :review:run -PmainClass=org.higherkindedj.article6.demo.Article6Demo}
+ * <p>Run with: {@code ./gradlew :review:run
+ * -PmainClass=org.higherkindedj.article6.demo.Article6Demo}
  */
 public final class Article6Demo {
 
@@ -30,8 +31,7 @@ public final class Article6Demo {
     System.out.println("=== Article 6: Complete Pipeline Demo ===\n");
 
     // Set up environments
-    TypeEnv typeEnv =
-        TypeEnv.of(Map.of("x", Type.INT, "y", Type.INT, "flag", Type.BOOL));
+    TypeEnv typeEnv = TypeEnv.of(Map.of("x", Type.INT, "y", Type.INT, "flag", Type.BOOL));
     Environment runtimeEnv = Environment.of("x", 10, "y", 5, "flag", true);
 
     // Create the standard pipeline
@@ -44,8 +44,7 @@ public final class Article6Demo {
     demo(pipeline, "Conditional", "if flag then x * 2 else y * 3", runtimeEnv);
 
     // Demo 3: Nested conditionals
-    demo(
-        pipeline, "Nested conditionals", "if x > y then if flag then x else y else 0", runtimeEnv);
+    demo(pipeline, "Nested conditionals", "if x > y then if flag then x else y else 0", runtimeEnv);
 
     // Demo 4: Expression with optimisable constants
     demo(pipeline, "With constant folding", "(2 + 3) * x + (10 - 5)", runtimeEnv);

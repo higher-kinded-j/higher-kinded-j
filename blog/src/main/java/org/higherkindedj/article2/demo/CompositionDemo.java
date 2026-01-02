@@ -42,7 +42,8 @@ public final class CompositionDemo {
 
     // Define the path: Customer -> orders -> each order -> items -> each item -> price
     Traversal<Customer, BigDecimal> allItemPrices =
-        CustomerLenses.orders().asTraversal()
+        CustomerLenses.orders()
+            .asTraversal()
             .andThen(Traversals.forList())
             .andThen(OrderLenses.items().asTraversal())
             .andThen(Traversals.forList())
@@ -97,7 +98,8 @@ public final class CompositionDemo {
 
     // Demonstrate it works
     Traversal<Customer, BigDecimal> allItemPrices =
-        CustomerLenses.orders().asTraversal()
+        CustomerLenses.orders()
+            .asTraversal()
             .andThen(Traversals.forList())
             .andThen(OrderLenses.items().asTraversal())
             .andThen(Traversals.forList())
