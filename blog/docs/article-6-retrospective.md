@@ -16,7 +16,7 @@ Let's trace the arc of what we've built:
 
 **Article 1** identified the problem: the immutability gap. Modern Java gives us beautiful, immutable data structures but leaves us struggling when we need to update them. The copy-constructor cascade is verbose, error-prone, and obscures intent.
 
-**Article 2** introduced the toolkit: lenses for product types (records), prisms for sum types (sealed interfaces), and the crucial insight that these optics compose. We previewed both the Focus DSL and the Effect Path API as ergonomic layers over raw abstractions.
+**Article 2** introduced the toolkit: lenses for product types (records), prisms for sum types (sealed interfaces), and the crucial insight that these optics compose. We previewed both the [Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html) and the [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html) as ergonomic layers over raw abstractions.
 
 **Article 3** applied these ideas to a real domain: an expression language AST. We introduced `@GenerateFocus` alongside `@GenerateLenses` and `@GeneratePrisms`. The Focus DSL started showing its value: fluent navigation without explicit composition.
 
@@ -638,9 +638,10 @@ It's been rather interesting to explore. We hope you find it useful.
 ### Higher-Kinded-J
 
 - **Documentation and tutorials**: [higher-kinded-j.github.io](https://higher-kinded-j.github.io/)
-- **[Effect Path API](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
-- **[Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics/focus)**: FocusPath, AffinePath, TraversalPath
-- **API reference and examples**: Available on the documentation site
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath
+- **[Focus DSL Source](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics/focus)**: FocusPath, AffinePath, TraversalPath implementation
+- **[Effect Path API Source](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath implementation
 - **Contributing guide**: For those interested in helping develop the library
 
 ---

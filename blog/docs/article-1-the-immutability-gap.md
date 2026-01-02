@@ -13,7 +13,7 @@ Throughout this series, we use [Higher-Kinded-J](https://github.com/higher-kinde
 - **Optics** for navigating and modifying immutable data structures
 - **Effects** for computations that might fail, accumulate errors, or require deferred execution
 
-The first half of this series focuses on optics: lenses, prisms, and traversals. The second half introduces the Effect Path API, showing how navigation and computation work together. By the end, you will have a complete toolkit for data-oriented programming in Java.
+The first half of this series focuses on optics: lenses, prisms, and traversals. The second half introduces the [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html), showing how navigation and computation work together. By the end, you will have a complete toolkit for data-oriented programming in Java.
 
 ---
 
@@ -547,12 +547,12 @@ As introduced at the start, Higher-Kinded-J unifies optics and effects. For opti
 
 - **Production-ready optics**: Lens, Prism, Affine, Traversal, Iso, and more, with proper composition and laws
 - **Annotation-driven generation**: `@GenerateLenses`, `@GeneratePrisms`, and `@GenerateFocus` eliminate boilerplate
-- **The Focus DSL**: A fluent API for navigation without explicit composition
+- **[The Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: A fluent API for navigation without explicit composition
 - **Zero runtime overhead**: All the abstraction happens at compile time
 
 For effects (covered from Article 5 onwards):
 
-- **Effect Path API**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
+- **[Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
 - **Railway-style error handling**: Explicit success/failure tracks with composition
 - **Bridge methods**: Seamlessly connect Focus paths to Effect paths
 
@@ -600,6 +600,10 @@ By the end of this series, you'll never want to update nested data manually agai
 - **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)**: Source code, documentation, and examples.
 
 - **[Optics Module Documentation](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics)**: API reference for lenses, prisms, and traversals.
+
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
+
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
 
 ---
 

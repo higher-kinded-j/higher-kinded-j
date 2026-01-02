@@ -566,7 +566,7 @@ The same optic (the same composed path) works with any effect. This is the power
 
 We'll explore `modifyF` fully in Article 5, where we'll use it for type-checking with error accumulation and interpretation with state. For now, know that the optics you're learning aren't limited to pure transformations.
 
-### A Preview: The Focus DSL
+### A Preview: The [Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)
 
 The optics we're learning in this article form the foundation. But Higher-Kinded-J also provides something even more ergonomic: the **Focus DSL**. With `@GenerateFocus` annotations, you can write fluent navigation chains like:
 
@@ -594,7 +594,7 @@ ValidationPath<List<Error>, String> validated = emailPath.toValidationPath(user)
     .via(email -> validateEmail(email));
 ```
 
-The Effect Path API becomes the primary focus in Article 5, where we use it for type checking with error accumulation and interpretation with state. The combination of Focus paths (for navigation) with Effect paths (for computation) gives you a complete toolkit for data-oriented programming.
+The [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html) becomes the primary focus in Article 5, where we use it for type checking with error accumulation and interpretation with state. The combination of Focus paths (for navigation) with Effect paths (for computation) gives you a complete toolkit for data-oriented programming.
 
 ---
 
@@ -679,6 +679,10 @@ In Article 3, we'll apply these fundamentals to build the expression language AS
 - **[Annotation Processor Guide](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-processor)**: How `@GenerateLenses` and `@GeneratePrisms` work under the hood.
 
 - **[Type-Class Instances](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/typeclass)**: The `Functor`, `Applicative`, and `Monad` abstractions that power effect-polymorphic operations.
+
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
+
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
 
 ---
 
