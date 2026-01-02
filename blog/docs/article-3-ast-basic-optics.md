@@ -677,7 +677,7 @@ We'll also tackle dead code elimination and common subexpression elimination, sh
 
 - **Brian Goetz, ["Towards Better Serialization"](https://openjdk.org/projects/amber/design-notes/towards-better-serialization)**: Explores how records and sealed types create ADTs, with implications for pattern matching.
 
-- **Gavin King, ["Algebraic Data Types in Ceylon and Java"](https://ceylon-lang.org/blog/2015/12/07/algebraic-data-types/)**: A comparative look at ADTs across JVM languages, illuminating what Java 25 now provides natively.
+- **Scott Logic, ["Algebraic Data Types and Pattern Matching with Java"](https://blog.scottlogic.com/2025/01/20/algebraic-data-types-with-java.html)**: A thorough introduction to product types, sum types, and pattern matching in modern Java. Demonstrates how sealed interfaces and records implement ADTs with compile-time safety guarantees.
 
 ### Expression Languages and AST Design
 
