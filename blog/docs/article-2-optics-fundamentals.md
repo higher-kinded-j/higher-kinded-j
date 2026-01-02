@@ -315,7 +315,7 @@ Prisms compose with lenses to reach into variant-specific fields:
 ```java
 // Prism: Shape → Circle, then Lens: Circle → radius
 Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
-Lens<Circle, Double> radiusLens = Shape_CircleLenses.radius();
+Lens<Circle, Double> radiusLens = CircleLenses.radius();
 
 // Compose into an Affine (zero or one focus)
 Affine<Shape, Double> shapeRadius =
