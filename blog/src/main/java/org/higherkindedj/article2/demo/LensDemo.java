@@ -82,8 +82,7 @@ public final class LensDemo {
     System.out.println("MODIFY nested street: " + transformed.address().street());
 
     // Deeper composition: Employee -> Address -> City
-    Lens<Employee, String> employeeCity =
-        EmployeeLenses.address().andThen(AddressLenses.city());
+    Lens<Employee, String> employeeCity = EmployeeLenses.address().andThen(AddressLenses.city());
 
     Employee relocated = employeeCity.set("Manchester", employee);
     System.out.println("Relocated to: " + relocated.address().city());

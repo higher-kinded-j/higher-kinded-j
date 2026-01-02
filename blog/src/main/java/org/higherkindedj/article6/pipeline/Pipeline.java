@@ -10,8 +10,8 @@ import org.higherkindedj.article5.interpret.Environment;
 import org.higherkindedj.article5.interpret.ExprInterpreter;
 import org.higherkindedj.article5.typecheck.ExprTypeChecker;
 import org.higherkindedj.article5.typecheck.Type;
-import org.higherkindedj.article5.typecheck.TypeError;
 import org.higherkindedj.article5.typecheck.TypeEnv;
+import org.higherkindedj.article5.typecheck.TypeError;
 import org.higherkindedj.article6.parse.ExprParser;
 import org.higherkindedj.article6.parse.ParseError;
 import org.higherkindedj.hkt.either.Either;
@@ -26,7 +26,8 @@ import org.higherkindedj.hkt.validated.Validated;
  *   <li><b>Parser</b> - converts source text to AST ({@link ExprParser})
  *   <li><b>Type Checker</b> - validates types with error accumulation ({@link ExprTypeChecker})
  *   <li><b>Optimiser</b> - transforms the AST for efficiency ({@link ExprOptimiser})
- *   <li><b>Interpreter</b> - evaluates the expression with state threading ({@link ExprInterpreter})
+ *   <li><b>Interpreter</b> - evaluates the expression with state threading ({@link
+ *       ExprInterpreter})
  * </ol>
  *
  * <p>Each phase uses the effect system appropriate to its needs:

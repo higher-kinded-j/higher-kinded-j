@@ -13,8 +13,6 @@ import org.higherkindedj.article4.ast.Expr.Literal;
 import org.higherkindedj.article4.ast.Expr.Variable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.validated.Invalid;
-import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;

@@ -4,11 +4,11 @@ package org.higherkindedj.article2.demo;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.article2.domain.CircleLenses;
 import org.higherkindedj.article2.domain.Shape;
 import org.higherkindedj.article2.domain.Shape.Circle;
 import org.higherkindedj.article2.domain.Shape.Rectangle;
 import org.higherkindedj.article2.domain.Shape.Triangle;
-import org.higherkindedj.article2.domain.CircleLenses;
 import org.higherkindedj.article2.domain.ShapePrisms;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Prism;
@@ -76,8 +76,7 @@ public final class PrismDemo {
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
     // Compose into an Affine (0 or 1 focus)
-    Affine<Shape, Double> shapeRadius =
-        circlePrism.andThen(CircleLenses.radius());
+    Affine<Shape, Double> shapeRadius = circlePrism.andThen(CircleLenses.radius());
 
     Shape circle = new Circle(5.0);
     Shape rectangle = new Rectangle(3.0, 4.0);

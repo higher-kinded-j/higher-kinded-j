@@ -3,8 +3,6 @@
 package org.higherkindedj.article4.traversal;
 
 import java.util.function.Function;
-import java.util.function.Predicate;
-
 import org.higherkindedj.article4.ast.Expr;
 import org.higherkindedj.article4.ast.Expr.Binary;
 import org.higherkindedj.article4.ast.Expr.Conditional;

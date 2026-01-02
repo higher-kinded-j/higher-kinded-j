@@ -124,7 +124,8 @@ public final class ExpressionPreviewDemo {
     System.out.println();
     System.out.println("  // Collect all variable names in the expression");
     System.out.println("  List<String> vars = Traversals.getAll(");
-    System.out.println("      ExprTraversals.allVariables().andThen(VariableLenses.name()), expr);");
+    System.out.println(
+        "      ExprTraversals.allVariables().andThen(VariableLenses.name()), expr);");
     System.out.println();
     System.out.println("Stay tuned for the full implementation!");
     System.out.println();

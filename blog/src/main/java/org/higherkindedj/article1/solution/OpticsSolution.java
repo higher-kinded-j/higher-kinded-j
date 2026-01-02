@@ -17,8 +17,7 @@ public class OpticsSolution {
 
   // Traversal over all salaries in a department (manager + staff)
   private static final Traversal<Department, BigDecimal> allSalaries =
-      Traversal.fromLens(
-          Department.Lenses.staff(), Traversal.list(), Employee.Lenses.salary());
+      Traversal.fromLens(Department.Lenses.staff(), Traversal.list(), Employee.Lenses.salary());
 
   // Lens to manager's salary
   private static final Lens<Department, BigDecimal> managerSalary =
@@ -59,10 +58,8 @@ public class OpticsSolution {
     Address bobAddr = new Address("20 Elm Street", "Cambridge", "CB2 3CD");
     Address charlieAddr = new Address("30 Pine Road", "Oxford", "OX1 4EF");
 
-    Employee alice =
-        new Employee("E001", "Alice Chen", new BigDecimal("95000.00"), aliceAddr);
-    Employee bob =
-        new Employee("E002", "Bob Smith", new BigDecimal("75000.00"), bobAddr);
+    Employee alice = new Employee("E001", "Alice Chen", new BigDecimal("95000.00"), aliceAddr);
+    Employee bob = new Employee("E002", "Bob Smith", new BigDecimal("75000.00"), bobAddr);
     Employee charlie =
         new Employee("E003", "Charlie Brown", new BigDecimal("72000.00"), charlieAddr);
 
@@ -78,10 +75,8 @@ public class OpticsSolution {
     Address daveAddr = new Address("40 Maple Ave", "Bristol", "BS1 5GH");
     Address eveAddr = new Address("50 Cedar Close", "Bristol", "BS2 6IJ");
 
-    Employee dave =
-        new Employee("E004", "Dave Wilson", new BigDecimal("85000.00"), daveAddr);
-    Employee eve =
-        new Employee("E005", "Eve Taylor", new BigDecimal("68000.00"), eveAddr);
+    Employee dave = new Employee("E004", "Dave Wilson", new BigDecimal("85000.00"), daveAddr);
+    Employee eve = new Employee("E005", "Eve Taylor", new BigDecimal("68000.00"), eveAddr);
 
     Department sales = new Department("Sales", dave, List.of(eve));
 

@@ -21,8 +21,8 @@ import org.higherkindedj.hkt.effect.ValidationPath;
 /**
  * Demonstrates the Effect Path API introduced in Article 5.
  *
- * <p>The Effect Path API provides a fluent interface for computations that might fail,
- * accumulate errors, or require deferred execution. This demo showcases:
+ * <p>The Effect Path API provides a fluent interface for computations that might fail, accumulate
+ * errors, or require deferred execution. This demo showcases:
  *
  * <ul>
  *   <li>{@link MaybePath} - Optional values that might be absent
@@ -31,8 +31,8 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  *   <li>{@link ValidationPath} - Error accumulation using Semigroup
  * </ul>
  *
- * <p>The Effect Path types follow the "railway" metaphor where values travel along
- * success or failure tracks.
+ * <p>The Effect Path types follow the "railway" metaphor where values travel along success or
+ * failure tracks.
  */
 public final class EffectPathDemo {
 
@@ -57,29 +57,30 @@ public final class EffectPathDemo {
     MaybePath<String> absent = Path.nothing();
 
     // Chaining with map and filter
-    MaybePath<String> result = present
-        .map(String::toUpperCase)
-        .filter(s -> s.length() > 3)
-        .map(s -> s + "!");
+    MaybePath<String> result =
+        present.map(String::toUpperCase).filter(s -> s.length() > 3).map(s -> s + "!");
 
     System.out.println("   Path.just(\"Hello\").map(toUpperCase).filter(len>3).map(+\"!\")");
     System.out.println("   Result: " + result.getOrElse("(empty)"));
 
     // Chaining with via
-    MaybePath<Integer> parsed = Path.just("42")
-        .via(s -> {
-          try {
-            return Path.just(Integer.parseInt(s));
-          } catch (NumberFormatException e) {
-            return Path.nothing();
-          }
-        });
+    MaybePath<Integer> parsed =
+        Path.just("42")
+            .via(
+                s -> {
+                  try {
+                    return Path.just(Integer.parseInt(s));
+                  } catch (NumberFormatException e) {
+                    return Path.nothing();
+                  }
+                });
     System.out.println("   Path.just(\"42\").via(parseInt): " + parsed.getOrElse(-1));
 
     // Converting to other Effect Paths
     EitherPath<String, String> eitherFromMaybe = absent.toEitherPath("Value was missing");
-    System.out.println("   absent.toEitherPath(\"Value was missing\"): "
-        + eitherFromMaybe.run().fold(err -> "Left(" + err + ")", val -> "Right(" + val + ")"));
+    System.out.println(
+        "   absent.toEitherPath(\"Value was missing\"): "
+            + eitherFromMaybe.run().fold(err -> "Left(" + err + ")", val -> "Right(" + val + ")"));
 
     System.out.println();
   }
@@ -93,14 +94,12 @@ public final class EffectPathDemo {
     EitherPath<String, Integer> failure = Path.left("Division by zero");
 
     // Chaining with map and via
-    EitherPath<String, Integer> result = success
-        .map(n -> n * 2)
-        .via(n -> n > 0 ? Path.right(n) : Path.left("Must be positive"));
+    EitherPath<String, Integer> result =
+        success.map(n -> n * 2).via(n -> n > 0 ? Path.right(n) : Path.left("Must be positive"));
 
     System.out.println("   Path.right(42).map(*2).via(checkPositive)");
-    System.out.println("   Result: " + result.run().fold(
-        err -> "Left(" + err + ")",
-        val -> "Right(" + val + ")"));
+    System.out.println(
+        "   Result: " + result.run().fold(err -> "Left(" + err + ")", val -> "Right(" + val + ")"));
 
     // Error recovery
     EitherPath<String, Integer> recovered = failure.recover(err -> -1);
@@ -108,10 +107,9 @@ public final class EffectPathDemo {
 
     // Error transformation
     EitherPath<Integer, Integer> errorMapped = failure.mapError(String::length);
-    System.out.println("   failure.mapError(String::length): "
-        + errorMapped.run().fold(
-            code -> "Left(" + code + ")",
-            val -> "Right(" + val + ")"));
+    System.out.println(
+        "   failure.mapError(String::length): "
+            + errorMapped.run().fold(code -> "Left(" + code + ")", val -> "Right(" + val + ")"));
 
     System.out.println();
   }
@@ -125,13 +123,16 @@ public final class EffectPathDemo {
     TryPath<Integer> parseFailed = Path.tryOf(() -> Integer.parseInt("not a number"));
 
     System.out.println("   Path.tryOf(() -> parseInt(\"42\")): " + parsed.getOrElse(-1));
-    System.out.println("   Path.tryOf(() -> parseInt(\"not a number\")): " + parseFailed.getOrElse(-1));
+    System.out.println(
+        "   Path.tryOf(() -> parseInt(\"not a number\")): " + parseFailed.getOrElse(-1));
 
     // Chaining with recovery
-    TryPath<Integer> withRecovery = parseFailed.recover(ex -> {
-      System.out.println("   (Recovered from: " + ex.getMessage() + ")");
-      return 0;
-    });
+    TryPath<Integer> withRecovery =
+        parseFailed.recover(
+            ex -> {
+              System.out.println("   (Recovered from: " + ex.getMessage() + ")");
+              return 0;
+            });
     System.out.println("   After recovery: " + withRecovery.getOrElse(-1));
 
     System.out.println();
@@ -142,8 +143,7 @@ public final class EffectPathDemo {
     System.out.println("   -----------------------------------");
 
     // Simple validators
-    ValidationPath<List<String>, String> validName =
-        Path.valid("Alice", Semigroups.list());
+    ValidationPath<List<String>, String> validName = Path.valid("Alice", Semigroups.list());
     ValidationPath<List<String>, String> invalidName =
         Path.invalid(List.of("Name is required"), Semigroups.list());
     ValidationPath<List<String>, Integer> invalidAge =
@@ -151,31 +151,27 @@ public final class EffectPathDemo {
 
     // Short-circuit composition (via)
     System.out.println("   Short-circuit composition (via):");
-    ValidationPath<List<String>, String> sequential = invalidName
-        .via(n -> Path.valid(n.toUpperCase(), Semigroups.list()));
-    System.out.println("   invalidName.via(toUpperCase): "
-        + sequential.run().fold(
-            errs -> "Invalid(" + errs + ")",
-            val -> "Valid(" + val + ")"));
+    ValidationPath<List<String>, String> sequential =
+        invalidName.via(n -> Path.valid(n.toUpperCase(), Semigroups.list()));
+    System.out.println(
+        "   invalidName.via(toUpperCase): "
+            + sequential.run().fold(errs -> "Invalid(" + errs + ")", val -> "Valid(" + val + ")"));
 
     // Accumulating composition (zipWithAccum)
     System.out.println("   Accumulating composition (zipWithAccum):");
-    ValidationPath<List<String>, String> accumulated = invalidName
-        .zipWithAccum(invalidAge, (name, age) -> name + " is " + age);
-    System.out.println("   invalidName.zipWithAccum(invalidAge, combine): "
-        + accumulated.run().fold(
-            errs -> "Invalid(" + errs + ")",
-            val -> "Valid(" + val + ")"));
+    ValidationPath<List<String>, String> accumulated =
+        invalidName.zipWithAccum(invalidAge, (name, age) -> name + " is " + age);
+    System.out.println(
+        "   invalidName.zipWithAccum(invalidAge, combine): "
+            + accumulated.run().fold(errs -> "Invalid(" + errs + ")", val -> "Valid(" + val + ")"));
 
     // Valid accumulation
-    ValidationPath<List<String>, Integer> validAge =
-        Path.valid(30, Semigroups.list());
-    ValidationPath<List<String>, String> bothValid = validName
-        .zipWithAccum(validAge, (name, age) -> name + " is " + age);
-    System.out.println("   validName.zipWithAccum(validAge, combine): "
-        + bothValid.run().fold(
-            errs -> "Invalid(" + errs + ")",
-            val -> "Valid(" + val + ")"));
+    ValidationPath<List<String>, Integer> validAge = Path.valid(30, Semigroups.list());
+    ValidationPath<List<String>, String> bothValid =
+        validName.zipWithAccum(validAge, (name, age) -> name + " is " + age);
+    System.out.println(
+        "   validName.zipWithAccum(validAge, combine): "
+            + bothValid.run().fold(errs -> "Invalid(" + errs + ")", val -> "Valid(" + val + ")"));
 
     System.out.println();
   }
@@ -195,26 +191,27 @@ public final class EffectPathDemo {
     // Type check using ValidationPath
     ValidationPath<List<TypeError>, Type> result = typeCheckWithPath(expr, TypeEnv.empty());
 
-    result.run().fold(
-        errors -> {
-          System.out.println("   Result: Invalid with " + errors.size() + " error(s):");
-          for (TypeError error : errors) {
-            System.out.println("     - " + error.message());
-          }
-          return null;
-        },
-        type -> {
-          System.out.println("   Result: Valid, type = " + type);
-          return null;
-        }
-    );
+    result
+        .run()
+        .fold(
+            errors -> {
+              System.out.println("   Result: Invalid with " + errors.size() + " error(s):");
+              for (TypeError error : errors) {
+                System.out.println("     - " + error.message());
+              }
+              return null;
+            },
+            type -> {
+              System.out.println("   Result: Valid, type = " + type);
+              return null;
+            });
 
     System.out.println();
   }
 
   /**
-   * Type checks an expression using ValidationPath for error accumulation.
-   * This demonstrates using the Effect Path API directly.
+   * Type checks an expression using ValidationPath for error accumulation. This demonstrates using
+   * the Effect Path API directly.
    */
   private static ValidationPath<List<TypeError>, Type> typeCheckWithPath(Expr expr, TypeEnv env) {
     return switch (expr) {
@@ -231,9 +228,10 @@ public final class EffectPathDemo {
       case Integer _ -> Path.valid(Type.INT, Semigroups.list());
       case Boolean _ -> Path.valid(Type.BOOL, Semigroups.list());
       case String _ -> Path.valid(Type.STRING, Semigroups.list());
-      default -> Path.invalid(
-          List.of(new TypeError("Unknown literal type: " + value.getClass().getSimpleName())),
-          Semigroups.list());
+      default ->
+          Path.invalid(
+              List.of(new TypeError("Unknown literal type: " + value.getClass().getSimpleName())),
+              Semigroups.list());
     };
   }
 
@@ -241,9 +239,10 @@ public final class EffectPathDemo {
       String name, TypeEnv env) {
     return env.lookup(name)
         .map(type -> Path.<List<TypeError>, Type>valid(type, Semigroups.list()))
-        .orElseGet(() -> Path.invalid(
-            List.of(new TypeError("Undefined variable: " + name)),
-            Semigroups.list()));
+        .orElseGet(
+            () ->
+                Path.invalid(
+                    List.of(new TypeError("Undefined variable: " + name)), Semigroups.list()));
   }
 
   private static ValidationPath<List<TypeError>, Type> typeCheckBinaryWithPath(
@@ -251,9 +250,8 @@ public final class EffectPathDemo {
     // Use zipWithAccum to accumulate errors from both operands
     return typeCheckWithPath(left, env)
         .zipWithAccum(
-            typeCheckWithPath(right, env),
-            (lt, rt) -> checkBinaryTypesWithPath(op, lt, rt))
-        .via(result -> result);  // Flatten nested validation
+            typeCheckWithPath(right, env), (lt, rt) -> checkBinaryTypesWithPath(op, lt, rt))
+        .via(result -> result); // Flatten nested validation
   }
 
   private static ValidationPath<List<TypeError>, Type> typeCheckConditionalWithPath(
@@ -274,18 +272,22 @@ public final class EffectPathDemo {
         if (left == Type.INT && right == Type.INT) {
           yield Path.valid(Type.INT, Semigroups.list());
         }
-        yield Path.invalid(List.of(new TypeError(
-            "Arithmetic operator '%s' requires INT operands, got %s and %s"
-                .formatted(op.symbol(), left, right))),
+        yield Path.invalid(
+            List.of(
+                new TypeError(
+                    "Arithmetic operator '%s' requires INT operands, got %s and %s"
+                        .formatted(op.symbol(), left, right))),
             Semigroups.list());
       }
       case AND, OR -> {
         if (left == Type.BOOL && right == Type.BOOL) {
           yield Path.valid(Type.BOOL, Semigroups.list());
         }
-        yield Path.invalid(List.of(new TypeError(
-            "Logical operator '%s' requires BOOL operands, got %s and %s"
-                .formatted(op.symbol(), left, right))),
+        yield Path.invalid(
+            List.of(
+                new TypeError(
+                    "Logical operator '%s' requires BOOL operands, got %s and %s"
+                        .formatted(op.symbol(), left, right))),
             Semigroups.list());
       }
       case EQ, NE -> Path.valid(Type.BOOL, Semigroups.list());
@@ -293,9 +295,11 @@ public final class EffectPathDemo {
         if (left == Type.INT && right == Type.INT) {
           yield Path.valid(Type.BOOL, Semigroups.list());
         }
-        yield Path.invalid(List.of(new TypeError(
-            "Comparison operator '%s' requires INT operands, got %s and %s"
-                .formatted(op.symbol(), left, right))),
+        yield Path.invalid(
+            List.of(
+                new TypeError(
+                    "Comparison operator '%s' requires INT operands, got %s and %s"
+                        .formatted(op.symbol(), left, right))),
             Semigroups.list());
       }
     };
@@ -303,18 +307,20 @@ public final class EffectPathDemo {
 
   private static ValidationPath<List<TypeError>, Type> checkConditionalTypesWithPath(
       Type cond, Type then_, Type else_) {
-    ValidationPath<List<TypeError>, Type> condCheck = cond == Type.BOOL
-        ? Path.valid(cond, Semigroups.list())
-        : Path.invalid(
-            List.of(new TypeError("Condition must be BOOL, got " + cond)),
-            Semigroups.list());
+    ValidationPath<List<TypeError>, Type> condCheck =
+        cond == Type.BOOL
+            ? Path.valid(cond, Semigroups.list())
+            : Path.invalid(
+                List.of(new TypeError("Condition must be BOOL, got " + cond)), Semigroups.list());
 
-    ValidationPath<List<TypeError>, Type> branchCheck = then_ == else_
-        ? Path.valid(then_, Semigroups.list())
-        : Path.invalid(
-            List.of(new TypeError("Branches must have same type, got %s and %s"
-                .formatted(then_, else_))),
-            Semigroups.list());
+    ValidationPath<List<TypeError>, Type> branchCheck =
+        then_ == else_
+            ? Path.valid(then_, Semigroups.list())
+            : Path.invalid(
+                List.of(
+                    new TypeError(
+                        "Branches must have same type, got %s and %s".formatted(then_, else_))),
+                Semigroups.list());
 
     // Accumulate both checks
     return condCheck.zipWithAccum(branchCheck, (_, t) -> t);
