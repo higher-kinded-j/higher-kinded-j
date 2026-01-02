@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.article3.ast;
 
+import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 
@@ -22,24 +23,31 @@ import org.higherkindedj.optics.annotations.GeneratePrisms;
  *
  * <p>The {@code @GenerateLenses} annotation on each record generates lens accessors for each field,
  * enabling composable, immutable updates to nested structures.
+ *
+ * <p>The {@code @GenerateFocus} annotation generates Focus DSL classes that wrap lenses in fluent
+ * path types for elegant navigation chains.
  */
 @GeneratePrisms
 public sealed interface Expr {
 
   /** A literal value (integer, boolean, or string). */
   @GenerateLenses
+  @GenerateFocus
   record Literal(Object value) implements Expr {}
 
   /** A variable reference. */
   @GenerateLenses
+  @GenerateFocus
   record Variable(String name) implements Expr {}
 
   /** A binary operation. */
   @GenerateLenses
+  @GenerateFocus
   record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
 
   /** A conditional (if-then-else) expression. */
   @GenerateLenses
+  @GenerateFocus
   record Conditional(Expr cond, Expr thenBranch, Expr elseBranch) implements Expr {}
 
   // ========== Formatting ==========

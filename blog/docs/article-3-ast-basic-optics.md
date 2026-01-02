@@ -10,6 +10,21 @@ This is the canonical showcase for optics: the domain where they truly shine.
 
 Over the next three articles, we'll build a complete expression language with parsing, type checking, optimisation, and interpretation. Along the way, you'll see how optics transform what would otherwise be tedious tree manipulation into elegant, composable operations.
 
+### Running the Examples
+
+All code examples in this article have runnable demos in the companion code:
+
+```bash
+./gradlew :blog:run
+```
+
+This executes the demos in [`org.higherkindedj.article3.demo`](../src/main/java/org/higherkindedj/article3/demo/), which demonstrate:
+
+- **[ExprDemo](../src/main/java/org/higherkindedj/article3/demo/ExprDemo.java)**: Building ASTs, using prisms, and Focus DSL composition
+- **[OptimiserDemo](../src/main/java/org/higherkindedj/article3/demo/OptimiserDemo.java)**: Constant folding, identity simplification, and complex optimisation
+
+The AST types are defined in [`org.higherkindedj.article3.ast`](../src/main/java/org/higherkindedj/article3/ast/), with transformations in [`org.higherkindedj.article3.transform`](../src/main/java/org/higherkindedj/article3/transform/).
+
 ---
 
 ## The Expression Language Domain
@@ -44,6 +59,14 @@ Yet there's a tension that pure DOP doesn't fully address. When behaviour is sep
 
 This is precisely where optics prove their worth. They're not behaviour embedded in data (that would violate DOP principles). They're *reified access paths*: first-class values representing the structure of your types. The structure of a record implies its lenses; the variants of a sealed interface imply its prisms. Optics make this correspondence explicit and composable.
 
+### A Literary Analogy: Optics as Directions
+
+Think of optics like directions in a treasure map. The treasure (your data) doesn't know the directions to itself; it just *is*. But the directions (optics) are separate, shareable instructions that anyone can follow.
+
+A **lens** is like directions to a specific room in a house: "Go to the kitchen." You'll always find the kitchen there. A **prism** is like directions that might not apply: "If there's a garden, go to the fountain." Some houses have gardens; some don't. A **traversal** is like directions to multiple destinations: "Visit every bedroom."
+
+The power comes from composition. "Go to the garden, then to the fountain, then to the bench" chains directions together. If any step fails (no garden?), you stop gracefully. Optics compose the same way: each step may narrow, widen, or multiply your focus, and the types track this automatically.
+
 ---
 
 ## Designing the AST
@@ -75,6 +98,16 @@ This covers more than you might expect:
 - `Variable("x")`: variable reference
 - `Binary(Variable("a"), ADD, Literal(1))`: `a + 1`
 - `Conditional(Variable("flag"), Literal(1), Literal(0))`: `if flag then 1 else 0`
+
+Here's how `(a + 1) * 2` looks as an AST:
+
+```
+                    Binary(MUL)
+                   ╱           ╲
+            Binary(ADD)      Literal(2)
+           ╱          ╲
+    Variable("a")   Literal(1)
+```
 
 The recursive nature is already apparent: `Binary` contains two `Expr` children, and `Conditional` contains three. Any transformation must handle this recursion.
 
@@ -138,16 +171,16 @@ This reconstruction problem is precisely what optics solve. With three annotatio
 ```java
 @GeneratePrisms  // Generates prisms for each sealed variant
 public sealed interface Expr {
-    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    @GenerateLenses @GenerateFocus
     record Literal(Object value) implements Expr {}
 
-    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    @GenerateLenses @GenerateFocus
     record Variable(String name) implements Expr {}
 
-    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    @GenerateLenses @GenerateFocus
     record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
 
-    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    @GenerateLenses @GenerateFocus
     record Conditional(Expr cond, Expr thenBranch, Expr elseBranch) implements Expr {}
 }
 ```
@@ -402,19 +435,20 @@ if (expr instanceof Binary binary) {
 }
 ```
 
-With prisms, we compose the checks:
+With the Focus DSL, we compose the checks fluently:
 
 ```java
-Optional<Expr, Object> leftLiteralValue =
-    ExprPrisms.binary()
-        .andThen(BinaryLenses.left())
-        .andThen(ExprPrisms.literal())
-        .andThen(LiteralLenses.value());
+// AffinePath handles the "might not exist" cases automatically
+AffinePath<Expr, Object> leftLiteralValue =
+    AffinePath.of(ExprPrisms.binary())
+        .via(BinaryFocus.left().toLens())
+        .via(ExprPrisms.literal())
+        .via(LiteralFocus.value().toLens());
 
 Optional<Object> value = leftLiteralValue.getOptional(expr);
 ```
 
-The composed optic handles all the type checking internally.
+The composed path handles all the type checking internally. If `expr` isn't a `Binary`, or if its left operand isn't a `Literal`, the result is `Optional.empty()`.
 
 ### Conditional Transformation
 
@@ -455,6 +489,24 @@ This pattern matching is where Java's native features work well alongside optics
 ## Building a Simple Optimiser
 
 Let's put everything together to build a constant folder: an optimiser that evaluates constant expressions at compile time.
+
+```
+                              Optimisation Pipeline
+                              ════════════════════
+
+    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+    │  Input AST      │     │  Transform      │     │  Output AST     │
+    │  (1 + 2) * 3    │────▶│  Bottom-Up      │────▶│  9              │
+    └─────────────────┘     └─────────────────┘     └─────────────────┘
+                                    │
+                     ┌──────────────┼──────────────┐
+                     ▼              ▼              ▼
+              ┌───────────┐  ┌───────────┐  ┌───────────┐
+              │ Constant  │  │ Identity  │  │Conditional│
+              │ Folding   │  │Simplify   │  │ Simplify  │
+              │ 1+2 → 3   │  │ x+0 → x   │  │if T a b→a │
+              └───────────┘  └───────────┘  └───────────┘
+```
 
 ### Constant Folding
 
