@@ -4,36 +4,16 @@ package org.higherkindedj.article2.domain;
 
 import java.math.BigDecimal;
 import java.util.List;
-import org.higherkindedj.article2.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
  * An order with items and status.
  *
- * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
+ * <p>The {@code @GenerateLenses} annotation generates {@code OrderLenses} with static lens methods
+ * for each field.
  */
+@GenerateLenses
 public record Order(String orderId, List<LineItem> items, OrderStatus status) {
-
-  /** Lens accessors for Order fields. */
-  public static final class Lenses {
-    private Lenses() {}
-
-    public static Lens<Order, String> orderId() {
-      return Lens.of(
-          Order::orderId,
-          (newOrderId, order) -> new Order(newOrderId, order.items(), order.status()));
-    }
-
-    public static Lens<Order, List<LineItem>> items() {
-      return Lens.of(
-          Order::items, (newItems, order) -> new Order(order.orderId(), newItems, order.status()));
-    }
-
-    public static Lens<Order, OrderStatus> status() {
-      return Lens.of(
-          Order::status,
-          (newStatus, order) -> new Order(order.orderId(), order.items(), newStatus));
-    }
-  }
 
   /** Calculate the total value of this order. */
   public BigDecimal total() {

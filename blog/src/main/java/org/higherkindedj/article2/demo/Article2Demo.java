@@ -5,13 +5,19 @@ package org.higherkindedj.article2.demo;
 /**
  * Main entry point to run all Article 2 demos.
  *
- * <p>Run with: {@code ./gradlew run} or {@code java Article2Demo}
+ * <p>These demos accompany Article 2: Optics Fundamentals, demonstrating lenses, prisms, and
+ * traversals using Higher-Kinded-J's annotation-driven code generation.
+ *
+ * <p>Run with: {@code ./gradlew :blog:run}
+ *
+ * @see <a href="../../docs/article-2-optics-fundamentals.md">Article 2: Optics Fundamentals</a>
  */
 public final class Article2Demo {
 
   public static void main(String[] args) {
     System.out.println("╔══════════════════════════════════════════════════════════════╗");
     System.out.println("║     Article 2: Optics Fundamentals - Runnable Examples       ║");
+    System.out.println("║     Using Higher-Kinded-J Generated Lenses and Prisms        ║");
     System.out.println("╚══════════════════════════════════════════════════════════════╝");
     System.out.println();
 

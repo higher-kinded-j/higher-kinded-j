@@ -3,34 +3,13 @@
 package org.higherkindedj.article2.domain;
 
 import java.util.List;
-import org.higherkindedj.article2.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
  * A company with a name, headquarters, and departments.
  *
- * <p>In production with Higher-Kinded-J, you would annotate this with {@code @GenerateLenses}.
+ * <p>The {@code @GenerateLenses} annotation generates {@code CompanyLenses} with static lens
+ * methods for each field.
  */
-public record Company(String name, Address headquarters, List<Department> departments) {
-
-  /** Lens accessors for Company fields. */
-  public static final class Lenses {
-    private Lenses() {}
-
-    public static Lens<Company, String> name() {
-      return Lens.of(
-          Company::name,
-          (newName, co) -> new Company(newName, co.headquarters(), co.departments()));
-    }
-
-    public static Lens<Company, Address> headquarters() {
-      return Lens.of(
-          Company::headquarters, (newHq, co) -> new Company(co.name(), newHq, co.departments()));
-    }
-
-    public static Lens<Company, List<Department>> departments() {
-      return Lens.of(
-          Company::departments,
-          (newDepts, co) -> new Company(co.name(), co.headquarters(), newDepts));
-    }
-  }
-}
+@GenerateLenses
+public record Company(String name, Address headquarters, List<Department> departments) {}

@@ -5,16 +5,22 @@ package org.higherkindedj.article2.demo;
 import java.math.BigDecimal;
 import java.util.List;
 import org.higherkindedj.article2.domain.Customer;
+import org.higherkindedj.article2.domain.CustomerLenses;
 import org.higherkindedj.article2.domain.LineItem;
+import org.higherkindedj.article2.domain.LineItemLenses;
 import org.higherkindedj.article2.domain.Order;
+import org.higherkindedj.article2.domain.OrderLenses;
 import org.higherkindedj.article2.domain.OrderStatus;
-import org.higherkindedj.article2.optics.Traversal;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * Demonstrates optics composition patterns from Article 2.
  *
  * <p>This demo shows the e-commerce example: applying a discount to all items across all orders for
  * a customer.
+ *
+ * @see <a href="../../docs/article-2-optics-fundamentals.md">Article 2: Optics Fundamentals</a>
  */
 public final class CompositionDemo {
 
@@ -34,24 +40,24 @@ public final class CompositionDemo {
     System.out.println("Total order value: £" + customer.totalOrderValue());
     System.out.println();
 
-    // Define the path: Customer → orders → each order → items → each item → price
+    // Define the path: Customer -> orders -> each order -> items -> each item -> price
     Traversal<Customer, BigDecimal> allItemPrices =
-        Customer.Lenses.orders()
-            .andThen(Traversal.list())
-            .andThen(Order.Lenses.items())
-            .andThen(Traversal.list())
-            .andThen(LineItem.Lenses.price());
+        CustomerLenses.orders().asTraversal()
+            .andThen(Traversals.forList())
+            .andThen(OrderLenses.items().asTraversal())
+            .andThen(Traversals.forList())
+            .andThen(LineItemLenses.price().asTraversal());
 
     // Get all prices
-    List<BigDecimal> prices = allItemPrices.getAll(customer);
+    List<BigDecimal> prices = Traversals.getAll(allItemPrices, customer);
     System.out.println("All item prices: " + prices);
 
     // Apply 10% discount to all items
     Customer discounted =
-        allItemPrices.modify(price -> price.multiply(new BigDecimal("0.90")), customer);
+        Traversals.modify(allItemPrices, price -> price.multiply(new BigDecimal("0.90")), customer);
 
     System.out.println("\nAfter 10% discount:");
-    System.out.println("New prices: " + allItemPrices.getAll(discounted));
+    System.out.println("New prices: " + Traversals.getAll(allItemPrices, discounted));
     System.out.println("New total: £" + discounted.totalOrderValue());
     System.out.println();
   }
@@ -83,22 +89,22 @@ public final class CompositionDemo {
     System.out.println("Optics approach (3 lines):");
     System.out.println(
         """
-            Traversal<Customer, BigDecimal> allPrices = Customer.Lenses.orders()
-                .andThen(Traversal.list()).andThen(Order.Lenses.items())
-                .andThen(Traversal.list()).andThen(LineItem.Lenses.price());
-            Customer discounted = allPrices.modify(p -> p.multiply(new BigDecimal("0.90")), customer);
+            Traversal<Customer, BigDecimal> allPrices = CustomerLenses.orders().asTraversal()
+                .andThen(Traversals.forList()).andThen(OrderLenses.items().asTraversal())
+                .andThen(Traversals.forList()).andThen(LineItemLenses.price().asTraversal());
+            Customer discounted = Traversals.modify(allPrices, p -> p.multiply(new BigDecimal("0.90")), customer);
         """);
 
     // Demonstrate it works
     Traversal<Customer, BigDecimal> allItemPrices =
-        Customer.Lenses.orders()
-            .andThen(Traversal.list())
-            .andThen(Order.Lenses.items())
-            .andThen(Traversal.list())
-            .andThen(LineItem.Lenses.price());
+        CustomerLenses.orders().asTraversal()
+            .andThen(Traversals.forList())
+            .andThen(OrderLenses.items().asTraversal())
+            .andThen(Traversals.forList())
+            .andThen(LineItemLenses.price().asTraversal());
 
     Customer discounted =
-        allItemPrices.modify(price -> price.multiply(new BigDecimal("0.90")), customer);
+        Traversals.modify(allItemPrices, price -> price.multiply(new BigDecimal("0.90")), customer);
 
     System.out.println("Result verification:");
     System.out.println("  Original total: £" + customer.totalOrderValue());
