@@ -397,6 +397,8 @@ If performance matters, measure it:
 
 In practice, the optics overhead is often negligible compared to I/O, database access, or network calls. But "often" isn't "always", and your domain may differ.
 
+**Coming soon: Virtual Threads and Structured Concurrency**. Higher-Kinded-J will soon add support for Java 21+'s Virtual Threads and the Structured Concurrency API. This will enable concurrent traversals over large data structures with minimal overhead, making the performance trade-offs even more favourable. Effect paths like `IOPath` will integrate naturally with structured task scopes, providing safe concurrent execution with proper resource management.
+
 ---
 
 ## Real-World Applications
@@ -452,13 +454,19 @@ The expression language we've built is, in essence, a simple rule engine. The pa
 
 Higher-Kinded-J exists within a broader ecosystem of approaches to immutable data manipulation in Java and beyond.
 
-### Other Approaches in Java
+### Java First: Not an Imitation
 
-**Record patterns and with expressions (JEP 468)**: Currently in preview (JDK 25), this provides language-level support for shallow updates. For single-level changes, it will be simpler than optics once finalised. Optics remain valuable for deeper nesting and composition.
+Many functional libraries in Java are ports of Haskell or Scala libraries, bringing foreign idioms that feel awkward in Java code. **Higher-Kinded-J takes a different approach: Java first.**
 
-**Immutables and AutoValue**: These libraries generate immutable classes with builders. They're mature and well-integrated with IDE tooling. They don't provide optic composition, but for many use cases, builders suffice.
+We happily adopt good ideas from other languages—the optics patterns from Haskell's `lens`, the railway model from F#, the effect abstractions from Scala's ecosystem. But Higher-Kinded-J is not an imitation. It's a Java functional library designed to take advantage of modern Java:
 
-**Lombok's @With**: Annotation-driven generation of `with` methods. Simple to use, limited in composition. A reasonable choice if your needs are modest.
+- **Records and sealed interfaces** are first-class citizens, not afterthoughts
+- **Pattern matching** complements our optics rather than competing with them
+- **Annotation processing** generates idiomatic Java code, not Haskell-in-Java
+- **The Focus DSL** uses Java's method chaining naturally, not monadic do-notation
+- **Effect paths** follow railway semantics that Java developers find intuitive
+
+The goal isn't to make Java feel like Haskell. It's to give Java developers the powerful abstractions they need while respecting Java's idioms and strengths. When you use Higher-Kinded-J, you're writing Java—modern, expressive, functional Java.
 
 ### The Functional Programming Tradition
 
