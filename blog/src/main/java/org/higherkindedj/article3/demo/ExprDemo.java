@@ -140,7 +140,7 @@ public final class ExprDemo {
     // Compose with prisms using via() for optional navigation
     // AffinePath: Expr → Literal → value (may not exist if not a Literal)
     AffinePath<Expr, Object> literalValuePath =
-        AffinePath.of(ExprPrisms.literal()).via(LiteralFocus.value().toLens());
+        AffinePath.of(ExprPrisms.literal().asAffine()).via(LiteralFocus.value().toLens());
 
     Expr lit = new Literal(42);
     Expr var = new Variable("x");
