@@ -440,7 +440,7 @@ With the Focus DSL, we compose the checks fluently:
 ```java
 // AffinePath handles the "might not exist" cases automatically
 AffinePath<Expr, Object> leftLiteralValue =
-    AffinePath.of(ExprPrisms.binary())
+    AffinePath.of(ExprPrisms.binary().asAffine())
         .via(BinaryFocus.left().toLens())
         .via(ExprPrisms.literal())
         .via(LiteralFocus.value().toLens());
