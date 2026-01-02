@@ -756,7 +756,7 @@ These types integrate seamlessly with Focus paths via bridge methods:
 ```java
 // Navigate to a field, then enter the Effect Path world
 FocusPath<User, String> emailPath = UserFocus.email();
-
+```
 
 ### Effect Paths with Traversals
 
