@@ -584,7 +584,7 @@ The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalP
 
 We'll introduce the Focus DSL properly in Article 3 and use it extensively from Article 4 onwards. For now, understanding the underlying optics gives you the conceptual foundation that makes the DSL's elegance possible.
 
-
+```java 
 MaybePath<String> maybeEmail = emailPath.toMaybePath(user)
     .map(String::toLowerCase)
     .filter(e -> e.contains("@"));
