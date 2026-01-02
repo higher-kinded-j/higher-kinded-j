@@ -225,7 +225,7 @@ Each lens lets us:
 - Set a field, producing a new node
 - Modify a field with a function
 
-### Focus DSL: Fluent Navigation
+### [Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html): Fluent Navigation
 
 The `@GenerateFocus(generateNavigators = true)` annotation generates Focus classes with fluent navigation:
 
@@ -698,6 +698,10 @@ We'll also tackle dead code elimination and common subexpression elimination, sh
 - **[Prism Documentation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/optics/Prism.java)**: API reference for working with sum types.
 
 - **[@GeneratePrisms Annotation](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-processor-plugins)**: How the annotation processor generates prisms for sealed interfaces.
+
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
+
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
 
 ---
 

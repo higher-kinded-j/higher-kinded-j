@@ -6,7 +6,7 @@ In Article 4, we built traversals that visit every node in our expression tree. 
 
 Real compilers and interpreters need more. Type checking should report *all* errors, not just the first one. Interpretation must track variable bindings as it descends through the tree. These are *effects*, and they change everything about how we structure our code.
 
-Higher-Kinded-J provides the **Effect Path API**: a fluent interface for computations that might fail, accumulate errors, or require deferred execution. This is the practical face of effect polymorphism, making powerful abstractions accessible through an ergonomic API.
+Higher-Kinded-J provides the **[Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: a fluent interface for computations that might fail, accumulate errors, or require deferred execution. This is the practical face of effect polymorphism, making powerful abstractions accessible through an ergonomic API.
 
 ---
 
@@ -342,7 +342,7 @@ IOPath<String> resilient = Path.io(() -> httpClient.get(url))
 
 ## Bridging Focus Paths and Effect Paths
 
-The Focus DSL (FocusPath, AffinePath, TraversalPath) integrates seamlessly with Effect Paths. This bridge is where navigation meets computation.
+The [Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html) (FocusPath, AffinePath, TraversalPath) integrates seamlessly with Effect Paths. This bridge is where navigation meets computation.
 
 ### From Focus Paths to Effect Paths
 
@@ -701,6 +701,10 @@ In Article 6, we'll step back and reflect on what we've built:
 - **[Path Factory](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect/Path.java)**: Factory methods for creating Effect Paths.
 
 - **[Semigroups](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/Semigroups.java)**: Common semigroup implementations for error accumulation.
+
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
+
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
 
 ---
 

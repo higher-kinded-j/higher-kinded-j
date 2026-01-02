@@ -6,7 +6,7 @@ In Article 3, we built our expression language AST and applied basic optics (len
 
 This is where traversals become essential. A traversal focuses on zero or more elements within a structure, making it perfect for recursive tree operations.
 
-The Focus DSL provides `TraversalPath`: a fluent wrapper around traversals that makes collection navigation elegant and composable. By the end of this article, you'll be writing code like:
+The [Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html) provides `TraversalPath`: a fluent wrapper around traversals that makes collection navigation elegant and composable. By the end of this article, you'll be writing code like:
 
 ```java
 // Navigate all employees in all departments, modify their salaries
@@ -633,7 +633,7 @@ All through composable, declarative transformations.
 
 ---
 
-## Bridging to the Effect Path API
+## Bridging to the [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)
 
 The TraversalPath we've built throughout this article navigates and transforms data structures. But what happens when transformations might fail, or when we need to accumulate errors from multiple elements?
 
@@ -857,6 +857,10 @@ We'll see how `Validated` differs from `Either` (accumulating all errors rather 
 - **[Traversal Documentation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/optics/Traversal.java)**: API reference for working with multi-focus optics.
 
 - **[Traversals Utility Class](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/optics/util/Traversals.java)**: Helper methods for `getAll`, `modify`, and fold operations.
+
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
+
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
 
 ---
 
