@@ -15,6 +15,8 @@ Throughout this series, we use [Higher-Kinded-J](https://github.com/higher-kinde
 
 The first half of this series focuses on optics: lenses, prisms, and traversals. The second half introduces the [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html), showing how navigation and computation work together. By the end, you will have a complete toolkit for data-oriented programming in Java.
 
+**A note on philosophy**: Many functional libraries in Java are ports of Haskell or Scala libraries, bringing foreign idioms that feel awkward in Java code. Higher-Kinded-J takes a different approach: *Java first*. We adopt good ideas from other languages, but this is a Java functional library designed to take advantage of modern Java—records, sealed interfaces, pattern matching, and annotation processing. Higher-Kinded-J is not an imitation; it's functional programming that feels native to Java.
+
 ---
 
 ## The Promise of Modern Java

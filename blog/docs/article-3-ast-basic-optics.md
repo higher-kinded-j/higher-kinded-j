@@ -1,4 +1,4 @@
-# Building an Expression Language: Part 1, The AST and Basic Optics
+# Optics in Practice: An Expression Language AST
 
 *Part 3 of the Functional Optics for Modern Java series*
 
@@ -705,4 +705,4 @@ We'll also tackle dead code elimination and common subexpression elimination, sh
 
 ---
 
-*Next: [Article 4: Tree Traversals and Pattern Rewrites](article-4-traversals-rewrites.md)*
+*Next: [Article 4: The Focus DSL: Traversals and Pattern Rewrites](article-4-traversals-rewrites.md)*

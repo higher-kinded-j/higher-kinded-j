@@ -686,4 +686,4 @@ In Article 3, we'll apply these fundamentals to build the expression language AS
 
 ---
 
-*Next: [Article 3: Building an Expression Language: The AST and Basic Optics](article-3-ast-basic-optics.md)*
+*Next: [Article 3: Optics in Practice: An Expression Language AST](article-3-ast-basic-optics.md)*

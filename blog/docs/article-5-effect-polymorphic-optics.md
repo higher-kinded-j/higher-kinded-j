@@ -1,4 +1,4 @@
-# Building an Expression Language: Part 3, The Effect Path API
+# The Effect Path API: Railway-Style Error Handling
 
 *Part 5 of the Functional Optics for Modern Java series*
 
