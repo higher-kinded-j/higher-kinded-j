@@ -120,56 +120,7 @@ With all our pieces in place, we can sketch a complete processing pipeline. This
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Each phase uses the effect type appropriate to its semantics. The types make the error handling strategy explicit and composable.
-
-### A Simple Parser
-
-We haven't covered parsing in this series, as it's a topic deserving its own treatment. For completeness, here's a sketch of a recursive descent parser that produces our `Expr` AST:
-
-```java
-public class ExprParser {
-    private final String input;
-    private int pos = 0;
-
-    public ExprParser(String input) {
-        this.input = input;
-    }
-
-    public Either<ParseError, Expr> parse() {
-        try {
-            Expr result = parseExpr();
-            skipWhitespace();
-            if (pos < input.length()) {
-                return Either.left(new ParseError("Unexpected input at position " + pos));
-            }
-            return Either.right(result);
-        } catch (ParseException e) {
-            return Either.left(new ParseError(e.getMessage()));
-        }
-    }
-
-    private Expr parseExpr() {
-        return parseConditional();
-    }
-
-    private Expr parseConditional() {
-        skipWhitespace();
-        if (match("if")) {
-            Expr condition = parseExpr();
-            expect("then");
-            Expr thenBranch = parseExpr();
-            expect("else");
-            Expr elseBranch = parseExpr();
-            return new Conditional(condition, thenBranch, elseBranch);
-        }
-        return parseComparison();
-    }
-
-    // ... additional parsing methods for operators, literals, variables
-}
-```
-
-The parser returns `Either<ParseError, Expr>`, which slots naturally into our pipeline. For production use, you'd likely want a proper parser generator or combinator library, but the hand-written approach illustrates the principle.
+Each phase uses the effect type appropriate to its semantics. The types make the error handling strategy explicit and composable. (Parsing is out of scope for this series, but note how `Either<ParseError, Expr>` slots naturally into the pipeline.)
 
 ### Pipeline Composition
 
@@ -515,22 +466,7 @@ Higher-Kinded-J is a young project, but its optics implementation is comprehensi
 
 ### Current Capabilities
 
-The optics implementation covers **ten optic types** with full composition support:
-
-| Optic | Description | Status |
-|-------|-------------|--------|
-| **Iso** | Bidirectional lossless transformations | Complete |
-| **Lens** | Focus on single field in product type | Complete |
-| **Prism** | Focus on variant in sum type | Complete |
-| **Affine** | Focus on zero or one element (optional fields) | Complete |
-| **Traversal** | Focus on multiple elements | Complete |
-| **Getter** | Read-only single value access | Complete |
-| **Setter** | Write-only modification | Complete |
-| **Fold** | Read-only aggregation with filtering | Complete |
-| **At** | Indexed CRUD with insert/delete | Complete |
-| **Ixed** | Safe indexed access to existing elements | Complete |
-
-Plus indexed variants (IndexedLens, IndexedTraversal, IndexedFold) for operations that need to track position.
+The optics implementation is feature-complete with **ten optic types** (Iso, Lens, Prism, Affine, Traversal, Getter, Setter, Fold, At, Ixed) plus indexed variants for position tracking.
 
 **The Focus DSL** provides the ergonomic layer:
 
@@ -582,29 +518,9 @@ What "best for Java DOP" means in practice:
 - Effect abstractions that complement, not fight, Java's type system
 - Documentation that speaks to Java developers in familiar terms
 
-### Learning Resources
+### Getting Started and Contributing
 
-For those wanting to explore further, Higher-Kinded-J provides:
-
-- Full API documentation and tutorials at [higher-kinded-j.github.io](https://higher-kinded-j.github.io/)
-- Interactive examples covering real-world patterns
-- Cookbook-style guides for common tasks
-
-The configuration management pattern from Section 5 of this article is explored in depth in the online tutorials, with runnable code you can modify.
-
-### Getting Involved
-
-Higher-Kinded-J needs contributors. If you've found these patterns useful, consider helping make them accessible to more Java developers.
-
-Areas where help is particularly welcome:
-
-- Profunctor-based optics for unified composition
-- IDE plugins for optic composition visualisation
-- Documentation, tutorials, and real-world examples
-- Performance profiling and optimisation
-- Integration with popular Java frameworks
-
-The GitHub repository welcomes contributions, the issue tracker is open for bug reports and feature requests, and discussions provide a forum for questions and ideas.
+Full documentation, tutorials, and interactive examples are available at [higher-kinded-j.github.io](https://higher-kinded-j.github.io/). The GitHub repository welcomes contributions—particularly in areas like profunctor-based optics, IDE tooling, and framework integrations.
 
 ---
 

@@ -1,4 +1,4 @@
-# Building an Expression Language: Part 2, Tree Traversals and Pattern Rewrites
+# The Focus DSL: Traversals and Pattern Rewrites
 
 *Part 4 of the Functional Optics for Modern Java series*
 
@@ -921,4 +921,4 @@ We'll see how `Validated` differs from `Either` (accumulating all errors rather 
 
 ---
 
-*Next: [Article 5: Effect-Polymorphic Optics](article-5-effect-polymorphic-optics.md)*
+*Next: [Article 5: The Effect Path API: Railway-Style Error Handling](article-5-effect-polymorphic-optics.md)*
