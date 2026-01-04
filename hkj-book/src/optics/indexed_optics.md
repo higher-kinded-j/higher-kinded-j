@@ -2,6 +2,10 @@
 
 ## _Tracking Indices During Transformations_
 
+> *"Give me a place to stand, and I shall move the earth."*
+>
+> — Archimedes
+
 ![indexed-optics.jpg](../images/indexed-optics.jpg)
 
 ~~~admonish info title="What You'll Learn"
@@ -29,6 +33,45 @@ Consider these scenarios:
 - **Debugging nested updates** by seeing the complete path: "Changed scores[2] from 100 to 150"
 
 Standard optics give you the *value*. **Indexed optics** give you both the *index* and the *value*.
+
+```
+               STANDARD OPTICS vs INDEXED OPTICS
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  STANDARD TRAVERSAL                                         │
+  │  ═══════════════════                                        │
+  │                                                             │
+  │    List<Item>  ──▶  Traversal  ──▶  Item, Item, Item        │
+  │                                                             │
+  │    You get: "Laptop", "Mouse", "Keyboard"                   │
+  │    You lose: Where each item is in the list                 │
+  │                                                             │
+  ├─────────────────────────────────────────────────────────────┤
+  │  INDEXED TRAVERSAL                                          │
+  │  ══════════════════                                         │
+  │                                                             │
+  │    List<Item>  ──▶  IndexedTraversal  ──▶  (0, Item),       │
+  │                                            (1, Item),       │
+  │                                            (2, Item)        │
+  │                                                             │
+  │    You get: (0, "Laptop"), (1, "Mouse"), (2, "Keyboard")    │
+  │    Position becomes a first-class citizen                   │
+  │                                                             │
+  └─────────────────────────────────────────────────────────────┘
+
+                    ┌─────────────────────┐
+                    │   Pair<Index, A>    │
+                    │  ┌───────┬────────┐ │
+                    │  │ Index │ Value  │ │
+                    │  ├───────┼────────┤ │
+                    │  │   0   │ Laptop │ │
+                    │  │   1   │ Mouse  │ │
+|  │   2   │ Keyboard │ │
+                    │  └───────┴────────┘ │
+                    └─────────────────────┘
+```
+
+Archimedes understood that position is power. With the right fulcrum point, a lever can move the world. Similarly, with the right index, an optic can transform data in ways that value-only access cannot. Position-based discounts, numbered lists, audit trails showing *which* field changed: all require knowing *where* you are, not just *what* you have.
 
 ---
 
@@ -635,6 +678,38 @@ public class OrderOptics {
 ### Composing Indexed Optics with Paired Indices
 
 When you compose two indexed optics, the indices form a **pair** representing the path through nested structures.
+
+```
+        COMPOSING INDEXED OPTICS: NESTED PATH TRACKING
+
+   List<Order>                    List<Item>
+  ┌───────────┐                  ┌───────────┐
+  │ Order 0   │──┐               │ Item 0    │──▶ Pair(0, 0)
+  │           │  │    items      │ Item 1    │──▶ Pair(0, 1)
+  │ Order 1   │──┼──────────────▶├───────────┤
+  │           │  │               │ Item 0    │──▶ Pair(1, 0)
+  │ Order 2   │──┘               │ Item 1    │──▶ Pair(1, 1)
+  └───────────┘                  │ Item 2    │──▶ Pair(1, 2)
+                                 └───────────┘
+
+  IndexedTraversal<Integer, List<Order>, Order>
+                    │
+                    │ iandThen
+                    ▼
+  IndexedTraversal<Integer, List<Item>, Item>
+                    │
+                    │ Result: Pair<Pair<Integer, Integer>, Item>
+                    ▼
+            ┌───────────────────────────────────┐
+            │  (orderIndex, itemIndex) → Item   │
+            │  ─────────────────────────────────│
+            │  ((0, 0), Laptop)                 │
+            │  ((0, 1), Mouse)                  │
+            │  ((1, 0), Keyboard)               │
+            │  ((1, 1), Monitor)                │
+            │  ((1, 2), Cable)                  │
+            └───────────────────────────────────┘
+```
 
 ```java
 import org.higherkindedj.optics.indexed.Pair;

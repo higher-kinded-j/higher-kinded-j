@@ -163,6 +163,15 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `IOPath<A>` | Side effects you want to defer and sequence |
 | `TrampolinePath<A>` | Stack-safe recursion |
 | `CompletableFuturePath<A>` | Async operations |
+| `ReaderPath<R, A>` | Dependency injection, configuration access |
+| `WriterPath<W, A>` | Logging, audit trails, collecting metrics |
+| `WithStatePath<S, A>` | Stateful computations (parsers, counters) |
+| `ListPath<A>` | Batch processing with positional zipping |
+| `StreamPath<A>` | Lazy sequences, large data processing |
+| `NonDetPath<A>` | Non-deterministic search, combinations |
+| `LazyPath<A>` | Deferred evaluation, memoisation |
+| `IdPath<A>` | Pure computations (testing, generic code) |
+| `OptionalPath<A>` | Bridge for Java's standard `Optional` |
 | `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
 
 Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.

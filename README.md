@@ -174,6 +174,16 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `IOPath<A>` | Side effects you want to defer and sequence |
 | `TrampolinePath<A>` | Stack-safe recursion |
 | `CompletableFuturePath<A>` | Async operations |
+| `ReaderPath<R, A>` | Dependency injection, configuration access |
+| `WriterPath<W, A>` | Logging, audit trails, collecting metrics |
+| `WithStatePath<S, A>` | Stateful computations (parsers, counters) |
+| `ListPath<A>` | Batch processing with positional zipping |
+| `StreamPath<A>` | Lazy sequences, large data processing |
+| `NonDetPath<A>` | Non-deterministic search, combinations |
+| `LazyPath<A>` | Deferred evaluation, memoisation |
+| `IdPath<A>` | Pure computations (testing, generic code) |
+| `OptionalPath<A>` | Bridge for Java's standard `Optional` |
+| `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
 
 Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
 
@@ -183,11 +193,13 @@ Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focu
 
 ### [Order Processing Workflow](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html)
 
-See HKT concepts applied in a realistic scenario:
+See Effect Path and Focus DSL applied in a realistic e-commerce scenario:
 
-* Orchestrating async workflows using `CompletableFutureMonad`
-* Handling domain errors with `Either` and `EitherT` monad transformer
-* Integrating synchronous and asynchronous steps seamlessly
+* Composing multi-step workflows with `EitherPath` and `via()` chains
+* Modelling domain errors with sealed interfaces for exhaustive handling
+* Using `ForPath` comprehensions for readable sequential composition
+* Implementing resilience patterns: retry policies, timeouts, and recovery
+* Integrating Focus DSL for immutable state updates
 
 ### [Optics for Data Manipulation](https://higher-kinded-j.github.io/latest/optics/auditing_complex_data_example.html)
 
@@ -225,7 +237,7 @@ Traversal<League, Player> activePlayers =
 
 | Higher-Kinded-J | Spring Boot | Jackson | Java |
 |-----------------|-------------|---------|------|
-| 1.x | 4.0.1+ | 3.x (tools.jackson) | 25+ |
+| 0.3.x | 4.0.1+ | 3.x (tools.jackson) | 25+ |
 
 The hkj-spring-boot-starter requires Spring Boot 4.0.1 or later with Jackson 3.x (using the `tools.jackson` package namespace).
 
