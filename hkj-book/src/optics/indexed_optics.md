@@ -66,7 +66,7 @@ Standard optics give you the *value*. **Indexed optics** give you both the *inde
                     │  ├───────┼────────┤ │
                     │  │   0   │ Laptop │ │
                     │  │   1   │ Mouse  │ │
-                    │  │   2   │ Keybd  │ │
+|  │   2   │ Keyboard │ │
                     │  └───────┴────────┘ │
                     └─────────────────────┘
 ```
