@@ -237,7 +237,7 @@ Traversal<League, Player> activePlayers =
 
 | Higher-Kinded-J | Spring Boot | Jackson | Java |
 |-----------------|-------------|---------|------|
-| 0.3.x           | 4.0.1+ | 3.x (tools.jackson) | 25+ |
+| 0.3.x | 4.0.1+ | 3.x (tools.jackson) | 25+ |
 
 The hkj-spring-boot-starter requires Spring Boot 4.0.1 or later with Jackson 3.x (using the `tools.jackson` package namespace).
 
