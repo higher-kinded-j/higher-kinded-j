@@ -23,7 +23,6 @@ This guide addresses common issues you might encounter whilst working through th
 
 ```gradle
 dependencies {
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor:VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:VERSION")
 }
 ```
@@ -419,11 +418,6 @@ Update `build.gradle`:
                 <source>25</source>
                 <target>25</target>
                 <annotationProcessorPaths>
-                    <path>
-                        <groupId>io.github.higher-kinded-j</groupId>
-                        <artifactId>hkj-processor</artifactId>
-                        <version>${hkj.version}</version>
-                    </path>
                     <path>
                         <groupId>io.github.higher-kinded-j</groupId>
                         <artifactId>hkj-processor-plugins</artifactId>

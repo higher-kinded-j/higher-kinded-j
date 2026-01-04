@@ -10,7 +10,6 @@ application {
 dependencies {
     api(libs.jspecify)
     implementation(project(":hkj-core"))
-    annotationProcessor(project(":hkj-processor"))
     annotationProcessor(project(":hkj-processor-plugins"))
 
     // Testing dependencies for tutorials
