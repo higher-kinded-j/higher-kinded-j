@@ -23,7 +23,6 @@ This guide addresses common issues you might encounter whilst working through th
 
 ```gradle
 dependencies {
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor:VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:VERSION")
 }
 ```

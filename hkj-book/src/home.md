@@ -250,7 +250,6 @@ Add the following dependencies to your `build.gradle.kts`:
 ```gradle
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
 }
 ```
