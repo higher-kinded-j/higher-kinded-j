@@ -420,11 +420,6 @@ Update `build.gradle`:
                 <annotationProcessorPaths>
                     <path>
                         <groupId>io.github.higher-kinded-j</groupId>
-                        <artifactId>hkj-processor</artifactId>
-                        <version>${hkj.version}</version>
-                    </path>
-                    <path>
-                        <groupId>io.github.higher-kinded-j</groupId>
                         <artifactId>hkj-processor-plugins</artifactId>
                         <version>${hkj.version}</version>
                     </path>
