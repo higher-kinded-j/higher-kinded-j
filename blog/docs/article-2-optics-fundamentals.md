@@ -21,19 +21,15 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-    }
 }
 
-val hkjVersion = "0.3.0-RELEASE"
+val hkjVersion = "0.3.0"
 
 dependencies {
     // Core library with optics
     implementation("io.github.higher-kinded-j:hkj-core:$hkjVersion")
 
     // Annotation processors for lens/prism generation
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor:$hkjVersion")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:$hkjVersion")
 }
 
@@ -47,18 +43,9 @@ java {
 ### Maven Configuration
 
 ```xml
-<repositories>
-    <repository>
-        <id>sonatype-snapshots</id>
-        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-</repositories>
 
 <properties>
-    <hkj.version>0.3.0-RELEASE</hkj.version>
+    <hkj.version>0.3.0</hkj.version>
 </properties>
 
 <dependencies>
@@ -76,11 +63,6 @@ java {
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
                 <annotationProcessorPaths>
-                    <path>
-                        <groupId>io.github.higher-kinded-j</groupId>
-                        <artifactId>hkj-processor</artifactId>
-                        <version>${hkj.version}</version>
-                    </path>
                     <path>
                         <groupId>io.github.higher-kinded-j</groupId>
                         <artifactId>hkj-processor-plugins</artifactId>

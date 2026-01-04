@@ -2,7 +2,7 @@
 
 *Part 1 of the Functional Optics for Modern Java series*
 
-Modern Java has embraced immutability. Records give us concise, immutable data carriers. Pattern matching lets us elegantly destructure nested structures. Sealed interfaces enable exhaustive type hierarchies. Yet despite these advances, one fundamental operation remains surprisingly painful: updating a value deep within an immutable structure.
+Modern Java has done a lot to embrace immutability. Records give us concise, immutable data carriers. Pattern matching lets us elegantly destructure nested structures. Sealed interfaces enable exhaustive type hierarchies. Yet despite these advances, one fundamental operation remains surprisingly painful: updating a value deep within an immutable structure.
 
 This article introduces *optics*, a family of composable abstractions that complete the immutability story. If pattern matching is how we *read* nested data, optics are how we *write* it.
 
@@ -13,7 +13,7 @@ Throughout this series, we use [Higher-Kinded-J](https://github.com/higher-kinde
 - **Optics** for navigating and modifying immutable data structures
 - **Effects** for computations that might fail, accumulate errors, or require deferred execution
 
-The first half of this series focuses on optics: lenses, prisms, and traversals. The second half introduces the [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html), showing how navigation and computation work together. By the end, you will have a complete toolkit for data-oriented programming in Java.
+The first half of this series focuses on [Optics](https://higher-kinded-j.github.io/v0.3.0/optics/ch1_intro.html): lenses, prisms, and traversals. The second half introduces the [Effect Path API](https://higher-kinded-j.github.io/v0.3.0/effect/ch_intro.html), showing how navigation and computation work together. By the end, you will have a complete toolkit for data-oriented programming in Java.
 
 **A note on philosophy**: Many functional libraries in Java are ports of Haskell or Scala libraries, bringing foreign idioms that feel awkward in Java code. Higher-Kinded-J takes a different approach: *Java first*. We adopt good ideas from other languages, but this is a Java functional library designed to take advantage of modern Java—records, sealed interfaces, pattern matching, and annotation processing. Higher-Kinded-J is not an imitation; it's functional programming that feels native to Java.
 
@@ -177,7 +177,7 @@ Java is making progress here. [JEP 468](https://openjdk.org/jeps/468) introduces
 Address updated = oldAddress with { street = "100 New Street"; };
 ```
 
-This is genuinely useful. Instead of manually copying every field, you specify only what changes. The compiler handles the rest.
+This is a very useful start. Instead of manually copying every field, you specify only what changes. The compiler handles the rest.
 
 However, JEP 468 solves *single-level* updates, not *nested* ones. You cannot write:
 
@@ -402,7 +402,7 @@ In practice, you'll compose these freely. Navigating to "the salary of every ful
 
 ---
 
-## Quick Win: Optics in 60 Seconds
+## The Payoff: Optics in 60 Seconds
 
 Before diving deeper into theory, let's see the payoff. Here's the twenty-five-line method from earlier:
 
@@ -458,7 +458,7 @@ public static Department giveEveryoneARaise(Department dept) {
 
 A single expression. No loops. No manual reconstruction. The traversal handles the collection, the lenses handle the path. Every employee gets their raise, and every intermediate record is reconstructed correctly.
 
-**If this intrigues you, read on for the how and why.**
+**If this intrigues you, read on.**
 
 ---
 
@@ -530,7 +530,7 @@ Employee updated = employeeStreet.set("100 New Street", employee);
 Employee uppercased = employeeStreet.modify(String::toUpperCase, employee);
 ```
 
-One composed lens replaces what would otherwise be multiple levels of manual reconstruction. The "aha" moment: deep updates become shallow expressions.
+One composed lens replaces what would otherwise be multiple levels of manual reconstruction. Deep updates now become shallow expressions.
 
 ---
 
@@ -552,7 +552,7 @@ As introduced at the start, Higher-Kinded-J unifies optics and effects. For opti
 - **[The Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: A fluent API for navigation without explicit composition
 - **Zero runtime overhead**: All the abstraction happens at compile time
 
-For effects (covered from Article 5 onwards):
+For effects (covered from Part 5 onwards):
 
 - **[Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
 - **Railway-style error handling**: Explicit success/failure tracks with composition
@@ -564,16 +564,22 @@ You don't need to understand higher-kinded types to use the library effectively.
 
 ### The Road Ahead
 
-In Article 2, we'll dive deeper into optics fundamentals:
+Next time, we'll dive deeper into optics fundamentals:
 - Lens laws and why they matter for correctness
 - Prisms for sum types and sealed interfaces
 - Affines for optional values
 - Traversals for collections and bulk operations
 - Setting up Higher-Kinded-J for annotation-driven lens generation
 
-From Article 3 onwards, we'll build an expression language interpreter, the canonical optics showcase, demonstrating how these abstractions shine for AST manipulation, tree transformations, and effectful operations.
+From Part 3 onwards, we'll build an expression language interpreter, the canonical optics showcase, demonstrating how these abstractions shine for AST manipulation, tree transformations, and effectful operations.
 
-By the end of this series, you'll never want to update nested data manually again.
+By the end of this series, you'll not want to update nested data manually again.
+
+---
+
+## Article Code
+
+**[You can see the full runnable Java code from the example](https://github.com/higher-kinded-j/expression-language-example)**
 
 ---
 
@@ -601,11 +607,11 @@ By the end of this series, you'll never want to update nested data manually agai
 
 - **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)**: Source code, documentation, and examples.
 
-- **[Optics Module Documentation](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics)**: API reference for lenses, prisms, and traversals.
+- **[Optics Module Documentation](https://higher-kinded-j.github.io/v0.3.0/optics/ch1_intro.html)**: API reference for lenses, prisms, and traversals.
 
-- **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
+- **[Focus DSL Guide](https://higher-kinded-j.github.io/v0.3.0/optics/focus_dsl.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
 
-- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/v0.3.0/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
 
 ---
 
