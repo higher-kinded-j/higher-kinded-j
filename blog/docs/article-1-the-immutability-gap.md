@@ -549,12 +549,12 @@ As introduced at the start, Higher-Kinded-J unifies optics and effects. For opti
 
 - **Production-ready optics**: Lens, Prism, Affine, Traversal, Iso, and more, with proper composition and laws
 - **Annotation-driven generation**: `@GenerateLenses`, `@GeneratePrisms`, and `@GenerateFocus` eliminate boilerplate
-- **[The Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: A fluent API for navigation without explicit composition
+- **[The Focus DSL](https://higher-kinded-j.github.io/v0.3.0/optics/ch4_intro.html)**: A fluent API for navigation without explicit composition
 - **Zero runtime overhead**: All the abstraction happens at compile time
 
 For effects (covered from Part 5 onwards):
 
-- **[Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
+- **[Effect Path API](https://higher-kinded-j.github.io/v0.3.0/effect/ch_intro.html)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath
 - **Railway-style error handling**: Explicit success/failure tracks with composition
 - **Bridge methods**: Seamlessly connect Focus paths to Effect paths
 
@@ -607,7 +607,7 @@ By the end of this series, you'll not want to update nested data manually again.
 
 - **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)**: Source code, documentation, and examples.
 
-- **[Optics Module Documentation](https://higher-kinded-j.github.io/v0.3.0/optics/ch1_intro.html)**: API reference for lenses, prisms, and traversals.
+- **[Optics Documentation](https://higher-kinded-j.github.io/v0.3.0/optics/ch1_intro.html)**: API reference for lenses, prisms, and traversals.
 
 - **[Focus DSL Guide](https://higher-kinded-j.github.io/v0.3.0/optics/focus_dsl.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
 
