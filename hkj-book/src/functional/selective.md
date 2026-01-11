@@ -339,6 +339,12 @@ Higher-Kinded-J provides Selective instances for:
 
 ---
 
+~~~admonish tip title="See Also"
+- [Choosing Abstraction Levels](abstraction_levels.md) - When to use Applicative vs Selective vs Monad
+- [Free Applicative](../monads/free_applicative.md) - Building fully analysable programs
+- [Applicative](applicative.md) - Combining independent effects
+~~~
+
 ~~~admonish tip title="Further Reading"
 - **Selective Applicative Functors**: [Original Paper](https://dl.acm.org/doi/10.1145/3341694) - The academic paper introducing Selective functors
 - **Haskell Selective Library**: [Hackage](https://hackage.haskell.org/package/selective) - Reference implementation with additional examples

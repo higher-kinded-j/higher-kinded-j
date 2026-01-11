@@ -453,5 +453,4 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 
 ---
 
-**Previous:** [Natural Transformation](natural_transformation.md)
-
+**Previous:** [Natural Transformation](natural_transformation.md) | **Next:** [Choosing Your Abstraction Level](abstraction_levels.md)

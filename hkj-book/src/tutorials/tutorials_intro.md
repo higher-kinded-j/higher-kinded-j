@@ -32,7 +32,7 @@ After completing Core: Foundations, the **Effect API journey** is the recommende
 |---------|----------|-----------|-------|
 | [Foundations](coretypes/foundations_journey.md) | ~38 min | 24 | Kind, Functor, Applicative, Monad |
 | [Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | MonadError, Either, Maybe, Validated |
-| [Advanced Patterns](coretypes/advanced_journey.md) | ~26 min | 16 | Natural Transformations, Coyoneda, Free Ap |
+| [Advanced Patterns](coretypes/advanced_journey.md) | ~38 min | 26 | Natural Transformations, Coyoneda, Free Ap, Static Analysis |
 
 ### Optics Journeys
 

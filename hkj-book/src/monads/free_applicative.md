@@ -18,6 +18,8 @@
 - [FreeApTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free_ap/FreeApTest.java) - Comprehensive test suite
 - [FreeApApplicativeTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free_ap/FreeApApplicativeTest.java) - Applicative law verification
 - [FreeApplicativeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/FreeApplicativeExample.java) - Practical examples
+- [StaticAnalysisExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/StaticAnalysisExample.java) - Analysing programs before execution
+- [PermissionCheckingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/PermissionCheckingExample.java) - Pre-execution permission analysis
 ~~~
 
 ## Purpose
@@ -336,13 +338,20 @@ Use Free Applicative when your computations are independent; use Free Monad when
 
 ---
 
+~~~admonish tip title="See Also"
+- [Choosing Abstraction Levels](../functional/abstraction_levels.md) - When to use Applicative vs Selective vs Monad
+- [Selective](../functional/selective.md) - Middle ground between Applicative and Monad
+- [Applicative](../functional/applicative.md) - The type class Free Applicative is based on
+~~~
+
 ~~~admonish tip title="Further Reading"
 - **Functional Programming in Scala** (Red Book): Chapter 12 covers applicative functors and their relationship to monads
 - **Cats Documentation**: [Free Applicative](https://typelevel.org/cats/datatypes/freeapplicative.html) - Scala implementation with examples
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice Free Applicative in [Tutorial 10: Free Applicative](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial10_FreeApplicative.java) (6 exercises, ~12 minutes).
+- [Tutorial 10: Free Applicative](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial10_FreeApplicative.java) (6 exercises, ~10 minutes) - Building Free Applicative programs
+- [Tutorial 11: Static Analysis](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial11_StaticAnalysis.java) (10 exercises, ~12 minutes) - Analysing programs before execution
 ~~~
 
 ---

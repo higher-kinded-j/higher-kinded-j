@@ -4,9 +4,10 @@
 - Natural Transformations for polymorphic type conversion
 - Coyoneda for free functors and map fusion optimisation
 - Free Applicative for modelling independent, parallelisable computations
+- Static analysis of programs before execution
 ~~~
 
-**Duration**: ~26 minutes | **Tutorials**: 3 | **Exercises**: 16
+**Duration**: ~38 minutes | **Tutorials**: 4 | **Exercises**: 26
 
 **Prerequisites**: [Core Types: Error Handling Journey](error_handling_journey.md)
 
@@ -108,12 +109,54 @@ FreeAp.map2(freeA, freeB, (a, b) -> combine(a, b))
 
 ---
 
+## Tutorial 11: Static Analysis (~12 minutes)
+**File**: `Tutorial11_StaticAnalysis.java` | **Exercises**: 10
+
+Learn to analyse Free Applicative programs before execution.
+
+**What you'll learn**:
+- Counting operations with `FreeApAnalyzer.countOperations`
+- Collecting all operations with `FreeApAnalyzer.collectOperations`
+- Checking for dangerous operations before execution
+- Grouping operations by type for batching
+- Custom analysis with `Const` functor and `Monoid`
+- Under/Over semantics with `SelectiveAnalyzer`
+- Effect bounds and partitioning
+
+**Key insight**: Because Free Applicative captures program structure as data, you can inspect it before running. This enables permission checking, cost estimation, and optimisation.
+
+**Example**:
+```java
+// Build a program
+FreeAp<DbOp, Dashboard> program = buildDashboard(userId);
+
+// Analyse before running
+int opCount = FreeApAnalyzer.countOperations(program);
+boolean hasDeletions = FreeApAnalyzer.containsOperation(
+    program,
+    op -> DbOp.Delete.class.isInstance(DbOpHelper.DB_OP.narrow(op))
+);
+
+if (hasDeletions && !userHasPermission("delete")) {
+    throw new SecurityException("Delete operations not permitted");
+}
+```
+
+**Real-world application**: Permission checking, audit logging, cost estimation, query batching, security validation.
+
+**Links to documentation**: [Choosing Abstraction Levels](../../functional/abstraction_levels.md)
+
+[Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial11_StaticAnalysis.java)
+
+---
+
 ## Running the Tutorials
 
 ```bash
 ./gradlew :hkj-examples:test --tests "*Tutorial08_NaturalTransformation*"
 ./gradlew :hkj-examples:test --tests "*Tutorial09_Coyoneda*"
 ./gradlew :hkj-examples:test --tests "*Tutorial10_FreeApplicative*"
+./gradlew :hkj-examples:test --tests "*Tutorial11_StaticAnalysis*"
 ```
 
 ---
@@ -128,6 +171,9 @@ The "free functor" that gives any type a Functor instance. Stores a value and an
 
 ### Free Applicative
 Captures independent computations that can potentially run in parallel. Unlike Free Monad's `flatMap`, `map2` combines values without creating dependencies.
+
+### Static Analysis
+`FreeApAnalyzer` and `SelectiveAnalyzer` provide utilities for inspecting Free Applicative programs before execution. Count operations, check for dangerous effects, group operations for batching, and compute effect bounds.
 
 ---
 
