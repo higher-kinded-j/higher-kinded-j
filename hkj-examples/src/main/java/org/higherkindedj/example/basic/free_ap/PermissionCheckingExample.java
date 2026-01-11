@@ -213,7 +213,8 @@ public class PermissionCheckingExample {
     public String describe() {
       String highestDesc = highest == null ? "NONE" : highest.toString();
       return String.format(
-          "%s requires %s permission (user has up to %s)", operation.describe(), required, highestDesc);
+          "%s requires %s permission (user has up to %s)",
+          operation.describe(), required, highestDesc);
     }
   }
 
