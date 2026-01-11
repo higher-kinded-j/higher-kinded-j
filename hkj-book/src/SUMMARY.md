@@ -133,6 +133,7 @@
   - [Bifunctor](functional/bifunctor.md)
   - [Natural Transformation](functional/natural_transformation.md)
   - [For Comprehension](functional/for_comprehension.md)
+  - [Choosing Abstraction Levels](functional/abstraction_levels.md)
 
 # Foundations: Core Types
 - [Introduction](monads/ch_intro.md)
