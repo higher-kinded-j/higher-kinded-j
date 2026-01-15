@@ -23,13 +23,36 @@ tasks.named("javadoc") {
     enabled = false
 }
 
+// Default test task: runs solution tests only (tutorials are excluded)
+// Solutions must pass as they verify the tutorial exercises are correct
 tasks.named<Test>("test") {
     useJUnitPlatform()
-    failOnNoDiscoveredTests = false
-    ignoreFailures = true  // tutorials may fail if the user has not completed
-    // Exclude tutorial tests from CI builds
-    // These are interactive exercises meant for users, not automated testing
-    if (System.getenv("CI") == "true") {
-        exclude("**/tutorial/**")
-    }
+    // Exclude tutorial exercises (they are incomplete by design)
+    // Include solutions which must always pass
+    exclude("**/tutorial/optics/**")
+    exclude("**/tutorial/coretypes/**")
+    exclude("**/tutorial/concurrency/**")
+    exclude("**/tutorial/effect/**")
+    // Solutions are in tutorial/solutions/ and will run
+}
+
+// Separate task for users to run tutorial exercises
+// Usage: ./gradlew :hkj-examples:tutorialTest
+tasks.register<Test>("tutorialTest") {
+    description = "Run tutorial exercises (expected to fail until completed by user)"
+    group = "verification"
+    useJUnitPlatform()
+
+    // Configure test classpath (required for custom Test tasks)
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    // Only include tutorial exercises, exclude solutions
+    include("**/tutorial/optics/**")
+    include("**/tutorial/coretypes/**")
+    include("**/tutorial/concurrency/**")
+    include("**/tutorial/effect/**")
+    exclude("**/tutorial/solutions/**")
+    // Don't fail the build - tutorials are expected to fail
+    ignoreFailures = true
 }
