@@ -6,14 +6,11 @@ import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.either.Either;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
@@ -37,11 +34,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
-@Warmup(iterations = 5, time = 1)
-@Measurement(iterations = 10, time = 1)
-@Fork(
-    value = 2,
-    jvmArgs = {"-Xms2G", "-Xmx2G"})
 public class EitherBenchmark {
 
   private Either<String, Integer> right;
@@ -123,7 +115,7 @@ public class EitherBenchmark {
   @Benchmark
   public Either<String, Integer> rightLongChain() {
     Either<String, Integer> result = right;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 50; i++) {
       result = result.map(x -> x + 1);
     }
     return result;
@@ -137,7 +129,7 @@ public class EitherBenchmark {
   @Benchmark
   public Either<String, Integer> leftLongChain() {
     Either<String, Integer> result = left;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 50; i++) {
       result = result.map(x -> x + 1);
     }
     return result;

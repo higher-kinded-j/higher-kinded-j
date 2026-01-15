@@ -105,10 +105,36 @@ If you're struggling with an exercise:
 Run this simple test to ensure everything is configured correctly:
 
 ```bash
-./gradlew :hkj-examples:test --tests "*Tutorial01_KindBasics.exercise1*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial01_KindBasics.exercise1*"
 ```
 
 If you see a test failure with "Answer required", you're ready to go!
+
+### Running Tutorials
+
+Tutorial exercises are run using a dedicated Gradle task:
+
+```bash
+# Run all tutorial exercises
+./gradlew :hkj-examples:tutorialTest
+
+# Run a specific tutorial
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial01_KindBasics*"
+
+# Run VTask concurrency tutorials
+./gradlew :hkj-examples:tutorialTest --tests "*TutorialVTask*"
+```
+
+~~~admonish note title="Test Configuration"
+Tutorial tests are **excluded** from `./gradlew test` because they are incomplete
+exercises. The solution tests are included and must pass to ensure tutorials are
+correctly designed.
+
+| Command | Description |
+|---------|-------------|
+| `./gradlew test` | Runs solution tests only (must pass) |
+| `./gradlew :hkj-examples:tutorialTest` | Runs tutorial exercises (expected to fail until you complete them) |
+~~~
 
 ## Recommended Learning Paths
 

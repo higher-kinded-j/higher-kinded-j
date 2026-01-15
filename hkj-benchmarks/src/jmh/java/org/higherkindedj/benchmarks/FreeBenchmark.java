@@ -14,15 +14,12 @@ import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
@@ -46,19 +43,16 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>Run specific benchmark: {@code ./gradlew jmh --includes=".*FreeBenchmark.*"}
  *
+ * <p>Run with different depths: {@code ./gradlew jmh -Pjmh.benchmarkParameters.chainDepth=1000}
+ *
  * <p>Run with GC profiling: {@code ./gradlew jmh -Pjmh.profilers=gc}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
-@Warmup(iterations = 5, time = 1)
-@Measurement(iterations = 10, time = 1)
-@Fork(
-    value = 2,
-    jvmArgs = {"-Xms2G", "-Xmx2G"})
 public class FreeBenchmark {
 
-  @Param({"10", "100", "1000", "10000"})
+  @Param({"50"})
   private int chainDepth;
 
   private Monad<IdKind.Witness> idMonad;

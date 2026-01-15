@@ -14,11 +14,36 @@ Each tutorial contains exercises where you need to replace `___` placeholders wi
 
 ### Running the Tutorials
 
+**From your IDE:**
 1. Navigate to a tutorial file (e.g., `Tutorial01_KindBasics.java`)
 2. Read the instructions and javadoc for each exercise
-3. Replace each `___` with the correct code
+3. Replace each `___` or `answerRequired()` with the correct code
 4. Run the test to see if your solution is correct
 5. If the test fails, read the error message and try again
+
+**From the command line:**
+```bash
+# Run all tutorial exercises (expected to fail until you complete them)
+./gradlew :hkj-examples:tutorialTest
+
+# Run a specific tutorial
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial01_KindBasics*"
+
+# Run all VTask tutorials
+./gradlew :hkj-examples:tutorialTest --tests "*TutorialVTask*"
+```
+
+### Test Configuration
+
+Tutorial tests are **excluded** from the default `./gradlew test` task because they
+are incomplete exercises designed for you to solve. The solution tests are included
+and must pass to verify the tutorials are correctly designed.
+
+| Command | What it runs |
+|---------|-------------|
+| `./gradlew test` | Solution tests only (must pass) |
+| `./gradlew :hkj-examples:tutorialTest` | Tutorial exercises (expected to fail) |
+| `./gradlew :hkj-examples:test` | Solution tests in hkj-examples |
 
 ### Getting Help
 

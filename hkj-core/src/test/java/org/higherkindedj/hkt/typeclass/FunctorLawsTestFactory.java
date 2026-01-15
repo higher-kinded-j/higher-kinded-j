@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,8 @@ import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryFunctor;
+import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskFunctor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -113,7 +116,18 @@ class FunctorLawsTestFactory {
             "Optional",
             OptionalMonad.INSTANCE,
             OPTIONAL.widen(Optional.of(42)),
-            kind -> OPTIONAL.narrow(kind).orElse(-1)));
+            kind -> OPTIONAL.narrow(kind).orElse(-1)),
+        FunctorTestData.of(
+            "VTask",
+            VTaskFunctor.INSTANCE,
+            VTASK.widen(VTask.succeed(42)),
+            kind -> {
+              try {
+                return VTASK.narrow(kind).run();
+              } catch (Throwable e) {
+                return -1;
+              }
+            }));
   }
 
   /** Helper method to test identity law for a specific functor */

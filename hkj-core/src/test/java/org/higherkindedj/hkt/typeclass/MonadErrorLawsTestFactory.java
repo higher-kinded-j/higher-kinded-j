@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,9 @@ import org.higherkindedj.hkt.trymonad.TryMonad;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskKind;
+import org.higherkindedj.hkt.vtask.VTaskMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -175,6 +179,32 @@ class MonadErrorLawsTestFactory {
                   Kind<ValidatedKind.Witness<List<String>>, A> a,
                   Kind<ValidatedKind.Witness<List<String>>, A> b) {
                 return VALIDATED.narrow(a).equals(VALIDATED.narrow(b));
+              }
+            }),
+        MonadErrorTestData.of(
+            "VTask",
+            VTaskMonad.INSTANCE,
+            VTASK.widen(VTask.succeed(42)),
+            new RuntimeException("test error"),
+            new EqualityChecker<VTaskKind.Witness>() {
+              @Override
+              public <A> boolean areEqual(
+                  Kind<VTaskKind.Witness, A> a, Kind<VTaskKind.Witness, A> b) {
+                VTask<A> taskA = VTASK.narrow(a);
+                VTask<A> taskB = VTASK.narrow(b);
+                Try<A> resultA = taskA.runSafe();
+                Try<A> resultB = taskB.runSafe();
+                if (resultA.isSuccess() != resultB.isSuccess()) {
+                  return false;
+                }
+                if (resultA.isSuccess()) {
+                  return Objects.equals(resultA.orElse(null), resultB.orElse(null));
+                } else {
+                  Throwable causeA = ((Try.Failure<A>) resultA).cause();
+                  Throwable causeB = ((Try.Failure<A>) resultB).cause();
+                  return causeA.getClass().equals(causeB.getClass())
+                      && Objects.equals(causeA.getMessage(), causeB.getMessage());
+                }
               }
             }));
   }

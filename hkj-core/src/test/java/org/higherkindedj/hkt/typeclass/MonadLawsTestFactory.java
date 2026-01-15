@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.List;
 import java.util.Objects;
@@ -31,6 +32,9 @@ import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.trymonad.TryMonad;
+import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskKind;
+import org.higherkindedj.hkt.vtask.VTaskMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -160,6 +164,33 @@ class MonadLawsTestFactory {
               public <A> boolean areEqual(
                   Kind<OptionalKind.Witness, A> a, Kind<OptionalKind.Witness, A> b) {
                 return OPTIONAL.narrow(a).equals(OPTIONAL.narrow(b));
+              }
+            }),
+        MonadTestData.of(
+            "VTask",
+            VTaskMonad.INSTANCE,
+            VTASK.widen(VTask.succeed(42)),
+            new EqualityChecker<VTaskKind.Witness>() {
+              @Override
+              public <A> boolean areEqual(
+                  Kind<VTaskKind.Witness, A> a, Kind<VTaskKind.Witness, A> b) {
+                VTask<A> taskA = VTASK.narrow(a);
+                VTask<A> taskB = VTASK.narrow(b);
+                org.higherkindedj.hkt.trymonad.Try<A> resultA = taskA.runSafe();
+                org.higherkindedj.hkt.trymonad.Try<A> resultB = taskB.runSafe();
+                if (resultA.isSuccess() != resultB.isSuccess()) {
+                  return false;
+                }
+                if (resultA.isSuccess()) {
+                  return Objects.equals(resultA.orElse(null), resultB.orElse(null));
+                } else {
+                  Throwable causeA =
+                      ((org.higherkindedj.hkt.trymonad.Try.Failure<A>) resultA).cause();
+                  Throwable causeB =
+                      ((org.higherkindedj.hkt.trymonad.Try.Failure<A>) resultB).cause();
+                  return causeA.getClass().equals(causeB.getClass())
+                      && Objects.equals(causeA.getMessage(), causeB.getMessage());
+                }
               }
             }));
   }

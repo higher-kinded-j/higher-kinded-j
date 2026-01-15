@@ -49,6 +49,7 @@
   - [Core Types: Error Handling](tutorials/coretypes/error_handling_journey.md)
   - [Core Types: Advanced](tutorials/coretypes/advanced_journey.md)
   - [Effect API](tutorials/effect/effect_journey.md)
+  - [Concurrency: VTask](tutorials/concurrency/vtask_journey.md)
   - [Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)
   - [Optics: Traversals & Practice](tutorials/optics/traversals_journey.md)
   - [Optics: Fluent & Free DSL](tutorials/optics/fluent_free_journey.md)
@@ -155,6 +156,7 @@
   - [Coyoneda](monads/coyoneda.md)
   - [Try](monads/try_monad.md)
   - [Validated](monads/validated_monad.md)
+  - [VTask](monads/vtask_monad.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 
