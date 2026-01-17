@@ -308,9 +308,59 @@ public final class Resource<A> {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
 
-    return this.and(second)
-        .and(third)
-        .map(nested -> new Par.Tuple3<>(nested.first().first(), nested.first().second(), nested.second()));
+    return new Resource<>(
+        () -> {
+          A a = this.acquire.call();
+          try {
+            B b = second.acquire.call();
+            try {
+              C c = third.acquire.call();
+              return new Par.Tuple3<>(a, b, c);
+            } catch (Throwable t) {
+              try {
+                second.release.accept(b);
+              } catch (Exception e) {
+                t.addSuppressed(e);
+              }
+              throw t;
+            }
+          } catch (Throwable t) {
+            try {
+              this.release.accept(a);
+            } catch (Exception e) {
+              t.addSuppressed(e);
+            }
+            throw t;
+          }
+        },
+        tuple -> {
+          Throwable firstException = null;
+          // Release in reverse order: C, B, A
+          try {
+            third.release.accept(tuple.third());
+          } catch (Throwable t) {
+            firstException = t;
+          }
+          try {
+            second.release.accept(tuple.second());
+          } catch (Throwable t) {
+            if (firstException != null) {
+              t.addSuppressed(firstException);
+            }
+            firstException = t;
+          }
+          try {
+            this.release.accept(tuple.first());
+          } catch (Throwable t) {
+            if (firstException != null) {
+              t.addSuppressed(firstException);
+            }
+            throw new RuntimeException("Failed to release resource", t);
+          }
+          if (firstException != null) {
+            throw new RuntimeException("Failed to release resource", firstException);
+          }
+        });
   }
 
   // ==================== Finalizer Support ====================

@@ -154,41 +154,48 @@ public sealed interface ScopeJoiner<T, R>
 @SuppressWarnings("preview")
 final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
 
+  private final StructuredTaskScope.Joiner<T, List<T>> delegate;
+
+  AllSucceedJoiner() {
+    List<T> results = Collections.synchronizedList(new ArrayList<>());
+    java.util.concurrent.atomic.AtomicReference<Throwable> firstFailure =
+        new java.util.concurrent.atomic.AtomicReference<>();
+
+    this.delegate =
+        new StructuredTaskScope.Joiner<>() {
+          @Override
+          public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+            return true; // Always fork
+          }
+
+          @Override
+          public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
+            switch (subtask.state()) {
+              case SUCCESS -> results.add(subtask.get());
+              case FAILED -> {
+                if (firstFailure.compareAndSet(null, subtask.exception())) {
+                  return false; // Cancel remaining tasks on first failure
+                }
+              }
+              default -> {}
+            }
+            return true; // Continue waiting
+          }
+
+          @Override
+          public List<T> result() throws Throwable {
+            Throwable failure = firstFailure.get();
+            if (failure != null) {
+              throw failure;
+            }
+            return new ArrayList<>(results);
+          }
+        };
+  }
+
   @Override
   public StructuredTaskScope.Joiner<T, List<T>> joiner() {
-    // Create a custom joiner that collects all results into a list
-    return new StructuredTaskScope.Joiner<>() {
-      private final List<T> results = Collections.synchronizedList(new ArrayList<>());
-      private volatile Throwable firstFailure = null;
-
-      @Override
-      public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-        return true; // Always fork
-      }
-
-      @Override
-      public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-        switch (subtask.state()) {
-          case SUCCESS -> results.add(subtask.get());
-          case FAILED -> {
-            if (firstFailure == null) {
-              firstFailure = subtask.exception();
-            }
-            return false; // Cancel remaining tasks on failure
-          }
-          default -> {}
-        }
-        return true; // Continue waiting
-      }
-
-      @Override
-      public List<T> result() throws Throwable {
-        if (firstFailure != null) {
-          throw firstFailure;
-        }
-        return new ArrayList<>(results);
-      }
-    };
+    return delegate;
   }
 }
 
@@ -220,41 +227,47 @@ final class AnySucceedJoiner<T> implements ScopeJoiner<T, T> {
 @SuppressWarnings("preview")
 final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
 
+  private final StructuredTaskScope.Joiner<T, T> delegate;
+
+  FirstCompleteJoiner() {
+    java.util.concurrent.atomic.AtomicReference<T> result = new java.util.concurrent.atomic.AtomicReference<>();
+    java.util.concurrent.atomic.AtomicReference<Throwable> error = new java.util.concurrent.atomic.AtomicReference<>();
+    java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    this.delegate =
+        new StructuredTaskScope.Joiner<>() {
+          @Override
+          public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+            return !completed.get();
+          }
+
+          @Override
+          public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
+            if (completed.compareAndSet(false, true)) {
+              switch (subtask.state()) {
+                case SUCCESS -> result.set(subtask.get());
+                case FAILED -> error.set(subtask.exception());
+                default -> {}
+              }
+              return false; // Cancel remaining tasks
+            }
+            return true;
+          }
+
+          @Override
+          public T result() throws Throwable {
+            Throwable err = error.get();
+            if (err != null) {
+              throw err;
+            }
+            return result.get();
+          }
+        };
+  }
+
   @Override
   public StructuredTaskScope.Joiner<T, T> joiner() {
-    // Custom joiner that returns first completion
-    return new StructuredTaskScope.Joiner<>() {
-      private volatile T result;
-      private volatile Throwable error;
-      private volatile boolean completed = false;
-
-      @Override
-      public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-        return !completed;
-      }
-
-      @Override
-      public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-        if (!completed) {
-          completed = true;
-          switch (subtask.state()) {
-            case SUCCESS -> result = subtask.get();
-            case FAILED -> error = subtask.exception();
-            default -> {}
-          }
-          return false; // Cancel remaining tasks
-        }
-        return true;
-      }
-
-      @Override
-      public T result() throws Throwable {
-        if (error != null) {
-          throw error;
-        }
-        return result;
-      }
-    };
+    return delegate;
   }
 }
 
@@ -267,42 +280,43 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
 @SuppressWarnings("preview")
 final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>, List<T>>> {
 
-  private final Function<Throwable, E> errorMapper;
+  private final StructuredTaskScope.Joiner<T, Validated<List<E>, List<T>>> delegate;
 
   AccumulatingJoiner(Function<Throwable, E> errorMapper) {
-    this.errorMapper = errorMapper;
+    List<E> errors = Collections.synchronizedList(new ArrayList<>());
+    List<T> successes = Collections.synchronizedList(new ArrayList<>());
+
+    this.delegate =
+        new StructuredTaskScope.Joiner<>() {
+          @Override
+          public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+            return true; // Always fork
+          }
+
+          @Override
+          public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
+            switch (subtask.state()) {
+              case SUCCESS -> successes.add(subtask.get());
+              case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
+              default -> {}
+            }
+            return true; // Continue waiting for all
+          }
+
+          @Override
+          public Validated<List<E>, List<T>> result() {
+            if (errors.isEmpty()) {
+              return Validated.valid(new ArrayList<>(successes));
+            } else {
+              return Validated.invalid(new ArrayList<>(errors));
+            }
+          }
+        };
   }
 
   @Override
   public StructuredTaskScope.Joiner<T, Validated<List<E>, List<T>>> joiner() {
-    return new StructuredTaskScope.Joiner<>() {
-      private final List<E> errors = Collections.synchronizedList(new ArrayList<>());
-      private final List<T> successes = Collections.synchronizedList(new ArrayList<>());
-
-      @Override
-      public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-        return true; // Always fork
-      }
-
-      @Override
-      public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-        switch (subtask.state()) {
-          case SUCCESS -> successes.add(subtask.get());
-          case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
-          default -> {}
-        }
-        return true; // Continue waiting for all
-      }
-
-      @Override
-      public Validated<List<E>, List<T>> result() {
-        if (errors.isEmpty()) {
-          return Validated.valid(new ArrayList<>(successes));
-        } else {
-          return Validated.invalid(new ArrayList<>(errors));
-        }
-      }
-    };
+    return delegate;
   }
 
   /**
@@ -313,7 +327,7 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
   @Override
   public Either<Throwable, Validated<List<E>, List<T>>> resultEither() {
     try {
-      return Either.right(joiner().result());
+      return Either.right(delegate.result());
     } catch (Throwable t) {
       return Either.left(t);
     }
