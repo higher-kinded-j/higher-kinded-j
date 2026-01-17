@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -361,7 +362,7 @@ public final class Path {
    * @return a VTaskPath representing the deferred computation
    * @throws NullPointerException if callable is null
    */
-  public static <A> VTaskPath<A> vtask(java.util.concurrent.Callable<A> callable) {
+  public static <A> VTaskPath<A> vtask(Callable<A> callable) {
     Objects.requireNonNull(callable, "callable must not be null");
     return new DefaultVTaskPath<>(VTask.of(callable));
   }

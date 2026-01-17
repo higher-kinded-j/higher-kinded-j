@@ -4,6 +4,9 @@ package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -225,8 +228,7 @@ public class TutorialVTaskForPath {
       VTaskPath<User> fetchUser = Path.vtaskPure(user);
 
       // Simulated weather service
-      java.util.function.Function<String, VTaskPath<String>> fetchWeather =
-          city -> Path.vtaskPure("Sunny in " + city);
+      Function<String, VTaskPath<String>> fetchWeather = city -> Path.vtaskPure("Sunny in " + city);
 
       FocusPath<User, Address> addressPath = FocusPath.of(ADDRESS_LENS);
 
@@ -333,13 +335,13 @@ public class TutorialVTaskForPath {
       Order order = new Order("ORD-001", 99.99);
 
       // Simulated services
-      java.util.function.Function<Order, VTaskPath<Order>> validateOrder =
+      Function<Order, VTaskPath<Order>> validateOrder =
           o -> o.amount() > 0 ? Path.vtaskPure(o) : Path.vtaskFail(new RuntimeException("Invalid"));
 
-      java.util.function.Function<Order, VTaskPath<Payment>> processPayment =
+      Function<Order, VTaskPath<Payment>> processPayment =
           o -> Path.vtaskPure(new Payment("TXN-" + o.id(), o.amount()));
 
-      java.util.function.BiFunction<Order, Payment, VTaskPath<Confirmation>> sendConfirmation =
+      BiFunction<Order, Payment, VTaskPath<Confirmation>> sendConfirmation =
           (o, p) ->
               Path.vtaskPure(
                   new Confirmation(o.id(), p.transactionId(), "Order confirmed: " + o.id()));
@@ -369,13 +371,13 @@ public class TutorialVTaskForPath {
     void exercise10_workflowWithCalculations() {
       record Product(String name, double price) {}
 
-      record Cart(java.util.List<Product> items) {
+      record Cart(List<Product> items) {
         double subtotal() {
           return items.stream().mapToDouble(Product::price).sum();
         }
       }
 
-      Cart cart = new Cart(java.util.List.of(new Product("Book", 20.0), new Product("Pen", 5.0)));
+      Cart cart = new Cart(List.of(new Product("Book", 20.0), new Product("Pen", 5.0)));
       double discountRate = 0.1; // 10% discount
       double taxRate = 0.08; // 8% tax
 

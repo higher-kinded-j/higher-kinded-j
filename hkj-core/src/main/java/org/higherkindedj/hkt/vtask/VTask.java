@@ -342,9 +342,7 @@ public interface VTask<A> extends VTaskKind<A> {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
       try {
-        return runAsync()
-            .orTimeout(duration.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
-            .join();
+        return runAsync().orTimeout(duration.toMillis(), TimeUnit.MILLISECONDS).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof TimeoutException) {
           throw new TimeoutException("VTask timed out after " + duration);

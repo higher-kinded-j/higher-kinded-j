@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
@@ -274,7 +275,7 @@ public class Tutorial11_StaticAnalysis_Solution {
         operations.stream()
             .map(DataOpHelper.DATA_OP::narrow)
             .map(Object::getClass)
-            .collect(java.util.stream.Collectors.toSet());
+            .collect(Collectors.toSet());
 
     boolean readOnlyCanRun = readOnlyPermissions.containsAll(requiredClasses);
     boolean readWriteCanRun = readWritePermissions.containsAll(requiredClasses);

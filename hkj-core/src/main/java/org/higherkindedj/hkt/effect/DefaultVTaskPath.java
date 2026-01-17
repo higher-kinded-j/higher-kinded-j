@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -93,13 +94,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     @SuppressWarnings("unchecked")
     VTaskPath<B> typedOther = (VTaskPath<B>) otherVTask;
 
-    return new DefaultVTaskPath<>(
-        VTask.delay(
-            () -> {
-              A a = this.unsafeRun();
-              B b = typedOther.unsafeRun();
-              return combiner.apply(a, b);
-            }));
+    return new DefaultVTaskPath<>(Par.map2(this.run(), typedOther.run(), combiner));
   }
 
   @Override
@@ -111,14 +106,9 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
-    return new DefaultVTaskPath<>(
-        VTask.delay(
-            () -> {
-              A a = this.unsafeRun();
-              B b = second.unsafeRun();
-              C c = third.unsafeRun();
-              return combiner.apply(a, b, c);
-            }));
+    // Adapt the combiner to match Par.map3's invariant signature
+    Function3<A, B, C, D> adaptedCombiner = (a, b, c) -> combiner.apply(a, b, c);
+    return new DefaultVTaskPath<>(Par.map3(this.run(), second.run(), third.run(), adaptedCombiner));
   }
 
   // ===== Chainable implementation =====

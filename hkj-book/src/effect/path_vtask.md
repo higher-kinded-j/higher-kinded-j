@@ -266,6 +266,7 @@ VTaskPath<String> backToPath = Path.vtaskPath(VTask.succeed("restored"));
 |--------|-----------|--------|
 | **Thread Model** | Virtual threads | Caller's thread |
 | **Parallelism** | Built-in via `Par` | Manual composition |
+| **`zipWith` Behavior** | Parallel (uses `Par.map2`) | Sequential |
 | **Java Version** | Requires Java 21+ | Any Java 8+ |
 | **Async Support** | `runAsync()` returns `CompletableFuture` | No built-in async |
 | **Resource Usage** | Kilobytes per task | N/A (single-threaded) |

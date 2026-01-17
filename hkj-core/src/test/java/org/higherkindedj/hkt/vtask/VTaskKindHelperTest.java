@@ -7,7 +7,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.vtask.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -47,8 +49,7 @@ class VTaskKindHelperTest {
     @Test
     @DisplayName("widen() preserves VTask laziness")
     void widenPreservesVTaskLaziness() throws Throwable {
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
       VTask<Integer> vtask =
           VTask.of(
               () -> {
@@ -281,10 +282,10 @@ class VTaskKindHelperTest {
     @Test
     @DisplayName("handles generic types")
     void handlesGenericTypes() throws Throwable {
-      VTask<java.util.List<Integer>> vtask = VTask.succeed(java.util.List.of(1, 2, 3));
+      VTask<List<Integer>> vtask = VTask.succeed(List.of(1, 2, 3));
 
-      Kind<VTaskKind.Witness, java.util.List<Integer>> kind = VTASK.widen(vtask);
-      VTask<java.util.List<Integer>> narrowed = VTASK.narrow(kind);
+      Kind<VTaskKind.Witness, List<Integer>> kind = VTASK.widen(vtask);
+      VTask<List<Integer>> narrowed = VTASK.narrow(kind);
 
       assertThat(narrowed.run()).containsExactly(1, 2, 3);
     }

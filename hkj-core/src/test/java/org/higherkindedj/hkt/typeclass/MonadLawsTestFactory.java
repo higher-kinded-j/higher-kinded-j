@@ -176,18 +176,16 @@ class MonadLawsTestFactory {
                   Kind<VTaskKind.Witness, A> a, Kind<VTaskKind.Witness, A> b) {
                 VTask<A> taskA = VTASK.narrow(a);
                 VTask<A> taskB = VTASK.narrow(b);
-                org.higherkindedj.hkt.trymonad.Try<A> resultA = taskA.runSafe();
-                org.higherkindedj.hkt.trymonad.Try<A> resultB = taskB.runSafe();
+                Try<A> resultA = taskA.runSafe();
+                Try<A> resultB = taskB.runSafe();
                 if (resultA.isSuccess() != resultB.isSuccess()) {
                   return false;
                 }
                 if (resultA.isSuccess()) {
                   return Objects.equals(resultA.orElse(null), resultB.orElse(null));
                 } else {
-                  Throwable causeA =
-                      ((org.higherkindedj.hkt.trymonad.Try.Failure<A>) resultA).cause();
-                  Throwable causeB =
-                      ((org.higherkindedj.hkt.trymonad.Try.Failure<A>) resultB).cause();
+                  Throwable causeA = ((Try.Failure<A>) resultA).cause();
+                  Throwable causeB = ((Try.Failure<A>) resultB).cause();
                   return causeA.getClass().equals(causeB.getClass())
                       && Objects.equals(causeA.getMessage(), causeB.getMessage());
                 }

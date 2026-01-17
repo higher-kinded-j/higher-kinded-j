@@ -400,9 +400,10 @@ public class VTaskPathBenchmark {
   // ========== ZipWith Benchmarks ==========
 
   /**
-   * ZipWith two VTaskPaths.
+   * ZipWith two VTaskPaths in parallel.
    *
-   * <p>Measures overhead of combining two paths.
+   * <p>Measures overhead of combining two paths using Par.map2 for parallel execution. Unlike
+   * IOPath.zipWith which is sequential, VTaskPath.zipWith executes both tasks concurrently.
    */
   @Benchmark
   public Integer zipWithExecution() {
@@ -411,9 +412,10 @@ public class VTaskPathBenchmark {
   }
 
   /**
-   * ZipWith3 three VTaskPaths.
+   * ZipWith3 three VTaskPaths in parallel.
    *
-   * <p>Measures overhead of combining three paths.
+   * <p>Measures overhead of combining three paths using Par.map3 for parallel execution. All three
+   * tasks execute concurrently via StructuredTaskScope.
    */
   @Benchmark
   public Integer zipWith3Execution() {
