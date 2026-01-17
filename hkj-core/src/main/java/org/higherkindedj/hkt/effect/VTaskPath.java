@@ -245,4 +245,35 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
    * @return a TryPath containing the result or exception
    */
   TryPath<A> toTryPath();
+
+  /**
+   * Converts this VTaskPath to an IOPath.
+   *
+   * <p>The returned IOPath wraps this VTask's execution. When the IOPath is run, it will execute
+   * the underlying VTask on the calling thread (blocking until completion).
+   *
+   * <p>This conversion is useful when you need to:
+   *
+   * <ul>
+   *   <li>Integrate VTask-based code with existing IOPath pipelines
+   *   <li>Use IOPath-specific features like {@code bracket} or {@code withResource}
+   *   <li>Execute VTask computations on the calling thread instead of a virtual thread
+   * </ul>
+   *
+   * <p><b>Note:</b> Unlike VTask which executes on virtual threads, the resulting IOPath will
+   * execute on whatever thread calls {@code unsafeRun()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * VTaskPath<String> vtask = Path.vtask(() -> fetchData());
+   * IOPath<String> io = vtask.toIOPath();
+   *
+   * // Now can use IOPath-specific features
+   * IOPath<String> withCleanup = io.guarantee(() -> cleanup());
+   * }</pre>
+   *
+   * @return an IOPath that executes this VTask when run
+   */
+  IOPath<A> toIOPath();
 }

@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -223,6 +224,11 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public TryPath<A> toTryPath() {
     return new TryPath<>(runSafe());
+  }
+
+  @Override
+  public IOPath<A> toIOPath() {
+    return new IOPath<>(IO.delay(this::unsafeRun));
   }
 
   // ===== Object methods =====
