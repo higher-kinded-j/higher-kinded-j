@@ -199,7 +199,7 @@ public final class Scope<T, R> {
    * @return a new Scope with all tasks added
    * @throws NullPointerException if tasksToFork is null
    */
-  public Scope<T, R> forkAll(List<VTask<? extends T>> tasksToFork) {
+  public Scope<T, R> forkAll(List<? extends VTask<? extends T>> tasksToFork) {
     Objects.requireNonNull(tasksToFork, "tasksToFork must not be null");
     List<VTask<? extends T>> newTasks = new ArrayList<>(tasks);
     newTasks.addAll(tasksToFork);
