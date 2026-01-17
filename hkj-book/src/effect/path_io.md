@@ -190,6 +190,7 @@ Integer length = transformed.unsafeRun();  // Prints "Side effect!"
 
 ~~~admonish tip title="See Also"
 - [IO Monad](../monads/io_monad.md) - Underlying type for IOPath
+- [VTaskPath](path_vtask.md) - Virtual thread-based alternative for concurrent workloads
 - [Composition Patterns](composition.md) - More composition techniques
 - [Patterns and Recipes](patterns.md) - Resilience and resource patterns
 - [Advanced Topics](advanced_topics.md) - Deep dive on IOPath features

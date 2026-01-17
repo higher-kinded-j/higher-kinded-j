@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
+import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
@@ -50,6 +51,9 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.hkt.tuple.Tuple4;
 import org.higherkindedj.hkt.tuple.Tuple5;
+import org.higherkindedj.hkt.vtask.VTaskKind;
+import org.higherkindedj.hkt.vtask.VTaskKindHelper;
+import org.higherkindedj.hkt.vtask.VTaskMonad;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -200,6 +204,22 @@ public final class ForPath {
   public static <A> IOPathSteps1<A> from(IOPath<A> source) {
     Objects.requireNonNull(source, "source must not be null");
     return new IOPathSteps1<>(source);
+  }
+
+  // ===== VTaskPath Entry Points =====
+
+  /**
+   * Initiates a for-comprehension with a VTaskPath.
+   *
+   * <p>VTaskPath computations execute on virtual threads, providing lightweight concurrency.
+   *
+   * @param source the initial VTaskPath
+   * @param <A> the value type
+   * @return the first step of the builder
+   */
+  public static <A> VTaskPathSteps1<A> from(VTaskPath<A> source) {
+    Objects.requireNonNull(source, "source must not be null");
+    return new VTaskPathSteps1<>(source);
   }
 
   // ===== IdPath Entry Points =====
@@ -1029,6 +1049,201 @@ public final class ForPath {
       Kind<IOKind.Witness, R> result =
           MONAD.map(t -> Objects.requireNonNull(f.apply(t), YIELD_CANNOT_RETURN_NULL), computation);
       return Path.ioPath(IOKindHelper.IO_OP.narrow(result));
+    }
+  }
+
+  // ========================================================================
+  // VTaskPath Steps
+  // ========================================================================
+
+  /** First step in a VTaskPath comprehension. */
+  public static final class VTaskPathSteps1<A> {
+    private static final VTaskMonad MONAD = VTaskMonad.INSTANCE;
+    private final Kind<VTaskKind.Witness, A> computation;
+
+    private VTaskPathSteps1(VTaskPath<A> source) {
+      this.computation = VTaskKindHelper.VTASK.widen(source.run());
+    }
+
+    public <B> VTaskPathSteps2<A, B> from(Function<A, VTaskPath<B>> next) {
+      Kind<VTaskKind.Witness, Tuple2<A, B>> newComp =
+          MONAD.flatMap(
+              a -> MONAD.map(b -> Tuple.of(a, b), VTaskKindHelper.VTASK.widen(next.apply(a).run())),
+              computation);
+      return new VTaskPathSteps2<>(newComp);
+    }
+
+    public <B> VTaskPathSteps2<A, B> let(Function<A, B> f) {
+      Kind<VTaskKind.Witness, Tuple2<A, B>> newComp =
+          MONAD.map(a -> Tuple.of(a, f.apply(a)), computation);
+      return new VTaskPathSteps2<>(newComp);
+    }
+
+    public <B> VTaskPathSteps2<A, B> focus(FocusPath<A, B> focusPath) {
+      Objects.requireNonNull(focusPath, "focusPath must not be null");
+      Kind<VTaskKind.Witness, Tuple2<A, B>> newComp =
+          MONAD.map(a -> Tuple.of(a, focusPath.get(a)), computation);
+      return new VTaskPathSteps2<>(newComp);
+    }
+
+    public <R> VTaskPath<R> yield(Function<A, R> f) {
+      Kind<VTaskKind.Witness, R> result = MONAD.map(f, computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+  }
+
+  /** Second step in a VTaskPath comprehension. */
+  public static final class VTaskPathSteps2<A, B> {
+    private static final VTaskMonad MONAD = VTaskMonad.INSTANCE;
+    private final Kind<VTaskKind.Witness, Tuple2<A, B>> computation;
+
+    private VTaskPathSteps2(Kind<VTaskKind.Witness, Tuple2<A, B>> computation) {
+      this.computation = computation;
+    }
+
+    public <C> VTaskPathSteps3<A, B, C> from(Function<Tuple2<A, B>, VTaskPath<C>> next) {
+      Kind<VTaskKind.Witness, Tuple3<A, B, C>> newComp =
+          MONAD.flatMap(
+              ab ->
+                  MONAD.map(
+                      c -> Tuple.of(ab._1(), ab._2(), c),
+                      VTaskKindHelper.VTASK.widen(next.apply(ab).run())),
+              computation);
+      return new VTaskPathSteps3<>(newComp);
+    }
+
+    public <C> VTaskPathSteps3<A, B, C> let(Function<Tuple2<A, B>, C> f) {
+      Kind<VTaskKind.Witness, Tuple3<A, B, C>> newComp =
+          MONAD.map(ab -> Tuple.of(ab._1(), ab._2(), f.apply(ab)), computation);
+      return new VTaskPathSteps3<>(newComp);
+    }
+
+    public <R> VTaskPath<R> yield(BiFunction<A, B, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(
+              t -> Objects.requireNonNull(f.apply(t._1(), t._2()), YIELD_CANNOT_RETURN_NULL),
+              computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+
+    public <R> VTaskPath<R> yield(Function<Tuple2<A, B>, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(t -> Objects.requireNonNull(f.apply(t), YIELD_CANNOT_RETURN_NULL), computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+  }
+
+  /** Third step in a VTaskPath comprehension. */
+  public static final class VTaskPathSteps3<A, B, C> {
+    private static final VTaskMonad MONAD = VTaskMonad.INSTANCE;
+    private final Kind<VTaskKind.Witness, Tuple3<A, B, C>> computation;
+
+    private VTaskPathSteps3(Kind<VTaskKind.Witness, Tuple3<A, B, C>> computation) {
+      this.computation = computation;
+    }
+
+    public <D> VTaskPathSteps4<A, B, C, D> from(Function<Tuple3<A, B, C>, VTaskPath<D>> next) {
+      Kind<VTaskKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.flatMap(
+              abc ->
+                  MONAD.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      VTaskKindHelper.VTASK.widen(next.apply(abc).run())),
+              computation);
+      return new VTaskPathSteps4<>(newComp);
+    }
+
+    public <D> VTaskPathSteps4<A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<VTaskKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new VTaskPathSteps4<>(newComp);
+    }
+
+    public <R> VTaskPath<R> yield(Function3<A, B, C, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(
+              t ->
+                  Objects.requireNonNull(f.apply(t._1(), t._2(), t._3()), YIELD_CANNOT_RETURN_NULL),
+              computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+
+    public <R> VTaskPath<R> yield(Function<Tuple3<A, B, C>, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(t -> Objects.requireNonNull(f.apply(t), YIELD_CANNOT_RETURN_NULL), computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+  }
+
+  /** Fourth step in a VTaskPath comprehension. */
+  public static final class VTaskPathSteps4<A, B, C, D> {
+    private static final VTaskMonad MONAD = VTaskMonad.INSTANCE;
+    private final Kind<VTaskKind.Witness, Tuple4<A, B, C, D>> computation;
+
+    private VTaskPathSteps4(Kind<VTaskKind.Witness, Tuple4<A, B, C, D>> computation) {
+      this.computation = computation;
+    }
+
+    public <E> VTaskPathSteps5<A, B, C, D, E> from(
+        Function<Tuple4<A, B, C, D>, VTaskPath<E>> next) {
+      Kind<VTaskKind.Witness, Tuple5<A, B, C, D, E>> newComp =
+          MONAD.flatMap(
+              abcd ->
+                  MONAD.map(
+                      e -> Tuple.of(abcd._1(), abcd._2(), abcd._3(), abcd._4(), e),
+                      VTaskKindHelper.VTASK.widen(next.apply(abcd).run())),
+              computation);
+      return new VTaskPathSteps5<>(newComp);
+    }
+
+    public <E> VTaskPathSteps5<A, B, C, D, E> let(Function<Tuple4<A, B, C, D>, E> f) {
+      Kind<VTaskKind.Witness, Tuple5<A, B, C, D, E>> newComp =
+          MONAD.map(
+              abcd -> Tuple.of(abcd._1(), abcd._2(), abcd._3(), abcd._4(), f.apply(abcd)),
+              computation);
+      return new VTaskPathSteps5<>(newComp);
+    }
+
+    public <R> VTaskPath<R> yield(Function4<A, B, C, D, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(
+              t ->
+                  Objects.requireNonNull(
+                      f.apply(t._1(), t._2(), t._3(), t._4()), YIELD_CANNOT_RETURN_NULL),
+              computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+
+    public <R> VTaskPath<R> yield(Function<Tuple4<A, B, C, D>, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(t -> Objects.requireNonNull(f.apply(t), YIELD_CANNOT_RETURN_NULL), computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+  }
+
+  /** Fifth step in a VTaskPath comprehension. */
+  public static final class VTaskPathSteps5<A, B, C, D, E> {
+    private static final VTaskMonad MONAD = VTaskMonad.INSTANCE;
+    private final Kind<VTaskKind.Witness, Tuple5<A, B, C, D, E>> computation;
+
+    private VTaskPathSteps5(Kind<VTaskKind.Witness, Tuple5<A, B, C, D, E>> computation) {
+      this.computation = computation;
+    }
+
+    public <R> VTaskPath<R> yield(Function5<A, B, C, D, E, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(
+              t ->
+                  Objects.requireNonNull(
+                      f.apply(t._1(), t._2(), t._3(), t._4(), t._5()), YIELD_CANNOT_RETURN_NULL),
+              computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
+    }
+
+    public <R> VTaskPath<R> yield(Function<Tuple5<A, B, C, D, E>, R> f) {
+      Kind<VTaskKind.Witness, R> result =
+          MONAD.map(t -> Objects.requireNonNull(f.apply(t), YIELD_CANNOT_RETURN_NULL), computation);
+      return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
     }
   }
 

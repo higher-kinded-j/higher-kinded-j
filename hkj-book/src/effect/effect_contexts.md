@@ -14,7 +14,7 @@ They're a middle layer between the simple Path types you've already learned and 
 - Why monad transformers are powerful but syntactically demanding
 - The three-layer architecture: Paths, Effect Contexts, Raw Transformers
 - How Effect Contexts wrap transformers with intuitive APIs
-- The five Effect Context types and when to use each
+- The six Effect Context types and when to use each
 - Escape hatches for when you need the raw transformer
 ~~~
 
@@ -99,7 +99,7 @@ Higher-Kinded-J provides three ways to work with combined effects, each serving 
 │  ────────────────────────                                       │
 │                                                                 │
 │  ErrorContext, OptionalContext, JavaOptionalContext,            │
-│  ConfigContext, MutableContext                                  │
+│  ConfigContext, MutableContext, VTaskContext                    │
 │                                                                 │
 │  ✓ User-friendly transformer wrappers                           │
 │  ✓ Hides HKT complexity (no Kind<F, A> in your code)            │
@@ -135,6 +135,7 @@ Each Effect Context wraps a specific transformer, exposing its capabilities thro
 | [`JavaOptionalContext<F, A>`](effect_contexts_optional.md) | `OptionalT<F, A>` | IO with optional results (using `java.util.Optional`) |
 | [`ConfigContext<F, R, A>`](effect_contexts_config.md) | `ReaderT<F, R, A>` | Dependency injection in effectful computation |
 | [`MutableContext<F, S, A>`](effect_contexts_mutable.md) | `StateT<S, F, A>` | Stateful computation with IO |
+| [`VTaskContext<A>`](path_vtask.md) | `VTaskPath<A>` | Virtual thread concurrency with simple API |
 
 ---
 
@@ -177,6 +178,11 @@ Each Effect Context wraps a specific transformer, exposing its capabilities thro
 - State threading through IO operations
 - Accumulators, counters, or state machines
 - Both the final value and final state
+
+**VTaskContext** when you need:
+- Virtual thread-based concurrency
+- Simple blocking code that scales to many concurrent tasks
+- Timeout and error recovery without transformer complexity
 
 ---
 
@@ -231,6 +237,24 @@ StateTuple<Counter, String> result = workflow.runWith(new Counter(0)).unsafeRun(
 // result.value() == "Started at: 0"
 ```
 
+### Virtual Thread Concurrency
+
+```java
+Try<Profile> result = VTaskContext
+    .<User>of(() -> userService.fetch(userId))
+    .via(user -> VTaskContext.of(() -> profileService.fetch(user.profileId())))
+    .timeout(Duration.ofSeconds(5))
+    .recover(err -> Profile.defaultProfile())
+    .run();
+
+// Or with fallback chains
+Try<Config> config = VTaskContext
+    .<Config>of(() -> loadFromPrimary())
+    .recoverWith(err -> VTaskContext.of(() -> loadFromSecondary()))
+    .recover(err -> Config.defaults())
+    .run();
+```
+
 ---
 
 ## Escape Hatches
@@ -254,6 +278,7 @@ EitherT<IOKind.Witness, ApiError, User> transformer = ctx.toEitherT();
 | `JavaOptionalContext` | `toOptionalT()` | `OptionalT<F, A>` |
 | `ConfigContext` | `toReaderT()` | `ReaderT<F, R, A>` |
 | `MutableContext` | `toStateT()` | `StateT<S, F, A>` |
+| `VTaskContext` | `toPath()` / `toVTask()` | `VTaskPath<A>` / `VTask<A>` |
 
 Use escape hatches sparingly. They're for genuine edge cases, not everyday operations.
 
@@ -274,6 +299,7 @@ Effect Contexts occupy the middle ground: more power than simple Paths, more cla
 - [MaybeT](../transformers/maybet_transformer.md) - The transformer behind OptionalContext
 - [ReaderT](../transformers/readert_transformer.md) - The transformer behind ConfigContext
 - [StateT](../transformers/statet_transformer.md) - The transformer behind MutableContext
+- [VTaskPath](path_vtask.md) - The Effect Path behind VTaskContext
 ~~~
 
 ---

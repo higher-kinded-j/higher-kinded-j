@@ -61,6 +61,7 @@ no rewrapping, no boilerplate.
 | `EitherPath<E, A>` | `ForPath.from(eitherPath)` | No |
 | `TryPath<A>` | `ForPath.from(tryPath)` | No |
 | `IOPath<A>` | `ForPath.from(ioPath)` | No |
+| `VTaskPath<A>` | `ForPath.from(vtaskPath)` | No |
 | `IdPath<A>` | `ForPath.from(idPath)` | No |
 | `NonDetPath<A>` | `ForPath.from(nonDetPath)` | Yes |
 | `GenericPath<F, A>` | `ForPath.from(genericPath)` | Optional |
@@ -247,6 +248,40 @@ String result = serverInfo.unsafeRun();  // "PRODUCTION server on port 8080"
 
 ---
 
+## VTaskPath Example
+
+VTaskPath comprehensions compose virtual thread-based concurrent computations:
+
+```java
+VTaskPath<User> fetchUser = Path.vtask(() -> userService.fetch(userId));
+VTaskPath<Profile> fetchProfile = Path.vtask(() -> profileService.fetch(profileId));
+
+VTaskPath<String> greeting = ForPath.from(fetchUser)
+    .from(user -> fetchProfile)
+    .let(t -> t._1().name().toUpperCase())
+    .yield((user, profile, upperName) ->
+        "Hello " + upperName + " from " + profile.city());
+
+// Nothing executes until:
+String result = greeting.unsafeRun();  // "Hello ALICE from London"
+```
+
+VTaskPath comprehensions are ideal for orchestrating multiple service calls:
+
+```java
+VTaskPath<OrderSummary> orderWorkflow = ForPath.from(Path.vtask(() -> validateOrder(order)))
+    .from(validated -> Path.vtask(() -> reserveInventory(validated)))
+    .from(t -> Path.vtask(() -> processPayment(t._2())))
+    .from(t -> Path.vtask(() -> sendConfirmation(t._3())))
+    .yield((validated, reserved, payment, confirmation) ->
+        new OrderSummary(validated.id(), payment.transactionId(), confirmation.sentAt()));
+
+// Execute the entire workflow
+Try<OrderSummary> result = orderWorkflow.runSafe();
+```
+
+---
+
 ## NonDetPath Example
 
 NonDetPath (backed by List) generates all combinations:
@@ -289,6 +324,7 @@ as it works directly with the transformer's `Kind` representation.
 ~~~admonish tip title="See Also"
 - [For Comprehension](../functional/for_comprehension.md) - The underlying For class for raw `Kind` values
 - [Effect Path Overview](effect_path_overview.md) - Introduction to the Effect Path API
+- [VTaskPath](path_vtask.md) - Virtual thread-based Effect Path for concurrent workloads
 - [Focus DSL](../optics/focus_dsl.md) - Optics integration for structural navigation
 ~~~
 

@@ -150,6 +150,7 @@ The Effect Path API provides a fluent, type-safe approach to composing effect ty
 | [AdvancedEffectsExample.java](src/main/java/org/higherkindedj/example/effect/AdvancedEffectsExample.java) | ReaderPath for DI, WithStatePath for state, WriterPath for logging | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.AdvancedEffectsExample` | [Advanced Effects](https://higher-kinded-j.github.io/latest/effect/advanced_effects.html) |
 | [LazyPathExample.java](src/main/java/org/higherkindedj/example/effect/LazyPathExample.java) | Deferred, memoised computations with LazyPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.LazyPathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
 | [CompletableFuturePathExample.java](src/main/java/org/higherkindedj/example/effect/CompletableFuturePathExample.java) | Async computations with CompletableFuturePath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CompletableFuturePathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [VTaskPathExample.java](src/main/java/org/higherkindedj/example/effect/VTaskPathExample.java) | Virtual thread concurrency with VTaskPath: parallel execution, timeouts, Par combinators | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.VTaskPathExample` | [VTaskPath](https://higher-kinded-j.github.io/latest/effect/path_vtask.html) |
 | [CollectionPathsExample.java](src/main/java/org/higherkindedj/example/effect/CollectionPathsExample.java) | ListPath and StreamPath for collection effects | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CollectionPathsExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
 
 ### Stack-Safety, Resources, Parallelism & Resilience
@@ -168,6 +169,7 @@ The Effect Path API provides a fluent, type-safe approach to composing effect ty
 - **EitherPath\<E, A\>**: Represents computations with typed error handling (Left/Right)
 - **TryPath\<A\>**: Represents computations that may throw exceptions
 - **IOPath\<A\>**: Represents deferred side-effectful computations with resource management, parallel execution, and retry support
+- **VTaskPath\<A\>**: Represents virtual thread-based concurrent computations with Par combinators for parallel execution
 - **ValidationPath\<E, A\>**: Represents validations that accumulate errors
 - **ReaderPath\<R, A\>**: Represents computations that read from an environment (dependency injection)
 - **WithStatePath\<S, A\>**: Represents stateful computations that thread state

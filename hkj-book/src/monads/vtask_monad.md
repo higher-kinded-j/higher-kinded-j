@@ -35,12 +35,12 @@ The `VTask<A>` type in Higher-Kinded-J represents a lazy computation that, when 
 ┌─────────────────────────────────────────────────────────────────┐
 │                         VTask<A>                                │
 │                                                                 │
-│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌─────────┐  │
-│   │ describe │ -> │  compose │ -> │ transform│ -> │ execute │  │
-│   │  effect  │    │  effects │    │  results │    │   on    │  │
-│   │          │    │          │    │          │    │ virtual │  │
-│   │          │    │          │    │          │    │ thread  │  │
-│   └──────────┘    └──────────┘    └──────────┘    └─────────┘  │
+│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌─────────┐   │
+│   │ describe │ -> │  compose │ -> │ transform│ -> │ execute │   │
+│   │  effect  │    │  effects │    │  results │    │   on    │   │
+│   │          │    │          │    │          │    │ virtual │   │
+│   │          │    │          │    │          │    │ thread  │   │
+│   └──────────┘    └──────────┘    └──────────┘    └─────────┘   │
 │                                                                 │
 │   Lazy                                     Deferred Execution   │
 └─────────────────────────────────────────────────────────────────┘
@@ -268,10 +268,10 @@ The `Par` utility class provides combinators for executing VTasks concurrently:
 ┌───────────────────────────────────────────────────────────┐
 │                    Par Combinators                        │
 │                                                           │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │   zip    │  │   map2   │  │   all    │  │   race   │  │
-│  │  (A, B)  │  │ (A,B)->R │  │ [A]->A[] │  │ first A  │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │   zip    │  │   map2   │  │   all    │  │   race   │   │
+│  │  (A, B)  │  │ (A,B)->R │  │ [A]->A[] │  │ first A  │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 │                                                           │
 │  All use StructuredTaskScope for proper lifecycle         │
 └───────────────────────────────────────────────────────────┘

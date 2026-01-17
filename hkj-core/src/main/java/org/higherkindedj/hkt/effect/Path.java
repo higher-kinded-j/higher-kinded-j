@@ -32,6 +32,7 @@ import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.writer.Writer;
 import org.jspecify.annotations.Nullable;
 
@@ -76,6 +77,16 @@ import org.jspecify.annotations.Nullable;
  * IOPath<Config> fromIO = Path.ioPath(someIO);
  * }</pre>
  *
+ * <h2>Creating VTaskPath instances</h2>
+ *
+ * <pre>{@code
+ * VTaskPath<String> deferred = Path.vtask(() -> Files.readString(path));
+ * VTaskPath<Unit> action = Path.vtaskExec(() -> System.out.println("Hello"));
+ * VTaskPath<Integer> pure = Path.vtaskPure(42);
+ * VTaskPath<Config> failed = Path.vtaskFail(new IOException("Not found"));
+ * VTaskPath<Config> fromVTask = Path.vtaskPath(someVTask);
+ * }</pre>
+ *
  * <h2>Creating ValidationPath instances</h2>
  *
  * <pre>{@code
@@ -110,6 +121,7 @@ import org.jspecify.annotations.Nullable;
  * @see EitherPath
  * @see TryPath
  * @see IOPath
+ * @see VTaskPath
  * @see ValidationPath
  * @see IdPath
  * @see OptionalPath
@@ -334,6 +346,78 @@ public final class Path {
   public static <A> IOPath<A> ioPath(IO<A> io) {
     Objects.requireNonNull(io, "io must not be null");
     return new IOPath<>(io);
+  }
+
+  // ===== VTaskPath factory methods =====
+
+  /**
+   * Creates a VTaskPath with a deferred computation that executes on a virtual thread.
+   *
+   * <p>The callable is not executed until {@link VTaskPath#unsafeRun()} or {@link
+   * VTaskPath#runSafe()} is called.
+   *
+   * @param callable the computation to defer; must not be null
+   * @param <A> the type of the result
+   * @return a VTaskPath representing the deferred computation
+   * @throws NullPointerException if callable is null
+   */
+  public static <A> VTaskPath<A> vtask(java.util.concurrent.Callable<A> callable) {
+    Objects.requireNonNull(callable, "callable must not be null");
+    return new DefaultVTaskPath<>(VTask.of(callable));
+  }
+
+  /**
+   * Creates a VTaskPath that executes a side-effecting runnable on a virtual thread.
+   *
+   * <p>The runnable is not executed until {@link VTaskPath#unsafeRun()} or {@link
+   * VTaskPath#runSafe()} is called.
+   *
+   * @param runnable the side effect to defer; must not be null
+   * @return a VTaskPath that produces Unit when run
+   * @throws NullPointerException if runnable is null
+   */
+  public static VTaskPath<Unit> vtaskExec(Runnable runnable) {
+    Objects.requireNonNull(runnable, "runnable must not be null");
+    return new DefaultVTaskPath<>(VTask.exec(runnable));
+  }
+
+  /**
+   * Creates a VTaskPath containing a pure value.
+   *
+   * <p>The value is already computed; no side effects occur when this VTaskPath is run.
+   *
+   * @param value the value to wrap
+   * @param <A> the type of the value
+   * @return a VTaskPath that immediately produces the value when run
+   */
+  public static <A> VTaskPath<A> vtaskPure(A value) {
+    return new DefaultVTaskPath<>(VTask.succeed(value));
+  }
+
+  /**
+   * Creates a failed VTaskPath containing the given exception.
+   *
+   * @param exception the exception; must not be null
+   * @param <A> the phantom type of the success value
+   * @return a failed VTaskPath
+   * @throws NullPointerException if exception is null
+   */
+  public static <A> VTaskPath<A> vtaskFail(Throwable exception) {
+    Objects.requireNonNull(exception, "exception must not be null");
+    return new DefaultVTaskPath<>(VTask.fail(exception));
+  }
+
+  /**
+   * Creates a VTaskPath from an existing VTask.
+   *
+   * @param vtask the VTask to wrap; must not be null
+   * @param <A> the type of the value
+   * @return a VTaskPath wrapping the VTask
+   * @throws NullPointerException if vtask is null
+   */
+  public static <A> VTaskPath<A> vtaskPath(VTask<A> vtask) {
+    Objects.requireNonNull(vtask, "vtask must not be null");
+    return new DefaultVTaskPath<>(vtask);
   }
 
   // ===== ValidationPath factory methods =====

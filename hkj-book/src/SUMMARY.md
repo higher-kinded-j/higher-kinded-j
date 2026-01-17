@@ -17,6 +17,7 @@
     - [TrampolinePath](effect/path_trampoline.md)
     - [FreePath](effect/path_free.md)
     - [FreeApPath](effect/path_freeap.md)
+    - [VTaskPath](effect/path_vtask.md)
   - [Composition Patterns](effect/composition.md)
   - [ForPath Comprehension](effect/forpath_comprehension.md)
   - [Type Conversions](effect/conversions.md)

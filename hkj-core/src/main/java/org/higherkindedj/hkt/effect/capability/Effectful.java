@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect.capability;
 
 import org.higherkindedj.hkt.effect.IOPath;
+import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.trymonad.Try;
 
 /**
@@ -33,7 +34,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  *
  * @param <A> the type of the value produced by the effect
  */
-public sealed interface Effectful<A> extends Chainable<A> permits IOPath {
+public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskPath {
 
   /**
    * Executes the deferred effect synchronously and returns the result.

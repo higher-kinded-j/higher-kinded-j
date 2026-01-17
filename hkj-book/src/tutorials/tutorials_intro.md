@@ -12,9 +12,9 @@ Rather than passive reading, you'll:
 
 Think of these as a guided laboratory for functional programming patterns in Java.
 
-## Eight Focused Journeys
+## Nine Focused Journeys
 
-Each journey is designed for a single sitting (22-40 minutes). Short enough to stay focused. Long enough to build real understanding.
+Each journey is designed for a single sitting (20-65 minutes). Short enough to stay focused. Long enough to build real understanding.
 
 ### Effect API Journey (Recommended)
 
@@ -25,6 +25,12 @@ After completing Core: Foundations, the **Effect API journey** is the recommende
 | Journey | Duration | Exercises | Focus |
 |---------|----------|-----------|-------|
 | [Effect API](effect/effect_journey.md) | ~65 min | 15 | Effect paths, ForPath, Contexts |
+
+### Concurrency Journey
+
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min | 16 | Virtual threads, VTask, VTaskPath, Par combinators |
 
 ### Core Types Journeys (Foundation)
 

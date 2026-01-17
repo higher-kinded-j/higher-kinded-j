@@ -87,6 +87,7 @@ String url = workflow.runWithSync(config);
 | `Path.left(e)` | `EitherPath<E, A>` | Failure |
 | `Path.tryOf(supplier)` | `TryPath<A>` | From throwing code |
 | `Path.io(supplier)` | `IOPath<A>` | Deferred effect |
+| `Path.vtask(callable)` | `VTaskPath<A>` | Virtual thread effect |
 | `Path.optional(opt)` | `OptionalPath<A>` | From Optional |
 
 ## Key Operations
@@ -132,6 +133,7 @@ After completing this journey, explore:
 - [Path Types](../../effect/path_types.md) - All available path types
 - [ForPath Comprehension](../../effect/forpath_comprehension.md) - Advanced ForPath usage
 - [Effect Contexts](../../effect/effect_contexts.md) - Context API documentation
+- [VTask Journey](../concurrency/vtask_journey.md) - Virtual thread-based concurrency with VTaskPath
 - [Optics: Focus-Effect Bridge (Tutorial 14)](../optics/focus_dsl_journey.md) - Deep integration guide
 
 ## What's Next?

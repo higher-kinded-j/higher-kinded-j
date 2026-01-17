@@ -439,6 +439,16 @@ class ListPrismsTest {
 
       assertThat(result).containsExactly(1, 20, 30, 40);
     }
+
+    @Test
+    @DisplayName("should return empty list unchanged when setting tail on empty list")
+    void tail_shouldReturnEmptyListUnchangedWhenSettingOnEmpty() {
+      Affine<List<Integer>, List<Integer>> tail = ListPrisms.tail();
+
+      List<Integer> result = tail.set(List.of(10, 20), List.of());
+
+      assertThat(result).isEmpty();
+    }
   }
 
   @Nested
@@ -496,6 +506,16 @@ class ListPrismsTest {
       List<Integer> result = init.modify(i -> i.stream().map(x -> x * 10).toList(), list);
 
       assertThat(result).containsExactly(10, 20, 30, 4);
+    }
+
+    @Test
+    @DisplayName("should return empty list unchanged when setting init on empty list")
+    void init_shouldReturnEmptyListUnchangedWhenSettingOnEmpty() {
+      Affine<List<Integer>, List<Integer>> init = ListPrisms.init();
+
+      List<Integer> result = init.set(List.of(10, 20), List.of());
+
+      assertThat(result).isEmpty();
     }
   }
 

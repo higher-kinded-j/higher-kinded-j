@@ -11,6 +11,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -36,7 +37,8 @@ import org.openjdk.jmh.annotations.State;
 @State(Scope.Thread)
 public class VTaskParBenchmark {
 
-  private static final int LIST_SIZE = 50;
+  @Param({"50"})
+  private int listSize;
 
   private VTask<Integer> taskA;
   private VTask<Integer> taskB;
@@ -51,12 +53,12 @@ public class VTaskParBenchmark {
     taskC = VTask.succeed(3);
 
     smallTaskList = new ArrayList<>();
-    for (int i = 0; i < LIST_SIZE; i++) {
+    for (int i = 0; i < listSize; i++) {
       smallTaskList.add(VTask.succeed(i));
     }
 
     items = new ArrayList<>();
-    for (int i = 0; i < LIST_SIZE; i++) {
+    for (int i = 0; i < listSize; i++) {
       items.add(i);
     }
   }
@@ -179,8 +181,8 @@ public class VTaskParBenchmark {
    */
   @Benchmark
   public List<Integer> highConcurrencyAll() throws Throwable {
-    List<VTask<Integer>> tasks = new ArrayList<>(LIST_SIZE);
-    for (int i = 0; i < LIST_SIZE; i++) {
+    List<VTask<Integer>> tasks = new ArrayList<>(listSize);
+    for (int i = 0; i < listSize; i++) {
       final int val = i;
       tasks.add(VTask.succeed(val));
     }

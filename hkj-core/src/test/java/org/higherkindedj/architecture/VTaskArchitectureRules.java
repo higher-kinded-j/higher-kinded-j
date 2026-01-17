@@ -208,16 +208,22 @@ class VTaskArchitectureRules {
   }
 
   /**
-   * VTask package classes should reside in the vtask package.
+   * Core VTask classes should reside in the vtask package.
    *
-   * <p>Ensures VTask-related classes are properly organized.
+   * <p>Ensures core VTask-related classes are properly organized. Effect Path API classes
+   * (VTaskPath, DefaultVTaskPath, VTaskContext, VTaskPathSteps*) are excluded as they correctly
+   * reside in the effect package following the same pattern as IOPath.
    */
   @Test
-  @DisplayName("VTask classes should reside in vtask package")
+  @DisplayName("Core VTask classes should reside in vtask package")
   void vtask_classes_should_reside_in_vtask_package() {
     classes()
         .that()
         .haveSimpleNameStartingWith("VTask")
+        .and()
+        .haveNameNotMatching(".*VTaskPath.*")
+        .and()
+        .haveNameNotMatching(".*VTaskContext.*")
         .should()
         .resideInAPackage(VTASK_PACKAGE)
         .check(productionClasses);

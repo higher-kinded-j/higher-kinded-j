@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
+import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
@@ -1494,6 +1495,232 @@ class ForPathTest {
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
       assertTrue(maybeResult.isNothing());
+    }
+  }
+
+  // ========================================================================
+  // VTaskPath Comprehension
+  // ========================================================================
+
+  @Nested
+  @DisplayName("VTaskPath Comprehension")
+  class VTaskPathTests {
+
+    @Test
+    @DisplayName("should chain generators with from()")
+    void chainsGenerators() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(5)).from(a -> Path.vtaskPure(a * 2)).yield((a, b) -> a + b);
+
+      assertEquals(15, result.unsafeRun()); // 5 + 10
+    }
+
+    @Test
+    @DisplayName("should propagate errors")
+    void propagatesErrors() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(5))
+              .<Integer>from(
+                  a ->
+                      Path.vtask(
+                          () -> {
+                            throw new RuntimeException("test error");
+                          }))
+              .yield((a, b) -> a + b);
+
+      assertThrows(RuntimeException.class, result::unsafeRun);
+    }
+
+    @Test
+    @DisplayName("should support let() for pure computations")
+    void supportsLet() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(10)).let(a -> a * 2).yield((a, b) -> "a=" + a + ", b=" + b);
+
+      assertEquals("a=10, b=20", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("should support focus() with FocusPath")
+    void supportsFocus() {
+      User user = new User("Alice", new Address("NYC", "USA"));
+
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+
+      assertEquals("NYC", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("should support three generators")
+    void supportsThreeGenerators() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(a + 1))
+              .from(t -> Path.vtaskPure(t._2() + 1))
+              .yield((a, b, c) -> a + b + c);
+
+      assertEquals(6, result.unsafeRun()); // 1 + 2 + 3
+    }
+
+    @Test
+    @DisplayName("should support four generators")
+    void supportsFourGenerators() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertEquals(10, result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("should support five generators")
+    void supportsFiveGenerators() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .from(t -> Path.vtaskPure(5))
+              .yield((a, b, c, d, e) -> a + b + c + d + e);
+
+      assertEquals(15, result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("should support yield with tuple function")
+    void supportsYieldWithTupleFunction() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(5))
+              .from(a -> Path.vtaskPure(a * 2))
+              .yield(t -> "sum=" + (t._1() + t._2()));
+
+      assertEquals("sum=15", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("should throw on null VTaskPath source")
+    void throwsOnNullVTaskPathSource() {
+      assertThrows(NullPointerException.class, () -> ForPath.from((VTaskPath<Object>) null));
+    }
+
+    // ===== Additional tests for complete coverage of VTaskPathSteps1-5 =====
+
+    @Test
+    @DisplayName("VTaskPathSteps2 let() should work at step 2")
+    void vtaskPathSteps2Let() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(5))
+              .from(a -> Path.vtaskPure(a * 2))
+              .let(t -> t._1() + t._2())
+              .yield((a, b, sum) -> "a=" + a + ", b=" + b + ", sum=" + sum);
+
+      assertEquals("a=5, b=10, sum=15", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps3 let() should work at step 3")
+    void vtaskPathSteps3Let() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .let(t -> t._1() + t._2() + t._3())
+              .yield((a, b, c, sum) -> "1+2+3=" + sum);
+
+      assertEquals("1+2+3=6", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps4 let() should work at step 4")
+    void vtaskPathSteps4Let() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .let(t -> t._1() + t._2() + t._3() + t._4())
+              .yield((a, b, c, d, sum) -> "sum=" + sum);
+
+      assertEquals("sum=10", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps3 yield with tuple function")
+    void vtaskPathSteps3YieldWithTupleFunction() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
+
+      assertEquals("sum=6", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps4 yield with tuple function")
+    void vtaskPathSteps4YieldWithTupleFunction() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4()));
+
+      assertEquals("sum=10", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps5 yield with tuple function")
+    void vtaskPathSteps5YieldWithTupleFunction() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .from(t -> Path.vtaskPure(5))
+              .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5()));
+
+      assertEquals("sum=15", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps1 yield() with single value function")
+    void vtaskPathSteps1YieldWithSingleValueFunction() {
+      VTaskPath<String> result = ForPath.from(Path.vtaskPure(42)).yield(a -> "value=" + a);
+
+      assertEquals("value=42", result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("VTaskPathSteps1 from() chains to VTaskPathSteps2")
+    void vtaskPathSteps1FromChainsToSteps2() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(10)).from(a -> Path.vtaskPure(a + 5)).yield((a, b) -> a * b);
+
+      assertEquals(150, result.unsafeRun()); // 10 * 15
+    }
+
+    @Test
+    @DisplayName("Error propagation through multiple steps")
+    void errorPropagationThroughMultipleSteps() {
+      RuntimeException error = new RuntimeException("Step 3 failed");
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .<Integer>from(
+                  t ->
+                      Path.vtask(
+                          () -> {
+                            throw error;
+                          }))
+              .yield((a, b, c) -> a + b + c);
+
+      RuntimeException thrown = assertThrows(RuntimeException.class, result::unsafeRun);
+      assertEquals("Step 3 failed", thrown.getMessage());
     }
   }
 }

@@ -308,12 +308,13 @@ For complete documentation, see:
 
 ## Learn by Doing
 
-Eight interactive tutorial journeys with hands-on exercises:
+Nine interactive tutorial journeys with hands-on exercises:
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
 | [Core: Foundations](https://higher-kinded-j.github.io/latest/tutorials/coretypes/foundations_journey.html) | HKT simulation, Functor, Monad | 24 |
 | [Effect API](https://higher-kinded-j.github.io/latest/tutorials/effect/effect_journey.html) | Effect paths, ForPath, Contexts | 15 |
+| [Concurrency: VTask](https://higher-kinded-j.github.io/latest/tutorials/concurrency/vtask_journey.html) | Virtual threads, VTaskPath, Par | 16 |
 | [Optics: Focus DSL](https://higher-kinded-j.github.io/latest/tutorials/optics/focus_dsl_journey.html) | Type-safe path navigation | 18 |
 
 [View all tutorials →](https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html)

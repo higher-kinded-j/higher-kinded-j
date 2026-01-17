@@ -10,8 +10,9 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 |---------|----------|-----------|-------|
 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min | 24 | Beginner |
 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | Intermediate |
-| [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~26 min | 16 | Advanced |
+| [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~38 min | 26 | Advanced |
 | [Effect API](effect/effect_journey.md) | ~65 min | 15 | All Levels |
+| [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min | 16 | Intermediate |
 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min | 30 | Beginner |
 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Intermediate |
 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min | 22 | Advanced |
