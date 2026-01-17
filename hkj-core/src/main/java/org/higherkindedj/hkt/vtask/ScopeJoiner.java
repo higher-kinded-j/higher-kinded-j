@@ -149,6 +149,9 @@ public sealed interface ScopeJoiner<T, R>
 /**
  * Joiner that waits for all subtasks to succeed.
  *
+ * <p>Uses Java 25's built-in {@code Joiner.allSuccessfulOrThrow()} internally and converts the
+ * Stream result to a List.
+ *
  * @param <T> the type of values produced by subtasks
  */
 @SuppressWarnings("preview")
@@ -157,38 +160,25 @@ final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
   private final StructuredTaskScope.Joiner<T, List<T>> delegate;
 
   AllSucceedJoiner() {
-    List<T> results = Collections.synchronizedList(new ArrayList<>());
-    java.util.concurrent.atomic.AtomicReference<Throwable> firstFailure =
-        new java.util.concurrent.atomic.AtomicReference<>();
+    // Use the built-in joiner that handles all the logic
+    StructuredTaskScope.Joiner<T, java.util.stream.Stream<T>> builtIn =
+        StructuredTaskScope.Joiner.allSuccessfulOrThrow();
 
     this.delegate =
         new StructuredTaskScope.Joiner<>() {
           @Override
           public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-            return true; // Always fork
+            return builtIn.onFork(subtask);
           }
 
           @Override
           public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-            switch (subtask.state()) {
-              case SUCCESS -> results.add(subtask.get());
-              case FAILED -> {
-                if (firstFailure.compareAndSet(null, subtask.exception())) {
-                  return false; // Cancel remaining tasks on first failure
-                }
-              }
-              default -> {}
-            }
-            return true; // Continue waiting
+            return builtIn.onComplete(subtask);
           }
 
           @Override
           public List<T> result() throws Throwable {
-            Throwable failure = firstFailure.get();
-            if (failure != null) {
-              throw failure;
-            }
-            return new ArrayList<>(results);
+            return builtIn.result().toList();
           }
         };
   }
@@ -222,6 +212,8 @@ final class AnySucceedJoiner<T> implements ScopeJoiner<T, T> {
 /**
  * Joiner that returns the first completed result (success or failure).
  *
+ * <p>Stores the first completed subtask and returns its result. Other subtasks are cancelled.
+ *
  * @param <T> the type of values produced by subtasks
  */
 @SuppressWarnings("preview")
@@ -230,25 +222,19 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
   private final StructuredTaskScope.Joiner<T, T> delegate;
 
   FirstCompleteJoiner() {
-    java.util.concurrent.atomic.AtomicReference<T> result = new java.util.concurrent.atomic.AtomicReference<>();
-    java.util.concurrent.atomic.AtomicReference<Throwable> error = new java.util.concurrent.atomic.AtomicReference<>();
-    java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
+    java.util.concurrent.atomic.AtomicReference<StructuredTaskScope.Subtask<? extends T>> firstCompleted =
+        new java.util.concurrent.atomic.AtomicReference<>();
 
     this.delegate =
         new StructuredTaskScope.Joiner<>() {
           @Override
           public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-            return !completed.get();
+            return firstCompleted.get() == null; // Don't fork if we already have a result
           }
 
           @Override
           public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-            if (completed.compareAndSet(false, true)) {
-              switch (subtask.state()) {
-                case SUCCESS -> result.set(subtask.get());
-                case FAILED -> error.set(subtask.exception());
-                default -> {}
-              }
+            if (firstCompleted.compareAndSet(null, subtask)) {
               return false; // Cancel remaining tasks
             }
             return true;
@@ -256,11 +242,15 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
 
           @Override
           public T result() throws Throwable {
-            Throwable err = error.get();
-            if (err != null) {
-              throw err;
+            StructuredTaskScope.Subtask<? extends T> subtask = firstCompleted.get();
+            if (subtask == null) {
+              throw new IllegalStateException("No subtask completed");
             }
-            return result.get();
+            return switch (subtask.state()) {
+              case SUCCESS -> subtask.get();
+              case FAILED -> throw subtask.exception();
+              default -> throw new IllegalStateException("Subtask not completed: " + subtask.state());
+            };
           }
         };
   }
@@ -274,6 +264,9 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
 /**
  * Joiner that accumulates all errors using {@link Validated}.
  *
+ * <p>Unlike fail-fast joiners, this waits for ALL subtasks to complete, collecting both successes
+ * and failures. Subtasks are tracked when forked and processed in the result() method.
+ *
  * @param <E> the error type after mapping
  * @param <T> the type of values produced by subtasks
  */
@@ -283,32 +276,40 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
   private final StructuredTaskScope.Joiner<T, Validated<List<E>, List<T>>> delegate;
 
   AccumulatingJoiner(Function<Throwable, E> errorMapper) {
-    List<E> errors = Collections.synchronizedList(new ArrayList<>());
-    List<T> successes = Collections.synchronizedList(new ArrayList<>());
+    // Store subtasks when forked, process all in result()
+    List<StructuredTaskScope.Subtask<? extends T>> subtasks =
+        Collections.synchronizedList(new ArrayList<>());
 
     this.delegate =
         new StructuredTaskScope.Joiner<>() {
           @Override
           public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+            subtasks.add(subtask);
             return true; // Always fork
           }
 
           @Override
           public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-            switch (subtask.state()) {
-              case SUCCESS -> successes.add(subtask.get());
-              case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
-              default -> {}
-            }
             return true; // Continue waiting for all
           }
 
           @Override
           public Validated<List<E>, List<T>> result() {
+            List<E> errors = new ArrayList<>();
+            List<T> successes = new ArrayList<>();
+
+            for (var subtask : subtasks) {
+              switch (subtask.state()) {
+                case SUCCESS -> successes.add(subtask.get());
+                case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
+                default -> {} // UNAVAILABLE shouldn't happen after join completes
+              }
+            }
+
             if (errors.isEmpty()) {
-              return Validated.valid(new ArrayList<>(successes));
+              return Validated.valid(successes);
             } else {
-              return Validated.invalid(new ArrayList<>(errors));
+              return Validated.invalid(errors);
             }
           }
         };
