@@ -224,23 +224,22 @@ public final class Scope<T, R> {
    */
   @SuppressWarnings("preview")
   public VTask<R> join() {
-    return () -> {
-      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
-        for (VTask<? extends T> task : tasks) {
-          scope.fork(task.asCallable());
-        }
+    VTask<R> joinTask =
+        () -> {
+          try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+            for (VTask<? extends T> task : tasks) {
+              scope.fork(task.asCallable());
+            }
 
-        if (timeout != null) {
-          scope.joinUntil(java.time.Instant.now().plus(timeout));
-        } else {
-          scope.join();
-        }
+            // StructuredTaskScope with custom Joiner returns result directly from join()
+            return scope.join();
+          } catch (StructuredTaskScope.FailedException e) {
+            throw e.getCause();
+          }
+        };
 
-        return scope.get();
-      } catch (StructuredTaskScope.FailedException e) {
-        throw e.getCause();
-      }
-    };
+    // Apply timeout if configured
+    return timeout != null ? joinTask.timeout(timeout) : joinTask;
   }
 
   /**

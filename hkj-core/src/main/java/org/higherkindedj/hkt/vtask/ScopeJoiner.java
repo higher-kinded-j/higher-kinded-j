@@ -154,23 +154,41 @@ public sealed interface ScopeJoiner<T, R>
 @SuppressWarnings("preview")
 final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
 
-  private final StructuredTaskScope.Joiner<T, List<T>> delegate;
-
-  AllSucceedJoiner() {
-    this.delegate =
-        StructuredTaskScope.Joiner.allSuccessfulOrThrow(
-            subtasks -> {
-              List<T> results = new ArrayList<>();
-              for (var subtask : subtasks) {
-                results.add(subtask.get());
-              }
-              return results;
-            });
-  }
-
   @Override
   public StructuredTaskScope.Joiner<T, List<T>> joiner() {
-    return delegate;
+    // Create a custom joiner that collects all results into a list
+    return new StructuredTaskScope.Joiner<>() {
+      private final List<T> results = Collections.synchronizedList(new ArrayList<>());
+      private volatile Throwable firstFailure = null;
+
+      @Override
+      public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+        return true; // Always fork
+      }
+
+      @Override
+      public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
+        switch (subtask.state()) {
+          case SUCCESS -> results.add(subtask.get());
+          case FAILED -> {
+            if (firstFailure == null) {
+              firstFailure = subtask.exception();
+            }
+            return false; // Cancel remaining tasks on failure
+          }
+          default -> {}
+        }
+        return true; // Continue waiting
+      }
+
+      @Override
+      public List<T> result() throws Throwable {
+        if (firstFailure != null) {
+          throw firstFailure;
+        }
+        return new ArrayList<>(results);
+      }
+    };
   }
 }
 

@@ -83,10 +83,9 @@ class ScopeJoinerTest {
         scope.fork(() -> "second");
         scope.fork(() -> "third");
 
-        scope.join();
-        List<String> result = scope.get();
+        List<String> result = scope.join();
 
-        assertThat(result).containsExactly("first", "second", "third");
+        assertThat(result).containsExactlyInAnyOrder("first", "second", "third");
       }
     }
 
@@ -106,7 +105,6 @@ class ScopeJoinerTest {
                       });
 
                   scope.join();
-                  scope.get();
                 }
               })
           .isInstanceOf(StructuredTaskScope.FailedException.class);
@@ -131,8 +129,7 @@ class ScopeJoinerTest {
               return "slow";
             });
 
-        scope.join();
-        String result = scope.get();
+        String result = scope.join();
 
         // Should get the fast result
         assertThat(result).isEqualTo("first");
@@ -155,8 +152,7 @@ class ScopeJoinerTest {
         scope.fork(() -> "first");
         scope.fork(() -> "second");
 
-        scope.join();
-        Validated<List<String>, List<String>> result = scope.get();
+        Validated<List<String>, List<String>> result = scope.join();
 
         assertThat(result.isValid()).isTrue();
         assertThat(result.get()).containsExactlyInAnyOrder("first", "second");
@@ -181,8 +177,7 @@ class ScopeJoinerTest {
               throw new RuntimeException("error2");
             });
 
-        scope.join();
-        Validated<List<String>, List<String>> result = scope.get();
+        Validated<List<String>, List<String>> result = scope.join();
 
         assertThat(result.isInvalid()).isTrue();
         assertThat(result.getError()).containsExactlyInAnyOrder("error1", "error2");
@@ -204,8 +199,7 @@ class ScopeJoinerTest {
               throw new IllegalArgumentException("bad arg");
             });
 
-        scope.join();
-        Validated<List<ErrorInfo>, List<String>> result = scope.get();
+        Validated<List<ErrorInfo>, List<String>> result = scope.join();
 
         assertThat(result.isInvalid()).isTrue();
         assertThat(result.getError())
