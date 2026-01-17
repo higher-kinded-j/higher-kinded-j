@@ -229,19 +229,25 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
     java.util.concurrent.atomic.AtomicReference<StructuredTaskScope.Subtask<? extends T>> firstCompleted =
         new java.util.concurrent.atomic.AtomicReference<>();
 
+    // Use awaitAll() for proper completion tracking
+    StructuredTaskScope.Joiner<T, Void> completionTracker = StructuredTaskScope.Joiner.awaitAll();
+
     this.delegate =
         new StructuredTaskScope.Joiner<>() {
           @Override
           public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-            return firstCompleted.get() == null; // Don't fork if we already have a result
+            if (firstCompleted.get() != null) {
+              return false; // Don't fork if we already have a result
+            }
+            return completionTracker.onFork(subtask);
           }
 
           @Override
           public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
             if (firstCompleted.compareAndSet(null, subtask)) {
-              return false; // Cancel remaining tasks
+              return false; // Cancel remaining tasks - we have our result
             }
-            return true;
+            return completionTracker.onComplete(subtask);
           }
 
           @Override
@@ -285,21 +291,28 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
 
   AccumulatingJoiner(Function<Throwable, E> errorMapper) {
     this.errorMapper = errorMapper;
+
+    // Use awaitAll() for proper completion tracking - it knows when all tasks are done
+    StructuredTaskScope.Joiner<T, Void> completionTracker = StructuredTaskScope.Joiner.awaitAll();
+
     this.delegate =
         new StructuredTaskScope.Joiner<>() {
           @Override
           public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
             allSubtasks.add(subtask);
-            return true; // Always fork
+            return completionTracker.onFork(subtask); // Let awaitAll track completion
           }
 
           @Override
           public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-            return true; // Wait for ALL subtasks
+            return completionTracker.onComplete(subtask); // Let awaitAll track completion
           }
 
           @Override
-          public Validated<List<E>, List<T>> result() {
+          public Validated<List<E>, List<T>> result() throws Throwable {
+            // awaitAll ensures all tasks are complete before this is called
+            completionTracker.result();
+
             List<E> errors = new ArrayList<>();
             List<T> successes = new ArrayList<>();
 
