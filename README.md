@@ -81,7 +81,8 @@ What makes Higher-Kinded-J unique is the seamless integration between **Effect P
   EitherPath<E, User>  ────┐         ┌──── FocusPath<User, Address>
   TryPath<Config>      ────┤         ├──── AffinePath<User, Email>
   IOPath<Data>         ────┤         ├──── TraversalPath<Team, Player>
-  ValidationPath<E, A> ────┘         └────
+  VTaskPath<A>         ────┤         └────
+  ValidationPath<E, A> ────┘
                             │       │
                             ▼       ▼
                        ┌─────────────────┐
@@ -158,6 +159,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | **Profunctor Architecture** | ✓ | ✓ | ✓ | ✗ |
 | **Fluent API** | ✓ | ✗ | ✗ | ✗ |
 | **Modern Java (21+)** | ✓ | ✗ | ✗ | ✗ |
+| **Virtual Threads** | ✓ | ✗ | ✗ | ✗ |
 
 *\* Derive4J generates getters/setters but requires Functional Java for actual optic classes*
 
@@ -184,6 +186,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `IdPath<A>` | Pure computations (testing, generic code) |
 | `OptionalPath<A>` | Bridge for Java's standard `Optional` |
 | `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
+| `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
 
 Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
 

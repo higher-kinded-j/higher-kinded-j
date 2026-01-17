@@ -64,7 +64,8 @@ What makes Higher-Kinded-J unique is the seamless integration between **Effect P
   EitherPath<E, User>  ────┐         ┌──── FocusPath<User, Address>
   TryPath<Config>      ────┤         ├──── AffinePath<User, Email>
   IOPath<Data>         ────┤         ├──── TraversalPath<Team, Player>
-  ValidationPath<E, A> ────┘         └────
+  VTaskPath<A>         ────┤         └────
+  ValidationPath<E, A> ────┘
                             │       │
                             ▼       ▼
                        ┌─────────────────┐
@@ -147,6 +148,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | **Profunctor Architecture** | ✓ | ✓ | ✓ | ✗ |
 | **Fluent API** | ✓ | ✗ | ✗ | ✗ |
 | **Modern Java (21+)** | ✓ | ✗ | ✗ | ✗ |
+| **Virtual Threads** | ✓ | ✗ | ✗ | ✗ |
 
 ^1^ *Derive4J generates getters/setters but requires Functional Java for actual optic classes*
 
@@ -173,6 +175,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `IdPath<A>` | Pure computations (testing, generic code) |
 | `OptionalPath<A>` | Bridge for Java's standard `Optional` |
 | `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
+| `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
 
 Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
 
@@ -180,7 +183,7 @@ Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover
 
 ## Learn by Doing
 
-The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Eight journeys guide you through hands-on exercises with immediate test feedback.
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Nine journeys guide you through hands-on exercises with immediate test feedback.
 
 | Journey | Focus | Duration | Exercises |
 |---------|-------|----------|-----------|
@@ -188,6 +191,7 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 | **[Core: Error Handling](tutorials/coretypes/error_handling_journey.md)** | MonadError, concrete types, real-world patterns | ~30 min | 20 |
 | **[Core: Advanced](tutorials/coretypes/advanced_journey.md)** | Natural Transformations, Coyoneda, Free Applicative | ~26 min | 16 |
 | **[Effect API](tutorials/effect/effect_journey.md)** | Effect paths, ForPath, Effect Contexts | ~65 min | 15 |
+| **[Concurrency: VTask](tutorials/concurrency/vtask_journey.md)** | Virtual threads, VTaskPath, Par combinators | ~45 min | 16 |
 | **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | ~40 min | 30 |
 | **[Optics: Traversals](tutorials/optics/traversals_journey.md)** | Traversals, composition, practical applications | ~40 min | 27 |
 | **[Optics: Fluent & Free](tutorials/optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | ~37 min | 22 |
