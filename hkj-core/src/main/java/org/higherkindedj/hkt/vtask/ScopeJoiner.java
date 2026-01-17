@@ -280,33 +280,42 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
   private final StructuredTaskScope.Joiner<T, Validated<List<E>, List<T>>> delegate;
 
   AccumulatingJoiner(Function<Throwable, E> errorMapper) {
-    // Store subtasks when forked, process all in result()
-    List<StructuredTaskScope.Subtask<? extends T>> subtasks =
+    // Use allSuccessfulOrThrow as base - it properly tracks subtasks
+    // We wrap it to collect errors instead of failing fast
+    StructuredTaskScope.Joiner<T, java.util.stream.Stream<StructuredTaskScope.Subtask<T>>> baseJoiner =
+        StructuredTaskScope.Joiner.allSuccessfulOrThrow();
+
+    // Also track subtasks ourselves to handle failures
+    List<StructuredTaskScope.Subtask<? extends T>> allSubtasks =
         Collections.synchronizedList(new ArrayList<>());
 
     this.delegate =
         new StructuredTaskScope.Joiner<>() {
           @Override
           public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
-            subtasks.add(subtask);
-            return true; // Always fork
+            allSubtasks.add(subtask);
+            baseJoiner.onFork(subtask);
+            return true; // Always fork, don't let base joiner decide
           }
 
           @Override
           public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-            return true; // Continue waiting for all
+            // Don't delegate to base - it would cancel on failure
+            // We want to wait for ALL subtasks
+            return true;
           }
 
           @Override
           public Validated<List<E>, List<T>> result() {
+            // Process all stored subtasks (they're already complete by now)
             List<E> errors = new ArrayList<>();
             List<T> successes = new ArrayList<>();
 
-            for (var subtask : subtasks) {
+            for (var subtask : allSubtasks) {
               switch (subtask.state()) {
                 case SUCCESS -> successes.add(subtask.get());
                 case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
-                default -> {} // UNAVAILABLE shouldn't happen after join completes
+                default -> {} // UNAVAILABLE shouldn't happen after join
               }
             }
 
