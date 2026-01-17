@@ -271,7 +271,7 @@ class ScopeTest {
     @DisplayName("join() returns Valid when all succeed")
     void joinReturnsValidWhenAllSucceed() throws Throwable {
       VTask<Validated<List<String>, List<String>>> result =
-          Scope.<String>accumulating(Throwable::getMessage)
+          Scope.<String, String>accumulating(Throwable::getMessage)
               .fork(VTask.succeed("first"))
               .fork(VTask.succeed("second"))
               .join();
@@ -286,7 +286,7 @@ class ScopeTest {
     @DisplayName("join() accumulates all errors")
     void joinAccumulatesAllErrors() throws Throwable {
       VTask<Validated<List<String>, List<String>>> result =
-          Scope.<String>accumulating(Throwable::getMessage)
+          Scope.<String, String>accumulating(Throwable::getMessage)
               .fork(VTask.succeed("success"))
               .fork(VTask.fail(new RuntimeException("error1")))
               .fork(VTask.fail(new RuntimeException("error2")))
@@ -326,7 +326,7 @@ class ScopeTest {
       Try<List<String>> tryResult = result.run();
 
       assertThat(tryResult.isFailure()).isTrue();
-      assertThat(tryResult.getError()).hasMessageContaining("error");
+      assertThat(((Try.Failure<List<String>>) tryResult).cause()).hasMessageContaining("error");
     }
 
     @Test
@@ -338,7 +338,7 @@ class ScopeTest {
       Either<Throwable, List<String>> either = result.run();
 
       assertThat(either.isRight()).isTrue();
-      assertThat(either.get()).containsExactly("test");
+      assertThat(either.getRight()).containsExactly("test");
     }
 
     @Test
@@ -411,7 +411,7 @@ class ScopeTest {
       record ValidationError(String field, String message) {}
 
       VTask<Validated<List<ValidationError>, List<String>>> validation =
-          Scope.<String>accumulating(
+          Scope.<ValidationError, String>accumulating(
                   t -> new ValidationError("unknown", t.getMessage()))
               .fork(VTask.succeed("valid1"))
               .fork(VTask.fail(new RuntimeException("invalid name")))

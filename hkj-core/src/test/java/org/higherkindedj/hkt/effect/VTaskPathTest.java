@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
@@ -744,7 +745,7 @@ class VTaskPathTest {
       var tryResult = ioPath.asTry().unsafeRun();
 
       assertThat(tryResult.isFailure()).isTrue();
-      assertThat(tryResult.getError()).isInstanceOf(RuntimeException.class);
+      assertThat(((Try.Failure<Integer>) tryResult).cause()).isInstanceOf(RuntimeException.class);
     }
   }
 
