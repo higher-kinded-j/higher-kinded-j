@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.vtask.VTaskAssert.assertThatVTask;
 
 import java.time.Duration;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
@@ -132,7 +135,7 @@ class VTaskTest {
     void asCallableReturnsResultFromSuccessfulTask() throws Exception {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
-      java.util.concurrent.Callable<Integer> callable = task.asCallable();
+      Callable<Integer> callable = task.asCallable();
 
       assertThat(callable.call()).isEqualTo(TEST_VALUE);
     }
@@ -143,7 +146,7 @@ class VTaskTest {
       RuntimeException exception = new RuntimeException("Test error");
       VTask<Integer> task = VTask.fail(exception);
 
-      java.util.concurrent.Callable<Integer> callable = task.asCallable();
+      Callable<Integer> callable = task.asCallable();
 
       assertThatThrownBy(callable::call)
           .isInstanceOf(RuntimeException.class)
@@ -160,7 +163,7 @@ class VTaskTest {
                 throw error;
               });
 
-      java.util.concurrent.Callable<Integer> callable = task.asCallable();
+      Callable<Integer> callable = task.asCallable();
 
       assertThatThrownBy(callable::call)
           .isInstanceOf(OutOfMemoryError.class)
@@ -175,7 +178,7 @@ class VTaskTest {
       // Use VTask.fail() to create a task that fails with the Throwable
       VTask<Integer> task = VTask.fail(customThrowable);
 
-      java.util.concurrent.Callable<Integer> callable = task.asCallable();
+      Callable<Integer> callable = task.asCallable();
 
       assertThatThrownBy(callable::call)
           .isInstanceOf(RuntimeException.class)
@@ -261,7 +264,7 @@ class VTaskTest {
 
       // Wait for completion and verify it completed exceptionally
       assertThatThrownBy(future::join)
-          .isInstanceOf(java.util.concurrent.CompletionException.class)
+          .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(RuntimeException.class);
     }
   }
@@ -440,9 +443,7 @@ class VTaskTest {
               });
       VTask<Integer> withTimeout = slowTask.timeout(Duration.ofMillis(50));
 
-      assertThatVTask(withTimeout)
-          .fails()
-          .withExceptionType(java.util.concurrent.TimeoutException.class);
+      assertThatVTask(withTimeout).fails().withExceptionType(TimeoutException.class);
     }
 
     @Test

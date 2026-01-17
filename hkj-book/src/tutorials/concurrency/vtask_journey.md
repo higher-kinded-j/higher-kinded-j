@@ -5,27 +5,41 @@
 - Executing tasks on virtual threads with proper error handling
 - Using Par combinators for parallel execution
 - Understanding structured concurrency principles
+- Using the fluent VTaskPath API for effect-based workflows
+- Working with VTaskContext for dependency injection
 ~~~
 
-**Duration**: ~25 minutes | **Tutorials**: 1 | **Exercises**: 8
+**Duration**: ~45 minutes | **Tutorials**: 2 | **Exercises**: 16
 
 **Requirements**: Java 25+ (virtual threads and structured concurrency)
 
 ## Journey Overview
 
-This journey introduces `VTask`, Higher-Kinded-J's effect type for virtual thread-based concurrency. You'll learn to describe computations lazily, compose them functionally, and execute them on lightweight virtual threads.
+This journey introduces `VTask` and `VTaskPath`, Higher-Kinded-J's types for virtual thread-based concurrency. You'll learn to describe computations lazily, compose them functionally, and execute them on lightweight virtual threads.
 
 ```
-VTask.of() → map/flatMap → Par.zip/map2 → run/runSafe
-   ↓            ↓              ↓              ↓
- Describe    Transform     Parallelize     Execute
+┌─────────────────────────────────────────────────────────────────┐
+│                    VTask Journey                                 │
+│                                                                 │
+│  Tutorial 1: VTask Fundamentals                                 │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐     │
+│  │ VTask.of │ → │ map/flat │ → │ Par.zip  │ → │ runSafe  │     │
+│  │          │   │   Map    │   │  /map2   │   │          │     │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘     │
+│                                                                 │
+│  Tutorial 2: VTaskPath Effect API                               │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐     │
+│  │Path.vtask│ → │ via/map  │ → │ timeout/ │ → │   run    │     │
+│  │          │   │          │   │handleErr │   │          │     │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 By the end, you'll understand how to build concurrent applications using functional composition rather than low-level thread management.
 
 ---
 
-## Tutorial: VTask Fundamentals (~25 minutes)
+## Tutorial 1: VTask Fundamentals (~25 minutes)
 **File**: `TutorialVTask.java` | **Exercises**: 8
 
 Master virtual thread-based concurrency with functional composition.
@@ -87,24 +101,86 @@ Master virtual thread-based concurrency with functional composition.
 
 ---
 
-## Running the Tutorial
+## Tutorial 2: VTaskPath Effect API (~20 minutes)
+**File**: `TutorialVTaskPath.java` | **Exercises**: 8
+
+Learn the fluent Effect Path API for VTask-based workflows.
+
+### Part 1: Creating VTaskPaths
+
+**What you'll learn**:
+- Creating paths with `Path.vtask()`, `Path.vtaskPure()`, `Path.vtaskFail()`
+- Understanding the relationship between VTask and VTaskPath
+- Converting between VTask and VTaskPath
+
+**Key insight**: VTaskPath wraps VTask to provide a fluent, composable API that integrates with the broader Effect Path ecosystem.
+
+**Exercise 1**: Create a VTaskPath from a computation
+**Exercise 2**: Create pure and failing VTaskPaths
+
+---
+
+### Part 2: Fluent Composition
+
+**What you'll learn**:
+- Chaining operations with `via()` (the Effect Path equivalent of flatMap)
+- Transforming values with `map()`
+- Debugging with `peek()`
+- Sequencing with `then()`
+
+**Key insight**: VTaskPath operations mirror VTask operations but use Effect Path naming conventions (`via` instead of `flatMap`) for consistency across all Path types.
+
+**Exercise 3**: Chain VTaskPath operations with via
+**Exercise 4**: Use peek for debugging a computation pipeline
+
+---
+
+### Part 3: Error Handling and Timeouts
+
+**What you'll learn**:
+- Safe execution with `runSafe()` returning `Try`
+- Recovery patterns: `handleError()`, `handleErrorWith()`
+- Timeout management with `timeout(Duration)`
+- Building fallback chains
+
+**Key insight**: Timeouts integrate naturally into the fluent API. A timeout that expires returns a failure that can be recovered from, just like any other error.
+
+**Exercise 5**: Add a timeout to a slow operation
+**Exercise 6**: Build a fallback chain with multiple recovery attempts
+
+---
+
+### Part 4: Real-World Patterns
+
+**What you'll learn**:
+- Service aggregation with parallel fetches
+- Dashboard-style data loading
+- Graceful degradation under failure
+
+**Key insight**: Combining VTaskPath with Par combinators gives you the best of both worlds: fluent composition for individual paths and parallel execution for independent operations.
+
+**Exercise 7**: Aggregate data from multiple services in parallel
+**Exercise 8**: Build a resilient dashboard loader with timeouts and fallbacks
+
+---
+
+## Running the Tutorials
 
 ### Using Gradle
 ```bash
 # Run all VTask exercises
-./gradlew :hkj-examples:tutorialTest --tests "*TutorialVTask*"
+./gradlew :hkj-examples:test --tests "*TutorialVTask*"
+
+# Run VTaskPath exercises
+./gradlew :hkj-examples:test --tests "*TutorialVTaskPath*"
 
 # Check your solutions pass
-./gradlew :hkj-examples:test --tests "*TutorialVTask_Solution*"
+./gradlew :hkj-examples:test --tests "*TutorialVTask*_Solution*"
+./gradlew :hkj-examples:test --tests "*TutorialVTaskPath*_Solution*"
 ```
 
-~~~admonish note title="Test Configuration"
-Tutorial exercises use the `tutorialTest` task. The regular `test` task runs
-solution tests only, which must pass to verify the tutorial is correctly designed.
-~~~
-
 ### Using Your IDE
-Navigate to `hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTask.java` and run the tests.
+Navigate to `hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/` and run the tests.
 
 ---
 
@@ -148,16 +224,31 @@ VTask<Pair> result = fetchA.flatMap(a ->
 VTask<Pair> result = Par.map2(fetchA, fetchB, Pair::new);
 ```
 
+### 4. Ignoring Timeouts in Production
+**Problem**: Letting slow operations block indefinitely.
+
+```java
+// RISKY: No timeout, could hang forever
+VTaskPath<Data> path = Path.vtask(() -> fetchFromSlowService());
+
+// BETTER: Add timeout with fallback
+VTaskPath<Data> safe = Path.vtask(() -> fetchFromSlowService())
+    .timeout(Duration.ofSeconds(5))
+    .handleError(e -> Data.empty());
+```
+
 ---
 
 ## Key Concepts Summary
 
 | Concept | Description |
 |---------|-------------|
-| **Laziness** | VTask describes computation; nothing runs until `run()`/`runSafe()`/`runAsync()` |
+| **Laziness** | VTask/VTaskPath describes computation; nothing runs until `run()`/`runSafe()`/`runAsync()` |
 | **Virtual Threads** | Execution happens on lightweight JVM-managed threads |
 | **Structured Concurrency** | Par combinators ensure proper task lifecycle management |
-| **Error Propagation** | Failures short-circuit chains; use `recover` to handle |
+| **Error Propagation** | Failures short-circuit chains; use `recover` (VTask) or `handleError` (VTaskPath) |
+| **Timeouts** | Use `timeout(Duration)` to prevent runaway operations |
+| **Effect Path Integration** | VTaskPath integrates with other Path types and ForPath comprehensions |
 
 ---
 
@@ -166,9 +257,10 @@ VTask<Pair> result = Par.map2(fetchA, fetchB, Pair::new);
 After completing this journey:
 
 1. **Read the VTask Documentation**: Deep dive into all VTask operations → [VTask Guide](../../monads/vtask_monad.md)
-2. **Explore Effect Path API**: See how VTask fits with other effect types
-3. **Build Real Applications**: Use Par combinators for API aggregation, batch processing
+2. **Explore VTaskPath Documentation**: See the full VTaskPath API → [VTaskPath Guide](../../effect/path_vtask.md)
+3. **Learn Effect Contexts**: Use VTaskContext for dependency injection → [Effect Contexts](../../effect/effect_contexts.md)
+4. **Build Real Applications**: Use Par combinators for API aggregation, batch processing
 
 ---
 
-**Related**: [VTask Guide](../../monads/vtask_monad.md) | [Monad Guide](../../functional/monad.md) | [MonadError Guide](../../functional/monad_error.md)
+**Related**: [VTask Guide](../../monads/vtask_monad.md) | [VTaskPath Guide](../../effect/path_vtask.md) | [Monad Guide](../../functional/monad.md) | [Effect Path Overview](../../effect/effect_path_overview.md)

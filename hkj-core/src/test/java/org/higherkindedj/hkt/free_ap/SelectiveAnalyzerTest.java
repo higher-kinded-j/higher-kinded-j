@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
@@ -496,7 +497,7 @@ class SelectiveAnalyzerTest {
                         case DbOp.Update u -> u.table();
                         case DbOp.Delete d -> d.table();
                       })
-              .collect(java.util.stream.Collectors.toSet());
+              .collect(Collectors.toSet());
 
       assertThat(tablesAccessed).containsExactlyInAnyOrder("users", "orders", "audit_log");
     }

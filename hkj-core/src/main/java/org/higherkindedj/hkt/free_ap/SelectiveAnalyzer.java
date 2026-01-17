@@ -7,6 +7,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
@@ -196,9 +197,7 @@ public interface SelectiveAnalyzer {
    * @throws NullPointerException if any argument is null
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A, Op> boolean containsDangerousEffect(
-      FreeAp<F, A> program,
-      Function<Kind<F, ?>, Op> narrow,
-      java.util.function.Predicate<Op> isDangerous) {
+      FreeAp<F, A> program, Function<Kind<F, ?>, Op> narrow, Predicate<Op> isDangerous) {
     requireNonNull(program, "Program cannot be null");
     requireNonNull(narrow, "Narrow function cannot be null");
     requireNonNull(isDangerous, "Predicate cannot be null");

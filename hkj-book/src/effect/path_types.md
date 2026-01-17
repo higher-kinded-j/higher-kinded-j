@@ -61,6 +61,15 @@ shouldn't happen until you're ready.
 **Reach for [`IOPath`](path_io.md)** to describe the effect without executing it. Nothing
 runs until you call `unsafeRun()`.
 
+### _"I need concurrent operations at scale"_
+
+You're building services that handle many concurrent requests, calling
+multiple APIs in parallel, or processing streams of events.
+
+**Reach for [`VTaskPath`](path_vtask.md)** for virtual thread-based concurrency. Write
+simple blocking code that scales to millions of concurrent tasks without
+the complexity of reactive streams.
+
 ### _"I need stack-safe recursion"_
 
 Deep recursive algorithms that would blow the stack with direct recursion.
@@ -98,6 +107,7 @@ with a `Monad` instance.
 | [`EitherPath<E, A>`](path_either.md) | `Either<E, A>` | `E` (typed) | Immediate | Typed error handling |
 | [`TryPath<A>`](path_try.md) | `Try<A>` | `Throwable` | Immediate | Exception wrapping |
 | [`IOPath<A>`](path_io.md) | `IO<A>` | `Throwable` | **Deferred** | Side effects |
+| [`VTaskPath<A>`](path_vtask.md) | `VTask<A>` | `Throwable` | **Deferred** | Virtual thread concurrency |
 | [`ValidationPath<E, A>`](path_validation.md) | `Validated<E, A>` | `E` (accumulated) | Immediate | Form validation |
 | [`IdPath<A>`](path_id.md) | `Id<A>` | None (always succeeds) | Immediate | Pure values |
 | [`OptionalPath<A>`](path_optional.md) | `Optional<A>` | None (absence) | Immediate | Java stdlib bridge |
@@ -131,6 +141,7 @@ These types handle failures with different strategies:
 These types describe computations without executing them:
 
 - **[IOPath](path_io.md)** - Side effects, runs when you call `unsafeRun()`
+- **[VTaskPath](path_vtask.md)** - Virtual thread concurrency, runs when you call `run()`
 - **[TrampolinePath](path_trampoline.md)** - Stack-safe recursion
 
 ### DSL Building
@@ -154,6 +165,7 @@ These types support building domain-specific languages:
 | Operation might fail with typed error | `EitherPath` | Structured error handling |
 | Wrapping exception-throwing code | `TryPath` | Exception → functional bridge |
 | Side effects to defer | `IOPath` | Lazy, referential transparency |
+| Concurrent operations at scale | `VTaskPath` | Virtual threads, simple blocking code |
 | Need ALL validation errors | `ValidationPath` | Error accumulation |
 | Bridging Java's Optional | `OptionalPath` | Stdlib compatibility |
 | Always succeeds, pure value | `IdPath` | Generic/testing contexts |

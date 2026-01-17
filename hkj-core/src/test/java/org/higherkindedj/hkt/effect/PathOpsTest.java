@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.optics.Each;
@@ -396,6 +397,433 @@ class PathOpsTest {
       assertThatNullPointerException()
           .isThrownBy(() -> PathOps.firstSuccess(null))
           .withMessageContaining("paths must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("VTaskPath Operations")
+  class VTaskPathOperationsTests {
+
+    @Test
+    @DisplayName("sequenceVTask() converts list of success to success of list")
+    void sequenceVTaskConvertsListOfSuccessToSuccessOfList() {
+      List<VTaskPath<Integer>> paths =
+          List.of(Path.vtaskPure(1), Path.vtaskPure(2), Path.vtaskPure(3));
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTask(paths);
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("sequenceVTask() returns success of empty list for empty input")
+    void sequenceVTaskReturnsSuccessOfEmptyListForEmptyInput() {
+      List<VTaskPath<Integer>> paths = List.of();
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTask(paths);
+
+      assertThat(result.unsafeRun()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("sequenceVTask() propagates first failure")
+    void sequenceVTaskPropagatesFirstFailure() {
+      RuntimeException error = new RuntimeException("VTask failed");
+      List<VTaskPath<Integer>> paths =
+          List.of(Path.vtaskPure(1), Path.vtaskFail(error), Path.vtaskPure(3));
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTask(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("VTask failed");
+    }
+
+    @Test
+    @DisplayName("sequenceVTask() executes sequentially")
+    void sequenceVTaskExecutesSequentially() {
+      AtomicInteger counter = new AtomicInteger(0);
+      List<Integer> executionOrder = new ArrayList<>();
+
+      List<VTaskPath<Integer>> paths =
+          List.of(
+              Path.vtask(
+                  () -> {
+                    executionOrder.add(counter.incrementAndGet());
+                    return 1;
+                  }),
+              Path.vtask(
+                  () -> {
+                    executionOrder.add(counter.incrementAndGet());
+                    return 2;
+                  }),
+              Path.vtask(
+                  () -> {
+                    executionOrder.add(counter.incrementAndGet());
+                    return 3;
+                  }));
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTask(paths);
+      result.unsafeRun();
+
+      assertThat(executionOrder).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("sequenceVTask() validates non-null paths")
+    void sequenceVTaskValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.sequenceVTask(null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    @Test
+    @DisplayName("traverseVTask() maps and sequences")
+    void traverseVTaskMapsAndSequences() {
+      List<String> items = List.of("1", "2", "3");
+
+      VTaskPath<List<Integer>> result =
+          PathOps.traverseVTask(items, s -> Path.vtaskPure(Integer.parseInt(s)));
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("traverseVTask() returns success of empty list for empty input")
+    void traverseVTaskReturnsSuccessOfEmptyListForEmptyInput() {
+      List<String> items = List.of();
+
+      VTaskPath<List<Integer>> result =
+          PathOps.traverseVTask(items, s -> Path.vtaskPure(Integer.parseInt(s)));
+
+      assertThat(result.unsafeRun()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("traverseVTask() propagates first failure")
+    void traverseVTaskPropagatesFirstFailure() {
+      List<String> items = List.of("1", "not-a-number", "3");
+
+      VTaskPath<List<Integer>> result =
+          PathOps.traverseVTask(
+              items,
+              s ->
+                  Path.vtask(
+                      () -> {
+                        return Integer.parseInt(s);
+                      }));
+
+      assertThatThrownBy(result::unsafeRun).isInstanceOf(NumberFormatException.class);
+    }
+
+    @Test
+    @DisplayName("traverseVTask() validates non-null items")
+    void traverseVTaskValidatesNonNullItems() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.traverseVTask(null, s -> Path.vtaskPure(s)))
+          .withMessageContaining("items must not be null");
+    }
+
+    @Test
+    @DisplayName("traverseVTask() validates non-null function")
+    void traverseVTaskValidatesNonNullFunction() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.traverseVTask(List.of("a"), null))
+          .withMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("sequenceVTaskPar() converts list of success to success of list")
+    void sequenceVTaskParConvertsListOfSuccessToSuccessOfList() {
+      List<VTaskPath<Integer>> paths =
+          List.of(Path.vtaskPure(1), Path.vtaskPure(2), Path.vtaskPure(3));
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTaskPar(paths);
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("sequenceVTaskPar() returns success of empty list for empty input")
+    void sequenceVTaskParReturnsSuccessOfEmptyListForEmptyInput() {
+      List<VTaskPath<Integer>> paths = List.of();
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTaskPar(paths);
+
+      assertThat(result.unsafeRun()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("sequenceVTaskPar() validates non-null paths")
+    void sequenceVTaskParValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.sequenceVTaskPar(null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    @Test
+    @DisplayName("sequenceVTaskPar() propagates failure")
+    void sequenceVTaskParPropagatesFailure() {
+      RuntimeException error = new RuntimeException("Parallel VTask failed");
+      List<VTaskPath<Integer>> paths =
+          List.of(Path.vtaskPure(1), Path.vtaskFail(error), Path.vtaskPure(3));
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTaskPar(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("Parallel VTask failed");
+    }
+
+    @Test
+    @DisplayName("traverseVTaskPar() maps and sequences in parallel")
+    void traverseVTaskParMapsAndSequences() {
+      List<String> items = List.of("1", "2", "3");
+
+      VTaskPath<List<Integer>> result =
+          PathOps.traverseVTaskPar(items, s -> Path.vtaskPure(Integer.parseInt(s)));
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("traverseVTaskPar() returns success of empty list for empty input")
+    void traverseVTaskParReturnsSuccessOfEmptyListForEmptyInput() {
+      List<String> items = List.of();
+
+      VTaskPath<List<Integer>> result =
+          PathOps.traverseVTaskPar(items, s -> Path.vtaskPure(Integer.parseInt(s)));
+
+      assertThat(result.unsafeRun()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("traverseVTaskPar() validates non-null items")
+    void traverseVTaskParValidatesNonNullItems() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.traverseVTaskPar(null, s -> Path.vtaskPure(s)))
+          .withMessageContaining("items must not be null");
+    }
+
+    @Test
+    @DisplayName("traverseVTaskPar() validates non-null function")
+    void traverseVTaskParValidatesNonNullFunction() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.traverseVTaskPar(List.of("a"), null))
+          .withMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("raceVTask() returns first successful result")
+    void raceVTaskReturnsFirstSuccessfulResult() {
+      VTaskPath<String> fast = Path.vtaskPure("fast");
+      VTaskPath<String> slow =
+          Path.vtask(
+              () -> {
+                try {
+                  Thread.sleep(100);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "slow";
+              });
+
+      List<VTaskPath<String>> paths = List.of(slow, fast);
+
+      VTaskPath<String> result = PathOps.raceVTask(paths);
+
+      // Either could win depending on scheduling
+      String winner = result.unsafeRun();
+      assertThat(winner).isIn("fast", "slow");
+    }
+
+    @Test
+    @DisplayName("raceVTask() returns sole path for single-element list")
+    void raceVTaskReturnsSolePath() {
+      VTaskPath<String> path = Path.vtaskPure("only one");
+      List<VTaskPath<String>> paths = List.of(path);
+
+      VTaskPath<String> result = PathOps.raceVTask(paths);
+
+      assertThat(result).isSameAs(path);
+    }
+
+    @Test
+    @DisplayName("raceVTask() throws for empty list")
+    void raceVTaskThrowsForEmptyList() {
+      List<VTaskPath<String>> paths = List.of();
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> PathOps.raceVTask(paths))
+          .withMessageContaining("paths must not be empty");
+    }
+
+    @Test
+    @DisplayName("raceVTask() validates non-null paths")
+    void raceVTaskValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.raceVTask(null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() returns first successful path")
+    void firstVTaskSuccessReturnsFirstSuccessfulPath() {
+      List<VTaskPath<String>> paths =
+          List.of(
+              Path.vtaskFail(new RuntimeException("error1")),
+              Path.vtaskPure("found"),
+              Path.vtaskPure("also found"));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThat(result.unsafeRun()).isEqualTo("found");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() returns last failure if all fail")
+    void firstVTaskSuccessReturnsLastFailureIfAllFail() {
+      RuntimeException error1 = new RuntimeException("error1");
+      RuntimeException error2 = new RuntimeException("error2");
+      List<VTaskPath<String>> paths = List.of(Path.vtaskFail(error1), Path.vtaskFail(error2));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("error2");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() returns sole success")
+    void firstVTaskSuccessReturnsSoleSuccess() {
+      List<VTaskPath<String>> paths = List.of(Path.vtaskPure("only one"));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThat(result.unsafeRun()).isEqualTo("only one");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() throws for empty list")
+    void firstVTaskSuccessThrowsForEmptyList() {
+      List<VTaskPath<String>> paths = List.of();
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> PathOps.firstVTaskSuccess(paths))
+          .withMessageContaining("paths must not be empty");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() validates non-null paths")
+    void firstVTaskSuccessValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.firstVTaskSuccess(null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() executes sequentially, not in parallel")
+    void firstVTaskSuccessExecutesSequentially() {
+      AtomicInteger counter = new AtomicInteger(0);
+      List<Integer> executionOrder = new ArrayList<>();
+
+      List<VTaskPath<String>> paths =
+          List.of(
+              Path.vtask(
+                  () -> {
+                    executionOrder.add(counter.incrementAndGet());
+                    throw new RuntimeException("first");
+                  }),
+              Path.vtask(
+                  () -> {
+                    executionOrder.add(counter.incrementAndGet());
+                    return "success";
+                  }),
+              Path.vtask(
+                  () -> {
+                    executionOrder.add(counter.incrementAndGet());
+                    return "not executed";
+                  }));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+      String value = result.unsafeRun();
+
+      assertThat(value).isEqualTo("success");
+      // Third task should not execute since second succeeded
+      assertThat(executionOrder).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() propagates Error when all fail with Error")
+    void firstVTaskSuccessPropagatesErrorWhenAllFailWithError() {
+      Error error = new AssertionError("test error");
+      List<VTaskPath<String>> paths =
+          List.of(
+              Path.vtask(
+                  () -> {
+                    throw error;
+                  }));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(AssertionError.class)
+          .hasMessage("test error");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() wraps checked exception in RuntimeException when all fail")
+    void firstVTaskSuccessWrapsCheckedExceptionWhenAllFail() {
+      List<VTaskPath<String>> paths =
+          List.of(
+              Path.vtask(
+                  () -> {
+                    throw new Exception("checked exception");
+                  }));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasCauseInstanceOf(Exception.class);
+    }
+
+    @Test
+    @DisplayName("sequenceVTask() handles Error properly")
+    void sequenceVTaskHandlesError() {
+      Error error = new OutOfMemoryError("test error");
+      List<VTaskPath<Integer>> paths =
+          List.of(
+              Path.vtaskPure(1),
+              Path.vtask(
+                  () -> {
+                    throw error;
+                  }));
+
+      VTaskPath<List<Integer>> result = PathOps.sequenceVTask(paths);
+
+      assertThatThrownBy(result::unsafeRun).isInstanceOf(OutOfMemoryError.class);
+    }
+
+    @Test
+    @DisplayName("traverseVTask() handles Error properly")
+    void traverseVTaskHandlesError() {
+      List<String> items = List.of("a", "error", "b");
+
+      VTaskPath<List<Integer>> result =
+          PathOps.traverseVTask(
+              items,
+              s ->
+                  Path.vtask(
+                      () -> {
+                        if (s.equals("error")) {
+                          throw new StackOverflowError("test error");
+                        }
+                        return s.length();
+                      }));
+
+      assertThatThrownBy(result::unsafeRun).isInstanceOf(StackOverflowError.class);
     }
   }
 

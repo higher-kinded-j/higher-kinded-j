@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
@@ -394,9 +395,7 @@ public class PermissionCheckingExample {
         SelectiveAnalyzer.collectPossibleEffects(program, FileOpHelper.FILE_OP::narrow);
 
     Set<Permission> requiredPermissions =
-        operations.stream()
-            .map(FileOp::requiredPermission)
-            .collect(java.util.stream.Collectors.toSet());
+        operations.stream().map(FileOp::requiredPermission).collect(Collectors.toSet());
 
     System.out.println("Program requires these permissions:");
     requiredPermissions.forEach(p -> System.out.println("  - " + p));

@@ -18,6 +18,8 @@ import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.vtask.Par;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.util.Traversals;
 
@@ -61,12 +63,15 @@ import org.higherkindedj.optics.util.Traversals;
  *   <li>{@code EitherPath}: Returns first Left error
  *   <li>{@code ValidationPath}: Accumulates all errors using the provided Semigroup
  *   <li>{@code TryPath}: Returns first failure
+ *   <li>{@code VTaskPath}: Executes sequentially by default; use {@code sequenceVTaskPar} for
+ *       parallel
  * </ul>
  *
  * @see MaybePath
  * @see EitherPath
  * @see ValidationPath
  * @see TryPath
+ * @see VTaskPath
  */
 public final class PathOps {
 
@@ -358,6 +363,193 @@ public final class PathOps {
       lastFailure = path;
     }
     return lastFailure;
+  }
+
+  // ===== VTaskPath Operations =====
+
+  /**
+   * Converts a list of VTaskPaths into a VTaskPath of list (sequential execution).
+   *
+   * <p>If all paths succeed, returns a path containing the list of values. If any path fails,
+   * returns the first failure encountered. Paths are executed sequentially in order.
+   *
+   * <p>For parallel execution, use {@link #sequenceVTaskPar(List)}.
+   *
+   * @param paths the list of paths to sequence; must not be null
+   * @param <A> the element type
+   * @return a VTaskPath containing a list, or the first failure
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> VTaskPath<List<A>> sequenceVTask(List<VTaskPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return Path.vtaskPure(List.of());
+    }
+
+    return Path.vtaskPath(
+        VTask.delay(
+            () -> {
+              List<A> results = new ArrayList<>(paths.size());
+              for (VTaskPath<A> path : paths) {
+                results.add(path.unsafeRun());
+              }
+              return results;
+            }));
+  }
+
+  /**
+   * Maps a function over a list and sequences the results (sequential execution).
+   *
+   * <p>This is equivalent to mapping the function over the list, then sequencing the results, but
+   * potentially more efficient. Paths are executed sequentially in order.
+   *
+   * <p>For parallel execution, use {@link #traverseVTaskPar(List, Function)}.
+   *
+   * @param items the items to traverse; must not be null
+   * @param f the function to apply; must not be null
+   * @param <A> the input element type
+   * @param <B> the output element type
+   * @return a VTaskPath containing a list, or the first failure
+   * @throws NullPointerException if items or f is null
+   */
+  public static <A, B> VTaskPath<List<B>> traverseVTask(
+      List<A> items, Function<A, VTaskPath<B>> f) {
+    Objects.requireNonNull(items, "items must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    if (items.isEmpty()) {
+      return Path.vtaskPure(List.of());
+    }
+
+    return Path.vtaskPath(
+        VTask.delay(
+            () -> {
+              List<B> results = new ArrayList<>(items.size());
+              for (A item : items) {
+                VTaskPath<B> path = f.apply(item);
+                results.add(path.unsafeRun());
+              }
+              return results;
+            }));
+  }
+
+  /**
+   * Converts a list of VTaskPaths into a VTaskPath of list (parallel execution).
+   *
+   * <p>All paths are executed concurrently on virtual threads using {@link Par#all(List)}. If any
+   * path fails, the result fails with that exception.
+   *
+   * <p>For sequential execution, use {@link #sequenceVTask(List)}.
+   *
+   * @param paths the list of paths to sequence in parallel; must not be null
+   * @param <A> the element type
+   * @return a VTaskPath containing a list, or the first failure
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> VTaskPath<List<A>> sequenceVTaskPar(List<VTaskPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return Path.vtaskPure(List.of());
+    }
+
+    List<VTask<A>> tasks = paths.stream().map(VTaskPath::run).toList();
+    return Path.vtaskPath(Par.all(tasks));
+  }
+
+  /**
+   * Maps a function over a list and sequences the results (parallel execution).
+   *
+   * <p>Applies the function to each element and executes the resulting VTasks in parallel using
+   * virtual threads.
+   *
+   * <p>For sequential execution, use {@link #traverseVTask(List, Function)}.
+   *
+   * @param items the items to traverse; must not be null
+   * @param f the function to apply; must not be null
+   * @param <A> the input element type
+   * @param <B> the output element type
+   * @return a VTaskPath containing a list, or the first failure
+   * @throws NullPointerException if items or f is null
+   */
+  public static <A, B> VTaskPath<List<B>> traverseVTaskPar(
+      List<A> items, Function<A, VTaskPath<B>> f) {
+    Objects.requireNonNull(items, "items must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    if (items.isEmpty()) {
+      return Path.vtaskPure(List.of());
+    }
+
+    List<VTask<B>> tasks = items.stream().map(item -> f.apply(item).run()).toList();
+    return Path.vtaskPath(Par.all(tasks));
+  }
+
+  /**
+   * Races multiple VTaskPaths, returning the first to complete successfully.
+   *
+   * <p>All VTaskPaths are executed concurrently on virtual threads. The first to complete
+   * successfully wins. If all fail, the last failure is propagated.
+   *
+   * @param paths the VTaskPaths to race; must not be null or empty
+   * @param <A> the element type
+   * @return a VTaskPath that completes with the first successful result
+   * @throws NullPointerException if paths is null
+   * @throws IllegalArgumentException if paths is empty
+   */
+  public static <A> VTaskPath<A> raceVTask(List<VTaskPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    if (paths.isEmpty()) {
+      throw new IllegalArgumentException("paths must not be empty");
+    }
+
+    if (paths.size() == 1) {
+      return paths.getFirst();
+    }
+
+    List<VTask<A>> tasks = paths.stream().map(VTaskPath::run).toList();
+    return Path.vtaskPath(Par.race(tasks));
+  }
+
+  /**
+   * Returns the first successful VTaskPath, or the last failure if all fail.
+   *
+   * <p>This is useful for trying multiple fallback strategies until one succeeds. Unlike {@link
+   * #raceVTask(List)}, paths are tried sequentially (not in parallel).
+   *
+   * @param paths the paths to try; must not be null or empty
+   * @param <A> the element type
+   * @return the first successful path, or the last failure
+   * @throws NullPointerException if paths is null
+   * @throws IllegalArgumentException if paths is empty
+   */
+  public static <A> VTaskPath<A> firstVTaskSuccess(List<VTaskPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    if (paths.isEmpty()) {
+      throw new IllegalArgumentException("paths must not be empty");
+    }
+
+    return Path.vtaskPath(
+        VTask.delay(
+            () -> {
+              Throwable lastError = null;
+              for (VTaskPath<A> path : paths) {
+                Try<A> result = path.runSafe();
+                if (result.isSuccess()) {
+                  // Use fold to extract value without throwing checked exception
+                  return result.fold(a -> a, cause -> null);
+                }
+                // Extract the cause from the Failure using fold
+                lastError = result.fold(a -> null, cause -> cause);
+              }
+              // VTaskPath.unsafeRun() only throws RuntimeException or Error
+              // (checked exceptions are wrapped), so lastError will always be one of these
+              if (lastError instanceof RuntimeException re) {
+                throw re;
+              }
+              throw (Error) lastError;
+            }));
   }
 
   // ===== OptionalPath Operations =====
