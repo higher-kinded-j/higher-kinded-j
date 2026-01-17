@@ -7,7 +7,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.validated.Validated;
 
@@ -162,7 +164,7 @@ final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
   AllSucceedJoiner() {
     // Use the built-in joiner that handles all the logic
     // Note: allSuccessfulOrThrow() returns Stream<Subtask<T>>, not Stream<T>
-    StructuredTaskScope.Joiner<T, java.util.stream.Stream<StructuredTaskScope.Subtask<T>>> builtIn =
+    StructuredTaskScope.Joiner<T, Stream<StructuredTaskScope.Subtask<T>>> builtIn =
         StructuredTaskScope.Joiner.allSuccessfulOrThrow();
 
     this.delegate =
@@ -180,9 +182,7 @@ final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
           @Override
           public List<T> result() throws Throwable {
             // Extract values from Subtasks and collect to List
-            return builtIn.result()
-                .map(StructuredTaskScope.Subtask::get)
-                .toList();
+            return builtIn.result().map(StructuredTaskScope.Subtask::get).toList();
           }
         };
   }
@@ -226,8 +226,8 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
   private final StructuredTaskScope.Joiner<T, T> delegate;
 
   FirstCompleteJoiner() {
-    java.util.concurrent.atomic.AtomicReference<StructuredTaskScope.Subtask<? extends T>> firstCompleted =
-        new java.util.concurrent.atomic.AtomicReference<>();
+    AtomicReference<StructuredTaskScope.Subtask<? extends T>>
+        firstCompleted = new AtomicReference<>();
 
     // Use awaitAll() for proper completion tracking
     StructuredTaskScope.Joiner<T, Void> completionTracker = StructuredTaskScope.Joiner.awaitAll();
@@ -259,7 +259,8 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
             return switch (subtask.state()) {
               case SUCCESS -> subtask.get();
               case FAILED -> throw subtask.exception();
-              default -> throw new IllegalStateException("Subtask not completed: " + subtask.state());
+              default ->
+                  throw new IllegalStateException("Subtask not completed: " + subtask.state());
             };
           }
         };

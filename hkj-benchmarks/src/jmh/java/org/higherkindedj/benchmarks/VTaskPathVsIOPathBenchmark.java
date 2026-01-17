@@ -279,10 +279,11 @@ public class VTaskPathVsIOPathBenchmark {
    * Measures the overhead of converting VTaskPath to IOPath and executing.
    *
    * <p>This benchmark compares the cost of:
+   *
    * <ol>
-   *   <li>Creating a VTaskPath</li>
-   *   <li>Converting it to IOPath via toIOPath()</li>
-   *   <li>Executing the IOPath</li>
+   *   <li>Creating a VTaskPath
+   *   <li>Converting it to IOPath via toIOPath()
+   *   <li>Executing the IOPath
    * </ol>
    *
    * <p>Expected: Some overhead vs direct VTaskPath execution due to wrapping.
@@ -292,22 +293,13 @@ public class VTaskPathVsIOPathBenchmark {
     return vtaskPath.toIOPath().unsafeRun();
   }
 
-  /**
-   * Measures VTaskPath → IOPath conversion with map chain composition.
-   */
+  /** Measures VTaskPath → IOPath conversion with map chain composition. */
   @Benchmark
   public Integer vtaskPath_toIOPath_mapChain() {
-    return vtaskPath
-        .toIOPath()
-        .map(x -> x + 1)
-        .map(x -> x * 2)
-        .map(x -> x - 5)
-        .unsafeRun();
+    return vtaskPath.toIOPath().map(x -> x + 1).map(x -> x * 2).map(x -> x - 5).unsafeRun();
   }
 
-  /**
-   * Measures VTaskPath → IOPath conversion followed by IOPath via chain.
-   */
+  /** Measures VTaskPath → IOPath conversion followed by IOPath via chain. */
   @Benchmark
   public Integer vtaskPath_toIOPath_viaChain() {
     return vtaskPath
@@ -321,8 +313,8 @@ public class VTaskPathVsIOPathBenchmark {
   /**
    * Measures VTaskPath with via chain, then converted to IOPath.
    *
-   * <p>This tests the pattern where VTask operations are composed first,
-   * then converted to IOPath for interop with IOPath-based code.
+   * <p>This tests the pattern where VTask operations are composed first, then converted to IOPath
+   * for interop with IOPath-based code.
    */
   @Benchmark
   public Integer vtaskPath_chainThenToIOPath() {
@@ -334,9 +326,7 @@ public class VTaskPathVsIOPathBenchmark {
         .unsafeRun();
   }
 
-  /**
-   * Measures the overhead of toIOPath conversion with error handling.
-   */
+  /** Measures the overhead of toIOPath conversion with error handling. */
   @Benchmark
   public Integer vtaskPath_toIOPath_withErrorHandling() {
     return Path.<Integer>vtask(
@@ -351,15 +341,11 @@ public class VTaskPathVsIOPathBenchmark {
   /**
    * Measures toIOPath followed by IOPath guarantee (resource cleanup pattern).
    *
-   * <p>This is a common pattern when integrating VTask with IOPath's
-   * resource management features.
+   * <p>This is a common pattern when integrating VTask with IOPath's resource management features.
    */
   @Benchmark
   public Integer vtaskPath_toIOPath_withGuarantee() {
-    return vtaskPath
-        .toIOPath()
-        .guarantee(() -> {})
-        .unsafeRun();
+    return vtaskPath.toIOPath().guarantee(() -> {}).unsafeRun();
   }
 
   /**

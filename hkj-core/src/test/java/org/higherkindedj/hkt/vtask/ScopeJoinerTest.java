@@ -12,9 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/**
- * Test suite for ScopeJoiner - the hybrid wrapper around Java 25's StructuredTaskScope.Joiner.
- */
+/** Test suite for ScopeJoiner - the hybrid wrapper around Java 25's StructuredTaskScope.Joiner. */
 @DisplayName("ScopeJoiner<T, R> Test Suite")
 class ScopeJoinerTest {
 
@@ -191,7 +189,8 @@ class ScopeJoinerTest {
       record ErrorInfo(String message, String type) {}
 
       ScopeJoiner<String, Validated<List<ErrorInfo>, List<String>>> joiner =
-          ScopeJoiner.accumulating(t -> new ErrorInfo(t.getMessage(), t.getClass().getSimpleName()));
+          ScopeJoiner.accumulating(
+              t -> new ErrorInfo(t.getMessage(), t.getClass().getSimpleName()));
 
       try (var scope = StructuredTaskScope.open(joiner.joiner())) {
         scope.fork(

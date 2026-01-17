@@ -4,6 +4,7 @@ package org.higherkindedj.benchmarks;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.Resource;
@@ -14,9 +15,9 @@ import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope as JmhScope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+
 
 /**
  * Benchmarks for Scope and Resource - Phase 3 structured concurrency types.
@@ -34,7 +35,7 @@ import org.openjdk.jmh.annotations.State;
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@State(JmhScope.Thread)
+@State(org.openjdk.jmh.annotations.Scope.Thread)
 public class ScopeBenchmark {
 
   @Param({"3", "10", "50"})
@@ -44,10 +45,7 @@ public class ScopeBenchmark {
 
   @Setup
   public void setup() {
-    tasks =
-        java.util.stream.IntStream.range(0, taskCount)
-            .mapToObj(i -> VTask.succeed(i))
-            .toList();
+    tasks = IntStream.range(0, taskCount).mapToObj(i -> VTask.succeed(i)).toList();
   }
 
   // ========== Scope AllSucceed ==========
@@ -131,7 +129,7 @@ public class ScopeBenchmark {
   @Benchmark
   public List<Integer> scope_with_computation() throws Throwable {
     List<VTask<Integer>> computeTasks =
-        java.util.stream.IntStream.range(0, taskCount)
+        IntStream.range(0, taskCount)
             .mapToObj(i -> VTask.of(() -> i * 2))
             .toList();
 

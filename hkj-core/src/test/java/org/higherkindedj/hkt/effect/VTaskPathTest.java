@@ -646,11 +646,7 @@ class VTaskPathTest {
     void toIOPathCanBeComposedWithIOPathOperations() {
       VTaskPath<String> vtaskPath = Path.vtaskPure("hello");
 
-      IOPath<String> result =
-          vtaskPath
-              .toIOPath()
-              .map(String::toUpperCase)
-              .map(s -> s + "!");
+      IOPath<String> result = vtaskPath.toIOPath().map(String::toUpperCase).map(s -> s + "!");
 
       assertThat(result.unsafeRun()).isEqualTo("HELLO!");
     }

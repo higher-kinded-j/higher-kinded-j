@@ -12,9 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/**
- * Test suite for Resource - the bracket pattern for safe resource management.
- */
+/** Test suite for Resource - the bracket pattern for safe resource management. */
 @DisplayName("Resource<A> Test Suite")
 class ResourceTest {
 
@@ -215,25 +213,18 @@ class ResourceTest {
       List<Integer> releases = new ArrayList<>();
 
       Resource<String> first =
-          Resource.make(
-              () -> "first",
-              s -> releases.add(releaseOrder.incrementAndGet()));
+          Resource.make(() -> "first", s -> releases.add(releaseOrder.incrementAndGet()));
 
       Resource<String> second =
-          Resource.make(
-              () -> "second",
-              s -> releases.add(releaseOrder.incrementAndGet()));
+          Resource.make(() -> "second", s -> releases.add(releaseOrder.incrementAndGet()));
 
       Resource<String> third =
-          Resource.make(
-              () -> "third",
-              s -> releases.add(releaseOrder.incrementAndGet()));
+          Resource.make(() -> "third", s -> releases.add(releaseOrder.incrementAndGet()));
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
       VTask<String> task =
-          combined.useSync(
-              tuple -> tuple.first() + "-" + tuple.second() + "-" + tuple.third());
+          combined.useSync(tuple -> tuple.first() + "-" + tuple.second() + "-" + tuple.third());
 
       String result = task.run();
 
@@ -253,9 +244,7 @@ class ResourceTest {
       List<String> events = new ArrayList<>();
 
       Resource<String> resource =
-          Resource.make(
-                  () -> "test",
-                  s -> events.add("release"))
+          Resource.make(() -> "test", s -> events.add("release"))
               .withFinalizer(() -> events.add("finalizer"));
 
       resource.useSync(s -> s).run();
@@ -276,8 +265,7 @@ class ResourceTest {
                   })
               .withFinalizer(() -> finalizerRan.set(true));
 
-      assertThatThrownBy(() -> resource.useSync(s -> s).run())
-          .isInstanceOf(RuntimeException.class);
+      assertThatThrownBy(() -> resource.useSync(s -> s).run()).isInstanceOf(RuntimeException.class);
       assertThat(finalizerRan).isTrue();
     }
   }
@@ -300,9 +288,7 @@ class ResourceTest {
       AtomicBoolean closed = new AtomicBoolean(false);
 
       Resource<Connection> connResource =
-          Resource.make(
-              () -> new Connection("conn-1"),
-              conn -> closed.set(true));
+          Resource.make(() -> new Connection("conn-1"), conn -> closed.set(true));
 
       VTask<String> query =
           connResource.use(
@@ -340,12 +326,7 @@ class ResourceTest {
               },
               s -> events.add("release-inner"));
 
-      VTask<String> task =
-          outer.use(
-              o ->
-                  inner.use(
-                      i ->
-                          VTask.succeed(o + "+" + i)));
+      VTask<String> task = outer.use(o -> inner.use(i -> VTask.succeed(o + "+" + i)));
 
       String result = task.run();
 

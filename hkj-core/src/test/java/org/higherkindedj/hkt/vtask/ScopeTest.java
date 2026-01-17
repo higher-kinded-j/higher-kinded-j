@@ -16,9 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/**
- * Test suite for Scope - the fluent builder for structured concurrent computations.
- */
+/** Test suite for Scope - the fluent builder for structured concurrent computations. */
 @DisplayName("Scope<T, R> Test Suite")
 class ScopeTest {
 
@@ -86,8 +84,7 @@ class ScopeTest {
     @Test
     @DisplayName("fork() adds a single task")
     void forkAddsSingleTask() {
-      Scope<String, List<String>> scope =
-          Scope.<String>allSucceed().fork(VTask.succeed("hello"));
+      Scope<String, List<String>> scope = Scope.<String>allSucceed().fork(VTask.succeed("hello"));
 
       assertThat(scope.taskCount()).isEqualTo(1);
     }
@@ -133,8 +130,7 @@ class ScopeTest {
     @Test
     @DisplayName("timeout() sets the timeout")
     void timeoutSetsTimeout() {
-      Scope<String, List<String>> scope =
-          Scope.<String>allSucceed().timeout(Duration.ofSeconds(5));
+      Scope<String, List<String>> scope = Scope.<String>allSucceed().timeout(Duration.ofSeconds(5));
 
       assertThat(scope.hasTimeout()).isTrue();
       assertThat(scope.getTimeout().isJust()).isTrue();
@@ -319,9 +315,7 @@ class ScopeTest {
     @DisplayName("joinSafe() returns Try.failure on failure")
     void joinSafeReturnsFailureOnFailure() throws Throwable {
       VTask<Try<List<String>>> result =
-          Scope.<String>allSucceed()
-              .fork(VTask.fail(new RuntimeException("error")))
-              .joinSafe();
+          Scope.<String>allSucceed().fork(VTask.fail(new RuntimeException("error"))).joinSafe();
 
       Try<List<String>> tryResult = result.run();
 
@@ -345,9 +339,7 @@ class ScopeTest {
     @DisplayName("joinEither() returns Left on failure")
     void joinEitherReturnsLeftOnFailure() throws Throwable {
       VTask<Either<Throwable, List<String>>> result =
-          Scope.<String>allSucceed()
-              .fork(VTask.fail(new RuntimeException("error")))
-              .joinEither();
+          Scope.<String>allSucceed().fork(VTask.fail(new RuntimeException("error"))).joinEither();
 
       Either<Throwable, List<String>> either = result.run();
 
@@ -371,9 +363,7 @@ class ScopeTest {
     @DisplayName("joinMaybe() returns Nothing on failure")
     void joinMaybeReturnsNothingOnFailure() throws Throwable {
       VTask<Maybe<List<String>>> result =
-          Scope.<String>allSucceed()
-              .fork(VTask.fail(new RuntimeException("error")))
-              .joinMaybe();
+          Scope.<String>allSucceed().fork(VTask.fail(new RuntimeException("error"))).joinMaybe();
 
       Maybe<List<String>> maybe = result.run();
 
@@ -394,11 +384,7 @@ class ScopeTest {
       VTask<String> fetchRole = VTask.of(() -> "admin");
 
       VTask<List<String>> allData =
-          Scope.<String>allSucceed()
-              .fork(fetchName)
-              .fork(fetchEmail)
-              .fork(fetchRole)
-              .join();
+          Scope.<String>allSucceed().fork(fetchName).fork(fetchEmail).fork(fetchRole).join();
 
       List<String> result = allData.run();
 
