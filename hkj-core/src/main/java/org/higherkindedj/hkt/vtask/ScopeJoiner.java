@@ -161,7 +161,8 @@ final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
 
   AllSucceedJoiner() {
     // Use the built-in joiner that handles all the logic
-    StructuredTaskScope.Joiner<T, java.util.stream.Stream<T>> builtIn =
+    // Note: allSuccessfulOrThrow() returns Stream<Subtask<T>>, not Stream<T>
+    StructuredTaskScope.Joiner<T, java.util.stream.Stream<StructuredTaskScope.Subtask<T>>> builtIn =
         StructuredTaskScope.Joiner.allSuccessfulOrThrow();
 
     this.delegate =
@@ -178,7 +179,10 @@ final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
 
           @Override
           public List<T> result() throws Throwable {
-            return builtIn.result().toList();
+            // Extract values from Subtasks and collect to List
+            return builtIn.result()
+                .map(StructuredTaskScope.Subtask::get)
+                .toList();
           }
         };
   }
