@@ -133,6 +133,98 @@ class ScopeJoinerTest {
         assertThat(result).isEqualTo("first");
       }
     }
+
+    @Test
+    @DisplayName("fails if all tasks fail")
+    @SuppressWarnings("preview")
+    void failsIfAllTasksFail() {
+      ScopeJoiner<String, String> joiner = ScopeJoiner.anySucceed();
+
+      assertThatThrownBy(
+              () -> {
+                try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+                  scope.fork(
+                      () -> {
+                        throw new RuntimeException("error1");
+                      });
+                  scope.fork(
+                      () -> {
+                        throw new RuntimeException("error2");
+                      });
+
+                  scope.join();
+                }
+              })
+          .isInstanceOf(StructuredTaskScope.FailedException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("FirstComplete Joiner")
+  class FirstCompleteJoinerTests {
+
+    @Test
+    @DisplayName("returns first completed result (success)")
+    @SuppressWarnings("preview")
+    void returnsFirstCompletedSuccess() throws Throwable {
+      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "fast");
+        scope.fork(
+            () -> {
+              Thread.sleep(1000);
+              return "slow";
+            });
+
+        String result = scope.join();
+
+        assertThat(result).isEqualTo("fast");
+      }
+    }
+
+    @Test
+    @DisplayName("returns first completed result (failure)")
+    @SuppressWarnings("preview")
+    void returnsFirstCompletedFailure() {
+      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+
+      assertThatThrownBy(
+              () -> {
+                try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+                  scope.fork(
+                      () -> {
+                        throw new RuntimeException("fast failure");
+                      });
+                  scope.fork(
+                      () -> {
+                        Thread.sleep(1000);
+                        return "slow success";
+                      });
+
+                  scope.join();
+                }
+              })
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("fast failure");
+    }
+
+    @Test
+    @DisplayName("throws if no subtask completed")
+    @SuppressWarnings("preview")
+    void throwsIfNoSubtaskCompleted() {
+      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+
+      assertThatThrownBy(
+              () -> {
+                try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+                  // No tasks forked
+                  scope.join();
+                }
+              })
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("No subtask completed");
+    }
   }
 
   @Nested
@@ -231,6 +323,47 @@ class ScopeJoinerTest {
       Either<Throwable, List<String>> result = joiner.resultEither();
 
       assertThat(result.isRight()).isTrue();
+    }
+
+    @Test
+    @DisplayName("returns Left on failure")
+    @SuppressWarnings("preview")
+    void returnsLeftOnFailure() throws Throwable {
+      ScopeJoiner<String, List<String>> joiner = ScopeJoiner.allSucceed();
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(
+            () -> {
+              throw new RuntimeException("task error");
+            });
+        try {
+          scope.join();
+        } catch (Exception e) {
+          // Expected
+        }
+      }
+
+      Either<Throwable, List<String>> result = joiner.resultEither();
+
+      assertThat(result.isLeft()).isTrue();
+    }
+
+    @Test
+    @DisplayName("accumulating joiner resultEither returns Right with valid")
+    @SuppressWarnings("preview")
+    void accumulatingResultEitherReturnsRightOnSuccess() throws Throwable {
+      ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
+          ScopeJoiner.accumulating(Throwable::getMessage);
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "test");
+        scope.join();
+      }
+
+      Either<Throwable, Validated<List<String>, List<String>>> result = joiner.resultEither();
+
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight().isValid()).isTrue();
     }
   }
 }

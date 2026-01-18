@@ -62,6 +62,34 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("fromAutoCloseable() validates non-null acquire")
+    void fromAutoCloseableValidatesNonNullAcquire() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Resource.fromAutoCloseable(null))
+          .withMessageContaining("acquire must not be null");
+    }
+
+    @Test
+    @DisplayName("fromAutoCloseable() silently handles close exception")
+    void fromAutoCloseableHandlesCloseException() throws Throwable {
+      AtomicBoolean closeCalled = new AtomicBoolean(false);
+
+      AutoCloseable failingCloseable =
+          () -> {
+            closeCalled.set(true);
+            throw new RuntimeException("close failed");
+          };
+
+      Resource<AutoCloseable> resource = Resource.fromAutoCloseable(() -> failingCloseable);
+
+      // Should not throw even though close fails
+      String result = resource.useSync(c -> "success").run();
+
+      assertThat(result).isEqualTo("success");
+      assertThat(closeCalled).isTrue();
+    }
+
+    @Test
     @DisplayName("pure() creates resource without acquire/release")
     void pureCreatesNoOpResource() throws Throwable {
       Resource<String> resource = Resource.pure("test");
@@ -132,6 +160,28 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("use() validates function does not return null")
+    void useValidatesFunctionReturnsNonNull() {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> resource = Resource.make(() -> "test", s -> released.set(true));
+
+      VTask<String> task = resource.use(r -> null);
+
+      assertThatNullPointerException().isThrownBy(task::run).withMessageContaining("must not return null");
+      assertThat(released).isTrue(); // Resource should still be released
+    }
+
+    @Test
+    @DisplayName("useSync() validates non-null function")
+    void useSyncValidatesNonNullFunction() {
+      Resource<String> resource = Resource.make(() -> "test", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.useSync(null))
+          .withMessageContaining("f must not be null");
+    }
+
+    @Test
     @DisplayName("useSync() works with non-effectful functions")
     void useSyncWorksWithSimpleFunctions() throws Throwable {
       AtomicBoolean released = new AtomicBoolean(false);
@@ -150,6 +200,112 @@ class ResourceTest {
   @Nested
   @DisplayName("Composition")
   class CompositionTests {
+
+    @Test
+    @DisplayName("map() transforms resource value")
+    void mapTransformsResourceValue() throws Throwable {
+      Resource<String> resource = Resource.make(() -> "hello", s -> {});
+
+      Resource<Integer> mapped = resource.map(String::length);
+
+      Integer result = mapped.useSync(i -> i).run();
+
+      assertThat(result).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("map() validates non-null function")
+    void mapValidatesNonNullFunction() {
+      Resource<String> resource = Resource.make(() -> "test", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.map(null))
+          .withMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("flatMap() chains resource acquisition")
+    void flatMapChainsResources() throws Throwable {
+      List<String> events = new ArrayList<>();
+
+      Resource<String> first =
+          Resource.make(
+              () -> {
+                events.add("acquire-first");
+                return "first";
+              },
+              s -> events.add("release-first"));
+
+      Resource<String> chained =
+          first.flatMap(
+              f ->
+                  Resource.make(
+                      () -> {
+                        events.add("acquire-second");
+                        return f + "-second";
+                      },
+                      s -> events.add("release-second")));
+
+      String result = chained.useSync(s -> s).run();
+
+      assertThat(result).isEqualTo("first-second");
+      assertThat(events).contains("acquire-first", "acquire-second");
+    }
+
+    @Test
+    @DisplayName("flatMap() validates non-null function")
+    void flatMapValidatesNonNullFunction() {
+      Resource<String> resource = Resource.make(() -> "test", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.flatMap(null))
+          .withMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("flatMap() releases first if second acquire fails")
+    void flatMapReleasesFirstIfSecondFails() {
+      AtomicBoolean firstReleased = new AtomicBoolean(false);
+
+      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+
+      Resource<String> chained =
+          first.flatMap(
+              f ->
+                  Resource.make(
+                      () -> {
+                        throw new RuntimeException("second acquire failed");
+                      },
+                      s -> {}));
+
+      assertThatThrownBy(() -> chained.useSync(s -> s).run())
+          .hasMessageContaining("second acquire failed");
+      assertThat(firstReleased).isTrue();
+    }
+
+    @Test
+    @DisplayName("flatMap() validates function does not return null")
+    void flatMapValidatesFunctionReturnsNonNull() {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> resource = Resource.make(() -> "test", s -> released.set(true));
+
+      Resource<String> chained = resource.flatMap(r -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> chained.useSync(s -> s).run())
+          .withMessageContaining("must not return null");
+      assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("and() validates non-null other resource")
+    void andValidatesNonNullOther() {
+      Resource<String> resource = Resource.make(() -> "test", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.and(null))
+          .withMessageContaining("other must not be null");
+    }
 
     @Test
     @DisplayName("and() combines two resources")
@@ -232,6 +388,72 @@ class ResourceTest {
       // Releases should be in reverse order (3, 2, 1)
       assertThat(releases).containsExactly(1, 2, 3);
     }
+
+    @Test
+    @DisplayName("and(second, third) validates non-null second")
+    void andThreeValidatesNonNullSecond() {
+      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> third = Resource.make(() -> "third", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> first.and(null, third))
+          .withMessageContaining("second must not be null");
+    }
+
+    @Test
+    @DisplayName("and(second, third) validates non-null third")
+    void andThreeValidatesNonNullThird() {
+      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> second = Resource.make(() -> "second", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> first.and(second, null))
+          .withMessageContaining("third must not be null");
+    }
+
+    @Test
+    @DisplayName("and(second, third) releases first if second acquire fails")
+    void andThreeReleasesFirstIfSecondFails() {
+      AtomicBoolean firstReleased = new AtomicBoolean(false);
+
+      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> second =
+          Resource.make(
+              () -> {
+                throw new RuntimeException("second acquire failed");
+              },
+              s -> {});
+      Resource<String> third = Resource.make(() -> "third", s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+          .hasMessageContaining("second acquire failed");
+      assertThat(firstReleased).isTrue();
+    }
+
+    @Test
+    @DisplayName("and(second, third) releases first and second if third acquire fails")
+    void andThreeReleasesFirstAndSecondIfThirdFails() {
+      AtomicBoolean firstReleased = new AtomicBoolean(false);
+      AtomicBoolean secondReleased = new AtomicBoolean(false);
+
+      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> second = Resource.make(() -> "second", s -> secondReleased.set(true));
+      Resource<String> third =
+          Resource.make(
+              () -> {
+                throw new RuntimeException("third acquire failed");
+              },
+              s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+          .hasMessageContaining("third acquire failed");
+      assertThat(firstReleased).isTrue();
+      assertThat(secondReleased).isTrue();
+    }
   }
 
   @Nested
@@ -267,6 +489,39 @@ class ResourceTest {
 
       assertThatThrownBy(() -> resource.useSync(s -> s).run()).isInstanceOf(RuntimeException.class);
       assertThat(finalizerRan).isTrue();
+    }
+
+    @Test
+    @DisplayName("withFinalizer() validates non-null finalizer")
+    void withFinalizerValidatesNonNull() {
+      Resource<String> resource = Resource.make(() -> "test", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.withFinalizer(null))
+          .withMessageContaining("finalizer must not be null");
+    }
+
+    @Test
+    @DisplayName("onFailure() validates non-null handler")
+    void onFailureValidatesNonNull() {
+      Resource<String> resource = Resource.make(() -> "test", s -> {});
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.onFailure(null))
+          .withMessageContaining("onFailure must not be null");
+    }
+
+    @Test
+    @DisplayName("onFailure() returns resource that can be used")
+    void onFailureReturnsUsableResource() throws Throwable {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> resource =
+          Resource.make(() -> "test", s -> released.set(true)).onFailure(s -> {});
+
+      String result = resource.useSync(s -> s.toUpperCase()).run();
+
+      assertThat(result).isEqualTo("TEST");
+      assertThat(released).isTrue();
     }
   }
 

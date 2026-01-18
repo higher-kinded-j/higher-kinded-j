@@ -60,6 +60,14 @@ class ScopeTest {
     }
 
     @Test
+    @DisplayName("accumulating() validates non-null errorMapper")
+    void accumulatingValidatesNonNullErrorMapper() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Scope.accumulating(null))
+          .withMessageContaining("errorMapper must not be null");
+    }
+
+    @Test
     @DisplayName("withJoiner() creates scope with custom joiner")
     void withJoinerCreatesScope() {
       ScopeJoiner<String, List<String>> joiner = ScopeJoiner.allSucceed();
@@ -120,6 +128,16 @@ class ScopeTest {
       Scope<String, List<String>> scope = Scope.<String>allSucceed().forkAll(tasks);
 
       assertThat(scope.taskCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("forkAll() validates non-null tasks list")
+    void forkAllValidatesNonNullTasks() {
+      Scope<String, List<String>> scope = Scope.allSucceed();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> scope.forkAll(null))
+          .withMessageContaining("tasksToFork must not be null");
     }
   }
 
@@ -256,6 +274,86 @@ class ScopeTest {
       String value = result.run();
 
       assertThat(value).isEqualTo("fast");
+    }
+  }
+
+  @Nested
+  @DisplayName("Join Operations - FirstComplete")
+  class JoinFirstCompleteTests {
+
+    @Test
+    @DisplayName("join() returns first completed success")
+    void joinReturnsFirstCompletedSuccess() throws Throwable {
+      VTask<String> result =
+          Scope.<String>firstComplete()
+              .fork(VTask.succeed("fast"))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(1000);
+                        return "slow";
+                      }))
+              .join();
+
+      String value = result.run();
+
+      assertThat(value).isEqualTo("fast");
+    }
+
+    @Test
+    @DisplayName("join() returns first completed failure")
+    void joinReturnsFirstCompletedFailure() {
+      VTask<String> result =
+          Scope.<String>firstComplete()
+              .fork(VTask.fail(new RuntimeException("fast failure")))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(1000);
+                        return "slow success";
+                      }))
+              .join();
+
+      assertThatThrownBy(result::run)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("fast failure");
+    }
+  }
+
+  @Nested
+  @DisplayName("Timeout Operations")
+  class TimeoutOperationsTests {
+
+    @Test
+    @DisplayName("join() times out when tasks exceed timeout")
+    void joinTimesOut() {
+      VTask<List<String>> result =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMillis(50))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(5000);
+                        return "slow";
+                      }))
+              .join();
+
+      assertThatThrownBy(result::run)
+          .isInstanceOf(java.util.concurrent.TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("join() completes within timeout")
+    void joinCompletesWithinTimeout() throws Throwable {
+      VTask<List<String>> result =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofSeconds(5))
+              .fork(VTask.succeed("fast"))
+              .join();
+
+      List<String> values = result.run();
+
+      assertThat(values).containsExactly("fast");
     }
   }
 
