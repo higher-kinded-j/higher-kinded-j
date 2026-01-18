@@ -19,19 +19,19 @@ This journey introduces `VTask` and `VTaskPath`, Higher-Kinded-J's types for vir
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    VTask Journey                                 │
+│                    VTask Journey                                │
 │                                                                 │
 │  Tutorial 1: VTask Fundamentals                                 │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐     │
-│  │ VTask.of │ → │ map/flat │ → │ Par.zip  │ → │ runSafe  │     │
-│  │          │   │   Map    │   │  /map2   │   │          │     │
-│  └──────────┘   └──────────┘   └──────────┘   └──────────┘     │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐      │
+│  │ VTask.of │ → │ map/flat │ → │ Par.zip  │ → │ runSafe  │      │
+│  │          │   │   Map    │   │  /map2   │   │          │      │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘      │
 │                                                                 │
 │  Tutorial 2: VTaskPath Effect API                               │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐     │
-│  │Path.vtask│ → │ via/map  │ → │ timeout/ │ → │   run    │     │
-│  │          │   │          │   │handleErr │   │          │     │
-│  └──────────┘   └──────────┘   └──────────┘   └──────────┘     │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐      │
+│  │Path.vtask│ → │ via/map  │ → │ timeout/ │ → │   run    │      │
+│  │          │   │          │   │handleErr │   │          │      │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -256,10 +256,10 @@ VTaskPath<Data> safe = Path.vtask(() -> fetchFromSlowService())
 
 After completing this journey:
 
-1. **Read the VTask Documentation**: Deep dive into all VTask operations → [VTask Guide](../../monads/vtask_monad.md)
-2. **Explore VTaskPath Documentation**: See the full VTaskPath API → [VTaskPath Guide](../../effect/path_vtask.md)
-3. **Learn Effect Contexts**: Use VTaskContext for dependency injection → [Effect Contexts](../../effect/effect_contexts.md)
-4. **Build Real Applications**: Use Par combinators for API aggregation, batch processing
+1. **Continue to Scope & Resource**: Learn structured concurrency and resource management → [Scope & Resource Journey](scope_resource_journey.md)
+2. **Read the VTask Documentation**: Deep dive into all VTask operations → [VTask Guide](../../monads/vtask_monad.md)
+3. **Explore VTaskPath Documentation**: See the full VTaskPath API → [VTaskPath Guide](../../effect/path_vtask.md)
+4. **Learn Effect Contexts**: Use VTaskContext for dependency injection → [Effect Contexts](../../effect/effect_contexts.md)
 
 ---
 

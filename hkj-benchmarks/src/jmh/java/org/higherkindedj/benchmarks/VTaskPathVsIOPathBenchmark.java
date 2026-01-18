@@ -272,4 +272,94 @@ public class VTaskPathVsIOPathBenchmark {
   public Object vtaskPath_runSafe() {
     return vtaskPath.runSafe();
   }
+
+  // ========== toIOPath Conversion ==========
+
+  /**
+   * Measures the overhead of converting VTaskPath to IOPath and executing.
+   *
+   * <p>This benchmark compares the cost of:
+   *
+   * <ol>
+   *   <li>Creating a VTaskPath
+   *   <li>Converting it to IOPath via toIOPath()
+   *   <li>Executing the IOPath
+   * </ol>
+   *
+   * <p>Expected: Some overhead vs direct VTaskPath execution due to wrapping.
+   */
+  @Benchmark
+  public Integer vtaskPath_toIOPath_simpleExecution() {
+    return vtaskPath.toIOPath().unsafeRun();
+  }
+
+  /** Measures VTaskPath → IOPath conversion with map chain composition. */
+  @Benchmark
+  public Integer vtaskPath_toIOPath_mapChain() {
+    return vtaskPath.toIOPath().map(x -> x + 1).map(x -> x * 2).map(x -> x - 5).unsafeRun();
+  }
+
+  /** Measures VTaskPath → IOPath conversion followed by IOPath via chain. */
+  @Benchmark
+  public Integer vtaskPath_toIOPath_viaChain() {
+    return vtaskPath
+        .toIOPath()
+        .via(x -> Path.ioPure(x + 1))
+        .via(x -> Path.ioPure(x * 2))
+        .via(x -> Path.ioPure(x - 5))
+        .unsafeRun();
+  }
+
+  /**
+   * Measures VTaskPath with via chain, then converted to IOPath.
+   *
+   * <p>This tests the pattern where VTask operations are composed first, then converted to IOPath
+   * for interop with IOPath-based code.
+   */
+  @Benchmark
+  public Integer vtaskPath_chainThenToIOPath() {
+    return vtaskPath
+        .map(x -> x + 1)
+        .via(x -> Path.vtaskPure(x * 2))
+        .map(x -> x - 5)
+        .toIOPath()
+        .unsafeRun();
+  }
+
+  /** Measures the overhead of toIOPath conversion with error handling. */
+  @Benchmark
+  public Integer vtaskPath_toIOPath_withErrorHandling() {
+    return Path.<Integer>vtask(
+            () -> {
+              throw new RuntimeException("error");
+            })
+        .toIOPath()
+        .handleError(e -> -1)
+        .unsafeRun();
+  }
+
+  /**
+   * Measures toIOPath followed by IOPath guarantee (resource cleanup pattern).
+   *
+   * <p>This is a common pattern when integrating VTask with IOPath's resource management features.
+   */
+  @Benchmark
+  public Integer vtaskPath_toIOPath_withGuarantee() {
+    return vtaskPath.toIOPath().guarantee(() -> {}).unsafeRun();
+  }
+
+  /**
+   * Measures repeated execution of the same toIOPath result.
+   *
+   * <p>Tests that toIOPath creates a reusable, non-memoized IOPath.
+   */
+  @Benchmark
+  public Integer vtaskPath_toIOPath_repeatedExecution() {
+    IOPath<Integer> ioPath = vtaskPath.toIOPath();
+    int sum = 0;
+    sum += ioPath.unsafeRun();
+    sum += ioPath.unsafeRun();
+    sum += ioPath.unsafeRun();
+    return sum;
+  }
 }

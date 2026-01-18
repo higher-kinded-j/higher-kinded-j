@@ -19,6 +19,7 @@ Virtual threads offer a different bargain. Rather than perfecting the abstractio
 - Error handling and recovery strategies
 - Timeout management for long-running operations
 - Parallel execution with the `Par` utilities
+- Advanced structured concurrency with `Scope` and `Resource`
 - When to choose VTaskPath over IOPath
 ~~~
 
@@ -243,6 +244,46 @@ leaks and ensures clean shutdown semantics.
 
 ---
 
+## Scope and Resource
+
+For advanced structured concurrency patterns, use `Scope` and `Resource` directly with VTask:
+
+```java
+import org.higherkindedj.hkt.vtask.Scope;
+import org.higherkindedj.hkt.vtask.Resource;
+
+// Scope: fluent builder for structured concurrency
+VTask<List<String>> results = Scope.<String>allSucceed()
+    .fork(VTask.of(() -> fetchUserData(id)))
+    .fork(VTask.of(() -> fetchUserProfile(id)))
+    .timeout(Duration.ofSeconds(5))
+    .join();
+
+// Error accumulation with Validated
+VTask<Validated<List<Error>, List<String>>> validation =
+    Scope.<String>accumulating(Error::from)
+        .fork(validateField1())
+        .fork(validateField2())
+        .join();
+
+// Resource: bracket pattern for safe resource management
+Resource<Connection> conn = Resource.fromAutoCloseable(
+    () -> dataSource.getConnection()
+);
+
+VTask<List<User>> users = conn.use(c ->
+    VTask.of(() -> userDao.findAll(c))
+);
+```
+
+~~~admonish tip title="See Also"
+For comprehensive documentation on Scope, ScopeJoiner, and Resource, see:
+- [Structured Concurrency](../monads/vtask_scope.md) - Scope and ScopeJoiner
+- [Resource Management](../monads/vtask_resource.md) - Bracket pattern
+~~~
+
+---
+
 ## Converting Between Path Types
 
 ```java
@@ -265,21 +306,20 @@ VTaskPath<String> backToPath = Path.vtaskPath(VTask.succeed("restored"));
 | Aspect | VTaskPath | IOPath |
 |--------|-----------|--------|
 | **Thread Model** | Virtual threads | Caller's thread |
-| **Parallelism** | Built-in via `Par` | Manual composition |
+| **Parallelism** | Built-in via `Par`, `Scope` | Manual composition |
 | **`zipWith` Behavior** | Parallel (uses `Par.map2`) | Sequential |
-| **Java Version** | Requires Java 21+ | Any Java 8+ |
+| **Structured Concurrency** | Yes, with `Scope` and `Resource` | No |
 | **Async Support** | `runAsync()` returns `CompletableFuture` | No built-in async |
 | **Resource Usage** | Kilobytes per task | N/A (single-threaded) |
 
 **Choose VTaskPath when:**
 - You need lightweight concurrency at scale
-- Your application targets Java 21+
 - You want structured concurrency with proper cancellation
 - Simple blocking code is preferable to reactive complexity
 
 **Choose IOPath when:**
-- You need broad Java version compatibility
 - Single-threaded execution is sufficient
+- You want explicit control over which thread runs the computation
 - You're building a library that shouldn't impose thread choices
 
 ---
@@ -315,6 +355,8 @@ Try<Dashboard> dashboard = loadDashboard(userId).runSafe();
 * **Virtual Threads:** VTaskPath executes on lightweight JVM-managed threads, enabling millions of concurrent tasks
 * **Laziness:** Nothing runs until you call `run()`, `runSafe()`, or `runAsync()`
 * **Composition:** Use `map` for transformations, `via` for dependent chains, and `Par` combinators for parallel execution
+* **Scope:** Use `Scope` for flexible structured concurrency with `allSucceed`, `anySucceed`, `firstComplete`, or `accumulating` joiners
+* **Resource:** Use `Resource` for bracket-pattern resource management with guaranteed cleanup
 * **Error Handling:** Prefer `runSafe()` to capture failures in `Try`; use `handleError` and `handleErrorWith` for graceful fallbacks
 * **Pragmatism:** Write simple blocking code that composes naturally; let virtual threads handle the scalability
 ~~~
@@ -325,7 +367,9 @@ Practice VTaskPath composition in [TutorialVTaskPath.java](https://github.com/hi
 
 ~~~admonish tip title="See Also"
 - [VTask Monad](../monads/vtask_monad.md) - Underlying type with full API details
-- [IOPath](path_io.md) - Platform thread-based effect path for broader Java compatibility
+- [Structured Concurrency](../monads/vtask_scope.md) - Scope and ScopeJoiner for task coordination
+- [Resource Management](../monads/vtask_resource.md) - Bracket pattern for safe resource handling
+- [IOPath](path_io.md) - Platform thread-based effect path for single-threaded scenarios
 - [Composition Patterns](composition.md) - More composition techniques applicable to all Path types
 - [Patterns and Recipes](patterns.md) - Resilience and resource patterns
 ~~~
