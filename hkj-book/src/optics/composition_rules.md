@@ -326,5 +326,5 @@ Practice lens composition in [Tutorial 02: Lens Composition](https://github.com/
 
 ---
 
-**Previous:** [Traversals](traversals.md)
-**Next:** [Optics Cookbook](cookbook.md)
+**Previous:** [Isomorphisms](iso.md)
+**Next:** [Coupled Fields](coupled_fields.md)

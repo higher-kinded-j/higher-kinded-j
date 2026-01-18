@@ -3,6 +3,7 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,7 @@ import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -363,6 +365,190 @@ class LensTest {
 
       Street resultStreet = IdKindHelper.ID.narrow(result).value();
       assertThat(resultStreet.name()).isEqualTo("This is a long name (long)");
+    }
+  }
+
+  @Nested
+  @DisplayName("Paired Lens Operations")
+  class PairedLensOperations {
+
+    // Record with invariant: lo must be <= hi
+    record Range(int lo, int hi) {
+      Range {
+        if (lo > hi) {
+          throw new IllegalArgumentException("lo (" + lo + ") must be <= hi (" + hi + ")");
+        }
+      }
+    }
+
+    // Record with additional fields beyond the paired ones
+    record Transaction(String id, int min, int max, String note) {
+      Transaction {
+        if (min > max) {
+          throw new IllegalArgumentException("min must be <= max");
+        }
+      }
+    }
+
+    private final Lens<Range, Integer> loLens =
+        Lens.of(Range::lo, (r, lo) -> new Range(lo, r.hi()));
+    private final Lens<Range, Integer> hiLens =
+        Lens.of(Range::hi, (r, hi) -> new Range(r.lo(), hi));
+
+    @Test
+    @DisplayName("sequential lens updates fail with invariant-protected records")
+    void sequentialUpdatesFail() {
+      Range range = new Range(1, 2);
+
+      // Trying to shift up by 10 sequentially fails
+      assertThatThrownBy(() -> loLens.set(11, range))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("lo (11) must be <= hi (2)");
+    }
+
+    @Test
+    @DisplayName("paired with BiFunction enables atomic updates")
+    void pairedWithBiFunctionEnablesAtomicUpdates() {
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range range = new Range(1, 2);
+
+      // Shift up by 10 - works because both values are set atomically
+      Range shifted = boundsLens.modify(t -> Pair.of(t.first() + 10, t.second() + 10), range);
+
+      assertThat(shifted.lo()).isEqualTo(11);
+      assertThat(shifted.hi()).isEqualTo(12);
+    }
+
+    @Test
+    @DisplayName("paired lens get returns pair of both values")
+    void pairedGetReturnsPair() {
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range range = new Range(5, 10);
+      Pair<Integer, Integer> bounds = boundsLens.get(range);
+
+      assertThat(bounds.first()).isEqualTo(5);
+      assertThat(bounds.second()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("paired lens set replaces both values atomically")
+    void pairedSetReplacesBothValues() {
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range range = new Range(1, 2);
+      Range updated = boundsLens.set(Pair.of(100, 200), range);
+
+      assertThat(updated.lo()).isEqualTo(100);
+      assertThat(updated.hi()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("paired lens modify with transformation")
+    void pairedModifyWithTransformation() {
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range range = new Range(5, 10);
+
+      // Scale the range
+      Range scaled = boundsLens.modify(t -> Pair.of(t.first() * 2, t.second() * 2), range);
+
+      assertThat(scaled.lo()).isEqualTo(10);
+      assertThat(scaled.hi()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("paired with Function3 preserves other fields")
+    void pairedWithFunction3PreservesOtherFields() {
+      Lens<Transaction, Integer> minLens =
+          Lens.of(Transaction::min, (t, min) -> new Transaction(t.id(), min, t.max(), t.note()));
+      Lens<Transaction, Integer> maxLens =
+          Lens.of(Transaction::max, (t, max) -> new Transaction(t.id(), t.min(), max, t.note()));
+
+      // Use Function3 to preserve id and note fields
+      Lens<Transaction, Pair<Integer, Integer>> limitsLens =
+          Lens.paired(
+              minLens,
+              maxLens,
+              (txn, newMin, newMax) -> new Transaction(txn.id(), newMin, newMax, txn.note()));
+
+      Transaction txn = new Transaction("TXN-001", 10, 20, "Test transaction");
+
+      // Shift limits
+      Transaction updated = limitsLens.modify(t -> Pair.of(t.first() + 100, t.second() + 100), txn);
+
+      assertThat(updated.id()).isEqualTo("TXN-001");
+      assertThat(updated.min()).isEqualTo(110);
+      assertThat(updated.max()).isEqualTo(120);
+      assertThat(updated.note()).isEqualTo("Test transaction");
+    }
+
+    @Test
+    @DisplayName("paired lens still validates on invalid atomic update")
+    void pairedStillValidatesOnInvalidUpdate() {
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range range = new Range(1, 2);
+
+      // Even with atomic update, invalid values are rejected
+      assertThatThrownBy(() -> boundsLens.set(Pair.of(100, 50), range))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("lo (100) must be <= hi (50)");
+    }
+
+    @Test
+    @DisplayName("paired lens works with modifyF")
+    void pairedModifyF() {
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range range = new Range(1, 2);
+
+      Function<Pair<Integer, Integer>, Kind<OptionalKind.Witness, Pair<Integer, Integer>>>
+          modifier =
+              t ->
+                  OptionalKindHelper.OPTIONAL.widen(
+                      Optional.of(Pair.of(t.first() + 10, t.second() + 10)));
+
+      Kind<OptionalKind.Witness, Range> result =
+          boundsLens.modifyF(modifier, range, OptionalMonad.INSTANCE);
+
+      assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
+          .isPresent()
+          .get()
+          .satisfies(
+              r -> {
+                assertThat(r.lo()).isEqualTo(11);
+                assertThat(r.hi()).isEqualTo(12);
+              });
+    }
+
+    @Test
+    @DisplayName("shift down works when updating hi first would fail sequentially")
+    void shiftDownWorksAtomically() {
+      Range range = new Range(10, 20);
+
+      // Sequential shift down would fail:
+      // hi: 20 -> 10 creates Range(10, 10) OK
+      // But if we did lo first: lo: 10 -> 0 creates Range(0, 20) OK
+      // Then hi: 20 -> 10 creates Range(0, 10) OK
+      // Actually this works... let's use a different example
+
+      // Start with Range(10, 11) and shift down by 10
+      Range narrowRange = new Range(10, 11);
+
+      // If we update hi first: Range(10, 1) THROWS (10 > 1)
+      assertThatThrownBy(() -> hiLens.set(1, narrowRange))
+          .isInstanceOf(IllegalArgumentException.class);
+
+      // If we update lo first: Range(0, 11) -> Range(0, 1) works
+      // But that's order-dependent. With paired, order doesn't matter:
+      Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(loLens, hiLens, Range::new);
+
+      Range shifted = boundsLens.modify(t -> Pair.of(t.first() - 10, t.second() - 10), narrowRange);
+
+      assertThat(shifted.lo()).isEqualTo(0);
+      assertThat(shifted.hi()).isEqualTo(1);
     }
   }
 }
