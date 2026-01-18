@@ -227,6 +227,46 @@ class ScopeJoinerTest {
           .hasCauseInstanceOf(IllegalStateException.class)
           .hasMessageContaining("No subtask completed");
     }
+
+    @Test
+    @DisplayName("result() returns success value directly")
+    @SuppressWarnings("preview")
+    void resultReturnsSuccessValueDirectly() throws Throwable {
+      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "result");
+        scope.join();
+      }
+
+      // Call result() directly on the ScopeJoiner
+      String result = joiner.result();
+      assertThat(result).isEqualTo("result");
+    }
+
+    @Test
+    @DisplayName("result() throws on failure")
+    @SuppressWarnings("preview")
+    void resultThrowsOnFailure() throws Throwable {
+      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(
+            () -> {
+              throw new RuntimeException("task failed");
+            });
+        try {
+          scope.join();
+        } catch (Exception e) {
+          // Expected
+        }
+      }
+
+      // Call result() directly - should throw
+      assertThatThrownBy(joiner::result)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("task failed");
+    }
   }
 
   @Nested
@@ -277,6 +317,30 @@ class ScopeJoinerTest {
     }
 
     @Test
+    @DisplayName("returns Invalid when all tasks fail")
+    @SuppressWarnings("preview")
+    void returnsInvalidWhenAllTasksFail() throws Throwable {
+      ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
+          ScopeJoiner.accumulating(Throwable::getMessage);
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(
+            () -> {
+              throw new RuntimeException("error1");
+            });
+        scope.fork(
+            () -> {
+              throw new RuntimeException("error2");
+            });
+
+        Validated<List<String>, List<String>> result = scope.join();
+
+        assertThat(result.isInvalid()).isTrue();
+        assertThat(result.getError()).containsExactlyInAnyOrder("error1", "error2");
+      }
+    }
+
+    @Test
     @DisplayName("applies error mapper to exceptions")
     @SuppressWarnings("preview")
     void appliesErrorMapperToExceptions() throws Throwable {
@@ -304,6 +368,45 @@ class ScopeJoinerTest {
                   assertThat(err.type()).isEqualTo("IllegalArgumentException");
                 });
       }
+    }
+
+    @Test
+    @DisplayName("result() returns Valid directly when called on joiner")
+    @SuppressWarnings("preview")
+    void resultReturnsValidDirectly() throws Throwable {
+      ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
+          ScopeJoiner.accumulating(Throwable::getMessage);
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "value");
+        scope.join();
+      }
+
+      // Call result() directly on ScopeJoiner
+      Validated<List<String>, List<String>> result = joiner.result();
+      assertThat(result.isValid()).isTrue();
+      assertThat(result.get()).containsExactly("value");
+    }
+
+    @Test
+    @DisplayName("result() returns Invalid directly when called on joiner")
+    @SuppressWarnings("preview")
+    void resultReturnsInvalidDirectly() throws Throwable {
+      ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
+          ScopeJoiner.accumulating(Throwable::getMessage);
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(
+            () -> {
+              throw new RuntimeException("error");
+            });
+        scope.join();
+      }
+
+      // Call result() directly on ScopeJoiner
+      Validated<List<String>, List<String>> result = joiner.result();
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError()).containsExactly("error");
     }
   }
 
