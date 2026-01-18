@@ -412,6 +412,26 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("and() handles first release exception only")
+    void andHandlesFirstReleaseExceptionOnly() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+      Resource<String> second = Resource.make(() -> "second", s -> {});
+
+      Resource<Par.Tuple2<String, String>> combined = first.and(second);
+
+      // First release throws, second doesn't - covers the false branch of if (firstException != null)
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource")
+          .satisfies(e -> assertThat(e.getCause().getSuppressed()).isEmpty());
+    }
+
+    @Test
     @DisplayName("and() handles both releases throwing exceptions")
     void andHandlesBothReleasesThrowingExceptions() {
       Resource<String> first =
@@ -643,6 +663,27 @@ class ResourceTest {
       assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource");
+    }
+
+    @Test
+    @DisplayName("and(second, third) handles first release exception only")
+    void andThreeHandlesFirstReleaseExceptionOnly() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+      Resource<String> second = Resource.make(() -> "second", s -> {});
+      Resource<String> third = Resource.make(() -> "third", s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      // First release throws, second and third don't - covers false branch of if (firstException != null)
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource")
+          .satisfies(e -> assertThat(e.getCause().getSuppressed()).isEmpty());
     }
 
     @Test
