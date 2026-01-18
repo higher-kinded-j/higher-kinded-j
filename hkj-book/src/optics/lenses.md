@@ -391,6 +391,10 @@ Lenses integrate with For comprehensions in two ways:
 - Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_comprehension.md#stateful-updates-with-forstate).
 ~~~
 
+~~~admonish warning title="Coupled Fields"
+When record fields share an invariant (e.g., `lo <= hi` in a `Range`), sequential lens updates can fail due to invalid intermediate states. Use `Lens.paired` to update coupled fields atomically. See [Coupled Fields](coupled_fields.md) for details.
+~~~
+
 ~~~admonish info title="Hands-On Learning"
 Practice lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial01_LensBasics.java) (7 exercises, ~10 minutes) and generated optics in [Tutorial 07: Generated Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial07_GeneratedOptics.java) (7 exercises, ~10 minutes).
 ~~~

@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.optics.indexed.Pair;
 
 /**
  * A **Lens** is an optic that provides a focused view into a part of a data structure. Think of it
@@ -373,6 +375,111 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
         return functor.map(a -> this.set(a, source), fa);
       }
     };
+  }
+
+  /**
+   * Combines two lenses focusing on different parts of the same source into a single lens focusing
+   * on a pair of both parts.
+   *
+   * <p>This enables atomic updates of coupled fields that participate in invariants. The {@code
+   * reconstructor} function is called with both new values simultaneously, avoiding invalid
+   * intermediate states that would occur with sequential updates.
+   *
+   * <p><b>The Problem:</b> When fields are coupled by invariants (e.g., {@code lo <= hi} in a
+   * range), sequential lens updates can create invalid intermediate states:
+   *
+   * <pre>{@code
+   * record Range(int lo, int hi) {
+   *     Range { if (lo > hi) throw new IllegalArgumentException(); }
+   * }
+   *
+   * // Sequential update fails:
+   * // Range(1, 2) -> set lo=11 -> Range(11, 2) THROWS!
+   * }</pre>
+   *
+   * <p><b>The Solution:</b> Use {@code paired} to update both fields atomically:
+   *
+   * <pre>{@code
+   * Lens<Range, Integer> loLens = Lens.of(Range::lo, (r, lo) -> new Range(lo, r.hi()));
+   * Lens<Range, Integer> hiLens = Lens.of(Range::hi, (r, hi) -> new Range(r.lo(), hi));
+   *
+   * // Create paired lens with atomic reconstruction
+   * Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(
+   *     loLens,
+   *     hiLens,
+   *     (r, lo, hi) -> new Range(lo, hi)  // Called once with final values
+   * );
+   *
+   * // Shift safely - no intermediate state
+   * Range shifted = boundsLens.modify(
+   *     p -> Pair.of(p.first() + 10, p.second() + 10),
+   *     new Range(1, 2)
+   * );
+   * // Result: Range(11, 12)
+   * }</pre>
+   *
+   * @param first The lens focusing on the first part {@code A}.
+   * @param second The lens focusing on the second part {@code B}.
+   * @param reconstructor Function to atomically rebuild {@code S} from both values. Receives the
+   *     original source (for accessing other fields not covered by the lenses) plus both new
+   *     values.
+   * @param <S> The type of the whole structure.
+   * @param <A> The type of the first focused part.
+   * @param <B> The type of the second focused part.
+   * @return A lens focusing on a {@link Pair} of both parts.
+   */
+  static <S, A, B> Lens<S, Pair<A, B>> paired(
+      Lens<S, A> first, Lens<S, B> second, Function3<S, A, B, S> reconstructor) {
+    return Lens.of(
+        s -> Pair.of(first.get(s), second.get(s)),
+        (s, pair) -> reconstructor.apply(s, pair.first(), pair.second()));
+  }
+
+  /**
+   * Combines two lenses focusing on different parts of the same source into a single lens focusing
+   * on a pair of both parts, using a simple constructor.
+   *
+   * <p>This is a convenience overload for when the two focused fields fully determine the structure
+   * (i.e., there are no other fields to preserve). Use this when {@code S} can be reconstructed
+   * from just {@code A} and {@code B}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * record Range(int lo, int hi) {
+   *     Range { if (lo > hi) throw new IllegalArgumentException(); }
+   * }
+   *
+   * Lens<Range, Integer> loLens = Lens.of(Range::lo, (r, lo) -> new Range(lo, r.hi()));
+   * Lens<Range, Integer> hiLens = Lens.of(Range::hi, (r, hi) -> new Range(r.lo(), hi));
+   *
+   * // Simple form - Range has only lo and hi fields
+   * Lens<Range, Pair<Integer, Integer>> boundsLens = Lens.paired(
+   *     loLens,
+   *     hiLens,
+   *     Range::new  // Constructor reference
+   * );
+   *
+   * // Scale the range
+   * Range doubled = boundsLens.modify(
+   *     p -> Pair.of(p.first() * 2, p.second() * 2),
+   *     new Range(5, 10)
+   * );
+   * // Result: Range(10, 20)
+   * }</pre>
+   *
+   * @param first The lens focusing on the first part {@code A}.
+   * @param second The lens focusing on the second part {@code B}.
+   * @param constructor Function to construct {@code S} from both values.
+   * @param <S> The type of the whole structure.
+   * @param <A> The type of the first focused part.
+   * @param <B> The type of the second focused part.
+   * @return A lens focusing on a {@link Pair} of both parts.
+   * @see #paired(Lens, Lens, Function3) for when other fields need to be preserved
+   */
+  static <S, A, B> Lens<S, Pair<A, B>> paired(
+      Lens<S, A> first, Lens<S, B> second, BiFunction<A, B, S> constructor) {
+    return paired(first, second, (s, a, b) -> constructor.apply(a, b));
   }
 
   /**

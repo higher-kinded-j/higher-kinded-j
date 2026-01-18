@@ -63,6 +63,7 @@ Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Ge
 - **Isomorphisms** – Bidirectional, lossless conversions between equivalent types. An Iso can convert in both directions without losing information.
 - **Composition** – Chain optics together to navigate arbitrarily deep structures. The composition of a Lens with a Prism produces an Affine, following predictable rules.
 - **The Composition Rules** – A reference table showing what optic type results from composing any two optics. Keep this bookmarked; you'll need it.
+- **Coupled Fields** – When record fields share invariants, sequential lens updates fail. Learn how `Lens.paired` provides atomic multi-field updates.
 ~~~
 
 ---
@@ -75,6 +76,7 @@ Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Ge
 4. [Affines](affine.md) - Working with optional fields (zero-or-one focus)
 5. [Isomorphisms](iso.md) - Lossless conversions between equivalent types
 6. [Composition Rules](composition_rules.md) - A reference for what type results from combining optics
+7. [Coupled Fields](coupled_fields.md) - Atomic updates for fields with shared invariants
 
 ---
 

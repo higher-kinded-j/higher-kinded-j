@@ -68,6 +68,7 @@
   - [Affines](optics/affine.md)
   - [Isomorphisms](optics/iso.md)
   - [Composition Rules](optics/composition_rules.md)
+  - [Coupled Fields](optics/coupled_fields.md)
 
 # Optics II: Collections
 - [Introduction](optics/ch2_intro.md)
