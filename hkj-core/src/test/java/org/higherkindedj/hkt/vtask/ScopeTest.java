@@ -156,6 +156,22 @@ class ScopeTest {
     }
 
     @Test
+    @DisplayName("hasTimeout() returns false when no timeout set")
+    void hasTimeoutReturnsFalseWhenNotSet() {
+      Scope<String, List<String>> scope = Scope.allSucceed();
+
+      assertThat(scope.hasTimeout()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getTimeout() returns Nothing when no timeout set")
+    void getTimeoutReturnsNothingWhenNotSet() {
+      Scope<String, List<String>> scope = Scope.allSucceed();
+
+      assertThat(scope.getTimeout().isNothing()).isTrue();
+    }
+
+    @Test
     @DisplayName("timeout() validates non-null duration")
     void timeoutValidatesNonNull() {
       Scope<String, List<String>> scope = Scope.allSucceed();

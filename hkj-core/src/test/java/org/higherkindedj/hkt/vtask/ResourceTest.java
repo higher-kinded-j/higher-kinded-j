@@ -284,6 +284,32 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("flatMap() suppresses release exception when second acquire fails")
+    void flatMapSuppressesReleaseExceptionWhenSecondAcquireFails() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("release failed");
+              });
+
+      Resource<String> chained =
+          first.flatMap(
+              f ->
+                  Resource.make(
+                      () -> {
+                        throw new RuntimeException("second acquire failed");
+                      },
+                      s -> {}));
+
+      assertThatThrownBy(() -> chained.useSync(s -> s).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("second acquire failed")
+          .satisfies(
+              e -> assertThat(e.getSuppressed()).hasSize(1).allMatch(s -> s.getMessage().contains("release failed")));
+    }
+
+    @Test
     @DisplayName("flatMap() validates function does not return null")
     void flatMapValidatesFunctionReturnsNonNull() {
       AtomicBoolean released = new AtomicBoolean(false);
@@ -338,6 +364,75 @@ class ResourceTest {
       // Resources should be released in reverse order
       assertThat(events)
           .containsExactly("acquire-first", "acquire-second", "release-second", "release-first");
+    }
+
+    @Test
+    @DisplayName("and() suppresses release exception when second acquire fails")
+    void andSuppressesReleaseExceptionWhenSecondAcquireFails() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+
+      Resource<String> second =
+          Resource.make(
+              () -> {
+                throw new RuntimeException("second acquire failed");
+              },
+              s -> {});
+
+      Resource<Par.Tuple2<String, String>> combined = first.and(second);
+
+      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("second acquire failed")
+          .satisfies(
+              e -> assertThat(e.getSuppressed()).hasSize(1).allMatch(s -> s.getMessage().contains("first release failed")));
+    }
+
+    @Test
+    @DisplayName("and() handles second release exception")
+    void andHandlesSecondReleaseException() {
+      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              s -> {
+                throw new RuntimeException("second release failed");
+              });
+
+      Resource<Par.Tuple2<String, String>> combined = first.and(second);
+
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource")
+          .hasCauseInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("and() handles both releases throwing exceptions")
+    void andHandlesBothReleasesThrowingExceptions() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              s -> {
+                throw new RuntimeException("second release failed");
+              });
+
+      Resource<Par.Tuple2<String, String>> combined = first.and(second);
+
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource")
+          .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
     }
 
     @Test
@@ -453,6 +548,154 @@ class ResourceTest {
           .hasMessageContaining("third acquire failed");
       assertThat(firstReleased).isTrue();
       assertThat(secondReleased).isTrue();
+    }
+
+    @Test
+    @DisplayName("and(second, third) suppresses second release exception when third acquire fails")
+    void andThreeSuppressesSecondReleaseExceptionWhenThirdFails() {
+      AtomicBoolean firstReleased = new AtomicBoolean(false);
+
+      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              s -> {
+                throw new RuntimeException("second release failed");
+              });
+      Resource<String> third =
+          Resource.make(
+              () -> {
+                throw new RuntimeException("third acquire failed");
+              },
+              s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("third acquire failed")
+          .satisfies(
+              e -> assertThat(e.getSuppressed()).hasSize(1).allMatch(s -> s.getMessage().contains("second release failed")));
+      assertThat(firstReleased).isTrue();
+    }
+
+    @Test
+    @DisplayName("and(second, third) suppresses first release exception when second acquire fails")
+    void andThreeSuppressesFirstReleaseExceptionWhenSecondFails() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+      Resource<String> second =
+          Resource.make(
+              () -> {
+                throw new RuntimeException("second acquire failed");
+              },
+              s -> {});
+      Resource<String> third = Resource.make(() -> "third", s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("second acquire failed")
+          .satisfies(
+              e -> assertThat(e.getSuppressed()).hasSize(1).allMatch(s -> s.getMessage().contains("first release failed")));
+    }
+
+    @Test
+    @DisplayName("and(second, third) handles third release exception")
+    void andThreeHandlesThirdReleaseException() {
+      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> second = Resource.make(() -> "second", s -> {});
+      Resource<String> third =
+          Resource.make(
+              () -> "third",
+              s -> {
+                throw new RuntimeException("third release failed");
+              });
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource");
+    }
+
+    @Test
+    @DisplayName("and(second, third) handles second release exception")
+    void andThreeHandlesSecondReleaseException() {
+      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              s -> {
+                throw new RuntimeException("second release failed");
+              });
+      Resource<String> third = Resource.make(() -> "third", s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource");
+    }
+
+    @Test
+    @DisplayName("and(second, third) handles first release exception with suppressed")
+    void andThreeHandlesFirstReleaseExceptionWithSuppressed() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              s -> {
+                throw new RuntimeException("second release failed");
+              });
+      Resource<String> third = Resource.make(() -> "third", s -> {});
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource")
+          .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
+    }
+
+    @Test
+    @DisplayName("and(second, third) handles all three releases throwing exceptions")
+    void andThreeHandlesAllThreeReleasesThrowingExceptions() {
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              s -> {
+                throw new RuntimeException("first release failed");
+              });
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              s -> {
+                throw new RuntimeException("second release failed");
+              });
+      Resource<String> third =
+          Resource.make(
+              () -> "third",
+              s -> {
+                throw new RuntimeException("third release failed");
+              });
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
+
+      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to release resource")
+          .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
     }
   }
 
