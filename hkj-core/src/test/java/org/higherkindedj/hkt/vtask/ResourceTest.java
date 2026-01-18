@@ -429,10 +429,12 @@ class ResourceTest {
 
       Resource<Par.Tuple2<String, String>> combined = first.and(second);
 
+      // Second release exception is suppressed by first release exception
+      // First release exception is wrapped in RuntimeException as cause
       assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
-          .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
+          .satisfies(e -> assertThat(e.getCause().getSuppressed()).hasSize(1));
     }
 
     @Test
@@ -662,10 +664,12 @@ class ResourceTest {
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
+      // Second release exception is suppressed by first release exception
+      // First release exception is wrapped in RuntimeException as cause
       assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
-          .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
+          .satisfies(e -> assertThat(e.getCause().getSuppressed()).hasSize(1));
     }
 
     @Test
@@ -692,10 +696,14 @@ class ResourceTest {
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
+      // When all three releases throw:
+      // - Third release exception is suppressed by second
+      // - Second release exception (with third suppressed) is suppressed by first
+      // - First release exception is wrapped in RuntimeException as cause
       assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
-          .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
+          .satisfies(e -> assertThat(e.getCause().getSuppressed()).hasSize(1));
     }
   }
 
