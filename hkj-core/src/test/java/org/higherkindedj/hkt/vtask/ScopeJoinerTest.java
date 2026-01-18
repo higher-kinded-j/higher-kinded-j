@@ -205,7 +205,8 @@ class ScopeJoinerTest {
                   scope.join();
                 }
               })
-          .isInstanceOf(RuntimeException.class)
+          .isInstanceOf(StructuredTaskScope.FailedException.class)
+          .hasCauseInstanceOf(RuntimeException.class)
           .hasMessageContaining("fast failure");
     }
 
@@ -222,7 +223,8 @@ class ScopeJoinerTest {
                   scope.join();
                 }
               })
-          .isInstanceOf(IllegalStateException.class)
+          .isInstanceOf(StructuredTaskScope.FailedException.class)
+          .hasCauseInstanceOf(IllegalStateException.class)
           .hasMessageContaining("No subtask completed");
     }
   }
