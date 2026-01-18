@@ -9,6 +9,12 @@
 - Parallel composition using the `Par` combinator utilities
 ~~~
 
+~~~admonish warning title="Preview API Notice"
+VTask uses Java's **structured concurrency APIs** (JEP 505/525), which are currently in **preview** status. These APIs are stable and production-ready, but the underlying Java APIs may see minor changes before final release, expected in a near-future Java version.
+
+Higher-Kinded-J's `Scope`, `ScopeJoiner`, and `Resource` abstractions provide a buffer against such changes—your code uses HKJ's stable API whilst we handle any necessary adaptations to the underlying preview features.
+~~~
+
 > *"Sometimes abstraction and encapsulation are at odds with performance — although not nearly as often as many developers believe — but it is always a good practice first to make your code right, and then make it fast."*
 > — **Brian Goetz**, *Java Concurrency in Practice*
 
@@ -320,6 +326,27 @@ VTask<List<User>> users = Par.traverse(ids, id -> VTask.of(() -> fetchUser(id)))
 
 ---
 
+## Advanced Topics
+
+For more complex concurrent patterns, VTask provides additional APIs documented in their own pages:
+
+~~~admonish tip title="Structured Concurrency"
+**[Scope and ScopeJoiner](vtask_scope.md)** - Fluent API for coordinating concurrent tasks with configurable joining strategies:
+- `allSucceed` - Wait for all tasks to complete successfully
+- `anySucceed` - Return first success, cancel others
+- `firstComplete` - Return first result regardless of outcome
+- `accumulating` - Collect all errors using `Validated`
+~~~
+
+~~~admonish tip title="Resource Management"
+**[Resource](vtask_resource.md)** - Safe resource management using the bracket pattern:
+- Guaranteed cleanup on success, failure, or cancellation
+- Composable with `flatMap` and `and`
+- Integrates seamlessly with Scope for concurrent resource management
+~~~
+
+---
+
 ## VTask vs IO
 
 `VTask` and `IO` serve similar purposes but with different execution models:
@@ -327,19 +354,19 @@ VTask<List<User>> users = Par.traverse(ids, id -> VTask.of(() -> fetchUser(id)))
 | Aspect | VTask | IO |
 |--------|-------|-----|
 | **Thread Model** | Virtual threads | Caller's thread |
-| **Parallelism** | Built-in via `Par` | Manual composition |
-| **Java Version** | Requires Java 25+ | Any Java 8+ |
+| **Parallelism** | Built-in via `Par`, `Scope` | Manual composition |
+| **Structured Concurrency** | Yes, with `Scope` and `Resource` | No |
 | **Async Support** | `runAsync()` returns `CompletableFuture` | No built-in async |
 | **Error Type** | `Throwable` | `Throwable` |
 
 Choose `VTask` when:
 - You need lightweight concurrency at scale
-- Your application targets Java 25+
 - You want structured concurrency with proper cancellation
+- Parallel execution with `Par` or `Scope` is valuable
 
 Choose `IO` when:
-- You need broad Java version compatibility
 - Single-threaded execution is sufficient
+- You want explicit control over which thread runs the computation
 - You're building a library that shouldn't impose thread choices
 
 ---
@@ -349,7 +376,7 @@ Choose `IO` when:
 * **Virtual Threads:** Execution happens on lightweight JVM-managed threads, enabling millions of concurrent tasks
 * **Composition:** Use `map` for transformations, `flatMap` for dependent chains, and `Par` combinators for parallel execution
 * **Error Handling:** Prefer `runSafe()` to capture failures in `Try`; use `recover` and `recoverWith` for graceful fallbacks
-* **Structured Concurrency:** Par combinators use `StructuredTaskScope` for proper task lifecycle management
+* **Structured Concurrency:** Use `StructuredTaskScope` via Par combinators for proper task lifecycle management
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
@@ -357,12 +384,19 @@ Practice VTask fundamentals in [Tutorial: VTask](../tutorials/concurrency/vtask_
 ~~~
 
 ~~~admonish tip title="See Also"
-- [IO](io_monad.md) - The platform thread-based effect type for broader Java compatibility
+- [Structured Concurrency](vtask_scope.md) - Scope and ScopeJoiner for advanced task coordination
+- [Resource Management](vtask_resource.md) - Bracket pattern for safe resource handling
+- [IO](io_monad.md) - The platform thread-based effect type for single-threaded scenarios
 - [Monad](../functional/monad.md) - Understanding the `flatMap` abstraction
 - [MonadError](../functional/monad_error.md) - Error handling patterns with `raiseError` and `handleErrorWith`
+~~~
+
+~~~admonish abstract title="Further Reading"
+- [JEP 444: Virtual Threads](https://openjdk.org/jeps/444) - The official OpenJDK specification for virtual threads in Java 21+
+- [Virtual Threads, Structured Concurrency, and Scoped Values](https://www.amazon.com/Virtual-Threads-Structured-Concurrency-Scoped/dp/B0D5TTFSJ1) - Ron Veen & David Vlijmincx (Apress, 2024) - Comprehensive guide to Project Loom features
 ~~~
 
 ---
 
 **Previous:** [Validated](validated_monad.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [Structured Concurrency](vtask_scope.md)

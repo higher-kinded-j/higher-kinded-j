@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
@@ -588,6 +589,159 @@ class VTaskPathTest {
       assertThat(successResult.run().isSuccess()).isTrue();
       assertThat(successResult.getOrElse(null)).isEqualTo(TEST_INT);
       assertThat(failureResult.run().isFailure()).isTrue();
+    }
+
+    @Test
+    @DisplayName("toIOPath() converts successful VTaskPath to IOPath")
+    void toIOPathConvertsSuccessfulVTaskPathToIOPath() {
+      VTaskPath<Integer> vtaskPath = Path.vtaskPure(TEST_INT);
+
+      IOPath<Integer> ioPath = vtaskPath.toIOPath();
+
+      assertThat(ioPath).isNotNull();
+      assertThat(ioPath.unsafeRun()).isEqualTo(TEST_INT);
+    }
+
+    @Test
+    @DisplayName("toIOPath() converts failed VTaskPath to IOPath with exception")
+    void toIOPathConvertsFailedVTaskPathToIOPath() {
+      RuntimeException error = new RuntimeException("vtask error");
+      VTaskPath<Integer> vtaskPath = Path.vtaskFail(error);
+
+      IOPath<Integer> ioPath = vtaskPath.toIOPath();
+
+      assertThat(ioPath).isNotNull();
+      assertThatThrownBy(ioPath::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("vtask error");
+    }
+
+    @Test
+    @DisplayName("toIOPath() is lazy - does not execute VTask immediately")
+    void toIOPathIsLazy() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+
+      VTaskPath<Integer> vtaskPath =
+          Path.vtask(
+              () -> {
+                executed.set(true);
+                return TEST_INT;
+              });
+
+      IOPath<Integer> ioPath = vtaskPath.toIOPath();
+
+      // VTask should not have executed yet
+      assertThat(executed).isFalse();
+
+      // Execute the IOPath
+      Integer result = ioPath.unsafeRun();
+
+      // Now it should have executed
+      assertThat(executed).isTrue();
+      assertThat(result).isEqualTo(TEST_INT);
+    }
+
+    @Test
+    @DisplayName("toIOPath() can be composed with IOPath operations")
+    void toIOPathCanBeComposedWithIOPathOperations() {
+      VTaskPath<String> vtaskPath = Path.vtaskPure("hello");
+
+      IOPath<String> result = vtaskPath.toIOPath().map(String::toUpperCase).map(s -> s + "!");
+
+      assertThat(result.unsafeRun()).isEqualTo("HELLO!");
+    }
+
+    @Test
+    @DisplayName("toIOPath() allows using IOPath-specific features like guarantee")
+    void toIOPathAllowsUsingIOPathSpecificFeatures() {
+      AtomicBoolean finalizerCalled = new AtomicBoolean(false);
+      VTaskPath<String> vtaskPath = Path.vtaskPure("test");
+
+      IOPath<String> withGuarantee =
+          vtaskPath.toIOPath().guarantee(() -> finalizerCalled.set(true));
+
+      assertThat(finalizerCalled).isFalse();
+      String result = withGuarantee.unsafeRun();
+      assertThat(result).isEqualTo("test");
+      assertThat(finalizerCalled).isTrue();
+    }
+
+    @Test
+    @DisplayName("toIOPath() allows using IOPath bracket pattern")
+    void toIOPathAllowsUsingIOPathBracketPattern() {
+      AtomicBoolean resourceReleased = new AtomicBoolean(false);
+
+      VTaskPath<String> vtaskPath = Path.vtaskPure("resource-data");
+
+      IOPath<String> withBracket =
+          vtaskPath.toIOPath().peek(data -> {}).guarantee(() -> resourceReleased.set(true));
+
+      String result = withBracket.unsafeRun();
+
+      assertThat(result).isEqualTo("resource-data");
+      assertThat(resourceReleased).isTrue();
+    }
+
+    @Test
+    @DisplayName("toIOPath() propagates exceptions through IOPath error handling")
+    void toIOPathPropagatesExceptionsThroughIOPathErrorHandling() {
+      VTaskPath<String> vtaskPath =
+          Path.vtask(
+              () -> {
+                throw new RuntimeException("original error");
+              });
+
+      IOPath<String> recovered =
+          vtaskPath.toIOPath().handleError(ex -> "recovered: " + ex.getMessage());
+
+      assertThat(recovered.unsafeRun()).isEqualTo("recovered: original error");
+    }
+
+    @Test
+    @DisplayName("toIOPath() can be run multiple times (not memoized)")
+    void toIOPathCanBeRunMultipleTimes() {
+      AtomicInteger counter = new AtomicInteger(0);
+
+      VTaskPath<Integer> vtaskPath = Path.vtask(counter::incrementAndGet);
+
+      IOPath<Integer> ioPath = vtaskPath.toIOPath();
+
+      // Run three times
+      assertThat(ioPath.unsafeRun()).isEqualTo(1);
+      assertThat(ioPath.unsafeRun()).isEqualTo(2);
+      assertThat(ioPath.unsafeRun()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("toIOPath() works with complex chained VTaskPath")
+    void toIOPathWorksWithComplexChainedVTaskPath() {
+      VTaskPath<String> complex =
+          Path.vtaskPure("hello")
+              .map(String::toUpperCase)
+              .via(s -> Path.vtaskPure(s + " WORLD"))
+              .map(s -> s + "!");
+
+      IOPath<String> ioPath = complex.toIOPath();
+
+      assertThat(ioPath.unsafeRun()).isEqualTo("HELLO WORLD!");
+    }
+
+    @Test
+    @DisplayName("toIOPath() preserves runSafe behavior via asTry")
+    void toIOPathPreservesRunSafeBehaviorViaTry() {
+      VTaskPath<Integer> failingPath =
+          Path.vtask(
+              () -> {
+                throw new RuntimeException("expected error");
+              });
+
+      IOPath<Integer> ioPath = failingPath.toIOPath();
+
+      // Use asTry to safely capture the error
+      var tryResult = ioPath.asTry().unsafeRun();
+
+      assertThat(tryResult.isFailure()).isTrue();
+      assertThat(((Try.Failure<Integer>) tryResult).cause()).isInstanceOf(RuntimeException.class);
     }
   }
 
