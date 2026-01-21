@@ -27,6 +27,7 @@ import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * An annotation processor that generates a companion 'Prisms' class for any sealed interface or
@@ -136,7 +137,7 @@ public class PrismProcessor extends AbstractProcessor {
    * @return A complete {@code MethodSpec} for the prism factory method.
    */
   private MethodSpec createPrismMethodForSubtype(TypeElement sumType, TypeElement subtype) {
-    String methodName = toCamelCase(subtype.getSimpleName().toString());
+    String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());
     ClassName sumTypeName = ClassName.get(sumType);
     ClassName subTypeName = ClassName.get(subtype);
 
@@ -175,7 +176,7 @@ public class PrismProcessor extends AbstractProcessor {
    * @return A complete {@code MethodSpec} for the prism factory method.
    */
   private MethodSpec createPrismMethodForEnum(TypeElement enumType, VariableElement enumConstant) {
-    String methodName = toCamelCase(enumConstant.getSimpleName().toString());
+    String methodName = ProcessorUtils.toCamelCase(enumConstant.getSimpleName().toString());
     ClassName enumClassName = ClassName.get(enumType);
 
     ParameterizedTypeName prismTypeName =
@@ -201,39 +202,6 @@ public class PrismProcessor extends AbstractProcessor {
             Optional.class,
             Optional.class)
         .build();
-  }
-
-  /**
-   * A utility method to convert a String from PascalCase or SNAKE_CASE to camelCase.
-   *
-   * @param s The input string (e.g., "MyRecord" or "MY_CONSTANT").
-   * @return The converted camelCase string (e.g., "myRecord" or "myConstant").
-   */
-  private static String toCamelCase(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-
-    // Handle SNAKE_CASE
-    if (s.contains("_")) {
-      String[] parts = s.split("_");
-      StringBuilder camelCaseString = new StringBuilder(parts[0].toLowerCase());
-      for (int i = 1; i < parts.length; i++) {
-        if (!parts[i].isEmpty()) {
-          camelCaseString
-              .append(parts[i].substring(0, 1).toUpperCase())
-              .append(parts[i].substring(1).toLowerCase());
-        }
-      }
-      return camelCaseString.toString();
-    }
-
-    // Handle PascalCase
-    if (Character.isUpperCase(s.charAt(0))) {
-      return Character.toLowerCase(s.charAt(0)) + s.substring(1);
-    }
-
-    return s;
   }
 
   /**

@@ -34,6 +34,11 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
   }
 
   @Override
+  public int getFocusTypeArgumentIndex() {
+    return 1; // Validated<E, A> focuses on A (the second type argument)
+  }
+
+  @Override
   public CodeBlock generateModifyF(
       final RecordComponentElement component,
       final ClassName recordClassName,

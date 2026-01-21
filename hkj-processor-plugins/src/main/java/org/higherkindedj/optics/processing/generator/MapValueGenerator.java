@@ -33,6 +33,11 @@ public class MapValueGenerator extends BaseTraversableGenerator {
   }
 
   @Override
+  public int getFocusTypeArgumentIndex() {
+    return 1; // Map<K, V> focuses on V (the second type argument)
+  }
+
+  @Override
   public CodeBlock generateModifyF(
       final RecordComponentElement component,
       final ClassName recordClassName,

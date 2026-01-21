@@ -23,6 +23,19 @@ public interface TraversableGenerator {
   boolean supports(TypeMirror type);
 
   /**
+   * Returns the index of the type argument that this generator focuses on for traversal.
+   *
+   * <p>For most container types like {@code List<T>} or {@code Optional<T>}, this is 0 (the first
+   * type argument). For types like {@code Either<L, R>}, {@code Validated<E, A>}, or {@code Map<K,
+   * V>} where the traversal focuses on the second type argument, this should return 1.
+   *
+   * @return the zero-based index of the focused type argument
+   */
+  default int getFocusTypeArgumentIndex() {
+    return 0;
+  }
+
+  /**
    * Generates the body of the `modifyF` method for a Traversal.
    *
    * @param component The record component being processed (e.g., the 'items' field).
