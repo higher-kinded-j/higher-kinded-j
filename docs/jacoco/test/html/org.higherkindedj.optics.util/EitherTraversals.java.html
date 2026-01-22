@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EitherTraversals.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.util</a> &gt; <span class="el_source">EitherTraversals.java</span></div><h1>EitherTraversals.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.util;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Utility class providing {@link Traversal} and {@link Prism} instances for working with {@link
+ * Either} types.
+ *
+ * &lt;p&gt;This class provides optics for focusing on values inside an {@code Either}, both the {@code
+ * Right} case (success) and the {@code Left} case (error).
+ */
+@NullMarked
+public final class EitherTraversals {
+  /** Private constructor to prevent instantiation. */
+  private EitherTraversals() {}
+
+  /**
+   * Creates a {@link Traversal} that focuses on the value in the {@code Right} case of an {@link
+   * Either}.
+   *
+   * &lt;p&gt;This traversal matches when the {@code Either} is {@code Right} and allows modification of
+   * the contained value. When the {@code Either} is {@code Left}, the traversal has zero targets
+   * and the result is unchanged.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;Either&lt;String, Integer&gt;, Integer&gt; rightTraversal =
+   *     EitherTraversals.right();
+   *
+   * Either&lt;String, Integer&gt; rightValue = Either.right(42);
+   * Either&lt;String, Integer&gt; modified = Traversals.modify(
+   *     rightTraversal,
+   *     x -&gt; x * 2,
+   *     rightValue
+   * );  // Either.right(84)
+   *
+   * Either&lt;String, Integer&gt; leftValue = Either.left(&quot;error&quot;);
+   * Either&lt;String, Integer&gt; unchanged = Traversals.modify(
+   *     rightTraversal,
+   *     x -&gt; x * 2,
+   *     leftValue
+   * );  // Either.left(&quot;error&quot;) - no change
+   *
+   * // Composing to extract all successful results from a list
+   * Traversal&lt;List&lt;Either&lt;String, Integer&gt;&gt;, Integer&gt; allSuccesses =
+   *     Traversals.forList().andThen(rightTraversal);
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;L&gt; The type of the {@code Left} value.
+   * @param &lt;R&gt; The type of the {@code Right} value.
+   * @return A {@link Traversal} focusing on the {@code Right} case.
+   */
+  public static &lt;L, R&gt; Traversal&lt;Either&lt;L, R&gt;, R&gt; right() {
+<span class="fc" id="L65">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, Either&lt;L, R&gt;&gt; modifyF(
+          Function&lt;R, Kind&lt;F, R&gt;&gt; f, Either&lt;L, R&gt; source, Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        return source.isRight()</span>
+<span class="fc" id="L70">            ? applicative.map(Either::&lt;L, R&gt;right, f.apply(source.getRight()))</span>
+<span class="fc" id="L71">            : applicative.of(source);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates a {@link Traversal} that focuses on the value in the {@code Left} case of an {@link
+   * Either}.
+   *
+   * &lt;p&gt;This traversal matches when the {@code Either} is {@code Left} and allows modification of
+   * the contained error value. When the {@code Either} is {@code Right}, the traversal has zero
+   * targets and the result is unchanged.
+   *
+   * &lt;p&gt;This is useful for transforming or enriching error information across multiple {@code
+   * Either} values.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;Either&lt;String, Integer&gt;, String&gt; leftTraversal = EitherTraversals.left();
+   *
+   * Either&lt;String, Integer&gt; leftValue = Either.left(&quot;error&quot;);
+   * Either&lt;String, Integer&gt; enriched = Traversals.modify(
+   *     leftTraversal,
+   *     err -&gt; &quot;Error: &quot; + err,
+   *     leftValue
+   * );  // Either.left(&quot;Error: error&quot;)
+   *
+   * Either&lt;String, Integer&gt; rightValue = Either.right(42);
+   * Either&lt;String, Integer&gt; unchanged = Traversals.modify(
+   *     leftTraversal,
+   *     err -&gt; &quot;Error: &quot; + err,
+   *     rightValue
+   * );  // Either.right(42) - no change
+   *
+   * // Composing to collect and transform all errors from a list
+   * Traversal&lt;List&lt;Either&lt;String, Integer&gt;&gt;, String&gt; allErrors =
+   *     Traversals.forList().andThen(leftTraversal);
+   * List&lt;String&gt; errors = Traversals.getAll(allErrors, results);
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;L&gt; The type of the {@code Left} value.
+   * @param &lt;R&gt; The type of the {@code Right} value.
+   * @return A {@link Traversal} focusing on the {@code Left} case.
+   */
+  public static &lt;L, R&gt; Traversal&lt;Either&lt;L, R&gt;, L&gt; left() {
+<span class="fc" id="L117">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, Either&lt;L, R&gt;&gt; modifyF(
+          Function&lt;L, Kind&lt;F, L&gt;&gt; f, Either&lt;L, R&gt; source, Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        return source.isLeft()</span>
+<span class="fc" id="L122">            ? applicative.map(Either::&lt;L, R&gt;left, f.apply(source.getLeft()))</span>
+<span class="fc" id="L123">            : applicative.of(source);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates a {@link Prism} that focuses on the value in the {@code Right} case of an {@link
+   * Either}.
+   *
+   * &lt;p&gt;This is the same as {@link Prisms#right()}, provided here for convenience and
+   * discoverability.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;Either&lt;String, Integer&gt;, Integer&gt; rightPrism = EitherTraversals.rightPrism();
+   *
+   * Either&lt;String, Integer&gt; rightValue = Either.right(42);
+   * Optional&lt;Integer&gt; extracted = rightPrism.getOptional(rightValue);  // Optional.of(42)
+   *
+   * Either&lt;String, Integer&gt; leftValue = Either.left(&quot;error&quot;);
+   * Optional&lt;Integer&gt; noMatch = rightPrism.getOptional(leftValue);  // Optional.empty()
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;L&gt; The type of the {@code Left} value.
+   * @param &lt;R&gt; The type of the {@code Right} value.
+   * @return A {@link Prism} focusing on the {@code Right} case.
+   */
+  public static &lt;L, R&gt; Prism&lt;Either&lt;L, R&gt;, R&gt; rightPrism() {
+<span class="fc" id="L152">    return Prisms.right();</span>
+  }
+
+  /**
+   * Creates a {@link Prism} that focuses on the value in the {@code Left} case of an {@link
+   * Either}.
+   *
+   * &lt;p&gt;This is the same as {@link Prisms#left()}, provided here for convenience and
+   * discoverability.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;Either&lt;String, Integer&gt;, String&gt; leftPrism = EitherTraversals.leftPrism();
+   *
+   * Either&lt;String, Integer&gt; leftValue = Either.left(&quot;error&quot;);
+   * Optional&lt;String&gt; extracted = leftPrism.getOptional(leftValue);  // Optional.of(&quot;error&quot;)
+   *
+   * Either&lt;String, Integer&gt; rightValue = Either.right(42);
+   * Optional&lt;String&gt; noMatch = leftPrism.getOptional(rightValue);  // Optional.empty()
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;L&gt; The type of the {@code Left} value.
+   * @param &lt;R&gt; The type of the {@code Right} value.
+   * @return A {@link Prism} focusing on the {@code Left} case.
+   */
+  public static &lt;L, R&gt; Prism&lt;Either&lt;L, R&gt;, L&gt; leftPrism() {
+<span class="fc" id="L179">    return Prisms.left();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

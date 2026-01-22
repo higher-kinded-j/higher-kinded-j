@@ -537,10 +537,16 @@ public final class PathOps {
               for (VTaskPath<A> path : paths) {
                 Try<A> result = path.runSafe();
                 if (result.isSuccess()) {
-                  // Use fold to extract value without throwing checked exception
+                  // Use fold to extract value without throwing checked exception.
+                  // Coverage note: The failure branch (cause -> null) is unreachable here
+                  // because we already verified result.isSuccess() is true. This is inherent
+                  // to the fold API which requires both branches even when one is impossible.
                   return result.fold(a -> a, cause -> null);
                 }
-                // Extract the cause from the Failure using fold
+                // Extract the cause from the Failure using fold.
+                // Coverage note: The success branch (a -> null) is unreachable here
+                // because we only reach this line when result.isSuccess() is false.
+                // This is inherent to the fold API which requires both branches.
                 lastError = result.fold(a -> null, cause -> cause);
               }
               // VTaskPath.unsafeRun() only throws RuntimeException or Error

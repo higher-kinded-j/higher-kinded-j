@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StreamFunctor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.stream</a> &gt; <span class="el_source">StreamFunctor.java</span></div><h1>StreamFunctor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.stream;
+
+import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+
+import java.util.function.Function;
+import java.util.stream.Stream;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Implements the {@link Functor} type class for {@link java.util.stream.Stream}, using {@link
+ * StreamKind.Witness} as the higher-kinded type witness.
+ *
+ * &lt;p&gt;A {@link Functor} provides the ability to apply a function to a value inside a context (in
+ * this case, a {@code Stream}) without needing to explicitly extract the value. The {@link
+ * #map(Function, Kind)} operation transforms a {@code Stream&lt;A&gt;} into a {@code Stream&lt;B&gt;} by
+ * applying a function {@code A -&gt; B} to each element of the stream.
+ *
+ * &lt;p&gt;&lt;b&gt;Lazy Evaluation:&lt;/b&gt; Unlike collection-based functors (such as {@code ListFunctor}), the
+ * {@code map} operation on streams is lazy. The transformation function is not applied immediately
+ * but is instead recorded as part of the stream pipeline. The function will only be executed when a
+ * terminal operation (such as {@code forEach}, {@code collect}, or {@code toList}) is performed on
+ * the stream.
+ *
+ * &lt;p&gt;This lazy evaluation has important implications:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Efficiency:&lt;/b&gt; Multiple {@code map} operations can be fused together, avoiding
+ *       intermediate allocations.
+ *   &lt;li&gt;&lt;b&gt;Infinite streams:&lt;/b&gt; You can map over infinite streams without triggering infinite
+ *       loops, as long as downstream operations are finite (e.g., {@code limit}, {@code findFirst}.
+ *   &lt;li&gt;&lt;b&gt;Short-circuiting:&lt;/b&gt; If a terminal operation short-circuits (e.g., {@code findFirst}),
+ *       the map function is only applied to elements until the condition is satisfied.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Lazy mapping - no computation performed yet
+ * Kind&lt;StreamKind.Witness, Integer&gt; numbers =
+ *     STREAM.widen(Stream.iterate(0, n -&gt; n + 1)); // infinite stream
+ * Kind&lt;StreamKind.Witness, Integer&gt; squares =
+ *     streamFunctor.map(n -&gt; n * n, numbers);
+ *
+ * // Only when we add a terminal operation does computation happen
+ * List&lt;Integer&gt; firstTenSquares =
+ *     STREAM.narrow(squares).limit(10).collect(Collectors.toList());
+ * // Result: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+ * }&lt;/pre&gt;
+ *
+ * @see Functor
+ * @see Stream
+ * @see StreamKind
+ * @see StreamKindHelper
+ * @see StreamMonad
+ */
+class StreamFunctor implements Functor&lt;StreamKind.Witness&gt; {
+
+  /**
+   * Singleton instance of {@code StreamFunctor}. Consider accessing Functor operations via {@link
+   * StreamMonad#INSTANCE}.
+   */
+<span class="fc" id="L67">  public static final StreamFunctor INSTANCE = new StreamFunctor();</span>
+
+  /**
+   * Package-private constructor to allow instantiation within the package, primarily for {@link
+   * StreamMonad#INSTANCE}.
+   */
+<span class="fc" id="L73">  StreamFunctor() {</span>
+    // Constructor for package-level access or for singleton.
+<span class="fc" id="L75">  }</span>
+
+  /**
+   * Applies a function to each element of a stream wrapped in a {@link Kind}.
+   *
+   * &lt;p&gt;If the input stream ({@code fa}) is {@code StreamKind(Stream&lt;A&gt;)}, this method applies the
+   * function {@code f: A -&gt; B} to each element of the stream, producing a new {@code
+   * StreamKind(Stream&lt;B&gt;)}.
+   *
+   * &lt;p&gt;&lt;b&gt;Lazy Evaluation:&lt;/b&gt; This operation is lazy and does not force evaluation of the stream.
+   * The transformation function {@code f} is added to the stream pipeline but is not executed until
+   * a terminal operation is performed on the resulting stream.
+   *
+   * &lt;p&gt;This operation adheres to the Functor laws:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;Identity: {@code map(x -&gt; x, fa)} is equivalent to {@code fa}.
+   *   &lt;li&gt;Composition: {@code map(g.compose(f), fa)} is equivalent to {@code map(g, map(f, fa))}.
+   * &lt;/ol&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Single-Use Warning:&lt;/b&gt; The input {@code fa} stream is consumed by this operation (in
+   * terms of being extracted from the Kind wrapper). The resulting stream is also single-use. Do
+   * not attempt to reuse the original stream after calling this method.
+   *
+   * @param &lt;A&gt; The type of the elements in the input stream.
+   * @param &lt;B&gt; The type of the elements in the output stream after applying the function.
+   * @param f The non-null function to apply to each element of the stream.
+   * @param fa The non-null {@code Kind&lt;StreamKind.Witness, A&gt;} (which is a {@code StreamKind&lt;A&gt;})
+   *     containing the input stream.
+   * @return A new non-null {@code Kind&lt;StreamKind.Witness, B&gt;} containing a stream with the results
+   *     of applying the function {@code f} to each element of the input stream. The transformation
+   *     is lazy.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     StreamKind} representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;StreamKind.Witness, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;StreamKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L115">    Validation.function().requireMapper(f, &quot;f&quot;, StreamFunctor.class, MAP);</span>
+<span class="fc" id="L116">    Validation.kind().requireNonNull(fa, StreamFunctor.class, MAP);</span>
+
+<span class="fc" id="L118">    Stream&lt;A&gt; streamA = STREAM.narrow(fa);</span>
+<span class="fc" id="L119">    Stream&lt;B&gt; streamB = streamA.map(f);</span>
+<span class="fc" id="L120">    return STREAM.widen(streamB);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
