@@ -28,6 +28,8 @@ public enum Operation {
   LIFT_F("liftF"),
   OF("of"),
   ASK("ask"),
+  ASKS("asks"),
+  RUN("run"),
   SET("set"),
   MODIFY("modify"),
   INSPECT("inspect"),

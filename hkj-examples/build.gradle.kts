@@ -33,6 +33,7 @@ tasks.named<Test>("test") {
     exclude("**/tutorial/coretypes/**")
     exclude("**/tutorial/concurrency/**")
     exclude("**/tutorial/effect/**")
+    exclude("**/tutorial/context/**")
     // Solutions are in tutorial/solutions/ and will run
 }
 
