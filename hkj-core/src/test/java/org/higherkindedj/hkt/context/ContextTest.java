@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -182,9 +183,7 @@ class ContextTest {
       @DisplayName("map() should compose multiple transformations")
       void map_shouldComposeTransformations() throws Exception {
         Context<String, String> ctx =
-            Context.<String>ask(STRING_KEY)
-                .map(String::toUpperCase)
-                .map(s -> "[" + s + "]");
+            Context.<String>ask(STRING_KEY).map(String::toUpperCase).map(s -> "[" + s + "]");
 
         String result = ScopedValue.where(STRING_KEY, "test").call(ctx::run);
 
@@ -200,8 +199,7 @@ class ContextTest {
       @DisplayName("flatMap() should sequence context computations")
       void flatMap_shouldSequenceComputations() throws Exception {
         Context<String, String> ctx =
-            Context.<String>ask(STRING_KEY)
-                .flatMap(s -> Context.succeed("Result: " + s));
+            Context.<String>ask(STRING_KEY).flatMap(s -> Context.succeed("Result: " + s));
 
         String result = ScopedValue.where(STRING_KEY, "input").call(ctx::run);
 
@@ -221,8 +219,7 @@ class ContextTest {
       @Test
       @DisplayName("flatMap() should throw if function returns null context")
       void flatMap_shouldThrowIfFunctionReturnsNull() {
-        Context<String, String> ctx =
-            Context.<String, String>succeed("value").flatMap(s -> null);
+        Context<String, String> ctx = Context.<String, String>succeed("value").flatMap(s -> null);
 
         assertThatNullPointerException()
             .isThrownBy(ctx::run)
@@ -339,8 +336,7 @@ class ContextTest {
       @DisplayName("recoverWith() should throw if recovery returns null")
       void recoverWith_shouldThrowIfRecoveryReturnsNull() {
         Context<String, String> ctx =
-            Context.<String, String>fail(new RuntimeException("error"))
-                .recoverWith(e -> null);
+            Context.<String, String>fail(new RuntimeException("error")).recoverWith(e -> null);
 
         assertThatNullPointerException()
             .isThrownBy(ctx::run)
@@ -431,8 +427,7 @@ class ContextTest {
       void toMaybe_shouldConvertSuccessToJust() throws Exception {
         Context<String, String> ctx = Context.ask(STRING_KEY);
 
-        Maybe<String> result =
-            ScopedValue.where(STRING_KEY, "value").call(ctx::toMaybe);
+        Maybe<String> result = ScopedValue.where(STRING_KEY, "value").call(ctx::toMaybe);
 
         assertThat(result.isJust()).isTrue();
         assertThat(result.orElse("fallback")).isEqualTo("value");
@@ -469,8 +464,7 @@ class ContextTest {
         Context<String, String> ctx = Context.ask(STRING_KEY);
         Context<String, Unit> unitCtx = ctx.asUnit();
 
-        Unit result =
-            ScopedValue.where(STRING_KEY, "value").call(unitCtx::run);
+        Unit result = ScopedValue.where(STRING_KEY, "value").call(unitCtx::run);
 
         assertThat(result).isEqualTo(Unit.INSTANCE);
       }
@@ -555,8 +549,7 @@ class ContextTest {
         Context.FlatMapped<String, String, Integer> flatMapped =
             new Context.FlatMapped<>(source, s -> Context.succeed(s.length()));
 
-        Integer result =
-            ScopedValue.where(STRING_KEY, "hello").call(flatMapped::run);
+        Integer result = ScopedValue.where(STRING_KEY, "hello").call(flatMapped::run);
 
         assertThat(result).isEqualTo(5);
       }
@@ -722,7 +715,8 @@ class ContextTest {
       void errorMapped_runShouldPassThroughSuccess() {
         Context<String, String> source = Context.succeed("success value");
         Context.ErrorMapped<String, String> errorMapped =
-            new Context.ErrorMapped<>(source, e -> new IllegalArgumentException("should not be called"));
+            new Context.ErrorMapped<>(
+                source, e -> new IllegalArgumentException("should not be called"));
 
         String result = errorMapped.run();
 
@@ -825,7 +819,7 @@ class ContextTest {
 
       Context<String, Integer> left = m.map(String::toUpperCase).map(String::length);
       Context<String, Integer> right =
-          m.map(((java.util.function.Function<String, String>) String::toUpperCase).andThen(String::length));
+          m.map(((Function<String, String>) String::toUpperCase).andThen(String::length));
 
       String value = "test";
       Integer leftResult = ScopedValue.where(STRING_KEY, value).call(left::run);
@@ -846,10 +840,12 @@ class ContextTest {
 
       Context<String, Integer> ctx = Context.succeed(0);
       for (int i = 0; i < 100; i++) {
-        ctx = ctx.flatMap(n -> {
-          counter.incrementAndGet();
-          return Context.succeed(n + 1);
-        });
+        ctx =
+            ctx.flatMap(
+                n -> {
+                  counter.incrementAndGet();
+                  return Context.succeed(n + 1);
+                });
       }
 
       Integer result = ctx.run();
@@ -864,7 +860,10 @@ class ContextTest {
       Context<String, String> ctx =
           Context.<String, String>fail(new RuntimeException("error1"))
               .recover(e -> "recovered1")
-              .<String>map(s -> { throw new RuntimeException("error2"); })
+              .<String>map(
+                  s -> {
+                    throw new RuntimeException("error2");
+                  })
               .recover(e -> "recovered2");
 
       String result = ctx.run();

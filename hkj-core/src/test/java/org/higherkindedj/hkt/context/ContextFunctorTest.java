@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.context;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,8 +62,7 @@ class ContextFunctorTest {
     void map_shouldTransformValue() throws Exception {
       Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.ask(STRING_KEY);
 
-      Kind<ContextKind.Witness<String>, Integer> kindB =
-          functor.map(String::length, kindA);
+      Kind<ContextKind.Witness<String>, Integer> kindB = functor.map(String::length, kindA);
 
       Context<String, Integer> ctx = CONTEXT.narrow(kindB);
       Integer result = ScopedValue.where(STRING_KEY, "hello").call(ctx::run);
@@ -75,8 +75,7 @@ class ContextFunctorTest {
     void map_shouldWorkWithSucceed() {
       Kind<ContextKind.Witness<String>, Integer> kindA = CONTEXT.succeed(42);
 
-      Kind<ContextKind.Witness<String>, String> kindB =
-          functor.map(n -> "Number: " + n, kindA);
+      Kind<ContextKind.Witness<String>, String> kindB = functor.map(n -> "Number: " + n, kindA);
 
       Context<String, String> ctx = CONTEXT.narrow(kindB);
       String result = ctx.run();
@@ -104,8 +103,7 @@ class ContextFunctorTest {
       RuntimeException error = new RuntimeException("test error");
       Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.fail(error);
 
-      Kind<ContextKind.Witness<String>, Integer> kindB =
-          functor.map(String::length, kindA);
+      Kind<ContextKind.Witness<String>, Integer> kindB = functor.map(String::length, kindA);
 
       Context<String, Integer> ctx = CONTEXT.narrow(kindB);
       assertThatThrownBy(ctx::run).isSameAs(error);
@@ -136,8 +134,8 @@ class ContextFunctorTest {
     void compositionLaw() throws Exception {
       Kind<ContextKind.Witness<String>, String> fa = CONTEXT.ask(STRING_KEY);
 
-      java.util.function.Function<String, String> f = String::toUpperCase;
-      java.util.function.Function<String, Integer> g = String::length;
+      Function<String, String> f = String::toUpperCase;
+      Function<String, Integer> g = String::length;
 
       Kind<ContextKind.Witness<String>, Integer> left = functor.map(g, functor.map(f, fa));
       Kind<ContextKind.Witness<String>, Integer> right = functor.map(f.andThen(g), fa);

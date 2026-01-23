@@ -28,7 +28,8 @@ class SecurityContextTest {
   private final Set<String> adminRoles = Set.of("USER", "ADMIN");
   private final Set<String> allRoles = Set.of("USER", "ADMIN", "MANAGER");
   private final Set<String> userPermissions = Set.of("document:read");
-  private final Set<String> adminPermissions = Set.of("document:read", "document:write", "user:delete");
+  private final Set<String> adminPermissions =
+      Set.of("document:read", "document:write", "user:delete");
 
   @Nested
   @DisplayName("Static ScopedValue Fields")
@@ -86,8 +87,7 @@ class SecurityContextTest {
       void isAuthenticated_shouldReturnTrueWhenPrincipalPresent() throws Exception {
         Context<Principal, Boolean> ctx = SecurityContext.isAuthenticated();
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.PRINCIPAL, testPrincipal).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.PRINCIPAL, testPrincipal).call(ctx::run);
 
         assertThat(result).isTrue();
       }
@@ -97,8 +97,7 @@ class SecurityContextTest {
       void isAuthenticated_shouldReturnFalseWhenPrincipalNull() throws Exception {
         Context<Principal, Boolean> ctx = SecurityContext.isAuthenticated();
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -120,12 +119,12 @@ class SecurityContextTest {
       }
 
       @Test
-      @DisplayName("requireAuthenticated() should throw UnauthenticatedException when principal is null")
+      @DisplayName(
+          "requireAuthenticated() should throw UnauthenticatedException when principal is null")
       void requireAuthenticated_shouldThrowWhenPrincipalNull() throws Exception {
         Context<Principal, Principal> ctx = SecurityContext.requireAuthenticated();
 
-        assertThatThrownBy(
-                () -> ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run))
+        assertThatThrownBy(() -> ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run))
             .isInstanceOf(SecurityContext.UnauthenticatedException.class)
             .hasMessageContaining("Authentication required");
       }
@@ -152,8 +151,7 @@ class SecurityContextTest {
       void principalIfPresent_shouldReturnNothingWhenPrincipalNull() throws Exception {
         Context<Principal, Maybe<Principal>> ctx = SecurityContext.principalIfPresent();
 
-        Maybe<Principal> result =
-            ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run);
+        Maybe<Principal> result = ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run);
 
         assertThat(result.isJust()).isFalse();
       }
@@ -173,8 +171,7 @@ class SecurityContextTest {
       void hasRole_shouldReturnTrueWhenUserHasRole() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasRole("USER");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
 
         assertThat(result).isTrue();
       }
@@ -184,8 +181,7 @@ class SecurityContextTest {
       void hasRole_shouldReturnFalseWhenUserLacksRole() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasRole("ADMIN");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -195,8 +191,7 @@ class SecurityContextTest {
       void hasRole_shouldReturnFalseWhenRolesNull() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasRole("USER");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -219,8 +214,7 @@ class SecurityContextTest {
       void hasAnyRole_shouldReturnTrueWhenUserHasAny() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAnyRole("ADMIN", "SUPERUSER");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
 
         assertThat(result).isTrue();
       }
@@ -230,8 +224,7 @@ class SecurityContextTest {
       void hasAnyRole_shouldReturnFalseWhenUserHasNone() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAnyRole("SUPERUSER", "ROOT");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -241,8 +234,7 @@ class SecurityContextTest {
       void hasAnyRole_shouldReturnFalseWhenUserRolesNull() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAnyRole("USER", "ADMIN");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -265,8 +257,7 @@ class SecurityContextTest {
       void hasAllRoles_shouldReturnTrueWhenUserHasAll() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAllRoles("USER", "ADMIN");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
 
         assertThat(result).isTrue();
       }
@@ -274,10 +265,10 @@ class SecurityContextTest {
       @Test
       @DisplayName("hasAllRoles() should return false when user lacks some roles")
       void hasAllRoles_shouldReturnFalseWhenUserLacksSome() throws Exception {
-        Context<Set<String>, Boolean> ctx = SecurityContext.hasAllRoles("USER", "ADMIN", "SUPERUSER");
+        Context<Set<String>, Boolean> ctx =
+            SecurityContext.hasAllRoles("USER", "ADMIN", "SUPERUSER");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -287,8 +278,7 @@ class SecurityContextTest {
       void hasAllRoles_shouldReturnFalseWhenUserRolesNull() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAllRoles("USER", "ADMIN");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -311,8 +301,7 @@ class SecurityContextTest {
       void requireRole_shouldReturnUnitWhenUserHasRole() throws Exception {
         Context<Set<String>, Unit> ctx = SecurityContext.requireRole("USER");
 
-        Unit result =
-            ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
+        Unit result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
 
         assertThat(result).isEqualTo(Unit.INSTANCE);
       }
@@ -322,8 +311,7 @@ class SecurityContextTest {
       void requireRole_shouldThrowWhenUserLacksRole() throws Exception {
         Context<Set<String>, Unit> ctx = SecurityContext.requireRole("ADMIN");
 
-        assertThatThrownBy(
-                () -> ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run))
+        assertThatThrownBy(() -> ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run))
             .isInstanceOf(SecurityContext.UnauthorisedException.class)
             .hasMessageContaining("Role required: ADMIN");
       }
@@ -346,8 +334,7 @@ class SecurityContextTest {
       void requireAnyRole_shouldReturnUnitWhenUserHasAny() throws Exception {
         Context<Set<String>, Unit> ctx = SecurityContext.requireAnyRole("ADMIN", "SUPERUSER");
 
-        Unit result =
-            ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
+        Unit result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
 
         assertThat(result).isEqualTo(Unit.INSTANCE);
       }
@@ -357,8 +344,7 @@ class SecurityContextTest {
       void requireAnyRole_shouldThrowWhenUserHasNone() throws Exception {
         Context<Set<String>, Unit> ctx = SecurityContext.requireAnyRole("SUPERUSER", "ROOT");
 
-        assertThatThrownBy(
-                () -> ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run))
+        assertThatThrownBy(() -> ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run))
             .isInstanceOf(SecurityContext.UnauthorisedException.class)
             .hasMessageContaining("One of these roles required");
       }
@@ -381,8 +367,7 @@ class SecurityContextTest {
       void requireAllRoles_shouldReturnUnitWhenUserHasAll() throws Exception {
         Context<Set<String>, Unit> ctx = SecurityContext.requireAllRoles("USER", "ADMIN");
 
-        Unit result =
-            ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
+        Unit result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
 
         assertThat(result).isEqualTo(Unit.INSTANCE);
       }
@@ -390,7 +375,8 @@ class SecurityContextTest {
       @Test
       @DisplayName("requireAllRoles() should throw UnauthorisedException when user lacks some")
       void requireAllRoles_shouldThrowWhenUserLacksSome() throws Exception {
-        Context<Set<String>, Unit> ctx = SecurityContext.requireAllRoles("USER", "ADMIN", "SUPERUSER");
+        Context<Set<String>, Unit> ctx =
+            SecurityContext.requireAllRoles("USER", "ADMIN", "SUPERUSER");
 
         assertThatThrownBy(
                 () -> ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run))
@@ -443,8 +429,7 @@ class SecurityContextTest {
       void hasPermission_shouldReturnFalseWhenPermissionsNull() throws Exception {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasPermission("document:read");
 
-        Boolean result =
-            ScopedValue.where(SecurityContext.PERMISSIONS, null).call(ctx::run);
+        Boolean result = ScopedValue.where(SecurityContext.PERMISSIONS, null).call(ctx::run);
 
         assertThat(result).isFalse();
       }
@@ -474,12 +459,14 @@ class SecurityContextTest {
       }
 
       @Test
-      @DisplayName("requirePermission() should throw UnauthorisedException when user lacks permission")
+      @DisplayName(
+          "requirePermission() should throw UnauthorisedException when user lacks permission")
       void requirePermission_shouldThrowWhenUserLacksPermission() throws Exception {
         Context<Set<String>, Unit> ctx = SecurityContext.requirePermission("user:delete");
 
         assertThatThrownBy(
-                () -> ScopedValue.where(SecurityContext.PERMISSIONS, userPermissions).call(ctx::run))
+                () ->
+                    ScopedValue.where(SecurityContext.PERMISSIONS, userPermissions).call(ctx::run))
             .isInstanceOf(SecurityContext.UnauthorisedException.class)
             .hasMessageContaining("Permission required: user:delete");
       }
@@ -505,8 +492,10 @@ class SecurityContextTest {
       @Test
       @DisplayName("UnauthenticatedException should extend RuntimeException")
       void unauthenticatedException_shouldExtendRuntimeException() {
-        assertThat(RuntimeException.class.isAssignableFrom(
-            SecurityContext.UnauthenticatedException.class)).isTrue();
+        assertThat(
+                RuntimeException.class.isAssignableFrom(
+                    SecurityContext.UnauthenticatedException.class))
+            .isTrue();
       }
 
       @Test
@@ -526,8 +515,10 @@ class SecurityContextTest {
       @Test
       @DisplayName("UnauthorisedException should extend RuntimeException")
       void unauthorisedException_shouldExtendRuntimeException() {
-        assertThat(RuntimeException.class.isAssignableFrom(
-            SecurityContext.UnauthorisedException.class)).isTrue();
+        assertThat(
+                RuntimeException.class.isAssignableFrom(
+                    SecurityContext.UnauthorisedException.class))
+            .isTrue();
       }
 
       @Test

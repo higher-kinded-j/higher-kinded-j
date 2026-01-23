@@ -244,8 +244,7 @@ class ContextApplicativeTest {
     void map_shouldBeAvailableFromParent() {
       Kind<ContextKind.Witness<String>, Integer> fa = CONTEXT.succeed(42);
 
-      Kind<ContextKind.Witness<String>, String> result =
-          applicative.map(n -> "Number: " + n, fa);
+      Kind<ContextKind.Witness<String>, String> result = applicative.map(n -> "Number: " + n, fa);
 
       Context<String, String> ctx = CONTEXT.narrow(result);
       assertThat(ctx.run()).isEqualTo("Number: 42");

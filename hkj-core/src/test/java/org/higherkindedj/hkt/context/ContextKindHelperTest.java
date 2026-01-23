@@ -75,8 +75,7 @@ class ContextKindHelperTest {
     @Test
     @DisplayName("narrow() should throw KindUnwrapException for null kind")
     void narrow_shouldThrowForNullKind() {
-      assertThatThrownBy(() -> CONTEXT.narrow(null))
-          .isInstanceOf(KindUnwrapException.class);
+      assertThatThrownBy(() -> CONTEXT.narrow(null)).isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
@@ -86,8 +85,7 @@ class ContextKindHelperTest {
       Kind<ContextKind.Witness<String>, Integer> invalidKind =
           new Kind<>() {}; // Anonymous invalid implementation
 
-      assertThatThrownBy(() -> CONTEXT.narrow(invalidKind))
-          .isInstanceOf(KindUnwrapException.class);
+      assertThatThrownBy(() -> CONTEXT.narrow(invalidKind)).isInstanceOf(KindUnwrapException.class);
     }
   }
 
@@ -142,8 +140,7 @@ class ContextKindHelperTest {
     @Test
     @DisplayName("asks() should create Kind with transformed Ask context")
     void asks_shouldCreateKindWithTransformedAskContext() throws Exception {
-      Kind<ContextKind.Witness<String>, Integer> kind =
-          CONTEXT.asks(STRING_KEY, String::length);
+      Kind<ContextKind.Witness<String>, Integer> kind = CONTEXT.asks(STRING_KEY, String::length);
 
       Context<String, Integer> ctx = CONTEXT.narrow(kind);
       Integer result = ScopedValue.where(STRING_KEY, "hello").call(ctx::run);
@@ -213,8 +210,7 @@ class ContextKindHelperTest {
       Kind<ContextKind.Witness<String>, String> kind = CONTEXT.ask(STRING_KEY);
 
       String result =
-          ScopedValue.where(STRING_KEY, "scoped-value")
-              .call(() -> CONTEXT.runContext(kind));
+          ScopedValue.where(STRING_KEY, "scoped-value").call(() -> CONTEXT.runContext(kind));
 
       assertThat(result).isEqualTo("scoped-value");
     }
