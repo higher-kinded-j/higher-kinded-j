@@ -63,8 +63,10 @@ public final class SecurityContext {
   /**
    * Set of roles granted to the current user.
    *
-   * <p>Should be an empty set for anonymous users, never {@code null}. Roles are typically
-   * coarse-grained (e.g., "ADMIN", "USER", "MANAGER").
+   * <p>Should be an empty set for anonymous users. If bound to {@code null}, role checks will
+   * return {@code false} as a defensive measure.
+   *
+   * <p>Roles are typically coarse-grained (e.g., "ADMIN", "USER", "MANAGER").
    */
   public static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
 
@@ -73,6 +75,9 @@ public final class SecurityContext {
    *
    * <p>For systems that need more granularity than roles. Permissions are typically in the form
    * "resource:action" (e.g., "document:read", "user:delete").
+   *
+   * <p>If bound to {@code null}, permission checks will return {@code false} as a defensive
+   * measure.
    */
   public static final ScopedValue<Set<String>> PERMISSIONS = ScopedValue.newInstance();
 
