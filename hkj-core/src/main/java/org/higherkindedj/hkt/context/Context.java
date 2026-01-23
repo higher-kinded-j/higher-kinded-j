@@ -208,7 +208,10 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    * @throws NullPointerException if any argument is null.
    */
   static <R, A, B, C, D> Context<R, D> map3(
-      Context<R, A> ca, Context<R, B> cb, Context<R, C> cc, Function3<? super A, ? super B, ? super C, ? extends D> f) {
+      Context<R, A> ca,
+      Context<R, B> cb,
+      Context<R, C> cc,
+      Function3<? super A, ? super B, ? super C, ? extends D> f) {
     Objects.requireNonNull(ca, "ca cannot be null");
     Objects.requireNonNull(cb, "cb cannot be null");
     Objects.requireNonNull(cc, "cc cannot be null");

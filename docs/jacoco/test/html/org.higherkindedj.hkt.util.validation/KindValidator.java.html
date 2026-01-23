@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KindValidator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.util.validation</a> &gt; <span class="el_source">KindValidator.java</span></div><h1>KindValidator.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.util.validation;
+
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+
+import java.util.Objects;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Handles Kind-specific validations with rich context.
+ *
+ * &lt;p&gt;This validator provides type-safe Kind operations that prevent common errors like passing
+ * descriptions instead of type names, and ensures consistent error messaging across all
+ * Kind-related operations.
+ */
+<span class="fc" id="L21">public enum KindValidator {</span>
+<span class="fc" id="L22">  KIND_VALIDATOR;</span>
+
+  /**
+   * Validates and narrows a Kind with rich type context using a custom narrower function.
+   *
+   * &lt;p&gt;This method uses modern switch expressions to handle null and type checking in a consistent
+   * manner. The narrower function should use pattern matching where appropriate.
+   *
+   * @param kind The Kind to narrow, may be null
+   * @param targetType The target type class for type-safe error messaging
+   * @param narrower Function to perform the actual narrowing
+   * @param &lt;F&gt; The witness type of the Kind
+   * @param &lt;A&gt; The value type of the Kind
+   * @param &lt;T&gt; The target type to narrow to
+   * @return The narrowed result
+   * @throws KindUnwrapException if kind is null or narrowing fails
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A, T&gt; T narrow(
+      @Nullable Kind&lt;F, A&gt; kind,
+      Class&lt;T&gt; targetType,
+      Function&lt;? super Kind&lt;F, A&gt;, ? extends T&gt; narrower) {
+
+<span class="fc" id="L44">    var context = new KindContext(targetType, &quot;narrow&quot;);</span>
+
+<span class="fc bfc" id="L46" title="All 2 branches covered.">    return switch (kind) {</span>
+<span class="fc" id="L47">      case null -&gt; throw new KindUnwrapException(context.nullParameterMessage());</span>
+      default -&gt; {
+        try {
+<span class="fc" id="L50">          yield narrower.apply(kind);</span>
+<span class="fc" id="L51">        } catch (Exception e) {</span>
+<span class="fc" id="L52">          throw new KindUnwrapException(context.invalidTypeMessage(kind), e);</span>
+        }
+      }
+    };
+  }
+
+  /**
+   * Validates and narrows using instanceof type checking. This is the preferred method for types
+   * that directly implement the Kind interface (e.g., transformers, Id, Validated).
+   *
+   * &lt;p&gt;This method uses modern switch expressions with pattern matching for cleaner code.
+   *
+   * @param kind The Kind to narrow, may be null
+   * @param targetType The target type class
+   * @param &lt;F&gt; The witness type of the Kind
+   * @param &lt;A&gt; The value type of the Kind
+   * @param &lt;T&gt; The target type to narrow to
+   * @return The narrowed result
+   * @throws KindUnwrapException if kind is null or not of the expected type
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A, T&gt; T narrowWithTypeCheck(
+      @Nullable Kind&lt;F, A&gt; kind, Class&lt;T&gt; targetType) {
+
+<span class="fc" id="L75">    var context = new KindContext(targetType, &quot;narrow&quot;);</span>
+
+<span class="fc bfc" id="L77" title="All 2 branches covered.">    return switch (kind) {</span>
+<span class="fc" id="L78">      case null -&gt; throw new KindUnwrapException(context.nullParameterMessage());</span>
+      default -&gt; {
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (!targetType.isInstance(kind)) {</span>
+<span class="fc" id="L81">          throw new KindUnwrapException(context.invalidTypeMessage(kind));</span>
+        }
+<span class="fc" id="L83">        yield targetType.cast(kind);</span>
+      }
+    };
+  }
+
+  /**
+   * Specialized narrowing for holder-based Kind implementations using pattern matching. This
+   * provides a consistent approach for types that wrap their concrete implementation in an internal
+   * holder record.
+   *
+   * &lt;p&gt;Example usage:
+   *
+   * &lt;pre&gt;{@code
+   * public &lt;A&gt; SomeType&lt;A&gt; narrow(@Nullable Kind&lt;...&gt; kind) {
+   *   return Validation.kind().narrowWithPattern(
+   *     kind,
+   *     SOME_CLASS,
+   *     SomeHolder.class,
+   *     holder -&gt; holder.value()
+   *   );
+   * }
+   * }&lt;/pre&gt;
+   *
+   * @param kind The Kind to narrow, may be null
+   * @param targetType The target type class for error messaging
+   * @param holderType The holder type class for pattern matching
+   * @param extractor Function to extract the value from the holder
+   * @param &lt;F&gt; The witness type of the Kind
+   * @param &lt;A&gt; The value type of the Kind
+   * @param &lt;T&gt; The target type to narrow to
+   * @param &lt;H&gt; The holder type
+   * @return The narrowed result
+   * @throws KindUnwrapException if kind is null or not of the expected holder type
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A, T, H extends Kind&lt;F, A&gt;&gt; T narrowWithPattern(
+      @Nullable Kind&lt;F, A&gt; kind,
+      Class&lt;T&gt; targetType,
+      Class&lt;H&gt; holderType,
+      Function&lt;? super H, ? extends T&gt; extractor) {
+
+<span class="fc" id="L123">    var context = new KindContext(targetType, &quot;narrow&quot;);</span>
+
+<span class="fc bfc" id="L125" title="All 2 branches covered.">    return switch (kind) {</span>
+<span class="fc" id="L126">      case null -&gt; throw new KindUnwrapException(context.nullParameterMessage());</span>
+      default -&gt; {
+<span class="fc bfc" id="L128" title="All 2 branches covered.">        if (!holderType.isInstance(kind)) {</span>
+<span class="fc" id="L129">          throw new KindUnwrapException(context.invalidTypeMessage(kind));</span>
+        }
+<span class="fc" id="L131">        yield extractor.apply(holderType.cast(kind));</span>
+      }
+    };
+  }
+
+  /**
+   * Validates input for widen operations with type-safe context.
+   *
+   * @param input The input to validate for widening
+   * @param inputType The class of the input type for context
+   * @param &lt;T&gt; The input type
+   * @return The validated input
+   * @throws NullPointerException if input is null
+   */
+  public &lt;T&gt; T requireForWiden(T input, Class&lt;T&gt; inputType) {
+<span class="fc" id="L146">    var context = new KindContext(inputType, &quot;widen&quot;);</span>
+<span class="fc" id="L147">    return Objects.requireNonNull(input, context.nullInputMessage());</span>
+  }
+
+  /**
+   * Validates Kind parameter for operations with class-based context.
+   *
+   * @param kind The Kind to validate
+   * @param contextClass The class providing context (e.g., StateTMonad.class, OptionalT.class)
+   * @param operation The operation name for context
+   * @param &lt;F&gt; The witness type
+   * @param &lt;A&gt; The value type
+   * @return The validated Kind
+   * @throws NullPointerException if kind is null
+   *     &lt;p&gt;Example usage:
+   *     &lt;pre&gt;
+   * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, &quot;map&quot;);
+   * // Error: &quot;Kind for StateTMonad.map cannot be null&quot;
+   * &lt;/pre&gt;
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A&gt; Kind&lt;F, A&gt; requireNonNull(
+      Kind&lt;F, A&gt; kind, Class&lt;?&gt; contextClass, Operation operation) {
+
+<span class="fc" id="L169">    Objects.requireNonNull(contextClass, &quot;contextClass cannot be null&quot;);</span>
+<span class="fc" id="L170">    Objects.requireNonNull(operation, &quot;operation cannot be null&quot;);</span>
+
+<span class="fc" id="L172">    String fullOperation = contextClass.getSimpleName() + &quot;.&quot; + operation;</span>
+<span class="fc" id="L173">    return Objects.requireNonNull(kind, &quot;Kind for &quot; + fullOperation + &quot; cannot be null&quot;);</span>
+  }
+
+  /**
+   * Validates Kind parameter for operations with operation context.
+   *
+   * @param kind The Kind to validate
+   * @param operation The operation name for context
+   * @param &lt;F&gt; The witness type
+   * @param &lt;A&gt; The value type
+   * @return The validated Kind
+   * @throws NullPointerException if kind is null
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A&gt; Kind&lt;F, A&gt; requireNonNull(
+      Kind&lt;F, A&gt; kind, Operation operation) {
+<span class="fc" id="L188">    return Objects.requireNonNull(kind, &quot;Kind for &quot; + operation + &quot; cannot be null&quot;);</span>
+  }
+
+  /**
+   * Validates Kind parameter with class-based context and optional descriptor.
+   *
+   * &lt;p&gt;Use descriptors to distinguish between multiple Kind parameters in the same operation. For
+   * example, in an {@code ap} operation with both a function Kind and an argument Kind, use
+   * descriptors like &quot;function&quot; and &quot;argument&quot; to make error messages clearer.
+   *
+   * @param kind The Kind to validate
+   * @param contextClass The class providing context
+   * @param operation The operation name for context
+   * @param descriptor Optional descriptor for the parameter (e.g., &quot;function&quot;, &quot;argument&quot;,
+   *     &quot;source&quot;)
+   * @param &lt;F&gt; The witness type
+   * @param &lt;A&gt; The value type
+   * @return The validated Kind
+   * @throws NullPointerException if kind is null
+   *     &lt;p&gt;Example usage:
+   *     &lt;pre&gt;
+   * Validation.kindValidator().requireNonNull(ff, StateTMonad.class, &quot;ap&quot;, &quot;function&quot;);
+   * // Error: &quot;Kind for StateTMonad.ap (function) cannot be null&quot;
+   *
+   * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, &quot;ap&quot;, &quot;argument&quot;);
+   * // Error: &quot;Kind for StateTMonad.ap (argument) cannot be null&quot;
+   * &lt;/pre&gt;
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A&gt; Kind&lt;F, A&gt; requireNonNull(
+      Kind&lt;F, A&gt; kind, Class&lt;?&gt; contextClass, Operation operation, @Nullable String descriptor) {
+
+<span class="fc" id="L219">    Objects.requireNonNull(contextClass, &quot;contextClass cannot be null&quot;);</span>
+<span class="fc" id="L220">    Objects.requireNonNull(operation, &quot;operation cannot be null&quot;);</span>
+
+<span class="fc" id="L222">    String fullOperation = contextClass.getSimpleName() + &quot;.&quot; + operation;</span>
+    String contextMessage =
+<span class="fc bfc" id="L224" title="All 2 branches covered.">        descriptor != null ? fullOperation + &quot; (&quot; + descriptor + &quot;)&quot; : fullOperation;</span>
+
+<span class="fc" id="L226">    return Objects.requireNonNull(kind, &quot;Kind for &quot; + contextMessage + &quot; cannot be null&quot;);</span>
+  }
+
+  /**
+   * Validates Kind parameter with optional descriptor for enhanced error messages.
+   *
+   * @param kind The Kind to validate
+   * @param operation The operation name for context
+   * @param descriptor Optional descriptor for the parameter
+   * @param &lt;F&gt; The witness type
+   * @param &lt;A&gt; The value type
+   * @return The validated Kind
+   * @throws NullPointerException if kind is null
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A&gt; Kind&lt;F, A&gt; requireNonNull(
+      Kind&lt;F, A&gt; kind, Operation operation, @Nullable String descriptor) {
+
+    String contextMessage =
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        descriptor != null ? operation + &quot; (&quot; + descriptor + &quot;)&quot; : operation.toString();</span>
+
+<span class="fc" id="L246">    return Objects.requireNonNull(kind, &quot;Kind for &quot; + contextMessage + &quot; cannot be null&quot;);</span>
+  }
+
+  // ==================== Bulk Validation Helpers ====================
+  // These methods reduce boilerplate by combining multiple validations into single calls.
+
+  /**
+   * Validates all Kind parameters for an ap (applicative application) operation in a single call.
+   *
+   * &lt;p&gt;This combines validation of both the function Kind and argument Kind, reducing boilerplate
+   * in Applicative implementations.
+   *
+   * @param ff the function Kind (must be non-null)
+   * @param fa the argument Kind (must be non-null)
+   * @param contextClass the class performing the operation (for error messages)
+   * @param &lt;F&gt; the functor type constructor
+   * @param &lt;A&gt; input type
+   * @param &lt;B&gt; output type
+   * @throws NullPointerException if ff or fa is null
+   */
+  public &lt;F extends WitnessArity&lt;?&gt;, A, B&gt; void validateAp(
+      Kind&lt;F, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;F, A&gt; fa, Class&lt;?&gt; contextClass) {
+<span class="fc" id="L268">    requireNonNull(ff, contextClass, AP, &quot;function&quot;);</span>
+<span class="fc" id="L269">    requireNonNull(fa, contextClass, AP, &quot;argument&quot;);</span>
+<span class="fc" id="L270">  }</span>
+
+  /**
+   * Context record for Kind validation operations. Provides consistent error message generation.
+   */
+  public record KindContext(Class&lt;?&gt; targetType, String operation) {
+
+<span class="fc" id="L277">    public KindContext {</span>
+<span class="fc" id="L278">      Objects.requireNonNull(targetType, &quot;targetType cannot be null&quot;);</span>
+<span class="fc" id="L279">      Objects.requireNonNull(operation, &quot;operation cannot be null&quot;);</span>
+<span class="fc" id="L280">    }</span>
+
+    public String nullParameterMessage() {
+<span class="fc" id="L283">      return &quot;Cannot %s null Kind for %s&quot;.formatted(operation, targetType.getSimpleName());</span>
+    }
+
+    public String nullInputMessage() {
+<span class="fc" id="L287">      return &quot;Input %s cannot be null for %s&quot;.formatted(targetType.getSimpleName(), operation);</span>
+    }
+
+    public String invalidTypeMessage() {
+<span class="fc" id="L291">      return &quot;Kind instance cannot be narrowed to &quot; + targetType.getSimpleName();</span>
+    }
+
+    /** Enhanced error message that includes the actual type received. */
+    public String invalidTypeMessage(Kind&lt;?, ?&gt; actualKind) {
+<span class="fc" id="L296">      return &quot;Kind instance cannot be narrowed to %s (received: %s)&quot;</span>
+<span class="fc" id="L297">          .formatted(targetType.getSimpleName(), actualKind.getClass().getSimpleName());</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityContext.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.context</a> &gt; <span class="el_source">SecurityContext.java</span></div><h1>SecurityContext.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.context;
+
+import java.security.Principal;
+import java.util.Objects;
+import java.util.Set;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.maybe.Maybe;
+
+/**
+ * Pre-defined {@link ScopedValue} instances for security context values and helper methods for
+ * authentication and authorisation checks.
+ *
+ * &lt;p&gt;{@code SecurityContext} provides a standard set of scoped values for user identity, roles,
+ * permissions, and authentication tokens. These values propagate automatically to child virtual
+ * threads forked within the same scope, ensuring consistent security context across concurrent
+ * operations.
+ *
+ * &lt;p&gt;&lt;b&gt;Usage Example:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // At the authentication filter
+ * public void doFilter(Request request, Response response, FilterChain chain) {
+ *     AuthResult auth = authenticate(request);
+ *
+ *     ScopedValue
+ *         .where(SecurityContext.PRINCIPAL, auth.principal())
+ *         .where(SecurityContext.ROLES, auth.roles())
+ *         .where(SecurityContext.AUTH_TOKEN, auth.token())
+ *         .run(() -&gt; chain.doFilter(request, response));
+ * }
+ *
+ * // In a protected service method
+ * public Order createOrder(OrderRequest request) {
+ *     SecurityContext.requireRole(&quot;CUSTOMER&quot;).run();  // Guard clause
+ *     return orderRepository.save(buildOrder(request));
+ * }
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Security Note:&lt;/b&gt; Never rely solely on context propagation for security. Always validate
+ * authentication at system boundaries, check authorisation before sensitive operations, and log
+ * security-relevant events with full context.
+ *
+ * @see Context
+ * @see RequestContext
+ * @see ScopedValue
+ */
+public final class SecurityContext {
+
+  private SecurityContext() {
+    // Utility class - no instantiation
+  }
+
+  /**
+   * The authenticated principal (user identity).
+   *
+   * &lt;p&gt;A {@code null} value indicates an anonymous/unauthenticated user. An unbound {@link
+   * ScopedValue} indicates a configuration error (security context not established).
+   */
+<span class="fc" id="L61">  public static final ScopedValue&lt;Principal&gt; PRINCIPAL = ScopedValue.newInstance();</span>
+
+  /**
+   * Set of roles granted to the current user.
+   *
+   * &lt;p&gt;Should be an empty set for anonymous users. If bound to {@code null}, role checks will
+   * return {@code false} as a defensive measure.
+   *
+   * &lt;p&gt;Roles are typically coarse-grained (e.g., &quot;ADMIN&quot;, &quot;USER&quot;, &quot;MANAGER&quot;).
+   */
+<span class="fc" id="L71">  public static final ScopedValue&lt;Set&lt;String&gt;&gt; ROLES = ScopedValue.newInstance();</span>
+
+  /**
+   * Set of fine-grained permissions granted to the current user.
+   *
+   * &lt;p&gt;For systems that need more granularity than roles. Permissions are typically in the form
+   * &quot;resource:action&quot; (e.g., &quot;document:read&quot;, &quot;user:delete&quot;).
+   *
+   * &lt;p&gt;If bound to {@code null}, permission checks will return {@code false} as a defensive
+   * measure.
+   */
+<span class="fc" id="L82">  public static final ScopedValue&lt;Set&lt;String&gt;&gt; PERMISSIONS = ScopedValue.newInstance();</span>
+
+  /**
+   * Authentication token for propagation to downstream services.
+   *
+   * &lt;p&gt;Typically a JWT, OAuth token, or similar bearer token. Used when making authenticated
+   * requests to downstream services.
+   */
+<span class="fc" id="L90">  public static final ScopedValue&lt;String&gt; AUTH_TOKEN = ScopedValue.newInstance();</span>
+
+  /**
+   * Session identifier for audit and tracking.
+   *
+   * &lt;p&gt;Links requests to a user session for audit logging and session management.
+   */
+<span class="fc" id="L97">  public static final ScopedValue&lt;String&gt; SESSION_ID = ScopedValue.newInstance();</span>
+
+  // ===== AUTHENTICATION CHECKS =====
+
+  /**
+   * Returns a {@link Context} that checks if the current context has an authenticated principal.
+   *
+   * &lt;p&gt;Returns {@code false} for anonymous users (null principal).
+   *
+   * @return A Context that evaluates to {@code true} if authenticated.
+   */
+  public static Context&lt;Principal, Boolean&gt; isAuthenticated() {
+<span class="fc bfc" id="L109" title="All 2 branches covered.">    return Context.asks(PRINCIPAL, principal -&gt; principal != null);</span>
+  }
+
+  /**
+   * Returns a {@link Context} that requires authentication, failing if the user is anonymous.
+   *
+   * @return A Context containing the Principal, or failing with {@link UnauthenticatedException}.
+   */
+  public static Context&lt;Principal, Principal&gt; requireAuthenticated() {
+<span class="fc" id="L118">    return Context.&lt;Principal&gt;ask(PRINCIPAL)</span>
+<span class="fc" id="L119">        .flatMap(</span>
+            principal -&gt;
+<span class="fc bfc" id="L121" title="All 2 branches covered.">                principal != null</span>
+<span class="fc" id="L122">                    ? Context.succeed(principal)</span>
+<span class="fc" id="L123">                    : Context.fail(new UnauthenticatedException(&quot;Authentication required&quot;)));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that gets the principal if authenticated, or empty {@link Maybe} if
+   * anonymous.
+   *
+   * &lt;p&gt;Useful for features that work differently for authenticated vs anonymous users.
+   *
+   * @return A Context containing Maybe of the Principal.
+   */
+  public static Context&lt;Principal, Maybe&lt;Principal&gt;&gt; principalIfPresent() {
+<span class="fc" id="L135">    return Context.asks(</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        PRINCIPAL, principal -&gt; principal != null ? Maybe.just(principal) : Maybe.nothing());</span>
+  }
+
+  // ===== ROLE CHECKS =====
+
+  /**
+   * Returns a {@link Context} that checks if the current user has a specific role.
+   *
+   * &lt;p&gt;Returns {@code false} if the user is anonymous or doesn't have the role.
+   *
+   * @param role The role to check. Must not be null.
+   * @return A Context that evaluates to {@code true} if the user has the role.
+   * @throws NullPointerException if {@code role} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Boolean&gt; hasRole(String role) {
+<span class="fc" id="L151">    Objects.requireNonNull(role, &quot;role cannot be null&quot;);</span>
+<span class="fc bfc" id="L152" title="All 4 branches covered.">    return Context.asks(ROLES, roles -&gt; roles != null &amp;&amp; roles.contains(role));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that checks if the current user has any of the specified roles.
+   *
+   * @param roles The roles to check (at least one must match). Must not be null.
+   * @return A Context that evaluates to {@code true} if the user has any of the roles.
+   * @throws NullPointerException if {@code roles} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Boolean&gt; hasAnyRole(String... roles) {
+<span class="fc" id="L163">    Objects.requireNonNull(roles, &quot;roles cannot be null&quot;);</span>
+<span class="fc" id="L164">    Set&lt;String&gt; required = Set.of(roles);</span>
+<span class="fc" id="L165">    return Context.asks(</span>
+<span class="fc bfc" id="L166" title="All 4 branches covered.">        ROLES, userRoles -&gt; userRoles != null &amp;&amp; userRoles.stream().anyMatch(required::contains));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that checks if the current user has all of the specified roles.
+   *
+   * @param roles The roles to check (all must match). Must not be null.
+   * @return A Context that evaluates to {@code true} if the user has all the roles.
+   * @throws NullPointerException if {@code roles} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Boolean&gt; hasAllRoles(String... roles) {
+<span class="fc" id="L177">    Objects.requireNonNull(roles, &quot;roles cannot be null&quot;);</span>
+<span class="fc" id="L178">    Set&lt;String&gt; required = Set.of(roles);</span>
+<span class="fc bfc" id="L179" title="All 4 branches covered.">    return Context.asks(ROLES, userRoles -&gt; userRoles != null &amp;&amp; userRoles.containsAll(required));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that requires a specific role, failing if the user doesn't have it.
+   *
+   * @param role The required role. Must not be null.
+   * @return A Context containing {@link Unit} on success, or failing with {@link
+   *     UnauthorisedException}.
+   * @throws NullPointerException if {@code role} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Unit&gt; requireRole(String role) {
+<span class="fc" id="L191">    Objects.requireNonNull(role, &quot;role cannot be null&quot;);</span>
+<span class="fc" id="L192">    return hasRole(role)</span>
+<span class="fc" id="L193">        .flatMap(</span>
+            has -&gt;
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                has</span>
+<span class="fc" id="L196">                    ? Context.succeed(Unit.INSTANCE)</span>
+<span class="fc" id="L197">                    : Context.fail(new UnauthorisedException(&quot;Role required: &quot; + role)));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that requires any of the specified roles.
+   *
+   * @param roles The roles (at least one required). Must not be null.
+   * @return A Context containing {@link Unit} on success, or failing with {@link
+   *     UnauthorisedException}.
+   * @throws NullPointerException if {@code roles} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Unit&gt; requireAnyRole(String... roles) {
+<span class="fc" id="L209">    Objects.requireNonNull(roles, &quot;roles cannot be null&quot;);</span>
+<span class="fc" id="L210">    return hasAnyRole(roles)</span>
+<span class="fc" id="L211">        .flatMap(</span>
+            has -&gt;
+<span class="fc bfc" id="L213" title="All 2 branches covered.">                has</span>
+<span class="fc" id="L214">                    ? Context.succeed(Unit.INSTANCE)</span>
+<span class="fc" id="L215">                    : Context.fail(</span>
+                        new UnauthorisedException(
+<span class="fc" id="L217">                            &quot;One of these roles required: &quot; + String.join(&quot;, &quot;, roles))));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that requires all of the specified roles.
+   *
+   * @param roles The roles (all required). Must not be null.
+   * @return A Context containing {@link Unit} on success, or failing with {@link
+   *     UnauthorisedException}.
+   * @throws NullPointerException if {@code roles} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Unit&gt; requireAllRoles(String... roles) {
+<span class="fc" id="L229">    Objects.requireNonNull(roles, &quot;roles cannot be null&quot;);</span>
+<span class="fc" id="L230">    return hasAllRoles(roles)</span>
+<span class="fc" id="L231">        .flatMap(</span>
+            has -&gt;
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                has</span>
+<span class="fc" id="L234">                    ? Context.succeed(Unit.INSTANCE)</span>
+<span class="fc" id="L235">                    : Context.fail(</span>
+                        new UnauthorisedException(
+<span class="fc" id="L237">                            &quot;All of these roles required: &quot; + String.join(&quot;, &quot;, roles))));</span>
+  }
+
+  // ===== PERMISSION CHECKS =====
+
+  /**
+   * Returns a {@link Context} that checks if the current user has a specific permission.
+   *
+   * @param permission The permission to check. Must not be null.
+   * @return A Context that evaluates to {@code true} if the user has the permission.
+   * @throws NullPointerException if {@code permission} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Boolean&gt; hasPermission(String permission) {
+<span class="fc" id="L250">    Objects.requireNonNull(permission, &quot;permission cannot be null&quot;);</span>
+<span class="fc bfc" id="L251" title="All 4 branches covered.">    return Context.asks(PERMISSIONS, perms -&gt; perms != null &amp;&amp; perms.contains(permission));</span>
+  }
+
+  /**
+   * Returns a {@link Context} that requires a specific permission.
+   *
+   * @param permission The required permission. Must not be null.
+   * @return A Context containing {@link Unit} on success, or failing with {@link
+   *     UnauthorisedException}.
+   * @throws NullPointerException if {@code permission} is null.
+   */
+  public static Context&lt;Set&lt;String&gt;, Unit&gt; requirePermission(String permission) {
+<span class="fc" id="L263">    Objects.requireNonNull(permission, &quot;permission cannot be null&quot;);</span>
+<span class="fc" id="L264">    return hasPermission(permission)</span>
+<span class="fc" id="L265">        .flatMap(</span>
+            has -&gt;
+<span class="fc bfc" id="L267" title="All 2 branches covered.">                has</span>
+<span class="fc" id="L268">                    ? Context.succeed(Unit.INSTANCE)</span>
+<span class="fc" id="L269">                    : Context.fail(</span>
+                        new UnauthorisedException(&quot;Permission required: &quot; + permission)));
+  }
+
+  // ===== EXCEPTION TYPES =====
+
+  /**
+   * Exception thrown when authentication is required but not present. Maps to HTTP 401
+   * Unauthorised.
+   */
+  public static class UnauthenticatedException extends RuntimeException {
+    /** Serial version UID. */
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new UnauthenticatedException.
+     *
+     * @param message The exception message.
+     */
+    public UnauthenticatedException(String message) {
+<span class="fc" id="L289">      super(message);</span>
+<span class="fc" id="L290">    }</span>
+  }
+
+  /**
+   * Exception thrown when the user lacks required roles or permissions. Maps to HTTP 403 Forbidden.
+   */
+  public static class UnauthorisedException extends RuntimeException {
+    /** Serial version UID. */
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new UnauthorisedException.
+     *
+     * @param message The exception message.
+     */
+    public UnauthorisedException(String message) {
+<span class="fc" id="L306">      super(message);</span>
+<span class="fc" id="L307">    }</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

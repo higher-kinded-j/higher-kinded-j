@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IndexedTraversal.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.indexed</a> &gt; <span class="el_source">IndexedTraversal.java</span></div><h1>IndexedTraversal.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.indexed;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * An indexed traversal that focuses on zero or more elements within a structure, providing access
+ * to both the index and value for each focused element.
+ *
+ * &lt;p&gt;An {@code IndexedTraversal} is the indexed equivalent of a {@link Traversal}. While a regular
+ * traversal allows you to modify multiple elements in a structure, an indexed traversal also
+ * provides the index/position of each element, enabling position-aware transformations.
+ *
+ * &lt;p&gt;Common use cases include:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Numbering items: {@code (i, item) -&gt; item + &quot; #&quot; + i}
+ *   &lt;li&gt;Position-based filtering: {@code filterIndex(i -&gt; i % 2 == 0)} for even positions
+ *   &lt;li&gt;Weighted modifications: {@code (i, value) -&gt; value * weights[i]}
+ *   &lt;li&gt;Debugging: Tracking which elements are being modified
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Like regular traversals, indexed traversals compose naturally with other optics, allowing you
+ * to build complex indexed access patterns.
+ *
+ * @param &lt;I&gt; The index type (e.g., Integer for lists, K for Map&amp;lt;K, V&amp;gt;)
+ * @param &lt;S&gt; The source/target structure type
+ * @param &lt;A&gt; The focused element type
+ */
+@NullMarked
+public interface IndexedTraversal&lt;I, S, A&gt; extends IndexedOptic&lt;I, S, A&gt; {
+
+  /**
+   * {@inheritDoc}
+   *
+   * &lt;p&gt;This is the core operation of an {@code IndexedTraversal}. It modifies all focused parts
+   * {@code A} within a structure {@code S} by applying a function that receives both the index and
+   * value, returning a value in an {@link Applicative} context {@code F}.
+   *
+   * @param &lt;F&gt; The witness type for the {@link Applicative} context
+   * @param f The effectful function to apply to each focused part, receiving both index and value
+   * @param source The whole structure to operate on
+   * @param app The {@link Applicative} instance for the context {@code F}
+   * @return The updated structure {@code S}, itself wrapped in the context {@code F}
+   */
+  @Override
+  &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+      BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app);
+
+  /**
+   * Composes this {@code IndexedTraversal&lt;I, S, A&gt;} with another {@code IndexedTraversal&lt;J, A, B&gt;}
+   * to create a new {@code IndexedTraversal&lt;Pair&lt;I, J&gt;, S, B&gt;} with paired indices.
+   *
+   * &lt;p&gt;This specialized overload ensures the result is correctly typed as an {@code
+   * IndexedTraversal} with paired indices.
+   *
+   * @param other The {@link IndexedTraversal} to compose with
+   * @param &lt;J&gt; The index type of the other traversal
+   * @param &lt;B&gt; The focus type of the other traversal
+   * @return A new {@link IndexedTraversal} with paired indices
+   */
+  default &lt;J, B&gt; IndexedTraversal&lt;Pair&lt;I, J&gt;, S, B&gt; iandThen(IndexedTraversal&lt;J, A, B&gt; other) {
+<span class="fc" id="L75">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L76">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+          BiFunction&lt;Pair&lt;I, J&gt;, B, Kind&lt;F, B&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc" id="L80">        return self.imodifyF(</span>
+<span class="fc" id="L81">            (i, a) -&gt; other.imodifyF((j, b) -&gt; f.apply(new Pair&lt;&gt;(i, j), b), a, app), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code IndexedTraversal&lt;I, S, A&gt;} with a regular {@code Traversal&lt;A, B&gt;} to
+   * create a new {@code IndexedTraversal&lt;I, S, B&gt;} that preserves the outer index.
+   *
+   * &lt;p&gt;This is useful when you want to focus deeper into a structure but only care about the index
+   * from the outer level. For example, focusing on user emails while tracking user positions.
+   *
+   * @param other The {@link Traversal} to compose with
+   * @param &lt;B&gt; The type of the final focused parts
+   * @return A new {@link IndexedTraversal} preserving the outer index
+   */
+  default &lt;B&gt; IndexedTraversal&lt;I, S, B&gt; andThen(Traversal&lt;A, B&gt; other) {
+<span class="fc" id="L98">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L99">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+          BiFunction&lt;I, B, Kind&lt;F, B&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc" id="L103">        return self.imodifyF((i, a) -&gt; other.modifyF(b -&gt; f.apply(i, b), a, app), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Filters elements based on their index, creating a new indexed traversal that only focuses on
+   * elements whose indices match the predicate.
+   *
+   * &lt;p&gt;This is particularly useful for position-based filtering:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; ilist = IndexedTraversals.forList();
+   *
+   * // Focus on even positions only
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; evens =
+   *     ilist.filterIndex(i -&gt; i % 2 == 0);
+   *
+   * // Focus on first 3 elements
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; firstThree =
+   *     ilist.filterIndex(i -&gt; i &lt; 3);
+   *
+   * // Focus on specific indices
+   * Set&lt;Integer&gt; indices = Set.of(0, 2, 5);
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; specific =
+   *     ilist.filterIndex(indices::contains);
+   * }&lt;/pre&gt;
+   *
+   * @param predicate Predicate on the index
+   * @return A new indexed traversal that only focuses on matching indices
+   */
+  default IndexedTraversal&lt;I, S, A&gt; filterIndex(Predicate&lt;? super I&gt; predicate) {
+<span class="fc" id="L135">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L136">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+          BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        return self.imodifyF((i, a) -&gt; predicate.test(i) ? f.apply(i, a) : app.of(a), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Filters elements based on their value, creating a new indexed traversal that only focuses on
+   * elements matching the predicate while preserving their indices.
+   *
+   * &lt;p&gt;This is similar to {@link Traversal#filtered(Predicate)} but maintains the index
+   * information.
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;User&gt;, User&gt; iusers = IndexedTraversals.forList();
+   *
+   * // Focus on active users only, preserving their list positions
+   * IndexedTraversal&lt;Integer, List&lt;User&gt;, User&gt; activeUsers =
+   *     iusers.filtered(User::isActive);
+   *
+   * // Modify active users with position awareness
+   * imodify(activeUsers, (index, user) -&gt; user.withLabel(&quot;Active #&quot; + index), users);
+   * }&lt;/pre&gt;
+   *
+   * @param predicate Predicate on the focused value
+   * @return A new indexed traversal that only focuses on matching values
+   */
+  default IndexedTraversal&lt;I, S, A&gt; filtered(Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L167">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L168">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+          BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        return self.imodifyF((i, a) -&gt; predicate.test(a) ? f.apply(i, a) : app.of(a), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Filters elements based on both index and value, providing maximum flexibility in element
+   * selection.
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;Item&gt;, Item&gt; items = IndexedTraversals.forList();
+   *
+   * // Focus on items that are both in first half and marked as important
+   * IndexedTraversal&lt;Integer, List&lt;Item&gt;, Item&gt; filtered =
+   *     items.filteredWithIndex((index, item) -&gt; index &lt; items.size() / 2 &amp;&amp; item.isImportant());
+   * }&lt;/pre&gt;
+   *
+   * @param predicate Predicate that takes both index and value
+   * @return A new indexed traversal that only focuses on matching elements
+   */
+  default IndexedTraversal&lt;I, S, A&gt; filteredWithIndex(
+      BiFunction&lt;? super I, ? super A, Boolean&gt; predicate) {
+<span class="fc" id="L194">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L195">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+          BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc" id="L199">        return self.imodifyF(</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            (i, a) -&gt; predicate.apply(i, a) ? f.apply(i, a) : app.of(a), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Views this {@code IndexedTraversal} as a regular (non-indexed) {@link Traversal} by discarding
+   * index information.
+   *
+   * &lt;p&gt;This is useful when you need to pass an indexed traversal to code that expects a regular
+   * traversal.
+   *
+   * @return A {@link Traversal} that ignores index information
+   */
+  default Traversal&lt;S, A&gt; asTraversal() {
+<span class="fc" id="L215">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L216">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; modifyF(
+          Function&lt;A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc" id="L220">        return self.imodifyF((i, a) -&gt; f.apply(a), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Views this {@code IndexedTraversal} as an {@link IndexedFold} for read-only indexed operations.
+   *
+   * @return An {@link IndexedFold} that provides read-only indexed access
+   */
+  default IndexedFold&lt;I, S, A&gt; asIndexedFold() {
+<span class="fc" id="L231">    IndexedTraversal&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L232">    return new IndexedFold&lt;I, S, A&gt;() {</span>
+      @Override
+      public &lt;M&gt; M ifoldMap(
+          Monoid&lt;M&gt; monoid, BiFunction&lt;? super I, ? super A, ? extends M&gt; f, S source) {
+        // We need to traverse all elements and fold them using the monoid.
+        // Since we can't reference Id/IdMonad from hkj-core, we define a minimal
+        // identity-like applicative inline.
+<span class="fc" id="L239">        final List&lt;Pair&lt;I, A&gt;&gt; collected = new ArrayList&lt;&gt;();</span>
+
+        // Define a simple identity wrapper that implements Kind and WitnessArity
+        // This is a local class to avoid circular dependencies
+        @SuppressWarnings(&quot;rawtypes&quot;)
+        final class IdWrapper implements Kind, WitnessArity&lt;TypeArity.Unary&gt; {
+          final Object value;
+
+<span class="fc" id="L247">          IdWrapper(Object value) {</span>
+<span class="fc" id="L248">            this.value = value;</span>
+<span class="fc" id="L249">          }</span>
+        }
+
+        // Create a minimal Applicative for IdWrapper
+<span class="fc" id="L253">        Applicative&lt;IdWrapper&gt; idApp =</span>
+<span class="fc" id="L254">            new Applicative&lt;&gt;() {</span>
+              @Override
+              @SuppressWarnings(&quot;unchecked&quot;)
+              public &lt;A1&gt; Kind&lt;IdWrapper, A1&gt; of(A1 a) {
+<span class="fc" id="L258">                return (Kind&lt;IdWrapper, A1&gt;) new IdWrapper(a);</span>
+              }
+
+              @Override
+              @SuppressWarnings(&quot;unchecked&quot;)
+              public &lt;A1, B1&gt; Kind&lt;IdWrapper, B1&gt; map(
+                  Function&lt;? super A1, ? extends B1&gt; fn, Kind&lt;IdWrapper, A1&gt; fa) {
+<span class="fc" id="L265">                IdWrapper wrapper = (IdWrapper) fa;</span>
+<span class="fc" id="L266">                return (Kind&lt;IdWrapper, B1&gt;) new IdWrapper(fn.apply((A1) wrapper.value));</span>
+              }
+
+              @Override
+              @SuppressWarnings(&quot;unchecked&quot;)
+              public &lt;A1, B1&gt; Kind&lt;IdWrapper, B1&gt; ap(
+                  Kind&lt;IdWrapper, ? extends Function&lt;A1, B1&gt;&gt; ff, Kind&lt;IdWrapper, A1&gt; fa) {
+<span class="fc" id="L273">                IdWrapper wrapperF = (IdWrapper) ff;</span>
+<span class="fc" id="L274">                IdWrapper wrapperA = (IdWrapper) fa;</span>
+<span class="fc" id="L275">                Function&lt;A1, B1&gt; fn = (Function&lt;A1, B1&gt;) wrapperF.value;</span>
+<span class="fc" id="L276">                return (Kind&lt;IdWrapper, B1&gt;) new IdWrapper(fn.apply((A1) wrapperA.value));</span>
+              }
+            };
+
+        // Use the traversal to collect all index-value pairs
+<span class="fc" id="L281">        self.imodifyF(</span>
+            (i, a) -&gt; {
+<span class="fc" id="L283">              collected.add(new Pair&lt;&gt;(i, a));</span>
+              @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L285">              Kind&lt;IdWrapper, A&gt; result = (Kind&lt;IdWrapper, A&gt;) new IdWrapper(a);</span>
+<span class="fc" id="L286">              return result;</span>
+            },
+            source,
+            idApp);
+
+        // Fold over the collected pairs using the provided monoid
+<span class="fc" id="L292">        M result = monoid.empty();</span>
+<span class="fc bfc" id="L293" title="All 2 branches covered.">        for (Pair&lt;I, A&gt; pair : collected) {</span>
+<span class="fc" id="L294">          result = monoid.combine(result, f.apply(pair.first(), pair.second()));</span>
+<span class="fc" id="L295">        }</span>
+<span class="fc" id="L296">        return result;</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

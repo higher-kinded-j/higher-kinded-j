@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.id</a> &gt; <span class="el_source">IdMonad.java</span></div><h1>IdMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.id;
+
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * The {@link Monad} instance for the {@link Id} type.
+ *
+ * &lt;p&gt;The Identity monad is the simplest monad. It performs no additional computation or context
+ * wrapping beyond the basic monadic operations. It simply holds a value. Its primary utility comes
+ * from being a base case for monad transformers (e.g., {@code StateT&lt;S, IdKind.Witness, A&gt;} is
+ * equivalent to {@code State&lt;S, A&gt;}) and in generic monadic programming where no additional effects
+ * are desired.
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #of(Object)} simply wraps a value {@code a} in an {@code Id(a)}.
+ *   &lt;li&gt;{@link #map(Function, Kind)} applies a function to the value inside an {@code Id} and wraps
+ *       the result in a new {@code Id}.
+ *   &lt;li&gt;{@link #ap(Kind, Kind)} applies a function wrapped in an {@code Id} to a value wrapped in
+ *       an {@code Id}.
+ *   &lt;li&gt;{@link #flatMap(Function, Kind)} applies a function to the value inside an {@code Id},
+ *       where the function itself returns a new {@code Id}.
+ * &lt;/ul&gt;
+ *
+ * This class is a singleton, accessible via {@link #instance()}.
+ */
+public class IdMonad implements Monad&lt;IdKind.Witness&gt; {
+
+<span class="fc" id="L37">  private static final IdMonad INSTANCE = new IdMonad();</span>
+
+<span class="fc" id="L39">  public static Class&lt;IdMonad&gt; ID_MONAD_CLASS = IdMonad.class;</span>
+
+  /** Private constructor to enforce singleton pattern. */
+<span class="fc" id="L42">  protected IdMonad() {}</span>
+
+  /**
+   * Returns the singleton instance of {@link IdMonad}.
+   *
+   * @return The singleton {@code IdMonad} instance.
+   */
+  public static IdMonad instance() {
+<span class="fc" id="L50">    return INSTANCE;</span>
+  }
+
+  /**
+   * Lifts a value {@code a} into the Identity monad context. This is equivalent to {@code
+   * Id.of(a)}.
+   *
+   * @param a The value to lift. Can be null, in which case {@code Id(null)} is returned.
+   * @param &lt;A&gt; The type of the value.
+   * @return An {@code Id&lt;A&gt;} wrapping the value, cast to {@code Kind&lt;IdKind.Witness, A&gt;}. The
+   *     returned {@link Kind} is guaranteed non-null, even if {@code a} is null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;IdKind.Witness, A&gt; of(@Nullable A a) {
+<span class="fc" id="L64">    return Id.of(a);</span>
+  }
+
+  /**
+   * Applies a function to the value wrapped within an {@code Id} context.
+   *
+   * &lt;p&gt;If {@code fa} is {@code Id(x)}, the result is {@code Id(fn.apply(x))}. This operation
+   * adheres to the Functor laws:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;Identity: {@code map(x -&gt; x, fa)} is equivalent to {@code fa}.
+   *   &lt;li&gt;Composition: {@code map(g.compose(f), fa)} is equivalent to {@code map(g, map(f, fa))}.
+   * &lt;/ol&gt;
+   *
+   * @param f The function to apply to the wrapped value. Must not be null.
+   * @param fa The {@code Kind&lt;IdKind.Witness, A&gt;} (which is an {@code Id&lt;A&gt;}) containing the input
+   *     value. Must not be null.
+   * @param &lt;A&gt; The type of the input value.
+   * @param &lt;B&gt; The type of the result of the function.
+   * @return A new {@code Id&lt;B&gt;} containing the result of applying the function, cast to {@code
+   *     Kind&lt;IdKind.Witness, B&gt;}. Guaranteed non-null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+   *     to a valid {@code Id} representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;IdKind.Witness, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;IdKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L93">    Validation.function().requireMapper(f, &quot;f&quot;, ID_MONAD_CLASS, MAP);</span>
+<span class="fc" id="L94">    Validation.kind().requireNonNull(fa, ID_MONAD_CLASS, MAP);</span>
+
+<span class="fc" id="L96">    return ID.narrow(fa).map(f);</span>
+  }
+
+  /**
+   * Applies a function wrapped in an {@code Id} context to a value wrapped in an {@code Id}
+   * context.
+   *
+   * &lt;p&gt;If {@code ff} is {@code Id(f)} and {@code fa} is {@code Id(x)}, the result is {@code
+   * Id(f.apply(x))}.
+   *
+   * @param ff The {@code Kind&lt;IdKind.Witness, Function&lt;A, B&gt;&gt;} (an {@code Id&lt;Function&lt;A,B&gt;&gt;})
+   *     containing the function. Must not be null. The function itself wrapped within {@code ff}
+   *     must also not be null.
+   * @param fa The {@code Kind&lt;IdKind.Witness, A&gt;} (an {@code Id&lt;A&gt;}) containing the value to apply
+   *     the function to. Must not be null.
+   * @param &lt;A&gt; The type of the input value.
+   * @param &lt;B&gt; The type of the result of the function.
+   * @return A new {@code Id&lt;B&gt;} containing the result of applying the function, cast to {@code
+   *     Kind&lt;IdKind.Witness, B&gt;}. Guaranteed non-null.
+   * @throws NullPointerException if {@code ff}, {@code fa}, or the function wrapped in {@code ff}
+   *     is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code Id} representations.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;IdKind.Witness, B&gt; ap(
+      Kind&lt;IdKind.Witness, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;IdKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L124">    Validation.kind().validateAp(ff, fa, ID_MONAD_CLASS);</span>
+
+<span class="fc" id="L126">    Function&lt;A, B&gt; function = ID.narrow(ff).value();</span>
+<span class="fc" id="L127">    A value = ID.narrow(fa).value();</span>
+
+<span class="fc" id="L129">    Validation.function().requireFunction(function, &quot;function&quot;, ID_MONAD_CLASS, AP);</span>
+<span class="fc" id="L130">    return Id.of(function.apply(value));</span>
+  }
+
+  /**
+   * Applies a function that returns an {@code Id} (as {@code Kind&lt;IdKind.Witness, B&gt;}) to the value
+   * wrapped in an {@code Id} context.
+   *
+   * &lt;p&gt;This is the core monadic bind operation. If {@code fa} is {@code Id(x)}, the result is
+   * {@code f.apply(x)}. Since {@code f} itself returns an {@code Id}, this effectively &quot;flattens&quot;
+   * the computation (avoiding {@code Id&lt;Id&lt;B&gt;&gt;}).
+   *
+   * &lt;p&gt;This operation adheres to the Monad laws (Left Identity, Right Identity, Associativity).
+   *
+   * @param f The function to apply. It takes a plain {@code A} and returns a {@code
+   *     Kind&lt;IdKind.Witness, B&gt;} (which must be an {@code Id&lt;B&gt;}). Must not be null, and must not
+   *     return a null {@link Kind}.
+   * @param ma The {@code Kind&lt;IdKind.Witness, A&gt;} (an {@code Id&lt;A&gt;}) containing the input value.
+   *     Must not be null.
+   * @param &lt;A&gt; The type of the input value.
+   * @param &lt;B&gt; The type of the value within the {@code Id} returned by the function {@code f}.
+   * @return The {@code Kind&lt;IdKind.Witness, B&gt;} returned by the function {@code f}. Guaranteed
+   *     non-null if {@code f} adheres to its contract of returning a non-null {@link Kind}.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped to valid {@code Id} representations.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;IdKind.Witness, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;IdKind.Witness, B&gt;&gt; f, Kind&lt;IdKind.Witness, A&gt; ma) {
+
+<span class="fc" id="L160">    Validation.function().validateFlatMap(f, ma, ID_MONAD_CLASS);</span>
+
+<span class="fc" id="L162">    A valueInA = ID.narrow(ma).value();</span>
+<span class="fc" id="L163">    Kind&lt;IdKind.Witness, B&gt; resultKind = f.apply(valueInA);</span>
+<span class="fc" id="L164">    Validation.function()</span>
+<span class="fc" id="L165">        .requireNonNullResult(resultKind, &quot;f&quot;, ID_MONAD_CLASS, FLAT_MAP, Kind.class);</span>
+<span class="fc" id="L166">    return resultKind;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

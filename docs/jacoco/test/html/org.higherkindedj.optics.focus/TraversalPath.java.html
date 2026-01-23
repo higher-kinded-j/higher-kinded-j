@@ -1,0 +1,937 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TraversalPath.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.focus</a> &gt; <span class="el_source">TraversalPath.java</span></div><h1>TraversalPath.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.focus;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.constant.Const;
+import org.higherkindedj.hkt.constant.ConstApplicative;
+import org.higherkindedj.hkt.constant.ConstKind;
+import org.higherkindedj.hkt.constant.ConstKindHelper;
+import org.higherkindedj.hkt.effect.ListPath;
+import org.higherkindedj.hkt.effect.MaybePath;
+import org.higherkindedj.hkt.effect.NonDetPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.StreamPath;
+import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.Iso;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.util.TraverseTraversals;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * A type-safe path through a data structure that focuses on zero or more elements.
+ *
+ * &lt;p&gt;TraversalPath wraps a {@link Traversal} and provides fluent navigation and composition
+ * methods. Use this when navigating to collections or when the path may focus on multiple values.
+ *
+ * &lt;p&gt;In the Focus DSL hierarchy, TraversalPath is the most general type:
+ *
+ * &lt;pre&gt;
+ *      FocusPath&lt;S, A&gt;     (exactly one element)
+ *            │
+ *      AffinePath&lt;S, A&gt;    (zero or one element)
+ *            │
+ *    TraversalPath&lt;S, A&gt;   (zero or more elements)
+ * &lt;/pre&gt;
+ *
+ * &lt;h2&gt;Example Usage&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Navigate to all employees in a company
+ * TraversalPath&lt;Company, Employee&gt; employeesPath = CompanyFocus.departments().employees();
+ *
+ * // Get all values
+ * List&lt;Employee&gt; employees = employeesPath.getAll(company);
+ *
+ * // Get the first value
+ * Optional&lt;Employee&gt; first = employeesPath.preview(company);
+ *
+ * // Set all values to the same value
+ * Company updated = employeesPath.setAll(defaultEmployee, company);
+ *
+ * // Modify all values
+ * Company modified = employeesPath.modifyAll(Employee::promote, company);
+ *
+ * // Filter to specific elements
+ * TraversalPath&lt;Company, Employee&gt; seniors = employeesPath.filter(e -&gt; e.age() &gt; 50);
+ * }&lt;/pre&gt;
+ *
+ * @param &lt;S&gt; the source type (the whole structure)
+ * @param &lt;A&gt; the focused value type (the parts)
+ * @see FocusPath for paths focusing on exactly one element
+ * @see AffinePath for paths focusing on zero or one element
+ * @see FocusPaths for utility methods and optics factories
+ */
+@NullMarked
+public sealed interface TraversalPath&lt;S, A&gt; permits TraversalFocusPath, TracedTraversalFocusPath {
+
+  /**
+   * Extracts all focused values from the source.
+   *
+   * @param source the source structure
+   * @return list of all focused values (may be empty)
+   */
+  List&lt;A&gt; getAll(S source);
+
+  /**
+   * Extracts the first focused value if any.
+   *
+   * @param source the source structure
+   * @return Optional containing the first value, or empty if no elements are focused
+   */
+  default Optional&lt;A&gt; preview(S source) {
+<span class="fc" id="L98">    List&lt;A&gt; all = getAll(source);</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">    return all.isEmpty() ? Optional.empty() : Optional.of(all.get(0));</span>
+  }
+
+  /**
+   * Creates a new source with all focused values replaced by the given value.
+   *
+   * @param value the new value for all focused elements
+   * @param source the source structure
+   * @return a new structure with all focused values updated
+   */
+  S setAll(A value, S source);
+
+  /**
+   * Creates a new source with all focused values transformed.
+   *
+   * @param f the transformation function
+   * @param source the source structure
+   * @return a new structure with all focused values modified
+   */
+  S modifyAll(Function&lt;A, A&gt; f, S source);
+
+  /**
+   * Counts the number of focused elements.
+   *
+   * @param source the source structure
+   * @return the number of focused elements
+   */
+  default int count(S source) {
+<span class="fc" id="L127">    return getAll(source).size();</span>
+  }
+
+  /**
+   * Checks if the traversal focuses on no elements.
+   *
+   * @param source the source structure
+   * @return true if no elements are focused
+   */
+  default boolean isEmpty(S source) {
+<span class="fc" id="L137">    return getAll(source).isEmpty();</span>
+  }
+
+  /**
+   * Checks if any focused element matches the predicate.
+   *
+   * @param predicate the condition to test
+   * @param source the source structure
+   * @return true if any element matches
+   */
+  default boolean exists(Predicate&lt;A&gt; predicate, S source) {
+<span class="fc" id="L148">    return getAll(source).stream().anyMatch(predicate);</span>
+  }
+
+  /**
+   * Checks if all focused elements match the predicate.
+   *
+   * &lt;p&gt;Returns true if there are no focused elements (vacuously true).
+   *
+   * @param predicate the condition to test
+   * @param source the source structure
+   * @return true if all elements match (or there are no elements)
+   */
+  default boolean all(Predicate&lt;A&gt; predicate, S source) {
+<span class="fc" id="L161">    return getAll(source).stream().allMatch(predicate);</span>
+  }
+
+  /**
+   * Finds the first focused element matching the predicate.
+   *
+   * @param predicate the condition to test
+   * @param source the source structure
+   * @return Optional containing the first matching element, or empty
+   */
+  default Optional&lt;A&gt; find(Predicate&lt;A&gt; predicate, S source) {
+<span class="fc" id="L172">    return getAll(source).stream().filter(predicate).findFirst();</span>
+  }
+
+  // ===== Filtering =====
+
+  /**
+   * Creates a new TraversalPath that only focuses on elements matching the predicate.
+   *
+   * &lt;p&gt;Elements that don't match are preserved unchanged during modifications but excluded from
+   * queries like {@code getAll}.
+   *
+   * @param predicate the filter condition
+   * @return a new TraversalPath focusing only on matching elements
+   */
+  TraversalPath&lt;S, A&gt; filter(Predicate&lt;A&gt; predicate);
+
+  // ===== Composition Methods =====
+
+  /**
+   * Composes this path with a lens, producing a TraversalPath.
+   *
+   * &lt;p&gt;For each element this traversal focuses on, the lens focuses on a field of that element.
+   *
+   * @param lens the lens to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  &lt;B&gt; TraversalPath&lt;S, B&gt; via(Lens&lt;A, B&gt; lens);
+
+  /**
+   * Composes this path with a FocusPath.
+   *
+   * &lt;p&gt;This is a convenience method that extracts the lens from the other path. For each element
+   * this traversal focuses on, the FocusPath focuses on a field of that element.
+   *
+   * @param other the FocusPath to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; via(FocusPath&lt;A, B&gt; other) {
+<span class="fc" id="L212">    return via(other.toLens());</span>
+  }
+
+  /**
+   * Composes this path with an AffinePath.
+   *
+   * &lt;p&gt;This is a convenience method that extracts the affine from the other path. For each element
+   * this traversal focuses on, the AffinePath optionally focuses on a nested value.
+   *
+   * @param other the AffinePath to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; via(AffinePath&lt;A, B&gt; other) {
+<span class="fc" id="L226">    return via(other.toAffine().asTraversal());</span>
+  }
+
+  /**
+   * Composes this path with another TraversalPath.
+   *
+   * &lt;p&gt;This is a convenience method that extracts the traversal from the other path. For each
+   * element this traversal focuses on, the other TraversalPath may focus on multiple nested
+   * elements.
+   *
+   * @param other the TraversalPath to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on all nested targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; via(TraversalPath&lt;A, B&gt; other) {
+<span class="fc" id="L241">    return via(other.toTraversal());</span>
+  }
+
+  /**
+   * Composes this path with a prism, producing a TraversalPath.
+   *
+   * &lt;p&gt;For each element this traversal focuses on, the prism optionally matches.
+   *
+   * @param prism the prism to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on matching elements
+   */
+  &lt;B&gt; TraversalPath&lt;S, B&gt; via(Prism&lt;A, B&gt; prism);
+
+  /**
+   * Composes this path with an affine, producing a TraversalPath.
+   *
+   * @param affine the affine to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  &lt;B&gt; TraversalPath&lt;S, B&gt; via(Affine&lt;A, B&gt; affine);
+
+  /**
+   * Composes this path with another traversal, producing a TraversalPath.
+   *
+   * @param traversal the traversal to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on all nested targets
+   */
+  &lt;B&gt; TraversalPath&lt;S, B&gt; via(Traversal&lt;A, B&gt; traversal);
+
+  /**
+   * Composes this path with an iso, producing a TraversalPath.
+   *
+   * @param iso the iso to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath with converted values
+   */
+  &lt;B&gt; TraversalPath&lt;S, B&gt; via(Iso&lt;A, B&gt; iso);
+
+  // ===== then() Aliases =====
+
+  /**
+   * Alias for {@link #via(Lens)}. Composes this path with a lens.
+   *
+   * &lt;p&gt;This method provides an alternative naming convention familiar to users of other optics
+   * libraries.
+   *
+   * @param lens the lens to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(Lens&lt;A, B&gt; lens) {
+<span class="fc" id="L295">    return via(lens);</span>
+  }
+
+  /**
+   * Alias for {@link #via(FocusPath)}. Composes this path with a FocusPath.
+   *
+   * @param other the FocusPath to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(FocusPath&lt;A, B&gt; other) {
+<span class="fc" id="L306">    return via(other);</span>
+  }
+
+  /**
+   * Alias for {@link #via(Prism)}. Composes this path with a prism.
+   *
+   * @param prism the prism to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on matching elements
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(Prism&lt;A, B&gt; prism) {
+<span class="fc" id="L317">    return via(prism);</span>
+  }
+
+  /**
+   * Alias for {@link #via(Affine)}. Composes this path with an affine.
+   *
+   * @param affine the affine to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(Affine&lt;A, B&gt; affine) {
+<span class="fc" id="L328">    return via(affine);</span>
+  }
+
+  /**
+   * Alias for {@link #via(AffinePath)}. Composes this path with an AffinePath.
+   *
+   * @param other the AffinePath to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on the composed targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(AffinePath&lt;A, B&gt; other) {
+<span class="fc" id="L339">    return via(other);</span>
+  }
+
+  /**
+   * Alias for {@link #via(Traversal)}. Composes this path with a traversal.
+   *
+   * @param traversal the traversal to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on all nested targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(Traversal&lt;A, B&gt; traversal) {
+<span class="fc" id="L350">    return via(traversal);</span>
+  }
+
+  /**
+   * Alias for {@link #via(TraversalPath)}. Composes this path with another TraversalPath.
+   *
+   * @param other the TraversalPath to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath focusing on all nested targets
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(TraversalPath&lt;A, B&gt; other) {
+<span class="fc" id="L361">    return via(other);</span>
+  }
+
+  /**
+   * Alias for {@link #via(Iso)}. Composes this path with an iso.
+   *
+   * @param iso the iso to compose with
+   * @param &lt;B&gt; the new focused type
+   * @return a TraversalPath with converted values
+   */
+  default &lt;B&gt; TraversalPath&lt;S, B&gt; then(Iso&lt;A, B&gt; iso) {
+<span class="fc" id="L372">    return via(iso);</span>
+  }
+
+  // ===== Conditional Modification =====
+
+  /**
+   * Modifies only elements that satisfy the given predicate.
+   *
+   * &lt;p&gt;Elements that don't match the predicate are left unchanged. This is a convenience method
+   * combining {@link #filter(Predicate)} with {@link #modifyAll(Function, Object)}.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Give raises only to senior employees
+   * Company updated = CompanyFocus.employees()
+   *     .modifyWhen(
+   *         e -&gt; e.yearsOfService() &gt; 5,
+   *         e -&gt; e.withSalary(e.salary() * 1.1),
+   *         company);
+   * }&lt;/pre&gt;
+   *
+   * @param condition the predicate that elements must satisfy to be modified
+   * @param f the transformation function to apply to matching elements
+   * @param source the source structure
+   * @return a new structure with matching elements modified
+   */
+  default S modifyWhen(Predicate&lt;A&gt; condition, Function&lt;A, A&gt; f, S source) {
+<span class="fc bfc" id="L400" title="All 2 branches covered.">    return modifyAll(a -&gt; condition.test(a) ? f.apply(a) : a, source);</span>
+  }
+
+  // ===== Effectful Operations =====
+
+  /**
+   * Transforms all focused values with an effectful function.
+   *
+   * &lt;p&gt;This method enables effectful modifications such as validation, async operations, or
+   * computations that may fail. The effects from all focused elements are combined using the
+   * applicative's sequencing.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Validate all employee emails
+   * TraversalPath&lt;Company, String&gt; emailsPath = CompanyFocus.employees().email();
+   *
+   * Kind&lt;Validated.Witness, Company&gt; result = emailsPath.modifyF(
+   *     email -&gt; EmailValidator.validate(email),
+   *     company,
+   *     ValidatedApplicative.INSTANCE
+   * );
+   *
+   * // Async fetch for all items
+   * Kind&lt;CompletableFutureKind.Witness, Order&gt; result = orderItemsPath.modifyF(
+   *     item -&gt; fetchUpdatedPrice(item),
+   *     order,
+   *     CompletableFutureApplicative.INSTANCE
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param f the effectful transformation function
+   * @param source the source structure
+   * @param applicative the applicative instance for the effect type F
+   * @param &lt;F&gt; the effect type (e.g., Optional, Validated, IO)
+   * @return the modified structure wrapped in the effect
+   */
+  default &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; modifyF(
+      Function&lt;A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; applicative) {
+<span class="fc" id="L440">    return toTraversal().modifyF(f, source, applicative);</span>
+  }
+
+  // ===== Monoid-based Aggregation =====
+
+  /**
+   * Maps each focused element to a monoidal value and combines them.
+   *
+   * &lt;p&gt;This is the fundamental operation for aggregating values from a traversal. Many common
+   * operations can be expressed in terms of foldMap with an appropriate monoid.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Sum all salaries
+   * TraversalPath&lt;Company, Integer&gt; salariesPath = CompanyFocus.employees().salary();
+   * int total = salariesPath.foldMap(Monoids.intSum(), s -&gt; s, company);
+   *
+   * // Concatenate all names with separator
+   * String names = namesPath.foldMap(
+   *     Monoid.of(&quot;&quot;, (a, b) -&gt; a.isEmpty() ? b : a + &quot;, &quot; + b),
+   *     Function.identity(),
+   *     source
+   * );
+   *
+   * // Check if any element matches
+   * boolean hasAdmin = rolesPath.foldMap(
+   *     Monoids.booleanOr(),
+   *     role -&gt; role.equals(&quot;admin&quot;),
+   *     user
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param monoid the monoid for combining mapped values
+   * @param f the function to map each element to a monoidal value
+   * @param source the source structure
+   * @param &lt;M&gt; the monoidal result type
+   * @return the combined result of mapping all focused elements
+   */
+  default &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L480">    return asFold().foldMap(monoid, f, source);</span>
+  }
+
+  /**
+   * Reduces all focused elements using a monoid.
+   *
+   * &lt;p&gt;This is equivalent to {@code foldMap(monoid, Function.identity(), source)}.
+   *
+   * @param monoid the monoid for combining elements
+   * @param source the source structure
+   * @return the combined result of all focused elements
+   */
+  default A fold(Monoid&lt;A&gt; monoid, S source) {
+<span class="fc" id="L493">    return foldMap(monoid, Function.identity(), source);</span>
+  }
+
+  // ===== Collection Navigation =====
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, flattens to traverse all nested elements.
+   *
+   * @param &lt;E&gt; the element type of the nested lists
+   * @return a TraversalPath over all nested list elements
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, E&gt; each() {
+<span class="fc" id="L506">    return via((Traversal&lt;A, E&gt;) FocusPaths.listElements());</span>
+  }
+
+  /**
+   * Traverses all elements using the provided {@link org.higherkindedj.optics.Each} instance.
+   *
+   * &lt;p&gt;This method provides type-safe traversal for any container type that has an Each instance.
+   *
+   * @param eachInstance the Each instance for the focused container type
+   * @param &lt;E&gt; the element type within the container
+   * @return a TraversalPath focusing on all elements
+   * @see org.higherkindedj.optics.Each
+   * @see org.higherkindedj.optics.each.EachInstances
+   */
+  default &lt;E&gt; TraversalPath&lt;S, E&gt; each(Each&lt;A, E&gt; eachInstance) {
+<span class="fc" id="L521">    return via(eachInstance.each());</span>
+  }
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, focuses on elements at the specified index.
+   *
+   * @param index the index to focus on in each list
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath focusing on elements at the index (skipping lists that are too short)
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, E&gt; at(int index) {
+    // Compose with affine, which gives us a Traversal (Traversal &gt;&gt;&gt; Affine = Traversal)
+<span class="fc" id="L534">    Affine&lt;A, E&gt; indexAffine = (Affine&lt;A, E&gt;) FocusPaths.listAt(index);</span>
+<span class="fc" id="L535">    return via(indexAffine.asTraversal());</span>
+  }
+
+  /**
+   * When each focused element is a {@code Map&lt;K, V&gt;}, focuses on values at the specified key.
+   *
+   * @param key the key to look up in each map
+   * @param &lt;K&gt; the key type
+   * @param &lt;V&gt; the value type
+   * @return a TraversalPath focusing on values at the key (skipping maps without the key)
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;K, V&gt; TraversalPath&lt;S, V&gt; atKey(K key) {
+<span class="fc" id="L548">    Affine&lt;A, V&gt; keyAffine = (Affine&lt;A, V&gt;) FocusPaths.mapAt(key);</span>
+<span class="fc" id="L549">    return via(keyAffine.asTraversal());</span>
+  }
+
+  /**
+   * When each focused element is {@code Optional&lt;E&gt;}, flattens to focus on present values.
+   *
+   * @param &lt;E&gt; the inner type of the Optionals
+   * @return a TraversalPath over present Optional values
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, E&gt; some() {
+<span class="fc" id="L560">    Affine&lt;A, E&gt; someAffine = (Affine&lt;A, E&gt;) FocusPaths.optionalSome();</span>
+<span class="fc" id="L561">    return via(someAffine.asTraversal());</span>
+  }
+
+  /**
+   * For each element this traversal focuses on, if that element is a traversable container {@code
+   * Kind&lt;F, E&gt;}, flattens to traverse all nested elements.
+   *
+   * &lt;p&gt;This enables generic traversal over any type with a {@link org.higherkindedj.hkt.Traverse}
+   * instance, not just {@code List}. For example, {@code Set}, {@code Tree}, or custom collections.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Given: Company with List&lt;Department&gt;, where each Department has Kind&lt;ListKind.Witness, Employee&gt;
+   * TraversalPath&lt;Company, Kind&lt;ListKind.Witness, Employee&gt;&gt; deptEmployeesPath =
+   *     CompanyFocus.departments().via(DepartmentFocus.employees());
+   *
+   * // Traverse into the nested Lists
+   * TraversalPath&lt;Company, Employee&gt; allEmployees = deptEmployeesPath.traverseOver(
+   *     ListTraverse.INSTANCE
+   * );
+   *
+   * // Now can operate on all employees across all departments
+   * List&lt;Employee&gt; employees = allEmployees.getAll(company);
+   * Company updated = allEmployees.modifyAll(Employee::giveRaise, company);
+   * }&lt;/pre&gt;
+   *
+   * &lt;p&gt;For standard {@code List&lt;E&gt;} fields, prefer the {@link #each()} method which handles the
+   * conversion automatically.
+   *
+   * @param &lt;F&gt; the witness type of the traversable container
+   * @param &lt;E&gt; the element type within the container
+   * @param traverse the Traverse instance for the container type
+   * @return a TraversalPath focusing on all nested elements within each container
+   * @see #each() for simpler List traversal
+   * @see org.higherkindedj.optics.util.TraverseTraversals
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;, E&gt; TraversalPath&lt;S, E&gt; traverseOver(
+      Traverse&lt;F&gt; traverse) {
+<span class="fc" id="L601">    Traversal&lt;Kind&lt;F, E&gt;, E&gt; traversal = TraverseTraversals.forTraverse(traverse);</span>
+<span class="fc" id="L602">    return via((Traversal&lt;A, E&gt;) traversal);</span>
+  }
+
+  // ===== List Decomposition Methods =====
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, decomposes into head and tail pairs.
+   *
+   * &lt;p&gt;Empty lists are skipped (do not produce a focus).
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over (head, tail) pairs
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, Pair&lt;E, List&lt;E&gt;&gt;&gt; cons() {
+    Prism&lt;A, Pair&lt;E, List&lt;E&gt;&gt;&gt; prism =
+<span class="fc" id="L618">        (Prism&lt;A, Pair&lt;E, List&lt;E&gt;&gt;&gt;) (Prism&lt;?, ?&gt;) FocusPaths.&lt;E&gt;listCons();</span>
+<span class="fc" id="L619">    return via(prism.asTraversal());</span>
+  }
+
+  /**
+   * Alias for {@link #cons()} using Java-familiar naming.
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over (head, tail) pairs
+   */
+  default &lt;E&gt; TraversalPath&lt;S, Pair&lt;E, List&lt;E&gt;&gt;&gt; headTail() {
+<span class="fc" id="L629">    return cons();</span>
+  }
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, decomposes into init and last pairs.
+   *
+   * &lt;p&gt;Empty lists are skipped (do not produce a focus).
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over (init, last) pairs
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, Pair&lt;List&lt;E&gt;, E&gt;&gt; snoc() {
+    Prism&lt;A, Pair&lt;List&lt;E&gt;, E&gt;&gt; prism =
+<span class="fc" id="L643">        (Prism&lt;A, Pair&lt;List&lt;E&gt;, E&gt;&gt;) (Prism&lt;?, ?&gt;) FocusPaths.&lt;E&gt;listSnoc();</span>
+<span class="fc" id="L644">    return via(prism.asTraversal());</span>
+  }
+
+  /**
+   * Alias for {@link #snoc()} using Java-familiar naming.
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over (init, last) pairs
+   */
+  default &lt;E&gt; TraversalPath&lt;S, Pair&lt;List&lt;E&gt;, E&gt;&gt; initLast() {
+<span class="fc" id="L654">    return snoc();</span>
+  }
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, focuses on head elements.
+   *
+   * &lt;p&gt;Empty lists are skipped.
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over head elements
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, E&gt; head() {
+<span class="fc" id="L667">    Affine&lt;A, E&gt; affine = (Affine&lt;A, E&gt;) (Affine&lt;?, ?&gt;) FocusPaths.&lt;E&gt;listHead();</span>
+<span class="fc" id="L668">    return via(affine.asTraversal());</span>
+  }
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, focuses on last elements.
+   *
+   * &lt;p&gt;Empty lists are skipped.
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over last elements
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, E&gt; last() {
+<span class="fc" id="L681">    Affine&lt;A, E&gt; affine = (Affine&lt;A, E&gt;) (Affine&lt;?, ?&gt;) FocusPaths.&lt;E&gt;listLast();</span>
+<span class="fc" id="L682">    return via(affine.asTraversal());</span>
+  }
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, focuses on tails.
+   *
+   * &lt;p&gt;Empty lists are skipped.
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over tails
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, List&lt;E&gt;&gt; tail() {
+<span class="fc" id="L695">    Affine&lt;A, List&lt;E&gt;&gt; affine = (Affine&lt;A, List&lt;E&gt;&gt;) (Affine&lt;?, ?&gt;) FocusPaths.&lt;E&gt;listTail();</span>
+<span class="fc" id="L696">    return via(affine.asTraversal());</span>
+  }
+
+  /**
+   * When each focused element is a {@code List&lt;E&gt;}, focuses on inits.
+   *
+   * &lt;p&gt;Empty lists are skipped.
+   *
+   * @param &lt;E&gt; the element type of the lists
+   * @return a TraversalPath over inits
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  default &lt;E&gt; TraversalPath&lt;S, List&lt;E&gt;&gt; init() {
+<span class="fc" id="L709">    Affine&lt;A, List&lt;E&gt;&gt; affine = (Affine&lt;A, List&lt;E&gt;&gt;) (Affine&lt;?, ?&gt;) FocusPaths.&lt;E&gt;listInit();</span>
+<span class="fc" id="L710">    return via(affine.asTraversal());</span>
+  }
+
+  // ===== Narrowing Methods =====
+
+  /**
+   * Narrows this TraversalPath to an AffinePath focusing on the first element.
+   *
+   * &lt;p&gt;This method converts a TraversalPath (zero or more elements) to an AffinePath (zero or one
+   * element) by focusing only on the first element if present for queries. For modifications, the
+   * new value is applied to all elements of the underlying traversal to preserve update semantics.
+   *
+   * &lt;p&gt;&lt;b&gt;Query behaviour:&lt;/b&gt; {@code getOptional} returns only the first element (if any).
+   *
+   * &lt;p&gt;&lt;b&gt;Modification behaviour:&lt;/b&gt; {@code set} and {@code modify} update all elements targeted
+   * by the underlying traversal, not just the first. This ensures that modifications are consistent
+   * with the original traversal's semantics.
+   *
+   * &lt;p&gt;This is useful when composing with optics that produce a TraversalPath but you only need the
+   * first element, such as when working with HKT types that have &quot;zero or one&quot; semantics (like
+   * Maybe, Either, Try).
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // TraversalPath from traverseOver
+   * TraversalPath&lt;Config, Value&gt; allValues = configPath.traverseOver(MaybeTraverse.INSTANCE);
+   *
+   * // Narrow to just the first (and likely only) value
+   * AffinePath&lt;Config, Value&gt; firstValue = allValues.headOption();
+   *
+   * // Now can use AffinePath methods
+   * Optional&lt;Value&gt; maybeValue = firstValue.getOptional(config);
+   * }&lt;/pre&gt;
+   *
+   * @return an AffinePath focusing on the first element of this traversal
+   */
+  default AffinePath&lt;S, A&gt; headOption() {
+<span class="fc" id="L748">    TraversalPath&lt;S, A&gt; self = this;</span>
+<span class="fc" id="L749">    return AffinePath.of(</span>
+<span class="fc" id="L750">        Affine.of(</span>
+<span class="fc" id="L751">            self::preview,</span>
+            (s, a) -&gt; {
+              // Set all focused elements to the same value
+              // This preserves the semantics of the underlying traversal
+<span class="fc" id="L755">              return self.setAll(a, s);</span>
+            }));
+  }
+
+  // ===== Conversion Methods =====
+
+  /**
+   * Extracts the underlying traversal.
+   *
+   * @return the wrapped Traversal
+   */
+  Traversal&lt;S, A&gt; toTraversal();
+
+  /**
+   * Views this path as a Fold.
+   *
+   * &lt;p&gt;This method converts the underlying Traversal to a Fold using the Const applicative, which
+   * is the standard functional programming approach for this conversion.
+   *
+   * @return a Fold view of the underlying traversal
+   */
+  default Fold&lt;S, A&gt; asFold() {
+<span class="fc" id="L777">    Traversal&lt;S, A&gt; traversal = toTraversal();</span>
+<span class="fc" id="L778">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L781">        ConstApplicative&lt;M&gt; constApp = new ConstApplicative&lt;&gt;(monoid);</span>
+<span class="fc" id="L782">        Kind&lt;ConstKind.Witness&lt;M&gt;, S&gt; result =</span>
+<span class="fc" id="L783">            traversal.modifyF(</span>
+<span class="fc" id="L784">                a -&gt; ConstKindHelper.CONST.widen(new Const&lt;&gt;(f.apply(a))), source, constApp);</span>
+<span class="fc" id="L785">        Const&lt;M, S&gt; finalConst = ConstKindHelper.CONST.narrow(result);</span>
+<span class="fc" id="L786">        return finalConst.value();</span>
+      }
+    };
+  }
+
+  // ===== Debugging =====
+
+  /**
+   * Creates a new TraversalPath that invokes an observer during get operations.
+   *
+   * &lt;p&gt;This method is useful for debugging complex path navigations by logging or inspecting values
+   * as they are accessed. The observer receives the source and the list of all focused values.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * TraversalPath&lt;Company, Employee&gt; debugPath = CompanyFocus.employees()
+   *     .traced((company, employees) -&gt;
+   *         log.debug(&quot;Found {} employees in {}&quot;, employees.size(), company.name()));
+   *
+   * // Every getAll() call will now log the accessed values
+   * List&lt;Employee&gt; employees = debugPath.getAll(company);
+   * }&lt;/pre&gt;
+   *
+   * @param observer a consumer that receives the source and all focused values during get
+   *     operations
+   * @return a new TraversalPath that invokes the observer
+   */
+  default TraversalPath&lt;S, A&gt; traced(BiConsumer&lt;S, List&lt;A&gt;&gt; observer) {
+<span class="fc" id="L815">    return new TracedTraversalFocusPath&lt;&gt;(this, observer);</span>
+  }
+
+  // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Extracts all focused values and wraps them in a {@link ListPath}.
+   *
+   * &lt;p&gt;This bridges from the optics domain to the effect domain, allowing all focused values to be
+   * processed using effect-based operations. ListPath uses positional zipWith semantics where
+   * elements are combined index-by-index.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * TraversalPath&lt;Company, Employee&gt; employeesPath = CompanyFocus.employees();
+   * Company company = new Company(List.of(emp1, emp2, emp3));
+   *
+   * // Extract all employees and process
+   * ListPath&lt;String&gt; names = employeesPath.toListPath(company)
+   *     .map(Employee::name)
+   *     .map(String::toUpperCase);
+   * }&lt;/pre&gt;
+   *
+   * @param source the source structure
+   * @return a ListPath containing all focused values
+   */
+  default ListPath&lt;A&gt; toListPath(S source) {
+<span class="fc" id="L843">    return Path.listPath(getAll(source));</span>
+  }
+
+  /**
+   * Extracts all focused values and wraps them in a {@link NonDetPath}.
+   *
+   * &lt;p&gt;This bridges from the optics domain to the effect domain using non-deterministic semantics.
+   * NonDetPath uses Cartesian product for zipWith, producing all combinations of values.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * TraversalPath&lt;Config, String&gt; optionsPath = ConfigFocus.options();
+   * Config config = new Config(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   *
+   * // Non-deterministic processing - Cartesian product on combination
+   * NonDetPath&lt;String&gt; combinations = optionsPath.toNonDetPath(config)
+   *     .zipWith(Path.list(List.of(&quot;1&quot;, &quot;2&quot;)), (opt, num) -&gt; opt + num);
+   * // Results in: [&quot;a1&quot;, &quot;a2&quot;, &quot;b1&quot;, &quot;b2&quot;, &quot;c1&quot;, &quot;c2&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param source the source structure
+   * @return a NonDetPath containing all focused values
+   */
+  default NonDetPath&lt;A&gt; toNonDetPath(S source) {
+<span class="fc" id="L868">    return Path.list(getAll(source));</span>
+  }
+
+  /**
+   * Extracts all focused values and wraps them in a {@link StreamPath}.
+   *
+   * &lt;p&gt;This bridges from the optics domain to the effect domain using lazy stream semantics. This
+   * is useful for large collections where eager evaluation would be inefficient.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * TraversalPath&lt;Database, Record&gt; recordsPath = DatabaseFocus.records();
+   * Database db = getLargeDatabase();
+   *
+   * // Lazy stream processing
+   * StreamPath&lt;String&gt; ids = recordsPath.toStreamPath(db)
+   *     .map(Record::id)
+   *     .filter(id -&gt; id.startsWith(&quot;A&quot;));
+   * }&lt;/pre&gt;
+   *
+   * @param source the source structure
+   * @return a StreamPath streaming all focused values
+   */
+  default StreamPath&lt;A&gt; toStreamPath(S source) {
+<span class="fc" id="L893">    return Path.streamFromList(getAll(source));</span>
+  }
+
+  /**
+   * Extracts the first focused value (if any) and wraps it in a {@link MaybePath}.
+   *
+   * &lt;p&gt;This bridges from the optics domain to the effect domain, narrowing the traversal to at most
+   * one element. This is useful when you only need the first element of a traversal.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * TraversalPath&lt;Team, Employee&gt; membersPath = TeamFocus.members();
+   * Team team = new Team(List.of(emp1, emp2, emp3));
+   *
+   * // Get just the first member
+   * MaybePath&lt;Employee&gt; firstMember = membersPath.toMaybePath(team);
+   *
+   * // Process if present
+   * MaybePath&lt;String&gt; firstName = firstMember.map(Employee::name);
+   * }&lt;/pre&gt;
+   *
+   * @param source the source structure
+   * @return a MaybePath containing the first value if present
+   */
+  default MaybePath&lt;A&gt; toMaybePath(S source) {
+<span class="fc" id="L919">    List&lt;A&gt; all = getAll(source);</span>
+<span class="fc bfc" id="L920" title="All 2 branches covered.">    return all.isEmpty() ? Path.nothing() : Path.just(all.get(0));</span>
+  }
+
+  // ===== Factory Methods =====
+
+  /**
+   * Creates a TraversalPath from a traversal.
+   *
+   * @param traversal the traversal to wrap
+   * @param &lt;S&gt; the source type
+   * @param &lt;A&gt; the focused type
+   * @return a new TraversalPath
+   */
+  static &lt;S, A&gt; TraversalPath&lt;S, A&gt; of(Traversal&lt;S, A&gt; traversal) {
+<span class="fc" id="L934">    return new TraversalFocusPath&lt;&gt;(traversal);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

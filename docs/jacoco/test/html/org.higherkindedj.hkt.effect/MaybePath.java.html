@@ -1,0 +1,511 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MaybePath.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.effect</a> &gt; <span class="el_source">MaybePath.java</span></div><h1>MaybePath.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.effect;
+
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Recoverable;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
+
+/**
+ * A fluent path wrapper for {@link Maybe} values.
+ *
+ * &lt;p&gt;{@code MaybePath} provides a chainable API for composing operations on optional values. It
+ * implements {@link Recoverable} with {@link Unit} as the error type, since the only &quot;error&quot; state
+ * is the absence of a value.
+ *
+ * &lt;h2&gt;Creating MaybePath instances&lt;/h2&gt;
+ *
+ * &lt;p&gt;Use the {@link Path} factory class to create instances:
+ *
+ * &lt;pre&gt;{@code
+ * MaybePath&lt;String&gt; path = Path.maybe(someValue);
+ * MaybePath&lt;User&gt; userPath = Path.maybe(userRepo.findById(id));
+ * MaybePath&lt;String&gt; empty = Path.nothing();
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Composing operations&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * String name = Path.maybe(userId)
+ *     .via(id -&gt; Path.maybe(userRepo.findById(id)))
+ *     .map(User::getName)
+ *     .filter(name -&gt; !name.isEmpty())
+ *     .getOrElse(&quot;Anonymous&quot;);
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Converting to other path types&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * EitherPath&lt;Error, User&gt; result = Path.maybe(userId)
+ *     .via(id -&gt; Path.maybe(userRepo.findById(id)))
+ *     .toEitherPath(Error.notFound(&quot;User not found&quot;));
+ * }&lt;/pre&gt;
+ *
+ * @param &lt;A&gt; the type of the contained value
+ */
+public final class MaybePath&lt;A&gt; implements Recoverable&lt;Unit, A&gt; {
+
+  private final Maybe&lt;A&gt; value;
+
+  /**
+   * Creates a new MaybePath wrapping the given Maybe.
+   *
+   * @param value the Maybe to wrap; must not be null
+   */
+<span class="fc" id="L74">  MaybePath(Maybe&lt;A&gt; value) {</span>
+<span class="fc" id="L75">    this.value = Objects.requireNonNull(value, &quot;value must not be null&quot;);</span>
+<span class="fc" id="L76">  }</span>
+
+  /**
+   * Returns the underlying Maybe value.
+   *
+   * @return the wrapped Maybe
+   */
+  public Maybe&lt;A&gt; run() {
+<span class="fc" id="L84">    return value;</span>
+  }
+
+  /**
+   * Returns the contained value if present, otherwise returns the provided default.
+   *
+   * @param defaultValue the value to return if this path is empty
+   * @return the contained value or the default
+   */
+  public A getOrElse(A defaultValue) {
+<span class="fc" id="L94">    return value.orElse(defaultValue);</span>
+  }
+
+  /**
+   * Returns the contained value if present, otherwise invokes the supplier.
+   *
+   * @param supplier provides the default value; must not be null
+   * @return the contained value or the supplier's result
+   * @throws NullPointerException if supplier is null
+   */
+  public A getOrElseGet(Supplier&lt;? extends A&gt; supplier) {
+<span class="fc" id="L105">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+<span class="fc" id="L106">    return value.orElseGet(supplier);</span>
+  }
+
+  /**
+   * Filters the contained value by the predicate.
+   *
+   * &lt;p&gt;If this path contains a value and the predicate returns true, the value is kept. Otherwise,
+   * the result is an empty path.
+   *
+   * @param predicate the condition to test; must not be null
+   * @return this path if the predicate passes, otherwise an empty path
+   * @throws NullPointerException if predicate is null
+   */
+  public MaybePath&lt;A&gt; filter(Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L120">    Objects.requireNonNull(predicate, &quot;predicate must not be null&quot;);</span>
+<span class="fc bfc" id="L121" title="All 4 branches covered.">    if (value.isJust() &amp;&amp; predicate.test(value.get())) {</span>
+<span class="fc" id="L122">      return this;</span>
+    }
+<span class="fc" id="L124">    return new MaybePath&lt;&gt;(Maybe.nothing());</span>
+  }
+
+  /**
+   * Converts this MaybePath to an EitherPath.
+   *
+   * &lt;p&gt;If this path contains a value, returns an EitherPath with a Right value. If this path is
+   * empty, returns an EitherPath with the provided error as the Left value.
+   *
+   * @param error the error to use if this path is empty
+   * @param &lt;E&gt; the error type
+   * @return an EitherPath representing this path's value or the provided error
+   */
+  public &lt;E&gt; EitherPath&lt;E, A&gt; toEitherPath(E error) {
+<span class="fc bfc" id="L138" title="All 2 branches covered.">    return value.isJust()</span>
+<span class="fc" id="L139">        ? new EitherPath&lt;&gt;(Either.right(value.get()))</span>
+<span class="fc" id="L140">        : new EitherPath&lt;&gt;(Either.left(error));</span>
+  }
+
+  /**
+   * Converts this MaybePath to a TryPath.
+   *
+   * &lt;p&gt;If this path contains a value, returns a TryPath with a Success. If this path is empty,
+   * returns a TryPath with the provided exception as a Failure.
+   *
+   * @param exceptionSupplier provides the exception if this path is empty; must not be null
+   * @return a TryPath representing this path's value or the provided exception
+   * @throws NullPointerException if exceptionSupplier is null
+   */
+  public TryPath&lt;A&gt; toTryPath(Supplier&lt;? extends Throwable&gt; exceptionSupplier) {
+<span class="fc" id="L154">    Objects.requireNonNull(exceptionSupplier, &quot;exceptionSupplier must not be null&quot;);</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">    return value.isJust()</span>
+<span class="fc" id="L156">        ? new TryPath&lt;&gt;(Try.success(value.get()))</span>
+<span class="fc" id="L157">        : new TryPath&lt;&gt;(Try.failure(exceptionSupplier.get()));</span>
+  }
+
+  /**
+   * Converts this MaybePath to a ValidationPath.
+   *
+   * &lt;p&gt;If this path contains a value, returns a Valid. If this path is empty, returns an Invalid
+   * with the provided error.
+   *
+   * @param errorIfEmpty the error to use if this path is empty; must not be null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param &lt;E&gt; the error type
+   * @return a ValidationPath representing this path's value or the provided error
+   * @throws NullPointerException if either argument is null
+   */
+  public &lt;E&gt; ValidationPath&lt;E, A&gt; toValidationPath(E errorIfEmpty, Semigroup&lt;E&gt; semigroup) {
+<span class="fc" id="L173">    Objects.requireNonNull(errorIfEmpty, &quot;errorIfEmpty must not be null&quot;);</span>
+<span class="fc" id="L174">    Objects.requireNonNull(semigroup, &quot;semigroup must not be null&quot;);</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">    return value.isJust()</span>
+<span class="fc" id="L176">        ? new ValidationPath&lt;&gt;(Validated.valid(value.get()), semigroup)</span>
+<span class="fc" id="L177">        : new ValidationPath&lt;&gt;(Validated.invalid(errorIfEmpty), semigroup);</span>
+  }
+
+  /**
+   * Converts this MaybePath to an OptionalPath.
+   *
+   * @return an OptionalPath containing the value if present, or empty otherwise
+   */
+  public OptionalPath&lt;A&gt; toOptionalPath() {
+<span class="fc bfc" id="L186" title="All 2 branches covered.">    return value.isJust()</span>
+<span class="fc" id="L187">        ? new OptionalPath&lt;&gt;(Optional.of(value.get()))</span>
+<span class="fc" id="L188">        : new OptionalPath&lt;&gt;(Optional.empty());</span>
+  }
+
+  /**
+   * Converts this MaybePath to an IdPath.
+   *
+   * &lt;p&gt;If this path contains a value, returns an IdPath wrapping it. If this path is empty, throws
+   * the exception provided by the supplier.
+   *
+   * @param exceptionSupplier provides the exception if this path is empty; must not be null
+   * @return an IdPath containing this path's value
+   * @throws RuntimeException the exception from the supplier if this path is empty
+   * @throws NullPointerException if exceptionSupplier is null
+   */
+  public IdPath&lt;A&gt; toIdPath(Supplier&lt;? extends RuntimeException&gt; exceptionSupplier) {
+<span class="fc" id="L203">    Objects.requireNonNull(exceptionSupplier, &quot;exceptionSupplier must not be null&quot;);</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">    if (value.isJust()) {</span>
+<span class="fc" id="L205">      return new IdPath&lt;&gt;(Id.of(value.get()));</span>
+    }
+<span class="fc" id="L207">    throw exceptionSupplier.get();</span>
+  }
+
+  // ===== Composable implementation =====
+
+  @Override
+  public &lt;B&gt; MaybePath&lt;B&gt; map(Function&lt;? super A, ? extends B&gt; mapper) {
+<span class="fc" id="L214">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+<span class="fc" id="L215">    return new MaybePath&lt;&gt;(value.map(mapper));</span>
+  }
+
+  @Override
+  public MaybePath&lt;A&gt; peek(Consumer&lt;? super A&gt; consumer) {
+<span class="fc" id="L220">    Objects.requireNonNull(consumer, &quot;consumer must not be null&quot;);</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">    if (value.isJust()) {</span>
+<span class="fc" id="L222">      consumer.accept(value.get());</span>
+    }
+<span class="fc" id="L224">    return this;</span>
+  }
+
+  // ===== Combinable implementation =====
+
+  @Override
+  public &lt;B, C&gt; MaybePath&lt;C&gt; zipWith(
+      Combinable&lt;B&gt; other, BiFunction&lt;? super A, ? super B, ? extends C&gt; combiner) {
+<span class="fc" id="L232">    Objects.requireNonNull(other, &quot;other must not be null&quot;);</span>
+<span class="fc" id="L233">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc bfc" id="L235" title="All 2 branches covered.">    if (!(other instanceof MaybePath&lt;?&gt; otherMaybe)) {</span>
+<span class="fc" id="L236">      throw new IllegalArgumentException(&quot;Cannot zipWith non-MaybePath: &quot; + other.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L240">    MaybePath&lt;B&gt; typedOther = (MaybePath&lt;B&gt;) otherMaybe;</span>
+
+<span class="fc bfc" id="L242" title="All 4 branches covered.">    if (this.value.isJust() &amp;&amp; typedOther.value.isJust()) {</span>
+<span class="fc" id="L243">      return new MaybePath&lt;&gt;(Maybe.just(combiner.apply(this.value.get(), typedOther.value.get())));</span>
+    }
+<span class="fc" id="L245">    return new MaybePath&lt;&gt;(Maybe.nothing());</span>
+  }
+
+  /**
+   * Combines this path with two others using a ternary function.
+   *
+   * @param second the second path; must not be null
+   * @param third the third path; must not be null
+   * @param combiner the function to combine the values; must not be null
+   * @param &lt;B&gt; the type of the second path's value
+   * @param &lt;C&gt; the type of the third path's value
+   * @param &lt;D&gt; the type of the combined result
+   * @return a new path containing the combined result
+   */
+  public &lt;B, C, D&gt; MaybePath&lt;D&gt; zipWith3(
+      MaybePath&lt;B&gt; second,
+      MaybePath&lt;C&gt; third,
+      Function3&lt;? super A, ? super B, ? super C, ? extends D&gt; combiner) {
+<span class="fc" id="L263">    Objects.requireNonNull(second, &quot;second must not be null&quot;);</span>
+<span class="fc" id="L264">    Objects.requireNonNull(third, &quot;third must not be null&quot;);</span>
+<span class="fc" id="L265">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc bfc" id="L267" title="All 6 branches covered.">    if (this.value.isJust() &amp;&amp; second.value.isJust() &amp;&amp; third.value.isJust()) {</span>
+<span class="fc" id="L268">      return new MaybePath&lt;&gt;(</span>
+<span class="fc" id="L269">          Maybe.just(combiner.apply(this.value.get(), second.value.get(), third.value.get())));</span>
+    }
+<span class="fc" id="L271">    return new MaybePath&lt;&gt;(Maybe.nothing());</span>
+  }
+
+  // ===== Chainable implementation =====
+
+  @Override
+  public &lt;B&gt; MaybePath&lt;B&gt; via(Function&lt;? super A, ? extends Chainable&lt;B&gt;&gt; mapper) {
+<span class="fc" id="L278">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+
+<span class="fc bfc" id="L280" title="All 2 branches covered.">    if (value.isNothing()) {</span>
+<span class="fc" id="L281">      return new MaybePath&lt;&gt;(Maybe.nothing());</span>
+    }
+
+<span class="fc" id="L284">    Chainable&lt;B&gt; result = mapper.apply(value.get());</span>
+<span class="fc" id="L285">    Objects.requireNonNull(result, &quot;mapper must not return null&quot;);</span>
+
+<span class="fc bfc" id="L287" title="All 2 branches covered.">    if (!(result instanceof MaybePath&lt;?&gt; maybePath)) {</span>
+<span class="fc" id="L288">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L289">          &quot;via mapper must return MaybePath, got: &quot; + result.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L293">    MaybePath&lt;B&gt; typedResult = (MaybePath&lt;B&gt;) maybePath;</span>
+<span class="fc" id="L294">    return typedResult;</span>
+  }
+
+  @Override
+  public &lt;B&gt; MaybePath&lt;B&gt; then(Supplier&lt;? extends Chainable&lt;B&gt;&gt; supplier) {
+<span class="fc" id="L299">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+
+<span class="fc bfc" id="L301" title="All 2 branches covered.">    if (value.isNothing()) {</span>
+<span class="fc" id="L302">      return new MaybePath&lt;&gt;(Maybe.nothing());</span>
+    }
+
+<span class="fc" id="L305">    Chainable&lt;B&gt; result = supplier.get();</span>
+<span class="fc" id="L306">    Objects.requireNonNull(result, &quot;supplier must not return null&quot;);</span>
+
+<span class="fc bfc" id="L308" title="All 2 branches covered.">    if (!(result instanceof MaybePath&lt;?&gt; maybePath)) {</span>
+<span class="fc" id="L309">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L310">          &quot;then supplier must return MaybePath, got: &quot; + result.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L314">    MaybePath&lt;B&gt; typedResult = (MaybePath&lt;B&gt;) maybePath;</span>
+<span class="fc" id="L315">    return typedResult;</span>
+  }
+
+  // ===== Recoverable implementation =====
+
+  @Override
+  public MaybePath&lt;A&gt; recover(Function&lt;? super Unit, ? extends A&gt; recovery) {
+<span class="fc" id="L322">    Objects.requireNonNull(recovery, &quot;recovery must not be null&quot;);</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">    if (value.isJust()) {</span>
+<span class="fc" id="L324">      return this;</span>
+    }
+<span class="fc" id="L326">    return new MaybePath&lt;&gt;(Maybe.just(recovery.apply(Unit.INSTANCE)));</span>
+  }
+
+  @Override
+  public MaybePath&lt;A&gt; recoverWith(Function&lt;? super Unit, ? extends Recoverable&lt;Unit, A&gt;&gt; recovery) {
+<span class="fc" id="L331">    Objects.requireNonNull(recovery, &quot;recovery must not be null&quot;);</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">    if (value.isJust()) {</span>
+<span class="fc" id="L333">      return this;</span>
+    }
+<span class="fc" id="L335">    Recoverable&lt;Unit, A&gt; result = recovery.apply(Unit.INSTANCE);</span>
+<span class="fc" id="L336">    Objects.requireNonNull(result, &quot;recovery must not return null&quot;);</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">    if (!(result instanceof MaybePath&lt;?&gt; maybePath)) {</span>
+<span class="fc" id="L338">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L339">          &quot;recovery must return MaybePath, got: &quot; + result.getClass());</span>
+    }
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L342">    MaybePath&lt;A&gt; typedResult = (MaybePath&lt;A&gt;) maybePath;</span>
+<span class="fc" id="L343">    return typedResult;</span>
+  }
+
+  @Override
+  public MaybePath&lt;A&gt; orElse(Supplier&lt;? extends Recoverable&lt;Unit, A&gt;&gt; alternative) {
+<span class="fc" id="L348">    Objects.requireNonNull(alternative, &quot;alternative must not be null&quot;);</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">    if (value.isJust()) {</span>
+<span class="fc" id="L350">      return this;</span>
+    }
+<span class="fc" id="L352">    Recoverable&lt;Unit, A&gt; result = alternative.get();</span>
+<span class="fc" id="L353">    Objects.requireNonNull(result, &quot;alternative must not return null&quot;);</span>
+<span class="fc bfc" id="L354" title="All 2 branches covered.">    if (!(result instanceof MaybePath&lt;?&gt; maybePath)) {</span>
+<span class="fc" id="L355">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L356">          &quot;alternative must return MaybePath, got: &quot; + result.getClass());</span>
+    }
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L359">    MaybePath&lt;A&gt; typedResult = (MaybePath&lt;A&gt;) maybePath;</span>
+<span class="fc" id="L360">    return typedResult;</span>
+  }
+
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;E2&gt; Recoverable&lt;E2, A&gt; mapError(Function&lt;? super Unit, ? extends E2&gt; mapper) {
+    // For MaybePath, mapError is effectively a no-op since Unit is the only error type.
+    // We return this cast to the new error type, which is safe because MaybePath
+    // doesn't actually store errors (Nothing has no error value).
+<span class="fc" id="L369">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+<span class="fc" id="L370">    return (Recoverable&lt;E2, A&gt;) this;</span>
+  }
+
+  // ===== FocusPath Bridge Methods =====
+
+  /**
+   * Applies a {@link FocusPath} to navigate within the contained value.
+   *
+   * &lt;p&gt;This bridges from the effect domain to the optics domain, allowing structural navigation
+   * inside an effect context. Since FocusPath always focuses on exactly one element, the result is
+   * always a successful navigation if the MaybePath contains a value.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * FocusPath&lt;User, String&gt; namePath = UserFocus.name();
+   *
+   * MaybePath&lt;User&gt; userPath = Path.just(user);
+   * MaybePath&lt;String&gt; name = userPath.focus(namePath);
+   * // Equivalent to: userPath.map(namePath::get)
+   * }&lt;/pre&gt;
+   *
+   * @param path the FocusPath to apply
+   * @param &lt;B&gt; the focused type
+   * @return a new MaybePath containing the focused value
+   */
+  public &lt;B&gt; MaybePath&lt;B&gt; focus(FocusPath&lt;A, B&gt; path) {
+<span class="fc" id="L397">    Objects.requireNonNull(path, &quot;path must not be null&quot;);</span>
+<span class="fc" id="L398">    return map(path::get);</span>
+  }
+
+  /**
+   * Applies an {@link AffinePath} to navigate within the contained value.
+   *
+   * &lt;p&gt;This bridges from the effect domain to the optics domain. The result flattens the two
+   * optional layers: if either the MaybePath is empty or the AffinePath doesn't match, the result
+   * is Nothing.
+   *
+   * &lt;h2&gt;Example Usage&lt;/h2&gt;
+   *
+   * &lt;pre&gt;{@code
+   * AffinePath&lt;User, String&gt; emailPath = UserFocus.optionalEmail();
+   *
+   * MaybePath&lt;User&gt; userPath = Path.just(user);
+   * MaybePath&lt;String&gt; email = userPath.focus(emailPath);
+   * // Returns Nothing if user has no email
+   * }&lt;/pre&gt;
+   *
+   * @param path the AffinePath to apply
+   * @param &lt;B&gt; the focused type
+   * @return a new MaybePath containing the focused value if both succeed
+   */
+  public &lt;B&gt; MaybePath&lt;B&gt; focus(AffinePath&lt;A, B&gt; path) {
+<span class="fc" id="L423">    Objects.requireNonNull(path, &quot;path must not be null&quot;);</span>
+<span class="fc" id="L424">    return via(a -&gt; path.getOptional(a).map(Path::just).orElseGet(Path::nothing));</span>
+  }
+
+  // ===== Lifting Methods =====
+
+  /**
+   * Lifts this Maybe into a deferred IO context.
+   *
+   * &lt;p&gt;The Maybe value is captured immediately but wrapped in IO for composition with other
+   * IO-based operations. This is useful when you need to combine synchronous Maybe results with
+   * deferred IO computations.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * MaybePath&lt;User&gt; found = findUser(userId);
+   * IOPath&lt;Maybe&lt;User&gt;&gt; deferred = found.liftIO();
+   *
+   * // Now compose with other IO operations
+   * IOPath&lt;Maybe&lt;Profile&gt;&gt; result = deferred.map(maybe -&gt;
+   *     maybe.map(user -&gt; enrichUser(user)));
+   * }&lt;/pre&gt;
+   *
+   * @return an IOPath containing this Maybe
+   */
+  public IOPath&lt;Maybe&lt;A&gt;&gt; liftIO() {
+<span class="fc" id="L450">    Maybe&lt;A&gt; captured = this.value;</span>
+<span class="fc" id="L451">    return new IOPath&lt;&gt;(IO.delay(() -&gt; captured));</span>
+  }
+
+  /**
+   * Lifts this Maybe into an async CompletableFuture context.
+   *
+   * &lt;p&gt;Returns an already-completed future containing this Maybe. This is useful when you need to
+   * combine synchronous Maybe results with async operations.
+   *
+   * @return a CompletableFuturePath containing this Maybe
+   */
+  public CompletableFuturePath&lt;Maybe&lt;A&gt;&gt; liftFuture() {
+<span class="fc" id="L463">    return new CompletableFuturePath&lt;&gt;(CompletableFuture.completedFuture(this.value));</span>
+  }
+
+  /**
+   * Creates a deferred IO computation that produces a Maybe.
+   *
+   * &lt;p&gt;The supplier is not invoked until the IO is executed. This is useful for deferring optional
+   * lookups or computations that may produce no value.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IOPath&lt;Maybe&lt;User&gt;&gt; userIO = MaybePath.deferIO(() -&gt;
+   *     userRepository.findById(userId));
+   *
+   * // Computation is deferred until:
+   * Maybe&lt;User&gt; result = userIO.unsafeRun();
+   * }&lt;/pre&gt;
+   *
+   * @param supplier the deferred computation; must not be null
+   * @param &lt;A&gt; the value type
+   * @return an IOPath that will produce the Maybe when run
+   * @throws NullPointerException if supplier is null
+   */
+  public static &lt;A&gt; IOPath&lt;Maybe&lt;A&gt;&gt; deferIO(Supplier&lt;Maybe&lt;A&gt;&gt; supplier) {
+<span class="fc" id="L488">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+<span class="fc" id="L489">    return new IOPath&lt;&gt;(IO.delay(supplier));</span>
+  }
+
+  // ===== Object methods =====
+
+  @Override
+  public boolean equals(Object obj) {
+<span class="fc bfc" id="L496" title="All 2 branches covered.">    if (this == obj) return true;</span>
+<span class="fc bfc" id="L497" title="All 2 branches covered.">    if (!(obj instanceof MaybePath&lt;?&gt; other)) return false;</span>
+<span class="fc" id="L498">    return value.equals(other.value);</span>
+  }
+
+  @Override
+  public int hashCode() {
+<span class="fc" id="L503">    return value.hashCode();</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="fc" id="L508">    return &quot;MaybePath(&quot; + value + &quot;)&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

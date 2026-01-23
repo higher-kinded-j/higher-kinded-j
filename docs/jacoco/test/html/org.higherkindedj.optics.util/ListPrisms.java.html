@@ -1,0 +1,709 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ListPrisms.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.util</a> &gt; <span class="el_source">ListPrisms.java</span></div><h1>ListPrisms.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.util;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.trampoline.Trampoline;
+import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.indexed.Pair;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * A final utility class providing {@link Prism} and {@link Affine} instances for functional list
+ * decomposition patterns.
+ *
+ * &lt;p&gt;This class provides the classic functional programming patterns for working with lists:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;cons (head/tail)&lt;/b&gt;: Decompose a list as (first element, remaining elements)
+ *   &lt;li&gt;&lt;b&gt;snoc (init/last)&lt;/b&gt;: Decompose a list as (all but last, last element)
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;These patterns enable functional programming idioms like pattern matching and recursive
+ * algorithms in Java. All operations are safe for empty lists, returning {@code Optional.empty()}
+ * when the list cannot be decomposed.
+ *
+ * &lt;h2&gt;Decomposition Patterns&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Cons: [A, B, C, D] → Pair(A, [B, C, D])
+ * Prism&lt;List&lt;String&gt;, Pair&lt;String, List&lt;String&gt;&gt;&gt; cons = ListPrisms.cons();
+ * Optional&lt;Pair&lt;String, List&lt;String&gt;&gt;&gt; result = cons.getOptional(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+ * // result = Optional.of(Pair(&quot;a&quot;, [&quot;b&quot;, &quot;c&quot;]))
+ *
+ * // Snoc: [A, B, C, D] → Pair([A, B, C], D)
+ * Prism&lt;List&lt;String&gt;, Pair&lt;List&lt;String&gt;, String&gt;&gt; snoc = ListPrisms.snoc();
+ * Optional&lt;Pair&lt;List&lt;String&gt;, String&gt;&gt; result = snoc.getOptional(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+ * // result = Optional.of(Pair([&quot;a&quot;, &quot;b&quot;], &quot;c&quot;))
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Convenience Accessors&lt;/h2&gt;
+ *
+ * &lt;p&gt;For simpler access patterns, use the convenience affines and prisms:
+ *
+ * &lt;pre&gt;{@code
+ * Affine&lt;List&lt;String&gt;, String&gt; head = ListPrisms.head();
+ * Affine&lt;List&lt;String&gt;, String&gt; last = ListPrisms.last();
+ * Prism&lt;List&lt;String&gt;, List&lt;String&gt;&gt; tail = ListPrisms.tail();
+ * Prism&lt;List&lt;String&gt;, List&lt;String&gt;&gt; init = ListPrisms.init();
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Stack-Safe Operations&lt;/h2&gt;
+ *
+ * &lt;p&gt;For processing very large lists, this class provides trampoline-based operations that avoid
+ * stack overflow:
+ *
+ * &lt;pre&gt;{@code
+ * List&lt;Integer&gt; largeList = IntStream.range(0, 1_000_000).boxed().toList();
+ * Integer sum = ListPrisms.foldRight(largeList, 0, Integer::sum);
+ * List&lt;Integer&gt; doubled = ListPrisms.mapTrampoline(largeList, x -&gt; x * 2);
+ * }&lt;/pre&gt;
+ *
+ * @see Prism
+ * @see Affine
+ * @see Pair
+ */
+@NullMarked
+public final class ListPrisms {
+  /** Private constructor to prevent instantiation. */
+  private ListPrisms() {}
+
+  // ===== Core Decomposition Prisms =====
+
+  /**
+   * Creates a prism that decomposes a non-empty list into its head (first element) and tail
+   * (remaining elements).
+   *
+   * &lt;p&gt;This is the classic &quot;cons&quot; pattern from functional programming. The prism matches non-empty
+   * lists and decomposes them into a pair of (head, tail).
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;List&lt;String&gt;, Pair&lt;String, List&lt;String&gt;&gt;&gt; cons = ListPrisms.cons();
+   *
+   * // Decompose a list
+   * List&lt;String&gt; names = List.of(&quot;Alice&quot;, &quot;Bob&quot;, &quot;Charlie&quot;);
+   * Optional&lt;Pair&lt;String, List&lt;String&gt;&gt;&gt; result = cons.getOptional(names);
+   * // result = Optional.of(Pair(&quot;Alice&quot;, [&quot;Bob&quot;, &quot;Charlie&quot;]))
+   *
+   * // Empty list returns empty
+   * Optional&lt;Pair&lt;String, List&lt;String&gt;&gt;&gt; empty = cons.getOptional(List.of());
+   * // empty = Optional.empty()
+   *
+   * // Build a list by prepending
+   * List&lt;String&gt; built = cons.build(Pair.of(&quot;First&quot;, List.of(&quot;Second&quot;, &quot;Third&quot;)));
+   * // built = [&quot;First&quot;, &quot;Second&quot;, &quot;Third&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return A prism that decomposes a list as (head, tail).
+   */
+  public static &lt;A&gt; Prism&lt;List&lt;A&gt;, Pair&lt;A, List&lt;A&gt;&gt;&gt; cons() {
+<span class="fc" id="L111">    return Prism.of(</span>
+        list -&gt; {
+<span class="fc bfc" id="L113" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L114">            return Optional.empty();</span>
+          }
+<span class="fc" id="L116">          A head = list.getFirst();</span>
+<span class="fc" id="L117">          List&lt;A&gt; tail = list.subList(1, list.size());</span>
+<span class="fc" id="L118">          return Optional.of(Pair.of(head, copyList(tail)));</span>
+        },
+        pair -&gt; {
+<span class="fc" id="L121">          List&lt;A&gt; result = new ArrayList&lt;&gt;(pair.second().size() + 1);</span>
+<span class="fc" id="L122">          result.add(pair.first());</span>
+<span class="fc" id="L123">          result.addAll(pair.second());</span>
+<span class="fc" id="L124">          return copyList(result);</span>
+        });
+  }
+
+  /**
+   * Alias for {@link #cons()} using Java-friendly naming.
+   *
+   * &lt;p&gt;This method is identical to {@code cons()} but uses terminology that may be more familiar to
+   * Java developers.
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return A prism that decomposes a list as (head, tail).
+   * @see #cons()
+   */
+  public static &lt;A&gt; Prism&lt;List&lt;A&gt;, Pair&lt;A, List&lt;A&gt;&gt;&gt; headTail() {
+<span class="fc" id="L139">    return cons();</span>
+  }
+
+  /**
+   * Creates a prism that decomposes a non-empty list into its init (all but last) and last element.
+   *
+   * &lt;p&gt;This is the &quot;snoc&quot; pattern (cons spelled backwards) from functional programming. The prism
+   * matches non-empty lists and decomposes them into a pair of (init, last).
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;List&lt;Integer&gt;, Pair&lt;List&lt;Integer&gt;, Integer&gt;&gt; snoc = ListPrisms.snoc();
+   *
+   * // Decompose a list
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * Optional&lt;Pair&lt;List&lt;Integer&gt;, Integer&gt;&gt; result = snoc.getOptional(numbers);
+   * // result = Optional.of(Pair([1, 2, 3, 4], 5))
+   *
+   * // Empty list returns empty
+   * Optional&lt;Pair&lt;List&lt;Integer&gt;, Integer&gt;&gt; empty = snoc.getOptional(List.of());
+   * // empty = Optional.empty()
+   *
+   * // Build a list by appending
+   * List&lt;Integer&gt; built = snoc.build(Pair.of(List.of(1, 2, 3), 4));
+   * // built = [1, 2, 3, 4]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return A prism that decomposes a list as (init, last).
+   */
+  public static &lt;A&gt; Prism&lt;List&lt;A&gt;, Pair&lt;List&lt;A&gt;, A&gt;&gt; snoc() {
+<span class="fc" id="L171">    return Prism.of(</span>
+        list -&gt; {
+<span class="fc bfc" id="L173" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L174">            return Optional.empty();</span>
+          }
+<span class="fc" id="L176">          A last = list.getLast();</span>
+<span class="fc" id="L177">          List&lt;A&gt; init = list.subList(0, list.size() - 1);</span>
+<span class="fc" id="L178">          return Optional.of(Pair.of(copyList(init), last));</span>
+        },
+        pair -&gt; {
+<span class="fc" id="L181">          List&lt;A&gt; result = new ArrayList&lt;&gt;(pair.first().size() + 1);</span>
+<span class="fc" id="L182">          result.addAll(pair.first());</span>
+<span class="fc" id="L183">          result.add(pair.second());</span>
+<span class="fc" id="L184">          return copyList(result);</span>
+        });
+  }
+
+  /**
+   * Alias for {@link #snoc()} using Java-friendly naming.
+   *
+   * &lt;p&gt;This method is identical to {@code snoc()} but uses terminology that may be more familiar to
+   * Java developers.
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return A prism that decomposes a list as (init, last).
+   * @see #snoc()
+   */
+  public static &lt;A&gt; Prism&lt;List&lt;A&gt;, Pair&lt;List&lt;A&gt;, A&gt;&gt; initLast() {
+<span class="fc" id="L199">    return snoc();</span>
+  }
+
+  // ===== Convenience Affines and Prisms =====
+
+  /**
+   * Creates an affine that focuses on the first element of a list.
+   *
+   * &lt;p&gt;Unlike the prism from {@link Prisms#listHead()}, this affine properly updates the list when
+   * setting, preserving all other elements.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;String&gt;, String&gt; head = ListPrisms.head();
+   *
+   * // Get the first element
+   * Optional&lt;String&gt; first = head.getOptional(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   * // first = Optional.of(&quot;a&quot;)
+   *
+   * // Modify the first element
+   * List&lt;String&gt; modified = head.modify(String::toUpperCase, List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   * // modified = [&quot;A&quot;, &quot;b&quot;, &quot;c&quot;]
+   *
+   * // Set on empty list creates singleton
+   * List&lt;String&gt; created = head.set(&quot;new&quot;, List.of());
+   * // created = [&quot;new&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the first element.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, A&gt; head() {
+<span class="fc" id="L232">    return Affine.of(</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.empty() : Optional.of(list.getFirst()),</span>
+        (list, value) -&gt; {
+<span class="fc bfc" id="L235" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L236">            return List.of(value);</span>
+          }
+<span class="fc" id="L238">          List&lt;A&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L239">          result.set(0, value);</span>
+<span class="fc" id="L240">          return copyList(result);</span>
+        });
+  }
+
+  /**
+   * Creates an affine that focuses on the last element of a list.
+   *
+   * &lt;p&gt;This affine properly updates the list when setting, preserving all other elements.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;Integer&gt;, Integer&gt; last = ListPrisms.last();
+   *
+   * // Get the last element
+   * Optional&lt;Integer&gt; lastElem = last.getOptional(List.of(1, 2, 3, 4, 5));
+   * // lastElem = Optional.of(5)
+   *
+   * // Modify the last element
+   * List&lt;Integer&gt; modified = last.modify(x -&gt; x * 10, List.of(1, 2, 3));
+   * // modified = [1, 2, 30]
+   *
+   * // Set on empty list creates singleton
+   * List&lt;Integer&gt; created = last.set(42, List.of());
+   * // created = [42]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the last element.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, A&gt; last() {
+<span class="fc" id="L271">    return Affine.of(</span>
+<span class="fc bfc" id="L272" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.empty() : Optional.of(list.getLast()),</span>
+        (list, value) -&gt; {
+<span class="fc bfc" id="L274" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L275">            return List.of(value);</span>
+          }
+<span class="fc" id="L277">          List&lt;A&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L278">          result.set(result.size() - 1, value);</span>
+<span class="fc" id="L279">          return copyList(result);</span>
+        });
+  }
+
+  /**
+   * Creates an affine that focuses on the tail (all elements except the first) of a list.
+   *
+   * &lt;p&gt;Note: This is an Affine rather than a Prism because the prism laws would be violated. A
+   * Prism requires {@code getOptional(build(a)) == Optional.of(a)}, but for tail, building from a
+   * tail alone loses the head information.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;String&gt;, List&lt;String&gt;&gt; tail = ListPrisms.tail();
+   *
+   * // Get the tail
+   * Optional&lt;List&lt;String&gt;&gt; t = tail.getOptional(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   * // t = Optional.of([&quot;b&quot;, &quot;c&quot;])
+   *
+   * // Empty list returns empty
+   * Optional&lt;List&lt;String&gt;&gt; empty = tail.getOptional(List.of());
+   * // empty = Optional.empty()
+   *
+   * // Single element has empty tail
+   * Optional&lt;List&lt;String&gt;&gt; single = tail.getOptional(List.of(&quot;solo&quot;));
+   * // single = Optional.of([])
+   *
+   * // Set a new tail
+   * List&lt;String&gt; updated = tail.set(List.of(&quot;x&quot;, &quot;y&quot;), List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   * // updated = [&quot;a&quot;, &quot;x&quot;, &quot;y&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the tail of a list.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, List&lt;A&gt;&gt; tail() {
+<span class="fc" id="L316">    return Affine.of(</span>
+        list -&gt; {
+<span class="fc bfc" id="L318" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L319">            return Optional.empty();</span>
+          }
+<span class="fc" id="L321">          return Optional.of(copyList(list.subList(1, list.size())));</span>
+        },
+        (list, newTail) -&gt; {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L325">            return list;</span>
+          }
+<span class="fc" id="L327">          List&lt;A&gt; result = new ArrayList&lt;&gt;(newTail.size() + 1);</span>
+<span class="fc" id="L328">          result.add(list.getFirst());</span>
+<span class="fc" id="L329">          result.addAll(newTail);</span>
+<span class="fc" id="L330">          return copyList(result);</span>
+        });
+  }
+
+  /**
+   * Creates an affine that focuses on the init (all elements except the last) of a list.
+   *
+   * &lt;p&gt;Note: This is an Affine rather than a Prism because the prism laws would be violated. A
+   * Prism requires {@code getOptional(build(a)) == Optional.of(a)}, but for init, building from an
+   * init alone loses the last element information.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;Integer&gt;, List&lt;Integer&gt;&gt; init = ListPrisms.init();
+   *
+   * // Get the init
+   * Optional&lt;List&lt;Integer&gt;&gt; i = init.getOptional(List.of(1, 2, 3, 4, 5));
+   * // i = Optional.of([1, 2, 3, 4])
+   *
+   * // Empty list returns empty
+   * Optional&lt;List&lt;Integer&gt;&gt; empty = init.getOptional(List.of());
+   * // empty = Optional.empty()
+   *
+   * // Single element has empty init
+   * Optional&lt;List&lt;Integer&gt;&gt; single = init.getOptional(List.of(42));
+   * // single = Optional.of([])
+   *
+   * // Set a new init
+   * List&lt;Integer&gt; updated = init.set(List.of(10, 20), List.of(1, 2, 3));
+   * // updated = [10, 20, 3]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the init of a list.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, List&lt;A&gt;&gt; init() {
+<span class="fc" id="L367">    return Affine.of(</span>
+        list -&gt; {
+<span class="fc bfc" id="L369" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L370">            return Optional.empty();</span>
+          }
+<span class="fc" id="L372">          return Optional.of(copyList(list.subList(0, list.size() - 1)));</span>
+        },
+        (list, newInit) -&gt; {
+<span class="fc bfc" id="L375" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L376">            return list;</span>
+          }
+<span class="fc" id="L378">          List&lt;A&gt; result = new ArrayList&lt;&gt;(newInit.size() + 1);</span>
+<span class="fc" id="L379">          result.addAll(newInit);</span>
+<span class="fc" id="L380">          result.add(list.getLast());</span>
+<span class="fc" id="L381">          return copyList(result);</span>
+        });
+  }
+
+  /**
+   * Creates a prism that matches only empty lists.
+   *
+   * &lt;p&gt;This prism is the complement to {@link #cons()} and {@link #snoc()}, matching the empty case
+   * for complete pattern matching on list structure.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;List&lt;String&gt;, Unit&gt; empty = ListPrisms.empty();
+   *
+   * // Match empty list
+   * boolean isEmpty = empty.matches(List.of());       // true
+   * boolean isNotEmpty = empty.matches(List.of(&quot;a&quot;)); // false
+   *
+   * // Can be used for pattern matching
+   * if (ListPrisms.&lt;String&gt;empty().matches(list)) {
+   *     return &quot;Empty list&quot;;
+   * } else {
+   *     Pair&lt;String, List&lt;String&gt;&gt; ht = ListPrisms.&lt;String&gt;cons()
+   *         .getOptional(list).orElseThrow();
+   *     return &quot;Head: &quot; + ht.first();
+   * }
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return A prism that matches empty lists.
+   */
+  public static &lt;A&gt; Prism&lt;List&lt;A&gt;, Unit&gt; empty() {
+<span class="fc" id="L414">    return Prism.of(</span>
+<span class="fc bfc" id="L415" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.of(Unit.INSTANCE) : Optional.empty(), unit -&gt; List.of());</span>
+  }
+
+  // ===== Stack-Safe Trampoline Operations =====
+
+  /**
+   * Performs a right-associative fold over a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;This is equivalent to {@code foldr} in Haskell. The fold processes elements from right to
+   * left, which is natural for operations like building a new list or computing right-associative
+   * operations.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   *
+   * // Sum all elements
+   * Integer sum = ListPrisms.foldRight(numbers, 0, Integer::sum);
+   * // sum = 15
+   *
+   * // Build a string (right-to-left)
+   * String str = ListPrisms.foldRight(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), &quot;&quot;, (s, acc) -&gt; s + acc);
+   * // str = &quot;abc&quot;
+   * }&lt;/pre&gt;
+   *
+   * @param list The list to fold.
+   * @param initial The initial accumulator value.
+   * @param f The combining function: (element, accumulator) -&gt; new accumulator.
+   * @param &lt;A&gt; The element type.
+   * @param &lt;B&gt; The accumulator type.
+   * @return The final accumulated value.
+   */
+  public static &lt;A, B&gt; B foldRight(List&lt;A&gt; list, B initial, BiFunction&lt;A, B, B&gt; f) {
+<span class="fc" id="L449">    return foldRightTrampoline(list, 0, initial, f).run();</span>
+  }
+
+  private static &lt;A, B&gt; Trampoline&lt;B&gt; foldRightTrampoline(
+      List&lt;A&gt; list, int index, B acc, BiFunction&lt;A, B, B&gt; f) {
+<span class="fc bfc" id="L454" title="All 2 branches covered.">    if (index &gt;= list.size()) {</span>
+<span class="fc" id="L455">      return Trampoline.done(acc);</span>
+    }
+<span class="fc" id="L457">    return Trampoline.defer(</span>
+        () -&gt;
+<span class="fc" id="L459">            foldRightTrampoline(list, index + 1, acc, f)</span>
+<span class="fc" id="L460">                .map(restAcc -&gt; f.apply(list.get(index), restAcc)));</span>
+  }
+
+  /**
+   * Maps a function over a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;This is equivalent to the standard {@code map} operation but is safe for arbitrarily large
+   * lists that would cause stack overflow with naive recursion.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = IntStream.range(0, 1_000_000).boxed().toList();
+   *
+   * // Double all elements (stack-safe)
+   * List&lt;Integer&gt; doubled = ListPrisms.mapTrampoline(numbers, x -&gt; x * 2);
+   * }&lt;/pre&gt;
+   *
+   * @param list The list to transform.
+   * @param f The mapping function.
+   * @param &lt;A&gt; The input element type.
+   * @param &lt;B&gt; The output element type.
+   * @return A new list with the function applied to each element.
+   */
+  public static &lt;A, B&gt; List&lt;B&gt; mapTrampoline(List&lt;A&gt; list, Function&lt;A, B&gt; f) {
+<span class="fc" id="L485">    return mapTrampolineHelper(list, 0, f, new ArrayList&lt;&gt;(list.size())).run();</span>
+  }
+
+  private static &lt;A, B&gt; Trampoline&lt;List&lt;B&gt;&gt; mapTrampolineHelper(
+      List&lt;A&gt; list, int index, Function&lt;A, B&gt; f, ArrayList&lt;B&gt; acc) {
+<span class="fc bfc" id="L490" title="All 2 branches covered.">    if (index &gt;= list.size()) {</span>
+<span class="fc" id="L491">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L493">    acc.add(f.apply(list.get(index)));</span>
+<span class="fc" id="L494">    return Trampoline.defer(() -&gt; mapTrampolineHelper(list, index + 1, f, acc));</span>
+  }
+
+  /**
+   * Filters a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;This is equivalent to the standard {@code filter} operation but is safe for arbitrarily
+   * large lists.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = IntStream.range(0, 1_000_000).boxed().toList();
+   *
+   * // Keep only even numbers (stack-safe)
+   * List&lt;Integer&gt; evens = ListPrisms.filterTrampoline(numbers, x -&gt; x % 2 == 0);
+   * }&lt;/pre&gt;
+   *
+   * @param list The list to filter.
+   * @param predicate The predicate to test elements.
+   * @param &lt;A&gt; The element type.
+   * @return A new list containing only elements that satisfy the predicate.
+   */
+  public static &lt;A&gt; List&lt;A&gt; filterTrampoline(List&lt;A&gt; list, Predicate&lt;A&gt; predicate) {
+<span class="fc" id="L518">    return filterTrampolineHelper(list, 0, predicate, new ArrayList&lt;&gt;()).run();</span>
+  }
+
+  private static &lt;A&gt; Trampoline&lt;List&lt;A&gt;&gt; filterTrampolineHelper(
+      List&lt;A&gt; list, int index, Predicate&lt;A&gt; predicate, ArrayList&lt;A&gt; acc) {
+<span class="fc bfc" id="L523" title="All 2 branches covered.">    if (index &gt;= list.size()) {</span>
+<span class="fc" id="L524">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L526">    A element = list.get(index);</span>
+<span class="fc bfc" id="L527" title="All 2 branches covered.">    if (predicate.test(element)) {</span>
+<span class="fc" id="L528">      acc.add(element);</span>
+    }
+<span class="fc" id="L530">    return Trampoline.defer(() -&gt; filterTrampolineHelper(list, index + 1, predicate, acc));</span>
+  }
+
+  /**
+   * Reverses a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; reversed = ListPrisms.reverseTrampoline(numbers);
+   * // reversed = [5, 4, 3, 2, 1]
+   * }&lt;/pre&gt;
+   *
+   * @param list The list to reverse.
+   * @param &lt;A&gt; The element type.
+   * @return A new list with elements in reverse order.
+   */
+  public static &lt;A&gt; List&lt;A&gt; reverseTrampoline(List&lt;A&gt; list) {
+<span class="fc" id="L549">    return reverseTrampolineHelper(list, list.size() - 1, new ArrayList&lt;&gt;(list.size())).run();</span>
+  }
+
+  private static &lt;A&gt; Trampoline&lt;List&lt;A&gt;&gt; reverseTrampolineHelper(
+      List&lt;A&gt; list, int index, ArrayList&lt;A&gt; acc) {
+<span class="fc bfc" id="L554" title="All 2 branches covered.">    if (index &lt; 0) {</span>
+<span class="fc" id="L555">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L557">    acc.add(list.get(index));</span>
+<span class="fc" id="L558">    return Trampoline.defer(() -&gt; reverseTrampolineHelper(list, index - 1, acc));</span>
+  }
+
+  /**
+   * FlatMaps a function over a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;This is equivalent to the standard {@code flatMap} operation but is safe for arbitrarily
+   * large lists.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3);
+   * List&lt;Integer&gt; expanded = ListPrisms.flatMapTrampoline(numbers, x -&gt; List.of(x, x * 10));
+   * // expanded = [1, 10, 2, 20, 3, 30]
+   * }&lt;/pre&gt;
+   *
+   * @param list The list to transform.
+   * @param f The function that produces a list for each element.
+   * @param &lt;A&gt; The input element type.
+   * @param &lt;B&gt; The output element type.
+   * @return A new list with all results concatenated.
+   */
+  public static &lt;A, B&gt; List&lt;B&gt; flatMapTrampoline(List&lt;A&gt; list, Function&lt;A, List&lt;B&gt;&gt; f) {
+<span class="fc" id="L582">    return flatMapTrampolineHelper(list, 0, f, new ArrayList&lt;&gt;()).run();</span>
+  }
+
+  private static &lt;A, B&gt; Trampoline&lt;List&lt;B&gt;&gt; flatMapTrampolineHelper(
+      List&lt;A&gt; list, int index, Function&lt;A, List&lt;B&gt;&gt; f, ArrayList&lt;B&gt; acc) {
+<span class="fc bfc" id="L587" title="All 2 branches covered.">    if (index &gt;= list.size()) {</span>
+<span class="fc" id="L588">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L590">    acc.addAll(f.apply(list.get(index)));</span>
+<span class="fc" id="L591">    return Trampoline.defer(() -&gt; flatMapTrampolineHelper(list, index + 1, f, acc));</span>
+  }
+
+  /**
+   * Zips two lists together using a combining function, with stack safety.
+   *
+   * &lt;p&gt;The resulting list has the length of the shorter input list.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;String&gt; names = List.of(&quot;Alice&quot;, &quot;Bob&quot;, &quot;Charlie&quot;);
+   * List&lt;Integer&gt; ages = List.of(30, 25, 35);
+   *
+   * List&lt;String&gt; combined = ListPrisms.zipWithTrampoline(names, ages,
+   *     (name, age) -&gt; name + &quot; is &quot; + age);
+   * // combined = [&quot;Alice is 30&quot;, &quot;Bob is 25&quot;, &quot;Charlie is 35&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param list1 The first list.
+   * @param list2 The second list.
+   * @param f The combining function.
+   * @param &lt;A&gt; The first list element type.
+   * @param &lt;B&gt; The second list element type.
+   * @param &lt;C&gt; The result element type.
+   * @return A new list of combined elements.
+   */
+  public static &lt;A, B, C&gt; List&lt;C&gt; zipWithTrampoline(
+      List&lt;A&gt; list1, List&lt;B&gt; list2, BiFunction&lt;A, B, C&gt; f) {
+<span class="fc" id="L620">    int minSize = Math.min(list1.size(), list2.size());</span>
+<span class="fc" id="L621">    return zipWithTrampolineHelper(list1, list2, 0, minSize, f, new ArrayList&lt;&gt;(minSize)).run();</span>
+  }
+
+  private static &lt;A, B, C&gt; Trampoline&lt;List&lt;C&gt;&gt; zipWithTrampolineHelper(
+      List&lt;A&gt; list1, List&lt;B&gt; list2, int index, int limit, BiFunction&lt;A, B, C&gt; f, ArrayList&lt;C&gt; acc) {
+<span class="fc bfc" id="L626" title="All 2 branches covered.">    if (index &gt;= limit) {</span>
+<span class="fc" id="L627">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L629">    acc.add(f.apply(list1.get(index), list2.get(index)));</span>
+<span class="fc" id="L630">    return Trampoline.defer(() -&gt; zipWithTrampolineHelper(list1, list2, index + 1, limit, f, acc));</span>
+  }
+
+  /**
+   * Takes the first n elements from a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; firstThree = ListPrisms.takeTrampoline(numbers, 3);
+   * // firstThree = [1, 2, 3]
+   * }&lt;/pre&gt;
+   *
+   * @param list The source list.
+   * @param n The number of elements to take.
+   * @param &lt;A&gt; The element type.
+   * @return A new list with at most n elements.
+   */
+  public static &lt;A&gt; List&lt;A&gt; takeTrampoline(List&lt;A&gt; list, int n) {
+<span class="fc" id="L650">    int limit = Math.min(n, list.size());</span>
+<span class="fc" id="L651">    return takeTrampolineHelper(list, 0, limit, new ArrayList&lt;&gt;(limit)).run();</span>
+  }
+
+  private static &lt;A&gt; Trampoline&lt;List&lt;A&gt;&gt; takeTrampolineHelper(
+      List&lt;A&gt; list, int index, int limit, ArrayList&lt;A&gt; acc) {
+<span class="fc bfc" id="L656" title="All 2 branches covered.">    if (index &gt;= limit) {</span>
+<span class="fc" id="L657">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L659">    acc.add(list.get(index));</span>
+<span class="fc" id="L660">    return Trampoline.defer(() -&gt; takeTrampolineHelper(list, index + 1, limit, acc));</span>
+  }
+
+  /**
+   * Drops the first n elements from a list using trampolines for stack safety.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; lastTwo = ListPrisms.dropTrampoline(numbers, 3);
+   * // lastTwo = [4, 5]
+   * }&lt;/pre&gt;
+   *
+   * @param list The source list.
+   * @param n The number of elements to drop.
+   * @param &lt;A&gt; The element type.
+   * @return A new list with the first n elements removed.
+   */
+  public static &lt;A&gt; List&lt;A&gt; dropTrampoline(List&lt;A&gt; list, int n) {
+<span class="fc bfc" id="L680" title="All 2 branches covered.">    if (n &gt;= list.size()) {</span>
+<span class="fc" id="L681">      return List.of();</span>
+    }
+<span class="fc" id="L683">    return dropTrampolineHelper(list, n, new ArrayList&lt;&gt;(list.size() - n)).run();</span>
+  }
+
+  private static &lt;A&gt; Trampoline&lt;List&lt;A&gt;&gt; dropTrampolineHelper(
+      List&lt;A&gt; list, int index, ArrayList&lt;A&gt; acc) {
+<span class="fc bfc" id="L688" title="All 2 branches covered.">    if (index &gt;= list.size()) {</span>
+<span class="fc" id="L689">      return Trampoline.done(copyList(acc));</span>
+    }
+<span class="fc" id="L691">    acc.add(list.get(index));</span>
+<span class="fc" id="L692">    return Trampoline.defer(() -&gt; dropTrampolineHelper(list, index + 1, acc));</span>
+  }
+
+  /**
+   * Creates an unmodifiable copy of the given list that allows null elements.
+   *
+   * &lt;p&gt;Unlike {@link List#copyOf(java.util.Collection)}, this method permits null elements in the
+   * source list. The returned list is unmodifiable.
+   *
+   * @param &lt;A&gt; the element type
+   * @param list the list to copy
+   * @return an unmodifiable copy of the list
+   */
+  private static &lt;A&gt; List&lt;A&gt; copyList(List&lt;A&gt; list) {
+<span class="fc" id="L706">    return Collections.unmodifiableList(new ArrayList&lt;&gt;(list));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

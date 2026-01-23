@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IndexedTraversals.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.util</a> &gt; <span class="el_source">IndexedTraversals.java</span></div><h1>IndexedTraversals.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.util;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.optics.indexed.IndexedFold;
+import org.higherkindedj.optics.indexed.IndexedTraversal;
+import org.higherkindedj.optics.indexed.Pair;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * A final utility class providing static helper methods and factory functions for working with
+ * indexed optics.
+ *
+ * &lt;p&gt;This class provides:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Factory methods for creating indexed traversals for common data structures
+ *   &lt;li&gt;Convenience methods for modifying and extracting data with index awareness
+ *   &lt;li&gt;Composition helpers for building complex indexed optics
+ * &lt;/ul&gt;
+ */
+@NullMarked
+public final class IndexedTraversals {
+
+  /** Private constructor to prevent instantiation. */
+  private IndexedTraversals() {}
+
+  /**
+   * Creates an {@link IndexedTraversal} that focuses on every element within a {@link List}, with
+   * the element's index as the key.
+   *
+   * &lt;p&gt;This is the canonical indexed traversal for lists, providing zero-based integer indices.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; ilist = IndexedTraversals.forList();
+   *
+   * // Number each element
+   * List&lt;String&gt; numbered = imodify(ilist, (i, s) -&gt; s + &quot; #&quot; + i, List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   * // [&quot;a #0&quot;, &quot;b #1&quot;, &quot;c #2&quot;]
+   *
+   * // Process only even positions
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; evens = ilist.filterIndex(i -&gt; i % 2 == 0);
+   * List&lt;String&gt; modified = imodify(evens, (i, s) -&gt; s.toUpperCase(), List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;, &quot;d&quot;));
+   * // [&quot;A&quot;, &quot;b&quot;, &quot;C&quot;, &quot;d&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list
+   * @return An {@link IndexedTraversal} for list elements with their indices
+   */
+  public static &lt;A&gt; IndexedTraversal&lt;Integer, List&lt;A&gt;, A&gt; forList() {
+<span class="fc" id="L69">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; imodifyF(
+          BiFunction&lt;Integer, A, Kind&lt;F, A&gt;&gt; f, List&lt;A&gt; source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L74">          return app.of(source);</span>
+        }
+
+        // Apply f to each element with its index, collecting the results
+<span class="fc" id="L78">        List&lt;Kind&lt;F, A&gt;&gt; modifiedEffects = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        for (int i = 0; i &lt; source.size(); i++) {</span>
+<span class="fc" id="L80">          modifiedEffects.add(f.apply(i, source.get(i)));</span>
+        }
+
+        // Sequence the effects into a single effect containing the list
+<span class="fc" id="L84">        return sequenceList(modifiedEffects, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates an {@link IndexedTraversal} that focuses on every value within a {@link Map}, with the
+   * entry's key as the index.
+   *
+   * &lt;p&gt;This traversal provides access to all map values along with their keys.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;String, Map&lt;String, Integer&gt;, Integer&gt; imap = IndexedTraversals.forMap();
+   *
+   * Map&lt;String, Integer&gt; scores = Map.of(&quot;alice&quot;, 85, &quot;bob&quot;, 92, &quot;carol&quot;, 78);
+   *
+   * // Add prefix based on key
+   * Map&lt;String, String&gt; labeled = imodify(
+   *     IndexedTraversals.&lt;String, Integer&gt;forMap().andThen(intToStringTraversal),
+   *     (key, score) -&gt; key + &quot;: &quot; + score,
+   *     scores
+   * );
+   *
+   * // Get all key-value pairs
+   * List&lt;Pair&lt;String, Integer&gt;&gt; indexed = toIndexedList(imap, scores);
+   * // [Pair(&quot;alice&quot;, 85), Pair(&quot;bob&quot;, 92), Pair(&quot;carol&quot;, 78)]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;K&gt; The key type of the map
+   * @param &lt;V&gt; The value type of the map
+   * @return An {@link IndexedTraversal} for map values with their keys as indices
+   */
+  public static &lt;K, V&gt; IndexedTraversal&lt;K, Map&lt;K, V&gt;, V&gt; forMap() {
+<span class="fc" id="L119">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, Map&lt;K, V&gt;&gt; imodifyF(
+          BiFunction&lt;K, V, Kind&lt;F, V&gt;&gt; f, Map&lt;K, V&gt; source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L124">          return app.of(source);</span>
+        }
+
+        // Collect keys and effects separately
+<span class="fc" id="L128">        List&lt;K&gt; keys = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L129">        List&lt;Kind&lt;F, V&gt;&gt; effects = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        for (Map.Entry&lt;K, V&gt; entry : source.entrySet()) {</span>
+<span class="fc" id="L131">          keys.add(entry.getKey());</span>
+<span class="fc" id="L132">          effects.add(f.apply(entry.getKey(), entry.getValue()));</span>
+<span class="fc" id="L133">        }</span>
+
+        // Sequence all effects into a single Kind&lt;F, List&lt;V&gt;&gt;
+<span class="fc" id="L136">        Kind&lt;F, List&lt;V&gt;&gt; sequencedValues = sequenceList(effects, app);</span>
+
+        // Build the final map in one step
+<span class="fc" id="L139">        return app.map(</span>
+            newValues -&gt; {
+<span class="fc" id="L141">              Map&lt;K, V&gt; newMap = new HashMap&lt;&gt;(keys.size());</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">              for (int i = 0; i &lt; keys.size(); i++) {</span>
+<span class="fc" id="L143">                newMap.put(keys.get(i), newValues.get(i));</span>
+              }
+<span class="fc" id="L145">              return newMap;</span>
+            },
+            sequencedValues);
+      }
+    };
+  }
+
+  /**
+   * Creates an {@link IndexedFold} that focuses on every element within a {@link List}, with the
+   * element's index as the key.
+   *
+   * &lt;p&gt;This is the read-only version of {@link #forList()}.
+   *
+   * @param &lt;A&gt; The element type of the list
+   * @return An {@link IndexedFold} for list elements with their indices
+   */
+  public static &lt;A&gt; IndexedFold&lt;Integer, List&lt;A&gt;, A&gt; foldList() {
+<span class="fc" id="L162">    return IndexedTraversals.&lt;A&gt;forList().asIndexedFold();</span>
+  }
+
+  /**
+   * Creates an {@link IndexedFold} that focuses on every value within a {@link Map}, with the
+   * entry's key as the index.
+   *
+   * &lt;p&gt;This is the read-only version of {@link #forMap()}.
+   *
+   * @param &lt;K&gt; The key type of the map
+   * @param &lt;V&gt; The value type of the map
+   * @return An {@link IndexedFold} for map values with their keys as indices
+   */
+  public static &lt;K, V&gt; IndexedFold&lt;K, Map&lt;K, V&gt;, V&gt; foldMap() {
+<span class="fc" id="L176">    return IndexedTraversals.&lt;K, V&gt;forMap().asIndexedFold();</span>
+  }
+
+  /**
+   * Modifies all targets of an {@link IndexedTraversal} using a pure function that receives both
+   * index and value.
+   *
+   * &lt;p&gt;This is a convenience method that wraps the function in the {@link Id} monad and immediately
+   * unwraps the result.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; ilist = IndexedTraversals.forList();
+   * List&lt;String&gt; result = IndexedTraversals.imodify(
+   *     ilist,
+   *     (index, value) -&gt; value + &quot; at &quot; + index,
+   *     List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;)
+   * );
+   * // [&quot;a at 0&quot;, &quot;b at 1&quot;, &quot;c at 2&quot;]
+   * }&lt;/pre&gt;
+   *
+   * @param traversal The indexed traversal to use
+   * @param f A function that takes index and value, returning the new value
+   * @param source The source structure
+   * @param &lt;I&gt; The index type
+   * @param &lt;S&gt; The structure type
+   * @param &lt;A&gt; The element type
+   * @return A new, updated source structure
+   */
+  public static &lt;I, S, A&gt; @Nullable S imodify(
+      final IndexedTraversal&lt;I, S, A&gt; traversal, final BiFunction&lt;I, A, A&gt; f, final S source) {
+<span class="fc" id="L208">    BiFunction&lt;I, A, Kind&lt;IdKind.Witness, A&gt;&gt; fId = (i, a) -&gt; Id.of(f.apply(i, a));</span>
+<span class="fc" id="L209">    Kind&lt;IdKind.Witness, S&gt; resultInId = traversal.imodifyF(fId, source, IdMonad.instance());</span>
+<span class="fc" id="L210">    return IdKindHelper.ID.narrow(resultInId).value();</span>
+  }
+
+  /**
+   * Extracts all targets of an {@link IndexedTraversal} along with their indices.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;String&gt;, String&gt; ilist = IndexedTraversals.forList();
+   * List&lt;Pair&lt;Integer, String&gt;&gt; indexed = IndexedTraversals.toIndexedList(
+   *     ilist,
+   *     List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;)
+   * );
+   * // [Pair(0, &quot;a&quot;), Pair(1, &quot;b&quot;), Pair(2, &quot;c&quot;)]
+   * }&lt;/pre&gt;
+   *
+   * @param traversal The indexed traversal to use
+   * @param source The source structure
+   * @param &lt;I&gt; The index type
+   * @param &lt;S&gt; The structure type
+   * @param &lt;A&gt; The element type
+   * @return A list of index-value pairs
+   */
+  public static &lt;I, S, A&gt; List&lt;Pair&lt;I, A&gt;&gt; toIndexedList(
+      final IndexedTraversal&lt;I, S, A&gt; traversal, final S source) {
+<span class="fc" id="L236">    final List&lt;Pair&lt;I, A&gt;&gt; results = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L237">    traversal.imodifyF(</span>
+        (i, a) -&gt; {
+<span class="fc" id="L239">          results.add(new Pair&lt;&gt;(i, a));</span>
+<span class="fc" id="L240">          return Id.of(a);</span>
+        },
+        source,
+<span class="fc" id="L243">        IdMonad.instance());</span>
+<span class="fc" id="L244">    return results;</span>
+  }
+
+  /**
+   * Extracts all targets of an {@link IndexedTraversal}, discarding index information.
+   *
+   * @param traversal The indexed traversal to use
+   * @param source The source structure
+   * @param &lt;I&gt; The index type
+   * @param &lt;S&gt; The structure type
+   * @param &lt;A&gt; The element type
+   * @return A list of all focused values
+   */
+  public static &lt;I, S, A&gt; List&lt;A&gt; getAll(
+      final IndexedTraversal&lt;I, S, A&gt; traversal, final S source) {
+<span class="fc" id="L259">    final List&lt;A&gt; results = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L260">    traversal.imodifyF(</span>
+        (i, a) -&gt; {
+<span class="fc" id="L262">          results.add(a);</span>
+<span class="fc" id="L263">          return Id.of(a);</span>
+        },
+        source,
+<span class="fc" id="L266">        IdMonad.instance());</span>
+<span class="fc" id="L267">    return results;</span>
+  }
+
+  /**
+   * Counts the number of focused elements in the structure.
+   *
+   * @param traversal The indexed traversal to use
+   * @param source The source structure
+   * @param &lt;I&gt; The index type
+   * @param &lt;S&gt; The structure type
+   * @param &lt;A&gt; The element type
+   * @return The count of focused elements
+   */
+  public static &lt;I, S, A&gt; int length(final IndexedTraversal&lt;I, S, A&gt; traversal, final S source) {
+<span class="fc" id="L281">    return toIndexedList(traversal, source).size();</span>
+  }
+
+  /**
+   * Sequences a list of effects into a single effect containing a list.
+   *
+   * &lt;p&gt;This is a helper method for implementing indexed traversals over collections.
+   *
+   * @param effects List of effects to sequence
+   * @param app The Applicative instance
+   * @param &lt;F&gt; The effect type
+   * @param &lt;A&gt; The element type
+   * @return A single effect containing the list of results
+   */
+  public static &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;, A&gt; Kind&lt;F, List&lt;A&gt;&gt; sequenceList(
+      final List&lt;Kind&lt;F, A&gt;&gt; effects, final Applicative&lt;F&gt; app) {
+<span class="fc" id="L297">    Kind&lt;F, List&lt;A&gt;&gt; result = app.of(new ArrayList&lt;&gt;());</span>
+
+<span class="fc bfc" id="L299" title="All 2 branches covered.">    for (Kind&lt;F, A&gt; effect : effects) {</span>
+<span class="fc" id="L300">      result =</span>
+<span class="fc" id="L301">          app.map2(</span>
+              result,
+              effect,
+              (list, a) -&gt; {
+<span class="fc" id="L305">                List&lt;A&gt; newList = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L306">                newList.add(a);</span>
+<span class="fc" id="L307">                return newList;</span>
+              });
+<span class="fc" id="L309">    }</span>
+
+<span class="fc" id="L311">    return result;</span>
+  }
+
+  /**
+   * Creates an affine {@link IndexedTraversal} that focuses on a single value only if it matches
+   * the given index predicate.
+   *
+   * &lt;p&gt;This is useful for creating conditional indexed access patterns.
+   *
+   * @param indexPredicate Predicate on the index to determine if focusing should occur
+   * @param &lt;I&gt; The index type
+   * @param &lt;A&gt; The element type
+   * @return An indexed traversal that focuses based on index condition
+   */
+  public static &lt;I, A&gt; IndexedTraversal&lt;I, Pair&lt;I, A&gt;, A&gt; filteredByIndex(
+      final Predicate&lt;? super I&gt; indexPredicate) {
+<span class="fc" id="L327">    return new IndexedTraversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, Pair&lt;I, A&gt;&gt; imodifyF(
+          BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, Pair&lt;I, A&gt; source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        if (indexPredicate.test(source.first())) {</span>
+<span class="fc" id="L332">          return app.map(</span>
+<span class="fc" id="L333">              newA -&gt; new Pair&lt;&gt;(source.first(), newA), f.apply(source.first(), source.second()));</span>
+        } else {
+<span class="fc" id="L335">          return app.of(source);</span>
+        }
+      }
+    };
+  }
+
+  /**
+   * Converts a {@link Pair} to a {@link Tuple2}.
+   *
+   * &lt;p&gt;This is useful when you need to use the richer Tuple2 API from hkj-core after working with
+   * indexed optics.
+   *
+   * @param pair The pair to convert
+   * @param &lt;A&gt; The type of the first element
+   * @param &lt;B&gt; The type of the second element
+   * @return A Tuple2 with the same elements
+   */
+  public static &lt;A, B&gt; Tuple2&lt;A, B&gt; pairToTuple2(Pair&lt;A, B&gt; pair) {
+<span class="fc" id="L353">    return new Tuple2&lt;&gt;(pair.first(), pair.second());</span>
+  }
+
+  /**
+   * Converts a {@link Tuple2} to a {@link Pair}.
+   *
+   * &lt;p&gt;This is useful when you need to work with indexed optics APIs that use Pair.
+   *
+   * @param tuple The tuple to convert
+   * @param &lt;A&gt; The type of the first element
+   * @param &lt;B&gt; The type of the second element
+   * @return A Pair with the same elements
+   */
+  public static &lt;A, B&gt; Pair&lt;A, B&gt; tuple2ToPair(Tuple2&lt;A, B&gt; tuple) {
+<span class="fc" id="L367">    return new Pair&lt;&gt;(tuple._1(), tuple._2());</span>
+  }
+
+  /**
+   * Converts a list of {@link Pair}s to a list of {@link Tuple2}s.
+   *
+   * @param pairs The list of pairs to convert
+   * @param &lt;A&gt; The type of the first element
+   * @param &lt;B&gt; The type of the second element
+   * @return A list of Tuple2s
+   */
+  public static &lt;A, B&gt; List&lt;Tuple2&lt;A, B&gt;&gt; pairsToTuple2s(List&lt;Pair&lt;A, B&gt;&gt; pairs) {
+<span class="fc" id="L379">    List&lt;Tuple2&lt;A, B&gt;&gt; result = new ArrayList&lt;&gt;(pairs.size());</span>
+<span class="fc bfc" id="L380" title="All 2 branches covered.">    for (Pair&lt;A, B&gt; pair : pairs) {</span>
+<span class="fc" id="L381">      result.add(pairToTuple2(pair));</span>
+<span class="fc" id="L382">    }</span>
+<span class="fc" id="L383">    return result;</span>
+  }
+
+  /**
+   * Converts a list of {@link Tuple2}s to a list of {@link Pair}s.
+   *
+   * @param tuples The list of tuples to convert
+   * @param &lt;A&gt; The type of the first element
+   * @param &lt;B&gt; The type of the second element
+   * @return A list of Pairs
+   */
+  public static &lt;A, B&gt; List&lt;Pair&lt;A, B&gt;&gt; tuple2sToPairs(List&lt;Tuple2&lt;A, B&gt;&gt; tuples) {
+<span class="fc" id="L395">    List&lt;Pair&lt;A, B&gt;&gt; result = new ArrayList&lt;&gt;(tuples.size());</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">    for (Tuple2&lt;A, B&gt; tuple : tuples) {</span>
+<span class="fc" id="L397">      result.add(tuple2ToPair(tuple));</span>
+<span class="fc" id="L398">    }</span>
+<span class="fc" id="L399">    return result;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

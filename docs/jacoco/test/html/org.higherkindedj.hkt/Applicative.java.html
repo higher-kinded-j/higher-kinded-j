@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Applicative.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt</a> &gt; <span class="el_source">Applicative.java</span></div><h1>Applicative.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.function.Function5;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Represents the Applicative Functor type class, an algebraic structure that lies between {@link
+ * Functor} and {@link Monad} in terms of power.
+ *
+ * &lt;p&gt;An Applicative Functor allows for applying a function wrapped in a context (e.g., {@code
+ * Optional&lt;Function&lt;A,B&gt;&gt;}) to a value also wrapped in a context (e.g., {@code Optional&lt;A&gt;}),
+ * yielding a result in the same context (e.g., {@code Optional&lt;B&gt;}). This is more powerful than a
+ * {@link Functor}, which can only apply a pure function to a wrapped value.
+ *
+ * &lt;p&gt;Key properties and operations:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;It extends {@link Functor}, so it must provide a {@code map} operation.
+ *   &lt;li&gt;{@link #of(Object)} (also known as {@code pure} or {@code point}): Lifts a regular value
+ *       {@code A} into the applicative context {@code F&lt;A&gt;}.
+ *   &lt;li&gt;{@link #ap(Kind, Kind)} (apply): Takes a context containing a function {@code
+ *       F&lt;Function&lt;A,B&gt;&gt;} and a context containing a value {@code F&lt;A&gt;}, and returns a context
+ *       containing the result {@code F&lt;B&gt;}.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Applicative Functors must satisfy certain laws (related to identity, composition,
+ * homomorphism, and interchange), which ensure their behaviour is consistent and predictable. For
+ * example:
+ *
+ * &lt;pre&gt;
+ * 1. Identity:        ap(of(x -&gt; x), fa) == fa
+ * 2. Homomorphism:    ap(of(f), of(x)) == of(f.apply(x))
+ * 3. Interchange:     ap(ff, of(x)) == ap(of(f -&gt; f.apply(x)), ff)
+ * 4. Composition:     ap(ap(map(curry(compose), ff), fg), fa) == ap(ff, ap(fg, fa))
+ * (where compose is function composition, and curry converts (B-&gt;C) to A-&gt;B-&gt;C)
+ * &lt;/pre&gt;
+ *
+ * (Note: Proving these laws is typically done for specific implementations.)
+ *
+ * &lt;p&gt;The {@code mapN} methods (e.g., {@link #map2(Kind, Kind, BiFunction)}, {@link #map3(Kind,
+ * Kind, Kind, Function3)}) are convenient derived operations that allow combining multiple values
+ * within the applicative context using a pure N-ary function.
+ *
+ * @param &lt;F&gt; The higher-kinded type witness representing the type constructor of the applicative
+ *     context (e.g., {@code OptionalKind.Witness}, {@code ListKind.Witness}).
+ * @see Functor
+ * @see Monad
+ * @see Kind
+ */
+@NullMarked
+public interface Applicative&lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; extends Functor&lt;F&gt; {
+
+  /**
+   * Lifts a pure value {@code value} into the applicative context {@code F}. This is also known in
+   * other contexts as {@code pure}, {@code return} (in Haskell for Monads, which are Applicatives),
+   * or {@code unit}.
+   *
+   * &lt;p&gt;For example:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;For {@code Optional}, {@code of(x)} would be {@code Optional.ofNullable(x)}.
+   *   &lt;li&gt;For {@code List}, {@code of(x)} would be {@code List.of(x)}.
+   * &lt;/ul&gt;
+   *
+   * @param value The value to lift into the context. The nullability of this value depends on the
+   *     specific applicative context {@code F} (e.g., {@code Optional} can handle a {@code null}
+   *     input to become {@code Optional.empty()} or {@code Optional.ofNullable()}, while a custom
+   *     list might not allow null elements).
+   * @param &lt;A&gt; The type of the value being lifted.
+   * @return A non-null {@link Kind Kind&amp;lt;F, A&amp;gt;} representing the value {@code A} wrapped in
+   *     the applicative context {@code F}.
+   */
+  &lt;A&gt; Kind&lt;F, A&gt; of(@Nullable A value);
+
+  /**
+   * Applies a function wrapped in an applicative context {@code ff} to a value wrapped in the same
+   * applicative context {@code fa}.
+   *
+   * &lt;p&gt;This is the core operation distinguishing Applicatives from Functors. It allows function
+   * application where both the function and its arguments are &quot;effectful&quot; or &quot;contextual&quot;.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Assume OptionalApplicative implements Applicative&lt;OptionalKind.Witness&gt;
+   * Kind&lt;OptionalKind.Witness, Function&lt;Integer, String&gt;&gt; fOpt = OptionalApplicative.of(x -&gt; &quot;Value: &quot; + x);
+   * Kind&lt;OptionalKind.Witness, Integer&gt; valOpt = OptionalApplicative.of(10);
+   * Kind&lt;OptionalKind.Witness, String&gt; resultOpt = OptionalApplicative.ap(fOpt, valOpt);
+   * // resultOpt would be OptionalKind containing &quot;Value: 10&quot;
+   *
+   * Kind&lt;OptionalKind.Witness, Integer&gt; emptyOpt = OptionalApplicative.of(null); // or Optional.empty()
+   * Kind&lt;OptionalKind.Witness, String&gt; resultEmpty = OptionalApplicative.ap(fOpt, emptyOpt);
+   * // resultEmpty would be an empty OptionalKind
+   * }&lt;/pre&gt;
+   *
+   * @param ff A non-null {@link Kind Kind&amp;lt;F, Function&amp;lt;A, B&amp;gt;&amp;gt;} representing the function
+   *     wrapped in the applicative context {@code F}.
+   * @param fa A non-null {@link Kind Kind&amp;lt;F, A&amp;gt;} representing the argument value wrapped in
+   *     the applicative context {@code F}.
+   * @param &lt;A&gt; The input type of the function and the type of the value in {@code fa}.
+   * @param &lt;B&gt; The output type of the function and the type of the value in the resulting context.
+   * @return A non-null {@link Kind Kind&amp;lt;F, B&amp;gt;} representing the result of applying the
+   *     function within the context {@code F}. If either {@code ff} or {@code fa} represents an
+   *     &quot;empty&quot; or &quot;failed&quot; context (e.g., {@code Optional.empty()}), the result is typically also
+   *     such a context.
+   */
+  &lt;A, B&gt; Kind&lt;F, B&gt; ap(Kind&lt;F, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;F, A&gt; fa);
+
+  // --- mapN implementations ---
+
+  /**
+   * Combines two values {@code fa} and {@code fb}, both in the applicative context {@code F}, using
+   * a curried pure function {@code f: A -&gt; (B -&gt; C)}.
+   *
+   * &lt;p&gt;This version is implemented using the more common BiFunction-based map2.
+   *
+   * @param fa The first non-null applicative value {@code Kind&lt;F, A&gt;}.
+   * @param fb The second non-null applicative value {@code Kind&lt;F, B&gt;}.
+   * @param f A non-null pure function that takes a value of type {@code A} and returns a function
+   *     from {@code B} to {@code C}.
+   * @param &lt;A&gt; The type of the value in {@code fa}.
+   * @param &lt;B&gt; The type of the value in {@code fb}.
+   * @param &lt;C&gt; The type of the result of the combined computation.
+   * @return A non-null {@code Kind&lt;F, C&gt;} containing the result.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default &lt;A, B, C&gt; Kind&lt;F, C&gt; map2(
+      final Kind&lt;F, A&gt; fa, final Kind&lt;F, B&gt; fb, final Function&lt;A, Function&lt;B, C&gt;&gt; f) {
+    // Delegate to the BiFunction version, which is now the base implementation
+<span class="fc" id="L139">    return map2(fa, fb, (a, b) -&gt; f.apply(a).apply(b));</span>
+  }
+
+  /**
+   * Combines two values {@code fa} and {@code fb}, both in the applicative context {@code F}, using
+   * a pure {@link BiFunction BiFunction&amp;lt;A, B, C&amp;gt;}.
+   *
+   * &lt;p&gt;This is the primary, most flexible version of map2.
+   *
+   * @param fa The first non-null applicative value {@code Kind&lt;F, A&gt;}.
+   * @param fb The second non-null applicative value {@code Kind&lt;F, B&gt;}.
+   * @param f A non-null pure {@link BiFunction} to combine the values.
+   * @param &lt;A&gt; The type of the value in {@code fa}.
+   * @param &lt;B&gt; The type of the value in {@code fb}.
+   * @param &lt;C&gt; The type of the result of applying {@code f}.
+   * @return A non-null {@code Kind&lt;F, C&gt;} containing the result.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default &lt;A, B, C&gt; Kind&lt;F, C&gt; map2(
+      final Kind&lt;F, A&gt; fa,
+      final Kind&lt;F, B&gt; fb,
+      final BiFunction&lt;? super A, ? super B, ? extends C&gt; f) {
+<span class="fc" id="L161">    requireNonNull(fa, &quot;Kind&lt;F, A&gt; fa for map2 cannot be null&quot;);</span>
+<span class="fc" id="L162">    requireNonNull(fb, &quot;Kind&lt;F, B&gt; fb for map2 cannot be null&quot;);</span>
+<span class="fc" id="L163">    requireNonNull(f, &quot;combining function for map2 cannot be null&quot;);</span>
+    // The implementation is now based on map and ap, with a curried function.
+    // The key is that the lambda `a -&gt; b -&gt; f.apply(a, b)` helps the compiler
+    // resolve the wildcard types correctly before they are passed to map.
+<span class="fc" id="L167">    return ap(map(a -&gt; b -&gt; f.apply(a, b), fa), fb);</span>
+  }
+
+  /**
+   * Combines three values {@code fa}, {@code fb}, and {@code fc}, all in the applicative context
+   * {@code F}, using a pure {@link Function3 Function3&amp;lt;A, B, C, R&amp;gt;}.
+   *
+   * @param fa The first non-null applicative value {@code Kind&lt;F, A&gt;}.
+   * @param fb The second non-null applicative value {@code Kind&lt;F, B&gt;}.
+   * @param fc The third non-null applicative value {@code Kind&lt;F, C&gt;}.
+   * @param f A non-null pure {@link Function3} to combine the values from {@code fa}, {@code fb},
+   *     and {@code fc}.
+   * @param &lt;A&gt; The type of the value in {@code fa}.
+   * @param &lt;B&gt; The type of the value in {@code fb}.
+   * @param &lt;C&gt; The type of the value in {@code fc}.
+   * @param &lt;R&gt; The type of the result of applying {@code f}.
+   * @return A non-null {@code Kind&lt;F, R&gt;} containing the result of applying {@code f} to the values
+   *     from {@code fa}, {@code fb}, and {@code fc} within the context {@code F}.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default &lt;A, B, C, R&gt; Kind&lt;F, R&gt; map3(
+      final Kind&lt;F, A&gt; fa,
+      final Kind&lt;F, B&gt; fb,
+      final Kind&lt;F, C&gt; fc,
+      final Function3&lt;? super A, ? super B, ? super C, ? extends R&gt; f) {
+<span class="fc" id="L192">    requireNonNull(fa, &quot;Kind&lt;F, A&gt; fa for map3 cannot be null&quot;);</span>
+<span class="fc" id="L193">    requireNonNull(fb, &quot;Kind&lt;F, B&gt; fb for map3 cannot be null&quot;);</span>
+<span class="fc" id="L194">    requireNonNull(fc, &quot;Kind&lt;F, C&gt; fc for map3 cannot be null&quot;);</span>
+<span class="fc" id="L195">    requireNonNull(f, &quot;combining function for map3 cannot be null&quot;);</span>
+<span class="fc" id="L196">    return ap(map2(fa, fb, (a, b) -&gt; c -&gt; requireNonNull(f.apply(a, b, c))), fc);</span>
+  }
+
+  /**
+   * Combines four values {@code fa}, {@code fb}, {@code fc}, and {@code fd}, all in the applicative
+   * context {@code F}, using a pure {@link Function4 Function4&amp;lt;A, B, C, D, R&amp;gt;}.
+   *
+   * @param fa The first non-null applicative value {@code Kind&lt;F, A&gt;}.
+   * @param fb The second non-null applicative value {@code Kind&lt;F, B&gt;}.
+   * @param fc The third non-null applicative value {@code Kind&lt;F, C&gt;}.
+   * @param fd The fourth non-null applicative value {@code Kind&lt;F, D&gt;}.
+   * @param f A non-null pure {@link Function4} to combine the values.
+   * @param &lt;A&gt; The type of the value in {@code fa}.
+   * @param &lt;B&gt; The type of the value in {@code fb}.
+   * @param &lt;C&gt; The type of the value in {@code fc}.
+   * @param &lt;D&gt; The type of the value in {@code fd}.
+   * @param &lt;R&gt; The type of the result of applying {@code f}.
+   * @return A non-null {@code Kind&lt;F, R&gt;} containing the result of applying {@code f} to the values
+   *     from the four applicative arguments within the context {@code F}.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default &lt;A, B, C, D, R&gt; Kind&lt;F, R&gt; map4(
+      final Kind&lt;F, A&gt; fa,
+      final Kind&lt;F, B&gt; fb,
+      final Kind&lt;F, C&gt; fc,
+      final Kind&lt;F, D&gt; fd,
+      final Function4&lt;? super A, ? super B, ? super C, ? super D, ? extends R&gt; f) {
+<span class="fc" id="L223">    requireNonNull(fa, &quot;Kind&lt;F, A&gt; fa for map4 cannot be null&quot;);</span>
+<span class="fc" id="L224">    requireNonNull(fb, &quot;Kind&lt;F, B&gt; fb for map4 cannot be null&quot;);</span>
+<span class="fc" id="L225">    requireNonNull(fc, &quot;Kind&lt;F, C&gt; fc for map4 cannot be null&quot;);</span>
+<span class="fc" id="L226">    requireNonNull(fd, &quot;Kind&lt;F, D&gt; fd for map4 cannot be null&quot;);</span>
+<span class="fc" id="L227">    requireNonNull(f, &quot;combining function for map4 cannot be null&quot;);</span>
+<span class="fc" id="L228">    return ap(map3(fa, fb, fc, (a, b, c) -&gt; d -&gt; requireNonNull(f.apply(a, b, c, d))), fd);</span>
+  }
+
+  /**
+   * Combines five values {@code fa}, {@code fb}, {@code fc}, {@code fd}, and {@code fe}, all in the
+   * applicative context {@code F}, using a pure {@link Function5 Function5&amp;lt;A, B, C, D, E,
+   * R&amp;gt;}.
+   *
+   * @param fa The first non-null applicative value {@code Kind&lt;F, A&gt;}.
+   * @param fb The second non-null applicative value {@code Kind&lt;F, B&gt;}.
+   * @param fc The third non-null applicative value {@code Kind&lt;F, C&gt;}.
+   * @param fd The fourth non-null applicative value {@code Kind&lt;F, D&gt;}.
+   * @param fe The fifth non-null applicative value {@code Kind&lt;F, E&gt;}.
+   * @param f A non-null pure {@link Function5} to combine the values.
+   * @param &lt;A&gt; The type of the value in {@code fa}.
+   * @param &lt;B&gt; The type of the value in {@code fb}.
+   * @param &lt;C&gt; The type of the value in {@code fc}.
+   * @param &lt;D&gt; The type of the value in {@code fd}.
+   * @param &lt;E&gt; The type of the value in {@code fe}.
+   * @param &lt;R&gt; The type of the result of applying {@code f}.
+   * @return A non-null {@code Kind&lt;F, R&gt;} containing the result of applying {@code f} to the values
+   *     from the five applicative arguments within the context {@code F}.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default &lt;A, B, C, D, E, R&gt; Kind&lt;F, R&gt; map5(
+      final Kind&lt;F, A&gt; fa,
+      final Kind&lt;F, B&gt; fb,
+      final Kind&lt;F, C&gt; fc,
+      final Kind&lt;F, D&gt; fd,
+      final Kind&lt;F, E&gt; fe,
+      final Function5&lt;? super A, ? super B, ? super C, ? super D, ? super E, ? extends R&gt; f) {
+<span class="fc" id="L259">    requireNonNull(fa, &quot;Kind&lt;F, A&gt; fa for map5 cannot be null&quot;);</span>
+<span class="fc" id="L260">    requireNonNull(fb, &quot;Kind&lt;F, B&gt; fb for map5 cannot be null&quot;);</span>
+<span class="fc" id="L261">    requireNonNull(fc, &quot;Kind&lt;F, C&gt; fc for map5 cannot be null&quot;);</span>
+<span class="fc" id="L262">    requireNonNull(fd, &quot;Kind&lt;F, D&gt; fd for map5 cannot be null&quot;);</span>
+<span class="fc" id="L263">    requireNonNull(fe, &quot;Kind&lt;F, E&gt; fe for map5 cannot be null&quot;);</span>
+<span class="fc" id="L264">    requireNonNull(f, &quot;combining function for map5 cannot be null&quot;);</span>
+<span class="fc" id="L265">    return ap(</span>
+<span class="fc" id="L266">        map4(fa, fb, fc, fd, (a, b, c, d) -&gt; e -&gt; requireNonNull(f.apply(a, b, c, d, e))), fe);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

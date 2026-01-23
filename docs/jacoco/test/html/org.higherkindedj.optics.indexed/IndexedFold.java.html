@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IndexedFold.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.indexed</a> &gt; <span class="el_source">IndexedFold.java</span></div><h1>IndexedFold.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.indexed;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.optics.Fold;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * An indexed fold for read-only querying and extraction with access to indices.
+ *
+ * &lt;p&gt;An {@code IndexedFold} is the indexed equivalent of a {@link Fold}. While a regular fold
+ * allows you to query and extract multiple elements from a structure, an indexed fold also provides
+ * the index/position of each element, enabling position-aware queries.
+ *
+ * &lt;p&gt;Common use cases include:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Extracting elements with their positions: {@code toIndexedList()}
+ *   &lt;li&gt;Finding elements by position-aware criteria
+ *   &lt;li&gt;Aggregating with position weighting
+ *   &lt;li&gt;Debugging: tracking which positions contain certain values
+ * &lt;/ul&gt;
+ *
+ * @param &lt;I&gt; The index type (e.g., Integer for lists, K for Map&amp;lt;K, V&amp;gt;)
+ * @param &lt;S&gt; The source structure type
+ * @param &lt;A&gt; The focused element type
+ */
+@NullMarked
+public interface IndexedFold&lt;I, S, A&gt; extends IndexedOptic&lt;I, S, A&gt; {
+
+  /**
+   * Folds all focused parts into a summary value using a {@link Monoid}, with access to both index
+   * and value.
+   *
+   * &lt;p&gt;This is the fundamental operation of an IndexedFold. It maps each focused part {@code A}
+   * along with its index {@code I} to a monoidal value {@code M}, then combines all these values
+   * using the monoid's {@code combine} operation.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Weight prices by position (earlier items cost more)
+   * Monoid&lt;Double&gt; sumMonoid = Monoid.of(0.0, Double::sum);
+   * double weightedTotal = itemsFold.ifoldMap(
+   *     sumMonoid,
+   *     (index, item) -&gt; item.price() * (1.0 - index * 0.1),
+   *     order
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param monoid The {@link Monoid} used to combine the mapped values
+   * @param f The function to map each index-value pair to the monoidal type {@code M}
+   * @param source The source structure
+   * @param &lt;M&gt; The monoidal type
+   * @return The aggregated result of type {@code M}
+   */
+  &lt;M&gt; M ifoldMap(Monoid&lt;M&gt; monoid, BiFunction&lt;? super I, ? super A, ? extends M&gt; f, S source);
+
+  /**
+   * {@inheritDoc}
+   *
+   * &lt;p&gt;Default implementation that uses ifoldMap to apply the effectful function to each element.
+   */
+  @Override
+  default &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, S&gt; imodifyF(
+      BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+    // For IndexedFold, we traverse and apply effects but don't modify the structure
+    // Note: We use Unit.INSTANCE instead of null to avoid issues with Applicatives
+    // where of(null) produces an empty/failure result (e.g., OptionalMonad).
+<span class="fc" id="L83">    Monoid&lt;Kind&lt;F, Unit&gt;&gt; effectMonoid =</span>
+<span class="fc" id="L84">        new Monoid&lt;&gt;() {</span>
+          @Override
+          public Kind&lt;F, Unit&gt; empty() {
+<span class="fc" id="L87">            return app.of(Unit.INSTANCE);</span>
+          }
+
+          @Override
+          public Kind&lt;F, Unit&gt; combine(Kind&lt;F, Unit&gt; a, Kind&lt;F, Unit&gt; b) {
+<span class="fc" id="L92">            return app.map2(a, b, (v1, v2) -&gt; Unit.INSTANCE);</span>
+          }
+        };
+
+<span class="fc" id="L96">    Kind&lt;F, Unit&gt; effects =</span>
+<span class="fc" id="L97">        ifoldMap(effectMonoid, (i, a) -&gt; app.map(ignored -&gt; Unit.INSTANCE, f.apply(i, a)), source);</span>
+
+<span class="fc" id="L99">    return app.map(ignored -&gt; source, effects);</span>
+  }
+
+  /**
+   * Extracts all focused parts along with their indices into a list of pairs.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedFold&lt;Integer, List&lt;String&gt;, String&gt; ifold = IndexedTraversals.forList();
+   * List&lt;Pair&lt;Integer, String&gt;&gt; indexed = ifold.toIndexedList(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   * // [Pair(0, &quot;a&quot;), Pair(1, &quot;b&quot;), Pair(2, &quot;c&quot;)]
+   * }&lt;/pre&gt;
+   *
+   * @param source The source structure
+   * @return A list of index-value pairs in traversal order
+   */
+  default List&lt;Pair&lt;I, A&gt;&gt; toIndexedList(S source) {
+<span class="fc" id="L117">    final List&lt;Pair&lt;I, A&gt;&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L118">    Monoid&lt;Void&gt; accumulatorMonoid =</span>
+<span class="fc" id="L119">        new Monoid&lt;&gt;() {</span>
+          @Override
+          public Void empty() {
+<span class="fc" id="L122">            return null;</span>
+          }
+
+          @Override
+          public Void combine(Void a, Void b) {
+<span class="fc" id="L127">            return null;</span>
+          }
+        };
+
+<span class="fc" id="L131">    ifoldMap(</span>
+        accumulatorMonoid,
+        (i, a) -&gt; {
+<span class="fc" id="L134">          result.add(new Pair&lt;&gt;(i, a));</span>
+<span class="fc" id="L135">          return null;</span>
+        },
+        source);
+<span class="fc" id="L138">    return result;</span>
+  }
+
+  /**
+   * Extracts all focused parts, discarding index information.
+   *
+   * @param source The source structure
+   * @return A list of all focused values
+   */
+  default List&lt;A&gt; getAll(S source) {
+<span class="fc" id="L148">    final List&lt;A&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L149">    Monoid&lt;Void&gt; accumulatorMonoid =</span>
+<span class="fc" id="L150">        new Monoid&lt;&gt;() {</span>
+          @Override
+          public Void empty() {
+<span class="fc" id="L153">            return null;</span>
+          }
+
+          @Override
+          public Void combine(Void a, Void b) {
+<span class="fc" id="L158">            return null;</span>
+          }
+        };
+
+<span class="fc" id="L162">    ifoldMap(</span>
+        accumulatorMonoid,
+        (i, a) -&gt; {
+<span class="fc" id="L165">          result.add(a);</span>
+<span class="fc" id="L166">          return null;</span>
+        },
+        source);
+<span class="fc" id="L169">    return result;</span>
+  }
+
+  /**
+   * Finds the first element that satisfies a predicate based on both index and value.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // Find first element at an even position with value &gt; 10
+   * Optional&lt;Pair&lt;Integer, Integer&gt;&gt; found = ifold.findWithIndex(
+   *     (index, value) -&gt; index % 2 == 0 &amp;&amp; value &gt; 10,
+   *     source
+   * );
+   * }&lt;/pre&gt;
+   *
+   * @param predicate Predicate that takes both index and value
+   * @param source The source structure
+   * @return The first matching index-value pair, or empty if none found
+   */
+  default Optional&lt;Pair&lt;I, A&gt;&gt; findWithIndex(
+      BiPredicate&lt;? super I, ? super A&gt; predicate, S source) {
+<span class="fc" id="L191">    return ifoldMap(</span>
+<span class="fc" id="L192">        firstOptionalMonoid(),</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">        (i, a) -&gt; predicate.test(i, a) ? Optional.of(new Pair&lt;&gt;(i, a)) : Optional.empty(),</span>
+        source);
+  }
+
+  /**
+   * Finds the first element that satisfies a predicate on the value.
+   *
+   * @param predicate Predicate on the focused value
+   * @param source The source structure
+   * @return The first matching index-value pair, or empty if none found
+   */
+  default Optional&lt;Pair&lt;I, A&gt;&gt; find(Predicate&lt;? super A&gt; predicate, S source) {
+<span class="fc" id="L205">    return findWithIndex((i, a) -&gt; predicate.test(a), source);</span>
+  }
+
+  /**
+   * Checks if any element satisfies a predicate based on both index and value.
+   *
+   * @param predicate Predicate that takes both index and value
+   * @param source The source structure
+   * @return true if any element matches, false otherwise
+   */
+  default boolean existsWithIndex(BiPredicate&lt;? super I, ? super A&gt; predicate, S source) {
+<span class="fc" id="L216">    return ifoldMap(anyBooleanMonoid(), (i, a) -&gt; predicate.test(i, a), source);</span>
+  }
+
+  /**
+   * Checks if any element satisfies a predicate on the value.
+   *
+   * @param predicate Predicate on the focused value
+   * @param source The source structure
+   * @return true if any element matches, false otherwise
+   */
+  default boolean exists(Predicate&lt;? super A&gt; predicate, S source) {
+<span class="fc" id="L227">    return existsWithIndex((i, a) -&gt; predicate.test(a), source);</span>
+  }
+
+  /**
+   * Checks if all elements satisfy a predicate based on both index and value.
+   *
+   * @param predicate Predicate that takes both index and value
+   * @param source The source structure
+   * @return true if all elements match (or if empty), false otherwise
+   */
+  default boolean allWithIndex(BiPredicate&lt;? super I, ? super A&gt; predicate, S source) {
+<span class="fc" id="L238">    return ifoldMap(allBooleanMonoid(), (i, a) -&gt; predicate.test(i, a), source);</span>
+  }
+
+  /**
+   * Checks if all elements satisfy a predicate on the value.
+   *
+   * @param predicate Predicate on the focused value
+   * @param source The source structure
+   * @return true if all elements match (or if empty), false otherwise
+   */
+  default boolean all(Predicate&lt;? super A&gt; predicate, S source) {
+<span class="fc" id="L249">    return allWithIndex((i, a) -&gt; predicate.test(a), source);</span>
+  }
+
+  /**
+   * Counts the number of focused parts in the structure.
+   *
+   * @param source The source structure
+   * @return The number of focused parts
+   */
+  default int length(S source) {
+<span class="fc" id="L259">    return ifoldMap(sumIntMonoid(), (i, a) -&gt; 1, source);</span>
+  }
+
+  /**
+   * Checks if there are no focused parts in the structure.
+   *
+   * @param source The source structure
+   * @return true if no focused parts, false otherwise
+   */
+  default boolean isEmpty(S source) {
+<span class="fc bfc" id="L269" title="All 2 branches covered.">    return length(source) == 0;</span>
+  }
+
+  /**
+   * Composes this {@code IndexedFold&lt;I, S, A&gt;} with another {@code IndexedFold&lt;J, A, B&gt;} to create
+   * a new {@code IndexedFold&lt;Pair&lt;I, J&gt;, S, B&gt;} with paired indices.
+   *
+   * @param other The {@link IndexedFold} to compose with
+   * @param &lt;J&gt; The index type of the other fold
+   * @param &lt;B&gt; The focus type of the other fold
+   * @return A new {@link IndexedFold} with paired indices
+   */
+  default &lt;J, B&gt; IndexedFold&lt;Pair&lt;I, J&gt;, S, B&gt; iandThen(IndexedFold&lt;J, A, B&gt; other) {
+<span class="fc" id="L282">    IndexedFold&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L283">    return new IndexedFold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M ifoldMap(
+          Monoid&lt;M&gt; monoid, BiFunction&lt;? super Pair&lt;I, J&gt;, ? super B, ? extends M&gt; f, S source) {
+<span class="fc" id="L287">        return self.ifoldMap(</span>
+            monoid,
+<span class="fc" id="L289">            (i, a) -&gt; other.ifoldMap(monoid, (j, b) -&gt; f.apply(new Pair&lt;&gt;(i, j), b), a),</span>
+            source);
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code IndexedFold&lt;I, S, A&gt;} with a regular {@code Fold&lt;A, B&gt;} to create a new
+   * {@code IndexedFold&lt;I, S, B&gt;} that preserves the outer index.
+   *
+   * @param other The {@link Fold} to compose with
+   * @param &lt;B&gt; The focus type of the other fold
+   * @return A new {@link IndexedFold} preserving the outer index
+   */
+  default &lt;B&gt; IndexedFold&lt;I, S, B&gt; andThen(Fold&lt;A, B&gt; other) {
+<span class="fc" id="L304">    IndexedFold&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L305">    return new IndexedFold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M ifoldMap(
+          Monoid&lt;M&gt; monoid, BiFunction&lt;? super I, ? super B, ? extends M&gt; f, S source) {
+<span class="fc" id="L309">        return self.ifoldMap(</span>
+<span class="fc" id="L310">            monoid, (i, a) -&gt; other.foldMap(monoid, b -&gt; f.apply(i, b), a), source);</span>
+      }
+    };
+  }
+
+  /**
+   * Filters elements based on their index.
+   *
+   * @param predicate Predicate on the index
+   * @return A new indexed fold that only focuses on matching indices
+   */
+  default IndexedFold&lt;I, S, A&gt; filterIndex(Predicate&lt;? super I&gt; predicate) {
+<span class="fc" id="L322">    IndexedFold&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L323">    return new IndexedFold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M ifoldMap(
+          Monoid&lt;M&gt; monoid, BiFunction&lt;? super I, ? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L327">        return self.ifoldMap(</span>
+<span class="fc bfc" id="L328" title="All 2 branches covered.">            monoid, (i, a) -&gt; predicate.test(i) ? f.apply(i, a) : monoid.empty(), source);</span>
+      }
+    };
+  }
+
+  /**
+   * Filters elements based on their value.
+   *
+   * @param predicate Predicate on the focused value
+   * @return A new indexed fold that only focuses on matching values
+   */
+  default IndexedFold&lt;I, S, A&gt; filtered(Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L340">    IndexedFold&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L341">    return new IndexedFold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M ifoldMap(
+          Monoid&lt;M&gt; monoid, BiFunction&lt;? super I, ? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L345">        return self.ifoldMap(</span>
+<span class="fc bfc" id="L346" title="All 2 branches covered.">            monoid, (i, a) -&gt; predicate.test(a) ? f.apply(i, a) : monoid.empty(), source);</span>
+      }
+    };
+  }
+
+  /**
+   * Views this {@code IndexedFold} as a regular (non-indexed) {@link Fold}.
+   *
+   * @return A {@link Fold} that ignores index information
+   */
+  default Fold&lt;S, A&gt; asFold() {
+<span class="fc" id="L357">    IndexedFold&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L358">    return new Fold&lt;&gt;() {</span>
+      @Override
+      public &lt;M&gt; M foldMap(Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, S source) {
+<span class="fc" id="L361">        return self.ifoldMap(monoid, (i, a) -&gt; f.apply(a), source);</span>
+      }
+    };
+  }
+
+  // Private helper monoids
+
+  private static &lt;T&gt; Monoid&lt;Optional&lt;T&gt;&gt; firstOptionalMonoid() {
+<span class="fc" id="L369">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Optional&lt;T&gt; empty() {
+<span class="fc" id="L372">        return Optional.empty();</span>
+      }
+
+      @Override
+      public Optional&lt;T&gt; combine(Optional&lt;T&gt; a, Optional&lt;T&gt; b) {
+<span class="fc bfc" id="L377" title="All 2 branches covered.">        return a.isPresent() ? a : b;</span>
+      }
+    };
+  }
+
+  private static Monoid&lt;Integer&gt; sumIntMonoid() {
+<span class="fc" id="L383">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Integer empty() {
+<span class="fc" id="L386">        return 0;</span>
+      }
+
+      @Override
+      public Integer combine(Integer a, Integer b) {
+<span class="fc" id="L391">        return a + b;</span>
+      }
+    };
+  }
+
+  private static Monoid&lt;Boolean&gt; anyBooleanMonoid() {
+<span class="fc" id="L397">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Boolean empty() {
+<span class="fc" id="L400">        return false;</span>
+      }
+
+      @Override
+      public Boolean combine(Boolean a, Boolean b) {
+<span class="fc bfc" id="L405" title="All 4 branches covered.">        return a || b;</span>
+      }
+    };
+  }
+
+  private static Monoid&lt;Boolean&gt; allBooleanMonoid() {
+<span class="fc" id="L411">    return new Monoid&lt;&gt;() {</span>
+      @Override
+      public Boolean empty() {
+<span class="fc" id="L414">        return true;</span>
+      }
+
+      @Override
+      public Boolean combine(Boolean a, Boolean b) {
+<span class="fc bfc" id="L419" title="All 4 branches covered.">        return a &amp;&amp; b;</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
