@@ -4,8 +4,10 @@ package org.higherkindedj.hkt.context;
 
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
@@ -146,6 +148,72 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
   static <R, A> Context<R, A> fail(Throwable error) {
     Objects.requireNonNull(error, "error cannot be null");
     return new Failed<>(error);
+  }
+
+  // ===== COMBINATOR METHODS =====
+
+  /**
+   * Combines two {@code Context} values using a combining function.
+   *
+   * <p>This is a convenience method that avoids nested {@code flatMap} calls when combining two
+   * context computations.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Context<String, Integer> getAge = Context.asks(USER_KEY, User::age);
+   * Context<String, String> getName = Context.asks(USER_KEY, User::name);
+   *
+   * Context<String, String> greeting = Context.map2(
+   *     getAge,
+   *     getName,
+   *     (age, name) -> name + " is " + age + " years old"
+   * );
+   * }</pre>
+   *
+   * @param ca The first context. Must not be null.
+   * @param cb The second context. Must not be null.
+   * @param f The combining function. Must not be null.
+   * @param <R> The type of the scoped value.
+   * @param <A> The type of the first context's result.
+   * @param <B> The type of the second context's result.
+   * @param <C> The type of the combined result.
+   * @return A {@code Context<R, C>} that combines both results.
+   * @throws NullPointerException if any argument is null.
+   */
+  static <R, A, B, C> Context<R, C> map2(
+      Context<R, A> ca, Context<R, B> cb, BiFunction<? super A, ? super B, ? extends C> f) {
+    Objects.requireNonNull(ca, "ca cannot be null");
+    Objects.requireNonNull(cb, "cb cannot be null");
+    Objects.requireNonNull(f, "f cannot be null");
+    return ca.flatMap(a -> cb.map(b -> f.apply(a, b)));
+  }
+
+  /**
+   * Combines three {@code Context} values using a combining function.
+   *
+   * <p>This is a convenience method that avoids deeply nested {@code flatMap} calls when combining
+   * three context computations.
+   *
+   * @param ca The first context. Must not be null.
+   * @param cb The second context. Must not be null.
+   * @param cc The third context. Must not be null.
+   * @param f The combining function. Must not be null.
+   * @param <R> The type of the scoped value.
+   * @param <A> The type of the first context's result.
+   * @param <B> The type of the second context's result.
+   * @param <C> The type of the third context's result.
+   * @param <D> The type of the combined result.
+   * @return A {@code Context<R, D>} that combines all results.
+   * @throws NullPointerException if any argument is null.
+   */
+  static <R, A, B, C, D> Context<R, D> map3(
+      Context<R, A> ca, Context<R, B> cb, Context<R, C> cc, Function3<? super A, ? super B, ? super C, ? extends D> f) {
+    Objects.requireNonNull(ca, "ca cannot be null");
+    Objects.requireNonNull(cb, "cb cannot be null");
+    Objects.requireNonNull(cc, "cc cannot be null");
+    Objects.requireNonNull(f, "f cannot be null");
+    return ca.flatMap(a -> cb.flatMap(b -> cc.map(c -> f.apply(a, b, c))));
   }
 
   // ===== COMPOSITION METHODS =====

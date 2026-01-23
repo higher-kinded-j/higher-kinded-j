@@ -148,6 +148,131 @@ class ContextTest {
         assertThatThrownBy(ctx::run).isSameAs(checkedException);
       }
     }
+
+    @Nested
+    @DisplayName("map2()")
+    class Map2Tests {
+
+      @Test
+      @DisplayName("map2() should combine two contexts")
+      void map2_shouldCombineTwoContexts() throws Exception {
+        Context<String, String> ca = Context.ask(STRING_KEY);
+        Context<String, Integer> cb = Context.succeed(42);
+
+        Context<String, String> result = Context.map2(ca, cb, (s, n) -> s + ":" + n);
+
+        String value = ScopedValue.where(STRING_KEY, "hello").call(result::run);
+        assertThat(value).isEqualTo("hello:42");
+      }
+
+      @Test
+      @DisplayName("map2() should propagate failure from first context")
+      void map2_shouldPropagateFirstFailure() {
+        RuntimeException error = new RuntimeException("first error");
+        Context<String, String> ca = Context.fail(error);
+        Context<String, Integer> cb = Context.succeed(42);
+
+        Context<String, String> result = Context.map2(ca, cb, (s, n) -> s + ":" + n);
+
+        assertThatThrownBy(result::run).isSameAs(error);
+      }
+
+      @Test
+      @DisplayName("map2() should propagate failure from second context")
+      void map2_shouldPropagateSecondFailure() {
+        RuntimeException error = new RuntimeException("second error");
+        Context<String, String> ca = Context.succeed("hello");
+        Context<String, Integer> cb = Context.fail(error);
+
+        Context<String, String> result = Context.map2(ca, cb, (s, n) -> s + ":" + n);
+
+        assertThatThrownBy(result::run).isSameAs(error);
+      }
+
+      @Test
+      @DisplayName("map2() should throw for null first context")
+      void map2_shouldThrowForNullFirstContext() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> Context.map2(null, Context.succeed(1), (a, b) -> a))
+            .withMessageContaining("ca cannot be null");
+      }
+
+      @Test
+      @DisplayName("map2() should throw for null second context")
+      void map2_shouldThrowForNullSecondContext() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> Context.map2(Context.succeed("a"), null, (a, b) -> a))
+            .withMessageContaining("cb cannot be null");
+      }
+
+      @Test
+      @DisplayName("map2() should throw for null function")
+      void map2_shouldThrowForNullFunction() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> Context.map2(Context.succeed("a"), Context.succeed(1), null))
+            .withMessageContaining("f cannot be null");
+      }
+    }
+
+    @Nested
+    @DisplayName("map3()")
+    class Map3Tests {
+
+      @Test
+      @DisplayName("map3() should combine three contexts")
+      void map3_shouldCombineThreeContexts() throws Exception {
+        Context<String, String> ca = Context.ask(STRING_KEY);
+        Context<String, Integer> cb = Context.succeed(42);
+        Context<String, Boolean> cc = Context.succeed(true);
+
+        Context<String, String> result =
+            Context.map3(ca, cb, cc, (s, n, b) -> s + ":" + n + ":" + b);
+
+        String value = ScopedValue.where(STRING_KEY, "hello").call(result::run);
+        assertThat(value).isEqualTo("hello:42:true");
+      }
+
+      @Test
+      @DisplayName("map3() should propagate failure from any context")
+      void map3_shouldPropagateFailure() {
+        RuntimeException error = new RuntimeException("error");
+        Context<String, String> ca = Context.succeed("hello");
+        Context<String, Integer> cb = Context.fail(error);
+        Context<String, Boolean> cc = Context.succeed(true);
+
+        Context<String, String> result =
+            Context.map3(ca, cb, cc, (s, n, b) -> s + ":" + n + ":" + b);
+
+        assertThatThrownBy(result::run).isSameAs(error);
+      }
+
+      @Test
+      @DisplayName("map3() should throw for null arguments")
+      void map3_shouldThrowForNullArguments() {
+        assertThatNullPointerException()
+            .isThrownBy(
+                () -> Context.map3(null, Context.succeed(1), Context.succeed(true), (a, b, c) -> a))
+            .withMessageContaining("ca cannot be null");
+
+        assertThatNullPointerException()
+            .isThrownBy(
+                () ->
+                    Context.map3(Context.succeed("a"), null, Context.succeed(true), (a, b, c) -> a))
+            .withMessageContaining("cb cannot be null");
+
+        assertThatNullPointerException()
+            .isThrownBy(
+                () -> Context.map3(Context.succeed("a"), Context.succeed(1), null, (a, b, c) -> a))
+            .withMessageContaining("cc cannot be null");
+
+        assertThatNullPointerException()
+            .isThrownBy(
+                () ->
+                    Context.map3(
+                        Context.succeed("a"), Context.succeed(1), Context.succeed(true), null))
+            .withMessageContaining("f cannot be null");
+      }
+    }
   }
 
   @Nested
