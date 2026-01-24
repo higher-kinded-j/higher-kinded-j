@@ -269,6 +269,17 @@ Ready-to-use patterns for common optics use cases.
 | [CompositionRecipes.java](src/main/java/org/higherkindedj/example/optics/cookbook/CompositionRecipes.java) | Recipes for optic composition | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.cookbook.CompositionRecipes` | [Cookbook](https://higher-kinded-j.github.io/latest/optics/cookbook.html) |
 | [ConditionalUpdateRecipes.java](src/main/java/org/higherkindedj/example/optics/cookbook/ConditionalUpdateRecipes.java) | Recipes for conditional updates | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.cookbook.ConditionalUpdateRecipes` | [Cookbook](https://higher-kinded-j.github.io/latest/optics/cookbook.html) |
 
+### Importing External Optics
+
+Examples demonstrating the `@ImportOptics` annotation for generating optics for external types you don't own.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [ImportOpticsBasicExample.java](src/main/java/org/higherkindedj/example/optics/importoptics/ImportOpticsBasicExample.java) | Basic usage with java.time types (LocalDate, LocalTime) | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.importoptics.ImportOpticsBasicExample` | [Importing Optics](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) |
+| [ImportOpticsCompositionExample.java](src/main/java/org/higherkindedj/example/optics/importoptics/ImportOpticsCompositionExample.java) | Composing imported optics with local optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.importoptics.ImportOpticsCompositionExample` | [Importing Optics](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) |
+| [ImportOpticsRecordExample.java](src/main/java/org/higherkindedj/example/optics/importoptics/ImportOpticsRecordExample.java) | Generating lenses for external record types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.importoptics.ImportOpticsRecordExample` | [Importing Optics](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) |
+| [ImportOpticsSealedExample.java](src/main/java/org/higherkindedj/example/optics/importoptics/ImportOpticsSealedExample.java) | Generating prisms for sealed interfaces, enums, and JDK types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.importoptics.ImportOpticsSealedExample` | [Importing Optics](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) |
+
 ### Real-World Optics Scenarios
 
 | Example | Description | Run Command | Documentation |

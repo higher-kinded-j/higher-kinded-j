@@ -29,6 +29,11 @@ public class EitherGenerator extends BaseTraversableGenerator {
   }
 
   @Override
+  public int getFocusTypeArgumentIndex() {
+    return 1; // Either<L, R> focuses on R (the second type argument)
+  }
+
+  @Override
   public CodeBlock generateModifyF(
       final RecordComponentElement component,
       final ClassName recordClassName,

@@ -122,7 +122,22 @@ public final class GeneratorTestHelper {
             .replaceAll("com\\.example\\.Level3", "Level3")
             .replaceAll("com\\.example\\.Playlist", "Playlist")
             .replaceAll("com\\.example\\.model\\.Person", "Person")
-            .replaceAll("com\\.example\\.Wrapper", "Wrapper");
+            .replaceAll("com\\.example\\.Wrapper", "Wrapper")
+            // External types for ImportOptics tests
+            .replaceAll("com\\.external\\.Customer", "Customer")
+            .replaceAll("com\\.external\\.Pair", "Pair")
+            .replaceAll("com\\.external\\.Point", "Point")
+            .replaceAll("com\\.external\\.Order", "Order")
+            .replaceAll("com\\.external\\.Item", "Item")
+            .replaceAll("com\\.external\\.Product", "Product")
+            .replaceAll("com\\.external\\.Shape", "Shape")
+            .replaceAll("com\\.external\\.Circle", "Circle")
+            .replaceAll("com\\.external\\.Rectangle", "Rectangle")
+            .replaceAll("com\\.external\\.Status", "Status")
+            .replaceAll("com\\.external\\.HttpStatus", "HttpStatus")
+            .replaceAll("com\\.external\\.ImmutableDate", "ImmutableDate")
+            .replaceAll("com\\.external\\.MutablePerson", "MutablePerson")
+            .replaceAll("com\\.external\\.PlainClass", "PlainClass");
 
     // Remove ALL whitespace to make the comparison robust.
     return normalised.replaceAll("\\s+", "").trim();

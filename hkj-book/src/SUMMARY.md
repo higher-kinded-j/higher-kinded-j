@@ -96,6 +96,8 @@
 # Optics IV: Java-Friendly APIs
 - [Introduction](optics/ch4_intro.md)
   - [Focus DSL](optics/focus_dsl.md)
+  - [Importing External Optics](optics/importing_optics.md)
+    - [@ImportOptics Reference](optics/import_optics_reference.md)
   - [Kind Field Support](optics/kind_field_support.md)
   - [Fluent API](optics/fluent_api.md)
   - [Free Monad DSL](optics/free_monad_dsl.md)

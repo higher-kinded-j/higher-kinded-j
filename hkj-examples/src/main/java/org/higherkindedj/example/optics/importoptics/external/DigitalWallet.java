@@ -1,0 +1,6 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.example.optics.importoptics.external;
+
+/** A digital wallet payment method. */
+public record DigitalWallet(String provider, String accountEmail) implements PaymentMethod {}

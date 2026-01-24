@@ -18,6 +18,7 @@ module org.higherkindedj.processor {
       org.higherkindedj.optics.processing.LensProcessor,
       org.higherkindedj.optics.processing.PrismProcessor,
       org.higherkindedj.optics.processing.TraversalProcessor,
+      org.higherkindedj.optics.processing.ImportOpticsProcessor,
       org.higherkindedj.optics.processing.effect.PathProcessor;
 
   // It exports the SPI so the plugins module can implement it.

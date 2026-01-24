@@ -156,10 +156,12 @@ Same program, different execution strategies.
 ## Chapter Contents
 
 1. [Focus DSL](focus_dsl.md) - Path-based navigation with type safety and IDE support
-2. [Kind Field Support](kind_field_support.md) - Automatic traversal for Kind<F, A> record fields
-3. [Fluent API](fluent_api.md) - Static methods and builders for validation-aware modifications
-4. [Free Monad DSL](free_monad_dsl.md) - Building optic programs as composable data
-5. [Interpreters](interpreters.md) - Multiple execution strategies for the same program
+2. [Importing External Optics](importing_optics.md) - Generate optics for types you don't own
+3. [@ImportOptics Reference](import_optics_reference.md) - Complete annotation reference
+4. [Kind Field Support](kind_field_support.md) - Automatic traversal for Kind<F, A> record fields
+5. [Fluent API](fluent_api.md) - Static methods and builders for validation-aware modifications
+6. [Free Monad DSL](free_monad_dsl.md) - Building optic programs as composable data
+7. [Interpreters](interpreters.md) - Multiple execution strategies for the same program
 
 ---
 
