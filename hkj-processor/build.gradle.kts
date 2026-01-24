@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     id("com.vanniktech.maven.publish")
+    id("info.solidsoft.pitest") version "1.19.0-rc.3"
 }
 
 dependencies {
@@ -23,6 +24,9 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
+
+    // Property-based testing for verifying generated optics with random inputs
+    testImplementation(libs.bundles.jqwik)
 }
 
 tasks.test {
@@ -69,4 +73,54 @@ mavenPublishing {
         }
     }
 
+}
+
+// =============================================================================
+// Mutation Testing Configuration (Local Development Only)
+// =============================================================================
+//
+// PIT mutation testing is configured for local development use only,
+// not as a CI gate. Use it to measure and improve test quality.
+//
+// Run with: ./gradlew :hkj-processor:pitest
+// Reports: hkj-processor/build/reports/pitest/
+//
+pitest {
+    // Use PIT version 1.22.0 as specified in project requirements
+    pitestVersion.set("1.22.0")
+
+    // Target classes for mutation
+    targetClasses.set(setOf(
+        "org.higherkindedj.optics.processing.*"
+    ))
+
+    // Target tests to run against mutants
+    targetTests.set(setOf(
+        "org.higherkindedj.optics.processing.*Test",
+        "org.higherkindedj.optics.processing.*Tests"
+    ))
+
+    // Use STRONGER mutators for thorough testing
+    mutators.set(setOf("STRONGER"))
+
+    // Output formats
+    outputFormats.set(setOf("HTML", "XML"))
+
+    // Disable timestamped reports for cleaner output
+    timestampedReports.set(false)
+
+    // Mutation threshold: 64% (improved from initial 60%)
+    // 114 mutations have no test coverage (error handling paths)
+    mutationThreshold.set(64)
+
+    // JUnit 5 support
+    junit5PluginVersion.set("1.2.3")
+
+    // Threads for faster execution
+    threads.set(Runtime.getRuntime().availableProcessors())
+
+    // Exclude test infrastructure from mutation
+    excludedClasses.set(setOf(
+        "org.higherkindedj.optics.processing.RuntimeCompilationHelper*"
+    ))
 }

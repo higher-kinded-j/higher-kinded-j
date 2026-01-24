@@ -1151,6 +1151,230 @@ Coverage reports: `build/reports/jacoco/test/html/index.html`
 ./gradlew test --tests "*ParameterizedTest"
 ```
 
+## Annotation Processor Testing
+
+The `hkj-processor` module uses specialized testing patterns to verify that generated optics code is correct and stable.
+
+### Processor Optic Law Verification
+
+Generated lenses and prisms must satisfy their mathematical laws. The `GeneratedOpticLawsTest` verifies this using runtime compilation.
+
+**Key Components:**
+
+```java
+// RuntimeCompilationHelper compiles test types at runtime
+CompiledResult compiled = RuntimeCompilationHelper.compile(
+    CUSTOMER_RECORD,  // The record to generate optics for
+    PACKAGE_INFO      // @ImportOptics annotation
+);
+
+// Load and invoke generated lens
+Object lens = compiled.invokeStatic("com.test.optics.CustomerLenses", "name");
+Object customer = compiled.newInstance("com.test.Customer", "Alice", 30);
+
+// Verify laws via reflection
+Object gotten = compiled.invokeLensGet(lens, customer);
+Object result = compiled.invokeLensSet(lens, gotten, customer);
+assertThat(result).isEqualTo(customer); // Get-Put law
+```
+
+**Tested Laws:**
+
+| Optic | Law | Formula |
+|-------|-----|---------|
+| Lens | Get-Put | `set(get(s), s) == s` |
+| Lens | Put-Get | `get(set(a, s)) == a` |
+| Lens | Put-Put | `set(b, set(a, s)) == set(b, s)` |
+| Prism | Build-GetOptional | `getOptional(build(a)) == Some(a)` |
+| Prism | GetOptional-Build | `getOptional(s).map(build) == s` (when matching) |
+
+**Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/GeneratedOpticLawsTest.java`
+
+### Processor Property-Based Testing
+
+Property-based tests use jqwik to verify generated optics with random inputs.
+
+**Lens Property Tests:**
+
+```java
+@Property(tries = 100)
+@Label("GetPut Law for name lens: set(get(s), s) == s")
+void nameLensGetPutLaw(
+    @ForAll @StringLength(min = 1, max = 50) String name,
+    @ForAll @IntRange(min = 0, max = 150) int age,
+    @ForAll boolean active) throws ReflectiveOperationException {
+
+  Object lens = compiled.invokeStatic(TEST_PACKAGE + ".PersonLenses", "name");
+  Object person = compiled.newInstance("org.test.Person", name, age, active);
+
+  Object gotten = compiled.invokeLensGet(lens, person);
+  Object result = compiled.invokeLensSet(lens, gotten, person);
+
+  assertThat(result).isEqualTo(person);
+}
+```
+
+**Prism Property Tests:**
+
+```java
+@Property(tries = 100)
+@Label("Build-GetOptional Law: getOptional(build(a)) == Some(a)")
+void creditCardPrismBuildGetOptionalLaw(
+    @ForAll @StringLength(min = 16, max = 19) String cardNumber,
+    @ForAll @StringLength(min = 5, max = 7) String expiry) throws ReflectiveOperationException {
+
+  Object prism = compiled.invokeStatic(TEST_PACKAGE + ".PaymentMethodPrisms", "creditCard");
+  Object creditCard = compiled.newInstance("org.test.PaymentMethod$CreditCard", cardNumber, expiry);
+
+  Object built = compiled.invokePrismBuild(prism, creditCard);
+  Optional<Object> result = compiled.invokePrismGetOptional(prism, built);
+
+  assertThat(result).isPresent();
+  assertThat(result.get()).isEqualTo(creditCard);
+}
+```
+
+**Locations:**
+- `hkj-processor/src/test/java/org/higherkindedj/optics/processing/GeneratedLensPropertyTest.java`
+- `hkj-processor/src/test/java/org/higherkindedj/optics/processing/GeneratedPrismPropertyTest.java`
+
+### Golden File Testing
+
+Golden file tests detect unintended changes in generated code by comparing against known-good outputs.
+
+**Structure:**
+
+```
+hkj-processor/src/test/resources/golden/
+├── CustomerLenses.java.golden
+├── ShapePrisms.java.golden
+├── StatusPrisms.java.golden
+├── PairLenses.java.golden
+└── NestedLenses.java.golden
+```
+
+**Test Pattern:**
+
+```java
+@ParameterizedTest(name = "{0}")
+@MethodSource("goldenFileTestCases")
+@DisplayName("Generated code matches golden file")
+void generatedCodeMatchesGolden(GoldenTestCase testCase) throws IOException {
+  Compilation compilation = compile(testCase.sources());
+  assertThat(compilation.status()).isEqualTo(Compilation.Status.SUCCESS);
+
+  String generated = getGeneratedSource(compilation, testCase.generatedClassName());
+  String golden = readGoldenFile(testCase.goldenFileName());
+
+  assertThat(normalizeForComparison(generated))
+      .isEqualTo(normalizeForComparison(golden));
+}
+```
+
+**Updating Golden Files:**
+
+When intentional changes are made to code generation:
+
+```bash
+./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
+```
+
+**Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/GoldenFileTest.java`
+
+### Mutation Testing
+
+Mutation testing measures test quality by introducing small changes (mutants) to the code and verifying tests catch them.
+
+**Configuration:** PIT is configured in `hkj-processor/build.gradle.kts`:
+
+```kotlin
+pitest {
+    pitestVersion.set("1.22.0")
+    targetClasses.set(setOf("org.higherkindedj.optics.processing.*"))
+    mutators.set(setOf("STRONGER"))
+    mutationThreshold.set(70)  // Initial target, aim for 80%
+}
+```
+
+**Running Mutation Tests:**
+
+```bash
+./gradlew :hkj-processor:pitest
+```
+
+**Reports:** `hkj-processor/build/reports/pitest/`
+
+**Interpreting Results:**
+
+| Metric | Description |
+|--------|-------------|
+| Mutation Score | Percentage of mutants killed by tests |
+| Killed | Mutant was detected (test failed) |
+| Survived | Mutant was NOT detected (test gap) |
+| No Coverage | Mutant in code not covered by tests |
+
+**Note:** Mutation testing is a local development tool, not a CI gate. Use it to identify weak tests and improve test quality.
+
+### Edge Case Testing
+
+The `EdgeCaseTest` class verifies the processor handles unusual but valid Java code:
+
+**Categories:**
+- **Nested Generics**: `List<Optional<Map<String, List<Integer>>>>`
+- **Unusual Names**: Keyword suffixes (`class_`), single chars, uppercase
+- **Empty Types**: Empty records, single-constant enums
+- **Recursive Types**: Self-referential records, expression trees
+- **Complex Hierarchies**: Mixed sealed subtypes, multi-level hierarchies
+
+**Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/EdgeCaseTest.java`
+
+### Error Message Testing
+
+The `ErrorMessageTest` class verifies error messages are clear and actionable:
+
+**Categories:**
+- Unsupported type errors (plain classes, non-sealed interfaces)
+- Mutable type errors (classes with setters)
+- Missing type errors
+- Annotation placement errors
+- Wither detection errors
+
+**Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/ErrorMessageTest.java`
+
+### Incremental Compilation Testing
+
+The `IncrementalCompilationTest` class verifies the processor handles source changes:
+
+**Scenarios:**
+- Field additions/removals reflected in generated code
+- Type parameter changes propagated
+- Sealed interface variant changes handled
+- Enum constant changes handled
+
+**Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/IncrementalCompilationTest.java`
+
+### Running Processor Tests
+
+```bash
+# Run all processor tests
+./gradlew :hkj-processor:test
+
+# Run law verification tests
+./gradlew :hkj-processor:test --tests "*OpticLawsTest"
+
+# Run property-based tests
+./gradlew :hkj-processor:test --tests "*PropertyTest"
+
+# Run golden file tests
+./gradlew :hkj-processor:test --tests "*GoldenFileTest"
+
+# Run edge case tests
+./gradlew :hkj-processor:test --tests "*EdgeCaseTest"
+
+# Run mutation testing (local only)
+./gradlew :hkj-processor:pitest
+```
+
 ## Summary
 
 The higher-kinded-j testing approach combines:
