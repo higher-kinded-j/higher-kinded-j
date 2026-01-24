@@ -836,4 +836,4 @@ The `GameLogic` class is completely pure; you can test the entire rules engine b
 
 ---
 
-**Previous:** [An Order Workflow](order-walkthrough.md)
+**Previous:** [Concurrency and Scale](order-concurrency.md)
