@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TryKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.trymonad</a> &gt; <span class="el_source">TryKindHelper.java</span></div><h1>TryKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.trymonad;
+
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link TryConverterOps} for widen/narrow operations, and providing additional
+ * factory instance methods for {@link Try} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code TRY}. For example: {@code
+ * TryKindHelper.TRY.widen(myTryValue);} Or, with static import: {@code import static
+ * org.higherkindedj.hkt.trymonad.TryKindHelper.TRY; TRY.widen(...);}
+ */
+<span class="fc" id="L18">public enum TryKindHelper implements TryConverterOps {</span>
+<span class="fc" id="L19">  TRY;</span>
+
+<span class="fc" id="L21">  private static final Class&lt;Try&gt; TRY_CLASS = Try.class;</span>
+
+  /**
+   * An internal record that implements {@link TryKind}&amp;lt;A&amp;gt; to hold the concrete {@link
+   * Try}&amp;lt;A&amp;gt; instance. This serves as the carrier for {@code Try} objects within the HKT
+   * simulation.
+   */
+  record TryHolder&lt;A&gt;(Try&lt;A&gt; tryInstance) implements TryKind&lt;A&gt; {
+    TryHolder {
+      Validation.kind().requireForWiden(tryInstance, TRY_CLASS);
+    }
+  }
+
+  /**
+   * Widens a concrete {@link Try}&amp;lt;A&amp;gt; instance into its HKT representation, {@link
+   * Kind}&amp;lt;{@link TryKind.Witness}, A&amp;gt;.
+   *
+   * @param &lt;A&gt; The result type of the {@code Try} computation.
+   * @param tryInstance The concrete {@link Try}&amp;lt;A&amp;gt; instance to widen. Must be non-null.
+   * @return A non-null {@link Kind}&amp;lt;{@link TryKind.Witness}, A&amp;gt; representing the wrapped
+   *     {@code Try} computation.
+   * @throws NullPointerException if {@code tryInstance} is {@code null}.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;TryKind.Witness, A&gt; widen(Try&lt;A&gt; tryInstance) {
+<span class="fc" id="L46">    return new TryHolder&lt;&gt;(tryInstance);</span>
+  }
+
+  /**
+   * Narrows a {@link Kind}&amp;lt;{@link TryKind.Witness}, A&amp;gt; back to its concrete {@link
+   * Try}&amp;lt;A&amp;gt; representation.
+   *
+   * &lt;p&gt;This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
+   * @param &lt;A&gt; The result type of the {@code Try} computation.
+   * @param kind The {@code Kind&lt;TryKind.Witness, A&gt;} instance to narrow. May be {@code null}.
+   * @return The underlying, non-null {@link Try}&amp;lt;A&amp;gt; instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, or
+   *     if the {@code kind} instance cannot be properly converted to a {@link Try} instance (e.g.,
+   *     wrong type or invalid internal state).
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;A&gt; Try&lt;A&gt; narrow(@Nullable Kind&lt;TryKind.Witness, A&gt; kind) {
+<span class="fc" id="L66">    return Validation.kind()</span>
+<span class="fc" id="L67">        .narrowWithPattern(</span>
+<span class="fc" id="L68">            kind, TRY_CLASS, TryHolder.class, holder -&gt; ((TryHolder&lt;A&gt;) holder).tryInstance());</span>
+  }
+
+  /**
+   * Creates a {@link Kind}&amp;lt;{@link TryKind.Witness}, A&amp;gt; representing a successful computation
+   * with the given value.
+   *
+   * @param &lt;A&gt; The type of the successful value.
+   * @param value The successful value. Can be {@code null}.
+   * @return A non-null {@code Kind&lt;TryKind.Witness, A&gt;} representing the successful computation.
+   */
+  public &lt;A&gt; Kind&lt;TryKind.Witness, A&gt; success(@Nullable A value) {
+<span class="fc" id="L80">    return this.widen(Try.success(value));</span>
+  }
+
+  /**
+   * Creates a {@link Kind}&amp;lt;{@link TryKind.Witness}, A&amp;gt; representing a failed computation with
+   * the given {@link Throwable}.
+   *
+   * @param &lt;A&gt; The phantom type parameter representing the value type of the {@code Try}.
+   * @param throwable The non-null {@link Throwable} representing the failure.
+   * @return A non-null {@code Kind&lt;TryKind.Witness, A&gt;} representing the failed computation.
+   * @throws NullPointerException if {@code throwable} is null.
+   */
+  public &lt;A&gt; Kind&lt;TryKind.Witness, A&gt; failure(Throwable throwable) {
+<span class="fc" id="L93">    return this.widen(Try.failure(throwable));</span>
+  }
+
+  /**
+   * Executes a {@link Supplier} and wraps its outcome into a {@link Kind}&amp;lt;{@link
+   * TryKind.Witness}, A&amp;gt;.
+   *
+   * @param &lt;A&gt; The type of the value supplied by the {@code supplier}.
+   * @param supplier The non-null {@link Supplier} to execute.
+   * @return A non-null {@code Kind&lt;TryKind.Witness, A&gt;} representing the outcome.
+   * @throws NullPointerException if {@code supplier} is null.
+   */
+  public &lt;A&gt; Kind&lt;TryKind.Witness, A&gt; tryOf(Supplier&lt;? extends A&gt; supplier) {
+<span class="fc" id="L106">    return this.widen(Try.of(supplier));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

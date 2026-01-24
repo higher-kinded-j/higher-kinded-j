@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FreeFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.free</a> &gt; <span class="el_source">FreeFactory.java</span></div><h1>FreeFactory.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.free;
+
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+
+/**
+ * A type-parameterised factory for creating {@link Free} monad instances with improved type
+ * inference.
+ *
+ * &lt;p&gt;This factory solves the problem of Java's type inference not being able to determine the
+ * functor type parameter {@code F} when chaining operations directly on {@code Free.pure()}. By
+ * creating a factory instance parameterised on {@code F}, all subsequent operations can infer the
+ * type automatically.
+ *
+ * &lt;p&gt;&lt;b&gt;Problem solved:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Without FreeFactory - requires explicit type parameters:
+ * Free&lt;IdKind.Witness, Integer&gt; f = Free.&lt;IdKind.Witness, Integer&gt;pure(2).map(x -&gt; x * 2);
+ *
+ * // With FreeFactory - type inference works:
+ * FreeFactory&lt;IdKind.Witness&gt; factory = FreeFactory.of();
+ * Free&lt;IdKind.Witness, Integer&gt; f = factory.pure(2).map(x -&gt; x * 2);
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Usage patterns:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Pattern 1: Create factory once, reuse
+ * FreeFactory&lt;IdKind.Witness&gt; FREE = FreeFactory.of();
+ * Free&lt;IdKind.Witness, Integer&gt; program = FREE.pure(1)
+ *     .map(x -&gt; x + 1)
+ *     .flatMap(x -&gt; FREE.pure(x * 2));
+ *
+ * // Pattern 2: Create with monad instance (for documentation/clarity)
+ * FreeFactory&lt;IdKind.Witness&gt; FREE = FreeFactory.withMonad(IdMonad.instance());
+ *
+ * // Pattern 3: Inline usage
+ * Free&lt;IdKind.Witness, Integer&gt; f = FreeFactory.&lt;IdKind.Witness&gt;of().pure(42);
+ * }&lt;/pre&gt;
+ *
+ * @param &lt;F&gt; The functor type for the Free monad (e.g., {@code IdKind.Witness})
+ * @see Free
+ * @see Free#pure(Object)
+ * @see Free#suspend(Kind)
+ */
+public final class FreeFactory&lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; {
+
+  /** Private constructor to enforce factory method usage. */
+  private FreeFactory() {}
+
+  /**
+   * Creates a new {@link FreeFactory} instance for the specified functor type.
+   *
+   * &lt;p&gt;The functor type {@code F} is inferred from the usage context or can be explicitly
+   * specified.
+   *
+   * @param &lt;F&gt; The functor type for the Free monad
+   * @return A new {@link FreeFactory} instance. Never null.
+   */
+  public static &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; FreeFactory&lt;F&gt; of() {
+<span class="fc" id="L67">    return new FreeFactory&lt;&gt;();</span>
+  }
+
+  /**
+   * Creates a new {@link FreeFactory} instance, associating it with a specific {@link Monad}
+   * instance.
+   *
+   * &lt;p&gt;This factory method is useful for documentation and clarity, making explicit which monad the
+   * Free programs will be interpreted into. The monad parameter is only used for type inference;
+   * the actual interpretation happens via {@link Free#foldMap}.
+   *
+   * @param monad The {@link Monad} instance for the functor type. The monad itself is not stored,
+   *     only used for type inference. Must not be null.
+   * @param &lt;F&gt; The functor type for the Free monad (inferred from monad parameter)
+   * @return A new {@link FreeFactory} instance. Never null.
+   */
+  public static &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; FreeFactory&lt;F&gt; withMonad(Monad&lt;F&gt; monad) {
+    // The monad is used purely for type inference - we don't actually need to store it
+<span class="fc" id="L85">    return new FreeFactory&lt;&gt;();</span>
+  }
+
+  /**
+   * Creates a pure Free monad wrapping the given value.
+   *
+   * &lt;p&gt;This is equivalent to {@link Free#pure(Object)} but with improved type inference. The
+   * functor type {@code F} is automatically inferred from this factory instance.
+   *
+   * @param value The value to wrap. Can be null.
+   * @param &lt;A&gt; The type of the value
+   * @return A {@link Free} monad containing the pure value. Never null.
+   */
+  public &lt;A&gt; Free&lt;F, A&gt; pure(A value) {
+<span class="fc" id="L99">    return Free.pure(value);</span>
+  }
+
+  /**
+   * Creates a Free monad from a suspended computation.
+   *
+   * &lt;p&gt;This is equivalent to {@link Free#suspend(Kind)} but with improved type inference. The
+   * functor type {@code F} is automatically inferred from this factory instance.
+   *
+   * @param computation The computation to suspend, wrapped in the functor {@code F}. Must not be
+   *     null.
+   * @param &lt;A&gt; The result type of the Free monad
+   * @return A {@link Free} monad suspending the computation. Never null.
+   */
+  public &lt;A&gt; Free&lt;F, A&gt; suspend(Kind&lt;F, Free&lt;F, A&gt;&gt; computation) {
+<span class="fc" id="L114">    return Free.suspend(computation);</span>
+  }
+
+  /**
+   * Lifts a computation in the functor {@code F} into the Free monad.
+   *
+   * &lt;p&gt;This creates a suspended computation that, when interpreted, will execute the given
+   * computation and return a pure value containing the result.
+   *
+   * &lt;p&gt;This is equivalent to {@link Free#liftF(Kind, Functor)} but with improved type inference for
+   * the functor type parameter.
+   *
+   * @param fa The computation to lift, wrapped in the functor {@code F}. Must not be null.
+   * @param functor The {@link Functor} instance for {@code F}. Must not be null.
+   * @param &lt;A&gt; The result type
+   * @return A {@link Free} monad that will execute the lifted computation. Never null.
+   */
+  public &lt;A&gt; Free&lt;F, A&gt; liftF(Kind&lt;F, A&gt; fa, Functor&lt;F&gt; functor) {
+<span class="fc" id="L132">    return Free.liftF(fa, functor);</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="fc" id="L137">    return &quot;FreeFactory&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

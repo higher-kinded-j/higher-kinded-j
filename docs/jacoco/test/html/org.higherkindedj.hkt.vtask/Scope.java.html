@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Scope.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.vtask</a> &gt; <span class="el_source">Scope.java</span></div><h1>Scope.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.vtask;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
+
+/**
+ * A fluent builder for structured concurrent computations using Java 25's {@link
+ * StructuredTaskScope}.
+ *
+ * &lt;p&gt;Scope provides a functional interface for structured concurrency, wrapping Java 25's preview
+ * APIs with HKJ's effect types. It enables forking multiple subtasks, joining their results, and
+ * handling errors functionally.
+ *
+ * &lt;h2&gt;Basic Usage&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Fork multiple tasks and wait for all to succeed
+ * VTask&lt;List&lt;String&gt;&gt; result = Scope.&lt;String&gt;allSucceed()
+ *     .fork(VTask.of(() -&gt; fetchUser(id)))
+ *     .fork(VTask.of(() -&gt; fetchProfile(id)))
+ *     .join();
+ *
+ * // Race tasks - first to succeed wins
+ * VTask&lt;String&gt; fastest = Scope.&lt;String&gt;anySucceed()
+ *     .fork(fetchFromServerA())
+ *     .fork(fetchFromServerB())
+ *     .join();
+ *
+ * // Accumulate all errors (doesn't fail-fast)
+ * VTask&lt;Validated&lt;List&lt;Error&gt;, List&lt;User&gt;&gt;&gt; validated = Scope.&lt;User&gt;accumulating(Error::from)
+ *     .fork(validateUser(user1))
+ *     .fork(validateUser(user2))
+ *     .fork(validateUser(user3))
+ *     .join();
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Timeout Support&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * VTask&lt;List&lt;String&gt;&gt; withTimeout = Scope.&lt;String&gt;allSucceed()
+ *     .timeout(Duration.ofSeconds(5))
+ *     .fork(slowTask1())
+ *     .fork(slowTask2())
+ *     .join();
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Preview API Notice&lt;/h2&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Note:&lt;/b&gt; This class uses Java 25's structured concurrency APIs which are currently in
+ * preview (JEP 505/525). The underlying API may change in future Java releases.
+ *
+ * @param &lt;T&gt; the type of values produced by subtasks
+ * @param &lt;R&gt; the type of the final result after joining
+ * @see StructuredTaskScope
+ * @see ScopeJoiner
+ * @see VTask
+ */
+public final class Scope&lt;T, R&gt; {
+
+  private final ScopeJoiner&lt;T, R&gt; joiner;
+  private final List&lt;VTask&lt;? extends T&gt;&gt; tasks;
+  private final Duration timeout;
+  private final String name;
+
+  private Scope(
+<span class="fc" id="L77">      ScopeJoiner&lt;T, R&gt; joiner, List&lt;VTask&lt;? extends T&gt;&gt; tasks, Duration timeout, String name) {</span>
+<span class="fc" id="L78">    this.joiner = joiner;</span>
+<span class="fc" id="L79">    this.tasks = tasks;</span>
+<span class="fc" id="L80">    this.timeout = timeout;</span>
+<span class="fc" id="L81">    this.name = name;</span>
+<span class="fc" id="L82">  }</span>
+
+  // ==================== Factory Methods ====================
+
+  /**
+   * Creates a scope that waits for all subtasks to succeed.
+   *
+   * &lt;p&gt;If any subtask fails, the entire operation fails with that exception and remaining tasks are
+   * cancelled.
+   *
+   * @param &lt;T&gt; the type of values produced by subtasks
+   * @return a new Scope builder configured for all-succeed semantics
+   */
+  public static &lt;T&gt; Scope&lt;T, List&lt;T&gt;&gt; allSucceed() {
+<span class="fc" id="L96">    return new Scope&lt;&gt;(ScopeJoiner.allSucceed(), new ArrayList&lt;&gt;(), null, null);</span>
+  }
+
+  /**
+   * Creates a scope that returns the first successful result.
+   *
+   * &lt;p&gt;As soon as any subtask succeeds, its result is returned and other tasks are cancelled.
+   *
+   * @param &lt;T&gt; the type of values produced by subtasks
+   * @return a new Scope builder configured for any-succeed semantics
+   */
+  public static &lt;T&gt; Scope&lt;T, T&gt; anySucceed() {
+<span class="fc" id="L108">    return new Scope&lt;&gt;(ScopeJoiner.anySucceed(), new ArrayList&lt;&gt;(), null, null);</span>
+  }
+
+  /**
+   * Creates a scope that returns the first completed result (success or failure).
+   *
+   * @param &lt;T&gt; the type of values produced by subtasks
+   * @return a new Scope builder configured for first-complete semantics
+   */
+  public static &lt;T&gt; Scope&lt;T, T&gt; firstComplete() {
+<span class="fc" id="L118">    return new Scope&lt;&gt;(ScopeJoiner.firstComplete(), new ArrayList&lt;&gt;(), null, null);</span>
+  }
+
+  /**
+   * Creates a scope that accumulates errors using {@link Validated}.
+   *
+   * &lt;p&gt;Unlike fail-fast scopes, this waits for all tasks to complete and collects both successes
+   * and failures.
+   *
+   * @param &lt;E&gt; the error type after mapping
+   * @param &lt;T&gt; the type of values produced by subtasks
+   * @param errorMapper function to convert exceptions to error type E; must not be null
+   * @return a new Scope builder configured for error accumulation
+   * @throws NullPointerException if errorMapper is null
+   */
+  public static &lt;E, T&gt; Scope&lt;T, Validated&lt;List&lt;E&gt;, List&lt;T&gt;&gt;&gt; accumulating(
+      Function&lt;Throwable, E&gt; errorMapper) {
+<span class="fc" id="L135">    Objects.requireNonNull(errorMapper, &quot;errorMapper must not be null&quot;);</span>
+<span class="fc" id="L136">    return new Scope&lt;&gt;(ScopeJoiner.accumulating(errorMapper), new ArrayList&lt;&gt;(), null, null);</span>
+  }
+
+  /**
+   * Creates a scope with a custom joiner.
+   *
+   * @param &lt;T&gt; the type of values produced by subtasks
+   * @param &lt;R&gt; the type of the final result after joining
+   * @param joiner the custom joiner to use; must not be null
+   * @return a new Scope builder with the custom joiner
+   * @throws NullPointerException if joiner is null
+   */
+  public static &lt;T, R&gt; Scope&lt;T, R&gt; withJoiner(ScopeJoiner&lt;T, R&gt; joiner) {
+<span class="fc" id="L149">    Objects.requireNonNull(joiner, &quot;joiner must not be null&quot;);</span>
+<span class="fc" id="L150">    return new Scope&lt;&gt;(joiner, new ArrayList&lt;&gt;(), null, null);</span>
+  }
+
+  // ==================== Configuration Methods ====================
+
+  /**
+   * Sets a timeout for the scope.
+   *
+   * &lt;p&gt;If the tasks don't complete within the timeout, a {@link TimeoutException} is thrown.
+   *
+   * @param timeout the maximum time to wait; must not be null
+   * @return a new Scope with the timeout configured
+   * @throws NullPointerException if timeout is null
+   */
+  public Scope&lt;T, R&gt; timeout(Duration timeout) {
+<span class="fc" id="L165">    Objects.requireNonNull(timeout, &quot;timeout must not be null&quot;);</span>
+<span class="fc" id="L166">    return new Scope&lt;&gt;(joiner, tasks, timeout, name);</span>
+  }
+
+  /**
+   * Sets a name for the scope (useful for debugging).
+   *
+   * @param name the name for this scope
+   * @return a new Scope with the name configured
+   */
+  public Scope&lt;T, R&gt; named(String name) {
+<span class="fc" id="L176">    return new Scope&lt;&gt;(joiner, tasks, timeout, name);</span>
+  }
+
+  // ==================== Fork Methods ====================
+
+  /**
+   * Forks a VTask to run as a subtask within this scope.
+   *
+   * @param task the task to fork; must not be null
+   * @return a new Scope with the task added
+   * @throws NullPointerException if task is null
+   */
+  public Scope&lt;T, R&gt; fork(VTask&lt;? extends T&gt; task) {
+<span class="fc" id="L189">    Objects.requireNonNull(task, &quot;task must not be null&quot;);</span>
+<span class="fc" id="L190">    List&lt;VTask&lt;? extends T&gt;&gt; newTasks = new ArrayList&lt;&gt;(tasks);</span>
+<span class="fc" id="L191">    newTasks.add(task);</span>
+<span class="fc" id="L192">    return new Scope&lt;&gt;(joiner, newTasks, timeout, name);</span>
+  }
+
+  /**
+   * Forks multiple VTasks to run as subtasks within this scope.
+   *
+   * @param tasksToFork the tasks to fork; must not be null
+   * @return a new Scope with all tasks added
+   * @throws NullPointerException if tasksToFork is null
+   */
+  public Scope&lt;T, R&gt; forkAll(List&lt;? extends VTask&lt;? extends T&gt;&gt; tasksToFork) {
+<span class="fc" id="L203">    Objects.requireNonNull(tasksToFork, &quot;tasksToFork must not be null&quot;);</span>
+<span class="fc" id="L204">    List&lt;VTask&lt;? extends T&gt;&gt; newTasks = new ArrayList&lt;&gt;(tasks);</span>
+<span class="fc" id="L205">    newTasks.addAll(tasksToFork);</span>
+<span class="fc" id="L206">    return new Scope&lt;&gt;(joiner, newTasks, timeout, name);</span>
+  }
+
+  // ==================== Join Methods ====================
+
+  /**
+   * Joins all forked tasks and returns the result as a VTask.
+   *
+   * &lt;p&gt;The returned VTask, when executed, will:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;Open a StructuredTaskScope with the configured joiner
+   *   &lt;li&gt;Fork all added tasks
+   *   &lt;li&gt;Wait for completion according to the joiner's semantics
+   *   &lt;li&gt;Return the joined result
+   * &lt;/ol&gt;
+   *
+   * @return a VTask that executes the scope and returns the result
+   */
+  @SuppressWarnings(&quot;preview&quot;)
+  public VTask&lt;R&gt; join() {
+<span class="fc" id="L227">    VTask&lt;R&gt; joinTask =</span>
+        () -&gt; {
+<span class="fc" id="L229">          try (var scope = StructuredTaskScope.open(joiner.joiner())) {</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">            for (VTask&lt;? extends T&gt; task : tasks) {</span>
+<span class="fc" id="L231">              scope.fork(task.asCallable());</span>
+<span class="fc" id="L232">            }</span>
+
+            // StructuredTaskScope with custom Joiner returns result directly from join()
+<span class="fc" id="L235">            return scope.join();</span>
+<span class="fc" id="L236">          } catch (StructuredTaskScope.FailedException e) {</span>
+<span class="fc" id="L237">            throw e.getCause();</span>
+          }
+        };
+
+    // Apply timeout if configured
+<span class="fc bfc" id="L242" title="All 2 branches covered.">    return timeout != null ? joinTask.timeout(timeout) : joinTask;</span>
+  }
+
+  /**
+   * Joins all forked tasks and returns the result wrapped in a {@link Try}.
+   *
+   * @return a VTask that executes the scope and returns a Try containing the result or exception
+   */
+  public VTask&lt;Try&lt;R&gt;&gt; joinSafe() {
+<span class="fc" id="L251">    return join().map(Try::success).recover(Try::failure);</span>
+  }
+
+  /**
+   * Joins all forked tasks and returns the result wrapped in an {@link Either}.
+   *
+   * @return a VTask that executes the scope and returns Either.right(result) or
+   *     Either.left(exception)
+   */
+  public VTask&lt;Either&lt;Throwable, R&gt;&gt; joinEither() {
+<span class="fc" id="L261">    return join().map(Either::&lt;Throwable, R&gt;right).recover(Either::left);</span>
+  }
+
+  /**
+   * Joins all forked tasks and returns the result wrapped in a {@link Maybe}.
+   *
+   * &lt;p&gt;Returns {@code Maybe.just(result)} on success, {@code Maybe.nothing()} on failure.
+   *
+   * @return a VTask that executes the scope and returns a Maybe
+   */
+  public VTask&lt;Maybe&lt;R&gt;&gt; joinMaybe() {
+<span class="fc" id="L272">    return join().map(Maybe::just).recover(e -&gt; Maybe.nothing());</span>
+  }
+
+  // ==================== Utility Methods ====================
+
+  /**
+   * Returns the number of tasks currently forked in this scope.
+   *
+   * @return the number of forked tasks
+   */
+  public int taskCount() {
+<span class="fc" id="L283">    return tasks.size();</span>
+  }
+
+  /**
+   * Returns whether this scope has a timeout configured.
+   *
+   * @return true if a timeout is set
+   */
+  public boolean hasTimeout() {
+<span class="fc bfc" id="L292" title="All 2 branches covered.">    return timeout != null;</span>
+  }
+
+  /**
+   * Returns the configured timeout, if any.
+   *
+   * @return Maybe containing the timeout, or nothing if not set
+   */
+  public Maybe&lt;Duration&gt; getTimeout() {
+<span class="fc bfc" id="L301" title="All 2 branches covered.">    return timeout != null ? Maybe.just(timeout) : Maybe.nothing();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

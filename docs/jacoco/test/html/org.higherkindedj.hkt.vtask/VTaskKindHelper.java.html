@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VTaskKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.vtask</a> &gt; <span class="el_source">VTaskKindHelper.java</span></div><h1>VTaskKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.vtask;
+
+import java.util.concurrent.Callable;
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link VTaskConverterOps} for widen/narrow operations, and providing additional
+ * factory and utility instance methods for {@link VTask} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code VTASK}. For example: {@code
+ * VTaskKindHelper.VTASK.widen(myVTask);} Or, with static import: {@code import static
+ * org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK; VTASK.widen(...);}
+ *
+ * @see VTask
+ * @see VTaskKind
+ * @see VTaskConverterOps
+ */
+<span class="fc" id="L24">public enum VTaskKindHelper implements VTaskConverterOps {</span>
+  /** The singleton instance for VTask operations. */
+<span class="fc" id="L26">  VTASK;</span>
+
+<span class="fc" id="L28">  private static final Class&lt;VTask&gt; VTASK_CLASS = VTask.class;</span>
+
+  /**
+   * Widens a concrete {@link VTask&lt;A&gt;} instance into its higher-kinded representation, {@code
+   * Kind&lt;VTaskKind.Witness, A&gt;}. Implements {@link VTaskConverterOps#widen}.
+   *
+   * &lt;p&gt;Since {@code VTask} directly extends {@code VTaskKind}, this method performs a simple
+   * type-safe cast without requiring a wrapper object.
+   *
+   * @param &lt;A&gt; The result type of the {@code VTask} computation.
+   * @param vtask The non-null, concrete {@link VTask&lt;A&gt;} instance to widen.
+   * @return A non-null {@link Kind&lt;VTaskKind.Witness, A&gt;} representing the {@code VTask}
+   *     computation.
+   * @throws NullPointerException if {@code vtask} is {@code null}.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;VTaskKind.Witness, A&gt; widen(VTask&lt;A&gt; vtask) {
+<span class="fc" id="L45">    Validation.kind().requireForWiden(vtask, VTASK_CLASS);</span>
+<span class="fc" id="L46">    return vtask;</span>
+  }
+
+  /**
+   * Narrows a {@code Kind&lt;VTaskKind.Witness, A&gt;} back to its concrete {@link VTask&lt;A&gt;} type.
+   * Implements {@link VTaskConverterOps#narrow}.
+   *
+   * &lt;p&gt;Since {@code VTask} directly extends {@code VTaskKind}, this method performs a direct type
+   * check and cast without needing to unwrap from a holder.
+   *
+   * @param &lt;A&gt; The result type of the {@code VTask} computation.
+   * @param kind The {@code Kind&lt;VTaskKind.Witness, A&gt;} instance to narrow. May be {@code null}.
+   * @return The underlying, non-null {@link VTask&lt;A&gt;} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null}, or not an instance of {@code VTask}.
+   */
+  @Override
+  public &lt;A&gt; VTask&lt;A&gt; narrow(@Nullable Kind&lt;VTaskKind.Witness, A&gt; kind) {
+<span class="fc" id="L64">    return Validation.kind().narrowWithTypeCheck(kind, VTASK_CLASS);</span>
+  }
+
+  /**
+   * Creates a {@link Kind&lt;VTaskKind.Witness, A&gt;} from a {@link Callable}.
+   *
+   * @param &lt;A&gt; The result type of the computation.
+   * @param callable The callable to execute. Must not be null.
+   * @return A non-null {@link Kind&lt;VTaskKind.Witness, A&gt;} representing the computation.
+   * @throws NullPointerException if {@code callable} is null.
+   */
+  public &lt;A&gt; Kind&lt;VTaskKind.Witness, A&gt; of(Callable&lt;A&gt; callable) {
+<span class="fc" id="L76">    return this.widen(VTask.of(callable));</span>
+  }
+
+  /**
+   * Creates a {@link Kind&lt;VTaskKind.Witness, A&gt;} that wraps a {@link VTask} computation produced by
+   * delaying the execution of a {@link Supplier}.
+   *
+   * @param &lt;A&gt; The result type of the computation.
+   * @param thunk The supplier to delay. Must not be null.
+   * @return A non-null {@link Kind&lt;VTaskKind.Witness, A&gt;} representing the delayed computation.
+   * @throws NullPointerException if {@code thunk} is null.
+   */
+  public &lt;A&gt; Kind&lt;VTaskKind.Witness, A&gt; delay(Supplier&lt;A&gt; thunk) {
+<span class="fc" id="L89">    return this.widen(VTask.delay(thunk));</span>
+  }
+
+  /**
+   * Creates a {@link Kind&lt;VTaskKind.Witness, A&gt;} that succeeds with the given value.
+   *
+   * @param &lt;A&gt; The type of the value.
+   * @param value The value to wrap. Can be {@code null}.
+   * @return A non-null {@link Kind&lt;VTaskKind.Witness, A&gt;} representing the successful computation.
+   */
+  public &lt;A&gt; Kind&lt;VTaskKind.Witness, A&gt; succeed(@Nullable A value) {
+<span class="fc" id="L100">    return this.widen(VTask.succeed(value));</span>
+  }
+
+  /**
+   * Creates a {@link Kind&lt;VTaskKind.Witness, A&gt;} that fails with the given error.
+   *
+   * @param &lt;A&gt; The phantom type parameter.
+   * @param error The error to fail with. Must not be null.
+   * @return A non-null {@link Kind&lt;VTaskKind.Witness, A&gt;} representing the failed computation.
+   * @throws NullPointerException if {@code error} is null.
+   */
+  public &lt;A&gt; Kind&lt;VTaskKind.Witness, A&gt; fail(Throwable error) {
+<span class="fc" id="L112">    return this.widen(VTask.fail(error));</span>
+  }
+
+  /**
+   * Executes the {@link VTask} computation held within the {@link Kind} wrapper, blocking until
+   * completion.
+   *
+   * @param &lt;A&gt; The result type of the computation.
+   * @param kind The {@code Kind&lt;VTaskKind.Witness, A&gt;} holding the VTask computation. Must not be
+   *     null.
+   * @return The result of executing the VTask computation.
+   * @throws Throwable If the computation fails.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} cannot be
+   *     unwrapped.
+   */
+  public &lt;A&gt; @Nullable A run(Kind&lt;VTaskKind.Witness, A&gt; kind) throws Throwable {
+<span class="fc" id="L128">    return this.narrow(kind).run();</span>
+  }
+
+  /**
+   * Executes the {@link VTask} computation held within the {@link Kind} wrapper, returning a {@link
+   * Try}.
+   *
+   * @param &lt;A&gt; The result type of the computation.
+   * @param kind The {@code Kind&lt;VTaskKind.Witness, A&gt;} holding the VTask computation. Must not be
+   *     null.
+   * @return A {@link Try} containing the result or failure.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} cannot be
+   *     unwrapped.
+   */
+  public &lt;A&gt; Try&lt;A&gt; runSafe(Kind&lt;VTaskKind.Witness, A&gt; kind) {
+<span class="fc" id="L143">    return this.narrow(kind).runSafe();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

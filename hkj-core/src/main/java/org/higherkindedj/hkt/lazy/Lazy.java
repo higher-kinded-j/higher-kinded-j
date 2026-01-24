@@ -55,11 +55,16 @@ public final class Lazy<A> {
   /**
    * Creates a Lazy instance already holding a computed value (strict evaluation).
    *
+   * <p>Coverage note: The lambda {@code () -> value} is intentionally never invoked. We immediately
+   * set {@code evaluated = true} and assign the value directly, bypassing lazy evaluation. The
+   * lambda exists only to satisfy the constructor's requirement for a ThrowableSupplier.
+   *
    * @param value The already computed value. Can be {@code null}.
    * @param <A> The value type.
    * @return A new Lazy instance holding the pre-computed value. Never null.
    */
   public static <A> Lazy<A> now(@Nullable A value) {
+    // The lambda is never invoked - we set evaluated=true immediately below
     Lazy<A> lazy = new Lazy<>(() -> value);
     lazy.value = value;
     lazy.exception = null;

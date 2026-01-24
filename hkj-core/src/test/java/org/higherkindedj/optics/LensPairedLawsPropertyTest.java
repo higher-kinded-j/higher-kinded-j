@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.optics.indexed.Pair;
@@ -158,7 +159,7 @@ class LensPairedLawsPropertyTest {
   @Label("Modify consistency: modify(f, s) == set(f(get(s)), s)")
   void modifyConsistency(@ForAll("validRanges") Range range) {
     // Use a transformation that preserves the invariant
-    java.util.function.Function<Pair<Integer, Integer>, Pair<Integer, Integer>> shift =
+    Function<Pair<Integer, Integer>, Pair<Integer, Integer>> shift =
         t -> Pair.of(t.first() + 10, t.second() + 10);
 
     Range viaModify = boundsLens.modify(shift, range);
@@ -196,9 +197,9 @@ class LensPairedLawsPropertyTest {
     int totalShift = shift1 + shift2;
     Assume.that(range.lo() + totalShift <= range.hi() + totalShift);
 
-    java.util.function.Function<Pair<Integer, Integer>, Pair<Integer, Integer>> f =
+    Function<Pair<Integer, Integer>, Pair<Integer, Integer>> f =
         t -> Pair.of(t.first() + shift1, t.second() + shift1);
-    java.util.function.Function<Pair<Integer, Integer>, Pair<Integer, Integer>> g =
+    Function<Pair<Integer, Integer>, Pair<Integer, Integer>> g =
         t -> Pair.of(t.first() + shift2, t.second() + shift2);
 
     Range sequential = boundsLens.modify(g, boundsLens.modify(f, range));

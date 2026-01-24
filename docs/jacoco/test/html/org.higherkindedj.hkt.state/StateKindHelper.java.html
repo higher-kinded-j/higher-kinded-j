@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StateKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.state</a> &gt; <span class="el_source">StateKindHelper.java</span></div><h1>StateKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.state;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link StateConverterOps} for widen/narrow operations, and providing additional
+ * factory and utility instance methods for {@link State} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code STATE}. For example: {@code
+ * StateKindHelper.STATE.widen(State.pure(&quot;value&quot;));}
+ */
+<span class="fc" id="L20">public enum StateKindHelper implements StateConverterOps {</span>
+<span class="fc" id="L21">  STATE;</span>
+
+<span class="fc" id="L23">  private static final Class&lt;State&gt; STATE_CLASS = State.class;</span>
+
+  /**
+   * An internal record that implements {@link StateKind}{@code &lt;S, A&gt;} to hold the concrete {@link
+   * State}{@code &lt;S, A&gt;} instance. Changed to package-private for potential test access.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param stateInstance The non-null, actual {@link State}{@code &lt;S, A&gt;} instance being wrapped.
+   */
+  record StateHolder&lt;S, A&gt;(State&lt;S, A&gt; stateInstance) implements StateKind&lt;S, A&gt; {
+    /**
+     * Constructs a {@code StateHolder}.
+     *
+     * @param stateInstance The {@link State} to hold. Must not be null.
+     * @throws NullPointerException if the provided {@code stateInstance} is null.
+     */
+    StateHolder {
+      Validation.kind().requireForWiden(stateInstance, STATE_CLASS);
+    }
+  }
+
+  /**
+   * Widens a concrete {@link State}{@code &lt;S, A&gt;} instance into its higher-kinded representation,
+   * {@link Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;}. Implements {@link StateConverterOps#widen}.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param state The non-null, concrete {@link State}{@code &lt;S, A&gt;} instance to widen.
+   * @return A non-null {@link Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} representing the wrapped {@code State}
+   *     computation.
+   * @throws NullPointerException if {@code state} is {@code null}.
+   */
+  @Override
+  public &lt;S, A&gt; Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; widen(State&lt;S, A&gt; state) {
+<span class="fc" id="L58">    return new StateHolder&lt;&gt;(state);</span>
+  }
+
+  /**
+   * Narrows a {@link Kind}&amp;lt;{@link StateKind.Witness}, A&amp;gt; (which is effectively a {@link
+   * StateKind}&amp;lt;S, A&amp;gt;) back to its concrete {@link State}{@code &lt;S, A&gt;} type. Implements
+   * {@link StateConverterOps#narrow}.
+   *
+   * &lt;p&gt;This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
+   * @param &lt;S&gt; The type of the state. This is often inferred.
+   * @param &lt;A&gt; The type of the computed value associated with the {@code Kind}.
+   * @param kind The {@code Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} instance to narrow. May be {@code null}.
+   * @return The underlying, non-null {@link State}{@code &lt;S, A&gt;} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null}, or not an instance of {@link StateHolder}. The {@code StateHolder} guarantees its
+   *     internal {@code stateInstance} is non-null.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;S, A&gt; State&lt;S, A&gt; narrow(@Nullable Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; kind) {
+<span class="fc" id="L80">    return Validation.kind()</span>
+<span class="fc" id="L81">        .narrowWithPattern(</span>
+            kind,
+            STATE_CLASS,
+            StateHolder.class,
+<span class="fc" id="L85">            holder -&gt; ((StateHolder&lt;S, A&gt;) holder).stateInstance());</span>
+  }
+
+  /**
+   * Lifts a pure value {@code A} into a {@link Kind}{@code &lt;StateKind.Witness&lt;S&gt;, A&gt;} context.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the pure value being lifted.
+   * @param value The value to lift.
+   * @return A non-null {@link Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} representing the pure computation.
+   */
+  public &lt;S, A&gt; Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; pure(@Nullable A value) {
+<span class="fc" id="L97">    return this.widen(State.pure(value));</span>
+  }
+
+  /**
+   * Creates a {@link Kind}{@code &lt;StateKind.Witness&lt;S&gt;, S&gt;} that yields the current state.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @return A non-null {@link Kind&lt;StateKind.Witness&lt;S&gt;, S&gt;} that yields the current state.
+   */
+  public &lt;S&gt; Kind&lt;StateKind.Witness&lt;S&gt;, S&gt; get() {
+<span class="fc" id="L107">    return this.widen(State.get());</span>
+  }
+
+  /**
+   * Creates a {@link Kind}{@code &lt;StateKind.Witness&lt;S&gt;, Unit&gt;} that replaces the current state.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param newState The non-null new state to be set.
+   * @return A non-null {@link Kind&lt;StateKind.Witness&lt;S&gt;, Unit&gt;} that performs the state update.
+   * @throws NullPointerException if {@code newState} is null.
+   */
+  public &lt;S&gt; Kind&lt;StateKind.Witness&lt;S&gt;, Unit&gt; set(S newState) {
+    // State.set already validates newState is non-null, but we can add validation here too
+<span class="fc" id="L120">    return this.widen(State.set(newState));</span>
+  }
+
+  /**
+   * Creates a {@link Kind}{@code &lt;StateKind.Witness&lt;S&gt;, Unit&gt;} that modifies the current state.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param f The non-null function to transform the current state.
+   * @return A non-null {@link Kind&lt;StateKind.Witness&lt;S&gt;, Unit&gt;} that performs the state
+   *     modification.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public &lt;S&gt; Kind&lt;StateKind.Witness&lt;S&gt;, Unit&gt; modify(Function&lt;S, S&gt; f) {
+<span class="fc" id="L133">    Validation.function().requireFunction(f, &quot;f&quot;, STATE_CLASS, MODIFY);</span>
+<span class="fc" id="L134">    return this.widen(State.modify(f));</span>
+  }
+
+  /**
+   * Creates a {@link Kind}{@code &lt;StateKind.Witness&lt;S&gt;, A&gt;} that inspects the current state.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the value produced by inspecting the state.
+   * @param f The non-null function to apply to the current state.
+   * @return A non-null {@link Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} that returns the result of inspecting
+   *     the state.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public &lt;S, A&gt; Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; inspect(Function&lt;S, @Nullable A&gt; f) {
+<span class="fc" id="L148">    Validation.function().requireFunction(f, &quot;f&quot;, STATE_CLASS, INSPECT);</span>
+<span class="fc" id="L149">    return this.widen(State.inspect(f));</span>
+  }
+
+  /**
+   * Runs the {@link State}{@code &lt;S, A&gt;} computation held within the {@code Kind} wrapper.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} holding the {@code State} computation.
+   * @param initialState The non-null initial state.
+   * @return A non-null {@link StateTuple}{@code &lt;S, A&gt;}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
+   * @throws NullPointerException if {@code initialState} is {@code null}.
+   */
+  public &lt;S, A&gt; StateTuple&lt;S, A&gt; runState(
+      @Nullable Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; kind, S initialState) {
+<span class="fc" id="L165">    Validation.kind().requireNonNull(kind, STATE_CLASS, RUN_STATE);</span>
+    // Note: initialState validation is handled by StateTuple constructor
+<span class="fc" id="L167">    return this.narrow(kind).run(initialState);</span>
+  }
+
+  /**
+   * Evaluates the {@link State}{@code &lt;S, A&gt;} computation and returns only the final value.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} holding the {@code State} computation.
+   * @param initialState The non-null initial state.
+   * @return The final computed value.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
+   * @throws NullPointerException if {@code initialState} is {@code null}.
+   */
+  public &lt;S, A&gt; @Nullable A evalState(
+      @Nullable Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; kind, S initialState) {
+<span class="fc" id="L183">    return this.runState(kind, initialState).value();</span>
+  }
+
+  /**
+   * Executes the {@link State}{@code &lt;S, A&gt;} computation and returns only the final state.
+   *
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind&lt;StateKind.Witness&lt;S&gt;, A&gt;} holding the {@code State} computation.
+   * @param initialState The non-null initial state.
+   * @return The non-null final state.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
+   * @throws NullPointerException if {@code initialState} is {@code null}.
+   */
+  public &lt;S, A&gt; S execState(@Nullable Kind&lt;StateKind.Witness&lt;S&gt;, A&gt; kind, S initialState) {
+<span class="fc" id="L198">    return this.runState(kind, initialState).state();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

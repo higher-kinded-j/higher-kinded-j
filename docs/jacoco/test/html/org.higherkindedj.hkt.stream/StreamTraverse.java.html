@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StreamTraverse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.stream</a> &gt; <span class="el_source">StreamTraverse.java</span></div><h1>StreamTraverse.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.stream;
+
+import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Foldable;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link
+ * java.util.stream.Stream}, using {@link StreamKind.Witness} as the higher-kinded type witness.
+ *
+ * &lt;p&gt;&lt;b&gt;Important: Stream Evaluation Semantics&lt;/b&gt;
+ *
+ * &lt;p&gt;Unlike the lazy operations in {@link StreamFunctor} and {@link StreamMonad}, the operations
+ * provided by {@code Traverse} and {@code Foldable} necessarily force evaluation of the stream:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #traverse(Applicative, Function, Kind)} - Must consume the entire stream to collect
+ *       results and sequence effects
+ *   &lt;li&gt;{@link #foldMap(Monoid, Function, Kind)} - Must consume the stream to compute the folded
+ *       result
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;This is a fundamental property of these typeclasses: to produce a result that combines all
+ * elements (whether sequencing effects or folding values), the entire structure must be traversed.
+ *
+ * &lt;p&gt;&lt;b&gt;Use Cases and Benefits&lt;/b&gt;
+ *
+ * &lt;p&gt;Despite forcing evaluation, {@code StreamTraverse} provides valuable functionality:
+ *
+ * &lt;h3&gt;1. Sequencing Effects from Stream Pipelines&lt;/h3&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Process stream results with validation
+ * Stream&lt;String&gt; inputs = Files.lines(path);
+ * Kind&lt;StreamKind.Witness, String&gt; streamKind = STREAM.widen(inputs);
+ *
+ * Kind&lt;ValidationKind.Witness, Kind&lt;StreamKind.Witness, Integer&gt;&gt; validated =
+ *     StreamTraverse.INSTANCE.traverse(
+ *         validationApplicative,
+ *         str -&gt; parseAndValidate(str),
+ *         streamKind
+ *     );
+ * // Result: Either all valid (stream of integers) or accumulated errors
+ * }&lt;/pre&gt;
+ *
+ * &lt;h3&gt;2. Converting Stream Computations to Collections&lt;/h3&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Lazy computation pipeline that eventually needs materialization
+ * Stream&lt;Integer&gt; lazyComputation = Stream.iterate(1, n -&gt; n + 1)
+ *     .filter(n -&gt; n % 2 == 0)
+ *     .limit(100)
+ *     .map(n -&gt; n * n);
+ *
+ * // Traverse with Optional applicative (fail-fast)
+ * Kind&lt;StreamKind.Witness, Integer&gt; streamKind = STREAM.widen(lazyComputation);
+ * Kind&lt;OptionalKind.Witness, Kind&lt;StreamKind.Witness, Integer&gt;&gt; result =
+ *     StreamTraverse.INSTANCE.traverse(
+ *         optionalApplicative,
+ *         n -&gt; n &gt; 0 ? Optional.of(n) : Optional.empty(),
+ *         streamKind
+ *     );
+ * }&lt;/pre&gt;
+ *
+ * &lt;h3&gt;3. Generic Algorithms&lt;/h3&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Generic function that works with ANY Traverse instance
+ * &lt;T&gt; Kind&lt;ValidationKind.Witness, Kind&lt;T, Integer&gt;&gt; validateAll(
+ *     Traverse&lt;T&gt; traverse,
+ *     Kind&lt;T, String&gt; inputs
+ * ) {
+ *     return traverse.traverse(validationApp, validateInteger, inputs);
+ * }
+ *
+ * // Works with Stream
+ * validateAll(StreamTraverse.INSTANCE, STREAM.widen(stream));
+ * // Also works with List, Optional, Tree, etc.
+ * validateAll(ListTraverse.INSTANCE, LIST.widen(list));
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Performance Considerations&lt;/b&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;The stream is consumed exactly once during traverse/foldMap
+ *   &lt;li&gt;Results are collected into a new stream, requiring memory allocation
+ *   &lt;li&gt;For large streams, consider chunking or using other streaming abstractions
+ *   &lt;li&gt;Parallel streams are processed sequentially by traverse (maintains left-to-right order)
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Comparison with List&lt;/b&gt;
+ *
+ * &lt;table border=&quot;1&quot;&gt;
+ *   &lt;tr&gt;
+ *     &lt;th&gt;Aspect&lt;/th&gt;
+ *     &lt;th&gt;ListTraverse&lt;/th&gt;
+ *     &lt;th&gt;StreamTraverse&lt;/th&gt;
+ *   &lt;/tr&gt;
+ *   &lt;tr&gt;
+ *     &lt;td&gt;Input&lt;/td&gt;
+ *     &lt;td&gt;Already materialized&lt;/td&gt;
+ *     &lt;td&gt;Can be lazy pipeline&lt;/td&gt;
+ *   &lt;/tr&gt;
+ *   &lt;tr&gt;
+ *     &lt;td&gt;Output&lt;/td&gt;
+ *     &lt;td&gt;List (reusable)&lt;/td&gt;
+ *     &lt;td&gt;Stream (single-use)&lt;/td&gt;
+ *   &lt;/tr&gt;
+ *   &lt;tr&gt;
+ *     &lt;td&gt;Memory&lt;/td&gt;
+ *     &lt;td&gt;Already allocated&lt;/td&gt;
+ *     &lt;td&gt;Allocates during traverse&lt;/td&gt;
+ *   &lt;/tr&gt;
+ *   &lt;tr&gt;
+ *     &lt;td&gt;Use Case&lt;/td&gt;
+ *     &lt;td&gt;Working with collections&lt;/td&gt;
+ *     &lt;td&gt;Pipeline endpoints&lt;/td&gt;
+ *   &lt;/tr&gt;
+ * &lt;/table&gt;
+ *
+ * @see Traverse
+ * @see Stream
+ * @see StreamKind
+ * @see StreamMonad
+ * @see StreamFunctor
+ */
+<span class="fc" id="L143">@NullMarked</span>
+public enum StreamTraverse implements Traverse&lt;StreamKind.Witness&gt; {
+  /**
+   * Singleton instance of {@code StreamTraverse}. This instance can be used to access {@code
+   * Traverse} and {@code Foldable} operations for streams.
+   */
+<span class="fc" id="L149">  INSTANCE;</span>
+
+<span class="fc" id="L151">  private static final Class&lt;StreamTraverse&gt; STREAM_TRAVERSE_CLASS = StreamTraverse.class;</span>
+
+  /**
+   * Maps a function over a stream in a higher-kinded context. This operation is inherited from
+   * {@link Functor} via {@link Traverse}.
+   *
+   * &lt;p&gt;&lt;b&gt;Note:&lt;/b&gt; This operation delegates to {@link StreamFunctor} and maintains lazy
+   * evaluation. It does NOT force evaluation of the stream.
+   *
+   * @param &lt;A&gt; The type of elements in the input stream.
+   * @param &lt;B&gt; The type of elements in the output stream after applying the function.
+   * @param f The non-null function to apply to each element of the stream.
+   * @param fa The non-null {@code Kind&lt;StreamKind.Witness, A&gt;} representing the input stream.
+   * @return A new non-null {@code Kind&lt;StreamKind.Witness, B&gt;} containing a stream with the results
+   *     of applying the function {@code f}. The transformation is lazy.
+   * @throws NullPointerException if f or fa is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;StreamKind.Witness, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;StreamKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L173">    Validation.function().requireMapper(f, &quot;f&quot;, STREAM_TRAVERSE_CLASS, MAP);</span>
+<span class="fc" id="L174">    Validation.kind().requireNonNull(fa, STREAM_TRAVERSE_CLASS, MAP);</span>
+
+<span class="fc" id="L176">    return StreamFunctor.INSTANCE.map(f, fa);</span>
+  }
+
+  /**
+   * Traverses a stream from left to right, applying an effectful function {@code f} to each element
+   * and collecting the results within the context of the {@link Applicative} {@code G}.
+   *
+   * &lt;p&gt;&lt;b&gt;Stream Consumption Warning:&lt;/b&gt; This operation forces evaluation of the entire stream.
+   * The stream is consumed during traversal as elements are processed sequentially from left to
+   * right. After this operation completes, the input stream cannot be reused.
+   *
+   * &lt;p&gt;The traversal proceeds as follows:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;Start with an empty stream wrapped in the applicative context
+   *   &lt;li&gt;For each element in the input stream (left to right):
+   *       &lt;ul&gt;
+   *         &lt;li&gt;Apply the effectful function {@code f} to get {@code Kind&lt;G, B&gt;}
+   *         &lt;li&gt;Combine with the accumulator using the applicative's {@code map2}
+   *         &lt;li&gt;Append the new element to the result stream
+   *       &lt;/ul&gt;
+   *   &lt;li&gt;Return the final accumulated result
+   * &lt;/ol&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Stack Safety Considerations:&lt;/b&gt;
+   *
+   * &lt;p&gt;This implementation uses an iterative loop with {@code applicative.map2()}, which is
+   * generally stack-safe for most standard {@code Applicative} instances. However, stack safety
+   * ultimately depends on the {@code Applicative} instance provided:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;&lt;b&gt;Stack-Safe Applicatives:&lt;/b&gt; If {@code map2} is implemented iteratively or uses
+   *       trampolining internally (as in {@code Id}, {@code Optional}, {@code Either}), this
+   *       traversal is stack-safe for arbitrarily large streams.
+   *   &lt;li&gt;&lt;b&gt;Potentially Unsafe Applicatives:&lt;/b&gt; If {@code map2} is implemented in terms of {@code
+   *       flatMap} without stack-safety measures, traversing very large streams (&gt;10,000 elements)
+   *       may cause {@code StackOverflowError}. In such cases, ensure your {@code Applicative}
+   *       instance uses {@link org.higherkindedj.hkt.trampoline.Trampoline} or similar techniques.
+   * &lt;/ul&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Effect Sequencing:&lt;/b&gt; The behaviour depends on the applicative instance:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;&lt;b&gt;Optional:&lt;/b&gt; Returns {@code Some(stream)} if all applications succeed, {@code None}
+   *       on first failure (short-circuits)
+   *   &lt;li&gt;&lt;b&gt;Validation:&lt;/b&gt; Accumulates all errors, returning either all errors or a valid result
+   *       stream
+   *   &lt;li&gt;&lt;b&gt;Either:&lt;/b&gt; Returns first error encountered (Left), or the result stream (Right)
+   *   &lt;li&gt;&lt;b&gt;IO:&lt;/b&gt; Sequences all IO effects, producing a single IO action that yields the result
+   *       stream
+   *   &lt;li&gt;&lt;b&gt;List:&lt;/b&gt; Generates all combinations (cartesian product) of possible results
+   * &lt;/ul&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Example Usage:&lt;/b&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Validate integers from a stream of strings
+   * Stream&lt;String&gt; inputs = Stream.of(&quot;1&quot;, &quot;2&quot;, &quot;abc&quot;, &quot;4&quot;);
+   * Kind&lt;StreamKind.Witness, String&gt; streamKind = STREAM.widen(inputs);
+   *
+   * Function&lt;String, Kind&lt;ValidationKind.Witness, Integer&gt;&gt; validate = str -&gt; {
+   *     try {
+   *         int value = Integer.parseInt(str);
+   *         return Validation.valid(value);
+   *     } catch (NumberFormatException e) {
+   *         return Validation.invalid(&quot;Not a number: &quot; + str);
+   *     }
+   * };
+   *
+   * Kind&lt;ValidationKind.Witness, Kind&lt;StreamKind.Witness, Integer&gt;&gt; result =
+   *     StreamTraverse.INSTANCE.traverse(validationApplicative, validate, streamKind);
+   * // Result: Invalid with error [&quot;Not a number: abc&quot;]
+   * // The stream is fully consumed, including elements after the error
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;G&gt; The higher-kinded type witness for the {@link Applicative} context.
+   * @param &lt;A&gt; The type of elements in the input stream {@code ta}.
+   * @param &lt;B&gt; The type of elements in the resulting stream, wrapped within the context {@code G}.
+   * @param applicative The non-null {@link Applicative} instance for the context {@code G}.
+   * @param f A non-null function from {@code A} to {@code Kind&lt;G, ? extends B&gt;}, producing an
+   *     effectful value for each element.
+   * @param ta The non-null {@code Kind&lt;StreamKind.Witness, A&gt;} (a stream of {@code A}s) to
+   *     traverse. This stream will be consumed.
+   * @return A {@code Kind&lt;G, Kind&lt;StreamKind.Witness, B&gt;&gt;}. This represents the stream of results
+   *     (each of type {@code B}), with the entire resulting stream structure itself wrapped in the
+   *     applicative context {@code G}. Never null.
+   * @throws NullPointerException if applicative, f, or ta is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ta cannot be unwrapped.
+   */
+  @Override
+  public &lt;G extends WitnessArity&lt;TypeArity.Unary&gt;, A, B&gt;
+      Kind&lt;G, Kind&lt;StreamKind.Witness, B&gt;&gt; traverse(
+          Applicative&lt;G&gt; applicative,
+          Function&lt;? super A, ? extends Kind&lt;G, ? extends B&gt;&gt; f,
+          Kind&lt;StreamKind.Witness, A&gt; ta) {
+
+<span class="fc" id="L272">    Validation.function().validateTraverse(applicative, f, ta, STREAM_TRAVERSE_CLASS);</span>
+
+<span class="fc" id="L274">    Stream&lt;A&gt; streamA = STREAM.narrow(ta);</span>
+
+    // Collect stream to list to enable sequential processing
+    // We need to materialize because we're building up an applicative result
+    // and Stream's single-use nature prevents us from iterating multiple times
+<span class="fc" id="L279">    var elements = streamA.collect(Collectors.toList());</span>
+
+    // Start with empty stream in applicative context
+<span class="fc" id="L282">    Kind&lt;G, Stream.Builder&lt;B&gt;&gt; result = applicative.of(Stream.builder());</span>
+
+    // Process each element, accumulating in applicative context
+<span class="fc bfc" id="L285" title="All 2 branches covered.">    for (A a : elements) {</span>
+<span class="fc" id="L286">      Kind&lt;G, ? extends B&gt; effectOfB = f.apply(a);</span>
+<span class="fc" id="L287">      result =</span>
+<span class="fc" id="L288">          applicative.map2(</span>
+              result,
+              effectOfB,
+              (builder, b) -&gt; {
+                // Add element to the builder
+<span class="fc" id="L293">                builder.add((B) b);</span>
+<span class="fc" id="L294">                return builder;</span>
+              });
+<span class="fc" id="L296">    }</span>
+
+    // Convert builder to stream and wrap
+<span class="fc" id="L299">    return applicative.map(builder -&gt; STREAM.widen(builder.build()), result);</span>
+  }
+
+  /**
+   * Maps each element of the stream to a {@link Monoid} {@code M} and combines the results using
+   * the monoid's binary operation.
+   *
+   * &lt;p&gt;&lt;b&gt;Stream Consumption Warning:&lt;/b&gt; This operation forces evaluation of the entire stream.
+   * The stream is consumed as it is folded from left to right. After this operation completes, the
+   * input stream cannot be reused.
+   *
+   * &lt;p&gt;The folding proceeds as follows:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;Start with the monoid's empty (identity) value
+   *   &lt;li&gt;For each element in the stream (left to right):
+   *       &lt;ul&gt;
+   *         &lt;li&gt;Apply the mapping function {@code f} to get a value of type {@code M}
+   *         &lt;li&gt;Combine with the accumulator using the monoid's {@code combine} operation
+   *       &lt;/ul&gt;
+   *   &lt;li&gt;Return the final accumulated value
+   * &lt;/ol&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Example Usage:&lt;/b&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Sum elements from an infinite stream (with limit)
+   * Stream&lt;Integer&gt; numbers = Stream.iterate(1, n -&gt; n + 1).limit(100);
+   * Kind&lt;StreamKind.Witness, Integer&gt; streamKind = STREAM.widen(numbers);
+   *
+   * Monoid&lt;Integer&gt; sumMonoid = Monoids.integerAddition();
+   * Integer sum = StreamTraverse.INSTANCE.foldMap(
+   *     sumMonoid,
+   *     Function.identity(),
+   *     streamKind
+   * );
+   * // Result: 5050 (sum of 1 to 100)
+   * // The stream is fully consumed
+   *
+   * // Concatenate string representations
+   * Stream&lt;Integer&gt; nums = Stream.of(1, 2, 3);
+   * Monoid&lt;String&gt; stringMonoid = Monoids.string();
+   * String result = StreamTraverse.INSTANCE.foldMap(
+   *     stringMonoid,
+   *     n -&gt; &quot;n&quot; + n + &quot;,&quot;,
+   *     STREAM.widen(nums)
+   * );
+   * // Result: &quot;n1,n2,n3,&quot;
+   * }&lt;/pre&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Performance Note:&lt;/b&gt; For simple reductions where you don't need the monoid abstraction,
+   * consider using {@code Stream.reduce()} directly for better performance. Use {@code foldMap}
+   * when you need:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;Generic code that works across different traversable structures
+   *   &lt;li&gt;The ability to map and fold in a single operation
+   *   &lt;li&gt;Type-safe folding with monoid laws guaranteed
+   * &lt;/ul&gt;
+   *
+   * @param &lt;A&gt; The type of elements in the stream.
+   * @param &lt;M&gt; The Monoidal type to which elements are mapped and combined.
+   * @param monoid The {@code Monoid} used to combine the results. Must not be null.
+   * @param f A function to map each element of type {@code A} to the Monoidal type {@code M}. Must
+   *     not be null.
+   * @param fa The {@code Kind&lt;StreamKind.Witness, A&gt;} representing the stream to fold. Must not be
+   *     null. This stream will be consumed.
+   * @return The aggregated result of type {@code M}. Never null.
+   * @throws NullPointerException if monoid, f, or fa is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, M&gt; M foldMap(
+      Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, Kind&lt;StreamKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L374">    Validation.function().validateFoldMap(monoid, f, fa, STREAM_TRAVERSE_CLASS);</span>
+
+    // Collect mapped values first to avoid wildcard capture issues with stream reduce.
+    // The function f returns ? extends M, which makes map(f) return Stream&lt;? extends M&gt;.
+    // Java's reduce operation requires exact type match, so we collect and fold manually.
+<span class="fc" id="L379">    List&lt;?&gt; mappedValues = STREAM.narrow(fa).map(f).collect(Collectors.toList());</span>
+
+<span class="fc" id="L381">    M result = monoid.empty();</span>
+<span class="fc bfc" id="L382" title="All 2 branches covered.">    for (Object value : mappedValues) {</span>
+      @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L384">      M m = (M) value; // Safe: values are of type ? extends M, covariant-safe to read as M</span>
+<span class="fc" id="L385">      result = monoid.combine(result, m);</span>
+<span class="fc" id="L386">    }</span>
+<span class="fc" id="L387">    return result;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

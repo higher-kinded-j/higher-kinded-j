@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.id</a> &gt; <span class="el_source">IdKindHelper.java</span></div><h1>IdKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.id;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link IdConverterOps} for widen/narrow operations, and providing an additional
+ * unwrap instance method for {@link Id} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code ID}. For example: {@code
+ * IdKindHelper.ID.widen(myIdValue);} Or, with static import: {@code import static
+ * org.higherkindedj.hkt.id.IdKindHelper.ID; ID.widen(...);}
+ */
+<span class="fc" id="L17">public enum IdKindHelper implements IdConverterOps {</span>
+<span class="fc" id="L18">  ID;</span>
+
+<span class="fc" id="L20">  private static final Class&lt;Id&gt; ID_CLASS = Id.class;</span>
+
+  /**
+   * Widens an {@code Id&lt;A&gt;} instance to a {@code Kind&lt;IdKind.Witness, A&gt;}.
+   *
+   * &lt;p&gt;This is essentially a type-safe cast, as {@link Id} already implements {@code
+   * Kind&lt;IdKind.Witness, A&gt;}.
+   *
+   * @param id The {@link Id} instance to widen. Must not be null.
+   * @param &lt;A&gt; The type of the value.
+   * @return The {@link Id} instance typed as a {@link Kind}. Never null.
+   * @throws NullPointerException if id is null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;IdKind.Witness, A&gt; widen(Id&lt;A&gt; id) {
+<span class="fc" id="L35">    Validation.kind().requireForWiden(id, ID_CLASS);</span>
+<span class="fc" id="L36">    return id;</span>
+  }
+
+  /**
+   * Narrows a {@code Kind&lt;IdKind.Witness, A&gt;} to its concrete type {@code Id&lt;A&gt;}.
+   *
+   * @param kind The {@link Kind} to narrow. May be null.
+   * @param &lt;A&gt; The type of the value.
+   * @return The narrowed {@link Id} instance. Never null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is null or not an Id
+   *     instance.
+   */
+  @Override
+  public &lt;A&gt; Id&lt;A&gt; narrow(@Nullable Kind&lt;IdKind.Witness, A&gt; kind) {
+<span class="fc" id="L50">    return Validation.kind().narrowWithTypeCheck(kind, ID_CLASS);</span>
+  }
+
+  /**
+   * Unwraps the value from a {@code Kind&lt;IdKind.Witness, A&gt;}. This is a convenience method that
+   * combines narrowing and then calling {@link Id#value()}.
+   *
+   * @param kind The {@link Kind} to unwrap. Must not be null.
+   * @param &lt;A&gt; The type of the value.
+   * @return The underlying value. Can be null if the {@link Id} wrapped a null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is null or not an Id
+   *     instance.
+   */
+  public &lt;A&gt; @Nullable A unwrap(Kind&lt;IdKind.Witness, A&gt; kind) {
+<span class="fc" id="L64">    return this.narrow(kind).value();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

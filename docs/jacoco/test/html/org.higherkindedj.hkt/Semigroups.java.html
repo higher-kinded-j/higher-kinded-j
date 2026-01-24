@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Semigroups.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt</a> &gt; <span class="el_source">Semigroups.java</span></div><h1>Semigroups.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * A utility interface providing static factory methods for common {@link Semigroup} instances.
+ *
+ * &lt;p&gt;Using an interface with static methods is a modern alternative to a final utility class and
+ * prevents instantiation without needing a private constructor.
+ */
+public interface Semigroups {
+
+  /**
+   * Returns a {@code Semigroup} for {@link List} that concatenates two lists into a new list.
+   *
+   * @param &lt;A&gt; The element type of the lists.
+   * @return A non-null {@code Semigroup} for list concatenation.
+   */
+  static &lt;A&gt; Semigroup&lt;List&lt;A&gt;&gt; list() {
+<span class="fc" id="L25">    return (list1, list2) -&gt; {</span>
+<span class="fc" id="L26">      List&lt;A&gt; combined = new ArrayList&lt;&gt;(list1);</span>
+<span class="fc" id="L27">      combined.addAll(list2);</span>
+<span class="fc" id="L28">      return combined;</span>
+    };
+  }
+
+  /**
+   * Returns a {@code Semigroup} for {@link Set} that computes the union of two sets.
+   *
+   * @param &lt;A&gt; The element type of the sets.
+   * @return A non-null {@code Semigroup} for set union.
+   */
+  static &lt;A&gt; Semigroup&lt;Set&lt;A&gt;&gt; set() {
+<span class="fc" id="L39">    return (set1, set2) -&gt; {</span>
+<span class="fc" id="L40">      Set&lt;A&gt; combined = new HashSet&lt;&gt;(set1);</span>
+<span class="fc" id="L41">      combined.addAll(set2);</span>
+<span class="fc" id="L42">      return combined;</span>
+    };
+  }
+
+  /**
+   * Returns a {@code Semigroup} for basic {@link String} concatenation (s1 + s2).
+   *
+   * @return A non-null {@code Semigroup} for string concatenation.
+   */
+  static Semigroup&lt;String&gt; string() {
+<span class="fc" id="L52">    return (s1, s2) -&gt; s1 + s2;</span>
+  }
+
+  /**
+   * Returns a {@code Semigroup} for {@link String} that concatenates two strings with a given
+   * delimiter.
+   *
+   * @param delimiter The string to place between the two concatenated strings.
+   * @return A non-null {@code Semigroup} for delimited string concatenation.
+   */
+  static Semigroup&lt;String&gt; string(final String delimiter) {
+<span class="fc" id="L63">    return (s1, s2) -&gt; s1 + delimiter + s2;</span>
+  }
+
+  /**
+   * Returns a {@code Semigroup} that always returns the first of its two arguments.
+   *
+   * &lt;p&gt;This can be useful for creating an {@code Applicative} for {@code Validated} that has
+   * &quot;fail-fast&quot; behaviour, similar to a {@code Monad}.
+   *
+   * @param &lt;A&gt; The type of the elements.
+   * @return A non-null {@code Semigroup} that always selects the first element.
+   */
+  static &lt;A&gt; Semigroup&lt;A&gt; first() {
+<span class="fc" id="L76">    return (a1, a2) -&gt; a1;</span>
+  }
+
+  /**
+   * Returns a {@code Semigroup} that always returns the second (last) of its two arguments.
+   *
+   * @param &lt;A&gt; The type of the elements.
+   * @return A non-null {@code Semigroup} that always selects the last element.
+   */
+  static &lt;A&gt; Semigroup&lt;A&gt; last() {
+<span class="fc" id="L86">    return (a1, a2) -&gt; a2;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

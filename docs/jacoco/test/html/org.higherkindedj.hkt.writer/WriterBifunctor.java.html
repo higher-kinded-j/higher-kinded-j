@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WriterBifunctor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.writer</a> &gt; <span class="el_source">WriterBifunctor.java</span></div><h1>WriterBifunctor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.writer;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
+
+import java.util.Objects;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Bifunctor;
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * {@link Bifunctor} instance for {@link Writer}.
+ *
+ * &lt;p&gt;This instance enables transformation of both the log (written output) and value channels of a
+ * {@link Writer} independently. Both type parameters are covariant.
+ *
+ * &lt;p&gt;Examples:
+ *
+ * &lt;pre&gt;{@code
+ * Writer&lt;String, Integer&gt; writer = new Writer&lt;&gt;(&quot;log entry&quot;, 42);
+ * Writer&lt;Integer, String&gt; transformed = WriterBifunctor.INSTANCE.bimap(
+ *     String::length,     // Transform log: &quot;log entry&quot; -&gt; 9
+ *     n -&gt; &quot;Value: &quot; + n, // Transform value: 42 -&gt; &quot;Value: 42&quot;
+ *     WRITER.widen2(writer)
+ * );
+ * // result = new Writer&lt;&gt;(9, &quot;Value: 42&quot;)
+ * }&lt;/pre&gt;
+ */
+@NullMarked
+public class WriterBifunctor implements Bifunctor&lt;WriterKind2.Witness&gt; {
+
+  /** Singleton instance of the WriterBifunctor. */
+<span class="fc" id="L37">  public static final WriterBifunctor INSTANCE = new WriterBifunctor();</span>
+
+  private WriterBifunctor() {}
+
+  @Override
+  public &lt;A, B, C, D&gt; Kind2&lt;WriterKind2.Witness, C, D&gt; bimap(
+      Function&lt;? super A, ? extends C&gt; f,
+      Function&lt;? super B, ? extends D&gt; g,
+      Kind2&lt;WriterKind2.Witness, A, B&gt; fab) {
+
+<span class="fc" id="L47">    Validation.function().requireMapper(f, &quot;f&quot;, WriterBifunctor.class, BIMAP);</span>
+<span class="fc" id="L48">    Validation.function().requireMapper(g, &quot;g&quot;, WriterBifunctor.class, BIMAP);</span>
+<span class="fc" id="L49">    Objects.requireNonNull(fab, &quot;Kind for WriterBifunctor.bimap cannot be null&quot;);</span>
+
+<span class="fc" id="L51">    Writer&lt;A, B&gt; writer = WRITER.narrow2(fab);</span>
+<span class="fc" id="L52">    Writer&lt;C, D&gt; result = writer.bimap(f, g);</span>
+<span class="fc" id="L53">    return WRITER.widen2(result);</span>
+  }
+
+  @Override
+  public &lt;A, B, C&gt; Kind2&lt;WriterKind2.Witness, C, B&gt; first(
+      Function&lt;? super A, ? extends C&gt; f, Kind2&lt;WriterKind2.Witness, A, B&gt; fab) {
+
+<span class="fc" id="L60">    Validation.function().requireMapper(f, &quot;f&quot;, WriterBifunctor.class, FIRST);</span>
+<span class="fc" id="L61">    Objects.requireNonNull(fab, &quot;Kind for WriterBifunctor.first cannot be null&quot;);</span>
+
+<span class="fc" id="L63">    Writer&lt;A, B&gt; writer = WRITER.narrow2(fab);</span>
+<span class="fc" id="L64">    Writer&lt;C, B&gt; result = writer.mapWritten(f);</span>
+<span class="fc" id="L65">    return WRITER.widen2(result);</span>
+  }
+
+  @Override
+  public &lt;A, B, D&gt; Kind2&lt;WriterKind2.Witness, A, D&gt; second(
+      Function&lt;? super B, ? extends D&gt; g, Kind2&lt;WriterKind2.Witness, A, B&gt; fab) {
+
+<span class="fc" id="L72">    Validation.function().requireMapper(g, &quot;g&quot;, WriterBifunctor.class, SECOND);</span>
+<span class="fc" id="L73">    Objects.requireNonNull(fab, &quot;Kind for WriterBifunctor.second cannot be null&quot;);</span>
+
+<span class="fc" id="L75">    Writer&lt;A, B&gt; writer = WRITER.narrow2(fab);</span>
+<span class="fc" id="L76">    Writer&lt;A, D&gt; result = writer.map(g);</span>
+<span class="fc" id="L77">    return WRITER.widen2(result);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

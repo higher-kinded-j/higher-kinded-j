@@ -256,6 +256,11 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
             if (subtask == null) {
               throw new IllegalStateException("No subtask completed");
             }
+            // Coverage note: The default branch (UNAVAILABLE state) is unreachable in normal
+            // operation. After onComplete() is called, subtasks are guaranteed to be in SUCCESS
+            // or FAILED state. The UNAVAILABLE state only exists before a subtask completes,
+            // but firstCompleted is only set in onComplete(), so this defensive code cannot
+            // be exercised through normal StructuredTaskScope usage.
             return switch (subtask.state()) {
               case SUCCESS -> subtask.get();
               case FAILED -> throw subtask.exception();
@@ -317,11 +322,15 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
             List<E> errors = new ArrayList<>();
             List<T> successes = new ArrayList<>();
 
+            // Coverage note: The default branch (UNAVAILABLE state) is unreachable in normal
+            // operation. After join() returns, all forked subtasks are guaranteed to be in
+            // SUCCESS or FAILED state. The UNAVAILABLE state only exists before a subtask
+            // completes, but join() blocks until all subtasks complete.
             for (StructuredTaskScope.Subtask<? extends T> subtask : allSubtasks) {
               switch (subtask.state()) {
                 case SUCCESS -> successes.add(subtask.get());
                 case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
-                default -> {} // UNAVAILABLE shouldn't happen after join
+                default -> {} // UNAVAILABLE - defensive, unreachable after join
               }
             }
 
@@ -342,6 +351,10 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
   /**
    * Returns the result wrapped in Either, adapting the Validated result.
    *
+   * <p>Coverage note: The catch block is unreachable in normal operation. The delegate's result()
+   * method is designed to never throw - it accumulates all results into a Validated and always
+   * returns successfully (either Valid or Invalid). The catch block is purely defensive code.
+   *
    * @return Either containing the Validated result
    */
   @Override
@@ -349,6 +362,7 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
     try {
       return Either.right(delegate.result());
     } catch (Throwable t) {
+      // Defensive: delegate.result() should never throw as it returns Validated
       return Either.left(t);
     }
   }

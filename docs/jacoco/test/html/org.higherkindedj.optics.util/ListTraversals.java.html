@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ListTraversals.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.util</a> &gt; <span class="el_source">ListTraversals.java</span></div><h1>ListTraversals.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.util;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * A final utility class providing static factory methods for creating {@link Traversal}s that focus
+ * on specific portions of {@link List}s.
+ *
+ * &lt;p&gt;These combinators allow limiting which elements of a list are focused upon, enabling
+ * operations like &quot;modify only the first 3 elements&quot; or &quot;transform elements from index 2 to 5&quot;.
+ *
+ * &lt;p&gt;All methods follow consistent edge-case handling:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Negative indices are treated as 0 (identity behavior)
+ *   &lt;li&gt;Indices beyond list size are clamped to list bounds
+ *   &lt;li&gt;Empty lists always return identity (no modification)
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Example usage:
+ *
+ * &lt;pre&gt;{@code
+ * // Modify only the first 3 users
+ * Traversal&lt;List&lt;User&gt;, User&gt; first3 = ListTraversals.taking(3);
+ * List&lt;User&gt; modified = Traversals.modify(first3, User::activate, users);
+ *
+ * // Get the last 2 items
+ * Traversal&lt;List&lt;Item&gt;, Item&gt; last2 = ListTraversals.takingLast(2);
+ * List&lt;Item&gt; items = Traversals.getAll(last2, allItems);
+ *
+ * // Slice elements from index 1 to 4 (exclusive)
+ * Traversal&lt;List&lt;String&gt;, String&gt; slice = ListTraversals.slicing(1, 4);
+ * List&lt;String&gt; sliced = Traversals.getAll(slice, strings);
+ * }&lt;/pre&gt;
+ */
+@NullMarked
+public final class ListTraversals {
+
+  /** Private constructor to prevent instantiation. */
+  private ListTraversals() {}
+
+  /**
+   * Creates a {@code Traversal} that focuses on at most the first {@code n} elements of a list.
+   *
+   * &lt;p&gt;Elements beyond the first {@code n} are preserved unchanged during modifications but are not
+   * included in query operations like {@code getAll}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; first3 = ListTraversals.taking(3);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; doubled = Traversals.modify(first3, x -&gt; x * 2, numbers);
+   * // Result: [2, 4, 6, 4, 5] - only first 3 doubled
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(first3, numbers);
+   * // Result: [1, 2, 3] - only first 3 returned
+   * }&lt;/pre&gt;
+   *
+   * @param n The maximum number of elements to focus on. If {@code n &lt;= 0}, returns an identity
+   *     traversal that focuses on no elements. If {@code n &gt;= list.size()}, focuses on all
+   *     elements.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on at most the first {@code n} elements.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; taking(final int n) {
+<span class="fc" id="L79">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L83" title="All 4 branches covered.">        if (n &lt;= 0 || source.isEmpty()) {</span>
+<span class="fc" id="L84">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L87">        final int splitPoint = Math.min(n, source.size());</span>
+<span class="fc" id="L88">        final List&lt;A&gt; prefix = source.subList(0, splitPoint);</span>
+<span class="fc" id="L89">        final List&lt;A&gt; suffix = source.subList(splitPoint, source.size());</span>
+
+        // Traverse prefix with effects
+<span class="fc" id="L92">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedPrefixF = Traversals.traverseList(prefix, f, applicative);</span>
+
+        // Combine with unmodified suffix
+<span class="fc" id="L95">        return applicative.map(</span>
+            newPrefix -&gt; {
+<span class="fc" id="L97">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L98">              result.addAll(newPrefix);</span>
+<span class="fc" id="L99">              result.addAll(suffix);</span>
+<span class="fc" id="L100">              return result;</span>
+            },
+            modifiedPrefixF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on all elements after skipping the first {@code n}.
+   *
+   * &lt;p&gt;The first {@code n} elements are preserved unchanged during modifications but are not
+   * included in query operations like {@code getAll}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; afterFirst2 = ListTraversals.dropping(2);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; doubled = Traversals.modify(afterFirst2, x -&gt; x * 2, numbers);
+   * // Result: [1, 2, 6, 8, 10] - skipped first 2, doubled rest
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(afterFirst2, numbers);
+   * // Result: [3, 4, 5] - skipped first 2
+   * }&lt;/pre&gt;
+   *
+   * @param n The number of elements to skip. If {@code n &lt;= 0}, focuses on all elements. If {@code
+   *     n &gt;= list.size()}, returns an identity traversal focusing on no elements.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on elements after skipping the first {@code n}.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; dropping(final int n) {
+<span class="fc" id="L132">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        if (n &lt;= 0) {</span>
+          // Drop nothing, focus on all elements
+<span class="fc" id="L138">          return Traversals.traverseList(source, f, applicative);</span>
+        }
+
+<span class="fc bfc" id="L141" title="All 2 branches covered.">        if (n &gt;= source.size()) {</span>
+<span class="fc" id="L142">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L145">        final List&lt;A&gt; prefix = source.subList(0, n);</span>
+<span class="fc" id="L146">        final List&lt;A&gt; suffix = source.subList(n, source.size());</span>
+
+        // Traverse suffix with effects
+<span class="fc" id="L149">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedSuffixF = Traversals.traverseList(suffix, f, applicative);</span>
+
+        // Combine with unmodified prefix
+<span class="fc" id="L152">        return applicative.map(</span>
+            newSuffix -&gt; {
+<span class="fc" id="L154">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L155">              result.addAll(prefix);</span>
+<span class="fc" id="L156">              result.addAll(newSuffix);</span>
+<span class="fc" id="L157">              return result;</span>
+            },
+            modifiedSuffixF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on at most the last {@code n} elements of a list.
+   *
+   * &lt;p&gt;Elements before the last {@code n} are preserved unchanged during modifications but are not
+   * included in query operations like {@code getAll}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; last3 = ListTraversals.takingLast(3);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; doubled = Traversals.modify(last3, x -&gt; x * 2, numbers);
+   * // Result: [1, 2, 6, 8, 10] - only last 3 doubled
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(last3, numbers);
+   * // Result: [3, 4, 5] - only last 3 returned
+   * }&lt;/pre&gt;
+   *
+   * @param n The maximum number of elements from the end to focus on. If {@code n &lt;= 0}, returns an
+   *     identity traversal that focuses on no elements. If {@code n &gt;= list.size()}, focuses on all
+   *     elements.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on at most the last {@code n} elements.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; takingLast(final int n) {
+<span class="fc" id="L190">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L194" title="All 4 branches covered.">        if (n &lt;= 0 || source.isEmpty()) {</span>
+<span class="fc" id="L195">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L198">        final int splitPoint = Math.max(0, source.size() - n);</span>
+<span class="fc" id="L199">        final List&lt;A&gt; prefix = source.subList(0, splitPoint);</span>
+<span class="fc" id="L200">        final List&lt;A&gt; suffix = source.subList(splitPoint, source.size());</span>
+
+        // Traverse suffix (last n elements) with effects
+<span class="fc" id="L203">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedSuffixF = Traversals.traverseList(suffix, f, applicative);</span>
+
+        // Combine with unmodified prefix
+<span class="fc" id="L206">        return applicative.map(</span>
+            newSuffix -&gt; {
+<span class="fc" id="L208">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L209">              result.addAll(prefix);</span>
+<span class="fc" id="L210">              result.addAll(newSuffix);</span>
+<span class="fc" id="L211">              return result;</span>
+            },
+            modifiedSuffixF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on all elements except the last {@code n}.
+   *
+   * &lt;p&gt;The last {@code n} elements are preserved unchanged during modifications but are not
+   * included in query operations like {@code getAll}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; exceptLast2 = ListTraversals.droppingLast(2);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; doubled = Traversals.modify(exceptLast2, x -&gt; x * 2, numbers);
+   * // Result: [2, 4, 6, 4, 5] - doubled all except last 2
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(exceptLast2, numbers);
+   * // Result: [1, 2, 3] - all except last 2
+   * }&lt;/pre&gt;
+   *
+   * @param n The number of elements from the end to exclude. If {@code n &lt;= 0}, focuses on all
+   *     elements. If {@code n &gt;= list.size()}, returns an identity traversal focusing on no
+   *     elements.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on all elements except the last {@code n}.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; droppingLast(final int n) {
+<span class="fc" id="L244">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        if (n &lt;= 0) {</span>
+          // Drop nothing from end, focus on all elements
+<span class="fc" id="L250">          return Traversals.traverseList(source, f, applicative);</span>
+        }
+
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        if (n &gt;= source.size()) {</span>
+<span class="fc" id="L254">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L257">        final int splitPoint = source.size() - n;</span>
+<span class="fc" id="L258">        final List&lt;A&gt; prefix = source.subList(0, splitPoint);</span>
+<span class="fc" id="L259">        final List&lt;A&gt; suffix = source.subList(splitPoint, source.size());</span>
+
+        // Traverse prefix with effects
+<span class="fc" id="L262">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedPrefixF = Traversals.traverseList(prefix, f, applicative);</span>
+
+        // Combine with unmodified suffix
+<span class="fc" id="L265">        return applicative.map(</span>
+            newPrefix -&gt; {
+<span class="fc" id="L267">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L268">              result.addAll(newPrefix);</span>
+<span class="fc" id="L269">              result.addAll(suffix);</span>
+<span class="fc" id="L270">              return result;</span>
+            },
+            modifiedPrefixF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on elements within a specified index range.
+   *
+   * &lt;p&gt;Elements outside the range {@code [from, to)} are preserved unchanged during modifications
+   * but are not included in query operations like {@code getAll}.
+   *
+   * &lt;p&gt;The range is half-open: {@code from} is inclusive, {@code to} is exclusive (consistent with
+   * {@link List#subList}).
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; slice = ListTraversals.slicing(1, 4);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4, 5);
+   * List&lt;Integer&gt; doubled = Traversals.modify(slice, x -&gt; x * 2, numbers);
+   * // Result: [1, 4, 6, 8, 5] - doubled elements at indices 1, 2, 3
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(slice, numbers);
+   * // Result: [2, 3, 4] - elements at indices 1, 2, 3
+   * }&lt;/pre&gt;
+   *
+   * @param from The starting index (inclusive). Clamped to 0 if negative.
+   * @param to The ending index (exclusive). Clamped to list size if beyond bounds. If {@code to &lt;=
+   *     from}, returns an identity traversal focusing on no elements.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on elements within the specified range.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; slicing(final int from, final int to) {
+<span class="fc" id="L306">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc" id="L310">        final int size = source.size();</span>
+
+        // Clamp indices to valid bounds
+<span class="fc" id="L313">        final int effectiveFrom = Math.max(0, Math.min(from, size));</span>
+<span class="fc" id="L314">        final int effectiveTo = Math.max(effectiveFrom, Math.min(to, size));</span>
+
+<span class="fc bfc" id="L316" title="All 2 branches covered.">        if (effectiveFrom &gt;= effectiveTo) {</span>
+<span class="fc" id="L317">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L320">        final List&lt;A&gt; prefix = source.subList(0, effectiveFrom);</span>
+<span class="fc" id="L321">        final List&lt;A&gt; middle = source.subList(effectiveFrom, effectiveTo);</span>
+<span class="fc" id="L322">        final List&lt;A&gt; suffix = source.subList(effectiveTo, size);</span>
+
+        // Traverse middle (sliced portion) with effects
+<span class="fc" id="L325">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedMiddleF = Traversals.traverseList(middle, f, applicative);</span>
+
+        // Combine all three parts
+<span class="fc" id="L328">        return applicative.map(</span>
+            newMiddle -&gt; {
+<span class="fc" id="L330">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L331">              result.addAll(prefix);</span>
+<span class="fc" id="L332">              result.addAll(newMiddle);</span>
+<span class="fc" id="L333">              result.addAll(suffix);</span>
+<span class="fc" id="L334">              return result;</span>
+            },
+            modifiedMiddleF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on elements from the beginning of a list while a
+   * predicate holds true.
+   *
+   * &lt;p&gt;This traversal focuses on the longest prefix of elements that all satisfy the given
+   * predicate. Once an element fails the predicate, that element and all subsequent elements are
+   * excluded from the focus (but preserved unchanged during modifications).
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; whileLessThan5 =
+   *     ListTraversals.takingWhile(x -&gt; x &lt; 5);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 7, 4, 8);
+   * List&lt;Integer&gt; doubled = Traversals.modify(whileLessThan5, x -&gt; x * 2, numbers);
+   * // Result: [2, 4, 6, 7, 4, 8] - only first 3 elements doubled (stopped at 7)
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(whileLessThan5, numbers);
+   * // Result: [1, 2, 3] - elements before first failure
+   * }&lt;/pre&gt;
+   *
+   * @param predicate The predicate to test elements against. Once an element fails, traversal
+   *     stops.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on the longest prefix of elements satisfying the
+   *     predicate.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; takingWhile(final Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L370">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L375">          return applicative.of(source);</span>
+        }
+
+        // Find the index where the predicate first fails
+<span class="fc" id="L379">        final int splitPoint = findSplitPoint(source, predicate);</span>
+
+<span class="fc bfc" id="L381" title="All 2 branches covered.">        if (splitPoint == 0) {</span>
+          // No elements satisfy predicate
+<span class="fc" id="L383">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L386">        final List&lt;A&gt; prefix = source.subList(0, splitPoint);</span>
+<span class="fc" id="L387">        final List&lt;A&gt; suffix = source.subList(splitPoint, source.size());</span>
+
+        // Traverse prefix with effects
+<span class="fc" id="L390">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedPrefixF = Traversals.traverseList(prefix, f, applicative);</span>
+
+        // Combine with unmodified suffix
+<span class="fc" id="L393">        return applicative.map(</span>
+            newPrefix -&gt; {
+<span class="fc" id="L395">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L396">              result.addAll(newPrefix);</span>
+<span class="fc" id="L397">              result.addAll(suffix);</span>
+<span class="fc" id="L398">              return result;</span>
+            },
+            modifiedPrefixF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that skips elements from the beginning of a list while a predicate
+   * holds true, then focuses on the rest.
+   *
+   * &lt;p&gt;This traversal skips the longest prefix of elements that all satisfy the given predicate,
+   * then focuses on all remaining elements. The skipped elements are preserved unchanged during
+   * modifications.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; afterLessThan5 =
+   *     ListTraversals.droppingWhile(x -&gt; x &lt; 5);
+   *
+   * List&lt;Integer&gt; numbers = List.of(1, 2, 3, 7, 4, 8);
+   * List&lt;Integer&gt; doubled = Traversals.modify(afterLessThan5, x -&gt; x * 2, numbers);
+   * // Result: [1, 2, 3, 14, 8, 16] - skipped first 3, doubled rest
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(afterLessThan5, numbers);
+   * // Result: [7, 4, 8] - elements after prefix
+   * }&lt;/pre&gt;
+   *
+   * @param predicate The predicate to test elements against. Elements are skipped while this
+   *     returns true.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on elements after the longest prefix satisfying the
+   *     predicate.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; droppingWhile(final Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L434">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L438" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L439">          return applicative.of(source);</span>
+        }
+
+        // Find the index where the predicate first fails
+<span class="fc" id="L443">        final int splitPoint = findSplitPoint(source, predicate);</span>
+
+<span class="fc bfc" id="L445" title="All 2 branches covered.">        if (splitPoint &gt;= source.size()) {</span>
+          // All elements satisfy predicate, nothing to focus on
+<span class="fc" id="L447">          return applicative.of(source);</span>
+        }
+
+<span class="fc" id="L450">        final List&lt;A&gt; prefix = source.subList(0, splitPoint);</span>
+<span class="fc" id="L451">        final List&lt;A&gt; suffix = source.subList(splitPoint, source.size());</span>
+
+        // Traverse suffix with effects
+<span class="fc" id="L454">        final Kind&lt;F, List&lt;A&gt;&gt; modifiedSuffixF = Traversals.traverseList(suffix, f, applicative);</span>
+
+        // Combine with unmodified prefix
+<span class="fc" id="L457">        return applicative.map(</span>
+            newSuffix -&gt; {
+<span class="fc" id="L459">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source.size());</span>
+<span class="fc" id="L460">              result.addAll(prefix);</span>
+<span class="fc" id="L461">              result.addAll(newSuffix);</span>
+<span class="fc" id="L462">              return result;</span>
+            },
+            modifiedSuffixF);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on a single element at the specified index.
+   *
+   * &lt;p&gt;This is an affine traversal with 0-1 cardinality. If the index is within bounds, the
+   * traversal focuses on that single element. If the index is out of bounds, the traversal focuses
+   * on zero elements and modifications have no effect.
+   *
+   * &lt;p&gt;This differs from {@link org.higherkindedj.optics.Ixed} in that it returns a {@code
+   * Traversal} rather than relying on the type class pattern. It can be freely composed with other
+   * traversals.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;List&lt;Integer&gt;, Integer&gt; secondElement = ListTraversals.element(1);
+   *
+   * List&lt;Integer&gt; numbers = List.of(10, 20, 30);
+   * List&lt;Integer&gt; doubled = Traversals.modify(secondElement, x -&gt; x * 2, numbers);
+   * // Result: [10, 40, 30] - only second element (index 1) doubled
+   *
+   * List&lt;Integer&gt; gotten = Traversals.getAll(secondElement, numbers);
+   * // Result: [20] - single element at index 1
+   *
+   * // Out of bounds - no modification
+   * List&lt;Integer&gt; unchanged = Traversals.modify(
+   *     ListTraversals.element(10),
+   *     x -&gt; x * 2,
+   *     numbers
+   * );
+   * // Result: [10, 20, 30] - unchanged because index 10 is out of bounds
+   * }&lt;/pre&gt;
+   *
+   * @param index The zero-based index of the element to focus on.
+   * @param &lt;A&gt; The element type of the list.
+   * @return A {@code Traversal} focusing on the element at the specified index, if it exists.
+   */
+  public static &lt;A&gt; Traversal&lt;List&lt;A&gt;, A&gt; element(final int index) {
+<span class="fc" id="L506">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;A&gt;&gt; modifyF(
+          final Function&lt;A, Kind&lt;F, A&gt;&gt; f, final List&lt;A&gt; source, final Applicative&lt;F&gt; applicative) {
+<span class="fc bfc" id="L510" title="All 4 branches covered.">        if (index &lt; 0 || index &gt;= source.size()) {</span>
+          // Index out of bounds, no modification
+<span class="fc" id="L512">          return applicative.of(source);</span>
+        }
+
+        // Apply function to the element at the index
+<span class="fc" id="L516">        final A element = source.get(index);</span>
+<span class="fc" id="L517">        final Kind&lt;F, A&gt; modifiedF = f.apply(element);</span>
+
+        // Map the result back into the list
+<span class="fc" id="L520">        return applicative.map(</span>
+            newElement -&gt; {
+<span class="fc" id="L522">              final List&lt;A&gt; result = new ArrayList&lt;&gt;(source);</span>
+<span class="fc" id="L523">              result.set(index, newElement);</span>
+<span class="fc" id="L524">              return result;</span>
+            },
+            modifiedF);
+      }
+    };
+  }
+
+  /**
+   * Finds the index where a predicate first fails in a list.
+   *
+   * &lt;p&gt;This helper method iterates through the list and returns the index immediately after the
+   * last element that satisfies the predicate. If all elements satisfy the predicate, it returns
+   * the list size. If no elements satisfy the predicate, it returns 0.
+   *
+   * @param source The list to search
+   * @param predicate The predicate to test elements against
+   * @param &lt;A&gt; The element type
+   * @return The split point index (0 to source.size())
+   */
+  private static &lt;A&gt; int findSplitPoint(
+      final List&lt;A&gt; source, final Predicate&lt;? super A&gt; predicate) {
+<span class="fc" id="L545">    int splitPoint = 0;</span>
+<span class="fc bfc" id="L546" title="All 2 branches covered.">    for (int i = 0; i &lt; source.size(); i++) {</span>
+<span class="fc bfc" id="L547" title="All 2 branches covered.">      if (predicate.test(source.get(i))) {</span>
+<span class="fc" id="L548">        splitPoint = i + 1;</span>
+      } else {
+        break; // Stop at first failure
+      }
+    }
+<span class="fc" id="L553">    return splitPoint;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

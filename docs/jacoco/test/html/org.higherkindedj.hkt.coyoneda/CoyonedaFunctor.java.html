@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CoyonedaFunctor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.coyoneda</a> &gt; <span class="el_source">CoyonedaFunctor.java</span></div><h1>CoyonedaFunctor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.coyoneda;
+
+import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Functor instance for Coyoneda.
+ *
+ * &lt;p&gt;This Functor instance is always valid for any type constructor F, regardless of whether F
+ * itself has a Functor instance. This is the key property that makes Coyoneda the &quot;free functor&quot;.
+ *
+ * &lt;h2&gt;Key Property&lt;/h2&gt;
+ *
+ * &lt;p&gt;Unlike most Functor instances that require the underlying type to support mapping, {@code
+ * CoyonedaFunctor&lt;F&gt;} works for &lt;em&gt;any&lt;/em&gt; type constructor F because mapping simply composes
+ * functions without actually performing any mapping on F.
+ *
+ * &lt;h2&gt;Map Fusion&lt;/h2&gt;
+ *
+ * &lt;p&gt;Multiple map operations are automatically fused:
+ *
+ * &lt;pre&gt;{@code
+ * CoyonedaFunctor&lt;F&gt; functor = new CoyonedaFunctor&lt;&gt;();
+ *
+ * Kind&lt;CoyonedaKind.Witness&lt;F&gt;, Integer&gt; coyo = COYONEDA.lift(someKind);
+ * Kind&lt;CoyonedaKind.Witness&lt;F&gt;, String&gt; result = functor.map(
+ *     x -&gt; Integer.toString(x * 2),
+ *     functor.map(x -&gt; x + 1, coyo)
+ * );
+ * // The two functions are composed internally - only ONE actual map when lowered
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Functor Laws&lt;/h2&gt;
+ *
+ * &lt;p&gt;This implementation satisfies the Functor laws by construction:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Identity:&lt;/b&gt; {@code map(x -&gt; x, fa) ≡ fa} - mapping with identity just composes with
+ *       identity
+ *   &lt;li&gt;&lt;b&gt;Composition:&lt;/b&gt; {@code map(g, map(f, fa)) ≡ map(g.compose(f), fa)} - functions are
+ *       composed
+ * &lt;/ul&gt;
+ *
+ * @param &lt;F&gt; The underlying type constructor (not required to be a Functor)
+ */
+public class CoyonedaFunctor&lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt;
+    implements Functor&lt;CoyonedaKind.Witness&lt;F&gt;&gt; {
+
+<span class="fc" id="L58">  private static final Class&lt;CoyonedaFunctor&gt; COYONEDA_FUNCTOR_CLASS = CoyonedaFunctor.class;</span>
+
+<span class="fc" id="L60">  private static final CoyonedaFunctor&lt;?&gt; INSTANCE = new CoyonedaFunctor&lt;&gt;();</span>
+
+  /** Creates a new CoyonedaFunctor instance. */
+<span class="fc" id="L63">  public CoyonedaFunctor() {}</span>
+
+  /**
+   * Returns a singleton instance of CoyonedaFunctor.
+   *
+   * @param &lt;F&gt; The underlying type constructor
+   * @return A CoyonedaFunctor instance
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; CoyonedaFunctor&lt;F&gt; instance() {
+<span class="fc" id="L73">    return (CoyonedaFunctor&lt;F&gt;) INSTANCE;</span>
+  }
+
+  /**
+   * Maps a function over a Coyoneda value.
+   *
+   * &lt;p&gt;This operation does NOT require a Functor instance for F. The function is composed with the
+   * existing transformation stored in the Coyoneda, achieving automatic map fusion.
+   *
+   * @param f The function to apply. Must not be null.
+   * @param fa The Coyoneda value to map over. Must not be null and must be a valid CoyonedaKind.
+   * @param &lt;A&gt; The input type
+   * @param &lt;B&gt; The output type
+   * @return A new Coyoneda with the function composed into its transformation
+   * @throws NullPointerException if f or fa is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;CoyonedaKind.Witness&lt;F&gt;, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;CoyonedaKind.Witness&lt;F&gt;, A&gt; fa) {
+<span class="fc" id="L93">    Validation.function().requireMapper(f, &quot;f&quot;, COYONEDA_FUNCTOR_CLASS, MAP);</span>
+<span class="fc" id="L94">    Validation.kind().requireNonNull(fa, COYONEDA_FUNCTOR_CLASS, MAP);</span>
+
+<span class="fc" id="L96">    Coyoneda&lt;F, A&gt; coyoneda = COYONEDA.narrow(fa);</span>
+<span class="fc" id="L97">    Coyoneda&lt;F, B&gt; mapped = coyoneda.map(f);</span>
+<span class="fc" id="L98">    return COYONEDA.widen(mapped);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
