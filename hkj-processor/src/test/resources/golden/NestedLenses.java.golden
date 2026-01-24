@@ -1,0 +1,11 @@
+// PLACEHOLDER - Run updateGoldenFiles test to generate actual content
+// Command: ./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
+//
+// This golden file should contain the generated NestedLenses class for:
+//   record Nested(String name, Optional<String> description, List<String> tags) {}
+//
+// Expected content includes:
+//   - Lens<Nested, String> name()
+//   - Lens<Nested, Optional<String>> description()
+//   - Lens<Nested, List<String>> tags()
+//   - withName, withDescription, withTags convenience methods

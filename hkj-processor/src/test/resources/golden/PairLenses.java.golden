@@ -1,0 +1,10 @@
+// PLACEHOLDER - Run updateGoldenFiles test to generate actual content
+// Command: ./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
+//
+// This golden file should contain the generated PairLenses class for:
+//   record Pair<A, B>(A first, B second) {}
+//
+// Expected content includes:
+//   - Lens<Pair<A, B>, A> first()
+//   - Lens<Pair<A, B>, B> second()
+//   - withFirst, withSecond convenience methods

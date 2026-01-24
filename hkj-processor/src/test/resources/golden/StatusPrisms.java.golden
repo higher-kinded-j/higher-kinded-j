@@ -1,0 +1,11 @@
+// PLACEHOLDER - Run updateGoldenFiles test to generate actual content
+// Command: ./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
+//
+// This golden file should contain the generated StatusPrisms class for:
+//   enum Status { PENDING, ACTIVE, COMPLETED, CANCELLED }
+//
+// Expected content includes:
+//   - Prism<Status, Status> pending()
+//   - Prism<Status, Status> active()
+//   - Prism<Status, Status> completed()
+//   - Prism<Status, Status> cancelled()
