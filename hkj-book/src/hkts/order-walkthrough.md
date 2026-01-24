@@ -4,24 +4,29 @@
 >
 > — Douglas Adams, *Mostly Harmless*
 
-Enterprise software can be like this.  Consider order processing. Every step can fail. Every failure has a type. Every type demands a different response. And when you've nested enough `try-catch` blocks inside enough null checks inside enough `if` statements, the thing that cannot possibly go wrong becomes the thing you cannot possibly debug.
+Enterprise software can be like this. Consider order processing. Every step can fail. Every failure has a type. Every type demands a different response. And when you have nested enough `try-catch` blocks inside enough null checks inside enough `if` statements, the thing that cannot possibly go wrong becomes the thing you cannot possibly debug.
 
-This walkthrough demonstrates how to build a robust, multi-step order workflow using the Effect Path API and Focus DSL. You'll see how typed errors, composable operations, and functional patterns transform the pyramid of doom into a railway of clarity.
+This walkthrough demonstrates how to build a robust, multi-step order workflow using the Effect Path API and Focus DSL. You will see how typed errors, composable operations, and functional patterns transform the pyramid of doom into a railway of clarity.
 
 ~~~admonish info title="What You'll Learn"
 - Composing multi-step workflows with `EitherPath` and `via()` chains
 - Modelling domain errors with sealed interfaces for exhaustive handling
 - Using `ForPath` comprehensions for readable sequential composition
 - Implementing resilience patterns: retry policies, timeouts, and recovery
-- Integrating Focus DSL for immutable state updates
-- Configuring workflow behaviour with feature flags
+- Scaling with structured concurrency, resource management, and virtual threads
 - Adapting these patterns to your own domain
+~~~
+
+~~~admonish info title="In This Chapter"
+- **Effect Composition** – The core patterns for building workflows: sealed error hierarchies for type-safe error handling, `via()` chains for sequential composition, `ForPath` comprehensions for readable syntax, and recovery patterns for graceful degradation.
+- **Production Patterns** – Making workflows production-ready: retry policies with exponential backoff, timeouts for external services, Focus DSL for immutable state updates, feature flags for configuration, and code generation to eliminate boilerplate.
+- **Concurrency and Scale** – Patterns for high-throughput systems: context propagation with `ScopedValue` for cross-cutting concerns, structured concurrency with `Scope` for parallel operations, resource management with the bracket pattern, and virtual thread execution for massive scale.
 ~~~
 
 ~~~admonish example title="See Example Code"
 - [OrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflow.java) - Main workflow implementation
 - [ConfigurableOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java) - Feature flags and resilience
-- [FocusDSLExamples.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/FocusDSLExamples.java) - Optics integration
+- [EnhancedOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/EnhancedOrderWorkflow.java) - Concurrency patterns
 - [OrderError.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/error/OrderError.java) - Sealed error hierarchy
 ~~~
 
@@ -87,16 +92,16 @@ The problems multiply:
 
 | Issue | Consequence |
 |-------|-------------|
-| Mixed idioms | Nulls, exceptions, and booleans don't compose |
+| Mixed idioms | Nulls, exceptions, and booleans do not compose |
 | Nested structure | Business logic buried under error handling |
 | String errors | No type safety, no exhaustive matching |
 | Repeated patterns | Each step reinvents error propagation |
 
 ---
 
-## The Map: Effect Path helps tame complexity
+## The Map: Effect Path Tames Complexity
 
-The Effect Path API provides a unified approach. Here's the same workflow:
+The Effect Path API provides a unified approach. Here is the same workflow:
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
@@ -126,526 +131,9 @@ Notice how errors branch off at each decision point, while success flows forward
 
 ---
 
-## Building Block: The Sealed Error Hierarchy
+## Complexity Tamed by Simple Building Blocks
 
-The foundation of type-safe error handling is a sealed interface:
-
-```java
-@GeneratePrisms
-public sealed interface OrderError
-    permits ValidationError, CustomerError, InventoryError,
-            DiscountError, PaymentError, ShippingError,
-            NotificationError, SystemError {
-
-    String code();
-    String message();
-    Instant timestamp();
-    Map<String, Object> context();
-}
-```
-
-Each variant carries domain-specific information:
-
-```java
-record CustomerError(
-    String code,
-    String message,
-    Instant timestamp,
-    Map<String, Object> context,
-    String customerId
-) implements OrderError {
-
-    public static CustomerError notFound(String customerId) {
-        return new CustomerError(
-            "CUSTOMER_NOT_FOUND",
-            "Customer not found: " + customerId,
-            Instant.now(),
-            Map.of("customerId", customerId),
-            customerId
-        );
-    }
-
-    public static CustomerError suspended(String customerId, String reason) {
-        return new CustomerError(
-            "CUSTOMER_SUSPENDED",
-            "Customer account suspended: " + reason,
-            Instant.now(),
-            Map.of("customerId", customerId, "reason", reason),
-            customerId
-        );
-    }
-}
-```
-
-The `@GeneratePrisms` annotation creates optics for each variant, enabling type-safe pattern matching in functional pipelines.
-
-### Why Sealed Interfaces Matter
-
-```java
-// Exhaustive matching - compiler ensures all cases handled
-public String getUserFriendlyMessage(OrderError error) {
-    return switch (error) {
-        case ValidationError e  -> "Please check your order: " + e.message();
-        case CustomerError e    -> "Account issue: " + e.message();
-        case InventoryError e   -> "Stock issue: " + e.message();
-        case DiscountError e    -> "Discount issue: " + e.message();
-        case PaymentError e     -> "Payment issue: " + e.message();
-        case ShippingError e    -> "Shipping issue: " + e.message();
-        case NotificationError e -> "Order processed (notification pending)";
-        case SystemError e      -> "System error - please try again";
-    };
-}
-```
-
-Add a new error type, and the compiler tells you everywhere that needs updating.
-
----
-
-## Composing the Workflow with `via()`
-
-The `via()` method is the workhorse of Effect Path composition. It chains computations where each step depends on the previous result:
-
-```java
-private EitherPath<OrderError, OrderResult> processOrderCore(
-    ValidatedOrder order, Customer customer) {
-
-    return reserveInventory(order.orderId(), order.lines())
-        .via(reservation ->
-            applyDiscounts(order, customer)
-                .via(discount ->
-                    processPayment(order, discount)
-                        .via(payment ->
-                            createShipment(order, order.shippingAddress())
-                                .via(shipment ->
-                                    sendNotifications(order, customer, discount)
-                                        .map(notification ->
-                                            buildOrderResult(order, discount,
-                                                payment, shipment, notification))))));
-}
-```
-
-Each step:
-1. Receives the success value from the previous step
-2. Returns a new `EitherPath`
-3. Automatically propagates errors (if the previous step failed, this step is skipped)
-
-### Individual Steps Are Simple
-
-```java
-private EitherPath<OrderError, InventoryReservation> reserveInventory(
-    OrderId orderId, List<ValidatedOrderLine> lines) {
-    return Path.either(inventoryService.reserve(orderId, lines));
-}
-
-private EitherPath<OrderError, PaymentConfirmation> processPayment(
-    ValidatedOrder order, DiscountResult discount) {
-    return Path.either(
-        paymentService.processPayment(
-            order.orderId(),
-            discount.finalTotal(),
-            order.paymentMethod()));
-}
-```
-
-The `Path.either()` factory lifts an `Either<E, A>` into an `EitherPath<E, A>`. Your services return `Either`; the workflow composes them with `via()`.
-
----
-
-## Pattern Spotlight: ForPath Comprehensions
-
-For workflows with several sequential steps, `ForPath` provides a cleaner syntax:
-
-```java
-private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
-    return ForPath.from(lookupCustomer(customerId))
-        .from(this::validateCustomerEligibility)
-        .yield((found, validated) -> validated);
-}
-```
-
-This is equivalent to nested `via()` calls but reads more naturally for simple sequences.
-
-### When to Use ForPath vs via()
-
-| Pattern | Best For |
-|---------|----------|
-| `ForPath` | 2-3 sequential steps with simple dependencies |
-| `via()` chains | Longer chains, complex branching, or when intermediate values are reused |
-
-~~~admonish note title="ForPath Limitation"
-`ForPath` for `EitherPath` currently supports up to 3 steps. For longer sequences, use nested `via()` chains as shown in the main workflow.
-~~~
-
----
-
-## Recovery Patterns
-
-Not all errors are fatal. Notifications, for instance, shouldn't fail the entire order:
-
-```java
-private EitherPath<OrderError, NotificationResult> sendNotifications(
-    ValidatedOrder order, Customer customer, DiscountResult discount) {
-
-    return Path.either(
-            notificationService.sendOrderConfirmation(
-                order.orderId(), customer, discount.finalTotal()))
-        .recoverWith(error -> Path.right(NotificationResult.none()));
-}
-```
-
-The `recoverWith()` method catches errors and provides a fallback. Here, notification failures are swallowed, and processing continues with a "no notification" result.
-
-### Recovery Options
-
-| Method | Use Case |
-|--------|----------|
-| `recover(f)` | Transform error to success value directly |
-| `recoverWith(f)` | Provide alternative `EitherPath` (may itself fail) |
-| `mapError(f)` | Transform error type (stays on failure track) |
-
----
-
-## Resilience: Retry and Timeout
-
-The `ConfigurableOrderWorkflow` demonstrates production-grade resilience:
-
-```java
-public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
-    var retryPolicy = createRetryPolicy();
-    var totalTimeout = calculateTotalTimeout();
-
-    return Resilience.resilient(
-        Path.io(() -> executeWorkflow(request)),
-        retryPolicy,
-        totalTimeout,
-        "ConfigurableOrderWorkflow.process");
-}
-```
-
-### Retry Policy
-
-```java
-public record RetryPolicy(
-    int maxAttempts,
-    Duration initialDelay,
-    double backoffMultiplier,
-    Duration maxDelay,
-    Predicate<Throwable> retryOn
-) {
-    public static RetryPolicy defaults() {
-        return new RetryPolicy(
-            3,                              // attempts
-            Duration.ofMillis(100),         // initial delay
-            2.0,                            // exponential backoff
-            Duration.ofSeconds(5),          // max delay cap
-            t -> t instanceof IOException  // retry on IO errors
-                || t instanceof TimeoutException
-        );
-    }
-
-    public Duration delayForAttempt(int attempt) {
-        if (attempt <= 1) return Duration.ZERO;
-        var retryNumber = attempt - 1;
-        var delayMillis = initialDelay.toMillis()
-            * Math.pow(backoffMultiplier, retryNumber - 1);
-        return Duration.ofMillis(
-            Math.min((long) delayMillis, maxDelay.toMillis()));
-    }
-}
-```
-
-> *"I love deadlines. I love the whooshing noise they make as they go by."*
->
-> — Douglas Adams
-
-Timeouts ensure deadlines don't just whoosh by indefinitely:
-
-```java
-var timeout = Resilience.withTimeout(
-    operation,
-    Duration.ofSeconds(30),
-    "paymentService.charge"
-);
-```
-
----
-
-## Focus DSL Integration
-
-The Focus DSL complements Effect Path for immutable state updates. Where Effect Path navigates *computational effects*, Focus navigates *data structures*.
-
-### Immutable State Updates
-
-```java
-public static OrderWorkflowState applyDiscount(
-    OrderWorkflowState state, DiscountResult discount) {
-
-    var withDiscount = state.withDiscountResult(discount);
-
-    return state.validatedOrder()
-        .map(order -> {
-            var updatedOrder = updateOrderSubtotal(order, discount.finalTotal());
-            return withDiscount.withValidatedOrder(updatedOrder);
-        })
-        .orElse(withDiscount);
-}
-```
-
-### Pattern Matching with Sealed Types
-
-```java
-public static EitherPath<OrderError, PaymentMethod> validatePaymentMethod(
-    PaymentMethod method) {
-
-    return switch (method) {
-        case PaymentMethod.CreditCard card -> {
-            if (card.cardNumber().length() < 13) {
-                yield Path.left(
-                    OrderError.ValidationError.forField(
-                        "cardNumber", "Card number too short"));
-            }
-            yield Path.right(method);
-        }
-        case PaymentMethod.BankTransfer transfer -> {
-            if (transfer.accountNumber().isBlank()) {
-                yield Path.left(
-                    OrderError.ValidationError.forField(
-                        "accountNumber", "Account number required"));
-            }
-            yield Path.right(method);
-        }
-        // ... other cases
-    };
-}
-```
-
-The sealed `PaymentMethod` type enables exhaustive validation with Effect Path integration.
-
----
-
-## Feature Flags: Configuration-Driven Behaviour
-
-The `ConfigurableOrderWorkflow` uses feature flags to control optional behaviours:
-
-```java
-public record FeatureFlags(
-    boolean enablePartialFulfilment,
-    boolean enableSplitShipments,
-    boolean enableLoyaltyDiscounts
-) {
-    public static FeatureFlags defaults() {
-        return new FeatureFlags(false, false, true);
-    }
-
-    public static FeatureFlags allEnabled() {
-        return new FeatureFlags(true, true, true);
-    }
-}
-```
-
-These flags control workflow branching:
-
-```java
-private EitherPath<OrderError, DiscountResult> applyDiscounts(
-    ValidatedOrder order, Customer customer) {
-
-    return order.promoCode()
-        .<EitherPath<OrderError, DiscountResult>>map(
-            code -> Path.either(discountService.applyPromoCode(code, order.subtotal())))
-        .orElseGet(() -> {
-            if (config.featureFlags().enableLoyaltyDiscounts()) {
-                return Path.either(
-                    discountService.calculateLoyaltyDiscount(customer, order.subtotal()));
-            }
-            return Path.right(DiscountResult.noDiscount(order.subtotal()));
-        });
-}
-```
-
----
-
-## Compile-Time Code Generation
-
-Much of the boilerplate in this example is generated at compile time through annotations. This keeps your code focused on domain logic while the annotation processors handle the mechanical parts.
-
-### Annotation Overview
-
-| Annotation | Purpose | Generated Code |
-|------------|---------|----------------|
-| `@GenerateLenses` | Immutable record updates | Type-safe lenses for each field |
-| `@GenerateFocus` | Focus DSL integration | `FocusPath` and `AffinePath` accessors |
-| `@GeneratePrisms` | Sealed type navigation | Prisms for each variant of sealed interfaces |
-| `@GeneratePathBridge` | Service-to-Path bridging | `*Paths` class wrapping service methods |
-| `@PathVia` | Method-level documentation | Includes doc strings in generated bridges |
-
-### Lenses and Focus for Records
-
-```java
-@GenerateLenses
-@GenerateFocus
-public record OrderWorkflowState(
-    OrderRequest request,
-    Optional<ValidatedOrder> validatedOrder,
-    Optional<InventoryReservation> inventoryReservation,
-    // ... more fields
-) { }
-```
-
-The annotation processor generates `OrderWorkflowStateLenses` with a lens for each field, plus `OrderWorkflowStateFocus` with `FocusPath` accessors. These enable immutable updates without manual `with*` methods:
-
-```java
-// Generated lens usage
-var updated = OrderWorkflowStateLenses.validatedOrder()
-    .set(state, Optional.of(newOrder));
-
-// Generated focus usage
-var subtotal = OrderWorkflowStateFocus.validatedOrder()
-    .andThen(ValidatedOrderFocus.subtotal())
-    .get(state);
-```
-
-### Prisms for Sealed Hierarchies
-
-```java
-@GeneratePrisms
-public sealed interface OrderError
-    permits ValidationError, CustomerError, InventoryError, ... { }
-```
-
-This generates `OrderErrorPrisms` with a prism for each permitted variant:
-
-```java
-// Extract specific error type if present
-Optional<PaymentError> paymentError =
-    OrderErrorPrisms.paymentError().getOptional(error);
-
-// Pattern-match in functional style
-var recovery = OrderErrorPrisms.shippingError()
-    .modifyOptional(error, e -> e.recoverable()
-        ? recoverShipping(e)
-        : e);
-```
-
-### Path Bridges for Services
-
-```java
-@GeneratePathBridge
-public interface CustomerService {
-
-    @PathVia(doc = "Looks up customer details by ID")
-    Either<OrderError, Customer> findById(CustomerId id);
-
-    @PathVia(doc = "Validates customer eligibility")
-    Either<OrderError, Customer> validateEligibility(Customer customer);
-}
-```
-
-This generates `CustomerServicePaths`:
-
-```java
-// Generated bridge class
-public class CustomerServicePaths {
-    private final CustomerService delegate;
-
-    public EitherPath<OrderError, Customer> findById(CustomerId id) {
-        return Path.either(delegate.findById(id));
-    }
-
-    public EitherPath<OrderError, Customer> validateEligibility(Customer customer) {
-        return Path.either(delegate.validateEligibility(customer));
-    }
-}
-```
-
-Now your workflow can use the generated bridges directly:
-
-```java
-private final CustomerServicePaths customers;
-
-private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId id) {
-    return customers.findById(id)
-        .via(customers::validateEligibility);
-}
-```
-
-### Why Code Generation Matters
-
-The annotations eliminate three categories of boilerplate:
-
-1. **Structural navigation**: Lenses and prisms provide type-safe access without manual getter/setter chains
-2. **Effect wrapping**: Path bridges convert `Either`-returning services to `EitherPath` automatically
-3. **Pattern matching**: Prisms enable functional matching on sealed types without explicit `instanceof` checks
-
-The result is domain code that reads like a specification of *what* should happen, while the generated code handles *how* to navigate, wrap, and match.
-
----
-
-## Adapting These Patterns to Your Domain
-
-### Step 1: Define Your Error Hierarchy
-
-Start with a sealed interface for your domain errors:
-
-```java
-public sealed interface MyDomainError
-    permits ValidationError, NotFoundError, ConflictError, SystemError {
-
-    String code();
-    String message();
-}
-```
-
-### Step 2: Wrap Your Services
-
-Convert existing services to return `Either`:
-
-```java
-// Before
-public User findUser(String id) throws UserNotFoundException { ... }
-
-// After
-public Either<MyDomainError, User> findUser(String id) {
-    try {
-        return Either.right(legacyService.findUser(id));
-    } catch (UserNotFoundException e) {
-        return Either.left(NotFoundError.user(id));
-    }
-}
-```
-
-### Step 3: Compose with EitherPath
-
-Build your workflows using `via()`:
-
-```java
-public EitherPath<MyDomainError, Result> process(Request request) {
-    return Path.either(validateRequest(request))
-        .via(valid -> Path.either(findUser(valid.userId())))
-        .via(user -> Path.either(performAction(user, valid)))
-        .map(this::buildResult);
-}
-```
-
-### Step 4: Add Resilience Gradually
-
-Start simple, add resilience as needed:
-
-```java
-// Start with basic composition
-var result = workflow.process(request);
-
-// Add timeout when integrating external services
-var withTimeout = Resilience.withTimeout(result, Duration.ofSeconds(30), "process");
-
-// Add retry for transient failures
-var resilient = Resilience.withRetry(withTimeout, RetryPolicy.defaults());
-```
-
----
-
-## Reflection: Complexity Tamed by Simple Building Blocks
-
-Step back and consider what we have built. An order workflow with eight distinct steps, seven potential error types, recovery logic, retry policies, feature flags, and immutable state updates. In traditional Java, this would likely span hundreds of lines of nested conditionals, try-catch blocks, and defensive null checks.
+Step back and consider what this example builds. An order workflow with eight distinct steps, seven potential error types, recovery logic, retry policies, feature flags, immutable state updates, and concurrent execution. In traditional Java, this would likely span hundreds of lines of nested conditionals, try-catch blocks, and defensive null checks.
 
 Instead, the core workflow fits in a single method:
 
@@ -688,15 +176,25 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ---
 
+## Chapter Contents
+
+1. [Effect Composition](order-composition.md) - Sealed errors, via() chains, ForPath, recovery patterns
+2. [Production Patterns](order-production.md) - Retry, timeout, Focus DSL, feature flags, code generation
+3. [Concurrency and Scale](order-concurrency.md) - Context propagation, Scope, Resource, VTaskPath
+
+---
+
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
 * **`via()` chains** compose sequential operations with automatic error propagation
-* **`ForPath` comprehensions** provide readable syntax for simple sequences (up to 3 steps)
-* **Recovery patterns** (`recover`, `recoverWith`) handle non-fatal errors gracefully
+* **`ForPath` comprehensions** provide readable syntax for simple sequences
+* **Recovery patterns** handle non-fatal errors gracefully
 * **Resilience utilities** add retry and timeout behaviour without cluttering business logic
 * **Focus DSL** complements Effect Path for immutable state updates
-* **Feature flags** enable configuration-driven workflow behaviour
-* **Annotation processors** generate lenses, prisms, and service bridges, eliminating boilerplate
+* **Context propagation** enables implicit trace IDs, tenant isolation, and deadlines
+* **Structured concurrency** provides parallel operations with proper cancellation
+* **Resource management** ensures cleanup via the bracket pattern
+* **Virtual threads** enable scaling to millions of concurrent operations
 * **Composition of simple building blocks** tames complexity without hiding it
 ~~~
 
@@ -713,4 +211,4 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 ---
 
 **Previous:** [Usage Guide](usage-guide.md)
-**Next:** [Draughts Game](draughts.md)
+**Next:** [Effect Composition](order-composition.md)

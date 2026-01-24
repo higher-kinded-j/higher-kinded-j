@@ -41,6 +41,9 @@
   - [StateT](transformers/statet_transformer.md)
 # Complete HKT Examples
   - [An Order Workflow](hkts/order-walkthrough.md)
+    - [Effect Composition](hkts/order-composition.md)
+    - [Production Patterns](hkts/order-production.md)
+    - [Concurrency and Scale](hkts/order-concurrency.md)
   - [Draughts Game](hkts/draughts.md)
 
 # Hands-On Learning
