@@ -2,21 +2,22 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
-
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
+
 /**
- * Explicit law verification tests for VTask using JUnit 5's @TestFactory.
+ * Explicit law verification tests for VTask using JUnit 6's @TestFactory.
  *
  * <p>This test class verifies that VTask satisfies all required type class laws:
  *

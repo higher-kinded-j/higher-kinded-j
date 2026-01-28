@@ -306,7 +306,7 @@ When removing multiple elements, iterate backwards to preserve indices.
 At<List<String>, Integer, String> listAt = AtInstances.listAt();
 
 // Update at invalid index throws exception
-assertThrows(IndexOutOfBoundsException.class, () ->
+var _ = assertThrowsExactly(IndexOutOfBoundsException.class, () ->
     listAt.insertOrUpdate(10, "oops", items));
 
 // Use listAtWithPadding for auto-expansion

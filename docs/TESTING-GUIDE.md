@@ -5,7 +5,7 @@ This document provides comprehensive guidance on testing patterns and best pract
 ## Table of Contents
 
 1. [Testing Philosophy](#testing-philosophy)
-2. [JUnit 5 Features](#junit-5-features)
+2. [JUnit 6 Features](#junit-6-features)
 3. [Property-Based Testing](#property-based-testing)
 4. [Typeclass Law Testing](#typeclass-law-testing)
 5. [Optics Law Testing](#optics-law-testing)
@@ -28,10 +28,10 @@ The higher-kinded-j project employs a multi-layered testing strategy:
 
 - **Comprehensive Coverage**: Every public API should have tests
 - **Clear Intent**: Test names should describe what is being tested
-- **Minimal Boilerplate**: Use JUnit 5's advanced features to reduce duplication
+- **Minimal Boilerplate**: Use JUnit 6's advanced features to reduce duplication
 - **Fast Feedback**: Tests should run quickly; performance tests are in separate module
 
-## JUnit 5 Features
+## JUnit 6 Features
 
 ### @ParameterizedTest
 
@@ -65,7 +65,7 @@ private static Stream<MonoidTestData<?>> allMonoids() {
 @ParameterizedTest
 @EnumSource(TypeclassInstance.class)
 @DisplayName("All typeclasses satisfy laws")
-void allTypeclassesSatisfyLaws(TypeclassInstance instance) {
+void allTypeClassesSatisfyLaws(TypeclassInstance instance) {
     instance.verifyLaws();
 }
 ```
@@ -1379,7 +1379,7 @@ The `IncrementalCompilationTest` class verifies the processor handles source cha
 
 The higher-kinded-j testing approach combines:
 
-1. **JUnit 5 Features**: @ParameterizedTest, @TestFactory, @Nested for minimal boilerplate
+1. **JUnit 6 Features**: @ParameterizedTest, @TestFactory, @Nested for minimal boilerplate
 2. **Property-Based Testing**: jQwik for comprehensive coverage with generated inputs
 3. **Law Verification**: Systematic testing of typeclass and optics laws
 4. **Clear Organization**: Nested classes and descriptive names for maintainability

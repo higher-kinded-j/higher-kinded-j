@@ -6,7 +6,7 @@ autoservice = "1.1.1"
 palantir-java-format = "2.69.0"
 
 # Testing
-junit = "5.14.1"
+junit = "6.0.2"
 assertj = "3.27.6"
 jqwik = "1.9.3"
 archunit = "1.4.1"

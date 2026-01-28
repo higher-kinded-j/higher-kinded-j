@@ -901,7 +901,7 @@ class OpticProgramsTest {
     Constructor<OpticPrograms> constructor = OpticPrograms.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
-    Exception exception = assertThrows(InvocationTargetException.class, constructor::newInstance);
+    Exception exception = assertThrowsExactly(InvocationTargetException.class, constructor::newInstance);
     assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Utility class", exception.getCause().getMessage());
   }
@@ -911,7 +911,7 @@ class OpticProgramsTest {
     Constructor<OpticInterpreters> constructor = OpticInterpreters.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
-    Exception exception = assertThrows(InvocationTargetException.class, constructor::newInstance);
+    Exception exception = assertThrowsExactly(InvocationTargetException.class, constructor::newInstance);
     assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Utility class", exception.getCause().getMessage());
   }

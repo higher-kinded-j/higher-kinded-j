@@ -2,20 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
+import java.util.function.Function;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 @DisplayName("ValidatedMonad Complete Test Suite")
 class ValidatedMonadTest extends ValidatedTestBase {
@@ -238,8 +239,7 @@ class ValidatedMonadTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> nullReturningFn = n -> null;
 
-      Assertions.assertThrows(
-          KindUnwrapException.class, () -> monad.flatMap(nullReturningFn, kind));
+      var _ = assertThrowsExactly(KindUnwrapException.class, () -> monad.flatMap(nullReturningFn, kind));
     }
 
     @Test
