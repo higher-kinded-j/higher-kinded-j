@@ -96,8 +96,10 @@
 # Optics IV: Java-Friendly APIs
 - [Introduction](optics/ch4_intro.md)
   - [Focus DSL](optics/focus_dsl.md)
-  - [Importing External Optics](optics/importing_optics.md)
-    - [@ImportOptics Reference](optics/import_optics_reference.md)
+  - [Optics for External Types](optics/importing_optics.md)
+    - [Taming JSON with Jackson](optics/optics_spec_interfaces.md)
+    - [Database Records with JOOQ](optics/copy_strategies.md)
+    - [Focus DSL with External Libraries](optics/focus_external_bridging.md)
   - [Kind Field Support](optics/kind_field_support.md)
   - [Fluent API](optics/fluent_api.md)
   - [Free Monad DSL](optics/free_monad_dsl.md)

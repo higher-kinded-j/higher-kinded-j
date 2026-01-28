@@ -280,6 +280,28 @@ Examples demonstrating the `@ImportOptics` annotation for generating optics for 
 | [ImportOpticsRecordExample.java](src/main/java/org/higherkindedj/example/optics/importoptics/ImportOpticsRecordExample.java) | Generating lenses for external record types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.importoptics.ImportOpticsRecordExample` | [Importing Optics](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) |
 | [ImportOpticsSealedExample.java](src/main/java/org/higherkindedj/example/optics/importoptics/ImportOpticsSealedExample.java) | Generating prisms for sealed interfaces, enums, and JDK types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.importoptics.ImportOpticsSealedExample` | [Importing Optics](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) |
 
+### Spec Interfaces for External Types
+
+Examples demonstrating spec interfaces with copy strategy annotations for complex external types like Jackson JsonNode and JOOQ records.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [JsonNodeOpticsSpec.java](src/main/java/org/higherkindedj/example/optics/external/JsonNodeOpticsSpec.java) | Spec interface for Jackson JsonNode with predicate-based prisms | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.external.SpecInterfaceUsageExample` | [Taming JSON with Jackson](https://higher-kinded-j.github.io/latest/optics/optics_spec_interfaces.html) |
+| [JooqStyleRecordOpticsSpec.java](src/main/java/org/higherkindedj/example/optics/external/JooqStyleRecordOpticsSpec.java) | Spec interface for JOOQ-style records with @ViaCopyAndSet | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.external.SpecInterfaceUsageExample` | [Database Records with JOOQ](https://higher-kinded-j.github.io/latest/optics/copy_strategies.html) |
+| [LocalDateOpticsSpec.java](src/main/java/org/higherkindedj/example/optics/external/LocalDateOpticsSpec.java) | Spec interface for java.time.LocalDate with @Wither | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.external.SpecInterfaceUsageExample` | [Copy Strategies](https://higher-kinded-j.github.io/latest/optics/copy_strategies.html) |
+| [SpecInterfaceUsageExample.java](src/main/java/org/higherkindedj/example/optics/external/SpecInterfaceUsageExample.java) | Complete example using spec interface optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.external.SpecInterfaceUsageExample` | [Optics Spec Interfaces](https://higher-kinded-j.github.io/latest/optics/optics_spec_interfaces.html) |
+
+### Focus DSL Bridging
+
+Examples demonstrating how to bridge Focus DSL navigation into external library types like Immutables, Lombok, and AutoValue.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [CompanyBridge.java](src/main/java/org/higherkindedj/example/optics/bridge/CompanyBridge.java) | Bridge utilities connecting Focus DSL to Immutables-style types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.bridge.FocusBridgingExample` | [Focus DSL with External Libraries](https://higher-kinded-j.github.io/latest/optics/focus_external_bridging.html) |
+| [FocusBridgingExample.java](src/main/java/org/higherkindedj/example/optics/bridge/FocusBridgingExample.java) | Complete example of cross-boundary Focus navigation | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.bridge.FocusBridgingExample` | [Focus DSL with External Libraries](https://higher-kinded-j.github.io/latest/optics/focus_external_bridging.html) |
+| [AddressOpticsSpec.java](src/main/java/org/higherkindedj/example/optics/bridge/external/AddressOpticsSpec.java) | Spec interface for Immutables-style Address type | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.bridge.FocusBridgingExample` | [Focus DSL with External Libraries](https://higher-kinded-j.github.io/latest/optics/focus_external_bridging.html) |
+| [ContactInfoOpticsSpec.java](src/main/java/org/higherkindedj/example/optics/bridge/external/ContactInfoOpticsSpec.java) | Spec interface for Immutables-style ContactInfo type | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.bridge.FocusBridgingExample` | [Focus DSL with External Libraries](https://higher-kinded-j.github.io/latest/optics/focus_external_bridging.html) |
+
 ### Real-World Optics Scenarios
 
 | Example | Description | Run Command | Documentation |
@@ -342,6 +364,7 @@ Interactive tutorial examples for learning Higher-Kinded-J concepts.
 | [TutorialGettingStarted.java](src/main/java/org/higherkindedj/example/tutorials/TutorialGettingStarted.java) | Setup verification | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.tutorials.TutorialGettingStarted` | [Tutorials Introduction](https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html) |
 | [ApplicativeValidation.java](src/main/java/org/higherkindedj/example/tutorials/ApplicativeValidation.java) | Applicative validation tutorial | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.tutorials.ApplicativeValidation` | [Applicative](https://higher-kinded-j.github.io/latest/functional/applicative.html) |
 | [LensDeepUpdate.java](src/main/java/org/higherkindedj/example/tutorials/LensDeepUpdate.java) | Deep update with lenses tutorial | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.tutorials.LensDeepUpdate` | [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.html) |
+| [Tutorial16_OpticsSpecInterfaces.java](src/test/java/org/higherkindedj/tutorial/optics/Tutorial16_OpticsSpecInterfaces.java) | Spec interfaces for external types (Jackson, JOOQ, Immutables) | Run via test runner | [Optics Spec Interfaces](https://higher-kinded-j.github.io/latest/optics/optics_spec_interfaces.html) |
 
 ---
 

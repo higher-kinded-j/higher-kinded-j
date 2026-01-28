@@ -119,10 +119,13 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 
 * **Complete optic hierarchy:** Lenses, Prisms, Isos, Affines, Traversals, Folds, and Setters
 * **Automatic generation** via annotation processor for Java records and sealed interfaces
+* **[External type import](optics/importing_optics.md)** via `@ImportOptics` for types you don't own
+* **[Spec interfaces](optics/optics_spec_interfaces.md)** for complex external types with copy strategy annotations (`@ViaBuilder`, `@Wither`, `@ViaCopyAndSet`)
+* **[Third-party integration](optics/focus_external_bridging.md)** with Jackson, JOOQ, Immutables, Lombok, AutoValue, and Protocol Buffers
 * **Filtered traversals** for predicate-based focusing within collections
 * **Indexed optics** for position-aware transformations
 * **Profunctor architecture** enabling adaptation between different data shapes
-* **Focus DSL** for type-safe, fluent path navigation
+* **Focus DSL** for type-safe, fluent path navigation with seamless bridging into external libraries
 * **Effect integration** bridging optics with the Effect Path API
 
 ---
@@ -141,6 +144,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | **Filtered Traversals** | ✓ | ✗ | ✗ | ✗ |
 | **Indexed Optics** | ✓ | ✗ | ✗ | ✗ |
 | **Code Generation** | ✓ | ✗ | ✗ | ✓^1^ |
+| **External Type Spec Interfaces** | ✓ | ✗ | ✗ | ✗ |
 | **Java Records Support** | ✓ | ✗ | ✗ | ✗ |
 | **Sealed Interface Support** | ✓ | ✗ | ✗ | ✗ |
 | **Effect Integration** | ✓ | ✗ | ✗ | ✗ |
@@ -298,7 +302,10 @@ Start with the **Effect Path API** section below. It is the primary user-facing 
 2. **[Practical Guide: Lenses](optics/lenses.md):** Nested immutable updates
 3. **[Practical Guide: Prisms](optics/prisms.md):** Working with sum types
 4. **[Focus DSL](optics/focus_dsl.md):** Type-safe structural navigation
-5. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
+5. **[External Types](optics/importing_optics.md):** Importing optics for types you don't own
+6. **[Spec Interfaces](optics/optics_spec_interfaces.md):** Jackson, JOOQ, and complex external types
+7. **[Focus DSL Bridging](optics/focus_external_bridging.md):** Seamless navigation into Immutables, Lombok, AutoValue
+8. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
 
 ### Foundations (Reference)
 These sections document the underlying machinery. Most users can start with Effect Paths directly.
