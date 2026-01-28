@@ -137,7 +137,25 @@ public final class GeneratorTestHelper {
             .replaceAll("com\\.external\\.HttpStatus", "HttpStatus")
             .replaceAll("com\\.external\\.ImmutableDate", "ImmutableDate")
             .replaceAll("com\\.external\\.MutablePerson", "MutablePerson")
-            .replaceAll("com\\.external\\.PlainClass", "PlainClass");
+            .replaceAll("com\\.external\\.PlainClass", "PlainClass")
+            // Spec interface test types
+            .replaceAll("com\\.external\\.Person", "Person")
+            .replaceAll("com\\.external\\.Config", "Config")
+            .replaceAll("com\\.external\\.Request", "Request")
+            .replaceAll("com\\.external\\.LocalDate", "LocalDate")
+            .replaceAll("com\\.external\\.PaymentMethod", "PaymentMethod")
+            .replaceAll("com\\.external\\.CreditCard", "CreditCard")
+            .replaceAll("com\\.external\\.BankTransfer", "BankTransfer")
+            .replaceAll("com\\.external\\.JsonNode", "JsonNode")
+            .replaceAll("com\\.external\\.ArrayNode", "ArrayNode")
+            .replaceAll("com\\.external\\.ObjectNode", "ObjectNode")
+            .replaceAll("com\\.external\\.Team", "Team")
+            .replaceAll("com\\.external\\.Simple", "Simple")
+            .replaceAll("com\\.external\\.Base", "Base")
+            .replaceAll("com\\.external\\.Sub", "Sub")
+            .replaceAll("com\\.external\\.Data", "Data")
+            .replaceAll("com\\.external\\.Animal", "Animal")
+            .replaceAll("com\\.external\\.Plant", "Plant");
 
     // Remove ALL whitespace to make the comparison robust.
     return normalised.replaceAll("\\s+", "").trim();

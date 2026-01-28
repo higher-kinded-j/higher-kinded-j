@@ -25,6 +25,9 @@ spring-dependency-management = "1.1.7"
 # Jackson 3.x (group ID changed from com.fasterxml.jackson to tools.jackson in Spring Boot 4)
 jackson = "3.0.0"
 
+# JOOQ - Database access library (for spec interface examples)
+jooq = "3.19.18"
+
 # Code quality
 google-java-format = "1.32.0"
 
@@ -94,6 +97,9 @@ jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations
 
 # Micrometer
 micrometer-core = { module = "io.micrometer:micrometer-core" }
+
+# JOOQ
+jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
 
 [plugins]
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }

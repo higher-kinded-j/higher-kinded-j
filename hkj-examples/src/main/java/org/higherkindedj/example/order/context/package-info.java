@@ -6,5 +6,7 @@
  * <p>This package provides scoped value keys for cross-cutting concerns in order processing,
  * including distributed tracing, multi-tenancy, security, and SLA enforcement.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.example.order.context;
+
+import org.jspecify.annotations.NullMarked;

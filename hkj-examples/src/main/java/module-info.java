@@ -9,6 +9,13 @@ module org.higherkindedj.examples {
   requires org.higherkindedj.annotations;
   requires java.compiler;
 
+  // External libraries for spec interface examples
+  requires tools.jackson.databind;
+  requires org.jooq;
+
+  // Export spec interface examples for external types
+  exports org.higherkindedj.example.optics.external;
+
   // Export Order Workflow packages for testing
   exports org.higherkindedj.example.order.audit;
   exports org.higherkindedj.example.order.config;

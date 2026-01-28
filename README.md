@@ -132,9 +132,11 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 * **Complete optic hierarchy:** Lenses, Prisms, Isos, Affines, Traversals, Folds, and Setters
 * **Automatic generation** via annotation processor for Java records and sealed interfaces
 * **External type import** via `@ImportOptics` for types you don't own (e.g., `java.time.LocalDate`)
+* **Spec interfaces** for complex external types with copy strategy annotations (`@ViaBuilder`, `@Wither`, `@ViaCopyAndSet`)
+* **Works with popular libraries**: Jackson JsonNode, JOOQ records, Immutables, Lombok, AutoValue, and Protocol Buffers
 * **Filtered traversals** for predicate-based focusing within collections
 * **Indexed optics** for position-aware transformations
-* **Focus DSL** for type-safe, fluent path navigation
+* **Focus DSL** for type-safe, fluent path navigation with seamless bridging into external libraries
 * **Effect integration** bridging optics with the Effect Path API
 
 ---
@@ -154,6 +156,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | **Indexed Optics** | ✓ | ✗ | ✗ | ✗ |
 | **Code Generation** | ✓ | ✗ | ✗ | ✓* |
 | **External Type Import** | ✓ | ✗ | ✗ | ✗ |
+| **Spec Interfaces (Jackson, JOOQ, etc.)** | ✓ | ✗ | ✗ | ✗ |
 | **Java Records Support** | ✓ | ✗ | ✗ | ✗ |
 | **Sealed Interface Support** | ✓ | ✗ | ✗ | ✗ |
 | **Effect Integration** | ✓ | ✗ | ✗ | ✗ |

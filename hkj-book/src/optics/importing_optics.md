@@ -1,295 +1,379 @@
-# Importing Optics for External Types
+# Optics for External Types
 
-## _Generating Lenses and Prisms for Types You Don't Own_
+## _Extending Your Reach Beyond Your Own Code_
+
+> "The real voyage of discovery consists not in seeking new landscapes, but in having new eyes."
+> -- Marcel Proust
+
+Proust's insight captures exactly what we're doing here. The landscape (JDK classes, database libraries, JSON parsers) already exists. What changes is how we *see* it. With `@ImportOptics`, we gain new eyes: the ability to view `LocalDate`, `JsonNode`, or any external type through the lens (pun intended) of functional optics. We're not adding code to these libraries; we're changing our perspective on them, making them participants in compositional, type-safe transformations.
+
+This shift in perspective is powerful. Types that once felt like immutable black boxes become malleable structures we can navigate, query, and transform, all without sacrificing the immutability guarantees we value.
 
 ~~~admonish info title="What You'll Learn"
-- How to generate optics for types you cannot annotate directly
-- Auto-detection rules for records, sealed types, enums, and wither-based classes
-- How to use generated optics with third-party library types
-- Handling mutable classes and edge cases
+- How to generate optics for types you cannot modify (JDK classes, third-party libraries)
+- When simple auto-detection works and when you need more control
+- A practical workflow for integrating external types into your optics pipelines
 ~~~
 
-When working with external libraries, you often encounter types that would benefit from optics but cannot be annotated directly. The `@ImportOptics` annotation solves this problem by allowing you to generate optics for types you don't own.
-
 ---
 
-## The Problem
+## The Frustration
 
-Normally, to generate optics for a type, you annotate it with `@GenerateLenses`, `@GeneratePrisms`, or similar annotations:
+We've been using optics throughout our codebase. Updating nested records feels natural. Traversing collections is elegant. Then we hit a wall:
 
 ```java
+// Our domain model - optics work beautifully
 @GenerateLenses
-public record Customer(String name, int age) {}
+record Order(String id, Customer customer, LocalDate orderDate, List<LineItem> items) {}
+
+// But wait... how do we modify just the year in orderDate?
+// LocalDate is a JDK class. We can't annotate it.
 ```
 
-But what about types from external libraries like `java.time.LocalDate` or a third-party domain model? You cannot modify those source files.
+We want to write something like:
+
+```java
+// Dream code - adjust order dates to next year
+var nextYearOrder = orderDateLens
+    .andThen(yearLens)  // ← Where does this come from?
+    .modify(y -> y + 1, order);
+```
+
+But `LocalDate` lives in `java.time`. We can't add `@GenerateLenses` to it. The same problem hits us with Jackson's `JsonNode`, JOOQ query results, Protobuf messages, and dozens of other library types we use daily.
+
+**This is what `@ImportOptics` solves.**
 
 ---
 
-## The Solution: @ImportOptics
+## The Quick Win: LocalDate in 30 Seconds
 
-The `@ImportOptics` annotation lets you generate optics for any accessible type. Apply it to a `package-info.java` file or a configuration class:
+Create a `package-info.java` in your optics package:
 
 ```java
-// In package-info.java
-@ImportOptics({
-    java.time.LocalDate.class,
-    com.external.CustomerRecord.class
-})
-package com.mycompany.optics;
+@ImportOptics(java.time.LocalDate.class)
+package com.myapp.optics;
 
 import org.higherkindedj.optics.annotations.ImportOptics;
 ```
 
-The processor analyses each class and generates appropriate optics:
-
-| Source Type | Generated Optics |
-|-------------|------------------|
-| Record | Lenses via canonical constructor |
-| Sealed interface | Prisms for each permitted subtype |
-| Enum | Prisms for each constant |
-| Class with withers | Lenses via wither methods |
-
----
-
-## What Gets Generated
-
-### Records → Lenses
-
-For external records, the processor generates lenses for each component:
+The processor analyses `LocalDate`, discovers its wither methods (`withYear`, `withMonth`, `withDayOfMonth`), and generates:
 
 ```java
-// External record
-package com.external;
-public record Point(int x, int y) {}
-
-// Your package-info.java
-@ImportOptics({com.external.Point.class})
-package com.myapp.optics;
-```
-
-This generates `PointLenses` with:
-
-```java
-// Generated: com.myapp.optics.PointLenses
-public static Lens<Point, Integer> x() { ... }
-public static Lens<Point, Integer> y() { ... }
-public static Point withX(Point source, int newX) { ... }
-public static Point withY(Point source, int newY) { ... }
-```
-
-### Sealed Interfaces → Prisms
-
-For sealed interfaces, prisms are generated for each permitted subtype:
-
-```java
-// External sealed interface
-package com.external;
-public sealed interface Shape permits Circle, Rectangle {}
-public record Circle(double radius) implements Shape {}
-public record Rectangle(double width, double height) implements Shape {}
-
-// Your package-info.java
-@ImportOptics({com.external.Shape.class})
-package com.myapp.optics;
-```
-
-This generates `ShapePrisms` with:
-
-```java
-// Generated: com.myapp.optics.ShapePrisms
-public static Prism<Shape, Circle> circle() { ... }
-public static Prism<Shape, Rectangle> rectangle() { ... }
-```
-
-### Enums → Prisms
-
-For enums, prisms are generated for each constant:
-
-```java
-// External enum
-package com.external;
-public enum Status { PENDING, ACTIVE, COMPLETED }
-
-// Your package-info.java
-@ImportOptics({com.external.Status.class})
-package com.myapp.optics;
-```
-
-This generates `StatusPrisms` with:
-
-```java
-// Generated: com.myapp.optics.StatusPrisms
-public static Prism<Status, Status> pending() { ... }
-public static Prism<Status, Status> active() { ... }
-public static Prism<Status, Status> completed() { ... }
-```
-
-### Classes with Withers → Lenses
-
-For immutable classes that use the wither pattern (like `java.time.LocalDate`), lenses are generated via the wither methods:
-
-```java
-// java.time.LocalDate has:
-// - getYear() / withYear(int)
-// - getMonth() / withMonth(Month)
-// - getDayOfMonth() / withDayOfMonth(int)
-
-@ImportOptics({java.time.LocalDate.class})
-package com.myapp.optics;
-```
-
-This generates `LocalDateLenses` with:
-
-```java
-// Generated: com.myapp.optics.LocalDateLenses
-public static Lens<LocalDate, Integer> year() { ... }
-public static Lens<LocalDate, Integer> dayOfMonth() { ... }
-// etc.
-```
-
----
-
-## Container Field Traversals
-
-When a record has container fields (List, Set, Optional, arrays, Map), the processor automatically generates traversal methods:
-
-```java
-// External record with container field
-public record Order(String id, List<String> items) {}
-
-// Your package-info.java
-@ImportOptics({Order.class})
-package com.myapp.optics;
-```
-
-This generates both lenses and traversals:
-
-```java
-// Generated: com.myapp.optics.OrderLenses
-public static Lens<Order, String> id() { ... }
-public static Lens<Order, List<String>> items() { ... }
-public static Traversal<Order, String> itemsTraversal() { ... }
-```
-
----
-
-## Generic Type Support
-
-Generic types like `Pair<A, B>` generate parameterised optics:
-
-```java
-// External generic record
-public record Pair<A, B>(A first, B second) {}
-
-@ImportOptics({Pair.class})
-package com.myapp.optics;
-```
-
-This generates:
-
-```java
-// Generated: com.myapp.optics.PairLenses
-public static <A, B> Lens<Pair<A, B>, A> first() { ... }
-public static <A, B> Lens<Pair<A, B>, B> second() { ... }
-```
-
----
-
-## Handling Mutable Classes
-
-By default, the processor refuses to generate lenses for mutable classes (those with setter methods) because lens laws may not hold when the source object can be mutated:
-
-```java
-// This will produce a compile-time error
-@ImportOptics({MutablePerson.class})  // Error: has mutable fields
-package com.myapp.optics;
-```
-
-To acknowledge this limitation and generate anyway, use `allowMutable = true`:
-
-```java
-@ImportOptics(
-    value = {MutablePerson.class},
-    allowMutable = true  // Acknowledge lens law limitations
-)
-package com.myapp.optics;
-```
-
----
-
-## Target Package Configuration
-
-By default, generated classes are placed in the annotated package. Use `targetPackage` to specify a different location:
-
-```java
-@ImportOptics(
-    value = {java.time.LocalDate.class},
-    targetPackage = "com.myapp.generated.optics"
-)
-package com.myapp.config;
-```
-
----
-
-## Type-Level Annotation
-
-You can also apply `@ImportOptics` to a class instead of package-info:
-
-```java
-@ImportOptics({java.time.LocalDate.class, java.time.LocalTime.class})
-public class TimeOptics {
-    // Generated optics appear in the same package
+// Generated: LocalDateLenses.java
+public final class LocalDateLenses {
+    public static Lens<LocalDate, Integer> year() { ... }
+    public static Lens<LocalDate, Integer> monthValue() { ... }
+    public static Lens<LocalDate, Integer> dayOfMonth() { ... }
 }
 ```
 
----
-
-## Complete Example
+Now we have lenses the we can use:
 
 ```java
-// package-info.java
+import static com.myapp.optics.LocalDateLenses.year;
+import static com.myapp.optics.OrderLenses.orderDate;
+
+// Bump all orders to next year
+var nextYearOrder = orderDate()
+    .andThen(year())
+    .modify(y -> y + 1, order);
+```
+
+**That's it.** One annotation, and JDK types participate in our optics pipelines.
+
+---
+
+## How Auto-Detection Works
+
+The processor examines each imported type and applies rules based on what it finds:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    @ImportOptics(Type.class)                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  Analyse Type   │
+                    └─────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+   ┌─────────┐          ┌──────────┐         ┌──────────┐
+   │ Record? │          │ Sealed?  │         │ Wither?  │
+   └─────────┘          └──────────┘         └──────────┘
+        │                     │                     │
+        ▼                     ▼                     ▼
+  ┌───────────┐       ┌─────────────┐       ┌───────────┐
+  │  Lenses   │       │   Prisms    │       │  Lenses   │
+  │   via     │       │  for each   │       │   via     │
+  │Constructor│       │   variant   │       │  Withers  │
+  └───────────┘       └─────────────┘       └───────────┘
+```
+
+### Records → Lenses via Constructor
+
+```java
+// External library has:
+public record Coordinate(double lat, double lon) {}
+
+// We write:
+@ImportOptics(Coordinate.class)
+package com.myapp.optics;
+
+// We get:
+CoordinateLenses.lat()  // Lens<Coordinate, Double>
+CoordinateLenses.lon()  // Lens<Coordinate, Double>
+```
+
+Records are the easiest case. The canonical constructor provides the copy mechanism.
+
+### Sealed Types → Prisms for Each Variant
+
+```java
+// External library has:
+public sealed interface PaymentMethod
+    permits CreditCard, BankTransfer, Crypto {}
+
+// We write:
+@ImportOptics(PaymentMethod.class)
+package com.myapp.optics;
+
+// We get:
+PaymentMethodPrisms.creditCard()    // Prism<PaymentMethod, CreditCard>
+PaymentMethodPrisms.bankTransfer()  // Prism<PaymentMethod, BankTransfer>
+PaymentMethodPrisms.crypto()        // Prism<PaymentMethod, Crypto>
+```
+
+### Enums → Prisms for Each Constant
+
+```java
+// External library has:
+public enum OrderStatus { PENDING, SHIPPED, DELIVERED, CANCELLED }
+
+// We write:
+@ImportOptics(OrderStatus.class)
+package com.myapp.optics;
+
+// We get:
+OrderStatusPrisms.pending()    // Prism<OrderStatus, OrderStatus>
+OrderStatusPrisms.shipped()    // etc.
+```
+
+### Wither Classes → Lenses via Wither Methods
+
+Types like `LocalDate`, `LocalTime`, and many immutable library classes follow the "wither" pattern:
+
+```java
+// The pattern: getX() paired with withX(value)
+LocalDate date = ...;
+int year = date.getYear();           // getter
+LocalDate next = date.withYear(2025); // wither returns modified copy
+```
+
+The processor detects these pairs automatically and generates lenses.
+
+---
+
+## A Real Workflow: Date Range Validation
+
+Let's build something practical. We're validating that orders fall within a fiscal quarter. We have a local `Order` record that contains a `LocalDate`:
+
+```java
+// Our local record - we own this, so use @GenerateLenses
+@GenerateLenses
+record Order(String id, Customer customer, LocalDate orderDate, List<LineItem> items) {}
+
+// This generates OrderLenses with:
+// - OrderLenses.orderDate() → Lens<Order, LocalDate>
+// - OrderLenses.id(), OrderLenses.customer(), etc.
+```
+
+Now import optics for the external `LocalDate` type:
+
+```java
+@ImportOptics({
+    java.time.LocalDate.class,
+    java.time.YearMonth.class
+})
+package com.myapp.optics;
+```
+
+With both in place, we can compose across the boundary:
+
+```java
+import static com.myapp.optics.LocalDateLenses.*;  // External type optics
+import static com.myapp.optics.OrderLenses.*;      // Local record optics
+
+public class FiscalValidator {
+
+    private final int fiscalYear;
+    private final int quarter; // 1-4
+
+    public Order normaliseToQuarterStart(Order order) {
+        int quarterStartMonth = (quarter - 1) * 3 + 1;
+
+        // orderDate() from OrderLenses, year()/monthValue()/dayOfMonth() from LocalDateLenses
+        return orderDate()
+            .andThen(year())
+            .set(fiscalYear,
+                orderDate()
+                    .andThen(monthValue())
+                    .set(quarterStartMonth,
+                        orderDate()
+                            .andThen(dayOfMonth())
+                            .set(1, order)));
+    }
+
+    public boolean isInQuarter(Order order) {
+        LocalDate date = orderDate().get(order);
+        int month = monthValue().get(date);
+        int expectedStart = (quarter - 1) * 3 + 1;
+        return year().get(date) == fiscalYear
+            && month >= expectedStart
+            && month < expectedStart + 3;
+    }
+}
+```
+
+The optics compose naturally. `orderDate().andThen(year())` reads like English: "the year of the order date." Local and external optics work together seamlessly.
+
+---
+
+## Container Fields Get Traversals
+
+When a record contains collections, the processor generates both a lens (to the whole collection) and a traversal (into the elements):
+
+```java
+// External:
+public record Department(String name, List<Employee> staff) {}
+
+// Generated:
+DepartmentLenses.name()           // Lens<Department, String>
+DepartmentLenses.staff()          // Lens<Department, List<Employee>>
+DepartmentLenses.staffTraversal() // Traversal<Department, Employee>
+```
+
+This means we can reach directly into nested collections:
+
+```java
+// Give everyone in the department a 10% raise
+var updated = staffTraversal()
+    .andThen(salaryLens())
+    .modify(s -> s * 1.10, department);
+```
+
+---
+
+## When Auto-Detection Isn't Enough
+
+Auto-detection handles the common cases beautifully. But some types resist it:
+
+**Builder Patterns**
+```java
+// JOOQ-generated records use builders:
+CustomerRecord customer = new CustomerRecord()
+    .setName("Alice")
+    .setEmail("alice@example.com");
+
+CustomerRecord updated = customer.toBuilder()
+    .setName("Alicia")
+    .build();
+```
+No wither methods. No public constructor with all fields. The processor can't guess this pattern.
+
+**Non-Standard Naming**
+```java
+// Some libraries use different conventions:
+config.derivedWith(newValue)  // not withX()
+node.as(TargetType.class)     // not instanceof
+```
+
+**Predicate-Based Type Discrimination**
+```java
+// Jackson's JsonNode uses methods, not sealed types:
+if (node.isObject()) {
+    ObjectNode obj = (ObjectNode) node;
+}
+```
+
+For these cases, we need **spec interfaces** - explicit declarations that tell the processor exactly how to work with the type.
+
+---
+
+## The Path Forward
+
+This page covered the quick wins: importing simple external types with `@ImportOptics`. For the more interesting cases, continue to:
+
+- **[Taming JSON with Jackson](optics_spec_interfaces.md)** - Deep dive into building optics for `JsonNode`, with a complete JSON transformation pipeline
+- **[Database Records with JOOQ](copy_strategies.md)** - Working with builder patterns and query results
+
+---
+
+~~~admonish tip title="Quick Reference"
+```java
+// Simple import - auto-detection handles the rest
 @ImportOptics({
     java.time.LocalDate.class,
     java.time.LocalTime.class,
-    java.util.UUID.class
+    com.library.SimpleRecord.class
 })
-package com.mycompany.optics.external;
+package com.myapp.optics;
 
-import org.higherkindedj.optics.annotations.ImportOptics;
+// Options when you need them
+@ImportOptics(
+    value = { MutableConfig.class },
+    allowMutable = true,  // Acknowledge lens law limitations
+    targetPackage = "com.myapp.generated"
+)
 ```
-
-```java
-// Usage
-import com.mycompany.optics.external.LocalDateLenses;
-
-LocalDate date = LocalDate.of(2024, 6, 15);
-
-// Use generated lens to update year
-LocalDate nextYear = LocalDateLenses.year().modify(y -> y + 1, date);
-// Result: 2025-06-15
-
-// Or use the convenience method
-LocalDate specificYear = LocalDateLenses.withYear(date, 2030);
-// Result: 2030-06-15
-```
-
----
+~~~
 
 ~~~admonish info title="Key Takeaways"
-* `@ImportOptics` generates optics for external types you cannot annotate directly
-* Records, sealed interfaces, enums, and wither-based classes are auto-detected
-* Container fields automatically get traversal methods
-* Mutable classes require explicit `allowMutable = true` acknowledgement
-* Generic types generate parameterised optics preserving type safety
-~~~
-
-~~~admonish tip title="See Also"
-- [@ImportOptics Reference](import_optics_reference.md) - Complete annotation reference
-- [Focus DSL](focus_dsl.md) - Using generated optics with Focus paths
-- [Composing Optics](composing_optics.md) - Combining generated optics
+* `@ImportOptics` brings external types into our optics world
+* Records, sealed types, enums, and wither-based classes work automatically
+* Container fields get both lenses and traversals
+* For builder patterns and non-standard types, use [spec interfaces](optics_spec_interfaces.md)
 ~~~
 
 ---
 
-**Next:** [@ImportOptics Reference](import_optics_reference.md)
+## General Advice: Integrating Third-Party Libraries
+
+When working with a new external library, follow this decision tree:
+
+1. **Can you annotate the type?** If it's your code, use `@GenerateLenses` directly.
+
+2. **Is it a simple record, sealed type, or wither-based class?** Use `@ImportOptics` and let auto-detection handle it.
+
+3. **Does it use builders, predicates, or non-standard patterns?** Create a spec interface with the appropriate annotations.
+
+4. **Does it already implement List, Map, or Optional?** You may not need any annotations; standard traversals work directly.
+
+~~~admonish tip title="Making the Most of Your Integration"
+Consider these opportunities to enhance your Higher-Kinded-J integration:
+
+- **Create domain-specific wrappers**: Layer meaningful names over raw optics (`orderTotal()` instead of `items().andThen(price())`)
+- **Build validation pipelines**: Combine optics with `Validated` or `Either` for error-accumulating transformations
+- **Centralise your optics**: Keep spec interfaces in a dedicated package for easy discovery
+- **Add test coverage**: Verify lens laws hold, especially for `@ViaCopyAndSet` with mutable types
+~~~
+
+---
+
+## Further Reading
+
+**JDK Types:**
+- [java.time API](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/time/package-summary.html) - LocalDate, LocalTime, Instant, and friends all follow the wither pattern
+
+**Libraries Covered in Later Chapters:**
+- [Jackson](https://github.com/FasterXML/jackson) - JSON processing, covered in [Taming JSON](optics_spec_interfaces.md)
+- [JOOQ](https://www.jooq.org/) - Database access, covered in [Database Records](copy_strategies.md)
+- [Immutables](https://immutables.github.io/) - Value objects, covered in [Focus DSL Bridging](focus_external_bridging.md)
+- [Lombok](https://projectlombok.org/) - Code generation with `@Builder`
+- [AutoValue](https://github.com/google/auto/tree/main/value) - Google's immutable value types
+- [Protocol Buffers](https://protobuf.dev/) - Cross-language serialisation with builders
+
+---
+
+**Next:** [Taming JSON with Jackson](optics_spec_interfaces.md)

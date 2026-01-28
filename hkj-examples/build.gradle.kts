@@ -12,6 +12,10 @@ dependencies {
     implementation(project(":hkj-core"))
     annotationProcessor(project(":hkj-processor-plugins"))
 
+    // External libraries for spec interface examples
+    implementation(libs.jackson.databind)
+    implementation(libs.jooq)
+
     // Testing dependencies for tutorials
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
