@@ -2,10 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -14,6 +11,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -255,7 +253,7 @@ public class SpecInterfaceAnalyser {
         prismHintInfo = prismResult.get().info();
       }
       case TRAVERSAL -> {
-        var traversalResult = parseTraversalHint(method);
+        var traversalResult = parseTraversalHint(method, sourceType, specInterface);
         if (traversalResult.isEmpty()) {
           error(
               "Traversal method '"
@@ -421,7 +419,8 @@ public class SpecInterfaceAnalyser {
 
   private record TraversalHintResult(TraversalHintKind kind, TraversalHintInfo info) {}
 
-  private Optional<TraversalHintResult> parseTraversalHint(ExecutableElement method) {
+  private Optional<TraversalHintResult> parseTraversalHint(
+      ExecutableElement method, TypeMirror sourceType, TypeElement specInterface) {
     // Check for @TraverseWith
     AnnotationMirror traverseWith = findAnnotation(method, TRAVERSE_WITH_FQN);
     if (traverseWith != null) {
@@ -437,6 +436,17 @@ public class SpecInterfaceAnalyser {
     if (throughField != null) {
       String fieldName = getAnnotationString(throughField, "field", "");
       String traversal = getAnnotationString(throughField, "traversal", "");
+
+      // Auto-detect traversal if not specified
+      if (traversal.isEmpty()) {
+        Optional<String> autoDetected = autoDetectTraversalForField(fieldName, sourceType, method);
+        if (autoDetected.isEmpty()) {
+          // Error already reported in autoDetectTraversalForField
+          return Optional.empty();
+        }
+        traversal = autoDetected.get();
+      }
+
       return Optional.of(
           new TraversalHintResult(
               TraversalHintKind.THROUGH_FIELD,
@@ -444,6 +454,133 @@ public class SpecInterfaceAnalyser {
     }
 
     return Optional.empty();
+  }
+
+  /**
+   * Auto-detects the appropriate traversal for a field based on its type.
+   *
+   * @param fieldName the name of the field to look up
+   * @param sourceType the source type containing the field
+   * @param method the method element (for error reporting)
+   * @return the traversal reference string, or empty if detection failed
+   */
+  private Optional<String> autoDetectTraversalForField(
+      String fieldName, TypeMirror sourceType, ExecutableElement method) {
+
+    // Get the source type element
+    TypeElement sourceTypeElement = (TypeElement) typeUtils.asElement(sourceType);
+    if (sourceTypeElement == null) {
+      error(
+          "Cannot auto-detect traversal: source type '"
+              + sourceType
+              + "' is not a valid type element",
+          method);
+      return Optional.empty();
+    }
+
+    // Look up the field's type on the source type
+    TypeMirror fieldType = findFieldType(sourceTypeElement, fieldName);
+    if (fieldType == null) {
+      error(
+          "Cannot auto-detect traversal: field '"
+              + fieldName
+              + "' not found on type '"
+              + sourceTypeElement.getQualifiedName()
+              + "'. "
+              + "Check that the field name matches an accessor method or record component.",
+          method);
+      return Optional.empty();
+    }
+
+    // Detect the container type using type hierarchy checking
+    TypeKindAnalyser typeAnalyser = new TypeKindAnalyser(typeUtils);
+    Optional<ContainerType> containerType =
+        typeAnalyser.detectContainerTypeWithSubtypes(fieldType, elementUtils);
+
+    if (containerType.isEmpty()) {
+      error(
+          "Cannot auto-detect traversal for field '"
+              + fieldName
+              + "' of type '"
+              + fieldType
+              + "'. "
+              + "Supported types: List, Set, Optional, Map, arrays. "
+              + "Please specify traversal() explicitly, e.g.: "
+              + "@ThroughField(field = \""
+              + fieldName
+              + "\", traversal = \"MyTraversals.custom()\")",
+          method);
+      return Optional.empty();
+    }
+
+    // Get the standard traversal reference for this container type
+    TraversalCodeGenerator traversalGenerator = new TraversalCodeGenerator();
+    String traversalRef = traversalGenerator.getStandardTraversal(containerType.get().kind());
+
+    return Optional.of(traversalRef);
+  }
+
+  /**
+   * Finds the type of a field on a type element by looking for accessor methods or record
+   * components.
+   *
+   * @param typeElement the type to search
+   * @param fieldName the field name to find
+   * @return the field's type, or null if not found
+   */
+  private TypeMirror findFieldType(TypeElement typeElement, String fieldName) {
+    // For records, check record components first
+    if (typeElement.getKind() == ElementKind.RECORD) {
+      for (var component : typeElement.getRecordComponents()) {
+        if (component.getSimpleName().contentEquals(fieldName)) {
+          return component.asType();
+        }
+      }
+    }
+
+    // Look for accessor method (record-style: fieldName() or JavaBean-style: getFieldName())
+    String getterName = "get" + capitalise(fieldName);
+    String isGetterName = "is" + capitalise(fieldName); // For booleans
+
+    for (var enclosed : typeElement.getEnclosedElements()) {
+      if (enclosed.getKind() != ElementKind.METHOD) {
+        continue;
+      }
+
+      ExecutableElement method = (ExecutableElement) enclosed;
+      String methodName = method.getSimpleName().toString();
+
+      // Check for record-style accessor (e.g., players())
+      // or JavaBean-style getter (e.g., getPlayers())
+      if ((methodName.equals(fieldName)
+              || methodName.equals(getterName)
+              || methodName.equals(isGetterName))
+          && method.getParameters().isEmpty()
+          && method.getModifiers().contains(Modifier.PUBLIC)
+          && !method.getModifiers().contains(Modifier.STATIC)) {
+        return method.getReturnType();
+      }
+    }
+
+    // Look for public field directly
+    for (var enclosed : typeElement.getEnclosedElements()) {
+      if (enclosed.getKind() == ElementKind.FIELD) {
+        VariableElement field = (VariableElement) enclosed;
+        if (field.getSimpleName().contentEquals(fieldName)
+            && field.getModifiers().contains(Modifier.PUBLIC)) {
+          return field.asType();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private String capitalise(String s) {
+    if (s == null || s.isEmpty()) {
+      return s;
+    }
+    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
   }
 
   // ----- Annotation Utility Methods -----

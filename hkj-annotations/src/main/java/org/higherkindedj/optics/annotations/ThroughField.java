@@ -16,48 +16,47 @@ import java.lang.annotation.Target;
  * <p>The processor will generate code like:
  *
  * <pre>{@code
- * // Explicit traversal for List<Player>
- * playersLens().composeTraversal(Traversals.list())
+ * // Auto-detected traversal for List<Player>
+ * players().andThen(Traversals.forList())
  * }</pre>
  *
- * <p><strong>Note:</strong> The {@link #traversal()} parameter is currently required for the
- * processor to generate working code. Auto-detection based on container type is planned for a
- * future version.
+ * <h2>Auto-Detection</h2>
  *
- * <p>Planned auto-detection will support the following container types:
+ * <p>When the {@link #traversal()} parameter is omitted, the processor automatically detects the
+ * appropriate traversal based on the field's container type. The following container types are
+ * supported:
  *
  * <ul>
- *   <li>{@code List<X>} → {@code Traversals.list()}
- *   <li>{@code Set<X>} → {@code Traversals.set()}
- *   <li>{@code Optional<X>} → {@code Affines.optional()}
- *   <li>{@code X[]} → {@code Traversals.array()}
- *   <li>{@code Map<K, V>} → {@code Traversals.mapValues()}
+ *   <li>{@code List<X>} and subtypes (ArrayList, LinkedList, etc.) &rarr; {@code
+ *       Traversals.forList()}
+ *   <li>{@code Set<X>} and subtypes (HashSet, TreeSet, etc.) &rarr; {@code Traversals.forSet()}
+ *   <li>{@code Optional<X>} &rarr; {@code Traversals.forOptional()}
+ *   <li>{@code X[]} arrays &rarr; {@code Traversals.forArray()}
+ *   <li>{@code Map<K, V>} and subtypes (HashMap, TreeMap, etc.) &rarr; {@code
+ *       Traversals.forMapValues()}
  * </ul>
  *
- * <p>Example:
+ * <p>If the field type is not a recognised container type, a compile-time error is reported
+ * indicating that the {@link #traversal()} parameter must be specified explicitly.
+ *
+ * <h2>Examples</h2>
  *
  * <pre>{@code
  * // External class
- * public class Team {
- *     private final String name;
- *     private final List<Player> players;
- *     // getters, toBuilder, etc.
- * }
+ * public record Team(String name, List<Player> players) {}
  *
  * @ImportOptics
  * interface TeamOptics extends OpticsSpec<Team> {
  *
- *     @ViaBuilder
  *     Lens<Team, String> name();
  *
- *     @ViaBuilder
  *     Lens<Team, List<Player>> players();
  *
- *     // Traverse through players field with explicit traversal
- *     @ThroughField(field = "players", traversal = "org.higherkindedj.optics.Traversals.list()")
+ *     // Auto-detected traversal for List<Player>
+ *     @ThroughField(field = "players")
  *     Traversal<Team, Player> eachPlayer();
  *
- *     // Custom container with explicit traversal
+ *     // Explicit traversal for custom container
  *     @ThroughField(field = "tree", traversal = "com.mycompany.TreeTraverse.preOrder()")
  *     Traversal<Team, Node> eachNode();
  * }
@@ -73,8 +72,12 @@ public @interface ThroughField {
   /**
    * The field name to traverse through.
    *
-   * <p>The field must have a container type (List, Set, Optional, array, Map) or the {@link
-   * #traversal()} must be specified explicitly.
+   * <p>The field must exist on the source type with an accessor method (record-style {@code
+   * fieldName()} or JavaBean-style {@code getFieldName()}) or as a public field.
+   *
+   * <p>If the field has a recognised container type (List, Set, Optional, Map, array), the
+   * traversal is auto-detected. Otherwise, the {@link #traversal()} parameter must be specified
+   * explicitly.
    *
    * @return the field name
    */
@@ -83,21 +86,22 @@ public @interface ThroughField {
   /**
    * The traversal to use for the container.
    *
-   * <p><strong>Currently required:</strong> While the default value is empty, you must specify this
-   * parameter for the processor to generate working code. Auto-detection based on container type is
-   * planned for a future version. Omitting this parameter results in generated code with a TODO
-   * placeholder.
+   * <p><strong>Optional:</strong> If omitted, the processor automatically detects the appropriate
+   * traversal based on the field's container type. Specify this parameter explicitly for custom
+   * container types that are not auto-detected.
    *
-   * <p>Examples:
+   * <p>Examples of explicit traversal references:
    *
    * <ul>
-   *   <li>{@code "org.higherkindedj.optics.Traversals.list()"}
-   *   <li>{@code "org.higherkindedj.optics.Traversals.set()"}
-   *   <li>{@code "org.higherkindedj.optics.Affines.optional()"}
-   *   <li>{@code "com.mycompany.TreeTraverse.INSTANCE"}
+   *   <li>{@code "org.higherkindedj.optics.util.Traversals.forList()"}
+   *   <li>{@code "org.higherkindedj.optics.util.Traversals.forSet()"}
+   *   <li>{@code "org.higherkindedj.optics.util.Traversals.forOptional()"}
+   *   <li>{@code "org.higherkindedj.optics.util.Traversals.forArray()"}
+   *   <li>{@code "org.higherkindedj.optics.util.Traversals.forMapValues()"}
+   *   <li>{@code "com.mycompany.TreeTraverse.INSTANCE"} (custom traversal)
    * </ul>
    *
-   * @return the fully qualified traversal reference
+   * @return the fully qualified traversal reference, or empty for auto-detection
    */
   String traversal() default "";
 }

@@ -9,8 +9,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.example.optics.external.CustomerRecord;
+import org.higherkindedj.example.optics.external.LineItemRecord;
+import org.higherkindedj.example.optics.external.OrderRecord;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.util.Traversals;
 import org.jooq.Record;
 import org.jooq.Result;
 import org.jooq.SQLDialect;
@@ -96,6 +100,56 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
       return Prism.of(
           jv -> jv instanceof JsonBool jb ? Optional.of(jb.value()) : Optional.empty(),
           JsonBool::new);
+    }
+  }
+
+  static class LineItemRecordOptics {
+    private LineItemRecordOptics() {}
+
+    public static Lens<LineItemRecord, String> productId() {
+      return Lens.of(
+          LineItemRecord::productId, (item, id) -> item.toBuilder().productId(id).build());
+    }
+
+    public static Lens<LineItemRecord, String> productName() {
+      return Lens.of(
+          LineItemRecord::productName, (item, name) -> item.toBuilder().productName(name).build());
+    }
+
+    public static Lens<LineItemRecord, Integer> quantity() {
+      return Lens.of(
+          LineItemRecord::quantity, (item, qty) -> item.toBuilder().quantity(qty).build());
+    }
+
+    public static Lens<LineItemRecord, BigDecimal> unitPrice() {
+      return Lens.of(
+          LineItemRecord::unitPrice, (item, price) -> item.toBuilder().unitPrice(price).build());
+    }
+  }
+
+  static class OrderRecordOptics {
+    private OrderRecordOptics() {}
+
+    public static Lens<OrderRecord, String> orderId() {
+      return Lens.of(OrderRecord::orderId, (order, id) -> order.toBuilder().orderId(id).build());
+    }
+
+    public static Lens<OrderRecord, Long> customerId() {
+      return Lens.of(
+          OrderRecord::customerId, (order, id) -> order.toBuilder().customerId(id).build());
+    }
+
+    public static Lens<OrderRecord, LocalDate> orderDate() {
+      return Lens.of(
+          OrderRecord::orderDate, (order, date) -> order.toBuilder().orderDate(date).build());
+    }
+
+    public static Lens<OrderRecord, List<LineItemRecord>> items() {
+      return Lens.of(OrderRecord::items, (order, items) -> order.toBuilder().items(items).build());
+    }
+
+    public static Traversal<OrderRecord, LineItemRecord> eachItem() {
+      return items().andThen(org.higherkindedj.optics.util.Traversals.forList());
     }
   }
 
@@ -277,5 +331,139 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     // - Result<R> -> use Traversals.list() directly
     // - Generated POJOs with builders -> use @ViaBuilder spec
     // - Types with withX() methods -> use @Wither spec
+  }
+
+  @Test
+  void exercise10_throughFieldBasics() {
+    OrderRecord order =
+        OrderRecord.builder()
+            .orderId("ORD-001")
+            .customerId(42L)
+            .orderDate(LocalDate.of(2024, 6, 15))
+            .items(
+                List.of(
+                    LineItemRecord.builder()
+                        .productId("SKU-001")
+                        .productName("Widget")
+                        .quantity(2)
+                        .unitPrice(new BigDecimal("19.99"))
+                        .build(),
+                    LineItemRecord.builder()
+                        .productId("SKU-002")
+                        .productName("Gadget")
+                        .quantity(1)
+                        .unitPrice(new BigDecimal("49.99"))
+                        .build()))
+            .build();
+
+    // SOLUTION: Get all product names using traversal composition
+    List<String> productNames =
+        Traversals.getAll(
+            OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.productName()), order);
+
+    // SOLUTION: Get all quantities using traversal composition
+    List<Integer> quantities =
+        Traversals.getAll(
+            OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.quantity()), order);
+
+    assertThat(productNames).containsExactly("Widget", "Gadget");
+    assertThat(quantities).containsExactly(2, 1);
+  }
+
+  @Test
+  void exercise11_throughFieldModify() {
+    OrderRecord order =
+        OrderRecord.builder()
+            .orderId("ORD-002")
+            .customerId(42L)
+            .orderDate(LocalDate.of(2024, 6, 15))
+            .items(
+                List.of(
+                    LineItemRecord.builder()
+                        .productId("SKU-001")
+                        .productName("widget")
+                        .quantity(2)
+                        .unitPrice(new BigDecimal("100.00"))
+                        .build(),
+                    LineItemRecord.builder()
+                        .productId("SKU-002")
+                        .productName("gadget")
+                        .quantity(3)
+                        .unitPrice(new BigDecimal("50.00"))
+                        .build()))
+            .build();
+
+    // SOLUTION: Uppercase all product names
+    OrderRecord uppercased =
+        Traversals.modify(
+            OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.productName()),
+            String::toUpperCase,
+            order);
+
+    // SOLUTION: Double all quantities
+    OrderRecord doubled =
+        Traversals.modify(
+            OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.quantity()),
+            qty -> qty * 2,
+            order);
+
+    // SOLUTION: Apply 10% discount to all prices
+    OrderRecord discounted =
+        Traversals.modify(
+            OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.unitPrice()),
+            price -> price.multiply(new BigDecimal("0.90")),
+            order);
+
+    assertThat(
+            Traversals.getAll(
+                OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.productName()),
+                uppercased))
+        .containsExactly("WIDGET", "GADGET");
+
+    assertThat(
+            Traversals.getAll(
+                OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.quantity()), doubled))
+        .containsExactly(4, 6);
+
+    assertThat(
+            Traversals.getAll(
+                OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.unitPrice()), discounted))
+        .usingComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .containsExactly(new BigDecimal("90.00"), new BigDecimal("45.00"));
+  }
+
+  @Test
+  void exercise12_throughFieldComposition() {
+    OrderRecord order =
+        OrderRecord.builder()
+            .orderId("ORD-003")
+            .customerId(42L)
+            .orderDate(LocalDate.of(2024, 1, 15))
+            .items(
+                List.of(
+                    LineItemRecord.builder()
+                        .productId("SKU-001")
+                        .productName("Widget")
+                        .quantity(5)
+                        .unitPrice(new BigDecimal("20.00"))
+                        .build()))
+            .build();
+
+    // SOLUTION: Compose @Wither lens with @ViaBuilder lens to update year
+    OrderRecord nextYear =
+        OrderRecordOptics.orderDate().andThen(LocalDateOptics.year()).set(2025, order);
+
+    // SOLUTION: Compose @ThroughField traversal with lens to add suffix to product IDs
+    OrderRecord versioned =
+        Traversals.modify(
+            OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.productId()),
+            id -> id + "-v2",
+            order);
+
+    assertThat(nextYear.orderDate()).isEqualTo(LocalDate.of(2025, 1, 15));
+    assertThat(
+            Traversals.getAll(
+                OrderRecordOptics.eachItem().andThen(LineItemRecordOptics.productId()), versioned))
+        .containsExactly("SKU-001-v2");
   }
 }
