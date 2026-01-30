@@ -501,21 +501,11 @@ public final class Traversals {
       return applicative.of(new LinkedHashSet<>());
     }
 
-    Kind<F, Set<B>> result = applicative.of(new LinkedHashSet<>(set.size()));
-    for (A element : set) {
-      @SuppressWarnings("unchecked")
-      final Kind<F, B> newFValue = (Kind<F, B>) f.apply(element);
-      result =
-          applicative.map2(
-              result,
-              newFValue,
-              (s, b) -> {
-                final Set<B> updated = new LinkedHashSet<>(s);
-                updated.add(b);
-                return updated;
-              });
-    }
-    return result;
+    // Convert to list, traverse efficiently, then convert back to set
+    @SuppressWarnings("unchecked")
+    final Function<A, Kind<F, B>> fCast = (Function<A, Kind<F, B>>) f;
+    Kind<F, List<B>> listResult = traverseList(new ArrayList<>(set), fCast, applicative);
+    return applicative.map(LinkedHashSet::new, listResult);
   }
 
   /**
@@ -548,21 +538,10 @@ public final class Traversals {
       return applicative.of(new ArrayList<>());
     }
 
-    Kind<F, List<B>> result = applicative.of(new ArrayList<>(array.length));
-    for (A element : array) {
-      @SuppressWarnings("unchecked")
-      final Kind<F, B> newFValue = (Kind<F, B>) f.apply(element);
-      result =
-          applicative.map2(
-              result,
-              newFValue,
-              (list, b) -> {
-                final List<B> updated = new ArrayList<>(list);
-                updated.add(b);
-                return updated;
-              });
-    }
-    return result;
+    // Convert to list and traverse efficiently
+    @SuppressWarnings("unchecked")
+    final Function<A, Kind<F, B>> fCast = (Function<A, Kind<F, B>>) f;
+    return traverseList(java.util.Arrays.asList(array), fCast, applicative);
   }
 
   /**
