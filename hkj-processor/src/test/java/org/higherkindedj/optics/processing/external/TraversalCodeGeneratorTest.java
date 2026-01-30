@@ -215,7 +215,9 @@ class TraversalCodeGeneratorTest {
               public record Team(String name, List<String> members) {}
               """);
 
-      TraversalHintInfo info = TraversalHintInfo.forThroughField("members", "");
+      TraversalHintInfo info =
+          TraversalHintInfo.forThroughField(
+              "members", "org.higherkindedj.optics.util.Traversals.forList()");
 
       String result =
           generateTraversal(
@@ -223,6 +225,7 @@ class TraversalCodeGeneratorTest {
 
       // Should compose a lens to the field with a list traversal
       assertThat(result).contains("members");
+      assertThat(result).contains("org.higherkindedj.optics.util.Traversals.forList()");
     }
 
     @Test

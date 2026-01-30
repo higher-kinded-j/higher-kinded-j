@@ -421,34 +421,19 @@ class SpecMutationKillingTest {
     }
 
     @Test
-    @DisplayName("THROUGH_FIELD with empty traversal infers from field type")
-    void throughFieldWithEmptyTraversalInfersType() {
-      var source =
-          JavaFileObjects.forSourceString(
-              "com.test.Container",
-              """
-              package com.test;
-              import java.util.List;
-              public record Container(List<String> items) {}
-              """);
+    @DisplayName("THROUGH_FIELD with empty traversal throws IllegalStateException")
+    void throughFieldWithEmptyTraversalThrowsException() {
+      // Empty traversal should throw IllegalStateException because auto-detection
+      // now happens in SpecInterfaceAnalyser, not in TraversalCodeGenerator
+      TraversalHintInfo info = TraversalHintInfo.forThroughField("items", "");
 
-      String result =
-          runGeneratorInProcessor(
-              "com.test.Container",
-              proc -> {
-                TraversalHintInfo info = TraversalHintInfo.forThroughField("items", "");
-                return generator
-                    .generateTraversalReturnStatement(
-                        TraversalHintKind.THROUGH_FIELD,
-                        info,
-                        proc.getTypeMirror(),
-                        null,
-                        "com.test.ContainerSpec")
-                    .toString();
-              },
-              source);
-
-      assertThat(result).contains("items");
+      assertThatThrownBy(
+              () ->
+                  generator.generateTraversalReturnStatement(
+                      TraversalHintKind.THROUGH_FIELD, info, null, null, "com.test.ContainerSpec"))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Traversal not specified")
+          .hasMessageContaining("auto-detected");
     }
 
     @Test

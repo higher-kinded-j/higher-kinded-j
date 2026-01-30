@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
+import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
@@ -20,13 +21,15 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKi
  */
 public class TraversalCodeGenerator {
 
-  // Standard traversal references
-  private static final String LIST_TRAVERSAL = "org.higherkindedj.optics.Traversals.list()";
-  private static final String SET_TRAVERSAL = "org.higherkindedj.optics.Traversals.set()";
-  private static final String OPTIONAL_AFFINE = "org.higherkindedj.optics.Affines.optional()";
-  private static final String ARRAY_TRAVERSAL = "org.higherkindedj.optics.Traversals.array()";
+  // Standard traversal references - these must match actual method names in Traversals class
+  private static final String LIST_TRAVERSAL = "org.higherkindedj.optics.util.Traversals.forList()";
+  private static final String SET_TRAVERSAL = "org.higherkindedj.optics.util.Traversals.forSet()";
+  private static final String OPTIONAL_TRAVERSAL =
+      "org.higherkindedj.optics.util.Traversals.forOptional()";
+  private static final String ARRAY_TRAVERSAL =
+      "org.higherkindedj.optics.util.Traversals.forArray()";
   private static final String MAP_VALUES_TRAVERSAL =
-      "org.higherkindedj.optics.Traversals.mapValues()";
+      "org.higherkindedj.optics.util.Traversals.forMapValues()";
 
   /**
    * Generates the traversal code block.
@@ -79,7 +82,15 @@ public class TraversalCodeGenerator {
   /**
    * Generates code composing a field lens with a container traversal.
    *
-   * <p>Generated code: {@code SpecClass.fieldName().composeTraversal(Traversals.list())}
+   * <p>Generated code: {@code SpecClass.fieldName().andThen((Traversal) Traversals.forList())}
+   *
+   * <p>Note: The traversal is now auto-detected by {@code SpecInterfaceAnalyser} if not explicitly
+   * specified, so the traversal parameter should always be populated.
+   *
+   * <p>The unchecked cast is necessary because the lens may focus on a container subtype (e.g.,
+   * ArrayList) while the traversal is typed for the supertype (e.g., List). Java's invariant
+   * generics require this cast, but it's safe at runtime because subtypes can be traversed using
+   * the supertype's traversal.
    *
    * @param info the @ThroughField annotation values
    * @param specClassName the name of the spec class
@@ -89,18 +100,23 @@ public class TraversalCodeGenerator {
     String fieldName = info.fieldName();
     String traversal = info.fieldTraversal();
 
-    // If traversal is empty, it would need to be auto-detected from field type
-    // For now, we require it to be specified or use a placeholder
+    // Traversal should always be populated by SpecInterfaceAnalyser (either explicit or
+    // auto-detected)
     if (traversal.isEmpty()) {
-      // This would need more context to auto-detect
-      // For now, generate a placeholder that requires the traversal parameter
-      return CodeBlock.of(
-          "$L.$L().composeTraversal(/* TODO: specify traversal() parameter */)",
-          specClassName,
-          fieldName);
+      throw new IllegalStateException(
+          "Traversal not specified for @ThroughField(field = \""
+              + fieldName
+              + "\"). "
+              + "This should have been auto-detected by SpecInterfaceAnalyser.");
     }
 
-    return CodeBlock.of("$L.$L().composeTraversal($L)", specClassName, fieldName, traversal);
+    // Use unchecked cast for container subtypes (e.g., ArrayList for List)
+    return CodeBlock.of(
+        "$L.$L().andThen(($T) $L)",
+        specClassName,
+        fieldName,
+        ClassName.get("org.higherkindedj.optics", "Traversal"),
+        traversal);
   }
 
   /**
@@ -137,7 +153,7 @@ public class TraversalCodeGenerator {
     return switch (containerKind) {
       case LIST -> LIST_TRAVERSAL;
       case SET -> SET_TRAVERSAL;
-      case OPTIONAL -> OPTIONAL_AFFINE;
+      case OPTIONAL -> OPTIONAL_TRAVERSAL;
       case ARRAY -> ARRAY_TRAVERSAL;
       case MAP -> MAP_VALUES_TRAVERSAL;
     };

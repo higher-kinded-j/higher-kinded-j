@@ -10,6 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -239,6 +240,85 @@ public final class Traversals {
   }
 
   /**
+   * Creates a {@code Traversal} for all elements of a {@link Set}.
+   *
+   * <p>This is a canonical traversal for the {@code Set} data type, allowing an effectful function
+   * to be applied to each of its elements. The resulting set preserves the uniqueness property of
+   * sets; if the modification function produces duplicate values, only one will be retained.
+   *
+   * <p>The traversal uses a {@link LinkedHashSet} internally to preserve iteration order during
+   * modification, though the final set may have a different order if duplicates are produced.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Modify all elements in a set
+   * Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+   * Set<String> names = Set.of("alice", "bob", "charlie");
+   * Set<String> upper = Traversals.modify(setTraversal, String::toUpperCase, names);
+   * // upper = Set.of("ALICE", "BOB", "CHARLIE")
+   *
+   * // Get all elements
+   * List<String> allNames = Traversals.getAll(setTraversal, names);
+   * // allNames = ["alice", "bob", "charlie"] (order may vary)
+   * }</pre>
+   *
+   * @param <A> The element type of the set.
+   * @return A {@code Traversal} for the elements of a set.
+   */
+  public static <A> Traversal<Set<A>, A> forSet() {
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Set<A>> modifyF(
+          final Function<A, Kind<F, A>> f, final Set<A> source, final Applicative<F> applicative) {
+        return traverseSet(source, f, applicative);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} for all elements of an array.
+   *
+   * <p>This is a canonical traversal for array types, allowing an effectful function to be applied
+   * to each element. The resulting array has the same length as the source array.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Modify all elements in an array
+   * Traversal<String[], String> arrayTraversal = Traversals.forArray();
+   * String[] names = {"alice", "bob", "charlie"};
+   * String[] upper = Traversals.modify(arrayTraversal, String::toUpperCase, names);
+   * // upper = ["ALICE", "BOB", "CHARLIE"]
+   *
+   * // Get all elements
+   * List<String> allNames = Traversals.getAll(arrayTraversal, names);
+   * // allNames = ["alice", "bob", "charlie"]
+   * }</pre>
+   *
+   * @param <A> The element type of the array.
+   * @return A {@code Traversal} for the elements of an array.
+   */
+  public static <A> Traversal<A[], A> forArray() {
+    return new Traversal<>() {
+      @Override
+      @SuppressWarnings("unchecked")
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, A[]> modifyF(
+          final Function<A, Kind<F, A>> f, final A[] source, final Applicative<F> applicative) {
+        // Traverse to a list, then convert back to array using the source's component type
+        Kind<F, List<A>> listResult = traverseArray(source, f, applicative);
+        return applicative.map(
+            list ->
+                list.toArray(
+                    (A[])
+                        java.lang.reflect.Array.newInstance(
+                            source.getClass().getComponentType(), list.size())),
+            listResult);
+      }
+    };
+  }
+
+  /**
    * Creates a {@code Traversal} that focuses on all values within a {@link Map}, preserving the
    * keys.
    *
@@ -386,6 +466,99 @@ public final class Traversals {
               (m, w) -> {
                 final Map<K, W> updated = new HashMap<>(m);
                 updated.put(key, w);
+                return updated;
+              });
+    }
+    return result;
+  }
+
+  /**
+   * Applies an effectful function to each element of a {@link Set} and collects the results in a
+   * single effect.
+   *
+   * <p>This is a direct application of the {@code traverse} operation for {@code Set}, provided
+   * here as a static helper for convenience. It "flips" a {@code Set<A>} and a function {@code A ->
+   * F<B>} into a single {@code F<Set<B>>}.
+   *
+   * <p>The resulting set uses a {@link LinkedHashSet} to preserve iteration order. Note that if the
+   * function produces duplicate values, the set will contain only unique elements.
+   *
+   * @param set The source set to traverse.
+   * @param f The effectful function to apply to each element.
+   * @param applicative The {@code Applicative} instance for the effect {@code F}.
+   * @param <F> The higher-kinded type witness of the applicative effect.
+   * @param <A> The element type of the source set.
+   * @param <B> The element type of the resulting set.
+   * @return A {@code Kind<F, Set<B>>}, representing the collected results within the applicative
+   *     context.
+   */
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, Set<B>> traverseSet(
+      final Set<A> set,
+      final Function<? super A, ? extends Kind<F, ? extends B>> f,
+      final Applicative<F> applicative) {
+
+    if (set.isEmpty()) {
+      return applicative.of(new LinkedHashSet<>());
+    }
+
+    Kind<F, Set<B>> result = applicative.of(new LinkedHashSet<>(set.size()));
+    for (A element : set) {
+      @SuppressWarnings("unchecked")
+      final Kind<F, B> newFValue = (Kind<F, B>) f.apply(element);
+      result =
+          applicative.map2(
+              result,
+              newFValue,
+              (s, b) -> {
+                final Set<B> updated = new LinkedHashSet<>(s);
+                updated.add(b);
+                return updated;
+              });
+    }
+    return result;
+  }
+
+  /**
+   * Applies an effectful function to each element of an array and collects the results in a single
+   * effect.
+   *
+   * <p>This is a direct application of the {@code traverse} operation for arrays, provided here as
+   * a static helper for convenience. It "flips" an {@code A[]} and a function {@code A -> F<B>}
+   * into a single {@code F<B[]>}.
+   *
+   * <p>The resulting array has the same length as the source array, with each element transformed
+   * by the function.
+   *
+   * @param array The source array to traverse.
+   * @param f The effectful function to apply to each element.
+   * @param applicative The {@code Applicative} instance for the effect {@code F}.
+   * @param <F> The higher-kinded type witness of the applicative effect.
+   * @param <A> The element type of the source array.
+   * @param <B> The element type of the resulting array.
+   * @return A {@code Kind<F, List<B>>}, representing the collected results within the applicative
+   *     context. Note: Returns a List because creating generic arrays at runtime is not type-safe
+   *     in Java.
+   */
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, List<B>> traverseArray(
+      final A[] array,
+      final Function<? super A, ? extends Kind<F, ? extends B>> f,
+      final Applicative<F> applicative) {
+
+    if (array.length == 0) {
+      return applicative.of(new ArrayList<>());
+    }
+
+    Kind<F, List<B>> result = applicative.of(new ArrayList<>(array.length));
+    for (A element : array) {
+      @SuppressWarnings("unchecked")
+      final Kind<F, B> newFValue = (Kind<F, B>) f.apply(element);
+      result =
+          applicative.map2(
+              result,
+              newFValue,
+              (list, b) -> {
+                final List<B> updated = new ArrayList<>(list);
+                updated.add(b);
                 return updated;
               });
     }

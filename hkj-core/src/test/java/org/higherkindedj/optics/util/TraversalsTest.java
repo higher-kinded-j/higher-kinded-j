@@ -2933,4 +2933,228 @@ class TraversalsTest {
           .containsEntry("c", 50); // 7^2 + 1
     }
   }
+
+  @Nested
+  @DisplayName("forSet() Tests")
+  class ForSetTests {
+
+    @Test
+    @DisplayName("forSet() should modify all elements")
+    void forSet_modifiesAllElements() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> names = Set.of("alice", "bob", "charlie");
+      Set<String> result = Traversals.modify(setTraversal, String::toUpperCase, names);
+
+      assertThat(result).containsExactlyInAnyOrder("ALICE", "BOB", "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("forSet() should return all elements via getAll")
+    void forSet_getAllReturnsAllElements() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> names = Set.of("alice", "bob", "charlie");
+      List<String> result = Traversals.getAll(setTraversal, names);
+
+      assertThat(result).containsExactlyInAnyOrder("alice", "bob", "charlie");
+    }
+
+    @Test
+    @DisplayName("forSet() should handle empty set")
+    void forSet_handlesEmptySet() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> empty = Set.of();
+      Set<String> result = Traversals.modify(setTraversal, String::toUpperCase, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forSet() should handle empty set with getAll")
+    void forSet_getAllHandlesEmptySet() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> empty = Set.of();
+      List<String> result = Traversals.getAll(setTraversal, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forSet() should preserve set semantics (no duplicates)")
+    void forSet_preservesSetSemantics() {
+      Traversal<Set<Integer>, Integer> setTraversal = Traversals.forSet();
+
+      // Transform that produces duplicates: all values become 1
+      Set<Integer> numbers = Set.of(1, 2, 3, 4, 5);
+      Set<Integer> result = Traversals.modify(setTraversal, i -> 1, numbers);
+
+      assertThat(result).containsExactly(1);
+    }
+
+    @Test
+    @DisplayName("forSet() should work with LinkedHashSet")
+    void forSet_worksWithLinkedHashSet() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> ordered = new LinkedHashSet<>(List.of("first", "second", "third"));
+      Set<String> result = Traversals.modify(setTraversal, String::toUpperCase, ordered);
+
+      assertThat(result).containsExactlyInAnyOrder("FIRST", "SECOND", "THIRD");
+    }
+
+    @Test
+    @DisplayName("forSet() should work with TreeSet")
+    void forSet_worksWithTreeSet() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> sorted = new TreeSet<>(Set.of("charlie", "alice", "bob"));
+      Set<String> result = Traversals.modify(setTraversal, String::toUpperCase, sorted);
+
+      assertThat(result).containsExactlyInAnyOrder("ALICE", "BOB", "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("forSet() should compose with filtered")
+    void forSet_withFiltered() {
+      Traversal<Set<Integer>, Integer> setTraversal = Traversals.forSet();
+      Traversal<Set<Integer>, Integer> evenNumbers = setTraversal.filtered(n -> n % 2 == 0);
+
+      Set<Integer> numbers = Set.of(1, 2, 3, 4, 5);
+      Set<Integer> result = Traversals.modify(evenNumbers, n -> n * 10, numbers);
+
+      assertThat(result).containsExactlyInAnyOrder(1, 20, 3, 40, 5);
+    }
+
+    @Test
+    @DisplayName("forSet() should work with single element")
+    void forSet_singleElement() {
+      Traversal<Set<String>, String> setTraversal = Traversals.forSet();
+
+      Set<String> single = Set.of("only");
+      Set<String> result = Traversals.modify(setTraversal, String::toUpperCase, single);
+
+      assertThat(result).containsExactly("ONLY");
+    }
+  }
+
+  @Nested
+  @DisplayName("forArray() Tests")
+  class ForArrayTests {
+
+    @Test
+    @DisplayName("forArray() should modify all elements")
+    void forArray_modifiesAllElements() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] names = {"alice", "bob", "charlie"};
+      String[] result = Traversals.modify(arrayTraversal, String::toUpperCase, names);
+
+      assertThat(result).containsExactly("ALICE", "BOB", "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("forArray() should return all elements via getAll")
+    void forArray_getAllReturnsAllElements() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] names = {"alice", "bob", "charlie"};
+      List<String> result = Traversals.getAll(arrayTraversal, names);
+
+      assertThat(result).containsExactly("alice", "bob", "charlie");
+    }
+
+    @Test
+    @DisplayName("forArray() should handle empty array")
+    void forArray_handlesEmptyArray() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] empty = {};
+      String[] result = Traversals.modify(arrayTraversal, String::toUpperCase, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forArray() should handle empty array with getAll")
+    void forArray_getAllHandlesEmptyArray() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] empty = {};
+      List<String> result = Traversals.getAll(arrayTraversal, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forArray() should preserve array length")
+    void forArray_preservesArrayLength() {
+      Traversal<Integer[], Integer> arrayTraversal = Traversals.forArray();
+
+      Integer[] numbers = {1, 2, 3, 4, 5};
+      Integer[] result = Traversals.modify(arrayTraversal, i -> i * 2, numbers);
+
+      assertThat(result).hasSize(5);
+      assertThat(result).containsExactly(2, 4, 6, 8, 10);
+    }
+
+    @Test
+    @DisplayName("forArray() should not modify original array")
+    void forArray_doesNotModifyOriginal() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] original = {"a", "b", "c"};
+      String[] result = Traversals.modify(arrayTraversal, String::toUpperCase, original);
+
+      assertThat(original).containsExactly("a", "b", "c");
+      assertThat(result).containsExactly("A", "B", "C");
+    }
+
+    @Test
+    @DisplayName("forArray() should work with single element")
+    void forArray_singleElement() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] single = {"only"};
+      String[] result = Traversals.modify(arrayTraversal, String::toUpperCase, single);
+
+      assertThat(result).containsExactly("ONLY");
+    }
+
+    @Test
+    @DisplayName("forArray() should compose with filtered")
+    void forArray_withFiltered() {
+      Traversal<Integer[], Integer> arrayTraversal = Traversals.forArray();
+      Traversal<Integer[], Integer> evenNumbers = arrayTraversal.filtered(n -> n % 2 == 0);
+
+      Integer[] numbers = {1, 2, 3, 4, 5};
+      Integer[] result = Traversals.modify(evenNumbers, n -> n * 10, numbers);
+
+      assertThat(result).containsExactly(1, 20, 3, 40, 5);
+    }
+
+    @Test
+    @DisplayName("forArray() should work with Integer array")
+    void forArray_integerArray() {
+      Traversal<Integer[], Integer> arrayTraversal = Traversals.forArray();
+
+      Integer[] numbers = {10, 20, 30};
+      Integer[] result = Traversals.modify(arrayTraversal, n -> n + 5, numbers);
+
+      assertThat(result).containsExactly(15, 25, 35);
+    }
+
+    @Test
+    @DisplayName("forArray() should preserve element order")
+    void forArray_preservesOrder() {
+      Traversal<String[], String> arrayTraversal = Traversals.forArray();
+
+      String[] ordered = {"first", "second", "third", "fourth"};
+      List<String> result = Traversals.getAll(arrayTraversal, ordered);
+
+      assertThat(result).containsExactly("first", "second", "third", "fourth");
+    }
+  }
 }

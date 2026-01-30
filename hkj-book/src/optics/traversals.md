@@ -72,8 +72,19 @@ This code is deeply nested and mixes the *what* (add 5 to a score) with the *how
 The library provides a rich set of tools for creating `Traversal` instances, found in the **`Traversals`** utility class and through annotations.
 
 * **`@GenerateTraversals`**: Annotating a record will automatically generate a `Traversal` for any `Iterable` field (like `List` or `Set`).
-* **`Traversals.forList()`**: A static helper that creates a traversal for the elements of a `List`.
-* **`Traversals.forMap(key)`**: A static helper that creates a traversal focusing on the value for a specific key in a `Map`.
+
+**Standard Container Traversals:**
+
+| Method | Container Type | Description |
+|--------|---------------|-------------|
+| `Traversals.forList()` | `List<A>` | Traverses all elements of a list |
+| `Traversals.forSet()` | `Set<A>` | Traverses all elements of a set |
+| `Traversals.forOptional()` | `Optional<A>` | Traverses the value if present (0 or 1 element) |
+| `Traversals.forArray()` | `A[]` | Traverses all elements of an array |
+| `Traversals.forMapValues()` | `Map<K, V>` | Traverses all values in a map |
+| `Traversals.forMap(key)` | `Map<K, V>` | Traverses a specific key's value |
+
+These traversals also work with subtypes. For example, `forList()` works with `ArrayList`, `LinkedList`, and any other `List` implementation.
 
 ```java
 import org.higherkindedj.optics.annotations.GenerateTraversals;

@@ -191,10 +191,53 @@ public interface OrderOptics extends OpticsSpec<Order> {
     @ViaBuilder(getter = "getStatus", setter = "withStatus")
     Lens<Order, OrderStatus> status();
 
-    // Traversal into items
+    // Traversal into items - traversal type is auto-detected from List<LineItem>
     @ThroughField(field = "items")
     Traversal<Order, LineItem> eachItem();
 }
+```
+
+### @ThroughField Auto-Detection
+
+The `@ThroughField` annotation creates traversals that compose a lens to a container field with a standard traversal for that container type. **The processor automatically detects which traversal to use based on the field's type.**
+
+| Field Type | Auto-Detected Traversal |
+|------------|------------------------|
+| `List<A>` | `Traversals.forList()` |
+| `Set<A>` | `Traversals.forSet()` |
+| `Optional<A>` | `Traversals.forOptional()` |
+| `A[]` | `Traversals.forArray()` |
+| `Map<K, V>` | `Traversals.forMapValues()` |
+
+**Subtypes are supported.** If your field is `ArrayList<String>`, `HashSet<Integer>`, or `HashMap<String, BigDecimal>`, the processor correctly detects the parent container type:
+
+```java
+// This class uses concrete collection types
+public class Order {
+    private final ArrayList<LineItem> items;  // ArrayList, not List
+    public ArrayList<LineItem> getItems() { return items; }
+    // ...
+}
+
+@ImportOptics
+public interface OrderOptics extends OpticsSpec<Order> {
+    @ViaBuilder(getter = "getItems", setter = "withItems")
+    Lens<Order, ArrayList<LineItem>> items();
+
+    // Auto-detects ArrayList as List, uses Traversals.forList()
+    @ThroughField(field = "items")
+    Traversal<Order, LineItem> eachItem();
+}
+```
+
+**When explicit traversal is needed:** If you have a custom container type that doesn't extend `List`, `Set`, `Map`, or `Optional`, you can specify the traversal explicitly:
+
+```java
+@ThroughField(
+    field = "entries",
+    traversal = "com.example.CustomTraversals.forMyContainer()"
+)
+Traversal<MyType, Entry> eachEntry();
 ```
 
 We can customise any part of the builder interaction:
@@ -519,10 +562,26 @@ Start with `@ViaBuilder` as it is the most common pattern. Fall back to others w
 **Note:** While `parameterOrder` has a default empty value in the annotation definition, you must provide it for the processor to generate working code. Omitting it results in a runtime `UnsupportedOperationException`. Future versions may support auto-detection of constructor parameters.
 ~~~
 
+~~~admonish tip title="@ThroughField Parameters"
+```java
+@ThroughField(
+    field = "items",                  // Required: name of the container field
+    traversal = ""                    // Optional: auto-detected from field type
+)
+```
+**Auto-detection:** The `traversal` parameter is automatically determined based on the field's type:
+- `List<A>` (including `ArrayList`, `LinkedList`, etc.) → `Traversals.forList()`
+- `Set<A>` (including `HashSet`, `TreeSet`, etc.) → `Traversals.forSet()`
+- `Optional<A>` → `Traversals.forOptional()`
+- `A[]` → `Traversals.forArray()`
+- `Map<K, V>` (including `HashMap`, `TreeMap`, etc.) → `Traversals.forMapValues()`
+~~~
+
 ---
 
 ~~~admonish info title="Key Takeaways"
 * `@ViaBuilder` is your go-to for JOOQ, Lombok, and most immutable types
+* `@ThroughField` auto-detects traversals for `List`, `Set`, `Optional`, arrays, and `Map` fields (including subtypes)
 * JOOQ's `Result<R>` implements `List` - use standard traversals directly
 * Match the copy strategy to the type's API - builder, wither, constructor, or copy+set
 * Compose optics freely across different strategies - they all produce standard `Lens` instances

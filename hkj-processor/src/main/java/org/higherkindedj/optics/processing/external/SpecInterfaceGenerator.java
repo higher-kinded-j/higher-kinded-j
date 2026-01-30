@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.JavaFile;
@@ -141,6 +142,17 @@ public class SpecInterfaceGenerator {
                 getOpticClass(opticKind),
                 methodName,
                 TypeName.get(sourceType));
+
+    // Add @SuppressWarnings("unchecked") for THROUGH_FIELD traversals
+    // This is needed because container subtypes (e.g., ArrayList) are composed with
+    // supertype traversals (e.g., Traversal<List, A>) using an unchecked cast
+    if (opticKind == OpticKind.TRAVERSAL
+        && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD) {
+      methodBuilder.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "unchecked")
+              .build());
+    }
 
     // Add type parameters if source type has them
     for (TypeParameterElement typeParam : sourceTypeElement.getTypeParameters()) {
