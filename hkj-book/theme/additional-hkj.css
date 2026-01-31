@@ -1,9 +1,10 @@
-li:not(:last-of-type) {
+/* Content list spacing - scoped to .content to avoid affecting sidebar TOC */
+.content li:not(:last-of-type) {
     margin-block-end: 0.5em;
 }
 
-:is(ul, ol)+ :is(ul, ol),
-li :is(ul, ol) {
+.content :is(ul, ol) + :is(ul, ol),
+.content li :is(ul, ol) {
     margin-block-start: 0.5em;
 }
 
@@ -152,6 +153,48 @@ h1 + h2 {
     opacity: 0.5;
 }
 
+/* ===== Sidebar TOC Spacing Adjustments ===== */
+
+/* Style main chapter headings (1, 2, 3...) - slightly bigger with darker background */
+.sidebar .chapter > li.chapter-item > a {
+    font-size: 1.05em !important;
+    font-weight: 600 !important;
+    background-color: rgba(0, 0, 0, 0.08) !important;
+    padding: 0.25em 0.5em !important;
+    margin-left: -0.5em !important;
+    border-radius: 4px !important;
+    display: inline-block !important;
+}
+
+/* Increase space BEFORE main chapter headings only (li.chapter-item)
+   This creates visual separation between chapters (e.g., between 5 and 6) */
+.sidebar .chapter > li.chapter-item {
+    margin-top: 1.2em !important;
+}
+
+/* Remove space before the first chapter */
+.sidebar .chapter > li.chapter-item:first-child {
+    margin-top: 0 !important;
+}
+
+/* Remove space before section wrapper li (keeps sub-chapters tight to parent)
+   The section wrapper is a plain <li> without .chapter-item class */
+.sidebar .chapter > li:not(.chapter-item) {
+    margin-top: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide section wrapper when chapter is collapsed (no expanded class) */
+.sidebar .chapter > li.chapter-item:not(.expanded) + li:not(.chapter-item) {
+    display: none !important;
+}
+
+/* Tighten spacing between sub-chapter items */
+.sidebar .chapter .section > li {
+    margin-bottom: 0.15em !important;
+    margin-top: 0 !important;
+}
+
 /* ===== Heading Colors by Theme ===== */
 
 /* Latte (light theme) - uses darker, more saturated colors */
@@ -193,3 +236,25 @@ html.macchiato :is(h1, h2, h3, h4, h5, h6) > a,
 html.mocha :is(h1, h2, h3, h4, h5, h6) > a {
     color: inherit !important;
 }
+
+/* ===== Sidebar TOC Level Colors (matching heading colors) ===== */
+
+/* Latte theme - TOC colors */
+html.latte .sidebar .chapter > li.chapter-item > a:not(.active) { color: #1e66f5 !important; } /* Blue - Level 1 */
+html.latte .sidebar .chapter .section > li.chapter-item > a:not(.active) { color: #8839ef !important; } /* Mauve - Level 2 */
+html.latte .sidebar .chapter .section .section > li.chapter-item > a:not(.active) { color: #179299 !important; } /* Teal - Level 3 */
+
+/* Frappe theme - TOC colors */
+html.frappe .sidebar .chapter > li.chapter-item > a:not(.active) { color: #8caaee !important; } /* Blue - Level 1 */
+html.frappe .sidebar .chapter .section > li.chapter-item > a:not(.active) { color: #ca9ee6 !important; } /* Mauve - Level 2 */
+html.frappe .sidebar .chapter .section .section > li.chapter-item > a:not(.active) { color: #81c8be !important; } /* Teal - Level 3 */
+
+/* Macchiato theme - TOC colors */
+html.macchiato .sidebar .chapter > li.chapter-item > a:not(.active) { color: #8aadf4 !important; } /* Blue - Level 1 */
+html.macchiato .sidebar .chapter .section > li.chapter-item > a:not(.active) { color: #c6a0f6 !important; } /* Mauve - Level 2 */
+html.macchiato .sidebar .chapter .section .section > li.chapter-item > a:not(.active) { color: #8bd5ca !important; } /* Teal - Level 3 */
+
+/* Mocha theme - TOC colors */
+html.mocha .sidebar .chapter > li.chapter-item > a:not(.active) { color: #89b4fa !important; } /* Blue - Level 1 */
+html.mocha .sidebar .chapter .section > li.chapter-item > a:not(.active) { color: #cba6f7 !important; } /* Mauve - Level 2 */
+html.mocha .sidebar .chapter .section .section > li.chapter-item > a:not(.active) { color: #94e2d5 !important; } /* Teal - Level 3 */
