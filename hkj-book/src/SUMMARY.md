@@ -1,8 +1,7 @@
 # Summary
 [Introduction to Higher-Kinded-J](home.md)
 
-# Effect Path API
-- [Introduction](effect/ch_intro.md)
+- [Effect Path API](effect/ch_intro.md)
   - [Effect Path Overview](effect/effect_path_overview.md)
   - [Capability Interfaces](effect/capabilities.md)
   - [Path Types](effect/path_types.md)
@@ -31,23 +30,21 @@
     - [MutableContext](effect/effect_contexts_mutable.md)
   - [Advanced Topics](effect/advanced_topics.md)
 
-# Advanced Topics
-- [Introduction](transformers/ch_intro.md)
+- [Advanced Topics](transformers/ch_intro.md)
   - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
   - [OptionalT](transformers/optionalt_transformer.md)
   - [MaybeT](transformers/maybet_transformer.md)
   - [ReaderT](transformers/readert_transformer.md)
   - [StateT](transformers/statet_transformer.md)
-# Complete HKT Examples
-  - [An Order Workflow](hkts/order-walkthrough.md)
+
+  - [An Order Workflow Example](hkts/order-walkthrough.md)
     - [Effect Composition](hkts/order-composition.md)
     - [Production Patterns](hkts/order-production.md)
     - [Concurrency and Scale](hkts/order-concurrency.md)
   - [Draughts Game](hkts/draughts.md)
 
-# Hands-On Learning
-- [Introduction](tutorials/ch_intro.md)
+- [Hands-On Learning](tutorials/ch_intro.md)
   - [Interactive Tutorials](tutorials/tutorials_intro.md)
   - [Core Types: Foundations](tutorials/coretypes/foundations_journey.md)
   - [Core Types: Error Handling](tutorials/coretypes/error_handling_journey.md)
@@ -63,8 +60,7 @@
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
 
-# Optics I: Fundamentals
-- [Introduction](optics/ch1_intro.md)
+- [Optics I: Fundamentals](optics/ch1_intro.md)
   - [What Are Optics?](optics/optics_intro.md)
   - [Lenses](optics/lenses.md)
   - [Prisms](optics/prisms.md)
@@ -73,8 +69,7 @@
   - [Composition Rules](optics/composition_rules.md)
   - [Coupled Fields](optics/coupled_fields.md)
 
-# Optics II: Collections
-- [Introduction](optics/ch2_intro.md)
+- [Optics II: Collections](optics/ch2_intro.md)
   - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)
   - [Getters](optics/getters.md)
@@ -83,8 +78,7 @@
   - [Limiting Traversals](optics/limiting_traversals.md)
   - [List Decomposition](optics/list_decomposition.md)
 
-# Optics III: Precision and Filtering
-- [Introduction](optics/ch3_intro.md)
+- [Optics III: Precision and Filtering](optics/ch3_intro.md)
   - [Filtered Optics](optics/filtered_optics.md)
   - [Indexed Optics](optics/indexed_optics.md)
   - [Each Typeclass](optics/each_typeclass.md)
@@ -93,8 +87,7 @@
   - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
 
-# Optics IV: Java-Friendly APIs
-- [Introduction](optics/ch4_intro.md)
+- [Optics IV: Java-Friendly APIs](optics/ch4_intro.md)
   - [Focus DSL](optics/focus_dsl.md)
   - [Optics for External Types](optics/importing_optics.md)
     - [Taming JSON with Jackson](optics/optics_spec_interfaces.md)
@@ -105,21 +98,18 @@
   - [Free Monad DSL](optics/free_monad_dsl.md)
   - [Interpreters](optics/interpreters.md)
 
-# Optics V: Integration and Recipes
-- [Introduction](optics/ch5_intro.md)
+- [Optics V: Integration and Recipes](optics/ch5_intro.md)
   - [Composing Optics](optics/composing_optics.md)
   - [Core Type Integration](optics/core_type_integration.md)
   - [Optics Extensions](optics/optics_extensions.md)
   - [Cookbook](optics/cookbook.md)
   - [Auditing Complex Data](optics/auditing_complex_data_example.md)
 
-# Integration Guides
-- [Introduction](spring/ch_intro.md)
+- [Integration Guides](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)
 
-# Foundations: Higher-Kinded Types
-- [Introduction](hkts/ch_intro.md)
+- [Foundations: Higher-Kinded Types](hkts/ch_intro.md)
   - [HKT Introduction](hkts/hkt_introduction.md)
   - [Concepts](hkts/core-concepts.md)
   - [Type Arity](hkts/type-arity.md)
@@ -128,8 +118,7 @@
   - [Quick Reference](hkts/quick_reference.md)
   - [Extending](hkts/extending-simulation.md)
 
-# Foundations: Type Classes
-- [Introduction](functional/ch_intro.md)
+- [Foundations: Type Classes](functional/ch_intro.md)
   - [Functional Api](functional/functional_api.md)
   - [Functor](functional/functor.md)
   - [Applicative](functional/applicative.md)
@@ -146,8 +135,7 @@
   - [For Comprehension](functional/for_comprehension.md)
   - [Choosing Abstraction Levels](functional/abstraction_levels.md)
 
-# Foundations: Core Types
-- [Introduction](monads/ch_intro.md)
+- [Foundations: Core Types](monads/ch_intro.md)
   - [Supported Types](monads/supported-types.md)
   - [CompletableFuture](monads/cf_monad.md)
   - [Either](monads/either_monad.md)
@@ -172,11 +160,9 @@
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 
-# More Functional Thinking
-- [Blog series](reading.md)
+- [More Functional Thinking](reading.md)
 
-# Glossary
-- [Functional Programming Terminology](glossary.md)
+- [Glossary](glossary.md)
 
 # Project Info
 - [Contributing](./CONTRIBUTING.md)
