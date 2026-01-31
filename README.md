@@ -22,7 +22,9 @@ No more pyramids of nested checks. No more scattered validation logic. Just clea
 
 ## Where to Start
 
-**[All the details you need to get started with Higher-Kinded-J can be found in the documentation website](https://higher-kinded-j.github.io/latest/home.html)**
+All the details you need to get started with Higher-Kinded-J can be found in the documentation website
+
+**[Documentation =>](https://higher-kinded-j.github.io/latest/home.html)**
 
 ---
 
