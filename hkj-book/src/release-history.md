@@ -12,6 +12,20 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
+### [v0.3.4](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.4) — 31 January 2026
+
+**External Type Optics and Examples Gallery**
+
+This release introduces powerful optics generation for external types you cannot modify, plus a new Examples Gallery chapter documenting all runnable examples.
+
+- [@ImportOptics](optics/importing_optics.md) — Generate optics for JDK classes and third-party library types via auto-detection of withers and accessors
+- [Spec Interfaces](optics/optics_spec_interfaces.md) — Fine-grained control over external type optics with `OpticsSpec<S>` for complex types like Jackson's `JsonNode`
+- [@ThroughField Auto-Detection](optics/copy_strategies.md#throughfield-auto-detection) — Automatic traversal type detection for `List`, `Set`, `Optional`, arrays, and `Map` fields
+- [Examples Gallery](examples/ch_intro.md) — New chapter with categorised, runnable examples demonstrating core types, transformers, Effect Path API, and optics
+- Comprehensive hkj-processor testing improvements with enhanced coverage
+
+---
+
 ### [v0.3.3](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.3) — 24 January 2026
 
 **Structured Concurrency, Atomic Optics, and Enhanced Examples**
