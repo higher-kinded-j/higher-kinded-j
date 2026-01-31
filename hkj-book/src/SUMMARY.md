@@ -38,12 +38,6 @@
   - [ReaderT](transformers/readert_transformer.md)
   - [StateT](transformers/statet_transformer.md)
 
-  - [An Order Workflow Example](hkts/order-walkthrough.md)
-    - [Effect Composition](hkts/order-composition.md)
-    - [Production Patterns](hkts/order-production.md)
-    - [Concurrency and Scale](hkts/order-concurrency.md)
-  - [Draughts Game](hkts/draughts.md)
-
 - [Hands-On Learning](tutorials/ch_intro.md)
   - [Interactive Tutorials](tutorials/tutorials_intro.md)
   - [Core Types: Foundations](tutorials/coretypes/foundations_journey.md)
@@ -59,6 +53,15 @@
   - [Learning Paths](tutorials/learning_paths.md)
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
+
+- [Examples Gallery](examples/ch_intro.md)
+  - [Order Processing Workflow](examples/examples_order.md)
+    - [Order Walkthrough](hkts/order-walkthrough.md)
+    - [Effect Composition](hkts/order-composition.md)
+    - [Production Patterns](hkts/order-production.md)
+    - [Concurrency and Scale](hkts/order-concurrency.md)
+  - [Draughts Game](examples/examples_draughts.md)
+    - [Building the Game](hkts/draughts.md)
 
 - [Optics I: Fundamentals](optics/ch1_intro.md)
   - [What Are Optics?](optics/optics_intro.md)

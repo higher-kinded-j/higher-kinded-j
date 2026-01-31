@@ -122,6 +122,18 @@ Examples demonstrating type class abstractions.
 | [StaticAnalysisExample.java](src/main/java/org/higherkindedj/example/basic/free_ap/StaticAnalysisExample.java) | Static analysis of Free Applicative programs before execution | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.free_ap.StaticAnalysisExample` | [Choosing Abstraction Levels](https://higher-kinded-j.github.io/latest/functional/abstraction_levels.html) |
 | [PermissionCheckingExample.java](src/main/java/org/higherkindedj/example/basic/free_ap/PermissionCheckingExample.java) | Pre-execution permission analysis with role-based access control | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.free_ap.PermissionCheckingExample` | [Choosing Abstraction Levels](https://higher-kinded-j.github.io/latest/functional/abstraction_levels.html) |
 
+### Context and ScopedValue
+
+Examples demonstrating Context patterns with Java's ScopedValue API for thread-safe context propagation.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [ContextBasicExample.java](src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) | Basic Context usage: ask, asks, map, flatMap with ScopedValue | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.context.ContextBasicExample` | [Effect Contexts](https://higher-kinded-j.github.io/latest/effect/effect_contexts.html) |
+| [ContextScopeExample.java](src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) | Context with Scope for structured concurrency | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.context.ContextScopeExample` | [Structured Concurrency](https://higher-kinded-j.github.io/latest/monads/vtask_scope.html) |
+| [RequestContextExample.java](src/main/java/org/higherkindedj/example/context/RequestContextExample.java) | Request context propagation across service layers | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.context.RequestContextExample` | [Effect Contexts](https://higher-kinded-j.github.io/latest/effect/effect_contexts.html) |
+| [SecurityContextExample.java](src/main/java/org/higherkindedj/example/context/SecurityContextExample.java) | Security context for authentication and authorization | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.context.SecurityContextExample` | [Effect Contexts](https://higher-kinded-j.github.io/latest/effect/effect_contexts.html) |
+| [DistributedTracingExample.java](src/main/java/org/higherkindedj/example/context/DistributedTracingExample.java) | Distributed tracing across microservice boundaries | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.context.DistributedTracingExample` | [Effect Contexts](https://higher-kinded-j.github.io/latest/effect/effect_contexts.html) |
+
 ---
 
 ## Effect Path API Examples
@@ -195,9 +207,11 @@ Examples demonstrating fundamental optic types: Lens, Prism, Iso, and Traversal.
 | Example | Description | Run Command | Documentation |
 |---------|-------------|-------------|---------------|
 | [LensUsageExample.java](src/main/java/org/higherkindedj/example/optics/LensUsageExample.java) | Demonstrates Lens composition and generated helpers | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.LensUsageExample` | [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.html) |
+| [PairedLensExample.java](src/main/java/org/higherkindedj/example/optics/PairedLensExample.java) | Atomic updates of coupled fields with paired lenses | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.PairedLensExample` | [Coupled Fields](https://higher-kinded-j.github.io/latest/optics/coupled_fields.html) |
 | [PrismUsageExample.java](src/main/java/org/higherkindedj/example/optics/PrismUsageExample.java) | Shows Prism for sum type handling | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.PrismUsageExample` | [Prisms](https://higher-kinded-j.github.io/latest/optics/prisms.html) |
 | [IsoUsageExample.java](src/main/java/org/higherkindedj/example/optics/IsoUsageExample.java) | Demonstrates Iso for isomorphic transformations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.IsoUsageExample` | [Iso](https://higher-kinded-j.github.io/latest/optics/iso.html) |
 | [TraversalUsageExample.java](src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java) | Shows Traversal for multiple focus points | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.TraversalUsageExample` | [Traversals](https://higher-kinded-j.github.io/latest/optics/traversals.html) |
+| [AffineUsageExample.java](src/main/java/org/higherkindedj/example/optics/AffineUsageExample.java) | Demonstrates Affine for zero-or-one focus (Optional fields) | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.AffineUsageExample` | [Affines](https://higher-kinded-j.github.io/latest/optics/affine.html) |
 | [GetterUsageExample.java](src/main/java/org/higherkindedj/example/optics/GetterUsageExample.java) | Demonstrates read-only Getter optic | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.GetterUsageExample` | [Getters](https://higher-kinded-j.github.io/latest/optics/getters.html) |
 | [SetterUsageExample.java](src/main/java/org/higherkindedj/example/optics/SetterUsageExample.java) | Shows write-only Setter optic | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.SetterUsageExample` | [Setters](https://higher-kinded-j.github.io/latest/optics/setters.html) |
 | [FoldUsageExample.java](src/main/java/org/higherkindedj/example/optics/FoldUsageExample.java) | Demonstrates Fold for read-only aggregation | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.FoldUsageExample` | [Folds](https://higher-kinded-j.github.io/latest/optics/folds.html) |
@@ -291,6 +305,18 @@ Examples demonstrating spec interfaces with copy strategy annotations for comple
 | [LocalDateOpticsSpec.java](src/main/java/org/higherkindedj/example/optics/external/LocalDateOpticsSpec.java) | Spec interface for java.time.LocalDate with @Wither | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.external.SpecInterfaceUsageExample` | [Copy Strategies](https://higher-kinded-j.github.io/latest/optics/copy_strategies.html) |
 | [SpecInterfaceUsageExample.java](src/main/java/org/higherkindedj/example/optics/external/SpecInterfaceUsageExample.java) | Complete example using spec interface optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.external.SpecInterfaceUsageExample` | [Optics Spec Interfaces](https://higher-kinded-j.github.io/latest/optics/optics_spec_interfaces.html) |
 
+### Focus DSL
+
+Examples demonstrating the Focus DSL for fluent, type-safe navigation through nested data structures.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [NavigatorExample.java](src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) | Fluent cross-type navigation with generated navigators | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.focus.NavigatorExample` | [Focus DSL](https://higher-kinded-j.github.io/latest/optics/focus_dsl.html) |
+| [KindFieldFocusExample.java](src/main/java/org/higherkindedj/example/optics/focus/KindFieldFocusExample.java) | Automatic Kind field support with TraversalPath and AffinePath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.focus.KindFieldFocusExample` | [Kind Field Support](https://higher-kinded-j.github.io/latest/optics/kind_field_support.html) |
+| [TraverseIntegrationExample.java](src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | Focus DSL integration with Traverse type class | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.focus.TraverseIntegrationExample` | [Focus DSL](https://higher-kinded-j.github.io/latest/optics/focus_dsl.html) |
+| [ValidationPipelineExample.java](src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java) | Building validation pipelines with Focus DSL | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.focus.ValidationPipelineExample` | [Focus DSL](https://higher-kinded-j.github.io/latest/optics/focus_dsl.html) |
+| [AsyncFetchExample.java](src/main/java/org/higherkindedj/example/optics/focus/AsyncFetchExample.java) | Async data fetching with Focus DSL and effects | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.focus.AsyncFetchExample` | [Focus-Effect Integration](https://higher-kinded-j.github.io/latest/effect/focus_integration.html) |
+
 ### Focus DSL Bridging
 
 Examples demonstrating how to bridge Focus DSL navigation into external library types like Immutables, Lombok, and AutoValue.
@@ -326,16 +352,19 @@ Examples demonstrating how to bridge Focus DSL navigation into external library 
 
 ### Order Processing Workflow
 
-A comprehensive example demonstrating EitherT monad transformer for async error handling in a business workflow.
+A comprehensive example demonstrating the Effect Path API and ForPath comprehensions for building production-ready business workflows with typed error handling.
 
 | Example | Description | Run Command | Documentation |
 |---------|-------------|-------------|---------------|
-| [OrderWorkflowRunner.java](src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java) | Complete order processing workflow | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.workflow.OrderWorkflowRunner` | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
-| [Workflow1.java](src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java) | Workflow variant 1 | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.workflow.Workflow1` | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
-| [Workflow2.java](src/main/java/org/higherkindedj/example/order/workflow/Workflow2.java) | Workflow variant 2 | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.workflow.Workflow2` | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
-| [WorkflowTraverse.java](src/main/java/org/higherkindedj/example/order/workflow/WorkflowTraverse.java) | Workflow with traverse patterns | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.workflow.WorkflowTraverse` | [Foldable and Traverse](https://higher-kinded-j.github.io/latest/functional/foldable_and_traverse.html) |
-| [WorkflowLensAndPrism.java](src/main/java/org/higherkindedj/example/order/workflow/WorkflowLensAndPrism.java) | Workflow with lens and prism | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.workflow.WorkflowLensAndPrism` | [Optics Introduction](https://higher-kinded-j.github.io/latest/optics/optics_intro.html) |
-| [LensUsageExample.java](src/main/java/org/higherkindedj/example/order/lens/LensUsageExample.java) | Lens usage in order domain | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.lens.LensUsageExample` | [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.html) |
+| [OrderWorkflowDemo.java](src/main/java/org/higherkindedj/example/order/runner/OrderWorkflowDemo.java) | Main demo showing ForPath workflow composition | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.runner.OrderWorkflowDemo` | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
+| [EnhancedOrderWorkflowDemo.java](src/main/java/org/higherkindedj/example/order/runner/EnhancedOrderWorkflowDemo.java) | Demo with concurrency and resilience patterns | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.runner.EnhancedOrderWorkflowDemo` | [Concurrency and Scale](https://higher-kinded-j.github.io/latest/hkts/order-concurrency.html) |
+| [OrderWorkflow.java](src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflow.java) | Core workflow implementation with ForPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.runner.OrderWorkflowDemo` | [Effect Composition](https://higher-kinded-j.github.io/latest/hkts/order-composition.html) |
+| [ConfigurableOrderWorkflow.java](src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java) | Workflow with feature flags and resilience | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.runner.EnhancedOrderWorkflowDemo` | [Production Patterns](https://higher-kinded-j.github.io/latest/hkts/order-production.html) |
+| [EnhancedOrderWorkflow.java](src/main/java/org/higherkindedj/example/order/workflow/EnhancedOrderWorkflow.java) | Concurrency patterns with VTask and Scope | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.order.runner.EnhancedOrderWorkflowDemo` | [Concurrency and Scale](https://higher-kinded-j.github.io/latest/hkts/order-concurrency.html) |
+| [PartialFulfilmentWorkflow.java](src/main/java/org/higherkindedj/example/order/workflow/PartialFulfilmentWorkflow.java) | Handling partial inventory fulfilment | View source | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
+| [SplitShipmentWorkflow.java](src/main/java/org/higherkindedj/example/order/workflow/SplitShipmentWorkflow.java) | Multi-warehouse split shipment logic | View source | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
+| [OrderCancellationWorkflow.java](src/main/java/org/higherkindedj/example/order/workflow/OrderCancellationWorkflow.java) | Order cancellation with rollback handling | View source | [Order Walkthrough](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html) |
+| [FocusDSLExamples.java](src/main/java/org/higherkindedj/example/order/workflow/FocusDSLExamples.java) | Focus DSL for immutable state updates | View source | [Focus DSL](https://higher-kinded-j.github.io/latest/optics/focus_dsl.html) |
 
 ### Draughts (Checkers) Game
 
