@@ -17,6 +17,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -632,6 +633,127 @@ class MaybeTest extends MaybeTestBase {
 
       Maybe<Integer> nothingResult = nothingInstance.flatMap(throwingMapper);
       assertThat(nothingResult).isSameAs(nothingInstance);
+    }
+  }
+
+  @Nested
+  @DisplayName("toEither Method - Conversion Testing")
+  class ToEitherMethodTests {
+
+    private final String errorMessage = "Value was not present";
+
+    @Test
+    @DisplayName("toEither(L) returns Right for Just instances")
+    void toEitherReturnsRightForJust() {
+      Either<String, String> result = justInstance.toEither(errorMessage);
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(justValue);
+    }
+
+    @Test
+    @DisplayName("toEither(L) returns Left for Nothing instances")
+    void toEitherReturnsLeftForNothing() {
+      Either<String, String> result = nothingInstance.toEither(errorMessage);
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isEqualTo(errorMessage);
+    }
+
+    @Test
+    @DisplayName("toEither(L) allows null left value")
+    void toEitherAllowsNullLeftValue() {
+      String nullValue = null;
+      Either<String, String> result = nothingInstance.toEither(nullValue);
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isNull();
+    }
+
+    @Test
+    @DisplayName("toEither(Supplier) returns Right for Just without calling supplier")
+    void toEitherSupplierReturnsRightForJustWithoutCallingSupplier() {
+      AtomicBoolean supplierCalled = new AtomicBoolean(false);
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return errorMessage;
+          };
+
+      Either<String, String> result = justInstance.toEither(trackingSupplier);
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(justValue);
+      assertThat(supplierCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("toEither(Supplier) returns Left for Nothing and calls supplier")
+    void toEitherSupplierReturnsLeftForNothingAndCallsSupplier() {
+      AtomicBoolean supplierCalled = new AtomicBoolean(false);
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return errorMessage;
+          };
+
+      Either<String, String> result = nothingInstance.toEither(trackingSupplier);
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isEqualTo(errorMessage);
+      assertThat(supplierCalled).isTrue();
+    }
+
+    @Test
+    @DisplayName("toEither(Supplier) validates null supplier for Nothing")
+    void toEitherSupplierValidatesNullSupplier() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> nothingInstance.toEither((Supplier<String>) null))
+          .withMessageContaining("leftSupplier");
+    }
+
+    @Test
+    @DisplayName("toEither(Supplier) does not validate null supplier for Just")
+    void toEitherSupplierDoesNotValidateNullSupplierForJust() {
+      // For Just, supplier is never called, so null is allowed (consistent with orElseGet)
+      assertThatCode(() -> justInstance.toEither((Supplier<String>) null))
+          .doesNotThrowAnyException();
+      Either<String, String> result = justInstance.toEither((Supplier<String>) null);
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(justValue);
+    }
+
+    @Test
+    @DisplayName("toEither works with different types")
+    void toEitherWorksWithDifferentTypes() {
+      Maybe<Integer> justInt = Maybe.just(42);
+      Either<Exception, Integer> result = justInt.toEither(new RuntimeException("missing"));
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(42);
+
+      Maybe<Integer> nothingInt = Maybe.nothing();
+      RuntimeException error = new RuntimeException("missing value");
+      Either<Exception, Integer> leftResult = nothingInt.toEither(error);
+      assertThat(leftResult.isLeft()).isTrue();
+      assertThat(leftResult.getLeft()).isSameAs(error);
+    }
+
+    @Test
+    @DisplayName("toEither integrates with Either operations")
+    void toEitherIntegratesWithEitherOperations() {
+      // Test that the returned Either can be used with Either's operations
+      Either<String, String> result =
+          justInstance
+              .toEither(errorMessage)
+              .map(String::toUpperCase)
+              .mapLeft(err -> "ERROR: " + err);
+
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(justValue.toUpperCase());
+
+      Either<String, String> nothingResult =
+          nothingInstance
+              .toEither(errorMessage)
+              .map(String::toUpperCase)
+              .mapLeft(err -> "ERROR: " + err);
+
+      assertThat(nothingResult.isLeft()).isTrue();
+      assertThat(nothingResult.getLeft()).isEqualTo("ERROR: " + errorMessage);
     }
   }
 

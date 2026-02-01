@@ -43,6 +43,7 @@ public class NaturalTransformationExample {
 
     maybeToListExample();
     eitherToMaybeExample();
+    maybeToEitherExample();
     listHeadExample();
     compositionExample();
     identityExample();
@@ -120,6 +121,57 @@ public class NaturalTransformationExample {
     Kind<EitherKind.Witness<String>, Integer> left = EITHER.widen(Either.left("Error occurred"));
     Kind<MaybeKind.Witness, Integer> maybeFromLeft = eitherToMaybe.apply(left);
     System.out.println("Either.left(\"Error occurred\") -> " + MAYBE.narrow(maybeFromLeft));
+
+    System.out.println();
+  }
+
+  /**
+   * Example 2b: Maybe to Either transformation.
+   *
+   * <p>This is the complement to eitherToMaybeExample. Nothing becomes Left(error), Just(value)
+   * becomes Right(value). Unlike the reverse transformation, this requires providing an error value
+   * for the Nothing case.
+   *
+   * <p>Note: Maybe now has a direct toEither() method, but this example shows how to build it as a
+   * natural transformation for educational purposes.
+   */
+  private static void maybeToEitherExample() {
+    System.out.println("--- Example 2b: Maybe to Either ---");
+
+    // Using Maybe's built-in toEither method (preferred approach)
+    Maybe<Integer> justValue = Maybe.just(100);
+    Maybe<Integer> nothingValue = Maybe.nothing();
+
+    // Direct conversion using toEither
+    Either<String, Integer> eitherFromJust = justValue.toEither("No value present");
+    Either<String, Integer> eitherFromNothing = nothingValue.toEither("No value present");
+
+    System.out.println("Using Maybe.toEither():");
+    System.out.println("  Maybe.just(100).toEither(\"No value present\") -> " + eitherFromJust);
+    System.out.println("  Maybe.nothing().toEither(\"No value present\") -> " + eitherFromNothing);
+
+    // As a natural transformation (for educational purposes)
+    // Note: This requires a fixed error value, making it less flexible than the instance method
+    String defaultError = "Value was absent";
+    Natural<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+        new Natural<>() {
+          @Override
+          public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
+            Maybe<A> maybe = MAYBE.narrow(fa);
+            Either<String, A> either = maybe.toEither(defaultError);
+            return EITHER.widen(either);
+          }
+        };
+
+    System.out.println("\nUsing Natural Transformation:");
+    Kind<MaybeKind.Witness, Integer> justKind = MAYBE.widen(justValue);
+    Kind<EitherKind.Witness<String>, Integer> eitherFromJustKind = maybeToEither.apply(justKind);
+    System.out.println("  Maybe.just(100) -> " + EITHER.narrow(eitherFromJustKind));
+
+    Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(nothingValue);
+    Kind<EitherKind.Witness<String>, Integer> eitherFromNothingKind =
+        maybeToEither.apply(nothingKind);
+    System.out.println("  Maybe.nothing() -> " + EITHER.narrow(eitherFromNothingKind));
 
     System.out.println();
   }

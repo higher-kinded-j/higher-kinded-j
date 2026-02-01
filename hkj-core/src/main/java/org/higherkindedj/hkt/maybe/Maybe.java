@@ -3,11 +3,13 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.higherkindedj.hkt.util.validation.Operation.JUST;
+import static org.higherkindedj.hkt.util.validation.Operation.TO_EITHER;
 
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -177,4 +179,77 @@ public sealed interface Maybe<T> permits Just, Nothing {
    *     {@code mapper} returns a {@code null} {@code Maybe} instance.
    */
   <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper);
+
+  /**
+   * Converts this {@code Maybe} to an {@code Either}, using the provided value for the {@link
+   * Either.Left Left} case if this is {@link Nothing}.
+   *
+   * <p>This method bridges between the {@code Maybe} and {@code Either} types, which both represent
+   * computations that may not produce a value. The key difference is that {@code Either} can carry
+   * information about why no value was produced (in its {@code Left} case), while {@code Nothing}
+   * carries no such information.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Maybe<Integer> justValue = Maybe.just(42);
+   * Either<String, Integer> right = justValue.toEither("No value");
+   * // right = Right(42)
+   *
+   * Maybe<Integer> nothing = Maybe.nothing();
+   * Either<String, Integer> left = nothing.toEither("No value");
+   * // left = Left("No value")
+   * }</pre>
+   *
+   * @param <L> The type of the {@link Either.Left Left} value.
+   * @param leftValue The value to use for the {@link Either.Left Left} case if this is {@link
+   *     Nothing}. May be {@code null} if the left type permits null values.
+   * @return An {@code Either} that is {@link Either.Right Right} containing this {@code Maybe}'s
+   *     value if this is {@link Just}, or {@link Either.Left Left} containing {@code leftValue} if
+   *     this is {@link Nothing}. The returned {@code Either} will not be {@code null}.
+   */
+  default <L> Either<L, T> toEither(L leftValue) {
+    return switch (this) {
+      case Just<T>(var value) -> Either.right(value);
+      case Nothing<T> n -> Either.left(leftValue);
+    };
+  }
+
+  /**
+   * Converts this {@code Maybe} to an {@code Either}, using the provided supplier to generate the
+   * {@link Either.Left Left} value if this is {@link Nothing}.
+   *
+   * <p>This variant is useful when computing the left value is expensive and should only be
+   * performed when necessary (i.e., when this is {@link Nothing}).
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Maybe<Integer> justValue = Maybe.just(42);
+   * Either<String, Integer> right = justValue.toEither(() -> "No value found");
+   * // right = Right(42), supplier never called
+   *
+   * Maybe<Integer> nothing = Maybe.nothing();
+   * Either<String, Integer> left = nothing.toEither(() -> "No value found");
+   * // left = Left("No value found")
+   * }</pre>
+   *
+   * @param <L> The type of the {@link Either.Left Left} value.
+   * @param leftSupplier The supplier to generate the {@link Either.Left Left} value if this is
+   *     {@link Nothing}. Must not be {@code null} when this is {@link Nothing}.
+   * @return An {@code Either} that is {@link Either.Right Right} containing this {@code Maybe}'s
+   *     value if this is {@link Just}, or {@link Either.Left Left} containing the supplied value if
+   *     this is {@link Nothing}. The returned {@code Either} will not be {@code null}.
+   * @throws NullPointerException if this is {@link Nothing} and {@code leftSupplier} is {@code
+   *     null}.
+   */
+  default <L> Either<L, T> toEither(Supplier<? extends L> leftSupplier) {
+    return switch (this) {
+      case Just<T>(var value) -> Either.right(value);
+      case Nothing<T> n -> {
+        Validation.function().requireFunction(leftSupplier, "leftSupplier", MAYBE_CLASS, TO_EITHER);
+        yield Either.left(leftSupplier.get());
+      }
+    };
+  }
 }
