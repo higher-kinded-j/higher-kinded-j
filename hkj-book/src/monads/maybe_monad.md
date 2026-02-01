@@ -128,7 +128,28 @@ The `Maybe` interface itself provides useful methods:
 * `get()`: Returns the value if `Just`, otherwise throws `NoSuchElementException`. **Use with caution.**
 * `orElse(@NonNull T other)`: Returns the value if `Just`, otherwise returns `other`.
 * `orElseGet(@NonNull Supplier<? extends @NonNull T> other)`: Returns the value if `Just`, otherwise invokes `other.get()`.
+* `toEither(L leftValue)`: Converts to `Either<L, T>`. `Just(t)` becomes `Right(t)`, `Nothing` becomes `Left(leftValue)`.
+* `toEither(Supplier<L> leftSupplier)`: Lazy variant that only evaluates the supplier for `Nothing`.
 * The `Maybe` interface also has its own `map` and `flatMap` methods, which are similar in behaviour to those on `MaybeMonad` but operate directly on `Maybe` instances.
+
+~~~admonish example title="Converting Maybe to Either"
+The `toEither` methods bridge between `Maybe` and `Either`, useful when you need to provide error context for absent values:
+
+```java
+Maybe<User> maybeUser = findUser(userId);
+
+// Convert with a static error value
+Either<String, User> result = maybeUser.toEither("User not found");
+
+// Convert with a lazy error (only computed if Nothing)
+Either<UserError, User> result2 = maybeUser.toEither(
+    () -> new UserError("User " + userId + " not found")
+);
+
+// Just(user) -> Right(user)
+// Nothing    -> Left("User not found")
+```
+~~~
 
 ### Key Operations (via `MaybeMonad`)
 
