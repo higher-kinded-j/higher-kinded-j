@@ -36,7 +36,7 @@ Neither section replaces the other. The strings can't provide percussion's impac
 │  │ TraversalPath→ collections  │   │ ValidationPath  → accumulating  │  │
 │  │                             │   │ TryPath         → exceptions    │  │
 │  │ each(), at(), atKey()       │   │ IOPath          → deferred      │  │
-│  │ modifyWhen(), instanceOf()  │   │                                 │  │
+│  │ modifyWhen(), instanceOf()  │   │ VTaskPath       → concurrency   │  │
 │  └──────────────┬──────────────┘   └────────────────┬────────────────┘  │
 │                 │                                   │                    │
 │                 └───────────────┬───────────────────┘                    │
@@ -174,13 +174,14 @@ The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalP
 
 ### Why Effect Path API?
 
-The Effect Path API wraps effect types in fluent paths (`MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, `IOPath`) that provide:
+The Effect Path API wraps effect types in fluent paths (`MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, `IOPath`, `VTaskPath`) that provide:
 
 1. **Railway model**: Explicit success/failure tracks with type safety
 2. **Error accumulation**: `ValidationPath.zipWithAccum()` collects all errors
 3. **Fail-fast handling**: `EitherPath` short-circuits on first error
 4. **Exception wrapping**: `TryPath` converts throwing code to values
 5. **Deferred execution**: `IOPath` for side effects with resource management
+6. **Virtual thread concurrency**: `VTaskPath` for parallel operations with `Scope`
 
 Compare these two approaches for accessing all employee addresses in a company:
 
@@ -348,7 +349,20 @@ If performance matters, measure it:
 
 In practice, the optics overhead is often negligible compared to I/O, database access, or network calls. But "often" isn't "always", and your domain may differ.
 
-**Coming soon: Virtual Threads and Structured Concurrency**. Higher-Kinded-J will soon add support for Java 21+'s Virtual Threads and the Structured Concurrency API. This will enable concurrent traversals over large data structures with minimal overhead, making the performance trade-offs even more favourable. Effect paths like `IOPath` will integrate naturally with structured task scopes, providing safe concurrent execution with proper resource management.
+**Virtual Threads and Structured Concurrency**. Higher-Kinded-J now includes `VTask` and `VTaskPath` for virtual thread-based concurrency. This enables concurrent traversals over large data structures with minimal overhead, making the performance trade-offs even more favourable:
+
+```java
+// Parallel validation using Scope
+VTask<List<Validated<List<Error>, Type>>> results = Scope
+    .<Validated<List<Error>, Type>>allSucceed()
+    .forkAll(expressions.stream()
+        .map(expr -> VTask.of(() -> typeCheck(expr, env).run()))
+        .toList())
+    .timeout(Duration.ofSeconds(5))
+    .join();
+```
+
+The `Scope` API provides structured concurrency patterns (`allSucceed`, `anySucceed`, `accumulating`) that integrate naturally with the Effect Path API. See the [VTask documentation](https://higher-kinded-j.github.io/latest/monads/vtask_monad.html) for details.
 
 ---
 
@@ -437,7 +451,9 @@ Higher-Kinded-J isn't just another optics library. It provides a *total solution
 
 **The Focus DSL**: No other Java optics library provides this level of ergonomics. The combination of `@GenerateFocus`, navigators, `each()`/`at()`/`atKey()`, and `modifyWhen()` makes Higher-Kinded-J feel like it was designed for Java's data-oriented ecosystem.
 
-**The Effect Path API**: A fluent interface for effectful programming that follows the railway model. `MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, and `IOPath` make error handling, validation, and side effects composable and type-safe. No other Java library provides this combination of ergonomics and power.
+**The Effect Path API**: A fluent interface for effectful programming that follows the railway model. `MaybePath`, `EitherPath`, `ValidationPath`, `TryPath`, `IOPath`, and `VTaskPath` make error handling, validation, side effects, and concurrency composable and type-safe. No other Java library provides this combination of ergonomics and power.
+
+**Coupled Fields with Lens.paired**: Standard lenses assume field independence, but some fields share invariants (like `lo <= hi` in a range). `Lens.paired` enables atomic multi-field updates that bypass invalid intermediate states. This builds on the lens concepts from Articles 2 and 3, solving a subtle but important problem when lenses meet validation. See the [Coupled Fields documentation](https://higher-kinded-j.github.io/latest/optics/coupled_fields.html) for details.
 
 **Bridge between navigation and computation**: Focus paths bridge seamlessly to Effect paths via `toMaybePath()`, `toEitherPath()`, and `focus()` methods. Navigate your data structure, then enter the effect world for validation or error handling. See the [Focus-Effect Integration Guide](https://higher-kinded-j.github.io/latest/effect/focus_integration.html) for complete patterns.
 
@@ -492,7 +508,9 @@ Compared to established libraries:
 | At/Ixed | ✓ | ✓ | ✓ | ✓ |
 | **Focus DSL** | - | - | - | **✓** |
 | **Effect Path API** | - | - | - | **✓** |
+| **VTaskPath (concurrency)** | - | - | - | **✓** |
 | **Navigators** | - | - | - | **✓** |
+| **Coupled Fields** | - | - | - | **✓** |
 | Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
 | IDE support | Excellent | Good | Good | Growing |
 | Java integration | N/A | Interop | Interop | Native |
@@ -501,11 +519,12 @@ The key differentiators are the **Focus DSL**, **Effect Path API**, and **naviga
 
 ### Future Directions
 
-With core optics complete, future development focuses on:
+With core optics and virtual thread support complete, future development focuses on:
 
 - Profunctor optics (the cutting-edge unified encoding)
 - Enhanced IDE tooling for optic composition
 - Performance optimisation for hot paths
+- Deeper Spring Boot and framework integrations
 
 ### The Ambition
 
@@ -649,10 +668,12 @@ It's been rather interesting to explore. We hope you find it useful.
 
 - **Documentation and tutorials**: [higher-kinded-j.github.io](https://higher-kinded-j.github.io/)
 - **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath
-- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, ValidationPath, and VTaskPath
+- **[VTask and Structured Concurrency](https://higher-kinded-j.github.io/latest/monads/vtask_monad.html)**: Virtual thread concurrency with Scope and Resource
+- **[Coupled Fields](https://higher-kinded-j.github.io/latest/optics/coupled_fields.html)**: Atomic multi-field updates with `Lens.paired`
 - **[Focus-Effect Integration](https://higher-kinded-j.github.io/latest/effect/focus_integration.html)**: Bridging the optics and effects domains with `toXxxPath()` and `focus()` methods
 - **[Focus DSL Source](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics/focus)**: FocusPath, AffinePath, TraversalPath implementation
-- **[Effect Path API Source](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath implementation
+- **[Effect Path API Source](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/hkt/effect)**: MaybePath, EitherPath, ValidationPath, TryPath, IOPath, VTaskPath implementation
 - **Contributing guide**: For those interested in helping develop the library
 
 ---

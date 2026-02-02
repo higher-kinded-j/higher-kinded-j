@@ -24,6 +24,8 @@ Before diving into code, consider an analogy. Imagine you're running an assembly
 
 - **IOPath**: A station that doesn't run until you press the "GO" button. The work is planned and sequenced, but nothing actually happens until you explicitly start it.
 
+- **VTaskPath**: A station that spawns lightweight workers for each task, coordinating them efficiently. Work happens concurrently on virtual threads, and the station can wait for all workers, race them, or collect their results.
+
 The Effect Path API gives you these different assembly line configurations, letting you choose the right error handling strategy for each situation.
 
 ---
@@ -54,7 +56,7 @@ This explicitness has practical benefits:
 
 ## The Effect Path Types
 
-Higher-Kinded-J provides five core Effect Path types, each suited to different use cases:
+Higher-Kinded-J provides six core Effect Path types, each suited to different use cases:
 
 | Effect Path | Contains | Use Case |
 |-------------|----------|----------|
@@ -63,6 +65,7 @@ Higher-Kinded-J provides five core Effect Path types, each suited to different u
 | `TryPath<A>` | Exception or value | Wrapping throwing code |
 | `ValidationPath<E, A>` | Errors or value | Accumulating all problems |
 | `IOPath<A>` | Deferred computation | Side effects, resource management |
+| `VTaskPath<A>` | Virtual thread computation | Concurrent operations, parallelism |
 
 ### Creating Effect Paths
 
@@ -388,6 +391,133 @@ IOPath<String> resilient = Path.io(() -> httpClient.get(url))
 
 ---
 
+## VTaskPath: Virtual Thread Concurrency
+
+`VTaskPath<A>` represents a computation that runs on Java's virtual threads. It brings the lightweight concurrency of Project Loom to the Effect Path API, letting you write simple blocking code that scales to millions of concurrent operations.
+
+```java
+// Create VTaskPaths
+VTaskPath<String> fetchUser = Path.vtask(() -> userService.get(userId));
+VTaskPath<String> fetchOrders = Path.vtask(() -> orderService.list(userId));
+
+// Pure value (no computation)
+VTaskPath<Integer> pure = Path.vtaskPure(42);
+
+// Immediate failure
+VTaskPath<String> failed = Path.vtaskFail(new IOException("Network error"));
+
+// From a Runnable
+VTaskPath<Unit> logAction = Path.vtaskExec(() -> logger.info("Starting..."));
+```
+
+### Execution Model
+
+Unlike `IOPath`, which runs on the caller's thread, `VTaskPath` executes on virtual threads managed by the JVM. Virtual threads consume mere kilobytes of memory (versus megabytes for platform threads), enabling millions of concurrent tasks.
+
+```java
+VTaskPath<Integer> task = Path.vtask(() -> expensiveComputation());
+
+// Three ways to execute
+Integer result = task.run();           // Blocks, may throw
+Try<Integer> safe = task.runSafe();    // Captures exceptions in Try
+CompletableFuture<Integer> future = task.runAsync();  // Non-blocking
+```
+
+### Composition
+
+VTaskPath chains with the same `map` and `via` patterns as other Effect Paths:
+
+```java
+VTaskPath<Dashboard> dashboard = Path.vtask(() -> fetchUser(id))
+    .map(user -> user.preferences())
+    .via(prefs -> Path.vtask(() -> buildDashboard(prefs)));
+```
+
+### Parallel Execution with Par
+
+The `Par` utility provides combinators for running VTasks concurrently:
+
+```java
+import org.higherkindedj.hkt.vtask.Par;
+
+// Combine two tasks in parallel
+VTask<UserProfile> profile = Par.map2(
+    VTask.of(() -> fetchUser(id)),
+    VTask.of(() -> fetchOrders(id)),
+    (user, orders) -> new UserProfile(user, orders)
+);
+
+// Execute a list of tasks in parallel
+List<VTask<Integer>> tasks = ids.stream()
+    .map(id -> VTask.of(() -> process(id)))
+    .toList();
+VTask<List<Integer>> allResults = Par.all(tasks);
+
+// Race: first successful result wins
+VTask<String> fastest = Par.race(List.of(
+    VTask.of(() -> fetchFromMirror1()),
+    VTask.of(() -> fetchFromMirror2())
+));
+```
+
+### Structured Concurrency with Scope
+
+For more control over concurrent operations, use `Scope`:
+
+```java
+import org.higherkindedj.hkt.vtask.Scope;
+
+// Wait for all tasks to succeed
+VTask<List<String>> all = Scope.<String>allSucceed()
+    .fork(VTask.of(() -> fetchA()))
+    .fork(VTask.of(() -> fetchB()))
+    .fork(VTask.of(() -> fetchC()))
+    .timeout(Duration.ofSeconds(5))
+    .join();
+
+// First success wins, cancel others
+VTask<String> any = Scope.<String>anySucceed()
+    .fork(VTask.of(() -> fetchFromPrimary()))
+    .fork(VTask.of(() -> fetchFromBackup()))
+    .join();
+
+// Accumulate errors (like ValidationPath, but concurrent)
+VTask<Validated<List<Error>, List<String>>> validated =
+    Scope.<String>accumulating(Error::from)
+        .fork(validateField1())
+        .fork(validateField2())
+        .fork(validateField3())
+        .join();
+```
+
+### Error Handling
+
+```java
+VTaskPath<Config> config = Path.vtask(() -> loadConfig())
+    .handleError(ex -> Config.defaults())           // Replace error with value
+    .handleErrorWith(ex -> Path.vtask(() -> loadFallback()));  // Try another task
+```
+
+### Timeouts
+
+```java
+VTaskPath<Data> withTimeout = Path.vtask(() -> slowOperation())
+    .timeout(Duration.ofSeconds(5));
+```
+
+### When to Use VTaskPath vs IOPath
+
+| Aspect | VTaskPath | IOPath |
+|--------|-----------|--------|
+| **Thread model** | Virtual threads | Caller's thread |
+| **Parallelism** | Built-in via `Par`, `Scope` | Manual composition |
+| **Structured concurrency** | Yes, with `Scope` | No |
+| **Best for** | I/O-bound concurrent work | Single-threaded effects |
+
+Choose `VTaskPath` when you need lightweight concurrency at scale. Choose `IOPath` when single-threaded execution is sufficient or when you need explicit control over which thread runs the computation.
+
+---
+
 ## Bridging Focus Paths and Effect Paths
 
 The [Focus DSL](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html) (FocusPath, AffinePath, TraversalPath) integrates seamlessly with Effect Paths. This bridge is where navigation meets computation. For a complete reference of all bridge methods, see the [Focus-Effect Integration Guide](https://higher-kinded-j.github.io/latest/effect/focus_integration.html).
@@ -705,11 +835,12 @@ Start with the Effect Path API. Drop to `modifyF` when you need its power.
 
 This article introduced the Effect Path API for effectful programming:
 
-1. **Effect Path types**: `MaybePath`, `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`
+1. **Effect Path types**: `MaybePath`, `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`, `VTaskPath`
 2. **Railway model**: Values travel success/failure tracks with explicit error handling
 3. **ValidationPath**: Accumulate all errors with `zipWithAccum` and `zipWith3Accum`
-4. **Bridge methods**: Connect Focus paths to Effect paths via `toMaybePath`, `toEitherPath`
-5. **Type checking example**: Comprehensive error reporting with ValidationPath
+4. **VTaskPath**: Virtual thread concurrency with `Par` and `Scope` for parallel operations
+5. **Bridge methods**: Connect Focus paths to Effect paths via `toMaybePath`, `toEitherPath`
+6. **Type checking example**: Comprehensive error reporting with ValidationPath
 
 The Effect Path API makes effect polymorphism practical. The same patterns that work for optional values work for error handling, validation, and deferred execution. Choose the right Effect Path type for your use case, and let composition do the rest.
 
@@ -760,7 +891,9 @@ In Article 6, we'll step back and reflect on what we've built:
 
 - **[Focus DSL Guide](https://higher-kinded-j.github.io/latest/optics/ch4_intro.html)**: Fluent navigation with FocusPath, AffinePath, and TraversalPath.
 
-- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, and ValidationPath.
+- **[Effect Path API Guide](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: Railway-style error handling with MaybePath, EitherPath, ValidationPath, and VTaskPath.
+
+- **[VTask and Structured Concurrency](https://higher-kinded-j.github.io/latest/monads/vtask_monad.html)**: Virtual thread concurrency with Scope and Resource.
 
 - **[Focus-Effect Integration](https://higher-kinded-j.github.io/latest/effect/focus_integration.html)**: Bridging the optics and effects domains with `toXxxPath()` and `focus()` methods.
 
