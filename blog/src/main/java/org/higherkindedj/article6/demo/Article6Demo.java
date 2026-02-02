@@ -2,13 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.article6.demo;
 
+import java.util.List;
 import java.util.Map;
+import org.higherkindedj.article4.ast.BinaryOp;
+import org.higherkindedj.article4.ast.Expr;
+import org.higherkindedj.article4.ast.Expr.Binary;
+import org.higherkindedj.article4.ast.Expr.Literal;
 import org.higherkindedj.article5.interpret.Environment;
 import org.higherkindedj.article5.typecheck.Type;
 import org.higherkindedj.article5.typecheck.TypeEnv;
+import org.higherkindedj.article5.typecheck.TypeError;
+import org.higherkindedj.article6.pipeline.ParallelPipeline;
 import org.higherkindedj.article6.pipeline.Pipeline;
 import org.higherkindedj.article6.pipeline.PipelineError;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * Demonstration of the complete expression language pipeline.
@@ -20,6 +28,7 @@ import org.higherkindedj.hkt.either.Either;
  *   <li>Type checking (with error accumulation)
  *   <li>Optimisation (constant folding, etc.)
  *   <li>Interpretation (with environment state)
+ *   <li>Parallel processing with VTask and Scope (v0.3.2+)
  * </ul>
  *
  * <p>Run with: {@code ./gradlew :review:run
@@ -100,10 +109,64 @@ public final class Article6Demo {
         });
     System.out.println();
 
+    // Demo 9: Parallel Pipeline (v0.3.2+ feature)
+    System.out.println("════════════════════════════════════════════════════════════════════");
+    System.out.println("=== Parallel Pipeline Demo (VTask + Scope) ===\n");
+
+    ParallelPipeline parallelPipeline = ParallelPipeline.standard(typeEnv);
+
+    // Same expression through parallel pipeline
+    demoParallel(parallelPipeline, "Parallel arithmetic", "(x + y) * 2", runtimeEnv);
+
+    // Parallel type checking of multiple expressions
+    System.out.println("--- Demo: Parallel type checking multiple expressions ---");
+    List<Expr> expressions = List.of(
+        new Binary(new Literal(1), BinaryOp.ADD, new Literal(2)),
+        new Binary(new Literal(true), BinaryOp.AND, new Literal(false)),
+        new Binary(new Literal(1), BinaryOp.ADD, new Literal(true)),  // Type error
+        new Binary(new Literal(10), BinaryOp.MUL, new Literal(5))
+    );
+
+    long start = System.currentTimeMillis();
+    List<Validated<List<TypeError>, Type>> results =
+        parallelPipeline.typeCheckAllParallel(expressions, typeEnv);
+    long elapsed = System.currentTimeMillis() - start;
+
+    for (int i = 0; i < expressions.size(); i++) {
+      Expr expr = expressions.get(i);
+      Validated<List<TypeError>, Type> result = results.get(i);
+      String status = result.fold(
+          errors -> "Invalid: " + errors.getFirst().message(),
+          type -> "Valid: " + type
+      );
+      System.out.println("  " + expr.format() + " -> " + status);
+    }
+    System.out.println("  Time: " + elapsed + "ms (all checked in parallel)");
+    System.out.println();
+
     System.out.println("=== Demo complete ===");
   }
 
   private static void demo(Pipeline pipeline, String name, String source, Environment env) {
+    System.out.println("--- Demo: " + name + " ---");
+    System.out.println("Expression: " + source);
+
+    Either<PipelineError, Object> result = pipeline.run(source, env);
+
+    result.fold(
+        error -> {
+          System.out.println("Error: " + error);
+          return null;
+        },
+        value -> {
+          System.out.println("Result: " + value);
+          return null;
+        });
+    System.out.println();
+  }
+
+  private static void demoParallel(
+      ParallelPipeline pipeline, String name, String source, Environment env) {
     System.out.println("--- Demo: " + name + " ---");
     System.out.println("Expression: " + source);
 
