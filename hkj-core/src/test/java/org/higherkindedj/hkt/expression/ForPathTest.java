@@ -599,102 +599,122 @@ class ForPathTest {
     @Test
     @DisplayName("should throw on null MaybePath source")
     void throwsOnNullMaybePathSource() {
-      var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((MaybePath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((MaybePath<Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null OptionalPath source")
     void throwsOnNullOptionalPathSource() {
-        var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((OptionalPath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((OptionalPath<Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null EitherPath source")
     void throwsOnNullEitherPathSource() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class, () -> ForPath.from((EitherPath<Object, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((EitherPath<Object, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null TryPath source")
     void throwsOnNullTryPathSource() {
-        var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((TryPath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((TryPath<Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null IOPath source")
     void throwsOnNullIOPathSource() {
-        var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((IOPath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((IOPath<Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null IdPath source")
     void throwsOnNullIdPathSource() {
-        var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((IdPath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((IdPath<Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null NonDetPath source")
     void throwsOnNullNonDetPathSource() {
-        var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((NonDetPath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((NonDetPath<Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null GenericPath source")
     void throwsOnNullGenericPathSource() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from((GenericPath<MaybeKind.Witness, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from((GenericPath<MaybeKind.Witness, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null focusPath in MaybePath")
     void throwsOnNullFocusPath() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.just(1)).focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.just(1)).focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null focusPath in OptionalPath")
     void throwsOnNullFocusPathOptional() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.present(1)).focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.present(1)).focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null focusPath in EitherPath")
     void throwsOnNullFocusPathEither() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () ->
-              ForPath.from(Path.<String, Integer>right(1))
-                  .focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () ->
+                  ForPath.from(Path.<String, Integer>right(1))
+                      .focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null focusPath in TryPath")
     void throwsOnNullFocusPathTry() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.success(1)).focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.success(1)).focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null focusPath in IOPath")
     void throwsOnNullFocusPathIO() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.ioPure(1)).focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.ioPure(1)).focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null focusPath in IdPath")
     void throwsOnNullFocusPathId() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.id(1)).focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.id(1)).focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
@@ -702,25 +722,28 @@ class ForPathTest {
     void throwsOnNullFocusPathGeneric() {
       GenericPath<MaybeKind.Witness, Integer> genericPath =
           GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE);
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(genericPath).focus((FocusPath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(genericPath).focus((FocusPath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null affinePath in MaybePath match")
     void throwsOnNullAffinePath() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.just(1)).match((AffinePath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.just(1)).match((AffinePath<Integer, Object>) null));
     }
 
     @Test
     @DisplayName("should throw on null affinePath in OptionalPath match")
     void throwsOnNullAffinePathOptional() {
-        var _ = assertThrowsExactly(
-          NullPointerException.class,
-          () -> ForPath.from(Path.present(1)).match((AffinePath<Integer, Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class,
+              () -> ForPath.from(Path.present(1)).match((AffinePath<Integer, Object>) null));
     }
   }
 
@@ -1604,7 +1627,9 @@ class ForPathTest {
     @Test
     @DisplayName("should throw on null VTaskPath source")
     void throwsOnNullVTaskPathSource() {
-      var _ = assertThrowsExactly(NullPointerException.class, () -> ForPath.from((VTaskPath<Object>) null));
+      var _ =
+          assertThrowsExactly(
+              NullPointerException.class, () -> ForPath.from((VTaskPath<Object>) null));
     }
 
     // ===== Additional tests for complete coverage of VTaskPathSteps1-5 =====

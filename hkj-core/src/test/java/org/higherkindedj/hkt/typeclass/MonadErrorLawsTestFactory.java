@@ -2,6 +2,20 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.typeclass;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
@@ -23,21 +37,6 @@ import org.higherkindedj.hkt.vtask.VTaskMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 /**
  * Dynamic test factory for MonadError laws using JUnit 6's @TestFactory.
