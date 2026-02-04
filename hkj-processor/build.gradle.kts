@@ -114,7 +114,7 @@ pitest {
     mutationThreshold.set(64)
 
     // JUnit 6 support
-    junit5PluginVersion.set("2.0.0")
+    junit5PluginVersion.set("1.2.3")
 
     // Threads for faster execution
     threads.set(Runtime.getRuntime().availableProcessors())
