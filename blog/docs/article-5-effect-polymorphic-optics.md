@@ -228,31 +228,36 @@ EitherPath<String, Integer> fallback =
 ```
 
 ```java
+// Define a semigroup constant to avoid repetition
+private static final Semigroup<List<String>> ERRORS = Semigroups.list();
+
 // Create validators that return ValidationPath
 ValidationPath<List<String>, String> validateName(String name) {
     if (name == null || name.isBlank()) {
-        return Path.invalid(List.of("Name is required"), Semigroups.list());
+        return Path.invalid(List.of("Name is required"), ERRORS);
     }
-    return Path.valid(name.trim(), Semigroups.list());
+    return Path.valid(name.trim(), ERRORS);
 }
 
 ValidationPath<List<String>, Integer> validateAge(int age) {
     if (age < 0) {
-        return Path.invalid(List.of("Age cannot be negative"), Semigroups.list());
+        return Path.invalid(List.of("Age cannot be negative"), ERRORS);
     }
     if (age > 150) {
-        return Path.invalid(List.of("Age seems unrealistic"), Semigroups.list());
+        return Path.invalid(List.of("Age seems unrealistic"), ERRORS);
     }
-    return Path.valid(age, Semigroups.list());
+    return Path.valid(age, ERRORS);
 }
 
 ValidationPath<List<String>, String> validateEmail(String email) {
     if (!email.contains("@")) {
-        return Path.invalid(List.of("Invalid email format"), Semigroups.list());
+        return Path.invalid(List.of("Invalid email format"), ERRORS);
     }
-    return Path.valid(email, Semigroups.list());
+    return Path.valid(email, ERRORS);
 }
 ```
+
+Each validator returns a single error wrapped in a `List` because `ValidationPath` needs a `Semigroup` to combine errors from multiple validations. When two validations both fail, their `List<String>` errors are concatenated.
 
 ### Combining Validations: Short-Circuit vs Accumulating
 
@@ -262,29 +267,33 @@ ValidationPath offers two composition modes:
 
 ```java
 // Sequential: second validation only runs if first succeeds
-ValidationPath<List<String>, User> sequential = validateName(name)
-    .via(n -> validateAge(age).map(a -> new User(n, a, null)));
+ValidationPath<List<String>, String> validatedName = validateName(name)
+    .via(n -> validateEmail(email).map(e -> n + " <" + e + ">"));
 ```
 
 **Accumulating** (via `zipWithAccum`): Collects all errors
 
 ```java
-// Parallel: all validations run, errors accumulate
+// All validations run independently, errors accumulate
 ValidationPath<List<String>, User> accumulated = validateName(name)
-    .zipWithAccum(validateAge(age), (n, a) -> new Pair<>(n, a))
-    .zipWithAccum(validateEmail(email), (pair, e) -> new User(pair.first(), pair.second(), e));
-```
-
-For multiple validations, use `zipWith3Accum`:
-
-```java
-ValidationPath<List<String>, User> user = validateName(name)
     .zipWith3Accum(
         validateAge(age),
         validateEmail(email),
         (n, a, e) -> new User(n, a, e)
     );
 ```
+
+For two validations, use `zipWithAccum`:
+
+```java
+// Two-field example
+record Contact(String name, String email) {}
+
+ValidationPath<List<String>, Contact> contact = validateName(name)
+    .zipWithAccum(validateEmail(email), Contact::new);
+```
+
+For three, use `zipWith3Accum` as shown above.
 
 ### The Semigroup Requirement
 
@@ -343,7 +352,7 @@ TryPath<Integer> withFallback = Path.tryOf(() -> fetchFromPrimary())
 
 ```java
 // Define computations without executing them
-IOPath<String> readConfig = Path.io(() -> Files.readString(Path.of("config.json")));
+IOPath<String> readConfig = Path.io(() -> Files.readString(configPath));
 IOPath<Unit> writeLog = Path.ioRunnable(() -> logger.info("Operation complete"));
 
 // Compose deferred computations
@@ -493,9 +502,13 @@ VTask<Validated<List<Error>, List<String>>> validated =
 ### Error Handling
 
 ```java
-VTaskPath<Config> config = Path.vtask(() -> loadConfig())
-    .handleError(ex -> Config.defaults())           // Replace error with value
-    .handleErrorWith(ex -> Path.vtask(() -> loadFallback()));  // Try another task
+// Replace error with a default value
+VTaskPath<Config> withDefault = Path.vtask(() -> loadConfig())
+    .handleError(ex -> Config.defaults());
+
+// Or try a fallback task instead
+VTaskPath<Config> withFallback = Path.vtask(() -> loadConfig())
+    .handleErrorWith(ex -> Path.vtask(() -> loadFallbackConfig()));
 ```
 
 ### Timeouts
@@ -680,21 +693,22 @@ public final class ExprTypeChecker {
 
     private static ValidationPath<List<TypeError>, Type> checkConditionalTypes(
             Type cond, Type then_, Type else_) {
-        List<TypeError> errors = new ArrayList<>();
+        var condCheck = (cond != Type.BOOL)
+            ? List.of(new TypeError("Condition must be BOOL, got " + cond))
+            : List.<TypeError>of();
 
-        if (cond != Type.BOOL) {
-            errors.add(new TypeError("Condition must be BOOL, got " + cond));
-        }
-        if (then_ != else_) {
-            errors.add(new TypeError(
-                "Branches must have same type, got %s and %s".formatted(then_, else_)
-            ));
-        }
+        var branchCheck = (then_ != else_)
+            ? List.of(new TypeError(
+                "Branches must have same type, got %s and %s".formatted(then_, else_)))
+            : List.<TypeError>of();
 
-        if (errors.isEmpty()) {
-            return Path.valid(then_, ERRORS);
-        }
-        return Path.invalid(errors, ERRORS);
+        var errors = Stream.of(condCheck, branchCheck)
+            .flatMap(List::stream)
+            .toList();
+
+        return errors.isEmpty()
+            ? Path.valid(then_, ERRORS)
+            : Path.invalid(errors, ERRORS);
     }
 }
 ```
@@ -765,11 +779,11 @@ Each Effect Path type wraps a corresponding `Kind<F, A>`:
 ```java
 // MaybePath wraps Kind<Maybe.Witness, A>
 MaybePath<String> maybePath = Path.just("hello");
-Maybe<String> underlying = maybePath.run();
+Maybe<String> maybeValue = maybePath.run();
 
 // EitherPath wraps Kind<Either.Witness<E, ?>, A>
 EitherPath<String, Integer> eitherPath = Path.right(42);
-Either<String, Integer> underlying = eitherPath.run();
+Either<String, Integer> eitherValue = eitherPath.run();
 ```
 
 The Effect Path API provides ergonomic methods that delegate to these underlying types.
@@ -810,9 +824,8 @@ Higher-Kinded-J gives you two levels of abstraction:
 
 ```java
 // Clear, fluent, discoverable
-ValidationPath<List<Error>, User> validated = Path.valid(user, Semigroups.list())
-    .via(u -> validateName(u.name()))
-    .zipWithAccum(validateAge(user.age()), (u, age) -> u);
+ValidationPath<List<String>, User> validated = validateName(name)
+    .zipWith3Accum(validateAge(age), validateEmail(email), User::new);
 ```
 
 ### Low-Level: modifyF with Applicative
