@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 /**
- * Dynamic test factory for Lens laws using JUnit 5's @TestFactory.
+ * Dynamic test factory for Lens laws using JUnit 6's @TestFactory.
  *
  * <p>This class demonstrates how to use {@code @TestFactory} to generate tests dynamically at
  * runtime, providing comprehensive law testing across all lens implementations with minimal

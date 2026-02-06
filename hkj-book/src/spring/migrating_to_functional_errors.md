@@ -819,7 +819,7 @@ When migrating an endpoint:
 ```java
 @Test
 void shouldThrowWhenUserNotFound() {
-    assertThrows(UserNotFoundException.class, () -> {
+    var _ = assertThrowsExactly(UserNotFoundException.class, () -> {
         userService.findById("999");
     });
 }

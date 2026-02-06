@@ -489,8 +489,8 @@ class OpticOpsTest {
     constructor.setAccessible(true);
 
     Exception exception =
-        assertThrows(InvocationTargetException.class, () -> constructor.newInstance());
-    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        assertThrowsExactly(InvocationTargetException.class, constructor::newInstance);
+    assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Utility class", exception.getCause().getMessage());
   }
 

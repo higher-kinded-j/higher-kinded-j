@@ -320,7 +320,7 @@ Even though code compiles, IDE shows red underlines.
 ```
 
 #### IDE:
-- Ensure JUnit 5 is configured (not JUnit 4)
+- Ensure JUnit 6 is configured (not JUnit 5 or JUnit 4)
 - Check test runner is set to use JUnit Platform
 - Verify `@Test` import is `org.junit.jupiter.api.Test`
 

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 /**
- * Explicit law verification tests for VTask using JUnit 5's @TestFactory.
+ * Explicit law verification tests for VTask using JUnit 6's @TestFactory.
  *
  * <p>This test class verifies that VTask satisfies all required type class laws:
  *

@@ -38,7 +38,7 @@ tasks.named<JavaCompile>("jmhCompileGeneratedClasses") {
   options.compilerArgs.addAll(listOf("--enable-preview"))
 }
 
-// Enable JUnit 5 for test discovery
+// Enable JUnit 6 for test discovery
 tasks.test {
   useJUnitPlatform()
 }

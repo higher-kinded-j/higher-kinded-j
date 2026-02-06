@@ -113,7 +113,7 @@ pitest {
     // 114 mutations have no test coverage (error handling paths)
     mutationThreshold.set(64)
 
-    // JUnit 5 support
+    // JUnit 6 support
     junit5PluginVersion.set("1.2.3")
 
     // Threads for faster execution

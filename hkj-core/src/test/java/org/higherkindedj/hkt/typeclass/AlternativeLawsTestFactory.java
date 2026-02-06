@@ -26,7 +26,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 /**
- * Dynamic test factory for Alternative laws using JUnit 5's @TestFactory.
+ * Dynamic test factory for Alternative laws using JUnit 6's @TestFactory.
  *
  * <p>This class tests the algebraic laws that all Alternative implementations must satisfy.
  *
