@@ -14,6 +14,20 @@ If you've ever written a utility method that takes a `CompletableFuture<Either<E
 - How to choose the right transformer for your use case based on the effect you need to add
 ~~~
 
+~~~admonish note title="Prefer the Effect Path API?"
+The [Effect Path API](../effect/ch_intro.md) provides a fluent, concrete wrapper around these transformers. For most use cases you can work entirely with Path types and never touch the raw transformer machinery. See [Stack Archetypes](archetypes.md) for named patterns.
+
+| Path Type | Corresponding Transformer |
+|-----------|--------------------------|
+| `EitherPath<E, A>` | `EitherT<F, E, A>` |
+| `MaybePath<A>` | `MaybeT<F, A>` |
+| `OptionalPath<A>` | `OptionalT<F, A>` |
+| `ReaderPath<R, A>` | `ReaderT<F, R, A>` |
+| `WithStatePath<S, A>` | `StateT<S, F, A>` |
+
+Use the raw transformer when you need to combine effects with a *different* outer monad (e.g. `CompletableFuture`, `IO`, or a custom monad).
+~~~
+
 ![stand_back_monad_transformers.jpg](../images/stand_back_monad_transformers.jpg)
 
 ---
@@ -182,5 +196,5 @@ Higher-Kinded-J provides five transformers. Each solves a specific composition p
 
 ---
 
-**Previous:** [Introduction](ch_intro.md)
+**Previous:** [Stack Archetypes](archetypes.md)
 **Next:** [EitherT](eithert_transformer.md)

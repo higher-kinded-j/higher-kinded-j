@@ -14,6 +14,12 @@ The result, `CompletableFuture<Either<DomainError, Result>>`, is technically cor
 
 Monad transformers solve this by wrapping the nested structure in a new type that provides a single, unified monadic interface. `EitherT<CompletableFutureKind.Witness, DomainError, Result>` is still `CompletableFuture<Either<DomainError, Result>>` underneath, but it offers one `flatMap` that sequences both the async and error-handling layers together. The nesting is hidden; the composition is restored.
 
+~~~admonish note title="Path First, Stack Later"
+Most users do not need to read this chapter. The [Effect Path API](../effect/ch_intro.md) wraps these transformers into a fluent interface that handles composition for you. Start there. Come here when you need to build custom transformer stacks or understand what happens under the hood.
+
+See [Stack Archetypes](archetypes.md) for named patterns that cover the most common use cases without requiring raw transformer manipulation.
+~~~
+
 Higher-Kinded-J provides five transformers, each adding a specific capability to any outer monad:
 
 ---
@@ -86,6 +92,7 @@ Same semantics. Vastly different ergonomics.
 ---
 
 ~~~admonish info title="In This Chapter"
+- **Stack Archetypes** – Seven named patterns (Service, Lookup, Validation, Context, Audit, Workflow, Safe Recursion) that cover the most common enterprise composition problems. Start here to find the right pattern for your use case.
 - **The Problem** – Monads don't compose naturally. A `CompletableFuture<Either<E, A>>` requires nested operations that become unwieldy. Transformers restore ergonomic composition.
 - **EitherT** – Adds typed error handling to any monad. Wrap your async operations with `EitherT` to get a single `flatMap` that handles both async sequencing and error propagation.
 - **OptionalT** – Lifts `java.util.Optional` into another monadic context. When your async operation might return nothing, OptionalT provides clean composition.
@@ -98,13 +105,14 @@ Same semantics. Vastly different ergonomics.
 
 ## Chapter Contents
 
-1. [Monad Transformers](transformers.md) - Why monads stack poorly and what transformers solve
-2. [EitherT](eithert_transformer.md) - Typed errors in any monadic context
-3. [OptionalT](optionalt_transformer.md) - Java Optional lifting
-4. [MaybeT](maybet_transformer.md) - Maybe lifting
-5. [ReaderT](readert_transformer.md) - Environment threading
-6. [StateT](statet_transformer.md) - State management in effectful computation
+1. [Stack Archetypes](archetypes.md) - Named patterns for the most common composition problems
+2. [Monad Transformers](transformers.md) - Why monads stack poorly and what transformers solve
+3. [EitherT](eithert_transformer.md) - Typed errors in any monadic context
+4. [OptionalT](optionalt_transformer.md) - Java Optional lifting
+5. [MaybeT](maybet_transformer.md) - Maybe lifting
+6. [ReaderT](readert_transformer.md) - Environment threading
+7. [StateT](statet_transformer.md) - State management in effectful computation
 
 ---
 
-**Next:** [Monad Transformers](transformers.md)
+**Next:** [Stack Archetypes](archetypes.md)
