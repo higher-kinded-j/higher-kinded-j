@@ -330,6 +330,17 @@ Within a chapter, pages should follow this order:
 2. Core concepts in logical order
 3. More advanced topics towards the end
 
+## Problem-First Structure for Advanced Topics
+
+Pages in advanced topic chapters should lead with a concrete problem before introducing the abstraction:
+
+1. **Show the pain** – A short code snippet (5-15 lines) demonstrating the problem the reader faces without this tool
+2. **Name the problem** – One or two sentences explaining why this hurts
+3. **Show the solution** – The same scenario using the documented tool
+4. **Explain** – How and why the solution works
+
+This structure ensures readers understand *why* they need a concept before learning *how* it works. Reference material (type signatures, witness types, helper utilities) should still be present but positioned after the narrative arc, typically inside admonishments so the teaching flow is not interrupted.
+
 ## Checklist for New Pages
 
 When creating a new documentation page, ensure:

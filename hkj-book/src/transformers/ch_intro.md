@@ -1,18 +1,20 @@
 # Monad Transformers: Combining Effects
 
-> *"Shall I project a world?"*
+> *"You can't just bolt two things together and expect them to work."*
 >
-> – Thomas Pynchon, *The Crying of Lot 49*
+> – Richard Feynman
 
 ---
 
-A transformer projects one monad's world into another's. `EitherT` takes the world of typed errors and projects it into whatever outer monad you choose: `CompletableFuture`, `IO`, `List`. The result is a new monad that combines both effects: asynchronous computation *with* error handling, deferred execution *with* failure semantics.
+Every Java developer who has worked with `CompletableFuture` and `Either` separately knows they compose beautifully in isolation. `CompletableFuture` handles asynchronicity. `Either` handles typed errors. Each offers clean `map` and `flatMap` operations, each respects its own laws, and each is a pleasure to use alone.
 
-The problem being solved is fundamental: monads don't compose naturally. You can have a `CompletableFuture<A>`. You can have an `Either<E, A>`. But a `CompletableFuture<Either<E, A>>`, whilst perfectly expressible in Java, becomes awkward to work with. Every operation requires nested `thenApply` and `map` calls, peeling back layers manually. The ergonomics deteriorate rapidly.
+Then you need both at once.
 
-Transformers restore sanity. `EitherT<CompletableFutureKind.Witness, DomainError, Result>` presents a unified interface: a single `flatMap` sequences async operations that might fail; a single `map` transforms successful results; error handling works at the combined level. The nesting is still there (it must be), but the transformer hides it.
+The result, `CompletableFuture<Either<DomainError, Result>>`, is technically correct in the same way that a car engine strapped to a bicycle is technically a vehicle. The types nest, the generics compile, and then you try to `flatMap` across the combined structure and discover that Java has no opinion about how these two contexts should interact. You write nested `thenApply` calls, peel back layers manually, and watch the indentation grow. The ergonomics deteriorate rapidly.
 
-Higher-Kinded-J provides transformers for common combinations: `EitherT` for typed errors, `MaybeT` and `OptionalT` for optional values, `ReaderT` for dependency injection, and `StateT` for state threading. Each takes an outer monad and adds its specific capability.
+Monad transformers solve this by wrapping the nested structure in a new type that provides a single, unified monadic interface. `EitherT<CompletableFutureKind.Witness, DomainError, Result>` is still `CompletableFuture<Either<DomainError, Result>>` underneath, but it offers one `flatMap` that sequences both the async and error-handling layers together. The nesting is hidden; the composition is restored.
+
+Higher-Kinded-J provides five transformers, each adding a specific capability to any outer monad:
 
 ---
 
@@ -46,6 +48,31 @@ Same semantics. Vastly different ergonomics.
 
 ---
 
+## Which Transformer Do I Need?
+
+```
+    ┌──────────────────────────────────────────────────────────┐
+    │              WHICH TRANSFORMER DO I NEED?                │
+    ├──────────────────────────────────────────────────────────┤
+    │                                                          │
+    │  "My operation might fail with a typed error"            │
+    │    └──▶  EitherT                                         │
+    │                                                          │
+    │  "My operation might return nothing"                     │
+    │    ├──▶  OptionalT  (java.util.Optional)                 │
+    │    └──▶  MaybeT     (Higher-Kinded-J Maybe)              │
+    │                                                          │
+    │  "My operation needs shared configuration"               │
+    │    └──▶  ReaderT                                         │
+    │                                                          │
+    │  "My operation needs to track changing state"            │
+    │    └──▶  StateT                                          │
+    │                                                          │
+    └──────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Available Transformers
 
 | Transformer | Inner Effect | Use Case |
@@ -57,8 +84,6 @@ Same semantics. Vastly different ergonomics.
 | `StateT<S, F, A>` | State (`State<S, A>`) | Stateful computation within other effects |
 
 ---
-
-## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
 - **The Problem** – Monads don't compose naturally. A `CompletableFuture<Either<E, A>>` requires nested operations that become unwieldy. Transformers restore ergonomic composition.
