@@ -34,6 +34,7 @@
   - [Advanced Topics](effect/advanced_topics.md)
 
 - [Advanced Topics](transformers/ch_intro.md)
+  - [Stack Archetypes](transformers/archetypes.md)
   - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
   - [OptionalT](transformers/optionalt_transformer.md)
