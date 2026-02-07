@@ -1,5 +1,5 @@
 # The MaybeT Transformer:
-## _Combining Monadic Effects with Optionality_
+## _Functional Optionality Across Monads_
 
 ~~~admonish info title="What You'll Learn"
 - How to combine Maybe's optionality with other monadic effects
@@ -12,327 +12,246 @@
 ~~~ admonish example title="See Example Code:"
 [MaybeTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe_t/MaybeTExample.java)
 ~~~
-## `MaybeT` Monad Transformer.
+
+---
+
+## The Problem: Nested Async Optionality
+
+When an async lookup returns `Maybe` rather than `Optional`, you face the same nesting problem:
+
+```java
+// Without MaybeT: manual nesting
+CompletableFuture<Maybe<UserPreferences>> getPreferences(String userId) {
+    return fetchUserAsync(userId).thenCompose(maybeUser ->
+        maybeUser.fold(
+            () -> CompletableFuture.completedFuture(Maybe.nothing()),
+            user -> fetchPreferencesAsync(user.id()).thenCompose(maybePrefs ->
+                maybePrefs.fold(
+                    () -> CompletableFuture.completedFuture(Maybe.nothing()),
+                    prefs -> CompletableFuture.completedFuture(Maybe.just(prefs))
+                ))
+        ));
+}
+```
+
+Each step requires folding over the `Maybe`, providing a `Nothing` fallback wrapped in a completed future, and nesting deeper. The pattern is identical to the `Optional` case but uses `Maybe`'s API.
+
+## The Solution: MaybeT
+
+```java
+// With MaybeT: flat composition
+Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences>
+    getPreferences(String userId) {
+
+  var userMT = MAYBE_T.widen(MaybeT.fromKind(fetchUserAsync(userId)));
+
+  return maybeTMonad.flatMap(user ->
+      MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(user.id()))),
+      userMT);
+}
+```
+
+If `fetchUserAsync` returns `Nothing`, the preferences lookup is skipped entirely. No manual folding, no fallback wrapping.
+
+---
+
+## How MaybeT Works
+
+`MaybeT<F, A>` wraps a computation yielding `Kind<F, Maybe<A>>`. It represents an effectful computation in `F` that may produce `Just(value)` or `Nothing`.
+
+```
+    ┌──────────────────────────────────────────────────────────┐
+    │  MaybeT<CompletableFutureKind.Witness, Value>            │
+    │                                                          │
+    │  ┌─── CompletableFuture ──────────────────────────────┐  │
+    │  │                                                    │  │
+    │  │  ┌─── Maybe ───────────────────────────────────┐   │  │
+    │  │  │                                             │   │  │
+    │  │  │   Nothing            │   Just(value)        │   │  │
+    │  │  │                      │                      │   │  │
+    │  │  └─────────────────────────────────────────────┘   │  │
+    │  │                                                    │  │
+    │  └────────────────────────────────────────────────────┘  │
+    │                                                          │
+    │  flatMap ──▶ sequences F, then routes on Maybe           │
+    │  map ──────▶ transforms Just(value) only                 │
+    │  raiseError(Unit) ──▶ creates Nothing in F               │
+    │  handleErrorWith ──▶ recovers from Nothing               │
+    └──────────────────────────────────────────────────────────┘
+```
 
 ![maybet_transformer.svg](../images/puml/maybet_transformer.svg)
 
-## `MaybeT<F, A>`: Combining Any Monad `F` with `Maybe<A>`
-
-The `MaybeT` monad transformer allows you to combine the optionality of `Maybe<A>` (representing a value that might be
-`Just<A>` or `Nothing`) with another outer monad `F`. It transforms a computation that results in `Kind<F, Maybe<A>>`
-into a single monadic structure. This is useful for operations within an effectful context `F` (like
-`CompletableFutureKind` for async operations or `ListKind` for non-deterministic computations) that can also result in
-an absence of a value.
-
-* **`F`**: The witness type of the **outer monad** (e.g., `CompletableFutureKind.Witness`, `ListKind.Witness`). This
-  monad handles the primary effect (e.g., asynchronicity, non-determinism).
+* **`F`**: The witness type of the **outer monad** (e.g., `CompletableFutureKind.Witness`, `ListKind.Witness`).
 * **`A`**: The type of the value potentially held by the inner `Maybe`.
 
-```
-// From: org.higherkindedj.hkt.maybe_t.MaybeT
-public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) { 
+```java
+public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
 /* ... static factories ... */ }
 ```
 
-`MaybeT<F, A>` wraps a value of type `Kind<F, Maybe<A>>`. It signifies a computation in the context of `F` that will
-eventually produce a `Maybe<A>`. The main benefit comes from its associated type class instance, `MaybeTMonad`, which
-provides monadic operations for this combined structure.
+---
 
-## `MaybeTKind<F, A>`: The Witness Type
+## Setting Up MaybeTMonad
 
-Similar to other HKTs in Higher-Kinded-J, `MaybeT` uses `MaybeTKind<F, A>` as its witness type for use in generic
-functions.
-
-* It extends `Kind<G, A>` where `G` (the witness for the combined monad) is `MaybeTKind.Witness<F>`.
-* `F` is fixed for a specific `MaybeT` context, while `A` is the variable type parameter.
+The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`. Like `OptionalTMonad`, the error type is `Unit`, signifying that `Nothing` carries no information beyond its occurrence.
 
 ```java
-public interface MaybeTKind<F, A> extends Kind<MaybeTKind.Witness<F>, A> {
-  // Witness type G = MaybeTKind.Witness<F>
-  // Value type A = A (from Maybe<A>)
-}
+Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
+
+MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
+    new MaybeTMonad<>(futureMonad);
 ```
 
-## `MaybeTKindHelper`
+~~~admonish note title="Type Witness and Helpers"
+**Witness Type:** `MaybeTKind<F, A>` extends `Kind<MaybeTKind.Witness<F>, A>`. The outer monad `F` is fixed; `A` is the variable value type.
 
-* This utility class provides static `wrap` and `unwrap` methods for safe conversion between the concrete `MaybeT<F, A>`
-  and its `Kind` representation (`Kind<MaybeTKind.Witness<F>, A>`).
+**KindHelper:** `MaybeTKindHelper` provides `MAYBE_T.widen` and `MAYBE_T.narrow` for safe conversion between `MaybeT<F, A>` and its `Kind` representation.
 
 ```java
-// To wrap:
-// MaybeT<F, A> maybeT = ...;
 Kind<MaybeTKind.Witness<F>, A> kind = MAYBE_T.widen(maybeT);
-// To unwrap:
-MaybeT<F, A> unwrappedMaybeT = MAYBE_T.narrow(kind);
+MaybeT<F, A> concrete = MAYBE_T.narrow(kind);
 ```
+~~~
 
-## `MaybeTMonad<F>`: Operating on `MaybeT`
+---
 
-The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`. The error type `E` for `MonadError` is fixed to `Unit`, signifying that an "error" in this context is the `Maybe.nothing()` state within the `F<Maybe<A>>` structure.
-`MaybeT` represents failure (or absence) as `Nothing`, which doesn't carry an error value itself.
+## Key Operations
 
-* It requires a `Monad<F>` instance for the outer monad `F` (where `F extends WitnessArity<TypeArity.Unary>`), provided during construction. This instance is used to
-  manage the effects of `F`.
-* It uses `MaybeTKindHelper.wrap` and `MaybeTKindHelper.unwrap` for conversions.
-* Operations like `raiseError(Unit.INSTANCE)` will create a `MaybeT` representing `F<Nothing>`.
-  The `Unit.INSTANCE` signifies the `Nothing` state without carrying a separate error value.
-* `handleErrorWith` allows "recovering" from a `Nothing` state by providing an alternative `MaybeT`. The handler function passed to `handleErrorWith` will receive `Unit.INSTANCE` if a `Nothing` state is encountered.
+~~~admonish info title="Key Operations with _MaybeTMonad_:"
+* **`maybeTMonad.of(value)`:** Lifts a nullable value `A` into `MaybeT`. Result: `F<Maybe.fromNullable(value)>`.
+* **`maybeTMonad.map(f, maybeTKind)`:** Applies `A -> B` to the `Just` value. If `f` returns `null`, it propagates `F<Nothing>`. Result: `F<Maybe<B>>`.
+* **`maybeTMonad.flatMap(f, maybeTKind)`:** Sequences operations. If `Just(a)`, applies `f(a)` to get the next `MaybeT`. If `Nothing`, short-circuits to `F<Nothing>`.
+* **`maybeTMonad.raiseError(Unit.INSTANCE)`:** Creates `MaybeT` representing `F<Nothing>`.
+* **`maybeTMonad.handleErrorWith(maybeTKind, handler)`:** Recovers from `Nothing`. The handler `Unit -> Kind<MaybeTKind.Witness<F>, A>` is invoked with `Unit.INSTANCE`.
+~~~
+
+---
+
+## Creating MaybeT Instances
+
+~~~admonish title="Creating _MaybeT_ Instances"
+```java
+Monad<OptionalKind.Witness> optMonad = OptionalMonad.INSTANCE;
+
+// 1. From a non-null value: F<Just(value)>
+MaybeT<OptionalKind.Witness, String> mtJust = MaybeT.just(optMonad, "Hello");
+
+// 2. Nothing state: F<Nothing>
+MaybeT<OptionalKind.Witness, String> mtNothing = MaybeT.nothing(optMonad);
+
+// 3. From a plain Maybe: F<Maybe(input)>
+MaybeT<OptionalKind.Witness, Integer> mtFromMaybe =
+    MaybeT.fromMaybe(optMonad, Maybe.just(123));
+
+// 4. Lifting F<A> into MaybeT (using fromNullable)
+Kind<OptionalKind.Witness, String> outerOptional =
+    OPTIONAL.widen(Optional.of("World"));
+MaybeT<OptionalKind.Witness, String> mtLiftF = MaybeT.liftF(optMonad, outerOptional);
+
+// 5. Wrapping an existing F<Maybe<A>>
+Kind<OptionalKind.Witness, Maybe<String>> nestedKind =
+    OPTIONAL.widen(Optional.of(Maybe.just("Present")));
+MaybeT<OptionalKind.Witness, String> mtFromKind = MaybeT.fromKind(nestedKind);
+
+// Accessing the wrapped value:
+Kind<OptionalKind.Witness, Maybe<String>> wrappedValue = mtJust.value();
+Optional<Maybe<String>> unwrappedOptional = OPTIONAL.narrow(wrappedValue);
+// → Optional.of(Maybe.just("Hello"))
+```
+~~~
+
+---
+
+## Real-World Example: Async Resource Fetching
+
+~~~admonish Example title="Asynchronous Optional Resource Fetching"
+
+**The problem:** You need to fetch a user asynchronously, and if found, fetch their preferences. Each step might return `Nothing`. You want clean composition without manual `Maybe.fold` at every step.
+
+**The solution:**
 
 ```java
-// Example: F = CompletableFutureKind.Witness, Error type for MonadError is Unit
-// 1. Get the Monad instance for the outer monad F
-Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE; 
-
-// 2. Create the MaybeTMonad, providing the outer monad instance
+Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
 MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
     new MaybeTMonad<>(futureMonad);
 
-// Now 'maybeTMonad' can be used to operate on Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, A> values.
-```
+// Service stubs return Future<Maybe<T>>
+Kind<CompletableFutureKind.Witness, Maybe<User>> fetchUserAsync(String userId) {
+    return FUTURE.widen(CompletableFuture.supplyAsync(() ->
+        "user123".equals(userId) ? Maybe.just(new User(userId, "Alice"))
+                                 : Maybe.nothing()));
+}
 
-~~~admonish info title="Key Operations with _MaybeTMonad_:"
+// Workflow: user → preferences
+Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>>
+    getUserPreferencesWorkflow(String userId) {
 
-* **`maybeTMonad.of(value)`:** Lifts a nullable value `A` into the `MaybeT` context. Result:
-  `F<Maybe.fromNullable(value)>`.
-* **`maybeTMonad.map(f, maybeTKind)`:** Applies function `A -> B` to the `Just` value inside the nested structure. If
-  it's `Nothing`, or `f` returns `null`, it propagates `F<Nothing>`.
-* **`maybeTMonad.flatMap(f, maybeTKind)`:** Sequences operations. Takes `A -> Kind<MaybeTKind.Witness<F>, B>`. If the
-  input is `F<Just(a)>`, it applies `f(a)` to get the next `MaybeT<F, B>` and extracts its `Kind<F, Maybe<B>>`. If
-  `F<Nothing>`, it propagates `F<Nothing>`.
-* **`maybeTMonad.raiseError(Unit.INSTANCE)`:** Creates `MaybeT` representing `F<Nothing>`.
-* **`maybeTMonad.handleErrorWith(maybeTKind, handler)`:** Handles a `Nothing` state. The handler
-  `Unit -> Kind<MaybeTKind.Witness<F>, A>` is invoked with `null`.
-~~~
+  var userMT = MAYBE_T.widen(MaybeT.fromKind(fetchUserAsync(userId)));
 
-----
+  var preferencesMT = maybeTMonad.flatMap(
+      user -> {
+          System.out.println("User found: " + user.name());
+          return MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(user.id())));
+      },
+      userMT);
 
-~~~admonish title="Creating _MaybeT_ Instances"
-`MaybeT` instances are typically created using its static factory methods, often requiring the outer `Monad<F>`
-instance:
-
-```java
-public void createExample() {
-    Monad<OptionalKind.Witness> optMonad = OptionalMonad.INSTANCE; // Outer Monad F=Optional
-    String presentValue = "Hello";
-
-    // 1. Lifting a non-null value: Optional<Just(value)>
-    MaybeT<OptionalKind.Witness, String> mtJust = MaybeT.just(optMonad, presentValue);
-    // Resulting wrapped value: Optional.of(Maybe.just("Hello"))
-
-    // 2. Creating a 'Nothing' state: Optional<Nothing>
-    MaybeT<OptionalKind.Witness, String> mtNothing = MaybeT.nothing(optMonad);
-    // Resulting wrapped value: Optional.of(Maybe.nothing())
-
-    // 3. Lifting a plain Maybe: Optional<Maybe(input)>
-    Maybe<Integer> plainMaybe = Maybe.just(123);
-    MaybeT<OptionalKind.Witness, Integer> mtFromMaybe = MaybeT.fromMaybe(optMonad, plainMaybe);
-    // Resulting wrapped value: Optional.of(Maybe.just(123))
-
-    Maybe<Integer> plainNothing = Maybe.nothing();
-    MaybeT<OptionalKind.Witness, Integer> mtFromMaybeNothing = MaybeT.fromMaybe(optMonad, plainNothing);
-    // Resulting wrapped value: Optional.of(Maybe.nothing())
-
-
-    // 4. Lifting an outer monad value F<A>: Optional<Maybe<A>> (using fromNullable)
-    Kind<OptionalKind.Witness, String> outerOptional = OPTIONAL.widen(Optional.of("World"));
-    MaybeT<OptionalKind.Witness, String> mtLiftF = MaybeT.liftF(optMonad, outerOptional);
-    // Resulting wrapped value: Optional.of(Maybe.just("World"))
-
-    Kind<OptionalKind.Witness, String> outerEmptyOptional = OPTIONAL.widen(Optional.empty());
-    MaybeT<OptionalKind.Witness, String> mtLiftFEmpty = MaybeT.liftF(optMonad, outerEmptyOptional);
-    // Resulting wrapped value: Optional.of(Maybe.nothing())
-
-
-    // 5. Wrapping an existing nested Kind: F<Maybe<A>>
-    Kind<OptionalKind.Witness, Maybe<String>> nestedKind =
-        OPTIONAL.widen(Optional.of(Maybe.just("Present")));
-    MaybeT<OptionalKind.Witness, String> mtFromKind = MaybeT.fromKind(nestedKind);
-    // Resulting wrapped value: Optional.of(Maybe.just("Present"))
-
-    // Accessing the wrapped value:
-    Kind<OptionalKind.Witness, Maybe<String>> wrappedValue = mtJust.value();
-    Optional<Maybe<String>> unwrappedOptional = OPTIONAL.narrow(wrappedValue);
-    // unwrappedOptional is Optional.of(Maybe.just("Hello"))
-  }
-```
-~~~
-
-~~~admonish Example title="Asynchronous Optional Resource Fetching"
-Let's consider fetching a userLogin and then their preferences, where each step is asynchronous and might not return a value.
-
-```java
-public static class MaybeTAsyncExample {
-  // --- Setup ---
-  Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
-  MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
-      new MaybeTMonad<>(futureMonad);
-
-  // Simulates fetching a userLogin asynchronously
-  Kind<CompletableFutureKind.Witness, Maybe<User>> fetchUserAsync(String userId) {
-    System.out.println("Fetching userLogin: " + userId);
-    CompletableFuture<Maybe<User>> future = CompletableFuture.supplyAsync(() -> {
-      try {
-        TimeUnit.MILLISECONDS.sleep(50);
-      } catch (InterruptedException e) { /* ignore */ }
-      if ("user123".equals(userId)) {
-        return Maybe.just(new User(userId, "Alice"));
-      }
-      return Maybe.nothing();
-    });
-    return FUTURE.widen(future);
-  }
-
-  // Simulates fetching userLogin preferences asynchronously
-  Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> fetchPreferencesAsync(String userId) {
-    System.out.println("Fetching preferences for userLogin: " + userId);
-    CompletableFuture<Maybe<UserPreferences>> future = CompletableFuture.supplyAsync(() -> {
-      try {
-        TimeUnit.MILLISECONDS.sleep(30);
-      } catch (InterruptedException e) { /* ignore */ }
-      if ("user123".equals(userId)) {
-        return Maybe.just(new UserPreferences(userId, "dark-mode"));
-      }
-      return Maybe.nothing(); // No preferences for other users or if userLogin fetch failed
-    });
-    return FUTURE.widen(future);
-  }
-
-  // --- Service Stubs (returning Future<Maybe<T>>) ---
-
-  // Function to run the workflow for a given userId
-  Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> getUserPreferencesWorkflow(String userIdToFetch) {
-
-    // Step 1: Fetch User
-    // Directly use MaybeT.fromKind as fetchUserAsync already returns F<Maybe<User>>
-    Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, User> userMT =
-        MAYBE_T.widen(MaybeT.fromKind(fetchUserAsync(userIdToFetch)));
-
-    // Step 2: Fetch Preferences if User was found
-    Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesMT =
-        maybeTMonad.flatMap(
-            userLogin -> { // This lambda is only called if userMT contains F<Just(userLogin)>
-              System.out.println("User found: " + userLogin.name() + ". Now fetching preferences.");
-              // fetchPreferencesAsync returns Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>>
-              // which is F<Maybe<A>>, so we can wrap it directly.
-              return MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(userLogin.id())));
-            },
-            userMT // Input to flatMap
-        );
-
-    // Try to recover if preferences are Nothing, but userLogin was found (conceptual)
-    Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesWithDefaultMT =
-        maybeTMonad.handleErrorWith(preferencesMT, (Unit v) -> { // Handler for Nothing
-          System.out.println("Preferences not found, attempting to use default.");
-          // We need userId here. For simplicity, let's assume we could get it or just return nothing.
-          // This example shows returning nothing again if we can't provide a default.
-          // A real scenario might try to fetch default preferences or construct one.
-          return maybeTMonad.raiseError(Unit.INSTANCE); // Still Nothing, or could be MaybeT.just(defaultPrefs)
-        });
-
-
-    // Unwrap the final MaybeT to get the underlying Future<Maybe<UserPreferences>>
-    MaybeT<CompletableFutureKind.Witness, UserPreferences> finalMaybeT =
-        MAYBE_T.narrow(preferencesWithDefaultMT); // or preferencesMT if no recovery
-    return finalMaybeT.value();
-  }
-
-  public void asyncExample() {
-    System.out.println("--- Fetching preferences for known userLogin (user123) ---");
-    Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultKnownUserKind =
-        getUserPreferencesWorkflow("user123");
-    Maybe<UserPreferences> resultKnownUser = FUTURE.join(resultKnownUserKind);
-    System.out.println("Known User Result: " + resultKnownUser);
-    // Expected: Just(UserPreferences[userId=user123, theme=dark-mode])
-
-    System.out.println("\n--- Fetching preferences for unknown userLogin (user999) ---");
-    Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultUnknownUserKind =
-        getUserPreferencesWorkflow("user999");
-    Maybe<UserPreferences> resultUnknownUser = FUTURE.join(resultUnknownUserKind);
-    System.out.println("Unknown User Result: " + resultUnknownUser);
-    // Expected: Nothing
-  }
-
-  // --- Workflow Definition using MaybeT ---
-
-  // --- Domain Model ---
-  record User(String id, String name) {
-  }
-
-  record UserPreferences(String userId, String theme) {
-  }
+  // Unwrap to get Future<Maybe<UserPreferences>>
+  return MAYBE_T.narrow(preferencesMT).value();
 }
 ```
 
-This example illustrates:
-
-1. Setting up `MaybeTMonad` with `CompletableFutureMonad`and `Unit` as the error type.
-2. Using `MaybeT.fromKind` to lift an existing `Kind<F, Maybe<A>>` into the `MaybeT` context.
-3. Sequencing operations with `maybeTMonad.flatMap`. If `WorkspaceUserAsync` results in `F<Nothing>`, the lambda for
-   fetching preferences is skipped.
-4. The `handleErrorWith` shows a way to potentially recover from a `Nothing` state using `Unit` in the handler and `raiseError(Unit.INSTANCE)`.
-5. Finally, `.value()` is used to extract the underlying `Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>>`.
-
-~~~
-
-~~~admonish important  title="Key Points:"
-
-- The `MaybeT` transformer simplifies working with nested optional values within other monadic contexts by providing a
-unified monadic interface, abstracting away the manual checks and propagation of `Nothing` states.
-- When `MaybeTMonad` is used as a `MonadError`, the error type is `Unit`, indicating that the "error" (a `Nothing` state) doesn't carry a specific value beyond its occurrence.
+**Why this works:** The `flatMap` lambda only executes if the user was found (`Just`). If `fetchUserAsync` returns `Nothing`, the entire chain short-circuits to `Future<Nothing>`.
 ~~~
 
 ---
 
 ## MaybeT vs OptionalT: When to Use Which?
 
-Both `MaybeT` and `OptionalT` serve similar purposes: combining optionality with other monadic effects. Here's when to choose each:
+Both `MaybeT` and `OptionalT` combine optionality with other effects. The functionality is equivalent; the choice depends on your codebase:
+
+| Aspect | MaybeT | OptionalT |
+|--------|--------|-----------|
+| Inner type | `Maybe<A>` | `java.util.Optional<A>` |
+| Best for | Higher-Kinded-J ecosystem code | Integrating with existing Java code |
+| FP-native | Yes (designed for composition) | Wraps Java's standard library |
+| Serialisation | No warnings | Identity-sensitive operation warnings |
+| Team familiarity | Requires learning `Maybe` | Uses familiar `Optional` API |
 
 ### Use **MaybeT** when:
-- You're working within the higher-kinded-j ecosystem and want consistency with the `Maybe` type
-- You need a type that's explicitly designed for functional composition (more FP-native)
-- You want to avoid Java's `Optional` and its quirks (e.g., serialisation warnings, identity-sensitive operations)
-- You're building a system where `Maybe` is used throughout
+- You're working within the Higher-Kinded-J ecosystem and want consistency with `Maybe`
+- You want a type explicitly designed for functional composition
+- You want to avoid Java's `Optional` and its quirks (serialisation warnings, identity-sensitive operations)
 
 ### Use **OptionalT** when:
 - You're integrating with existing Java code that uses `java.util.Optional`
-- You want to leverage familiar Java 8+ Optional APIs
 - Your team is more comfortable with standard Java types
 - You're wrapping external libraries that return `Optional`
 
-**In practice:** The choice often comes down to consistency with your existing codebase. Both offer equivalent functionality through their `MonadError` instances.
+**In practice:** Choose whichever matches your existing codebase. Both offer equivalent functionality through their `MonadError` instances.
+
+---
+
+~~~admonish warning title="Common Mistakes"
+- **Confusing Maybe.nothing() with null:** `MaybeT.of(null)` will use `Maybe.fromNullable(null)`, which produces `Nothing`. Be explicit about intent; use `MaybeT.nothing(monad)` when you mean absence.
+- **Using MaybeT when you need error information:** `Nothing` carries no reason for the absence. If you need to know *why* a value is missing, use `EitherT` with a descriptive error type instead.
+~~~
+
+---
+
+~~~admonish tip title="See Also"
+- [Monad Transformers](transformers.md) - General concept and choosing the right transformer
+- [OptionalT](optionalt_transformer.md) - Equivalent functionality for java.util.Optional
+- [EitherT](eithert_transformer.md) - When you need typed errors, not just absence
+- [Maybe Monad](../monads/maybe_monad.md) - The underlying Maybe type
+~~~
 
 ---
 
 ~~~admonish tip title="Further Reading"
-Start with the **Java-focused** resources to understand Maybe/Option patterns, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
+- [Null Handling Patterns in Modern Java](https://www.baeldung.com/java-avoid-null-check) - Comprehensive guide to null safety (15 min read)
 ~~~
 
-### Java-Focused Resources
-
-**Beginner Level:**
--[Maybe vs Optional: Understanding the Difference](https://medium.com/@johnmcclean/maybe-monad-in-java-8-2e0b7d8e3e5a) - When to use custom Maybe over Java's Optional (10 min read)
--[Null Handling Patterns in Modern Java](https://www.baeldung.com/java-avoid-null-check) - Comprehensive guide to null safety (15 min read)
-
-**Intermediate Level:**
--[MonadZero and Failure](https://bartoszmilewski.com/2013/09/10/monoids-monads-and-monad-zero/) - Understanding failure representation (20 min read)
--[Handling Nothing in Asynchronous Code](https://dzone.com/articles/functional-java-handling-optionals-in-completable) - DZone's practical patterns (12 min read)
-
-### General FP Concepts
-
--[Maybe/Option Type](https://en.wikipedia.org/wiki/Option_type) - Wikipedia's cross-language overview
--[A Fistful of Monads (Haskell)](https://learnyouahaskell.com/a-fistful-of-monads) - Accessible introduction to Maybe (30 min read)
-
-### Related Libraries & Comparisons
-
--[Scala Option](https://www.scala-lang.org/api/2.13.3/scala/Option.html) - Scala's battle-tested implementation
--[Arrow Option (Kotlin)](https://apidocs.arrow-kt.io/arrow-core/arrow.core/-option/index.html) - Kotlin FP approach
-
-### Community & Discussion
-
--[Maybe vs Either for Error Handling](https://stackoverflow.com/questions/48280735/maybe-vs-either-for-error-handling) - Stack Overflow comparison
--[Why Use Maybe When We Have Optional?](https://www.reddit.com/r/java/comments/7t3q6k/why_implement_maybe_when_java_has_optional/) - Reddit discussion on use cases
-
----
 
 **Previous:** [OptionalT](optionalt_transformer.md)
 **Next:** [ReaderT](readert_transformer.md)
