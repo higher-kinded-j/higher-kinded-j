@@ -485,5 +485,5 @@ The systems remain subtle and pervasive, but no longer tyrannical.
 
 ---
 
-**Previous:** [Patterns and Recipes](patterns.md)
+**Previous:** [Common Compiler Errors](compiler_errors.md)
 **Next:** [Effect Contexts](effect_contexts.md)

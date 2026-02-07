@@ -753,4 +753,4 @@ Writer patterns.
 ---
 
 **Previous:** [Focus-Effect Integration](focus_integration.md)
-**Next:** [Advanced Effects](advanced_effects.md)
+**Next:** [Migration Cookbook](migration_cookbook.md)

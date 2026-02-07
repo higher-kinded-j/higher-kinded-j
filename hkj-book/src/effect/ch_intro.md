@@ -34,9 +34,15 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 
 - **[Patterns and Recipes](patterns.md)** – Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, resilience with retry, and the pitfalls that await the unwary.
 
+- **[Migration Cookbook](migration_cookbook.md)** – Pattern-by-pattern translations from imperative Java to Effect Path. Six recipes covering try/catch, Optional chains, null checks, CompletableFuture, validation, and nested record updates.
+
+- **[Common Compiler Errors](compiler_errors.md)** – The five most common compiler errors when using the Effect Path API, with full error messages, minimal triggers, and fixes.
+
 - **[Advanced Effects](advanced_effects.md)** – Reader, State, and Writer paths for environment access, stateful computation, and logging accumulation.
 
 - **[Advanced Topics](advanced_topics.md)** – Stack-safe recursion, DSL building with Free structures, resource management, parallel execution, and resilience patterns.
+
+- **[Production Readiness](production_readiness.md)** – Stack traces, allocation overhead, and stack safety. The honest answers to the questions senior engineers ask before adopting a library.
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -69,8 +75,11 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 5. [Type Conversions](conversions.md) - Moving between different Path types
 6. [Focus-Effect Integration](focus_integration.md) - Bridging optics and effects
 7. [Patterns and Recipes](patterns.md) - Real-world patterns, resilience, and hard-won wisdom
-8. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
-9. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
+8. [Migration Cookbook](migration_cookbook.md) - Imperative Java to Effect Path, recipe by recipe
+9. [Common Compiler Errors](compiler_errors.md) - Fixing type inference and Path type mismatches
+10. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
+11. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
+12. [Production Readiness](production_readiness.md) - Stack traces, allocation overhead, and stack safety
 
 ---
 
