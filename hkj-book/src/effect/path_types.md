@@ -24,6 +24,30 @@ fleet, a more pressing question: *which one do you need?*
 
 Before diving into specifics, orient yourself by the problem you're solving:
 
+```
+                             START HERE
+                                 │
+                      Can the operation fail?
+                           /          \
+                         No            Yes
+                         │              │
+                  Is the value      Do you need ALL
+                  optional?          errors at once?
+                   /     \            /          \
+                 Yes      No        Yes           No
+                  │        │         │             │
+              MaybePath  IdPath  ValidationPath    │
+                                              Is the error a
+                                              typed domain error
+                                              or an exception?
+                                               /            \
+                                            Typed        Exception
+                                             │              │
+                                         EitherPath     TryPath
+```
+
+*For deferred side effects, see [`IOPath`](path_io.md). For virtual-thread concurrency, see [`VTaskPath`](path_vtask.md). For stack-safe recursion, see [`TrampolinePath`](path_trampoline.md).*
+
 ### _"The value might not exist"_
 
 You're dealing with absence: a lookup that returns nothing, an optional

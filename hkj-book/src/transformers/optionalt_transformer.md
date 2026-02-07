@@ -58,26 +58,26 @@ If any step returns empty, subsequent steps are skipped. No manual `orElse` fall
 
 `OptionalT<F, A>` wraps a computation yielding `Kind<F, Optional<A>>`. It represents an effectful computation in `F` that may or may not produce a value.
 
-```
+<pre style="line-height:1.4;font-size:0.95em">
     ┌──────────────────────────────────────────────────────────┐
-    │  OptionalT<CompletableFutureKind.Witness, Value>         │
+    │  OptionalT&lt;CompletableFutureKind.Witness, Value&gt;         │
     │                                                          │
     │  ┌─── CompletableFuture ──────────────────────────────┐  │
     │  │                                                    │  │
     │  │  ┌─── Optional ────────────────────────────────┐   │  │
     │  │  │                                             │   │  │
-    │  │  │   empty()            │   of(value)          │   │  │
+    │  │  │   <span style="color:#F44336">empty()</span>            │   <span style="color:#4CAF50">of(value)</span>          │   │  │
     │  │  │                      │                      │   │  │
     │  │  └─────────────────────────────────────────────┘   │  │
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
-    │  flatMap ──▶ sequences F, then routes on Optional        │
-    │  map ──────▶ transforms present value only               │
-    │  raiseError(Unit) ──▶ creates empty() in F               │
-    │  handleErrorWith ──▶ recovers from empty                 │
+    │  flatMap ──▶ sequences F, then routes on Optional       │
+    │  map ──────▶ transforms <span style="color:#4CAF50">present value</span> only              │
+    │  raiseError(Unit) ──▶ creates <span style="color:#F44336">empty()</span> in F              │
+    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">empty</span>                │
     └──────────────────────────────────────────────────────────┘
-```
+</pre>
 
 ![optional_t_transformer.svg](../images/puml/optional_t_transformer.svg)
 

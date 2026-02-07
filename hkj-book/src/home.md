@@ -249,46 +249,16 @@ public class UserController {
 
 ## Getting Started
 
-> [!NOTE]
-> Before diving in, ensure you have the following:
-> **Java Development Kit (JDK): Version 25** or later. The library makes use of features available in this version.
+Ready to start? See the **[Quickstart](quickstart.md)** for Gradle and Maven setup (including required Java 25 preview flags) and your first Effect Paths in 5 minutes.
 
-Add the following dependencies to your `build.gradle.kts`:
-
-```gradle
-dependencies {
-    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
-}
-```
-
-The annotation processor generates Focus paths and Effect paths for your records, enabling seamless integration between effects and data navigation.
-
-**For Spring Boot Integration:**
-
-```gradle
-dependencies {
-    implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
-}
-```
-
-**For SNAPSHOTS:**
-
-```gradle
-repositories {
-    mavenCentral()
-    maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-    }
-}
-```
+For a one-page operator reference, see the **[Cheat Sheet](cheatsheet.md)**.
 
 ---
 
 ## Documentation Guide
 
 ~~~admonish tip title="Recommended Starting Point"
-Start with the **Effect Path API** section below. It is the primary user-facing API of Higher-Kinded-J and provides everything most applications need.
+If you want working code immediately, start with the **[Quickstart](quickstart.md)**. For a deeper understanding, continue with the **Effect Path API** section below.
 ~~~
 
 ### Effect Path API (Start Here)

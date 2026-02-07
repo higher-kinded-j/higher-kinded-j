@@ -1,6 +1,9 @@
 # Summary
 [Introduction to Higher-Kinded-J](home.md)
 
+- [Quickstart](quickstart.md)
+- [Cheat Sheet](cheatsheet.md)
+
 - [Effect Path API](effect/ch_intro.md)
   - [Effect Path Overview](effect/effect_path_overview.md)
   - [Capability Interfaces](effect/capabilities.md)

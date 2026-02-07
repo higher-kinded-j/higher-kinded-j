@@ -240,8 +240,10 @@ Traversal<League, Player> activePlayers =
 
 ## Requirements
 
-* **Java Development Kit (JDK): Version 25** or later.
+* **Java Development Kit (JDK): Version 25** or later, with `--enable-preview` enabled.
 * Gradle (the project includes a Gradle wrapper).
+
+Higher-Kinded-J uses Java preview features. See the [Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html) for full Gradle and Maven configuration including preview flags.
 
 ### Version Compatibility
 
@@ -260,9 +262,24 @@ dependencies {
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
 }
+
+// Required: enable Java preview features
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("--enable-preview")
+}
+
+tasks.withType<Test>().configureEach {
+    jvmArgs("--enable-preview")
+}
+
+tasks.withType<JavaExec>().configureEach {
+    jvmArgs("--enable-preview")
+}
 ```
 
 The annotation processor generates Focus paths and Effect paths for your records, enabling seamless integration between effects and data navigation.
+
+See the **[Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html)** for full setup including Maven configuration.
 
 **For SNAPSHOTS:**
 

@@ -74,21 +74,21 @@ chaos: decisions that don't so much get made as reluctantly emerge.
 Functional programmers solved this problem decades ago with a simple model:
 the **railway**.
 
-```
-                         THE EFFECT RAILWAY
+<pre style="line-height:1.5;font-size:0.95em">
+                         <b>THE EFFECT RAILWAY</b>
 
-    Success ═══●═══●═══●═══●═══●═══════════════════▶  Result
-               │   │   │   │   │
-              map via map via run
+    <span style="color:#4CAF50"><b>Success</b> ═══●═══●═══●═══●═══●═══════════════════▶  Result</span>
+    <span style="color:#4CAF50">           │   │   │   │   │</span>
+    <span style="color:#4CAF50">          map via map via run</span>
                    │       │
                    ╳       │         error occurs, switch tracks
                    │       │
-    Failure  ──────●───────┼───────────────────────▶  Error
-                   │       │
-                mapError  recover
+    <span style="color:#F44336"><b>Failure</b>  ──────●───────┼───────────────────────▶  Error</span>
+    <span style="color:#F44336">               │       │</span>
+    <span style="color:#F44336">            mapError</span>  <span style="color:#4CAF50">recover</span>
                            │
                            ╳                         recovery, switch back
-```
+</pre>
 
 Your data travels along the **success track**. Operations like `map` and `via`
 transform it as it goes. If something fails, the data switches to the
@@ -98,6 +98,21 @@ can switch the data back to the success track if you have a sensible fallback.
 
 This is what Path types implement. The railway is the model; Paths are the
 rolling stock.
+
+### Operators as Railway Switches
+
+Each Path operator has a specific role on the railway:
+
+| Operator | Railway Role | What Happens |
+|----------|-------------|-------------|
+| `map(fn)` | <span style="color:#4CAF50">**Green track**</span> transform | Transforms data on the success track; failures pass through |
+| `mapError(fn)` | <span style="color:#F44336">**Red track**</span> transform | Transforms data on the error track; successes pass through |
+| `via(fn)` / `flatMap(fn)` | <span style="color:#4CAF50">**Green**</span> → <span style="color:#F44336">**Red**</span> switch | Chains an operation that may divert success to failure |
+| `recover(fn)` | <span style="color:#F44336">**Red**</span> → <span style="color:#4CAF50">**Green**</span> switch | Converts a failure back into a success value |
+| `recoverWith(fn)` | <span style="color:#F44336">**Red**</span> → <span style="color:#4CAF50">**Green**</span> switch | Converts a failure into a new Path (which itself may fail) |
+| `orElse(supplier)` | Fallback junction | Tries an alternative path if the first failed |
+| `peek(fn)` | <span style="color:#4CAF50">**Green track**</span> siding | Observes the success value without changing tracks |
+| `focus(lens)` | <span style="color:#4CAF50">**Green track**</span> wormhole | Navigates into nested data without leaving the track |
 
 ---
 
@@ -363,6 +378,38 @@ path.map(name -> name.toUpperCase())
 - [Focus-Effect Integration](focus_integration.md) - Complete bridging guide
 - [Capability Interfaces](capabilities.md) - Type class foundations
 ~~~
+
+---
+
+## Getting Back to Standard Java
+
+You are never locked in. Every Path type unwraps to a standard Java value with `.run()`, and `.fold()` gives you full control over both tracks:
+
+```java
+// Extract the underlying type
+Maybe<User> maybe = maybePath.run();
+Either<AppError, User> either = eitherPath.run();
+Try<Config> tried = tryPath.run();
+
+// Convert to java.util.Optional
+Optional<User> opt = maybePath.run().toOptional();
+
+// Extract with a default
+User user = eitherPath.getOrElse(User.anonymous());
+
+// Handle both tracks explicitly
+String message = eitherPath.run().fold(
+    error -> "Failed: " + error.message(),
+    user  -> "Found: " + user.name()
+);
+```
+
+For deferred effects (`IOPath`, `VTaskPath`), `.unsafeRun()` executes immediately and `.runSafe()` captures exceptions as `Try`:
+
+```java
+String content = ioPath.unsafeRun();    // execute, may throw
+Try<String> safe = ioPath.runSafe();    // execute, exceptions captured
+```
 
 ---
 

@@ -59,26 +59,26 @@ If `fetchUserAsync` returns `Nothing`, the preferences lookup is skipped entirel
 
 `MaybeT<F, A>` wraps a computation yielding `Kind<F, Maybe<A>>`. It represents an effectful computation in `F` that may produce `Just(value)` or `Nothing`.
 
-```
+<pre style="line-height:1.4;font-size:0.95em">
     ┌──────────────────────────────────────────────────────────┐
-    │  MaybeT<CompletableFutureKind.Witness, Value>            │
+    │  MaybeT&lt;CompletableFutureKind.Witness, Value&gt;            │
     │                                                          │
     │  ┌─── CompletableFuture ──────────────────────────────┐  │
     │  │                                                    │  │
     │  │  ┌─── Maybe ───────────────────────────────────┐   │  │
     │  │  │                                             │   │  │
-    │  │  │   Nothing            │   Just(value)        │   │  │
+    │  │  │   <span style="color:#F44336">Nothing</span>            │   <span style="color:#4CAF50">Just(value)</span>        │   │  │
     │  │  │                      │                      │   │  │
     │  │  └─────────────────────────────────────────────┘   │  │
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
-    │  flatMap ──▶ sequences F, then routes on Maybe           │
-    │  map ──────▶ transforms Just(value) only                 │
-    │  raiseError(Unit) ──▶ creates Nothing in F               │
-    │  handleErrorWith ──▶ recovers from Nothing               │
+    │  flatMap ──▶ sequences F, then routes on Maybe          │
+    │  map ──────▶ transforms <span style="color:#4CAF50">Just(value)</span> only                │
+    │  raiseError(Unit) ──▶ creates <span style="color:#F44336">Nothing</span> in F              │
+    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">Nothing</span>              │
     └──────────────────────────────────────────────────────────┘
-```
+</pre>
 
 ![maybet_transformer.svg](../images/puml/maybet_transformer.svg)
 
