@@ -67,26 +67,26 @@ Same four steps. No manual error propagation. If any step returns `Left`, subseq
 
 `EitherT<F, L, R>` wraps a value of type `Kind<F, Either<L, R>>`. It represents a computation within the context `F` that will eventually yield an `Either<L, R>`.
 
-```
+<pre style="line-height:1.4;font-size:0.95em">
     ┌──────────────────────────────────────────────────────────┐
-    │  EitherT<CompletableFutureKind.Witness, Error, Value>    │
+    │  EitherT&lt;CompletableFutureKind.Witness, Error, Value&gt;    │
     │                                                          │
     │  ┌─── CompletableFuture ──────────────────────────────┐  │
     │  │                                                    │  │
     │  │  ┌─── Either ──────────────────────────────────┐   │  │
     │  │  │                                             │   │  │
-    │  │  │   Left(error)       │     Right(value)      │   │  │
+    │  │  │   <span style="color:#F44336">Left(error)</span>       │     <span style="color:#4CAF50">Right(value)</span>      │   │  │
     │  │  │                     │                       │   │  │
     │  │  └─────────────────────────────────────────────┘   │  │
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
-    │  flatMap ──▶ sequences F, then routes on Either          │
-    │  map ──────▶ transforms Right(value) only                │
-    │  raiseError ──▶ creates Left(error) in F                 │
-    │  handleErrorWith ──▶ recovers from Left                  │
+    │  flatMap ──▶ sequences F, then routes on Either         │
+    │  map ──────▶ transforms <span style="color:#4CAF50">Right(value)</span> only               │
+    │  raiseError ──▶ creates <span style="color:#F44336">Left(error)</span> in F                │
+    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">Left</span>                 │
     └──────────────────────────────────────────────────────────┘
-```
+</pre>
 
 ![eithert_transformer.svg](../images/puml/eithert_transformer.svg)
 

@@ -20,29 +20,29 @@ Higher-Kinded-J provides five transformers, each adding a specific capability to
 
 ## The Stacking Concept
 
-```
-    ┌─────────────────────────────────────────────────────────────┐
+<pre style="line-height:1.4;font-size:0.95em">
+<span style="color:#F44336">    ┌─────────────────────────────────────────────────────────────┐
     │  WITHOUT TRANSFORMER                                        │
     │                                                             │
-    │    CompletableFuture<Either<Error, Result>>                 │
+    │    CompletableFuture&lt;Either&lt;Error, Result&gt;&gt;                 │
     │                                                             │
-    │    future.thenApply(either ->                               │
-    │        either.map(result ->                                 │
-    │            either2.map(r2 ->                                │
+    │    future.thenApply(either -&gt;                               │
+    │        either.map(result -&gt;                                 │
+    │            either2.map(r2 -&gt;                                │
     │                ...)))   // Nesting grows unboundedly        │
-    └─────────────────────────────────────────────────────────────┘
+    └─────────────────────────────────────────────────────────────┘</span>
 
-    ┌─────────────────────────────────────────────────────────────┐
+<span style="color:#4CAF50">    ┌─────────────────────────────────────────────────────────────┐
     │  WITH TRANSFORMER                                           │
     │                                                             │
-    │    EitherT<FutureWitness, Error, Result>                    │
+    │    EitherT&lt;FutureWitness, Error, Result&gt;                    │
     │                                                             │
     │    eitherT                                                  │
-    │        .flatMap(result -> operation1(result))               │
-    │        .flatMap(r1 -> operation2(r1))                       │
-    │        .map(r2 -> finalTransform(r2))  // Flat!             │
-    └─────────────────────────────────────────────────────────────┘
-```
+    │        .flatMap(result -&gt; operation1(result))               │
+    │        .flatMap(r1 -&gt; operation2(r1))                       │
+    │        .map(r2 -&gt; finalTransform(r2))  // Flat!             │
+    └─────────────────────────────────────────────────────────────┘</span>
+</pre>
 
 Same semantics. Vastly different ergonomics.
 
