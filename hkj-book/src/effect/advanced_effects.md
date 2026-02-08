@@ -153,6 +153,71 @@ is unaffected.
 - You need to accumulate results: use `WriterPath`
 - The environment is only needed in one place: just pass it directly
 
+### ReaderPath vs Spring Dependency Injection
+
+If you use Spring Boot, you already have a dependency injection mechanism.
+`ReaderPath` solves a similar problem in a different way. Understanding
+where each approach shines helps you choose the right tool.
+
+| Aspect | Spring DI (`@Autowired` / constructor) | `ReaderPath<R, A>` |
+|--------|----------------------------------------|---------------------|
+| **Provide a dependency** | Container wires it at startup | `.run(environment)` at the call-site edge |
+| **Access a dependency** | Field or constructor parameter | `ReaderPath.ask()` / `ReaderPath.asks(R::field)` |
+| **Scope** | Container-managed (singleton, request, etc.) | Explicit; the caller decides what to pass |
+| **Swapping for tests** | `@MockBean`, `@TestConfiguration`, or a test profile | Pass a different environment value |
+| **Composition** | Inject service A into service B | `readerA.via(a -> readerB)` chains readers |
+| **Runtime variation** | Profiles, `@ConditionalOnProperty` | `reader.local(env -> env.withFeatureFlag(true))` |
+
+**When Spring DI is the better fit:**
+
+- Application-scoped singletons (database pools, HTTP clients, caches)
+- Framework-managed lifecycle (startup, shutdown hooks)
+- Wiring that is fixed for the lifetime of the application
+
+**When ReaderPath adds value:**
+
+- Per-request or per-tenant context that varies at runtime (tenant ID,
+  correlation ID, feature flags, auth principal)
+- Pure computation pipelines where you want to defer the environment
+  until the last moment
+- Testing without a Spring context; just pass a record
+
+**Example: per-request context**
+
+With Spring DI alone, per-request context typically requires a
+`@RequestScope` bean or `ThreadLocal`. With `ReaderPath`, the context
+flows through the computation explicitly:
+
+```java
+// Define the request-scoped environment
+record RequestEnv(String tenantId, String correlationId, DataSource ds) {}
+
+// Service method: no framework annotations needed
+public ReaderPath<RequestEnv, List<Order>> ordersForTenant() {
+    return ReaderPath.asks(RequestEnv::tenantId)
+        .zipWith(ReaderPath.asks(RequestEnv::ds), (tenantId, ds) -> queryOrders(ds, tenantId));
+}
+
+// At the controller edge, provide the environment once
+@GetMapping("/orders")
+public List<Order> getOrders(HttpServletRequest request) {
+    RequestEnv env = new RequestEnv(
+        request.getHeader("X-Tenant-Id"),
+        request.getHeader("X-Correlation-Id"),
+        dataSource
+    );
+    return ordersForTenant().run(env);
+}
+```
+
+The computation is pure and testable; the environment is assembled once
+at the boundary.
+
+~~~admonish tip title="See Also"
+- [Spring Boot Integration](../spring/spring_boot_integration.md) - Using Effect Path types as controller return values
+- [ReaderT Transformer](../transformers/readert_transformer.md) - The raw transformer behind ReaderPath
+~~~
+
 ---
 
 ## StatePath: Computation with Memory

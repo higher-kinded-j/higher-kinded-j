@@ -61,6 +61,25 @@ Kind<W, Receipt> processOrder(OrderData data) {
 
 Same four steps. No manual error propagation. If any step returns `Left`, subsequent steps are skipped automatically. The error type `DomainError` flows through the entire chain.
 
+### The Railway View
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Right</b>  ═══●══════════●══════════●══════════●═══▶  Receipt</span>
+    <span style="color:#4CAF50">       validate   inventory   payment   receipt</span>
+    <span style="color:#4CAF50">       (flatMap)  (flatMap)   (flatMap)  (map)</span>
+                ╲            ╲            ╲
+                 ╲            ╲            ╲  Left: skip remaining steps
+                  ╲            ╲            ╲
+    <span style="color:#F44336"><b>Left</b>   ─────●─────────●─────────────●──────────▶  DomainError</span>
+    <span style="color:#F44336">       InvalidOrder  OutOfStock  PaymentFailed</span>
+                                        │
+                                   <span style="color:#4CAF50">handleErrorWith</span>    optional recovery
+                                        │
+    <span style="color:#4CAF50">                                    ●═══▶  recovered Right</span>
+</pre>
+
+Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If the inner `Either` is `Left`, subsequent steps are skipped and the error propagates along the lower track. `handleErrorWith` can switch back to the success track for recoverable errors.
+
 ---
 
 ## How EitherT Works

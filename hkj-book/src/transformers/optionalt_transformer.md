@@ -52,6 +52,25 @@ OptionalT<CompletableFutureKind.Witness, UserPreferences> getPreferences(String 
 
 If any step returns empty, subsequent steps are skipped. No manual `orElse` fallbacks, no repeated `Optional.empty()` wrapping.
 
+### The Railway View
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Present</b>  ═══●═══════════●═══════════●═══════════▶  UserPreferences</span>
+    <span style="color:#4CAF50">          fetchUser   fetchProfile fetchPrefs</span>
+    <span style="color:#4CAF50">          (flatMap)   (flatMap)    (flatMap)</span>
+                  ╲           ╲            ╲
+                   ╲           ╲            ╲  empty: skip remaining steps
+                    ╲           ╲            ╲
+    <span style="color:#F44336"><b>Empty</b>    ────●──────────●─────────────●──────────▶  Optional.empty()</span>
+    <span style="color:#F44336">        user absent  profile absent  prefs absent</span>
+                                          │
+                                     <span style="color:#4CAF50">handleErrorWith</span>    provide defaults
+                                          │
+    <span style="color:#4CAF50">                                      ●═══▶  default UserPreferences</span>
+</pre>
+
+Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If the inner `Optional` is empty, subsequent steps are skipped. `handleErrorWith` can provide a fallback value when the chain yields nothing.
+
 ---
 
 ## How OptionalT Works
