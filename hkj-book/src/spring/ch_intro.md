@@ -57,6 +57,10 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
 | Actuator integration | Metrics for functional operations |
 | Security integration | Functional authentication patterns |
 
+~~~admonish note title="ReaderPath vs @Autowired"
+If you use Spring's dependency injection and wonder how `ReaderPath` compares, see [ReaderPath vs Spring Dependency Injection](../effect/advanced_effects.md#readerpath-vs-spring-dependency-injection) in the Advanced Effects chapter. The short version: Spring DI is best for application-scoped singletons; `ReaderPath` shines for per-request context that varies at runtime.
+~~~
+
 ---
 
 ## What You'll Learn
