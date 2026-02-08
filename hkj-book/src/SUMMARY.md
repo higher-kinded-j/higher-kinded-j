@@ -25,6 +25,8 @@
   - [Type Conversions](effect/conversions.md)
   - [Focus-Effect Integration](effect/focus_integration.md)
   - [Patterns and Recipes](effect/patterns.md)
+  - [Migration Cookbook](effect/migration_cookbook.md)
+  - [Common Compiler Errors](effect/compiler_errors.md)
   - [Advanced Effects](effect/advanced_effects.md)
   - [Effect Contexts](effect/effect_contexts.md)
     - [ErrorContext](effect/effect_contexts_error.md)
@@ -32,6 +34,7 @@
     - [ConfigContext](effect/effect_contexts_config.md)
     - [MutableContext](effect/effect_contexts_mutable.md)
   - [Advanced Topics](effect/advanced_topics.md)
+  - [Production Readiness](effect/production_readiness.md)
 
 - [Advanced Topics](transformers/ch_intro.md)
   - [Stack Archetypes](transformers/archetypes.md)
