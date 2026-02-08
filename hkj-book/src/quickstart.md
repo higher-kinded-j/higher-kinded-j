@@ -80,6 +80,21 @@ repositories {
 
 <build>
     <plugins>
+        <!-- Optional: generates Focus paths and Effect paths for your records -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.14.1</version>
+            <configuration>
+                <annotationProcessorPaths>
+                    <path>
+                        <groupId>io.github.higher-kinded-j</groupId>
+                        <artifactId>hkj-processor-plugins</artifactId>
+                        <version>LATEST_VERSION</version>
+                    </path>
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
         <!-- Required: enable preview features for tests -->
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
