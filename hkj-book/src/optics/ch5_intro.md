@@ -114,6 +114,8 @@ All permissions validated. All errors accumulated. Original structure preserved.
 - **Optics Extensions** – Additional capabilities beyond the basics. Extended Lens operations, Traversal utilities, and convenience methods for common patterns.
 - **Cookbook** – Copy-paste solutions for frequent problems. Updating nested optionals, modifying specific sum type variants, bulk collection operations, configuration management.
 - **Auditing Complex Data** – A production-ready example generating audit trails. Track every change to a complex nested structure with full before/after comparisons.
+
+See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for a complete example combining optics with effect paths in a single pipeline.
 ~~~
 
 ---

@@ -114,6 +114,123 @@ Each Path operator has a specific role on the railway:
 | `peek(fn)` | <span style="color:#4CAF50">**Green track**</span> siding | Observes the success value without changing tracks |
 | `focus(lens)` | <span style="color:#4CAF50">**Green track**</span> wormhole | Navigates into nested data without leaving the track |
 
+### Visualising Each Operator
+
+The table above gives you the vocabulary; these diagrams show you the geometry.
+Each one illustrates what happens to data on the success and failure tracks when
+the operator executes.
+
+#### map(fn)
+
+Transforms the value on the success track. Failures pass through untouched.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●═══ map(fn) ═══●═══▶  transformed value</span>
+    <span style="color:#4CAF50">           A              f(A)</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●══════════════●═══▶  unchanged error</span>
+    <span style="color:#F44336">           E              E          (skipped)</span>
+</pre>
+
+#### mapError(fn)
+
+The mirror of `map`: transforms the value on the failure track. Successes pass through untouched.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●══════════════●═══▶  unchanged value</span>
+    <span style="color:#4CAF50">           A              A          (skipped)</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●═══ mapError(fn) ═══●═══▶  transformed error</span>
+    <span style="color:#F44336">           E                  f(E)</span>
+</pre>
+
+#### via(fn) / flatMap(fn)
+
+Chains an operation that may itself fail. The function receives the success value and returns
+a new Path; if that Path fails, the data switches to the failure track.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●═══ via(fn) ═══●═══▶  continues on success</span>
+    <span style="color:#4CAF50">           A           fn(A)</span>  ╲
+                                   ╲
+                                    <span style="color:#F44336">╲═══▶  diverts to failure (fn returned Left/Nothing)</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●════════════════●═══▶  unchanged error (skipped)</span>
+</pre>
+
+#### recover(fn)
+
+Switches from the failure track back to the success track by converting the error into a value.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●══════════════════●═══▶  unchanged value (skipped)</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●═══ recover(fn) </span><span style="color:#4CAF50">═══●═══▶  recovered value</span>
+    <span style="color:#F44336">           E             </span><span style="color:#4CAF50">   fn(E)</span>
+</pre>
+
+#### recoverWith(fn)
+
+Like `recover`, but the function returns a new Path rather than a raw value. The recovery
+itself may fail, keeping the data on the failure track.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●══════════════════════●═══▶  unchanged value (skipped)</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●═══ recoverWith(fn) </span><span style="color:#4CAF50">═══●═══▶  recovered value</span>
+    <span style="color:#F44336">           E                fn(E)</span>  ╲
+                                        ╲
+                                         <span style="color:#F44336">╲═══▶  still failed (fn returned Left/Nothing)</span>
+</pre>
+
+#### orElse(supplier)
+
+A fallback junction: if the first path failed, try a completely different path.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●══════════════════════════▶  original value</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●═══ orElse(supplier)</span>
+    <span style="color:#F44336">           E         │</span>
+                       ▼
+              <span style="color:#4CAF50">supplier.get() ═══●═══▶  alternative value</span>
+                                    ╲
+                                     <span style="color:#F44336">╲═══▶  alternative also failed</span>
+</pre>
+
+#### peek(fn)
+
+A siding: the function observes the success value but does not change it or the track.
+Commonly used for logging and debugging.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●═══ peek(fn) ═══●═══▶  same value, same track</span>
+    <span style="color:#4CAF50">           A      │         A</span>
+                    ▼
+              <i>side effect</i>       (e.g. log, metric, debug)
+
+    <span style="color:#F44336"><b>Failure</b> ═══●════════════════●═══▶  unchanged error (skipped)</span>
+</pre>
+
+#### focus(lens)
+
+A wormhole into nested structure: the lens extracts a field from the success value,
+and the result stays on the same track. If the optic is an `AffinePath` and the
+field is absent, the data switches to the failure track.
+
+<pre style="line-height:1.5;font-size:0.95em">
+    <span style="color:#4CAF50"><b>Success</b> ═══●═══ focus(lens) ═══●═══▶  focused field</span>
+    <span style="color:#4CAF50">        Order              Address       (lens extracted nested value)</span>
+
+    <span style="color:#F44336"><b>Failure</b> ═══●════════════════════●═══▶  unchanged error (skipped)</span>
+
+    <i>With AffinePath (optional field):</i>
+    <span style="color:#4CAF50"><b>Success</b> ═══●═══ focus(affine) </span>
+    <span style="color:#4CAF50">        Order</span>         ╲
+                          ╲  field absent
+                           <span style="color:#F44336">╲═══▶  Left(providedError) / Nothing</span>
+</pre>
+
 ---
 
 ## The Same Logic, Flattened

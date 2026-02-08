@@ -59,16 +59,16 @@ Standard optics give you the *value*. **Indexed optics** give you both the *inde
   │                                                             │
   └─────────────────────────────────────────────────────────────┘
 
-                    ┌─────────────────────┐
-                    │   Pair<Index, A>    │
-                    │  ┌───────┬────────┐ │
-                    │  │ Index │ Value  │ │
-                    │  ├───────┼────────┤ │
-                    │  │   0   │ Laptop │ │
-                    │  │   1   │ Mouse  │ │
-|  │   2   │ Keyboard │ │
-                    │  └───────┴────────┘ │
-                    └─────────────────────┘
+                    ┌───────────────────────┐
+                    │   Pair<Index, A>      │
+                    │  ┌───────┬──────────┐ │
+                    │  │ Index │ Value    │ │
+                    │  ├───────┼──────────┤ │
+                    │  │   0   │ Laptop   │ │
+                    │  │   1   │ Mouse    │ │
+                    │  │   2   │ Keyboard │ │
+                    │  └───────┴──────────┘ │
+                    └───────────────────────┘
 ```
 
 Archimedes understood that position is power. With the right fulcrum point, a lever can move the world. Similarly, with the right index, an optic can transform data in ways that value-only access cannot. Position-based discounts, numbered lists, audit trails showing *which* field changed: all require knowing *where* you are, not just *what* you have.

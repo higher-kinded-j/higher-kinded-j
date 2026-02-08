@@ -24,6 +24,7 @@
   - [ForPath Comprehension](effect/forpath_comprehension.md)
   - [Type Conversions](effect/conversions.md)
   - [Focus-Effect Integration](effect/focus_integration.md)
+  - [Capstone: Effects Meet Optics](effect/capstone_focus_effect.md)
   - [Patterns and Recipes](effect/patterns.md)
   - [Migration Cookbook](effect/migration_cookbook.md)
   - [Common Compiler Errors](effect/compiler_errors.md)

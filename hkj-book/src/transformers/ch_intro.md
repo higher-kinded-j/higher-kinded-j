@@ -99,6 +99,8 @@ Same semantics. Vastly different ergonomics.
 - **MaybeT** – The same capability as OptionalT but for the library's `Maybe` type. Choose based on whether you're using Optional or Maybe elsewhere.
 - **ReaderT** – Threads environment dependencies through effectful computations. Combine dependency injection with async operations or error handling.
 - **StateT** – Manages state within effectful computations. Track state changes across async boundaries or error-handling paths.
+
+See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for a complete example combining effect paths with optics in a single pipeline.
 ~~~
 
 ---
