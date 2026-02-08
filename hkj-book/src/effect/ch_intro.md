@@ -32,6 +32,8 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 
 - **[Focus-Effect Integration](focus_integration.md)** – Bridging optics and effects. Converting FocusPath to EffectPath for validation pipelines, using `focus()` to navigate within effect contexts, and patterns that combine both domains.
 
+- **[Capstone: Effects Meet Optics](capstone_focus_effect.md)** – A complete before/after example combining effects and optics in a single pipeline. Uses a company directory scenario to demonstrate how `focus()`, `AffinePath`, and `EitherPath` replace 30 lines of defensive code with 6 lines of railway pipeline.
+
 - **[Patterns and Recipes](patterns.md)** – Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, resilience with retry, and the pitfalls that await the unwary.
 
 - **[Migration Cookbook](migration_cookbook.md)** – Pattern-by-pattern translations from imperative Java to Effect Path. Six recipes covering try/catch, Optional chains, null checks, CompletableFuture, validation, and nested record updates.
@@ -74,12 +76,13 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 4. [Composition Patterns](composition.md) - Chaining, combining, parallel execution, and debugging
 5. [Type Conversions](conversions.md) - Moving between different Path types
 6. [Focus-Effect Integration](focus_integration.md) - Bridging optics and effects
-7. [Patterns and Recipes](patterns.md) - Real-world patterns, resilience, and hard-won wisdom
-8. [Migration Cookbook](migration_cookbook.md) - Imperative Java to Effect Path, recipe by recipe
-9. [Common Compiler Errors](compiler_errors.md) - Fixing type inference and Path type mismatches
-10. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
-11. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
-12. [Production Readiness](production_readiness.md) - Stack traces, allocation overhead, and stack safety
+7. [Capstone: Effects Meet Optics](capstone_focus_effect.md) - Complete before/after example
+8. [Patterns and Recipes](patterns.md) - Real-world patterns, resilience, and hard-won wisdom
+9. [Migration Cookbook](migration_cookbook.md) - Imperative Java to Effect Path, recipe by recipe
+10. [Common Compiler Errors](compiler_errors.md) - Fixing type inference and Path type mismatches
+11. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
+12. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
+13. [Production Readiness](production_readiness.md) - Stack traces, allocation overhead, and stack safety
 
 ---
 

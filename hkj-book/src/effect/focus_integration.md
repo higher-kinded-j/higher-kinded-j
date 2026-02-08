@@ -353,6 +353,7 @@ Practice Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://git
 ~~~
 
 ~~~admonish tip title="See Also"
+- [Capstone: Effects Meet Optics](capstone_focus_effect.md) - Complete before/after example combining both domains
 - [Focus DSL](../optics/focus_dsl.md) - Complete guide to Focus paths
 - [Effect Path Overview](effect_path_overview.md) - Railway model and effect basics
 - [Capability Interfaces](capabilities.md) - Type class foundations
@@ -361,4 +362,4 @@ Practice Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://git
 ---
 
 **Previous:** [Type Conversions](conversions.md)
-**Next:** [Patterns and Recipes](patterns.md)
+**Next:** [Capstone: Effects Meet Optics](capstone_focus_effect.md)
