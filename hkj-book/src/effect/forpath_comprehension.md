@@ -2,7 +2,7 @@
 
 > *"Though this be madness, yet there is method in't."*
 >
-> — William Shakespeare, *Hamlet*
+> -- William Shakespeare, *Hamlet*
 
 And so it is with for-comprehensions: what appears to be arcane syntax hides a
 deeply methodical approach to composing sequential operations.

@@ -68,7 +68,7 @@ These laws ensure that `map` is only about transformation and preserves the stru
 
 ### Why is it useful?
 
-`Functor` allows you to write generic, reusable code that transforms values inside any "mappable" data structure. This is the first step toward abstracting away the boilerplate of dealing with different container types.
+`Functor` allows you to write generic, reusable code that transforms values inside any "mappable" data structure. This is the first step towards abstracting away the boilerplate of dealing with different container types.
 
 **Example: Mapping over an `Optional` and a `List`**
 

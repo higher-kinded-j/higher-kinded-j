@@ -7,7 +7,7 @@ operations.
 
 > *"The perfect is the enemy of the good."*
 >
-> — Voltaire, *Dictionnaire philosophique*
+> -- Voltaire, *Dictionnaire philosophique*
 
 Java's reactive libraries pursued a kind of perfection: maximum throughput, minimal thread usage, non-blocking from end to end. The result was powerful but demanding; developers needed to master publishers, subscribers, backpressure, and schedulers before writing their first concurrent operation. The perfect abstraction for performance became the enemy of good code that anyone could read and maintain.
 
@@ -307,7 +307,7 @@ VTaskPath<String> backToPath = Path.vtaskPath(VTask.succeed("restored"));
 |--------|-----------|--------|
 | **Thread Model** | Virtual threads | Caller's thread |
 | **Parallelism** | Built-in via `Par`, `Scope` | Manual composition |
-| **`zipWith` Behavior** | Parallel (uses `Par.map2`) | Sequential |
+| **`zipWith` Behaviour** | Parallel (uses `Par.map2`) | Sequential |
 | **Structured Concurrency** | Yes, with `Scope` and `Resource` | No |
 | **Async Support** | `runAsync()` returns `CompletableFuture` | No built-in async |
 | **Resource Usage** | Kilobytes per task | N/A (single-threaded) |

@@ -62,7 +62,7 @@ FreeApPath<ConfigOp.Witness, String> upper = host.map(String::toUpperCase);
 
 ## Static Analysis
 
-Because operations are independent, you can analyze programs before running them:
+Because operations are independent, you can analyse programs before running them:
 
 ```java
 // Collect all config keys that will be requested
@@ -129,7 +129,7 @@ DbConfig config = IOKindHelper.narrow(io).unsafeRunSync();
 
 `FreeApPath` is right when:
 - Operations are **independent** (don't depend on each other's results)
-- You want to analyze programs before running (static analysis)
+- You want to analyse programs before running (static analysis)
 - Parallel/batched execution is beneficial
 - Building configuration loaders, query builders, validation pipelines
 
@@ -149,7 +149,7 @@ FreeApPath<ConfigOp.Witness, String> dbName = getConfig("db.name");
 FreeApPath<ConfigOp.Witness, DbConfig> dbConfig =
     dbHost.zipWith3(dbPort, dbName, DbConfig::new);
 
-// Analyze: what keys are needed?
+// Analyse: what keys are needed?
 Set<String> keys = analyze(dbConfig);  // {db.host, db.port, db.name}
 
 // Execute: fetch all in parallel/batch

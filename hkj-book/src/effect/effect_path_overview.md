@@ -4,7 +4,7 @@
 > Decisions are never really made; at best they manage to emerge, from a chaos
 > of peeves, whims, hallucinations and all-round assholery."*
 >
-> — Thomas Pynchon, *Gravity's Rainbow*
+> -- Thomas Pynchon, *Gravity's Rainbow*
 
 Pynchon was describing wartime bureaucracy, but he might as well have been
 reading a poorly implemented service layer on a Monday morning.

@@ -2,13 +2,13 @@
 
 > *"Never get out of the boat. Absolutely goddamn right. Unless you were goin' all the way."*
 >
-> — Captain Willard, *Apocalypse Now*
+> -- Captain Willard, *Apocalypse Now*
 
-A request enters your system and begins its journey through layers of services, queues, and databases. At each step, you need to know where it came from, where it's going, and how to find it again when something goes wrong. The trace ID is your boat — stay in it, and you can navigate any complexity. Lose it, and you're swimming blind in hostile waters.
+A request enters your system and begins its journey through layers of services, queues, and databases. At each step, you need to know where it came from, where it's going, and how to find it again when something goes wrong. The trace ID is your boat; stay in it, and you can navigate any complexity. Lose it, and you're swimming blind in hostile waters.
 
 > *"Keep a little fire burning; however small, however hidden."*
 >
-> — Cormac McCarthy, *The Road*
+> -- Cormac McCarthy, *The Road*
 
 That small fire is the context you propagate: trace IDs, correlation identifiers, locale preferences, timing information. It may seem like overhead, but when a production incident strikes at 3 AM, that carefully preserved context is the difference between a five-minute diagnosis and a five-hour nightmare.
 
@@ -24,7 +24,7 @@ That small fire is the context you propagate: trace IDs, correlation identifiers
 ~~~
 
 ~~~admonish example title="Example Code"
-- [RequestContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/RequestContextExample.java) — Complete request tracing examples
+- [RequestContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/RequestContextExample.java) -- Complete request tracing examples
 ~~~
 
 ---
@@ -35,7 +35,7 @@ That small fire is the context you propagate: trace IDs, correlation identifiers
 
 ```java
 public final class RequestContext {
-    private RequestContext() {}  // Utility class — no instantiation
+    private RequestContext() {}  // Utility class -- no instantiation
 
     /**
      * Unique identifier for distributed tracing.
@@ -221,30 +221,30 @@ public class ExternalServiceClient {
 │                     Trace Propagation Flow                           │
 │                                                                      │
 │   API Gateway                                                        │
-│   ┌─────────────────────────────────────────────────────────────┐   │
-│   │ X-Trace-ID: abc123                                          │   │
-│   │ Generates or extracts trace ID from incoming request        │   │
-│   └─────────────────────┬───────────────────────────────────────┘   │
+│   ┌─────────────────────────────────────────────────────────────┐    │
+│   │ X-Trace-ID: abc123                                          │    │
+│   │ Generates or extracts trace ID from incoming request        │    │
+│   └─────────────────────┬───────────────────────────────────────┘    │
 │                         │                                            │
 │                         ▼                                            │
 │   Order Service         │                                            │
-│   ┌─────────────────────┴───────────────────────────────────────┐   │
-│   │ ScopedValue.where(TRACE_ID, "abc123")                       │   │
-│   │                                                              │   │
-│   │   ┌──────────────┐    ┌──────────────┐                      │   │
-│   │   │ Validate     │    │ Calculate    │   (forked tasks      │   │
-│   │   │ TRACE_ID=abc │    │ TRACE_ID=abc │    inherit context)  │   │
-│   │   └──────────────┘    └──────────────┘                      │   │
-│   │                                                              │   │
-│   └─────────────────────┬───────────────────────────────────────┘   │
+│   ┌─────────────────────┴───────────────────────────────────────┐    │
+│   │ ScopedValue.where(TRACE_ID, "abc123")                       │    │
+│   │                                                             │    │
+│   │   ┌──────────────┐    ┌──────────────┐                      │    │
+│   │   │ Validate     │    │ Calculate    │   (forked tasks      │    │
+│   │   │ TRACE_ID=abc │    │ TRACE_ID=abc │    inherit context)  │    │
+│   │   └──────────────┘    └──────────────┘                      │    │
+│   │                                                             │    │
+│   └─────────────────────┬───────────────────────────────────────┘    │
 │                         │ HTTP call with X-Trace-ID: abc123          │
 │                         ▼                                            │
 │   Payment Service                                                    │
-│   ┌─────────────────────────────────────────────────────────────┐   │
-│   │ Extracts X-Trace-ID header                                  │   │
-│   │ ScopedValue.where(TRACE_ID, "abc123")                       │   │
-│   │ → Same trace ID continues through downstream service        │   │
-│   └─────────────────────────────────────────────────────────────┘   │
+│   ┌─────────────────────────────────────────────────────────────┐    │
+│   │ Extracts X-Trace-ID header                                  │    │
+│   │ ScopedValue.where(TRACE_ID, "abc123")                       │    │
+│   │ → Same trace ID continues through downstream service        │    │
+│   └─────────────────────────────────────────────────────────────┘    │
 │                                                                      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -685,7 +685,7 @@ public void callLegacyService() {
 ```
 
 ~~~admonish warning title="MDC Bridge Limitations"
-The MDC bridge only works within the thread where it's called. Virtual threads forked after the bridge call won't have MDC values — they'll need their own bridge call. For new code, prefer `ContextLogger` which reads directly from `ScopedValue`.
+The MDC bridge only works within the thread where it's called. Virtual threads forked after the bridge call won't have MDC values; they'll need their own bridge call. For new code, prefer `ContextLogger` which reads directly from `ScopedValue`.
 ~~~
 
 ---
@@ -803,10 +803,10 @@ Practice request tracing patterns in [Tutorial 03: Request Tracing Patterns](htt
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Context Effect](../monads/context_scoped.md) — Core Context documentation
-- [SecurityContext Patterns](context_security.md) — Authentication and authorisation
-- [VTaskPath](path_vtask.md) — Virtual thread effect paths
-- [Scope](../monads/vtask_scope.md) — Structured concurrency
+- [Context Effect](../monads/context_scoped.md) -- Core Context documentation
+- [SecurityContext Patterns](context_security.md) -- Authentication and authorisation
+- [VTaskPath](path_vtask.md) -- Virtual thread effect paths
+- [Scope](../monads/vtask_scope.md) -- Structured concurrency
 ~~~
 
 ---

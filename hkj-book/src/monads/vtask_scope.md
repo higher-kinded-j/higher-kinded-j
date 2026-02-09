@@ -6,7 +6,7 @@
 - Choosing between `allSucceed`, `anySucceed`, `firstComplete`, and `accumulating` joiners
 - Error accumulation using `Validated` for validation scenarios
 - Safe result handling with `Try`, `Either`, and `Maybe` wrappers
-- Understanding the `ScopeJoiner` interface for custom joining behavior
+- Understanding the `ScopeJoiner` interface for custom joining behaviour
 ~~~
 
 ~~~admonish warning title="Preview API Notice"
@@ -18,7 +18,7 @@
 ~~~
 
 > *"Structured concurrency is to concurrent programming what structured programming was to sequential programming."*
-> — **Ron Pressler**, Project Loom Lead
+> -- **Ron Pressler**, Project Loom Lead
 
 While `Par` combinators provide simple parallel execution, `Scope` offers a more flexible, fluent API for structured concurrent computations. It wraps Java 25's `StructuredTaskScope` with functional result handling.
 
@@ -88,13 +88,13 @@ VTask<List<Integer>> all = Scope.<Integer>allSucceed()
 
 ## Scope Factory Methods
 
-| Method | Behavior | Use Case |
+| Method | Behaviour | Use Case |
 |--------|----------|----------|
 | `allSucceed()` | Wait for all to succeed; fail on first failure | Parallel fetches that all must complete |
 | `anySucceed()` | Return first success; cancel others | Racing redundant requests |
 | `firstComplete()` | Return first result (success or failure) | Fast-path with fallback |
 | `accumulating(mapper)` | Collect all errors; never fail-fast | Validation scenarios |
-| `withJoiner(joiner)` | Custom joiner behavior | Advanced use cases |
+| `withJoiner(joiner)` | Custom joiner behaviour | Advanced use cases |
 
 ### When to Use Each Joiner
 
@@ -205,7 +205,7 @@ result.fold(
 
 ### Why Error Accumulation Matters
 
-Traditional fail-fast behavior returns only the first error encountered. This frustrates users who must fix one error, resubmit, discover another error, fix it, resubmit again, and so on. Error accumulation runs all validations in parallel and collects every failure, enabling you to report all problems at once:
+Traditional fail-fast behaviour returns only the first error encountered. This frustrates users who must fix one error, resubmit, discover another error, fix it, resubmit again, and so on. Error accumulation runs all validations in parallel and collects every failure, enabling you to report all problems at once:
 
 ```java
 // User submits a form with multiple invalid fields

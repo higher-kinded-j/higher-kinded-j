@@ -66,7 +66,7 @@ To apply different operations to a list, we would need to write separate loops f
 ```java
 List<String> results = new ArrayList<>();
 for (int i : numbers) {
-    results.add(intToString(i)); // Behavior is hardcoded
+    results.add(intToString(i)); // Behaviour is hardcoded
 }
 ```
 

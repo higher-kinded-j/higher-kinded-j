@@ -34,6 +34,9 @@
     - [Optional Contexts](effect/effect_contexts_optional.md)
     - [ConfigContext](effect/effect_contexts_config.md)
     - [MutableContext](effect/effect_contexts_mutable.md)
+    - [RequestContext](effect/context_request.md)
+    - [SecurityContext](effect/context_security.md)
+    - [Context vs ConfigContext](effect/context_vs_config.md)
   - [Advanced Topics](effect/advanced_topics.md)
   - [Production Readiness](effect/production_readiness.md)
 
@@ -157,6 +160,7 @@
   - [Maybe](monads/maybe_monad.md)
   - [Optional](monads/optional_monad.md)
   - [Reader](monads/reader_monad.md)
+  - [Context](monads/context_scoped.md)
   - [State](monads/state_monad.md)
   - [Stream](monads/stream_monad.md)
   - [Trampoline](monads/trampoline_monad.md)

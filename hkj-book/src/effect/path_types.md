@@ -2,7 +2,7 @@
 
 > *"It is not down on any map; true places never are."*
 >
-> — Herman Melville, *Moby-Dick*
+> -- Herman Melville, *Moby-Dick*
 
 Melville was speaking of Queequeg's island home, but the observation applies
 to software: the territory you're navigating (nullable returns, network

@@ -2,7 +2,7 @@
 
 > *"When the going gets weird, the weird turn professional."*
 >
-> — Hunter S. Thompson, *Fear and Loathing on the Campaign Trail '72*
+> -- Hunter S. Thompson, *Fear and Loathing on the Campaign Trail '72*
 
 Every codebase eventually gets weird. Edge cases multiply. Requirements
 contradict. Legacy systems refuse to behave. The patterns in this chapter
@@ -388,9 +388,9 @@ shows the pattern.
 > *"The protocol specified exponential backoff: wait one second, try again;
 > wait two seconds, try again; wait four seconds..."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
-Transient failures—network blips, brief overloads—often succeed on retry.
+Transient failures (network blips, brief overloads) often succeed on retry.
 But retrying immediately can worsen the problem. The `RetryPolicy` API
 provides configurable backoff strategies.
 

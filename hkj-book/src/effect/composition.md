@@ -2,7 +2,7 @@
 
 > *"The world, that understandable and lawful world, was slipping away."*
 >
-> — William Golding, *Lord of the Flies*
+> -- William Golding, *Lord of the Flies*
 
 Golding's boys lost their grip on order gradually, one compromised rule at a
 time. Code works the same way. A null check here, an uncaught exception there,
@@ -171,7 +171,7 @@ structure at a glance.
 > many things, all at once, in parallel streams that only converged when
 > they had to."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
 Sequential composition with `via` is appropriate when each step depends on
 the previous. But when computations are genuinely independent, running them
@@ -251,7 +251,7 @@ IOPath<Config> fastest = primary.race(backup);
 | List of independent operations | `parSequenceIO` |
 | Want fastest of alternatives | `race` |
 
-The wrong choice doesn't break correctness—just performance. When in doubt,
+The wrong choice doesn't break correctness, just performance. When in doubt,
 prefer sequential; parallelise when profiling shows it matters.
 
 ~~~admonish tip title="See Also"

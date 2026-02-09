@@ -283,7 +283,7 @@ The default `recover` and `recoverWith` methods from `MonadError` are also avail
 
 ~~~admonish title="Combining operations for simple validation"
 
-This example demonstrates how `ValidatedMonad` along with `Validated` can be used to chain operations that might succeed or fail. With `ValidatedMonad` now implementing `MonadError`, operations like `raiseError` can be used for clearer error signaling, and `handleErrorWith` (or other `MonadError` methods) can be used for more robust recovery strategies within such validation flows.
+This example demonstrates how `ValidatedMonad` along with `Validated` can be used to chain operations that might succeed or fail. With `ValidatedMonad` now implementing `MonadError`, operations like `raiseError` can be used for clearer error signalling, and `handleErrorWith` (or other `MonadError` methods) can be used for more robust recovery strategies within such validation flows.
 
 -  [ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java) _see "Combined Validation Scenario"_.
 

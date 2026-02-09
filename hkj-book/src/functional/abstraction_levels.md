@@ -2,7 +2,7 @@
 ## _Applicative, Selective, or Monad?_
 
 > _"It is a capital mistake to theorise before one has data."_
-> — Arthur Conan Doyle, *A Scandal in Bohemia*
+> -- Arthur Conan Doyle, *A Scandal in Bohemia*
 
 With monads, we theorise about what our program might do, but we cannot know until we run it. Applicatives and Selectives give us the data first, letting us analyse before we execute.
 
