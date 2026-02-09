@@ -6,7 +6,7 @@ An interactive command-line game demonstrating pure functional game development.
 
 ## Overview
 
-The Draughts game is a complete, playable implementation of checkers that demonstrates how functional programming patterns make game development cleaner and more maintainable. Every aspect of the game—input handling, validation, state updates, and rendering—is expressed through composable functional abstractions.
+The Draughts game is a complete, playable implementation of checkers that demonstrates how functional programming patterns make game development cleaner and more maintainable. Every aspect of the game (input handling, validation, state updates, and rendering) is expressed through composable functional abstractions.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐

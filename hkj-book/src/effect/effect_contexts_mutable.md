@@ -2,9 +2,9 @@
 
 > *"Its the same thing every time. The stoan you find aint the stoan you thot youd be looking for."*
 >
-> — Russell Hoban, *Riddley Walker*
+> -- Russell Hoban, *Riddley Walker*
 
-State transforms as you work with it. The counter you started with isn't the counter you end with. The accumulator grows. The traversal position shifts. `MutableContext` lets you write code that *feels* like mutation—get the current value, update it, continue—while remaining purely functional underneath. The state you find at the end isn't the state you started with, but the transformation is explicit and controlled.
+State transforms as you work with it. The counter you started with isn't the counter you end with. The accumulator grows. The traversal position shifts. `MutableContext` lets you write code that *feels* like mutation (get the current value, update it, continue) while remaining purely functional underneath. The state you find at the end isn't the state you started with, but the transformation is explicit and controlled.
 
 ~~~admonish info title="What You'll Learn"
 - Threading state through effectful computations
@@ -41,7 +41,7 @@ void processFiles(List<Path> files, Stats stats) {
 }
 ```
 
-The mutation is scattered. Testing requires mutable fixtures. Parallelisation becomes dangerous. And the state threading is implicit—you have to trace through the code to understand how `stats` changes.
+The mutation is scattered. Testing requires mutable fixtures. Parallelisation becomes dangerous. And the state threading is implicit; you have to trace through the code to understand how `stats` changes.
 
 ---
 
@@ -399,7 +399,7 @@ StateT<Counter, IOKind.Witness, Integer> transformer = ctx.toStateT();
 | `evalWith(initialState)` | Get only the value | `IOPath<A>` |
 | `execWith(initialState)` | Get only the final state | `IOPath<S>` |
 
-`MutableContext` reconciles the intuition of stateful programming with the safety of pure functions. You write code that reads state, updates state, and produces values—but the state never mutates in place. Each step produces a new state, and the transformation is explicit. The stone you find isn't the stone you started with, but you can trace every change that got you there.
+`MutableContext` reconciles the intuition of stateful programming with the safety of pure functions. You write code that reads state, updates state, and produces values, but the state never mutates in place. Each step produces a new state, and the transformation is explicit. The stone you find isn't the stone you started with, but you can trace every change that got you there.
 
 ~~~admonish tip title="See Also"
 - [StateT Transformer](../transformers/statet_transformer.md) - The underlying transformer

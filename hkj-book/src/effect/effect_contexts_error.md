@@ -2,9 +2,9 @@
 
 > *"You wont never get the whole thing its too big in the nite of your head ther aint room."*
 >
-> — Russell Hoban, *Riddley Walker*
+> -- Russell Hoban, *Riddley Walker*
 
-API calls fail. Database queries timeout. Files go missing. The "whole thing" of what can go wrong in effectful code is indeed too big to hold in your head at once. But you can give those failures *names*—typed errors that the compiler understands and your code can reason about. `ErrorContext` captures both the deferred nature of IO and the typed-error semantics of `Either` in a single, composable abstraction.
+API calls fail. Database queries timeout. Files go missing. The "whole thing" of what can go wrong in effectful code is indeed too big to hold in your head at once. But you can give those failures *names*: typed errors that the compiler understands and your code can reason about. `ErrorContext` captures both the deferred nature of IO and the typed-error semantics of `Either` in a single, composable abstraction.
 
 ~~~admonish info title="What You'll Learn"
 - Creating ErrorContexts that catch exceptions and map them to typed errors
@@ -73,7 +73,7 @@ ErrorContext<IOKind.Witness, ApiError, User> user = ErrorContext.io(
 );
 ```
 
-The computation is *deferred*—nothing executes until you call `runIO()`. Exceptions thrown during execution are caught and converted to the error type.
+The computation is *deferred*; nothing executes until you call `runIO()`. Exceptions thrown during execution are caught and converted to the error type.
 
 ### From Either-Returning Computations
 
@@ -117,7 +117,7 @@ ErrorContext<IOKind.Witness, String, String> result = greeting.map(s -> "Hello, 
 
 ErrorContext<IOKind.Witness, String, String> failed = ErrorContext.failure("oops");
 ErrorContext<IOKind.Witness, String, String> stillFailed = failed.map(s -> "Hello, " + s);
-// Failure("oops") — map doesn't run on failures
+// Failure("oops") -- map doesn't run on failures
 ```
 
 The function only executes if the context is successful. Failures pass through unchanged.
@@ -143,7 +143,7 @@ ErrorContext<IOKind.Witness, DbError, Invoice> invoice =
         DbError::fromException));
 ```
 
-Each step receives the previous result. If any step fails, subsequent steps are skipped—the failure propagates to the end.
+Each step receives the previous result. If any step fails, subsequent steps are skipped; the failure propagates to the end.
 
 ### flatMap: Type-Preserving Chain
 

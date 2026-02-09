@@ -4,7 +4,7 @@
 > made themselves user-friendly, but they define the tastes to which we conform.
 > They're rather subtle, subservient tyrannies, but no less sinister for that."*
 >
-> — J.G. Ballard
+> -- J.G. Ballard
 
 Ballard was describing the modern landscape of invisible systems: banks,
 networks, bureaucracies that shape our choices while remaining opaque. Software

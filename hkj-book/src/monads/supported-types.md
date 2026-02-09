@@ -3,7 +3,7 @@
 ~~~admonish info title="What You'll Learn"
 - How Higher-Kinded-J simulates higher-kinded types in Java using the Kind pattern
 - The unified pattern used across all types: Kind interfaces, Witness types, and Helper classes
-- The complete catalog of 17 supported types, from basic types like Id and List to advanced types like Free and monad transformers
+- The complete catalogue of 17 supported types, from basic types like Id and List to advanced types like Free and monad transformers
 - The difference between external Java types (Optional, List) and library-defined types (Maybe, Either, IO)
 - Where to find detailed documentation and examples for each supported type
 ~~~

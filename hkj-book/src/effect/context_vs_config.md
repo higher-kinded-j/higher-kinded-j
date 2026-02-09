@@ -2,15 +2,15 @@
 
 > *"If the rule you followed brought you to this, of what use was the rule?"*
 >
-> — Anton Chigurh, *No Country for Old Men*
+> -- Anton Chigurh, *No Country for Old Men*
 
 Both `Context<R, A>` and `ConfigContext<F, R, A>` solve the problem of accessing environment values without threading parameters through every function. Both enable clean, composable code. Both support testing through dependency injection. Yet they solve subtly different problems, and using the wrong one leads to subtle bugs or unnecessary complexity.
 
 > *"A story has no beginning or end: arbitrarily one chooses that moment of experience from which to look back or from which to look ahead."*
 >
-> — Graham Greene, *The End of the Affair*
+> -- Graham Greene, *The End of the Affair*
 
-The choice between them isn't about which is "better" — it's about where your story begins. Does your environment value exist at application startup, passed through a call chain? Or does it flow implicitly through thread scopes, inherited by forked virtual threads? The answer determines your tool.
+The choice between them isn't about which is "better"; it's about where your story begins. Does your environment value exist at application startup, passed through a call chain? Or does it flow implicitly through thread scopes, inherited by forked virtual threads? The answer determines your tool.
 
 ~~~admonish info title="What You'll Learn"
 - The fundamental difference between Context and ConfigContext
@@ -26,7 +26,7 @@ The choice between them isn't about which is "better" — it's about where your 
 
 ### ConfigContext: Explicit Parameter Passing
 
-`ConfigContext<F, R, A>` wraps `ReaderT<F, R, A>` — a monad transformer that threads an environment `R` through a computation. The environment is provided explicitly when you run the computation.
+`ConfigContext<F, R, A>` wraps `ReaderT<F, R, A>`: a monad transformer that threads an environment `R` through a computation. The environment is provided explicitly when you run the computation.
 
 ```java
 // Define a computation that needs configuration
@@ -34,7 +34,7 @@ ConfigContext<IOKind.Witness, DatabaseConfig, User> fetchUser =
     ConfigContext.io(config ->
         userRepository.findById(userId, config.connectionString()));
 
-// Provide configuration at runtime — must pass explicitly
+// Provide configuration at runtime -- must pass explicitly
 User user = fetchUser.runWithSync(productionConfig);
 ```
 
@@ -42,7 +42,7 @@ User user = fetchUser.runWithSync(productionConfig);
 
 ### Context: Implicit Thread-Scoped Propagation
 
-`Context<R, A>` reads from a `ScopedValue<R>` — Java's thread-scoped value container. The value is bound to a scope and automatically available to all code in that scope, including forked virtual threads.
+`Context<R, A>` reads from a `ScopedValue<R>`: Java's thread-scoped value container. The value is bound to a scope and automatically available to all code in that scope, including forked virtual threads.
 
 ```java
 // Define a scoped value
@@ -53,13 +53,13 @@ Context<DatabaseConfig, User> fetchUser =
     Context.asks(DB_CONFIG, config ->
         userRepository.findById(userId, config.connectionString()));
 
-// Bind value to a scope — implicitly available everywhere in scope
+// Bind value to a scope -- implicitly available everywhere in scope
 User user = ScopedValue
     .where(DB_CONFIG, productionConfig)
     .call(() -> fetchUser.run());
 ```
 
-**Key characteristic:** The configuration is available implicitly within the scope. Code doesn't need to be part of a computation chain — any code executing in the scope can access the value.
+**Key characteristic:** The configuration is available implicitly within the scope. Code doesn't need to be part of a computation chain; any code executing in the scope can access the value.
 
 ---
 
@@ -132,7 +132,7 @@ Result result = ScopedValue
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                   Thread Propagation Comparison                      │
+│                   Thread Propagation Comparison                     │
 │                                                                     │
 │   ConfigContext (ReaderT)              Context (ScopedValue)        │
 │   ─────────────────────                ─────────────────────        │
@@ -152,7 +152,7 @@ Result result = ScopedValue
 │   ▼           ▼                        ▼           ▼                │
 │ ┌─────┐   ┌─────┐                  ┌─────┐   ┌─────┐                │
 │ │Child│   │Child│                  │Child│   │Child│                │
-│ │ ❌  │   │ ❌  │                  │ ✓   │   │ ✓   │                │
+│ │ ❌   │   │ ❌   │                  │ ✓   │   │ ✓   │                │
 │ │     │   │     │                  │KEY  │   │KEY  │                │
 │ │Must │   │Must │                  │auto │   │auto │                │
 │ │pass │   │pass │                  │     │   │     │                │
@@ -327,7 +327,7 @@ public class OrderController {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Combined Usage Pattern                            │
+│                    Combined Usage Pattern                           │
 │                                                                     │
 │   Application Startup                                               │
 │   ┌─────────────────────────────────────────────────────────────┐   │
@@ -348,8 +348,8 @@ public class OrderController {
 │   │             });                                             │   │
 │   └─────────────────────────────────────────────────────────────┘   │
 │                                                                     │
-│   ConfigContext: Application-level, passed at startup              │
-│   Context: Request-level, bound per request, inherits in forks     │
+│   ConfigContext: Application-level, passed at startup               │
+│   Context: Request-level, bound per request, inherits in forks      │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -478,11 +478,11 @@ static final ScopedValue<DatabaseUrl> DB_URL = ScopedValue.newInstance();
 - **Set at startup** and **passed through call chain** → `ConfigContext`
 
 ~~~admonish tip title="See Also"
-- [Context Effect](../monads/context_scoped.md) — Core Context documentation
-- [RequestContext Patterns](context_request.md) — Request tracing and metadata
-- [SecurityContext Patterns](context_security.md) — Authentication and authorisation
-- [ConfigContext](effect_contexts_config.md) — Configuration dependency injection
-- [Effect Contexts Overview](effect_contexts.md) — Layer 2 effect wrappers
+- [Context Effect](../monads/context_scoped.md) -- Core Context documentation
+- [RequestContext Patterns](context_request.md) -- Request tracing and metadata
+- [SecurityContext Patterns](context_security.md) -- Authentication and authorisation
+- [ConfigContext](effect_contexts_config.md) -- Configuration dependency injection
+- [Effect Contexts Overview](effect_contexts.md) -- Layer 2 effect wrappers
 ~~~
 
 ---

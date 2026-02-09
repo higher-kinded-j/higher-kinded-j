@@ -68,7 +68,7 @@ public record RetryPolicy(
 
 > *"I love deadlines. I love the whooshing noise they make as they go by."*
 >
-> — Douglas Adams
+> -- Douglas Adams
 
 Timeouts ensure deadlines do not just whoosh by indefinitely:
 

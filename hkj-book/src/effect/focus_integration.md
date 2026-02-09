@@ -4,11 +4,11 @@
 
 > *"The knife had two edges: one was tempered for common use, but the other was keener than any blade that had ever existed before. It could cut through anything, even the fabric of the universe itself... With the right touch, you could open a window to another world."*
 >
-> — Philip Pullman, *The Subtle Knife*
+> -- Philip Pullman, *The Subtle Knife*
 
 ---
 
-The Focus DSL and Effect Paths inhabit different worlds. One navigates the structure of data—drilling into records, unwrapping optionals, traversing collections. The other navigates the shape of computation—handling absence, failure, side effects, accumulated errors. Both worlds have their own grammar, their own rules, their own power.
+The Focus DSL and Effect Paths inhabit different worlds. One navigates the structure of data, drilling into records, unwrapping optionals, traversing collections. The other navigates the shape of computation, handling absence, failure, side effects, accumulated errors. Both worlds have their own grammar, their own rules, their own power.
 
 But like the subtle knife, the bridge API lets you cut cleanly between them.
 

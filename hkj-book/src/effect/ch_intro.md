@@ -3,7 +3,7 @@
 > *"A map is not the territory it represents, but, if correct, it has a similar
 > structure to the territory, which accounts for its usefulness."*
 >
-> — Alfred Korzybski, *Science and Sanity*
+> -- Alfred Korzybski, *Science and Sanity*
 
 ---
 
@@ -15,7 +15,7 @@ The Effect Path API provides a unified map for this territory.
 
 Rather than learning separate idioms for absence (`Optional`), failure (`try-catch`), typed errors (`Either`), and deferred effects (`CompletableFuture`), you work with **Path types**: thin, composable wrappers that share a common vocabulary. The same `map`, `via`, and `recover` operations work regardless of what kind of effect you're handling. The underlying complexity remains (it must), but the Path contains it.
 
-If you've used the Focus DSL from the optics chapters, the patterns will feel familiar. Where FocusPath navigates through *data structures*, EffectPath navigates through *computational effects*. Both use `via` for composition. Both provide fluent, chainable operations. The territory differs; the cartography rhymes. And when you need to cross between territories—extracting structured data into effect pipelines, or drilling into effect results with optics—the bridge API connects both worlds seamlessly.
+If you've used the Focus DSL from the optics chapters, the patterns will feel familiar. Where FocusPath navigates through *data structures*, EffectPath navigates through *computational effects*. Both use `via` for composition. Both provide fluent, chainable operations. The territory differs; the cartography rhymes. And when you need to cross between territories, extracting structured data into effect pipelines or drilling into effect results with optics, the bridge API connects both worlds seamlessly.
 
 ---
 

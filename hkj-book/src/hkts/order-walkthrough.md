@@ -2,7 +2,7 @@
 
 > *"The major difference between a thing that might go wrong and a thing that cannot possibly go wrong is that when a thing that cannot possibly go wrong goes wrong, it usually turns out to be impossible to get at or repair."*
 >
-> — Douglas Adams, *Mostly Harmless*
+> -- Douglas Adams, *Mostly Harmless*
 
 Enterprise software can be like this. Consider order processing. Every step can fail. Every failure has a type. Every type demands a different response. And when you have nested enough `try-catch` blocks inside enough null checks inside enough `if` statements, the thing that cannot possibly go wrong becomes the thing you cannot possibly debug.
 
@@ -163,7 +163,7 @@ The power comes from *composition*. Each building block does one thing well, and
 
 > *"Make each program do one thing well. To do a new job, build afresh rather than complicate old programs by adding new features."*
 >
-> — Doug McIlroy, Unix Philosophy
+> -- Doug McIlroy, Unix Philosophy
 
 This is the Unix philosophy applied to data and control flow. Small, focused tools, combined freely. The result is code that is:
 

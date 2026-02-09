@@ -200,7 +200,7 @@ Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't n
 
 ~~~admonish example title="Example: Reader for Side-Effects (Returning Unit)"
 
-Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signaling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.Unit`.
+Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signalling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.Unit`.
 
 ```java
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;

@@ -2,7 +2,7 @@
 
 > *"The greatest value of a picture is when it forces us to notice what we never expected to see."*
 >
-> — John Tukey, *Exploratory Data Analysis*
+> -- John Tukey, *Exploratory Data Analysis*
 
 ~~~admonish info title="What You'll Learn"
 - How Effect paths and Focus paths combine in a single, realistic pipeline
@@ -33,12 +33,12 @@ record ContactInfo(String phone, Optional<String> email) {}
 
 The generated Focus classes give you:
 
-- `CompanyFocus.departments()` — `TraversalPath<Company, Department>`
-- `DepartmentFocus.manager()` — `AffinePath<Department, Employee>` (manager is optional)
-- `DepartmentFocus.name()` — `FocusPath<Department, String>`
-- `EmployeeFocus.contact()` — `FocusPath<Employee, ContactInfo>`
-- `ContactInfoFocus.email()` — `AffinePath<ContactInfo, String>` (email is optional)
-- `ContactInfoFocus.phone()` — `FocusPath<ContactInfo, String>`
+- `CompanyFocus.departments()` -- `TraversalPath<Company, Department>`
+- `DepartmentFocus.manager()` -- `AffinePath<Department, Employee>` (manager is optional)
+- `DepartmentFocus.name()` -- `FocusPath<Department, String>`
+- `EmployeeFocus.contact()` -- `FocusPath<Employee, ContactInfo>`
+- `ContactInfoFocus.email()` -- `AffinePath<ContactInfo, String>` (email is optional)
+- `ContactInfoFocus.phone()` -- `FocusPath<ContactInfo, String>`
 
 **The task:** Given a department name, look up that department's manager and update their email address. The operation must:
 

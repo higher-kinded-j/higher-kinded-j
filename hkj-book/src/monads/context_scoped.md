@@ -2,15 +2,15 @@
 
 > *"This was no boat accident."*
 >
-> — Hooper, *Jaws*
+> -- Hooper, *Jaws*
 
-When code behaves unexpectedly in concurrent systems, it's rarely random. There's something beneath the surface — context that was set elsewhere, state that travelled invisibly, assumptions that held on one thread but failed on another. The experienced developer learns to suspect these hidden currents.
+When code behaves unexpectedly in concurrent systems, it's rarely random. There's something beneath the surface: context that was set elsewhere, state that travelled invisibly, assumptions that held on one thread but failed on another. The experienced developer learns to suspect these hidden currents.
 
 > *"A paranoid is someone who knows a little of what's going on."*
 >
-> — William S. Burroughs
+> -- William S. Burroughs
 
-Java's `ScopedValue` API makes those currents visible. Where `ThreadLocal` let context drift silently through your application — sometimes appearing where it shouldn't, sometimes vanishing where it should — `ScopedValue` enforces explicit boundaries. You declare what flows into a scope. You control what child threads inherit. The paranoid developer becomes the informed one.
+Java's `ScopedValue` API makes those currents visible. Where `ThreadLocal` let context drift silently through your application (sometimes appearing where it shouldn't, sometimes vanishing where it should) `ScopedValue` enforces explicit boundaries. You declare what flows into a scope. You control what child threads inherit. The paranoid developer becomes the informed one.
 
 `Context<R, A>` brings this power into Higher-Kinded-J's functional vocabulary, providing a composable effect type for reading scoped values with full integration into the VTask and Scope ecosystem.
 
@@ -34,8 +34,8 @@ Ensure your project targets Java 25 or later to use these features.
 ~~~
 
 ~~~admonish example title="Example Code"
-- [ContextBasicExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) — Core Context usage patterns
-- [ContextScopeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) — Integration with structured concurrency
+- [ContextBasicExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) -- Core Context usage patterns
+- [ContextScopeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) -- Integration with structured concurrency
 ~~~
 
 ---
@@ -70,11 +70,11 @@ This pattern has three problems with virtual threads:
 
 **1. Unbounded Accumulation**
 
-Virtual threads are cheap — you might have millions. Each `ThreadLocal` allocates storage per thread. With platform threads, this was manageable (hundreds of threads). With virtual threads, memory usage explodes.
+Virtual threads are cheap; you might have millions. Each `ThreadLocal` allocates storage per thread. With platform threads, this was manageable (hundreds of threads). With virtual threads, memory usage explodes.
 
 **2. Inheritance Confusion**
 
-When you fork a virtual thread, does it inherit the parent's `ThreadLocal` values? With `InheritableThreadLocal`, yes — but the child gets a *copy*. Changes in the parent don't propagate. Changes in the child don't propagate back. This silent divergence causes subtle bugs.
+When you fork a virtual thread, does it inherit the parent's `ThreadLocal` values? With `InheritableThreadLocal`, yes, but the child gets a *copy*. Changes in the parent don't propagate. Changes in the child don't propagate back. This silent divergence causes subtle bugs.
 
 **3. Cleanup Burden**
 
@@ -97,7 +97,7 @@ public Response handleRequest(Request request) {
     return ScopedValue
         .where(RequestContext.TRACE_ID, request.traceId())
         .call(() -> processRequest(request));  // TRACE_ID visible in entire scope
-    // No cleanup needed — scope ends, binding disappears
+    // No cleanup needed -- scope ends, binding disappears
 }
 ```
 
@@ -123,7 +123,7 @@ public Response handleRequest(Request request) {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Context<R, A>                                │
+│                         Context<R, A>                               │
 │                                                                     │
 │   A computation that:                                               │
 │   1. Reads from a ScopedValue<R>                                    │
@@ -131,11 +131,11 @@ public Response handleRequest(Request request) {
 │   3. Can be composed with map/flatMap                               │
 │   4. Integrates with VTask for concurrent execution                 │
 │                                                                     │
-│   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐       │
-│   │    define    │ ──► │   compose    │ ──► │   provide    │       │
-│   │   Context    │     │   with map/  │     │  ScopedValue │       │
-│   │  .ask(KEY)   │     │   flatMap    │     │   binding    │       │
-│   └──────────────┘     └──────────────┘     └──────────────┘       │
+│   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐        │
+│   │    define    │ ──► │   compose    │ ──► │   provide    │        │
+│   │   Context    │     │   with map/  │     │  ScopedValue │        │
+│   │  .ask(KEY)   │     │   flatMap    │     │   binding    │        │
+│   └──────────────┘     └──────────────┘     └──────────────┘        │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -146,7 +146,7 @@ public Response handleRequest(Request request) {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      hkj-api module                                  │
+│                      hkj-api module                                 │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │  ContextKind<R, A>                                            │  │
 │  │  ─────────────────                                            │  │
@@ -156,18 +156,18 @@ public Response handleRequest(Request request) {
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      hkj-core module                                 │
+│                      hkj-core module                                │
 │                                                                     │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │  Context<R, A>  (sealed interface)                            │  │
 │  │  ─────────────────────────────────                            │  │
-│  │  • ask(ScopedValue<R>) — read the scoped value                │  │
-│  │  • asks(ScopedValue<R>, Function<R,A>) — read and transform   │  │
-│  │  • succeed(A) — lift a pure value                             │  │
-│  │  • fail(Throwable) — represent failure                        │  │
-│  │  • map(Function<A,B>) — transform the result                  │  │
-│  │  • flatMap(Function<A, Context<R,B>>) — chain contexts        │  │
-│  │  • toVTask(ScopedValue<R>) — convert to VTask                 │  │
+│  │  • ask(ScopedValue<R>) -- read the scoped value               │  │
+│  │  • asks(ScopedValue<R>, Function<R,A>) -- read and transform  │  │
+│  │  • succeed(A) -- lift a pure value                            │  │
+│  │  • fail(Throwable) -- represent failure                       │  │
+│  │  • map(Function<A,B>) -- transform the result                 │  │
+│  │  • flatMap(Function<A, Context<R,B>>) -- chain contexts       │  │
+│  │  • toVTask(ScopedValue<R>) -- convert to VTask                │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                              │                                      │
 │                              ▼                                      │
@@ -182,18 +182,18 @@ public Response handleRequest(Request request) {
 │  │  ContextOps                                                   │  │
 │  │  ───────────                                                  │  │
 │  │  Static utilities for common patterns:                        │  │
-│  │  • withContext(VTask<A>, ScopedValue<R>, R) — run with value  │  │
-│  │  • propagate(ScopedValue<R>...) — propagate to forked tasks   │  │
+│  │  • withContext(VTask<A>, ScopedValue<R>, R) -- run with value │  │
+│  │  • propagate(ScopedValue<R>...) -- propagate to forked tasks  │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                                                                     │
-│  ┌─────────────────────────┐  ┌─────────────────────────────────┐  │
-│  │  RequestContext         │  │  SecurityContext                │  │
-│  │  ──────────────         │  │  ───────────────                │  │
-│  │  TRACE_ID               │  │  PRINCIPAL                      │  │
-│  │  CORRELATION_ID         │  │  ROLES                          │  │
-│  │  LOCALE                 │  │  AUTH_TOKEN                     │  │
-│  │  REQUEST_TIME           │  │  hasRole(), requireRole()       │  │
-│  └─────────────────────────┘  └─────────────────────────────────┘  │
+│  ┌─────────────────────────┐  ┌─────────────────────────────────┐   │
+│  │  RequestContext         │  │  SecurityContext                │   │
+│  │  ──────────────         │  │  ───────────────                │   │
+│  │  TRACE_ID               │  │  PRINCIPAL                      │   │
+│  │  CORRELATION_ID         │  │  ROLES                          │   │
+│  │  LOCALE                 │  │  AUTH_TOKEN                     │   │
+│  │  REQUEST_TIME           │  │  hasRole(), requireRole()       │   │
+│  └─────────────────────────┘  └─────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -236,7 +236,7 @@ Context<Locale, Locale> getLocale = Context.ask(AppContext.LOCALE);
 Context<String, String> getTraceId = Context.ask(AppContext.TRACE_ID);
 ```
 
-`Context.ask(key)` returns a `Context<R, R>` — it reads the value and returns it unchanged.
+`Context.ask(key)` returns a `Context<R, R>`; it reads the value and returns it unchanged.
 
 ### Reading and Transforming with Context.asks
 
@@ -642,7 +642,7 @@ public <T> T withMdcBridge(Callable<T> task) throws Exception {
 ```
 
 ~~~admonish warning title="MDC Bridge Limitations"
-The MDC bridge only works within a single thread. Forked virtual threads won't automatically get MDC values — they'll get `ScopedValue` bindings. For consistent logging in concurrent code, use the `ContextLogger` pattern shown above rather than relying on MDC.
+The MDC bridge only works within a single thread. Forked virtual threads won't automatically get MDC values; they'll get `ScopedValue` bindings. For consistent logging in concurrent code, use the `ContextLogger` pattern shown above rather than relying on MDC.
 ~~~
 
 ---
@@ -660,7 +660,7 @@ Context<String, String> getTraceId = Context.ask(TRACE_ID);
 String traceId = getTraceId.run();
 ```
 
-This fail-fast behaviour is intentional — it surfaces configuration errors immediately rather than allowing silent failures.
+This fail-fast behaviour is intentional; it surfaces configuration errors immediately rather than allowing silent failures.
 
 ### Checking Binding Status
 
@@ -811,12 +811,12 @@ Practice Context patterns in [Tutorial 01: Context Fundamentals](https://github.
 ~~~
 
 ~~~admonish tip title="See Also"
-- [RequestContext Patterns](../effect/context_request.md) — Request tracing and metadata
-- [SecurityContext Patterns](../effect/context_security.md) — Authentication and authorisation
-- [Context vs ConfigContext](../effect/context_vs_config.md) — When to use each
-- [VTask](vtask_monad.md) — Virtual thread effect type
-- [Scope](vtask_scope.md) — Structured concurrency
-- [Reader](reader_monad.md) — Explicit environment passing
+- [RequestContext Patterns](../effect/context_request.md) -- Request tracing and metadata
+- [SecurityContext Patterns](../effect/context_security.md) -- Authentication and authorisation
+- [Context vs ConfigContext](../effect/context_vs_config.md) -- When to use each
+- [VTask](vtask_monad.md) -- Virtual thread effect type
+- [Scope](vtask_scope.md) -- Structured concurrency
+- [Reader](reader_monad.md) -- Explicit environment passing
 ~~~
 
 ---

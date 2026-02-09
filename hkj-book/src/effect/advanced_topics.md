@@ -4,11 +4,11 @@
 > fragments and scattered across the world... You had to pick up all the
 > pieces and fit them together just right for any of it to make sense."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
 Stephenson's observation about scattered fragments applies equally to
 advanced effect patterns. Stack safety, resource management, parallel
-execution, resilience—these are the fragments that, assembled correctly,
+execution, resilience: these are the fragments that, assembled correctly,
 transform fragile code into production-ready systems. Each piece makes
 sense alone; together they unlock capabilities that would otherwise require
 external frameworks or unsafe compromises.
@@ -42,9 +42,9 @@ when simple composition meets real-world demands.
 > Even after you'd encrypted something, you had to worry about whether the
 > encrypted thing was encrypted safely."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
-Recursion is elegant—until it overflows your stack. Java's call stack is
+Recursion is elegant, until it overflows your stack. Java's call stack is
 finite, typically 512KB to 1MB depending on configuration. A recursive
 algorithm that works beautifully for small inputs becomes a `StackOverflowError`
 waiting to happen once the depth exceeds a few thousand calls.
@@ -104,7 +104,7 @@ regardless of recursion depth.
 
 ### Mutual Recursion
 
-Trampolining handles mutual recursion—functions that call each other—with the
+Trampolining handles mutual recursion (functions that call each other) with the
 same elegance:
 
 ```java
@@ -178,7 +178,7 @@ LazyPath<Integer> lazy = computation.toLazyPath();
 > ability to write numbers down and combined it with a few simple rules. From
 > this, everything else followed."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
 Sometimes you want to describe a computation without immediately executing it.
 You might want to:
@@ -188,7 +188,7 @@ You might want to:
 - Log or serialise what the program *would* do
 - Run the same description in different contexts
 
-Free structures—`FreePath` and `FreeApPath`—let you build domain-specific
+Free structures (`FreePath` and `FreeApPath`) let you build domain-specific
 languages (DSLs) where the program is *data* that can be inspected, transformed,
 and interpreted later.
 
@@ -301,7 +301,7 @@ FreeApPath<ValidationOp.Witness, User> validateUser =
         );
 ```
 
-All three validations are independent—they can run in parallel, and all errors
+All three validations are independent; they can run in parallel, and all errors
 can be collected rather than stopping at the first failure.
 
 ### FreePath vs FreeApPath
@@ -332,11 +332,11 @@ can be collected rather than stopping at the first failure.
 > *"He had learned to think of the system as a living thing, with resources
 > that had to be carefully husbanded."*
 >
-> — Lionel Davidson, *Kolymsky Heights*
+> -- Lionel Davidson, *Kolymsky Heights*
 
 Davidson's protagonist survived the Siberian wilderness by meticulous resource
 management. Software faces analogous challenges: database connections, file
-handles, network sockets. Acquire them, use them, release them—and make
+handles, network sockets. Acquire them, use them, release them, and make
 absolutely certain the release happens even when something goes wrong.
 
 ### The bracket Pattern
@@ -392,7 +392,7 @@ IOPath<Config> config = IOPath.withResourceIO(
 
 ### guarantee for Cleanup Actions
 
-Sometimes you don't need acquire/release semantics—you just need to ensure
+Sometimes you don't need acquire/release semantics; you just need to ensure
 something runs after a computation completes:
 
 ```java
@@ -453,7 +453,7 @@ connection. If any step fails, all acquired resources are still released.
 > *"In cryptography, you sometimes have to try many keys simultaneously.
 > The first one that works wins."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
 Some computations are independent. Fetching user data and fetching preferences
 don't depend on each other; why wait for one to finish before starting the other?
@@ -572,7 +572,7 @@ IOPath<Response> fastest = PathOps.raceIO(sources);
 | List of independent operations | `parSequenceIO` |
 | Want fastest of alternatives | `race`, `raceIO` |
 
-The wrong choice doesn't break correctness—just performance. When in doubt,
+The wrong choice doesn't break correctness, just performance. When in doubt,
 prefer sequential; parallelise when profiling shows it matters.
 
 ---
@@ -582,10 +582,10 @@ prefer sequential; parallelise when profiling shows it matters.
 > *"The protocol specified exponential backoff: wait one second, try again;
 > wait two seconds, try again; wait four seconds..."*
 >
-> — Neal Stephenson, *Cryptonomicon*
+> -- Neal Stephenson, *Cryptonomicon*
 
 Networks fail. Services timeout. Databases hiccup. Resilient code doesn't
-assume success—it plans for failure and recovers gracefully.
+assume success; it plans for failure and recovers gracefully.
 
 ### RetryPolicy
 

@@ -2,7 +2,7 @@
 
 > *"Caress the detail, the divine detail."*
 >
-> — Vladimir Nabokov
+> -- Vladimir Nabokov
 
 Nabokov was speaking of prose, but the principle applies to API design. The
 Effect Path API doesn't give every Path type every operation. Instead, it

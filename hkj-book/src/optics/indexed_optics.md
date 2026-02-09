@@ -4,7 +4,7 @@
 
 > *"Give me a place to stand, and I shall move the earth."*
 >
-> — Archimedes
+> -- Archimedes
 
 ![indexed-optics.jpg](../images/indexed-optics.jpg)
 
@@ -174,15 +174,9 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 // Create an indexed traversal for List elements
 IndexedTraversal<Integer, List<LineItem>, LineItem> itemsWithIndex =
     IndexedTraversals.forList();
-
-List<LineItem> items = List.of(
-    new LineItem("Laptop", 1, 999.99),
-    new LineItem("Mouse", 2, 24.99),
-    new LineItem("Keyboard", 1, 79.99)
-);
 ```
 
-The `forList()` factory creates a traversal where each element is paired with its zero-based index.
+The `forList()` factory creates a reusable traversal where each element is paired with its zero-based index. You supply the actual data when you *use* the traversal (see Step 2 below).
 
 #### For Maps: Key-Based Indices
 
@@ -190,12 +184,6 @@ The `forList()` factory creates a traversal where each element is paired with it
 // Create an indexed traversal for Map values
 IndexedTraversal<String, Map<String, String>, String> metadataWithKeys =
     IndexedTraversals.forMap();
-
-Map<String, String> metadata = Map.of(
-    "priority", "express",
-    "gift-wrap", "true",
-    "delivery-note", "Leave at door"
-);
 ```
 
 The `forMap()` factory creates a traversal where each value is paired with its key.
@@ -217,15 +205,22 @@ This is useful when working with custom containers that implement `Each` or when
 
 ### Step 2: Accessing Index-Value Pairs
 
-Indexed optics provide specialized methods that give you access to both the index and the value.
+Indexed optics provide specialised methods that give you access to both the index and the value.
 
 #### Extracting All Index-Value Pairs
 
 ```java
 import org.higherkindedj.optics.indexed.Pair;
 
-// Get list of (index, item) pairs
-List<Pair<Integer, LineItem>> indexedItems = itemsWithIndex.toIndexedList(items);
+List<LineItem> items = List.of(
+    new LineItem("Laptop", 1, 999.99),
+    new LineItem("Mouse", 2, 24.99),
+    new LineItem("Keyboard", 1, 79.99)
+);
+
+// Get list of (index, item) pairs - optic meets data
+List<Pair<Integer, LineItem>> indexedItems =
+    IndexedTraversals.toIndexedList(itemsWithIndex, items);
 
 for (Pair<Integer, LineItem> pair : indexedItems) {
     int position = pair.first();
@@ -319,6 +314,12 @@ List<LineItem> discounted = IndexedTraversals.imodify(
 IndexedTraversal<String, Map<String, String>, String> metadataTraversal =
     IndexedTraversals.forMap();
 
+Map<String, String> metadata = Map.of(
+    "priority", "express",
+    "gift-wrap", "true",
+    "delivery-note", "Leave at door"
+);
+
 Map<String, String> processed = IndexedTraversals.imodify(
     metadataTraversal,
     (key, value) -> {
@@ -385,7 +386,7 @@ IndexedTraversal<String, Map<String, String>, String> deliveryMetadata =
     metadataTraversal.filterIndex(key -> key.startsWith("delivery"));
 
 List<Pair<String, String>> deliveryEntries =
-    deliveryMetadata.toIndexedList(metadata);
+    IndexedTraversals.toIndexedList(deliveryMetadata, metadata);
 // Returns: [("delivery-note", "Leave at door")]
 ```
 
@@ -439,7 +440,7 @@ IndexedTraversal<Integer, List<LineItem>, LineItem> indexed =
     IndexedTraversals.forList();
 
 // Drop the index to get a standard traversal
-Traversal<List<LineItem>, LineItem> standard = indexed.unindexed();
+Traversal<List<LineItem>, LineItem> standard = indexed.asTraversal();
 
 // Now you can use standard traversal methods
 List<LineItem> uppercased = Traversals.modify(
@@ -474,7 +475,8 @@ Understanding when indexed optics add value is crucial for writing clear, mainta
 IndexedTraversal<Integer, List<Product>, Product> productsIndexed =
     IndexedTraversals.forList();
 
-List<Product> prioritised = productsIndexed.imodify(
+List<Product> prioritised = IndexedTraversals.imodify(
+    productsIndexed,
     (index, product) -> {
         // First 3 products get express shipping
         String shipping = index < 3 ? "express" : "standard";
@@ -732,7 +734,7 @@ IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
 // Compose: orders → items field → each item with PAIRED indices
 IndexedTraversal<Pair<Integer, Integer>, List<Order>, LineItem> composed =
     ordersIndexed
-        .iandThen(itemsLens)
+        .andThen(itemsLens.asTraversal())
         .iandThen(itemsIndexed);
 
 List<Order> orders = List.of(
@@ -747,7 +749,8 @@ List<Order> orders = List.of(
 );
 
 // Access with paired indices: (order index, item index)
-List<Pair<Pair<Integer, Integer>, LineItem>> all = composed.toIndexedList(orders);
+List<Pair<Pair<Integer, Integer>, LineItem>> all =
+    IndexedTraversals.toIndexedList(composed, orders);
 
 for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
     Pair<Integer, Integer> indices = entry.first();
@@ -793,7 +796,7 @@ List<String> numbered = oneIndexed.imodify(
 **Note**: The `reindex` method is conceptual. In practice, you'd transform indices in your `imodify` function:
 
 ```java
-zeroIndexed.imodify((zeroBasedIndex, item) -> {
+IndexedTraversals.imodify(zeroIndexed, (zeroBasedIndex, item) -> {
     int oneBasedIndex = zeroBasedIndex + 1;
     return new LineItem("Item " + oneBasedIndex + ": " + item.productName(),
                         item.quantity(), item.price());
@@ -824,7 +827,8 @@ List<LineItem> items = List.of(
     new LineItem("Monitor", 1, 299.99)    // Index 4, expensive ✓
 );
 
-List<Pair<Integer, LineItem>> results = targeted.toIndexedList(items);
+List<Pair<Integer, LineItem>> results =
+    IndexedTraversals.toIndexedList(targeted, items);
 // Returns: [(0, Laptop), (2, Keyboard), (4, Monitor)]
 // All at even positions AND expensive
 ```
@@ -845,13 +849,11 @@ public class AuditLog {
         Instant timestamp
     ) {}
 
-    public static <A> Function<Pair<String, A>, A> loggedModification(
+    public static <A> BiFunction<String, A, A> loggedModification(
         Function<A, A> transformation,
         List<FieldChange<?>> auditLog
     ) {
-        return pair -> {
-            String fieldName = pair.first();
-            A oldValue = pair.second();
+        return (fieldName, oldValue) -> {
             A newValue = transformation.apply(oldValue);
 
             if (!oldValue.equals(newValue)) {
@@ -933,16 +935,16 @@ Lens<Item, Double> priceLens =
 // Compose the full indexed path
 IndexedTraversal<Pair<Pair<Integer, Integer>, Integer>, List<Customer>, Double> fullPath =
     customersIdx
-        .iandThen(ordersLens)
+        .andThen(ordersLens.asTraversal())
         .iandThen(ordersIdx)
-        .iandThen(itemsLens)
+        .andThen(itemsLens.asTraversal())
         .iandThen(itemsIdx)
-        .iandThen(priceLens);
+        .andThen(priceLens.asTraversal());
 
 List<Customer> customers = List.of(/* ... */);
 
 // Modify with full path visibility
-List<Customer> updated = fullPath.imodify(
+List<Customer> updated = IndexedTraversals.imodify(fullPath,
     (indices, price) -> {
         int customerIdx = indices.first().first();
         int orderIdx = indices.first().second();
@@ -997,7 +999,7 @@ Pair<String, Integer> created = Pair.of("Key", 42);
 For converting to/from `Tuple2` (when working with hkj-core utilities):
 
 ```java
-import org.higherkindedj.hkt.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.util.IndexedTraversals;
 
 Pair<String, Integer> pair = Pair.of("key", 100);
@@ -1077,7 +1079,7 @@ public class OrderFulfilmentDashboard {
             IndexedTraversals.forList();
 
         List<Pair<Integer, LineItem>> indexedItems =
-            itemsIndexed.toIndexedList(order.items());
+            IndexedTraversals.toIndexedList(itemsIndexed, order.items());
 
         System.out.println("Order: " + order.orderId());
         for (Pair<Integer, LineItem> pair : indexedItems) {
@@ -1097,7 +1099,8 @@ public class OrderFulfilmentDashboard {
             IndexedTraversals.forList();
 
         // Every 3rd item gets 15% off (positions 2, 5, 8...)
-        List<LineItem> discounted = itemsIndexed.imodify(
+        List<LineItem> discounted = IndexedTraversals.imodify(
+            itemsIndexed,
             (index, item) -> {
                 if ((index + 1) % 3 == 0) {
                     double newPrice = item.price() * 0.85;
@@ -1149,7 +1152,8 @@ public class OrderFulfilmentDashboard {
         IndexedTraversal<Integer, List<LineItem>, LineItem> highValue =
             itemsIndexed.filteredWithIndex((index, item) -> item.price() > 100);
 
-        List<Pair<Integer, LineItem>> expensive = highValue.toIndexedList(order.items());
+        List<Pair<Integer, LineItem>> expensive =
+            IndexedTraversals.toIndexedList(highValue, order.items());
 
         System.out.println("  Items over £100 (require special handling):");
         for (Pair<Integer, LineItem> pair : expensive) {

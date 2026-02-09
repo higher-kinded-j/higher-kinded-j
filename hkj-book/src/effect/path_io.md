@@ -7,11 +7,11 @@ Unlike other Path types, nothing happens until you explicitly run it.
 > heavier than what you had in mind, well... maybe chalk it up to forced
 > consciousness expansion."*
 >
-> — Hunter S. Thompson, *Fear and Loathing in Las Vegas*
+> -- Hunter S. Thompson, *Fear and Loathing in Las Vegas*
 
 Thompson's advice applies here. When you call `unsafeRun()`, you've bought
 the ticket. The effects will happen. There's no going back. Until that moment,
-an `IOPath` is just a description—a plan you haven't committed to yet.
+an `IOPath` is just a description: a plan you haven't committed to yet.
 
 ~~~admonish info title="What You'll Learn"
 - Creating IOPath instances

@@ -2,9 +2,9 @@
 
 > *"The onlyes power is no power."*
 >
-> — Russell Hoban, *Riddley Walker*
+> -- Russell Hoban, *Riddley Walker*
 
-Hoban's aphorism hints at a paradox: sometimes the most powerful abstractions are those that feel like nothing at all. `ConfigContext` provides dependency injection that doesn't feel like a framework—no annotations, no containers, no reflection. Dependencies flow through your code as naturally as function arguments, but without cluttering every signature.
+Hoban's aphorism hints at a paradox: sometimes the most powerful abstractions are those that feel like nothing at all. `ConfigContext` provides dependency injection that doesn't feel like a framework: no annotations, no containers, no reflection. Dependencies flow through your code as naturally as function arguments, but without cluttering every signature.
 
 ~~~admonish info title="What You'll Learn"
 - Threading configuration through effectful computations
@@ -32,7 +32,7 @@ public class ReportService {
 
 The `config` parameter appears everywhere. Every method in the call chain needs it, even if it only uses one field. Signatures become cluttered. Testing requires constructing complete config objects even when you only care about one aspect.
 
-Dependency injection frameworks solve this with containers and annotations—but those come with their own complexity: lifecycle management, circular dependency detection, runtime magic.
+Dependency injection frameworks solve this with containers and annotations, but those come with their own complexity: lifecycle management, circular dependency detection, runtime magic.
 
 ---
 
@@ -397,7 +397,7 @@ ReaderT<IOKind.Witness, AppConfig, String> transformer = ctx.toReaderT();
 | `runWith(config)` | Execute with provided configuration |
 | `runWithSync(config)` | Execute synchronously |
 
-`ConfigContext` embodies the paradox of invisible power. Dependencies flow through your code without ceremony, without frameworks, without the infrastructure that usually accompanies "enterprise" patterns. The only power is no power—the power that feels like nothing at all.
+`ConfigContext` embodies the paradox of invisible power. Dependencies flow through your code without ceremony, without frameworks, without the infrastructure that usually accompanies "enterprise" patterns. The only power is no power: the power that feels like nothing at all.
 
 ~~~admonish tip title="See Also"
 - [ReaderT Transformer](../transformers/readert_transformer.md) - The underlying transformer

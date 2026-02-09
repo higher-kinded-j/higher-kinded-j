@@ -2,7 +2,7 @@
 
 > *"The system was invisible, as they had intended, until you looked."*
 >
-> — Don DeLillo, *Underworld*
+> -- Don DeLillo, *Underworld*
 
 DeLillo's observation captures the nature of type conversions in effect-oriented
 code. The conversions exist invisibly, implicit in how the types relate to each

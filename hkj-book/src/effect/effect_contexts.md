@@ -2,13 +2,13 @@
 
 > *"Evrything has a shape and so does the nite only you cant see the shape of nite nor you cant think it."*
 >
-> — Russell Hoban, *Riddley Walker*
+> -- Russell Hoban, *Riddley Walker*
 
-Hoban's narrator speaks of invisible shapes—structures that exist whether or not we perceive them. Monad transformers are like this. `EitherT<IOKind.Witness, ApiError, User>` has a definite shape: it's a computation that defers execution, might fail with a typed error, and produces a user when successful. The shape is there. But the syntax makes it hard to see, hard to think.
+Hoban's narrator speaks of invisible shapes: structures that exist whether or not we perceive them. Monad transformers are like this. `EitherT<IOKind.Witness, ApiError, User>` has a definite shape: it's a computation that defers execution, might fail with a typed error, and produces a user when successful. The shape is there. But the syntax makes it hard to see, hard to think.
 
 Effect Contexts give that shape a face you can recognise.
 
-They're a middle layer between the simple Path types you've already learned and the raw transformers lurking beneath. When `EitherPath` isn't quite enough—when you need error handling *and* deferred execution, or optional values *and* IO effects—Effect Contexts provide a user-friendly API that hides the transformer machinery while preserving its power.
+They're a middle layer between the simple Path types you've already learned and the raw transformers lurking beneath. When `EitherPath` isn't quite enough, when you need error handling *and* deferred execution, or optional values *and* IO effects, Effect Contexts provide a user-friendly API that hides the transformer machinery while preserving its power.
 
 ~~~admonish info title="What You'll Learn"
 - Why monad transformers are powerful but syntactically demanding
@@ -53,7 +53,7 @@ Kind<EitherTKind.Witness<IOKind.Witness, ApiError>, Profile> profileKind =
         userKind);
 ```
 
-The business logic—fetch a user, then fetch their profile—is drowning in ceremony. You're manually constructing witnesses, wrapping IO, handling `Kind` types, threading monads. The *what* disappears into the *how*.
+The business logic (fetch a user, then fetch their profile) is drowning in ceremony. You're manually constructing witnesses, wrapping IO, handling `Kind` types, threading monads. The *what* disappears into the *how*.
 
 ---
 
@@ -74,7 +74,7 @@ ErrorContext<IOKind.Witness, ApiError, Profile> profile = ErrorContext
 Either<ApiError, Profile> result = profile.runIO().unsafeRun();
 ```
 
-The transformer is still there—`ErrorContext` wraps `EitherT`—but the API speaks in terms you recognise: `io()` for effectful computation, `via()` for chaining, `runIO()` to execute. The shape of the computation emerges from the noise.
+The transformer is still there (`ErrorContext` wraps `EitherT`) but the API speaks in terms you recognise: `io()` for effectful computation, `via()` for chaining, `runIO()` to execute. The shape of the computation emerges from the noise.
 
 ---
 

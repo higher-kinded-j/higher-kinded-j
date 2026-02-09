@@ -1,7 +1,7 @@
 # Type Arity: Classifying Type Constructors
 
 > _"To define a thing is to say what kind of thing it is."_
-> — Aristotle, Categories
+> -- Aristotle, Categories
 
 ~~~admonish info title="What You'll Learn"
 - What type arity means and why it matters

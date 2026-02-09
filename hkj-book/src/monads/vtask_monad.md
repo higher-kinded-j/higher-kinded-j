@@ -12,11 +12,11 @@
 ~~~admonish warning title="Preview API Notice"
 VTask uses Java's **structured concurrency APIs** (JEP 505/525), which are currently in **preview** status. These APIs are stable and production-ready, but the underlying Java APIs may see minor changes before final release, expected in a near-future Java version.
 
-Higher-Kinded-J's `Scope`, `ScopeJoiner`, and `Resource` abstractions provide a buffer against such changes—your code uses HKJ's stable API whilst we handle any necessary adaptations to the underlying preview features.
+Higher-Kinded-J's `Scope`, `ScopeJoiner`, and `Resource` abstractions provide a buffer against such changes; your code uses HKJ's stable API whilst we handle any necessary adaptations to the underlying preview features.
 ~~~
 
-> *"Sometimes abstraction and encapsulation are at odds with performance — although not nearly as often as many developers believe — but it is always a good practice first to make your code right, and then make it fast."*
-> — **Brian Goetz**, *Java Concurrency in Practice*
+> *"Sometimes abstraction and encapsulation are at odds with performance -- although not nearly as often as many developers believe -- but it is always a good practice first to make your code right, and then make it fast."*
+> -- **Brian Goetz**, *Java Concurrency in Practice*
 
 ## The Abstraction Tax
 
@@ -24,14 +24,14 @@ For two decades, Java developers have wrestled with an uncomfortable trade-off i
 
 The result was a generation of concurrent code optimised for machines rather than humans. Developers learned to hoard threads jealously, to batch operations artificially, and to transform naturally sequential logic into convoluted state machines. The abstraction tax seemed unavoidable; you could have clean code or performant code, but not both.
 
-> *"Virtual threads are not faster threads — they are cheaper threads. This means that you can have a lot more of them, and that changes how you structure programs."*
-> — **Brian Goetz**, Java Language Architect at Oracle
+> *"Virtual threads are not faster threads -- they are cheaper threads. This means that you can have a lot more of them, and that changes how you structure programs."*
+> -- **Brian Goetz**, Java Language Architect at Oracle
 
 ## A New Economics of Concurrency
 
-Java 21 introduced virtual threads through Project Loom, and Java 25 refined the model with structured concurrency. Virtual threads fundamentally alter the economics: managed by the JVM rather than the operating system, they consume mere kilobytes rather than megabytes. An application can spawn millions of virtual threads without exhausting resources. Suddenly, the "abstraction tax" evaporates. Developers can write code that is *both* right and fast—using straightforward, blocking-style code that the runtime multiplexes efficiently across a small pool of carrier threads.
+Java 21 introduced virtual threads through Project Loom, and Java 25 refined the model with structured concurrency. Virtual threads fundamentally alter the economics: managed by the JVM rather than the operating system, they consume mere kilobytes rather than megabytes. An application can spawn millions of virtual threads without exhausting resources. Suddenly, the "abstraction tax" evaporates. Developers can write code that is *both* right and fast, using straightforward, blocking-style code that the runtime multiplexes efficiently across a small pool of carrier threads.
 
-But cheaper threads alone do not solve the compositional problem: how do we build complex concurrent programs from smaller, reusable pieces while maintaining testability and referential transparency? This is where `VTask` enters the picture. Rather than executing effects immediately, `VTask` represents computations as *descriptions*—recipes that can be transformed, composed, and combined before execution. This separation of description from execution is the key insight that enables functional programming's approach to effects: we reason about what our program will do, compose smaller computations into larger ones, and defer execution until the boundary of our pure core.
+But cheaper threads alone do not solve the compositional problem: how do we build complex concurrent programs from smaller, reusable pieces while maintaining testability and referential transparency? This is where `VTask` enters the picture. Rather than executing effects immediately, `VTask` represents computations as *descriptions*: recipes that can be transformed, composed, and combined before execution. This separation of description from execution is the key insight that enables functional programming's approach to effects: we reason about what our program will do, compose smaller computations into larger ones, and defer execution until the boundary of our pure core.
 
 ## Purpose
 

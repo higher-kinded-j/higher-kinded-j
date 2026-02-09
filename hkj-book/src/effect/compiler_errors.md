@@ -222,7 +222,7 @@ error: incompatible types: EitherPath<String,User> cannot be converted to
 ```java
 EitherPath<AppError, String> validated = validateInput(input);
 
-// lookupUser returns EitherPath<String, User> — wrong error type
+// lookupUser returns EitherPath<String, User> -- wrong error type
 EitherPath<String, User> lookupUser(String id) {
     return id.isEmpty()
         ? Path.left("User not found")     // error type is String

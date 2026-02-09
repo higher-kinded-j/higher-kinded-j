@@ -2,9 +2,9 @@
 
 > *"Sum tyms theres mor in the emty than the ful."*
 >
-> — Russell Hoban, *Riddley Walker*
+> -- Russell Hoban, *Riddley Walker*
 
-Hoban's riddler knew that absence can be as meaningful as presence. A database query that returns nothing isn't always an error—sometimes the record genuinely doesn't exist, and that's valuable information. `OptionalContext` and `JavaOptionalContext` model this graceful absence within effectful computations, giving you the compositional power of transformers without forcing non-existence into an error mould.
+Hoban's riddler knew that absence can be as meaningful as presence. A database query that returns nothing isn't always an error; sometimes the record genuinely doesn't exist, and that's valuable information. `OptionalContext` and `JavaOptionalContext` model this graceful absence within effectful computations, giving you the compositional power of transformers without forcing non-existence into an error mould.
 
 ~~~admonish info title="What You'll Learn"
 - The difference between `OptionalContext` (Maybe) and `JavaOptionalContext` (java.util.Optional)
@@ -29,7 +29,7 @@ They're functionally equivalent. Choose based on what your codebase already uses
 
 - If you're working with code that uses `Optional`, use `JavaOptionalContext`
 - If you're using Higher-Kinded-J's `Maybe` throughout, use `OptionalContext`
-- If starting fresh, either works—`Maybe` is slightly more idiomatic for FP patterns
+- If starting fresh, either works; `Maybe` is slightly more idiomatic for FP patterns
 
 ---
 
@@ -51,7 +51,7 @@ if (user == null) {
 }
 ```
 
-Four null checks. Three nested lookups. The actual logic—try cache, then database, then legacy—is obscured by defensive programming.
+Four null checks. Three nested lookups. The actual logic (try cache, then database, then legacy) is obscured by defensive programming.
 
 ---
 
@@ -78,7 +78,7 @@ The lookup chain reads top-to-bottom. Fallbacks are explicit. The point where ab
 
 ### From Nullable Suppliers
 
-The `io()` factory handles null gracefully—null becomes empty:
+The `io()` factory handles null gracefully: null becomes empty:
 
 ```java
 // If findById returns null, the context is empty
@@ -215,7 +215,7 @@ OptionalContext<IOKind.Witness, Config> config =
         });
 ```
 
-The `unit` parameter is always `Unit.INSTANCE`—it's the "error" type for optionality, representing the absence of information about *why* the value is missing.
+The `unit` parameter is always `Unit.INSTANCE`; it's the "error" type for optionality, representing the absence of information about *why* the value is missing.
 
 ### recoverWith: Fallback to Another Computation
 
