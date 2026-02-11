@@ -28,7 +28,7 @@ The **hkj-spring-boot-starter** solves these problems by bringing functional pro
 
 ---
 
-## Quick Start
+## Quick Start {#quick-start}
 
 ### Step 1: Add the Dependency
 
@@ -168,7 +168,7 @@ public class UserController {
 - `Right(user)` → HTTP 200 with JSON: `{"id": "1", "email": "alice@example.com", ...}`
 - `Left(UserNotFoundError)` → HTTP 404 with JSON: `{"success": false, "error": {"type": "UserNotFoundError", ...}}`
 
-#### Error Type → HTTP Status Mapping
+#### Error Type → HTTP Status Mapping {#error-type-http-status-mapping}
 
 The framework automatically maps error types to HTTP status codes by examining class names:
 
@@ -202,7 +202,7 @@ See the [Either Monad documentation](../monads/either_monad.md) for comprehensiv
 
 ---
 
-### 2. Validated: Accumulating Multiple Errors
+### 2. Validated: Accumulating Multiple Errors {#validated-accumulating-multiple-errors}
 
 `Validated<E, A>` is designed for validation scenarios where you want to accumulate **all** errors, not just the first one.
 
@@ -262,7 +262,7 @@ See the [Validated Monad documentation](../monads/validated_monad.md) for detail
 
 ---
 
-### 3. CompletableFuturePath: Async Operations with Typed Errors
+### 3. CompletableFuturePath: Async Operations with Typed Errors {#completablefuturepath-async-operations-with-typed-errors}
 
 `CompletableFuturePath<A>` wraps asynchronous computation in the Effect Path API, allowing you to compose async operations with `map`, `via`, and `recover`.
 
@@ -307,7 +307,7 @@ See the [Effect Path API documentation](../effect/path_types.md) for comprehensi
 
 ---
 
-## JSON Serialisation
+## JSON Serialisation {#json-serialisation}
 
 The starter provides flexible JSON serialisation for functional types.
 
@@ -548,7 +548,7 @@ For complete working examples, see the [hkj-spring example module](https://githu
 
 ---
 
-## Spring Security Integration
+## Spring Security Integration {#spring-security-integration}
 
 The hkj-spring-boot-starter provides optional Spring Security integration with functional error handling patterns.
 
@@ -612,7 +612,7 @@ For complete security integration details, see [hkj-spring/SECURITY.md](https://
 
 ---
 
-## Monitoring with Spring Boot Actuator
+## Monitoring with Spring Boot Actuator {#monitoring-with-spring-boot-actuator}
 
 Track functional programming patterns in production with built-in Actuator integration.
 
