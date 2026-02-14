@@ -2540,6 +2540,635 @@ class MutationKillingTest {
   }
 
   // =============================================================================
+  // ImportOpticsProcessor Equality Path Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ImportOpticsProcessor Equality Path Tests")
+  class ImportOpticsProcessorEqualityTests {
+
+    @Test
+    @DisplayName("@ImportOptics on class should work")
+    void importOpticsOnClassShouldWork() {
+      var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Datum",
+              """
+              package com.external;
+
+              public record Datum(String value) {}
+              """);
+
+      var annotatedClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Importer",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import com.external.Datum;
+
+              @ImportOptics({Datum.class})
+              public class Importer {}
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalRecord, annotatedClass);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.myapp.DatumLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("@ImportOptics with custom targetPackage should generate in target")
+    void importOpticsWithCustomTargetPackage() {
+      var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Item",
+              """
+              package com.external;
+
+              public record Item(String name, int qty) {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics(value = {com.external.Item.class}, targetPackage = "com.target.optics")
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalRecord, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.target.optics.ItemLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("@ImportOptics on unsupported type should error")
+    void importOpticsOnUnsupportedTypeShouldError() {
+      var plainInterface =
+          JavaFileObjects.forSourceString(
+              "com.external.MyService",
+              """
+              package com.external;
+
+              public interface MyService {
+                  void doWork();
+              }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.MyService.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(plainInterface, packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("not a record");
+    }
+
+    @Test
+    @DisplayName("@ImportOptics on mutable class without allowMutable should error")
+    void importOpticsOnMutableClassShouldError() {
+      var mutableClass =
+          JavaFileObjects.forSourceString(
+              "com.external.MutableThing",
+              """
+              package com.external;
+
+              public class MutableThing {
+                  private String value;
+
+                  public String getValue() { return value; }
+                  public void setValue(String v) { this.value = v; }
+
+                  public MutableThing withValue(String v) {
+                      MutableThing copy = new MutableThing();
+                      copy.value = v;
+                      return copy;
+                  }
+              }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.MutableThing.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(mutableClass, packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("mutable fields");
+    }
+
+    @Test
+    @DisplayName("@ImportOptics on mutable class with allowMutable should succeed")
+    void importOpticsOnMutableClassWithAllowMutableShouldSucceed() {
+      var mutableClass =
+          JavaFileObjects.forSourceString(
+              "com.external.MutableOk",
+              """
+              package com.external;
+
+              public class MutableOk {
+                  private String value;
+
+                  public String getValue() { return value; }
+                  public void setValue(String v) { this.value = v; }
+
+                  public MutableOk withValue(String v) {
+                      MutableOk copy = new MutableOk();
+                      copy.value = v;
+                      return copy;
+                  }
+              }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics(value = {com.external.MutableOk.class}, allowMutable = true)
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(mutableClass, packageInfo);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("@ImportOptics with mutable class without withers should error differently")
+    void importOpticsOnMutableClassWithoutWithersShouldError() {
+      var mutableNoWither =
+          JavaFileObjects.forSourceString(
+              "com.external.JustMutable",
+              """
+              package com.external;
+
+              public class JustMutable {
+                  private String value;
+
+                  public String getValue() { return value; }
+                  public void setValue(String v) { this.value = v; }
+              }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.JustMutable.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(mutableNoWither, packageInfo);
+
+      assertThat(compilation).failed();
+      // This should hit the UNSUPPORTED + hasMutableFields path
+      assertThat(compilation).hadErrorContaining("mutable class without wither methods");
+    }
+
+    @Test
+    @DisplayName("should generate lens for each record component with correct type")
+    void shouldGenerateLensPerComponentWithType() {
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.external.Colored",
+              """
+              package com.external;
+
+              public record Colored(String color, int brightness, boolean visible) {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Colored.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(record, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ColoredLenses", "public static Lens<Colored, String> color()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.ColoredLenses",
+          "public static Lens<Colored, Integer> brightness()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.ColoredLenses",
+          "public static Lens<Colored, Boolean> visible()");
+    }
+
+    @Test
+    @DisplayName("should generate prism for sealed interface subtypes")
+    void shouldGeneratePrismForSealedSubtypes() {
+      var sealedInterface =
+          JavaFileObjects.forSourceString(
+              "com.external.Result",
+              """
+              package com.external;
+
+              public sealed interface Result permits Success, Failure {}
+              """);
+
+      var success =
+          JavaFileObjects.forSourceString(
+              "com.external.Success",
+              """
+              package com.external;
+
+              public record Success(String value) implements Result {}
+              """);
+
+      var failure =
+          JavaFileObjects.forSourceString(
+              "com.external.Failure",
+              """
+              package com.external;
+
+              public record Failure(String error) implements Result {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Result.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(sealedInterface, success, failure, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.ResultPrisms",
+          "public static Prism<Result, Success> success()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.ResultPrisms",
+          "public static Prism<Result, Failure> failure()");
+    }
+
+    @Test
+    @DisplayName("should generate prism for enum constants")
+    void shouldGeneratePrismForEnumConstants() {
+      var enumType =
+          JavaFileObjects.forSourceString(
+              "com.external.Priority",
+              """
+              package com.external;
+
+              public enum Priority { LOW, MEDIUM, HIGH, CRITICAL }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Priority.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(enumType, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PriorityPrisms",
+          "public static Prism<Priority, Priority> low()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PriorityPrisms",
+          "public static Prism<Priority, Priority> medium()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PriorityPrisms",
+          "public static Prism<Priority, Priority> high()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PriorityPrisms",
+          "public static Prism<Priority, Priority> critical()");
+    }
+
+    @Test
+    @DisplayName("should generate lens with traversal for container fields")
+    void shouldGenerateLensWithTraversalForContainerFields() {
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.external.Inventory",
+              """
+              package com.external;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              public record Inventory(
+                  String name,
+                  List<String> items,
+                  Optional<String> description
+              ) {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Inventory.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(record, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.InventoryLenses", "Lens<Inventory, String> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.InventoryLenses", "Traversal<Inventory, String>");
+      // Verify Optional generates affine/optional traversal
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.InventoryLenses", "description");
+    }
+
+    @Test
+    @DisplayName("should generate wither-based lens for class with withers")
+    void shouldGenerateWitherBasedLens() {
+      var witherClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Config",
+              """
+              package com.external;
+
+              public class Config {
+                  private final String host;
+                  private final int port;
+
+                  public Config(String host, int port) {
+                      this.host = host;
+                      this.port = port;
+                  }
+
+                  public String getHost() { return host; }
+                  public int getPort() { return port; }
+
+                  public Config withHost(String host) { return new Config(host, port); }
+                  public Config withPort(int port) { return new Config(host, port); }
+              }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Config.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(witherClass, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.myapp.ConfigLenses").isNotNull();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ConfigLenses", "Lens<Config, String> host()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ConfigLenses", "Lens<Config, Integer> port()");
+    }
+  }
+
+  // =============================================================================
+  // Generated Code Structural Validation Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Generated Code Structural Validation")
+  class GeneratedCodeStructuralValidation {
+
+    @Test
+    @DisplayName("generated lens class should have @Generated annotation")
+    void generatedLensHasAnnotation() {
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.external.Tagged",
+              """
+              package com.external;
+              public record Tagged(String tag) {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Tagged.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(record, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.TaggedLenses", "@Generated");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.TaggedLenses", "public final class TaggedLenses");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.TaggedLenses", "private TaggedLenses()");
+    }
+
+    @Test
+    @DisplayName("generated prism class should have @Generated annotation and correct structure")
+    void generatedPrismHasAnnotationAndStructure() {
+      var sealed =
+          JavaFileObjects.forSourceString(
+              "com.external.Msg",
+              """
+              package com.external;
+              public sealed interface Msg permits TextMsg {}
+              """);
+
+      var textMsg =
+          JavaFileObjects.forSourceString(
+              "com.external.TextMsg",
+              """
+              package com.external;
+              public record TextMsg(String text) implements Msg {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Msg.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(sealed, textMsg, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.MsgPrisms", "@Generated");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MsgPrisms", "public final class MsgPrisms");
+      assertGeneratedCodeContains(compilation, "com.myapp.MsgPrisms", "private MsgPrisms()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MsgPrisms", "Prism<Msg, TextMsg> textMsg()");
+    }
+
+    @Test
+    @DisplayName("generated lens should have getter and with-method implementations")
+    void generatedLensHasGetterAndWithMethod() {
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.external.Coord",
+              """
+              package com.external;
+              public record Coord(double x, double y) {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Coord.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(record, packageInfo);
+
+      assertThat(compilation).succeeded();
+      // Check getter lambda references record accessor
+      assertGeneratedCodeContains(compilation, "com.myapp.CoordLenses", "source.x()");
+      assertGeneratedCodeContains(compilation, "com.myapp.CoordLenses", "source.y()");
+      // Check with methods exist
+      assertGeneratedCodeContains(compilation, "com.myapp.CoordLenses", "withX(");
+      assertGeneratedCodeContains(compilation, "com.myapp.CoordLenses", "withY(");
+    }
+
+    @Test
+    @DisplayName("generated enum prism should use equals check")
+    void generatedEnumPrismUsesEquals() {
+      var enumType =
+          JavaFileObjects.forSourceString(
+              "com.external.Color",
+              """
+              package com.external;
+              public enum Color { RED, GREEN, BLUE }
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Color.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(enumType, packageInfo);
+
+      assertThat(compilation).succeeded();
+      // Enum prisms use == check
+      assertGeneratedCodeContains(compilation, "com.myapp.ColorPrisms", "RED");
+      assertGeneratedCodeContains(compilation, "com.myapp.ColorPrisms", "GREEN");
+      assertGeneratedCodeContains(compilation, "com.myapp.ColorPrisms", "BLUE");
+    }
+
+    @Test
+    @DisplayName("generic record should have correct type parameters in generated lens")
+    void genericRecordShouldHaveTypeParams() {
+      var genericRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Wrapper",
+              """
+              package com.external;
+              public record Wrapper<T>(T content, String label) {}
+              """);
+
+      var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @ImportOptics({com.external.Wrapper.class})
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(genericRecord, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.WrapperLenses", "Wrapper<T>");
+      assertGeneratedCodeContains(compilation, "com.myapp.WrapperLenses", "<T>");
+    }
+  }
+
+  // =============================================================================
   // Additional Mutation Killing Tests - Push to 65%
   // =============================================================================
 

@@ -109,9 +109,9 @@ pitest {
     // Disable timestamped reports for cleaner output
     timestampedReports.set(false)
 
-    // Mutation threshold: 64% (improved from initial 60%)
-    // 114 mutations have no test coverage (error handling paths)
-    mutationThreshold.set(64)
+    // Mutation threshold: 70% (improved from 64% via ForComprehensionGeneratorTest
+    // and expanded MutationKillingTest covering generator code paths)
+    mutationThreshold.set(70)
 
     // JUnit 6 support
     junit5PluginVersion.set("1.2.3")
