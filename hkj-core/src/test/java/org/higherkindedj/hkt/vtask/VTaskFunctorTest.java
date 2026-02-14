@@ -27,7 +27,7 @@ class VTaskFunctorTest {
 
     @Test
     @DisplayName("map() transforms the value")
-    void mapTransformsValue() throws Throwable {
+    void mapTransformsValue() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(TEST_VALUE));
 
       Kind<VTaskKind.Witness, String> result = functor.map(intToString, kind);
@@ -49,7 +49,7 @@ class VTaskFunctorTest {
 
     @Test
     @DisplayName("map() with null value in VTask")
-    void mapWithNullValueInVTask() throws Throwable {
+    void mapWithNullValueInVTask() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(null));
       Function<Integer, String> nullSafeMapper = i -> String.valueOf(i);
 
@@ -61,7 +61,7 @@ class VTaskFunctorTest {
 
     @Test
     @DisplayName("map() chains multiple transformations")
-    void mapChainsMultipleTransformations() throws Throwable {
+    void mapChainsMultipleTransformations() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(TEST_VALUE));
 
       Kind<VTaskKind.Witness, String> intermediate = functor.map(intToString, kind);
@@ -73,7 +73,7 @@ class VTaskFunctorTest {
 
     @Test
     @DisplayName("map() with complex transformations")
-    void mapWithComplexTransformations() throws Throwable {
+    void mapWithComplexTransformations() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(TEST_VALUE));
       Function<Integer, String> complexMapper =
           i -> {
@@ -151,7 +151,7 @@ class VTaskFunctorTest {
 
     @Test
     @DisplayName("Identity law: map(id, fa) == fa")
-    void identityLaw() throws Throwable {
+    void identityLaw() {
       VTask<Integer> original = VTask.succeed(TEST_VALUE);
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(original);
       Function<Integer, Integer> identity = Function.identity();
@@ -163,7 +163,7 @@ class VTaskFunctorTest {
 
     @Test
     @DisplayName("Composition law: map(g.f, fa) == map(g, map(f, fa))")
-    void compositionLaw() throws Throwable {
+    void compositionLaw() {
       VTask<Integer> original = VTask.succeed(TEST_VALUE);
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(original);
 

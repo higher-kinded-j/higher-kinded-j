@@ -26,7 +26,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("of() wraps value in VTask")
-    void ofWrapsValueInVTask() throws Throwable {
+    void ofWrapsValueInVTask() {
       Kind<VTaskKind.Witness, Integer> kind = applicative.of(TEST_VALUE);
 
       VTask<Integer> vtask = VTASK.narrow(kind);
@@ -35,7 +35,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("of() handles null value")
-    void ofHandlesNullValue() throws Throwable {
+    void ofHandlesNullValue() {
       Kind<VTaskKind.Witness, String> kind = applicative.of(null);
 
       VTask<String> vtask = VTASK.narrow(kind);
@@ -59,7 +59,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("ap() applies function to value")
-    void apAppliesFunctionToValue() throws Throwable {
+    void apAppliesFunctionToValue() {
       Function<Integer, String> intToString = Object::toString;
       Kind<VTaskKind.Witness, Function<Integer, String>> ff =
           VTASK.widen(VTask.succeed(intToString));
@@ -73,7 +73,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("ap() with multiple applications")
-    void apWithMultipleApplications() throws Throwable {
+    void apWithMultipleApplications() {
       Function<Integer, Function<String, String>> curried = i -> s -> s + ":" + i;
       Kind<VTaskKind.Witness, Function<Integer, Function<String, String>>> ff =
           VTASK.widen(VTask.succeed(curried));
@@ -149,7 +149,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("Identity law: ap(of(id), fa) == fa")
-    void identityLaw() throws Throwable {
+    void identityLaw() {
       VTask<Integer> original = VTask.succeed(TEST_VALUE);
       Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(original);
       Kind<VTaskKind.Witness, Function<Integer, Integer>> identity =
@@ -162,7 +162,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("Homomorphism law: ap(of(f), of(x)) == of(f(x))")
-    void homomorphismLaw() throws Throwable {
+    void homomorphismLaw() {
       Function<Integer, String> f = Object::toString;
       Kind<VTaskKind.Witness, Function<Integer, String>> ff = applicative.of(f);
       Kind<VTaskKind.Witness, Integer> fx = applicative.of(TEST_VALUE);
@@ -175,7 +175,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("Interchange law: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchangeLaw() throws Throwable {
+    void interchangeLaw() {
       Function<Integer, String> f = i -> "Result:" + i;
       Kind<VTaskKind.Witness, Function<Integer, String>> u = VTASK.widen(VTask.succeed(f));
       int y = TEST_VALUE;
@@ -194,7 +194,7 @@ class VTaskApplicativeTest {
 
     @Test
     @DisplayName("Composition law: ap(ap(ap(of(compose), u), v), w) == ap(u, ap(v, w))")
-    void compositionLaw() throws Throwable {
+    void compositionLaw() {
       // u: VTask<Function<String, Integer>> - converts String to its length
       Function<String, Integer> stringToLength = String::length;
       Kind<VTaskKind.Witness, Function<String, Integer>> u =

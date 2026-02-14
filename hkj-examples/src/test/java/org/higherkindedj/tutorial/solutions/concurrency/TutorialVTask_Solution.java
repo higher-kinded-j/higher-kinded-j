@@ -26,7 +26,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Exercise 1: Create a VTask with of()")
-    void exercise1_createVTaskWithOf() throws Throwable {
+    void exercise1_createVTaskWithOf() {
       String input = "Hello, VTask!";
 
       // SOLUTION: Use VTask.of() with a lambda that computes the length
@@ -60,7 +60,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Exercise 3: Transform with map()")
-    void exercise3_mapTransformation() throws Throwable {
+    void exercise3_mapTransformation() {
       VTask<String> greeting = VTask.succeed("Hello, Virtual Threads!");
 
       // SOLUTION: Use map() with String::length method reference
@@ -72,7 +72,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Exercise 4: Chain with flatMap()")
-    void exercise4_flatMapChaining() throws Throwable {
+    void exercise4_flatMapChaining() {
       VTask<Integer> getNumber = VTask.succeed(21);
 
       // SOLUTION: Use flatMap() to chain dependent computations
@@ -105,7 +105,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Exercise 6: Recover from failure")
-    void exercise6_recoverFromFailure() throws Throwable {
+    void exercise6_recoverFromFailure() {
       VTask<Integer> failingTask = VTask.fail(new RuntimeException("Computation failed"));
 
       // SOLUTION: Use recover() to provide a fallback value
@@ -122,7 +122,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Exercise 7: Parallel execution with map2()")
-    void exercise7_parallelMap2() throws Throwable {
+    void exercise7_parallelMap2() {
       VTask<Integer> taskA =
           VTask.of(
               () -> {
@@ -146,7 +146,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Exercise 8: Race tasks with Par.race()")
-    void exercise8_raceTasks() throws Throwable {
+    void exercise8_raceTasks() {
       VTask<String> slow =
           VTask.of(
               () -> {
@@ -182,7 +182,7 @@ public class TutorialVTask_Solution {
 
     @Test
     @DisplayName("Complete workflow example")
-    void completeWorkflowExample() throws Throwable {
+    void completeWorkflowExample() {
       VTask<String> fetchUser =
           VTask.of(
               () -> {

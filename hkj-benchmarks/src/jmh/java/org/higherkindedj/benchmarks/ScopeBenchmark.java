@@ -50,7 +50,7 @@ public class ScopeBenchmark {
   // ========== Scope AllSucceed ==========
 
   @Benchmark
-  public List<Integer> scope_allSucceed() throws Throwable {
+  public List<Integer> scope_allSucceed() {
     Scope<Integer, List<Integer>> scope = Scope.allSucceed();
     for (VTask<Integer> task : tasks) {
       scope = scope.fork(task);
@@ -59,14 +59,14 @@ public class ScopeBenchmark {
   }
 
   @Benchmark
-  public List<Integer> scope_allSucceed_forkAll() throws Throwable {
+  public List<Integer> scope_allSucceed_forkAll() {
     return Scope.<Integer>allSucceed().forkAll(tasks).join().run();
   }
 
   // ========== Scope AnySucceed ==========
 
   @Benchmark
-  public Integer scope_anySucceed() throws Throwable {
+  public Integer scope_anySucceed() {
     Scope<Integer, Integer> scope = Scope.anySucceed();
     for (VTask<Integer> task : tasks) {
       scope = scope.fork(task);
@@ -77,7 +77,7 @@ public class ScopeBenchmark {
   // ========== Scope Accumulating ==========
 
   @Benchmark
-  public Validated<List<String>, List<Integer>> scope_accumulating() throws Throwable {
+  public Validated<List<String>, List<Integer>> scope_accumulating() {
     Scope<Integer, Validated<List<String>, List<Integer>>> scope =
         Scope.accumulating(Throwable::getMessage);
     for (VTask<Integer> task : tasks) {
@@ -89,26 +89,26 @@ public class ScopeBenchmark {
   // ========== Comparison with Par.all ==========
 
   @Benchmark
-  public List<Integer> par_all_direct() throws Throwable {
+  public List<Integer> par_all_direct() {
     return Par.all(tasks).run();
   }
 
   // ========== Resource Benchmarks ==========
 
   @Benchmark
-  public String resource_simple_use() throws Throwable {
+  public String resource_simple_use() {
     Resource<String> resource = Resource.make(() -> "test", s -> {});
     return resource.useSync(s -> s.toUpperCase()).run();
   }
 
   @Benchmark
-  public String resource_autoCloseable() throws Throwable {
+  public String resource_autoCloseable() {
     Resource<AutoCloseable> resource = Resource.fromAutoCloseable(() -> () -> {});
     return resource.useSync(r -> "result").run();
   }
 
   @Benchmark
-  public String resource_combined_two() throws Throwable {
+  public String resource_combined_two() {
     Resource<String> first = Resource.make(() -> "first", s -> {});
     Resource<String> second = Resource.make(() -> "second", s -> {});
 
@@ -116,7 +116,7 @@ public class ScopeBenchmark {
   }
 
   @Benchmark
-  public String resource_nested_use() throws Throwable {
+  public String resource_nested_use() {
     Resource<String> outer = Resource.make(() -> "outer", s -> {});
     Resource<String> inner = Resource.make(() -> "inner", s -> {});
 
@@ -126,7 +126,7 @@ public class ScopeBenchmark {
   // ========== Scope with Computation ==========
 
   @Benchmark
-  public List<Integer> scope_with_computation() throws Throwable {
+  public List<Integer> scope_with_computation() {
     List<VTask<Integer>> computeTasks =
         IntStream.range(0, taskCount).mapToObj(i -> VTask.of(() -> i * 2)).toList();
 
@@ -136,17 +136,17 @@ public class ScopeBenchmark {
   // ========== Safe Join Variants ==========
 
   @Benchmark
-  public Object scope_joinSafe() throws Throwable {
+  public Object scope_joinSafe() {
     return Scope.<Integer>allSucceed().forkAll(tasks).joinSafe().run();
   }
 
   @Benchmark
-  public Object scope_joinEither() throws Throwable {
+  public Object scope_joinEither() {
     return Scope.<Integer>allSucceed().forkAll(tasks).joinEither().run();
   }
 
   @Benchmark
-  public Object scope_joinMaybe() throws Throwable {
+  public Object scope_joinMaybe() {
     return Scope.<Integer>allSucceed().forkAll(tasks).joinMaybe().run();
   }
 }

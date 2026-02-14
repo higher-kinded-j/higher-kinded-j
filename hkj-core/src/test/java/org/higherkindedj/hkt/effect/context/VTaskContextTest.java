@@ -435,7 +435,7 @@ class VTaskContextTest {
 
     @Test
     @DisplayName("toVTask() returns underlying VTask")
-    void toVTaskReturnsUnderlyingVTask() throws Throwable {
+    void toVTaskReturnsUnderlyingVTask() {
       VTaskContext<Integer> context = VTaskContext.pure(TEST_INT);
 
       VTask<Integer> vtask = context.toVTask();

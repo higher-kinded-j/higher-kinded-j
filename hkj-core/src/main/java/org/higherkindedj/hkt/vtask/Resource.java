@@ -163,7 +163,7 @@ public final class Resource<A> {
       try {
         VTask<B> task = f.apply(resource);
         Objects.requireNonNull(task, "function must not return null");
-        return task.run();
+        return task.execute();
       } finally {
         release.accept(resource);
       }
@@ -263,13 +263,12 @@ public final class Resource<A> {
           Throwable firstException = null;
 
           // Release inner resource (B) first
-          Consumer<B> innerRelease = innerReleaseHolder[0];
-          if (innerRelease != null) {
-            try {
-              innerRelease.accept(b);
-            } catch (Throwable t) {
-              firstException = t;
-            }
+          // innerReleaseHolder[0] is always set before acquire returns successfully,
+          // so it is guaranteed non-null when this release lambda is called.
+          try {
+            innerReleaseHolder[0].accept(b);
+          } catch (Throwable t) {
+            firstException = t;
           }
 
           // Release outer resource (A) second

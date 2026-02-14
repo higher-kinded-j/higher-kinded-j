@@ -26,7 +26,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() combines two successful tasks")
-    void zipCombinesTwoSuccessfulTasks() throws Throwable {
+    void zipCombinesTwoSuccessfulTasks() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
 
@@ -39,7 +39,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() executes tasks in parallel")
-    void zipExecutesTasksInParallel() throws Throwable {
+    void zipExecutesTasksInParallel() {
       AtomicLong threadA = new AtomicLong();
       AtomicLong threadB = new AtomicLong();
 
@@ -116,7 +116,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip3() combines three successful tasks")
-    void zip3CombinesThreeSuccessfulTasks() throws Throwable {
+    void zip3CombinesThreeSuccessfulTasks() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
       VTask<Integer> taskC = VTask.succeed(TEST_VALUE_C);
@@ -179,7 +179,7 @@ class ParTest {
 
     @Test
     @DisplayName("map2() applies function to parallel results")
-    void map2AppliesFunctionToParallelResults() throws Throwable {
+    void map2AppliesFunctionToParallelResults() {
       VTask<Integer> taskA = VTask.succeed(10);
       VTask<Integer> taskB = VTask.succeed(20);
 
@@ -190,7 +190,7 @@ class ParTest {
 
     @Test
     @DisplayName("map2() executes tasks in parallel")
-    void map2ExecutesTasksInParallel() throws Throwable {
+    void map2ExecutesTasksInParallel() {
       VTask<Integer> taskA =
           VTask.of(
               () -> {
@@ -261,7 +261,7 @@ class ParTest {
 
     @Test
     @DisplayName("map3() applies function to three parallel results")
-    void map3AppliesFunctionToThreeParallelResults() throws Throwable {
+    void map3AppliesFunctionToThreeParallelResults() {
       VTask<Integer> taskA = VTask.succeed(10);
       VTask<Integer> taskB = VTask.succeed(20);
       VTask<Integer> taskC = VTask.succeed(30);
@@ -313,7 +313,7 @@ class ParTest {
 
     @Test
     @DisplayName("race() returns first completing task")
-    void raceReturnsFirstCompletingTask() throws Throwable {
+    void raceReturnsFirstCompletingTask() {
       VTask<Integer> slow =
           VTask.of(
               () -> {
@@ -352,7 +352,7 @@ class ParTest {
 
     @Test
     @DisplayName("race() returns result even if others fail")
-    void raceReturnsResultEvenIfOthersFail() throws Throwable {
+    void raceReturnsResultEvenIfOthersFail() {
       VTask<Integer> failing1 =
           VTask.of(
               () -> {
@@ -395,7 +395,7 @@ class ParTest {
 
     @Test
     @DisplayName("all() collects all results in order")
-    void allCollectsAllResultsInOrder() throws Throwable {
+    void allCollectsAllResultsInOrder() {
       List<VTask<Integer>> tasks = List.of(VTask.succeed(1), VTask.succeed(2), VTask.succeed(3));
 
       VTask<List<Integer>> combined = Par.all(tasks);
@@ -405,7 +405,7 @@ class ParTest {
 
     @Test
     @DisplayName("all() executes tasks in parallel")
-    void allExecutesTasksInParallel() throws Throwable {
+    void allExecutesTasksInParallel() {
       AtomicInteger maxConcurrency = new AtomicInteger(0);
       AtomicInteger currentConcurrency = new AtomicInteger(0);
 
@@ -444,7 +444,7 @@ class ParTest {
 
     @Test
     @DisplayName("all() with empty list returns empty list")
-    void allWithEmptyListReturnsEmptyList() throws Throwable {
+    void allWithEmptyListReturnsEmptyList() {
       VTask<List<Integer>> combined = Par.all(List.of());
 
       assertThat(combined.run()).isEmpty();
@@ -475,7 +475,7 @@ class ParTest {
 
     @Test
     @DisplayName("traverse() applies function and collects results")
-    void traverseAppliesFunctionAndCollectsResults() throws Throwable {
+    void traverseAppliesFunctionAndCollectsResults() {
       List<Integer> items = List.of(1, 2, 3);
 
       VTask<List<Integer>> result = Par.traverse(items, i -> VTask.succeed(i * 2));
@@ -485,7 +485,7 @@ class ParTest {
 
     @Test
     @DisplayName("traverse() executes in parallel")
-    void traverseExecutesInParallel() throws Throwable {
+    void traverseExecutesInParallel() {
       List<Integer> items = List.of(1, 2, 3, 4, 5);
 
       long startTime = System.currentTimeMillis();
@@ -507,7 +507,7 @@ class ParTest {
 
     @Test
     @DisplayName("traverse() with empty list returns empty list")
-    void traverseWithEmptyListReturnsEmptyList() throws Throwable {
+    void traverseWithEmptyListReturnsEmptyList() {
       List<Integer> items = List.of();
 
       VTask<List<Integer>> result = Par.traverse(items, i -> VTask.succeed(i * 2));
@@ -574,7 +574,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() cancels remaining task on failure")
-    void zipCancelsRemainingTaskOnFailure() throws Throwable {
+    void zipCancelsRemainingTaskOnFailure() throws InterruptedException {
       AtomicBoolean taskBCompleted = new AtomicBoolean(false);
 
       VTask<Integer> taskA =

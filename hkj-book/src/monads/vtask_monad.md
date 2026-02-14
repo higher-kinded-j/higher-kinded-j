@@ -136,11 +136,16 @@ VTask offers three execution methods:
 VTask<Integer> computation = VTask.of(() -> 42);
 
 // 1. run() - throws on failure
+//    Checked exceptions are wrapped in VTaskExecutionException;
+//    RuntimeException and Error are thrown directly.
 try {
     Integer result = computation.run();
     System.out.println("Result: " + result);
-} catch (Throwable t) {
-    System.err.println("Failed: " + t.getMessage());
+} catch (VTaskExecutionException e) {
+    // Checked exception wrapped — original available via e.getCause()
+    System.err.println("Wrapped: " + e.getCause().getMessage());
+} catch (RuntimeException e) {
+    System.err.println("Failed: " + e.getMessage());
 }
 
 // 2. runSafe() - returns Try<A> for safe error handling
@@ -256,10 +261,20 @@ VTask<Data> slowOperation = VTask.of(() -> {
 
 VTask<Data> withTimeout = slowOperation.timeout(Duration.ofSeconds(2));
 
+// Option 1: Use runSafe() for functional error handling (preferred)
+Try<Data> result = withTimeout.runSafe();
+result.fold(
+    data -> System.out.println("Got data: " + data),
+    error -> System.err.println("Operation timed out: " + error.getMessage())
+);
+
+// Option 2: Use run() — TimeoutException is wrapped in VTaskExecutionException
 try {
     withTimeout.run();
-} catch (TimeoutException e) {
-    System.err.println("Operation timed out!");
+} catch (VTaskExecutionException e) {
+    if (e.getCause() instanceof TimeoutException) {
+        System.err.println("Operation timed out!");
+    }
 }
 ```
 ~~~

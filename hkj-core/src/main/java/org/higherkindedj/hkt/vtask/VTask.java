@@ -67,9 +67,13 @@ import org.jspecify.annotations.Nullable;
 public interface VTask<A> extends VTaskKind<A> {
 
   /**
-   * The core operation representing the computation. This method is invoked when the task is
-   * executed on a virtual thread. Implementations should not call this directly; use {@link
-   * #run()}, {@link #runSafe()}, or {@link #runAsync()} instead.
+   * The core operation representing the computation. This method is invoked internally when the
+   * task is executed. Implementations should not call this directly; use {@link #run()}, {@link
+   * #runSafe()}, or {@link #runAsync()} instead.
+   *
+   * <p><b>Note:</b> This method declares {@code throws Throwable} to allow lambda implementations
+   * to throw checked exceptions. The public execution methods ({@link #run()}, {@link #runSafe()},
+   * {@link #runAsync()}) handle exception translation at the boundary.
    *
    * @return The result of the computation of type {@code A}.
    * @throws Throwable If the computation fails.
@@ -200,24 +204,37 @@ public interface VTask<A> extends VTaskKind<A> {
    * virtual thread, use {@link #runAsync()}. For parallel execution of multiple tasks, use the
    * combinators in {@link Par}.
    *
+   * <p><b>Exception handling:</b> Unchecked exceptions ({@link RuntimeException} and {@link Error})
+   * are thrown directly. Checked exceptions are wrapped in {@link VTaskExecutionException}. For
+   * functional error handling that preserves the original exception type, use {@link #runSafe()}
+   * instead.
+   *
    * @return The result of the computation of type {@code A}.
-   * @throws Throwable If the computation fails.
+   * @throws VTaskExecutionException if the computation throws a checked exception
+   * @throws RuntimeException if the computation throws an unchecked exception
    */
-  default @Nullable A run() throws Throwable {
-    return execute();
+  default @Nullable A run() {
+    try {
+      return execute();
+    } catch (RuntimeException | Error e) {
+      throw e;
+    } catch (Throwable t) {
+      throw new VTaskExecutionException(t);
+    }
   }
 
   /**
-   * Executes this {@code VTask} on a virtual thread, returning the result as a {@link Try}.
+   * Executes this {@code VTask}, returning the result as a {@link Try}.
    *
-   * <p>This is the safe version of {@link #run()} that captures any exceptions in a {@code
-   * Try.Failure} rather than throwing them.
+   * <p>This is the preferred method for error handling. Unlike {@link #run()}, which wraps checked
+   * exceptions in {@link VTaskExecutionException}, this method preserves the original exception
+   * type in the {@code Try.Failure}.
    *
    * @return A {@link Try} containing either the successful result or the failure. Never null.
    */
   default Try<A> runSafe() {
     try {
-      return Try.success(run());
+      return Try.success(execute());
     } catch (Throwable t) {
       return Try.failure(t);
     }

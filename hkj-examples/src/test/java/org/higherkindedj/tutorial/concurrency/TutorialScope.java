@@ -63,7 +63,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 1: Create scope with allSucceed()")
-    void exercise1_allSucceed() throws Throwable {
+    void exercise1_allSucceed() {
       VTask<String> task1 = VTask.succeed("first");
       VTask<String> task2 = VTask.succeed("second");
       VTask<String> task3 = VTask.succeed("third");
@@ -90,7 +90,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 2: Create scope with anySucceed()")
-    void exercise2_anySucceed() throws Throwable {
+    void exercise2_anySucceed() {
       VTask<String> slow =
           VTask.of(
               () -> {
@@ -135,7 +135,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 3: Use firstComplete()")
-    void exercise3_firstComplete() throws Throwable {
+    void exercise3_firstComplete() {
       VTask<String> fastButRisky =
           VTask.of(
               () -> {
@@ -171,7 +171,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 4: Add timeout to scope")
-    void exercise4_timeout() throws Throwable {
+    void exercise4_timeout() {
       VTask<String> slowTask =
           VTask.of(
               () -> {
@@ -210,7 +210,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 5: Accumulate errors")
-    void exercise5_accumulatingErrors() throws Throwable {
+    void exercise5_accumulatingErrors() {
       VTask<String> valid1 = VTask.succeed("valid1");
       VTask<String> invalid1 = VTask.fail(new RuntimeException("Error 1"));
       VTask<String> invalid2 = VTask.fail(new RuntimeException("Error 2"));
@@ -249,7 +249,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 6: Handle Validated result")
-    void exercise6_handleValidated() throws Throwable {
+    void exercise6_handleValidated() {
       VTask<Integer> task1 = VTask.succeed(10);
       VTask<Integer> task2 = VTask.succeed(20);
       VTask<Integer> task3 = VTask.succeed(12);
@@ -291,7 +291,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 7: Use joinSafe()")
-    void exercise7_joinSafe() throws Throwable {
+    void exercise7_joinSafe() {
       VTask<String> failingTask = VTask.fail(new RuntimeException("Task failed"));
 
       // TODO: Replace answerRequired() with:
@@ -314,7 +314,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 8: Use joinEither()")
-    void exercise8_joinEither() throws Throwable {
+    void exercise8_joinEither() {
       VTask<String> task1 = VTask.succeed("hello");
       VTask<String> task2 = VTask.succeed("world");
 
@@ -341,7 +341,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Exercise 9: Use joinMaybe()")
-    void exercise9_joinMaybe() throws Throwable {
+    void exercise9_joinMaybe() {
       VTask<Integer> task = VTask.succeed(42);
 
       // TODO: Replace answerRequired() with:
@@ -378,7 +378,7 @@ public class TutorialScope {
      */
     @Test
     @DisplayName("Complete workflow example")
-    void completeWorkflowExample() throws Throwable {
+    void completeWorkflowExample() {
       // Simulated service calls
       VTask<String> fetchUser =
           VTask.of(
