@@ -763,36 +763,36 @@
 <a name='org.pitest.mutationtest.report.html.SourceFile@77de3401_54'/>
 54
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_54'>2</a>
 <span>
-1. process : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+1. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 2. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='covered'><pre><span  class='survived'>      if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>      if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@77de3401_55'/>
 55
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_55'>1</a>
 <span>
-1. process : removed call to org/higherkindedj/optics/processing/TraversalProcessor::error &rarr; NO_COVERAGE<br/>
+1. process : removed call to org/higherkindedj/optics/processing/TraversalProcessor::error &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>        error(&#34;The @GenerateTraversals annotation can only be applied to records.&#34;, element);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>        error(&#34;The @GenerateTraversals annotation can only be applied to records.&#34;, element);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@77de3401_56'/>
 56
 </td>
@@ -803,7 +803,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        continue;</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        continue;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1068,17 +1068,17 @@
 <a name='org.pitest.mutationtest.report.html.SourceFile@77de3401_75'/>
 75
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_75'>2</a>
 <span>
-1. generateTraversalsFile : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+1. generateTraversalsFile : removed conditional - replaced equality check with true &rarr; KILLED<br/>
 2. generateTraversalsFile : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='covered'><pre><span  class='survived'>    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2891,23 +2891,23 @@
 <td class=''><pre><span  class=''>  private void error(String msg, Element e) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@77de3401_203'/>
 203
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_203'>1</a>
 <span>
-1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE<br/>
+1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@77de3401_204'/>
 204
 </td>
@@ -2918,7 +2918,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2945,7 +2945,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_46'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>init<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed call to javax/annotation/processing/AbstractProcessor::init &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>init<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorOnNonRecordShouldFail()]</span></span> removed call to javax/annotation/processing/AbstractProcessor::init &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2956,7 +2956,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_48'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>init<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed call to java/util/ServiceLoader::forEach &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>init<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed call to java/util/ServiceLoader::forEach &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2967,13 +2967,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_54'/> 
 
-<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
-<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[22],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[22],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
-<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[22],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
-<ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
-</ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorOnNonRecordShouldFail()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2984,7 +2979,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_55'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/TraversalProcessor::error &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorOnNonRecordShouldFail()]</span></span> removed call to org/higherkindedj/optics/processing/TraversalProcessor::error &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2995,7 +2990,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_59'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed call to org/higherkindedj/optics/processing/TraversalProcessor::generateTraversalsFile &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed call to org/higherkindedj/optics/processing/TraversalProcessor::generateTraversalsFile &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3021,7 +3016,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorOnNonRecordShouldFail()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:nonTraversableFieldOnlyGeneratesEmptyClass()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3033,13 +3028,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_75'/> 
 
-<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
-<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
-<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
-<ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
-</ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3050,12 +3040,12 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_94'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[144],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[144],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[144],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:nonTraversableFieldOnlyGeneratesEmptyClass()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3071,9 +3061,9 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[156],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[156],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=generateTraversalsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[156],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3084,7 +3074,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_107'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateTraversalsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3099,9 +3089,9 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[21],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[21],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[21],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3112,12 +3102,12 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_121'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[39],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[39],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[39],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3129,12 +3119,12 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_122'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[48],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[48],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[48],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3150,9 +3140,9 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[69],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[69],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[69],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3167,9 +3157,9 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[75],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[75],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[75],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3180,12 +3170,12 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_132'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[81],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[81],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[81],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3201,15 +3191,15 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[94],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[94],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[94],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
 </div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with false &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[94],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[94],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.TraversalProcessor,-method=createTraversalMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lorg/higherkindedj/optics/processing/spi/TraversableGenerator;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[94],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3220,7 +3210,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_183'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/TraversalProcessor::createTraversalMethod &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createTraversalMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/TraversalProcessor::createTraversalMethod &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3231,7 +3221,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@77de3401_203'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>none</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorOnNonRecordShouldFail()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3261,7 +3251,7 @@
 
 <h2>Tests examined</h2>
 <ul>
-<li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()] (25 ms)</li>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:parameterizedListGeneratesTraversal()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorGeneratesTraversals()] (21 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:nonTraversableFieldOnlyGeneratesEmptyClass()] (28 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TraversalProcessorEdgeCases]/[method:traversalWithCustomTargetPackage()] (26 ms)</li><li>org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.TraversalProcessorIntegrationTest]/[method:shouldGenerateTraversalForRecordComponent()] (33 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:traversalProcessorOnNonRecordShouldFail()] (16 ms)</li>
 </ul>
 
 <br/>

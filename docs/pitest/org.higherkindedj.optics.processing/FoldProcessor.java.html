@@ -563,17 +563,17 @@
 <a name='org.pitest.mutationtest.report.html.SourceFile@271fdeaf_40'/>
 40
 </td>
-<td class='killed'>
+<td class='uncertain'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_40'>2</a>
 <span>
-1. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
-2. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+1. process : removed conditional - replaced equality check with true &rarr; TIMED_OUT<br/>
+2. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='covered'><pre><span  class='killed'>        if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='uncertain'>        if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
 
 <tr>
 <td class='covered'>
@@ -2963,8 +2963,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_40'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
-</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorOnNonRecordShouldFail()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='TIMED_OUT'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; TIMED_OUT</span>
 </div> 
 </td>
 </tr>
@@ -2975,7 +2975,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_41'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()]</span></span> removed call to org/higherkindedj/optics/processing/FoldProcessor::error &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorOnNonRecordShouldFail()]</span></span> removed call to org/higherkindedj/optics/processing/FoldProcessor::error &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2986,7 +2986,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_45'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed call to org/higherkindedj/optics/processing/FoldProcessor::generateFoldsFile &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed call to org/higherkindedj/optics/processing/FoldProcessor::generateFoldsFile &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3012,7 +3012,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorOnNonRecordShouldFail()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3024,12 +3024,12 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_62'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateFoldsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateFoldsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateFoldsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=generateFoldsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=generateFoldsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=generateFoldsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3041,7 +3041,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_89'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateFoldsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateFoldsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3053,7 +3053,7 @@
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_94'/> 
 
 <p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
-</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3064,7 +3064,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_95'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/FoldProcessor::getParameterizedTypeName &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/FoldProcessor::getParameterizedTypeName &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3086,7 +3086,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_111'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> 
 </td>
@@ -3098,8 +3098,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_134'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
-</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3110,7 +3110,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_170'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/FoldProcessor::createFoldMethod &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFoldMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/FoldProcessor::createFoldMethod &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3125,7 +3125,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=isIterableType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[5],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=isIterableType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[5],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=isIterableType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[5],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
 </ul>
 </div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isIterableType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> 
@@ -3154,7 +3154,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=isIterableType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=isIterableType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=isIterableType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3178,7 +3178,7 @@
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_191'/> 
 
 <p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isIterableType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/FoldProcessor::isIterableType &rarr; KILLED</span>
-</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isIterableType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/FoldProcessor::isIterableType &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isIterableType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/FoldProcessor::isIterableType &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3193,7 +3193,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=getElementType,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[8],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=getElementType,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[8],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=getElementType,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[8],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> 
 </ul>
 </div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>getElementType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
@@ -3211,7 +3211,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=getElementType,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[17],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=getElementType,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[17],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.FoldProcessor,-method=getElementType,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[17],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</li> <li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3223,7 +3223,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_197'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getElementType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/FoldProcessor::getElementType &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getElementType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/FoldProcessor::getElementType &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3245,7 +3245,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@271fdeaf_204'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorOnNonRecordShouldFail()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3275,7 +3275,7 @@
 
 <h2>Tests examined</h2>
 <ul>
-<li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()] (24 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()] (26 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()] (30 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()] (17 ms)</li>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorGeneratesFolds()] (21 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForParameterizedRecord()] (25 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecordWithCollections()] (27 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldGenerateFoldsForRecord()] (30 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:foldProcessorOnNonRecordShouldFail()] (15 ms)</li><li>org.higherkindedj.optics.processing.FoldProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FoldProcessorIntegrationTest]/[method:shouldFailIfAnnotationIsNotOnRecord()] (18 ms)</li>
 </ul>
 
 <br/>

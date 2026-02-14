@@ -521,36 +521,36 @@
 <a name='org.pitest.mutationtest.report.html.SourceFile@22f10ff6_37'/>
 37
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_37'>2</a>
 <span>
-1. process : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
-2. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+1. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='covered'><pre><span  class='survived'>        if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>        if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22f10ff6_38'/>
 38
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_38'>1</a>
 <span>
-1. process : removed call to org/higherkindedj/optics/processing/LensProcessor::error &rarr; NO_COVERAGE<br/>
+1. process : removed call to org/higherkindedj/optics/processing/LensProcessor::error &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>          error(&#34;The @GenerateLenses annotation can only be applied to records.&#34;, element);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>          error(&#34;The @GenerateLenses annotation can only be applied to records.&#34;, element);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22f10ff6_39'/>
 39
 </td>
@@ -561,7 +561,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>          continue;</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>          continue;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -3068,23 +3068,23 @@
 <td class=''><pre><span  class=''>  private void error(String msg, Element e) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22f10ff6_216'/>
 216
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_216'>1</a>
 <span>
-1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE<br/>
+1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22f10ff6_217'/>
 217
 </td>
@@ -3095,7 +3095,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -3122,14 +3122,9 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_37'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
-</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
-<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[40],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[40],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
-<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[40],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
-<ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
-</ul>
-</div></div> 
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorOnNonRecordShouldFail()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
 </td>
 </tr>
 <tr>
@@ -3139,7 +3134,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_38'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/LensProcessor::error &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorOnNonRecordShouldFail()]</span></span> removed call to org/higherkindedj/optics/processing/LensProcessor::error &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3150,7 +3145,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_42'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed call to org/higherkindedj/optics/processing/LensProcessor::generateLensesFile &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> removed call to org/higherkindedj/optics/processing/LensProcessor::generateLensesFile &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3176,7 +3171,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorOnNonRecordShouldFail()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</li> <li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3192,9 +3187,9 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=generateLensesFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=generateLensesFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=generateLensesFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</li> <li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateLensesFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateLensesFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3205,7 +3200,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_91'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateLensesFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateLensesFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3216,12 +3211,12 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_96'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=getParameterizedTypeName,-methodDesc=(Ljavax/lang/model/element/TypeElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=getParameterizedTypeName,-methodDesc=(Ljavax/lang/model/element/TypeElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=getParameterizedTypeName,-methodDesc=(Ljavax/lang/model/element/TypeElement;)Lcom/palantir/javapoet/TypeName;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</li> <li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3233,7 +3228,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_97'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/LensProcessor::getParameterizedTypeName &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/LensProcessor::getParameterizedTypeName &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3257,7 +3252,7 @@
 
 <p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>lambda$createLensMethod$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>lambda$createLensMethod$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
-</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>lambda$createLensMethod$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/LensProcessor::lambda$createLensMethod$0 &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>lambda$createLensMethod$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/LensProcessor::lambda$createLensMethod$0 &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3268,7 +3263,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_152'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createLensMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/LensProcessor::createLensMethod &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createLensMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/LensProcessor::createLensMethod &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3294,9 +3289,9 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=createWithMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lcom/palantir/javapoet/TypeName;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[157],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=createWithMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lcom/palantir/javapoet/TypeName;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[157],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=createWithMethod,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;Ljavax/lang/model/element/TypeElement;Lcom/palantir/javapoet/TypeName;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[157],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</li> <li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
 </ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createWithMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createWithMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3307,7 +3302,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_205'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createWithMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/LensProcessor::createWithMethod &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createWithMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/LensProcessor::createWithMethod &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3323,13 +3318,13 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</li> <li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
 </ul>
 </div></div> <p class='SURVIVED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[4],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[4],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.LensProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[4],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</li> <li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</li> 
 </ul>
 </div></div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
@@ -3353,7 +3348,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_212'/> 
 
-<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/LensProcessor::capitalise &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/LensProcessor::capitalise &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3364,7 +3359,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22f10ff6_216'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>none</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorOnNonRecordShouldFail()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3394,7 +3389,7 @@
 
 <h2>Tests examined</h2>
 <ul>
-<li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()] (22 ms)</li>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorGeneratesLenses()] (20 ms)</li><li>org.higherkindedj.optics.processing.LensProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.LensProcessorIntegrationTest]/[method:shouldGenerateLensesAndWitherMethodsForRecord()] (23 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:lensProcessorOnNonRecordShouldFail()] (15 ms)</li>
 </ul>
 
 <br/>

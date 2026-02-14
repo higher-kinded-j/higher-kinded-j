@@ -4604,8 +4604,7 @@ class MutationKillingTest {
           javac().withProcessors(new ForComprehensionProcessor()).compile(source);
 
       assertThat(compilation.errors()).isNotEmpty();
-      assertThat(compilation.errors().get(0).getMessage(null))
-          .contains("maxArity must be <= 26");
+      assertThat(compilation.errors().get(0).getMessage(null)).contains("maxArity must be <= 26");
     }
 
     @Test
@@ -4883,8 +4882,7 @@ class MutationKillingTest {
     @Test
     @DisplayName("PrismHintInfo.forMatchWhen creates non-null with correct fields")
     void prismHintInfoForMatchWhenNonNull() {
-      SpecAnalysis.PrismHintInfo info =
-          SpecAnalysis.PrismHintInfo.forMatchWhen("isLeaf", "asLeaf");
+      SpecAnalysis.PrismHintInfo info = SpecAnalysis.PrismHintInfo.forMatchWhen("isLeaf", "asLeaf");
       assertThat(info).isNotNull();
       assertThat(info.predicate()).isEqualTo("isLeaf");
       assertThat(info.getter()).isEqualTo("asLeaf");
@@ -4923,8 +4921,7 @@ class MutationKillingTest {
     @DisplayName("instance() should return non-null with isParameterised=false")
     void instanceReturnsNonNullNonParameterised() {
       // This test targets NullReturnValsMutator on KindMapping.instance()
-      var mapping =
-          KindRegistry.lookup("org.higherkindedj.hkt.list.ListKind.Witness");
+      var mapping = KindRegistry.lookup("org.higherkindedj.hkt.list.ListKind.Witness");
       assertThat(mapping).isPresent();
       assertThat(mapping.get()).isNotNull();
       assertThat(mapping.get().isParameterised()).isFalse();
@@ -4935,8 +4932,7 @@ class MutationKillingTest {
     @DisplayName("factory() should return non-null with isParameterised=true")
     void factoryReturnsNonNullParameterised() {
       // This test targets NullReturnValsMutator on KindMapping.factory()
-      var mapping =
-          KindRegistry.lookup("org.higherkindedj.hkt.either.EitherKind.Witness");
+      var mapping = KindRegistry.lookup("org.higherkindedj.hkt.either.EitherKind.Witness");
       assertThat(mapping).isPresent();
       assertThat(mapping.get()).isNotNull();
       assertThat(mapping.get().isParameterised()).isTrue();
@@ -5052,10 +5048,7 @@ class MutationKillingTest {
               public record Outer(Optional<String> opt, String name) {}
               """);
 
-      Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(source, outer);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source, outer);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.OuterFocus")).isPresent();
@@ -5075,10 +5068,7 @@ class MutationKillingTest {
               public record Container(List<String> items, String label) {}
               """);
 
-      Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(source);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.ContainerFocus")).isPresent();
@@ -5197,8 +5187,7 @@ class MutationKillingTest {
               public record Point(int x, int y) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new LensProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new LensProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.PointLenses")).isPresent();
@@ -5219,8 +5208,7 @@ class MutationKillingTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new LensProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new LensProcessor()).compile(source);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("records");
@@ -5240,8 +5228,7 @@ class MutationKillingTest {
               public record Items(List<String> values) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new TraversalProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.ItemsTraversals")).isPresent();
@@ -5262,8 +5249,7 @@ class MutationKillingTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new TraversalProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("records");
@@ -5283,8 +5269,7 @@ class MutationKillingTest {
               public record Numbers(List<Integer> values, String label) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FoldProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new FoldProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.NumbersFolds")).isPresent();
@@ -5305,8 +5290,7 @@ class MutationKillingTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FoldProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new FoldProcessor()).compile(source);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("records");
@@ -5328,8 +5312,7 @@ class MutationKillingTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new PrismProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.ShapePrisms")).isPresent();
@@ -5361,8 +5344,7 @@ class MutationKillingTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new IsoProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new IsoProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
     }
@@ -5398,8 +5380,7 @@ class MutationKillingTest {
               public record Person(String name, Address address) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.test.PersonFocus")).isPresent();
@@ -5427,8 +5408,7 @@ class MutationKillingTest {
               public record Plain(String name, int count) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new TraversalProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       // Non-traversable fields should still generate the class but no traversal methods
@@ -5449,8 +5429,7 @@ class MutationKillingTest {
               public record ParamList(List<String> items) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new TraversalProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       Optional<JavaFileObject> file =
@@ -5475,8 +5454,7 @@ class MutationKillingTest {
               public record Data(List<String> items) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new TraversalProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       assertThat(compilation.generatedSourceFile("com.generated.DataTraversals")).isPresent();
