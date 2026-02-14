@@ -283,6 +283,31 @@ Try<OrderSummary> result = orderWorkflow.runSafe();
 
 ---
 
+## Extended Arity Example (6+ Bindings)
+
+All ForPath types support up to 8 chained bindings. When a workflow requires more than five steps, the generated step classes continue the same fluent API:
+
+```java
+// A 6-step MaybePath comprehension
+MaybePath<String> profile = ForPath.from(Path.just("user-42"))
+    .from(id -> findUser(id))                    // b = User
+    .focus(user -> user.address())               // c = Address
+    .focus(addr -> addr.city())                  // d = city name
+    .let(t -> t._4().toUpperCase())              // e = uppercased city
+    .let(t -> t._2().name() + " from " + t._5()) // f = summary
+    .yield((id, user, addr, city, upper, summary) -> summary);
+
+// Result: Just("Alice from LONDON")
+```
+
+At higher arities, the tuple-style `yield` can be more readable:
+
+```java
+.yield(t -> t._6())  // access the summary directly by position
+```
+
+---
+
 ## NonDetPath Example
 
 NonDetPath (backed by List) generates all combinations:
