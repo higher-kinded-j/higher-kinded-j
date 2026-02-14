@@ -142,21 +142,15 @@ final class TupleGenerator {
     sb.append(
         "   * Transforms both elements of this tuple using the provided mapping functions.\n");
     sb.append("   *\n");
-    sb.append(
-        "   * <p>This is the fundamental bifunctor operation for {@code Tuple2}, allowing\n");
+    sb.append("   * <p>This is the fundamental bifunctor operation for {@code Tuple2}, allowing\n");
     sb.append("   * simultaneous transformation of both elements.\n");
     sb.append("   *\n");
-    sb.append(
-        "   * @param firstMapper The non-null function to apply to the first element.\n");
-    sb.append(
-        "   * @param secondMapper The non-null function to apply to the second element.\n");
-    sb.append(
-        "   * @param <C> The type of the first element in the resulting tuple.\n");
-    sb.append(
-        "   * @param <D> The type of the second element in the resulting tuple.\n");
+    sb.append("   * @param firstMapper The non-null function to apply to the first element.\n");
+    sb.append("   * @param secondMapper The non-null function to apply to the second element.\n");
+    sb.append("   * @param <C> The type of the first element in the resulting tuple.\n");
+    sb.append("   * @param <D> The type of the second element in the resulting tuple.\n");
     sb.append("   * @return A new {@code Tuple2} with both elements transformed.\n");
-    sb.append(
-        "   * @throws NullPointerException if either mapper is null.\n");
+    sb.append("   * @throws NullPointerException if either mapper is null.\n");
     sb.append("   */\n");
     sb.append("  public <C, D> Tuple2<C, D> bimap(\n");
     sb.append(
