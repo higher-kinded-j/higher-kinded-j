@@ -18,7 +18,20 @@ final class ForPathStepGenerator {
   private static final String[] TYPE_PARAMS = {"A", "B", "C", "D", "E", "F", "G", "H"};
   private static final String YIELD_NULL_MSG = "The yield function must not return null.";
 
+  // Value type params for types with extra type param that would collide.
+  // Either has extra E, so skip E: A, B, C, D, F, G, H, I
+  private static final String[] EITHER_VALUE_PARAMS = {"A", "B", "C", "D", "F", "G", "H", "I"};
+  // Generic has extra F, so skip F: A, B, C, D, E, G, H, I
+  private static final String[] GENERIC_VALUE_PARAMS = {"A", "B", "C", "D", "E", "G", "H", "I"};
+
   private ForPathStepGenerator() {}
+
+  /** Returns the value type parameters for a descriptor, avoiding collision with extra type params. */
+  private static String[] valueParams(PathTypeDescriptor desc) {
+    if ("E".equals(desc.extraTypeParamName) && !desc.isGeneric) return EITHER_VALUE_PARAMS;
+    if (desc.isGeneric) return GENERIC_VALUE_PARAMS;
+    return TYPE_PARAMS;
+  }
 
   // =========================================================================
   // Descriptor for each path type
@@ -196,7 +209,9 @@ final class ForPathStepGenerator {
   static void generate(int minArity, int maxArity, ProcessingEnvironment processingEnv)
       throws IOException {
     for (PathTypeDescriptor desc : PATH_TYPES) {
-      int startArity = Math.max(desc.currentMaxArity + 1, minArity);
+      // Always generate from the next arity after the hand-written max, regardless of minArity.
+      // Each path type has its own current max arity (e.g. Maybe=5, Optional=3, Either=3).
+      int startArity = desc.currentMaxArity + 1;
       for (int n = startArity; n <= maxArity; n++) {
         boolean terminal = (n == maxArity);
         generatePathSteps(desc, n, terminal, processingEnv);
@@ -378,30 +393,32 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void appendClassTypeParams(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
     if (desc.isGeneric) {
       sb.append("F extends WitnessArity<TypeArity.Unary>");
       for (int i = 0; i < n; i++) {
-        sb.append(", ").append(TYPE_PARAMS[i]);
+        sb.append(", ").append(vp[i]);
       }
     } else if (desc.hasExtraTypeParam) {
       // Either: E, A, B, C, ...
       sb.append(desc.extraTypeParamName);
       for (int i = 0; i < n; i++) {
-        sb.append(", ").append(TYPE_PARAMS[i]);
+        sb.append(", ").append(vp[i]);
       }
     } else {
       for (int i = 0; i < n; i++) {
         if (i > 0) sb.append(", ");
-        sb.append(TYPE_PARAMS[i]);
+        sb.append(vp[i]);
       }
     }
   }
 
   /** Appends only the value type params (A, B, C, ...) for use in TupleN<> references. */
-  private static void appendValueTypeParams(StringBuilder sb, int n) {
+  private static void appendValueTypeParams(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
     for (int i = 0; i < n; i++) {
       if (i > 0) sb.append(", ");
-      sb.append(TYPE_PARAMS[i]);
+      sb.append(vp[i]);
     }
   }
 
@@ -427,7 +444,7 @@ final class ForPathStepGenerator {
 
     sb.append("  private final Kind<").append(desc.witnessType).append(", Tuple").append(n)
         .append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">> computation;\n\n");
 
     // Either: private static monad() helper method
@@ -449,7 +466,7 @@ final class ForPathStepGenerator {
       sb.append("Monad<F> monad, ");
     }
     sb.append("Kind<").append(desc.witnessType).append(", Tuple").append(n).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">> computation) {\n");
     if (desc.isGeneric) {
       sb.append("    this.monad = monad;\n");
@@ -463,24 +480,23 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void appendFromMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
     int next = n + 1;
-    String nextType = TYPE_PARAMS[n];
+    String nextType = vp[n];
     String nextClassName = desc.stepsPrefix + next;
-    String monadRef = monadRef(desc);
 
     // Method signature
     sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<");
     appendNextClassTypeArgs(sb, desc, next);
     sb.append("> from(\n");
     sb.append("      Function<Tuple").append(n).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">, ").append(fromReturnPathType(desc, nextType)).append("> next) {\n");
 
     // Method body
     if (needsLocalMonad(desc)) {
       sb.append("    EitherMonad<E> m = monad();\n");
-      String m = "m";
-      appendFromBody(sb, desc, n, next, nextType, m);
+      appendFromBody(sb, desc, n, next, nextType, "m");
     } else if (desc.isGeneric) {
       appendFromBody(sb, desc, n, next, nextType, "monad");
     } else {
@@ -504,7 +520,7 @@ final class ForPathStepGenerator {
       String nextType,
       String monadVar) {
     sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(next).append("<");
-    appendValueTypeParams(sb, next);
+    appendValueTypeParams(sb, desc, next);
     sb.append(">> newComp =\n");
     sb.append("        ").append(monadVar).append(".flatMap(\n");
     sb.append("            t -> ").append(monadVar).append(".map(\n");
@@ -530,23 +546,23 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void appendLetMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
     int next = n + 1;
-    String nextType = TYPE_PARAMS[n];
+    String nextType = vp[n];
     String nextClassName = desc.stepsPrefix + next;
-    String monadRef = monadRef(desc);
 
     // Method signature
     sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<");
     appendNextClassTypeArgs(sb, desc, next);
     sb.append("> let(\n");
     sb.append("      Function<Tuple").append(n).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">, ").append(nextType).append("> f) {\n");
 
     // Method body
     String m = monadVar(desc, sb);
     sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(next).append("<");
-    appendValueTypeParams(sb, next);
+    appendValueTypeParams(sb, desc, next);
     sb.append(">> newComp =\n");
     sb.append("        ").append(m).append(".map(\n");
     sb.append("            t -> Tuple.of(");
@@ -571,18 +587,16 @@ final class ForPathStepGenerator {
 
   private static void appendWhenMethod(
       StringBuilder sb, PathTypeDescriptor desc, String className, int n) {
-    String monadRef = monadRef(desc);
-
     sb.append("  public ").append(className).append("<");
     appendClassTypeParams(sb, desc, n);
     sb.append("> when(\n");
     sb.append("      Predicate<Tuple").append(n).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">> predicate) {\n");
 
     String m = monadVar(desc, sb);
     sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(n).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">> newComp =\n");
     sb.append("        ").append(m).append(".flatMap(\n");
     sb.append("            t -> predicate.test(t) ? ").append(m).append(".of(t) : ")
@@ -601,21 +615,22 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void appendMatchMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
     int next = n + 1;
-    String nextType = TYPE_PARAMS[n];
+    String nextType = vp[n];
     String nextClassName = desc.stepsPrefix + next;
 
     sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<");
     appendNextClassTypeArgs(sb, desc, next);
     sb.append("> match(\n");
     sb.append("      Function<Tuple").append(n).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">, Optional<").append(nextType).append(">> matcher) {\n");
     sb.append("    Objects.requireNonNull(matcher, \"matcher must not be null\");\n");
 
     String m = monadVar(desc, sb);
     sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(next).append("<");
-    appendValueTypeParams(sb, next);
+    appendValueTypeParams(sb, desc, next);
     sb.append(">> newComp =\n");
     sb.append("        ").append(m).append(".flatMap(\n");
     sb.append("            t ->\n");
@@ -647,7 +662,7 @@ final class ForPathStepGenerator {
     String returnType = yieldReturnType(desc);
 
     sb.append("  public <R> ").append(returnType).append(" yield(").append(funcType).append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(", R> f) {\n");
 
     String m = monadVar(desc, sb);
@@ -676,7 +691,7 @@ final class ForPathStepGenerator {
 
     sb.append("  public <R> ").append(returnType).append(" yield(Function<Tuple").append(n)
         .append("<");
-    appendValueTypeParams(sb, n);
+    appendValueTypeParams(sb, desc, n);
     sb.append(">, R> f) {\n");
 
     String m = monadVar(desc, sb);
@@ -762,20 +777,21 @@ final class ForPathStepGenerator {
 
   /** Appends the type args for the next step class reference. */
   private static void appendNextClassTypeArgs(StringBuilder sb, PathTypeDescriptor desc, int next) {
+    String[] vp = valueParams(desc);
     if (desc.isGeneric) {
       sb.append("F");
       for (int i = 0; i < next; i++) {
-        sb.append(", ").append(TYPE_PARAMS[i]);
+        sb.append(", ").append(vp[i]);
       }
     } else if (desc.hasExtraTypeParam) {
       sb.append(desc.extraTypeParamName);
       for (int i = 0; i < next; i++) {
-        sb.append(", ").append(TYPE_PARAMS[i]);
+        sb.append(", ").append(vp[i]);
       }
     } else {
       for (int i = 0; i < next; i++) {
         if (i > 0) sb.append(", ");
-        sb.append(TYPE_PARAMS[i]);
+        sb.append(vp[i]);
       }
     }
   }
