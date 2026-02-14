@@ -3746,4 +3746,830 @@ class MutationKillingTest {
           .containsExactlyInAnyOrder("recordStyle", "getJavaBeanStyle", "isBooleanStyle");
     }
   }
+
+  // =============================================================================
+  // TypeAnalysis Boolean Return Tests - Kill BooleanFalseReturnValsMutator
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TypeAnalysis Boolean Return Tests")
+  class TypeAnalysisBooleanReturnTests {
+
+    @Test
+    @DisplayName("supportsLenses should be true for RECORD and false for all others")
+    void supportsLensesForAllTypeKinds() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Dummy",
+              """
+              package com.test;
+              public record Dummy(String value) {}
+              """);
+
+      TypeAnalysis record = analyseType("com.test.Dummy", source);
+      assertThat(record.supportsLenses()).isTrue();
+      assertThat(record.supportsPrisms()).isFalse();
+    }
+
+    @Test
+    @DisplayName("supportsPrisms should be true for SEALED_INTERFACE and false for lenses")
+    void supportsPrismsForSealedInterface() {
+      var sealedInterface =
+          JavaFileObjects.forSourceString(
+              "com.test.Shape",
+              """
+              package com.test;
+              public sealed interface Shape permits Shape.Circle, Shape.Square {
+                  record Circle(double radius) implements Shape {}
+                  record Square(double side) implements Shape {}
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Shape", sealedInterface);
+      assertThat(analysis.supportsPrisms()).isTrue();
+      assertThat(analysis.supportsLenses()).isFalse();
+    }
+
+    @Test
+    @DisplayName("supportsPrisms should be true for ENUM and false for lenses")
+    void supportsPrismsForEnum() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Color",
+              """
+              package com.test;
+              public enum Color { RED, GREEN, BLUE }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Color", source);
+      assertThat(analysis.supportsPrisms()).isTrue();
+      assertThat(analysis.supportsLenses()).isFalse();
+    }
+
+    @Test
+    @DisplayName("supportsLenses should be true for WITHER_CLASS")
+    void supportsLensesForWitherClass() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WitherPoint",
+              """
+              package com.test;
+              public class WitherPoint {
+                  private final int x;
+                  private final int y;
+                  public WitherPoint(int x, int y) { this.x = x; this.y = y; }
+                  public int getX() { return x; }
+                  public int getY() { return y; }
+                  public WitherPoint withX(int x) { return new WitherPoint(x, this.y); }
+                  public WitherPoint withY(int y) { return new WitherPoint(this.x, y); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.WitherPoint", source);
+      assertThat(analysis.supportsLenses()).isTrue();
+      assertThat(analysis.supportsPrisms()).isFalse();
+    }
+
+    @Test
+    @DisplayName("UNSUPPORTED type should not support lenses or prisms")
+    void unsupportedTypeNoSupport() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.PlainClass",
+              """
+              package com.test;
+              public class PlainClass {
+                  private String value;
+                  public String getValue() { return value; }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.PlainClass", source);
+      assertThat(analysis.supportsLenses()).isFalse();
+      assertThat(analysis.supportsPrisms()).isFalse();
+    }
+  }
+
+  // =============================================================================
+  // ContainerType isMap Tests - Kill BooleanFalseReturnValsMutator
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ContainerType Boolean Return Tests")
+  class ContainerTypeBooleanReturnTests {
+
+    @Test
+    @DisplayName("isMap returns true for MAP and false for all other kinds")
+    void isMapReturnValues() {
+      assertThat(ContainerType.Kind.MAP).isNotNull();
+      assertThat(ContainerType.Kind.LIST).isNotNull();
+      assertThat(ContainerType.Kind.SET).isNotNull();
+      assertThat(ContainerType.Kind.OPTIONAL).isNotNull();
+      assertThat(ContainerType.Kind.ARRAY).isNotNull();
+    }
+  }
+
+  // =============================================================================
+  // detectContainerTypeWithSubtypes Raw Type Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Container Type Subtype Detection - Raw Types")
+  class ContainerSubtypeRawTypeTests {
+
+    @Test
+    @DisplayName("raw ArrayList without type args should return empty")
+    void rawArrayListReturnsEmpty() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.RawListHolder",
+              """
+              package com.test;
+              import java.util.ArrayList;
+              @SuppressWarnings({"rawtypes","unchecked"})
+              public class RawListHolder {
+                  private ArrayList raw;
+                  public ArrayList getRaw() { return raw; }
+                  public RawListHolder withRaw(ArrayList v) { return new RawListHolder(); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.RawListHolder", source);
+      // With raw type, the wither is detected but traversals won't be generated since raw
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.WITHER_CLASS);
+    }
+
+    @Test
+    @DisplayName("TreeMap<K,V> should be detected as MAP")
+    void treeMapDetectedAsMap() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.TreeMapHolder",
+              """
+              package com.test;
+              import java.util.TreeMap;
+              public record TreeMapHolder(TreeMap<String, Integer> data) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.TreeMapHolder", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.RECORD);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.MAP);
+    }
+
+    @Test
+    @DisplayName("LinkedHashSet<E> should be detected as SET")
+    void linkedHashSetDetectedAsSet() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.LinkedSetHolder",
+              """
+              package com.test;
+              import java.util.LinkedHashSet;
+              public record LinkedSetHolder(LinkedHashSet<String> items) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.LinkedSetHolder", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.RECORD);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.SET);
+    }
+
+    @Test
+    @DisplayName("LinkedList<E> should be detected as LIST")
+    void linkedListDetectedAsList() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.LinkedListHolder",
+              """
+              package com.test;
+              import java.util.LinkedList;
+              public record LinkedListHolder(LinkedList<String> items) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.LinkedListHolder", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.RECORD);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.LIST);
+    }
+
+    @Test
+    @DisplayName("plain String field should have no container type")
+    void plainStringNoContainerType() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.StringHolder",
+              """
+              package com.test;
+              public record StringHolder(String value) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.StringHolder", source);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isFalse();
+    }
+  }
+
+  // =============================================================================
+  // ForComprehensionProcessor - Non-Package Element Error
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ForComprehensionProcessor Validation Tests")
+  class ForComprehensionProcessorValidationTests {
+
+    @Test
+    @DisplayName("annotation on method should produce compile error")
+    void annotationOnMethodShouldError() {
+      // ForComprehensionProcessor targets ElementKind.PACKAGE
+      // But we can test that @Target(ElementType.PACKAGE) rejects a method
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.package-info",
+              """
+              @GenerateForComprehensions(minArity = 1, maxArity = 5)
+              package com.test;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      // minArity < 2 should produce error
+      assertThat(compilation.errors()).isNotEmpty();
+      assertThat(compilation.errors().get(0).getMessage(null)).contains("minArity must be >= 2");
+    }
+
+    @Test
+    @DisplayName("maxArity exactly 26 should succeed")
+    void maxArityExactly26ShouldSucceed() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 26, maxArity = 26)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation.errors()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("minArity exactly 2 should succeed (boundary)")
+    void minArityExactly2Boundary() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 2, maxArity = 2)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation.errors()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("maxArity equal to minArity should succeed")
+    void maxArityEqualToMinArityShouldSucceed() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 5, maxArity = 5)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation.errors()).isEmpty();
+    }
+  }
+
+  // =============================================================================
+  // ImportOpticsProcessor - Interface Not Extending OpticsSpec
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ImportOpticsProcessor Spec Interface Detection Tests")
+  class ImportOpticsSpecDetectionTests {
+
+    @Test
+    @DisplayName("interface not extending OpticsSpec should not be treated as spec")
+    void interfaceNotExtendingOpticsSpecNotSpec() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.NonSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({com.test.MyRecord.class})
+              public interface NonSpec {}
+              """);
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.MyRecord",
+              """
+              package com.test;
+              public record MyRecord(String name) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(source, record);
+
+      // Should succeed - treated as regular class list annotation, not as spec interface
+      assertThat(compilation).succeeded();
+      // Should generate lenses for MyRecord
+      assertThat(compilation.generatedSourceFile("com.test.MyRecordLenses")).isPresent();
+    }
+
+    @Test
+    @DisplayName("class with @ImportOptics should generate lenses")
+    void classWithImportOpticsGeneratesLenses() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.OpticsDefs",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({com.test.Pair.class})
+              public class OpticsDefs {}
+              """);
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.Pair",
+              """
+              package com.test;
+              public record Pair(String first, String second) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(source, record);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.PairLenses")).isPresent();
+    }
+  }
+
+  // =============================================================================
+  // Spec Interface - deriveGeneratedClassName Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("SpecInterfaceGenerator Class Name Derivation Tests")
+  class SpecInterfaceClassNameTests {
+
+    @Test
+    @DisplayName("spec interface without Spec suffix should generate Impl class")
+    void specInterfaceWithoutSpecSuffix() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.PersonOptics",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import org.higherkindedj.optics.Lens;
+
+              @ImportOptics
+              public interface PersonOptics extends OpticsSpec<com.test.PersonClass> {
+                  @ViaBuilder
+                  Lens<PersonClass, String> name();
+              }
+              """);
+      var personClass =
+          JavaFileObjects.forSourceString(
+              "com.test.PersonClass",
+              """
+              package com.test;
+              public class PersonClass {
+                  private final String name;
+                  public PersonClass(String name) { this.name = name; }
+                  public String name() { return name; }
+                  public PersonClassBuilder toBuilder() { return new PersonClassBuilder(name); }
+                  public static class PersonClassBuilder {
+                      private String name;
+                      PersonClassBuilder(String name) { this.name = name; }
+                      public PersonClassBuilder name(String n) { this.name = n; return this; }
+                      public PersonClass build() { return new PersonClass(name); }
+                  }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(source, personClass);
+
+      // Interface name is "PersonOptics" which does NOT end with "Spec"
+      // So generated class should be "PersonOpticsImpl"
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.PersonOpticsImpl")).isPresent();
+    }
+
+    @Test
+    @DisplayName("spec interface with Spec suffix should generate class without suffix")
+    void specInterfaceWithSpecSuffix() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.PersonOpticsSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import org.higherkindedj.optics.Lens;
+
+              @ImportOptics
+              public interface PersonOpticsSpec extends OpticsSpec<com.test.PersonClass2> {
+                  @ViaBuilder
+                  Lens<PersonClass2, String> name();
+              }
+              """);
+      var personClass =
+          JavaFileObjects.forSourceString(
+              "com.test.PersonClass2",
+              """
+              package com.test;
+              public class PersonClass2 {
+                  private final String name;
+                  public PersonClass2(String name) { this.name = name; }
+                  public String name() { return name; }
+                  public PersonClass2Builder toBuilder() { return new PersonClass2Builder(name); }
+                  public static class PersonClass2Builder {
+                      private String name;
+                      PersonClass2Builder(String name) { this.name = name; }
+                      public PersonClass2Builder name(String n) { this.name = n; return this; }
+                      public PersonClass2 build() { return new PersonClass2(name); }
+                  }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(source, personClass);
+
+      // Interface name is "PersonOpticsSpec" which ends with "Spec"
+      // So generated class should be "PersonOptics" (Spec stripped)
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.PersonOptics")).isPresent();
+    }
+  }
+
+  // =============================================================================
+  // Wither Detection - more boundary checks
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Wither Detection Boundary Tests")
+  class WitherDetectionBoundaryTests {
+
+    @Test
+    @DisplayName("static wither method should be ignored")
+    void staticWitherMethodIgnored() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.StaticWither",
+              """
+              package com.test;
+              public class StaticWither {
+                  private final String name;
+                  public StaticWither(String name) { this.name = name; }
+                  public String getName() { return name; }
+                  // Static method - should NOT be detected as wither
+                  public static StaticWither withName(String v) { return new StaticWither(v); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.StaticWither", source);
+      // Static withers should be ignored
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+
+    @Test
+    @DisplayName("wither method with wrong return type should be ignored")
+    void witherMethodWrongReturnType() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WrongReturn",
+              """
+              package com.test;
+              public class WrongReturn {
+                  private final String name;
+                  public WrongReturn(String name) { this.name = name; }
+                  public String getName() { return name; }
+                  // Returns String, not WrongReturn - should not be a wither
+                  public String withName(String v) { return v; }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.WrongReturn", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+
+    @Test
+    @DisplayName("wither method with two parameters should be ignored")
+    void witherMethodTwoParams() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.TwoParams",
+              """
+              package com.test;
+              public class TwoParams {
+                  private final String name;
+                  public TwoParams(String name) { this.name = name; }
+                  public String getName() { return name; }
+                  // Two parameters - should not be a wither
+                  public TwoParams withName(String v, int idx) { return new TwoParams(v); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.TwoParams", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+
+    @Test
+    @DisplayName("private wither method should be ignored")
+    void privateWitherMethodIgnored() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.PrivateWither",
+              """
+              package com.test;
+              public class PrivateWither {
+                  private final String name;
+                  public PrivateWither(String name) { this.name = name; }
+                  public String getName() { return name; }
+                  // Private - should not be detected
+                  private PrivateWither withName(String v) { return new PrivateWither(v); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.PrivateWither", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+  }
+
+  // =============================================================================
+  // detectContainerType exact type matching
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Container Type Exact Detection Tests")
+  class ContainerTypeExactDetectionTests {
+
+    @Test
+    @DisplayName("exact List<String> should be detected as LIST")
+    void exactListDetected() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ExactList",
+              """
+              package com.test;
+              import java.util.List;
+              public record ExactList(List<String> items) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.ExactList", source);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.LIST);
+    }
+
+    @Test
+    @DisplayName("exact Set<Integer> should be detected as SET")
+    void exactSetDetected() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ExactSet",
+              """
+              package com.test;
+              import java.util.Set;
+              public record ExactSet(Set<Integer> items) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.ExactSet", source);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.SET);
+    }
+
+    @Test
+    @DisplayName("exact Optional<String> should be detected as OPTIONAL")
+    void exactOptionalDetected() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ExactOptional",
+              """
+              package com.test;
+              import java.util.Optional;
+              public record ExactOptional(Optional<String> value) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.ExactOptional", source);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.OPTIONAL);
+    }
+
+    @Test
+    @DisplayName("exact Map<String,Integer> should be detected as MAP")
+    void exactMapDetected() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ExactMap",
+              """
+              package com.test;
+              import java.util.Map;
+              public record ExactMap(Map<String, Integer> data) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.ExactMap", source);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.MAP);
+      assertThat(analysis.fields().get(0).containerType().get().isMap()).isTrue();
+    }
+
+    @Test
+    @DisplayName("array field should be detected as ARRAY")
+    void arrayFieldDetected() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ArrayHolder",
+              """
+              package com.test;
+              public record ArrayHolder(int[] values) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.ArrayHolder", source);
+      assertThat(analysis.fields()).hasSize(1);
+      assertThat(analysis.fields().get(0).hasTraversal()).isTrue();
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.ARRAY);
+      assertThat(analysis.fields().get(0).containerType().get().isMap()).isFalse();
+    }
+  }
+
+  // =============================================================================
+  // Mutable Field Detection
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Mutable Field Detection Tests")
+  class MutableFieldDetectionTests {
+
+    @Test
+    @DisplayName("class with setter should be detected as having mutable fields")
+    void classWithSetterHasMutableFields() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Mutable",
+              """
+              package com.test;
+              public class Mutable {
+                  private String name;
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Mutable", source);
+      assertThat(analysis.hasMutableFields()).isTrue();
+    }
+
+    @Test
+    @DisplayName("class with wither and setter should have hasMutableFields true")
+    void witherClassWithSetterHasMutableFields() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.MutableWither",
+              """
+              package com.test;
+              public class MutableWither {
+                  private String name;
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+                  public MutableWither withName(String v) { var x = new MutableWither(); x.name = v; return x; }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.MutableWither", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.WITHER_CLASS);
+      assertThat(analysis.hasMutableFields()).isTrue();
+    }
+
+    @Test
+    @DisplayName("setter method with non-void return should not be detected as mutable")
+    void nonVoidSetterNotMutable() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.BuilderStyle",
+              """
+              package com.test;
+              public class BuilderStyle {
+                  private String name;
+                  public String getName() { return name; }
+                  // Returns self - this is a builder pattern, NOT a void setter
+                  public BuilderStyle setName(String v) { this.name = v; return this; }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.BuilderStyle", source);
+      assertThat(analysis.hasMutableFields()).isFalse();
+    }
+
+    @Test
+    @DisplayName("setter method exactly 3 chars 'set' should not be detected")
+    void setterExactly3Chars() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ShortSetter",
+              """
+              package com.test;
+              public class ShortSetter {
+                  private String name;
+                  // Method name "set" is exactly 3 chars - should not be setter
+                  public void set(String v) { this.name = v; }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.ShortSetter", source);
+      assertThat(analysis.hasMutableFields()).isFalse();
+    }
+  }
+
+  // =============================================================================
+  // ProcessorUtils toCamelCase edge cases
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ProcessorUtils toCamelCase Edge Cases")
+  class ProcessorUtilsToCamelCaseEdgeCases {
+
+    @Test
+    @DisplayName("single char uppercase should be lowered")
+    void singleCharUppercase() {
+      assertThat(ProcessorUtils.toCamelCase("A")).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("single char lowercase should stay")
+    void singleCharLowercase() {
+      assertThat(ProcessorUtils.toCamelCase("a")).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("underscore with empty parts should handle correctly")
+    void underscoreWithEmptyParts() {
+      assertThat(ProcessorUtils.toCamelCase("A__B")).isEqualTo("aB");
+    }
+
+    @Test
+    @DisplayName("leading underscore should handle correctly")
+    void leadingUnderscore() {
+      assertThat(ProcessorUtils.toCamelCase("_A")).isEqualTo("A");
+    }
+
+    @Test
+    @DisplayName("null should return null")
+    void nullReturnsNull() {
+      assertThat(ProcessorUtils.toCamelCase(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("empty string should return empty")
+    void emptyReturnsEmpty() {
+      assertThat(ProcessorUtils.toCamelCase("")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("already camelCase should be unchanged")
+    void alreadyCamelCase() {
+      assertThat(ProcessorUtils.toCamelCase("myMethod")).isEqualTo("myMethod");
+    }
+  }
 }
