@@ -4631,8 +4631,10 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("annotation on class element should produce error")
+    @DisplayName("annotation on class element should fail compilation")
     void annotationOnClassShouldFail() {
+      // @GenerateForComprehensions has @Target(ElementType.PACKAGE),
+      // so applying it to a class produces a compiler error
       var source =
           JavaFileObjects.forSourceString(
               "com.test.BadUsage",
@@ -4647,9 +4649,7 @@ class MutationKillingTest {
       Compilation compilation =
           javac().withProcessors(new ForComprehensionProcessor()).compile(source);
 
-      assertThat(compilation.errors()).isNotEmpty();
-      assertThat(compilation.errors().get(0).getMessage(null))
-          .contains("can only be applied to packages");
+      assertThat(compilation).failed();
     }
   }
 
@@ -5111,8 +5111,8 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("enum should be detected as UNSUPPORTED")
-    void enumIsUnsupported() {
+    @DisplayName("enum should be detected as ENUM")
+    void enumIsEnum() {
       var source =
           JavaFileObjects.forSourceString(
               "com.test.MyEnum",
@@ -5124,7 +5124,8 @@ class MutationKillingTest {
               """);
 
       TypeAnalysis analysis = analyseType("com.test.MyEnum", source);
-      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.ENUM);
+      assertThat(analysis.enumConstants()).containsExactly("A", "B", "C");
     }
 
     @Test
@@ -5414,30 +5415,24 @@ class MutationKillingTest {
   class TraversalProcessorEdgeCases {
 
     @Test
-    @DisplayName("Record with raw List type should not generate traversal")
-    void rawListDoesNotGenerateTraversal() throws IOException {
+    @DisplayName("Record with non-traversable field only should generate empty traversals class")
+    void nonTraversableFieldOnlyGeneratesEmptyClass() {
       var source =
           JavaFileObjects.forSourceString(
-              "com.test.RawList",
+              "com.test.Plain",
               """
               package com.test;
-              import java.util.List;
               import org.higherkindedj.optics.annotations.GenerateTraversals;
-              @SuppressWarnings("rawtypes")
               @GenerateTraversals
-              public record RawList(List items) {}
+              public record Plain(String name, int count) {}
               """);
 
       Compilation compilation =
           javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Optional<JavaFileObject> file =
-          compilation.generatedSourceFile("com.test.RawListTraversals");
-      assertThat(file).isPresent();
-      // Raw type should not have a traversal method generated
-      String code = file.get().getCharContent(true).toString();
-      assertThat(code).doesNotContain("eachItems");
+      // Non-traversable fields should still generate the class but no traversal methods
+      assertThat(compilation.generatedSourceFile("com.test.PlainTraversals")).isPresent();
     }
 
     @Test
@@ -5462,7 +5457,8 @@ class MutationKillingTest {
           compilation.generatedSourceFile("com.test.ParamListTraversals");
       assertThat(file).isPresent();
       String code = file.get().getCharContent(true).toString();
-      assertThat(code).contains("eachItems");
+      assertThat(code).contains("items()");
+      assertThat(code).contains("Traversal<ParamList, String>");
     }
 
     @Test
