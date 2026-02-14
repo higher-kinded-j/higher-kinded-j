@@ -1000,10 +1000,7 @@ class ForPathTest {
               .from(t -> Path.just(4))
               .from(t -> Path.just(5))
               .from(t -> Path.just(6))
-              .yield(
-                  t ->
-                      "sum="
-                          + (t._1() + t._2() + t._3() + t._4() + t._5() + t._6()));
+              .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5() + t._6()));
 
       assertEquals(Maybe.just("sum=21"), result.run());
     }
@@ -1495,13 +1492,7 @@ class ForPathTest {
               .yield(
                   t ->
                       "sum="
-                          + (t._1()
-                              + t._2()
-                              + t._3()
-                              + t._4()
-                              + t._5()
-                              + t._6()
-                              + t._7()
+                          + (t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7()
                               + t._8()));
 
       assertEquals("sum=36", result.unsafeRun());

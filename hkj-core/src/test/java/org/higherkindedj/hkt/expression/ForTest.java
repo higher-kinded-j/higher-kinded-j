@@ -238,9 +238,7 @@ class ForTest {
               .from(t -> Id.of(5))
               .from(t -> Id.of(6))
               .from(t -> Id.of(7))
-              .yield(
-                  t ->
-                      "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7());
+              .yield(t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7());
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1234567");
     }
 
@@ -273,16 +271,7 @@ class ForTest {
               .from(t -> Id.of(7))
               .from(t -> Id.of(8))
               .yield(
-                  t ->
-                      ""
-                          + t._1()
-                          + t._2()
-                          + t._3()
-                          + t._4()
-                          + t._5()
-                          + t._6()
-                          + t._7()
-                          + t._8());
+                  t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7() + t._8());
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("12345678");
     }
   }
@@ -560,9 +549,7 @@ class ForTest {
               .from(t -> LIST.widen(Arrays.asList(1000000)))
               .from(t -> LIST.widen(Arrays.asList(10000000)))
               .when(t -> t._1() == 1)
-              .yield(
-                  t ->
-                      t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7() + t._8());
+              .yield(t -> t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7() + t._8());
       assertThat(LIST.narrow(result)).containsExactly(11111111);
     }
   }
