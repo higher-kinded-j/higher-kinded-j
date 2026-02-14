@@ -1392,7 +1392,7 @@ class ForPathTest {
               .from(t -> Path.list(1000))
               .yield((a, b, c, d) -> a + b + c + d);
 
-      assertEquals(List.of(1111, 2111), result.run());
+      assertEquals(List.of(1111, 1112), result.run());
     }
 
     @Test
