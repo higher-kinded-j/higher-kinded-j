@@ -117,6 +117,11 @@ final class TupleGenerator {
         .append(className)
         .append(".class;\n\n");
 
+    // For arity 2, generate bimap() (the bifunctor operation) in addition to map()
+    if (n == 2) {
+      generateBimap(sb, constName);
+    }
+
     // map() method - transforms all elements
     generateMapAll(sb, n, className, constName);
 
@@ -130,6 +135,42 @@ final class TupleGenerator {
     Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();
     writer.write(sb.toString());
     writer.close();
+  }
+
+  private static void generateBimap(StringBuilder sb, String constName) {
+    sb.append("  /**\n");
+    sb.append(
+        "   * Transforms both elements of this tuple using the provided mapping functions.\n");
+    sb.append("   *\n");
+    sb.append(
+        "   * <p>This is the fundamental bifunctor operation for {@code Tuple2}, allowing\n");
+    sb.append("   * simultaneous transformation of both elements.\n");
+    sb.append("   *\n");
+    sb.append(
+        "   * @param firstMapper The non-null function to apply to the first element.\n");
+    sb.append(
+        "   * @param secondMapper The non-null function to apply to the second element.\n");
+    sb.append(
+        "   * @param <C> The type of the first element in the resulting tuple.\n");
+    sb.append(
+        "   * @param <D> The type of the second element in the resulting tuple.\n");
+    sb.append("   * @return A new {@code Tuple2} with both elements transformed.\n");
+    sb.append(
+        "   * @throws NullPointerException if either mapper is null.\n");
+    sb.append("   */\n");
+    sb.append("  public <C, D> Tuple2<C, D> bimap(\n");
+    sb.append(
+        "      Function<? super A, ? extends C> firstMapper,"
+            + " Function<? super B, ? extends D> secondMapper) {\n");
+    sb.append("    Validation.function().requireMapper(firstMapper, \"firstMapper\", ")
+        .append(constName)
+        .append(", BIMAP);\n");
+    sb.append("    Validation.function().requireMapper(secondMapper, \"secondMapper\", ")
+        .append(constName)
+        .append(", BIMAP);\n");
+    sb.append("\n");
+    sb.append("    return new Tuple2<>(firstMapper.apply(_1), secondMapper.apply(_2));\n");
+    sb.append("  }\n\n");
   }
 
   private static void generateMapAll(StringBuilder sb, int n, String className, String constName) {

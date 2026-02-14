@@ -73,7 +73,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        5),
+        1),
     new PathTypeDescriptor(
         "OptionalPath",
         "OptionalPathSteps",
@@ -89,7 +89,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        3),
+        1),
     new PathTypeDescriptor(
         "EitherPath",
         "EitherPathSteps",
@@ -105,7 +105,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        3),
+        1),
     new PathTypeDescriptor(
         "TryPath",
         "TryPathSteps",
@@ -121,7 +121,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        3),
+        1),
     new PathTypeDescriptor(
         "IOPath",
         "IOPathSteps",
@@ -137,7 +137,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        3),
+        1),
     new PathTypeDescriptor(
         "VTaskPath",
         "VTaskPathSteps",
@@ -153,7 +153,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        5),
+        1),
     new PathTypeDescriptor(
         "IdPath",
         "IdPathSteps",
@@ -169,7 +169,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
-        3),
+        1),
     new PathTypeDescriptor(
         "NonDetPath",
         "NonDetPathSteps",
@@ -185,7 +185,7 @@ final class ForPathStepGenerator {
         null,
         false,
         true,
-        3),
+        1),
     new PathTypeDescriptor(
         "GenericPath",
         "GenericPathSteps",
@@ -201,7 +201,7 @@ final class ForPathStepGenerator {
         "F extends WitnessArity<TypeArity.Unary>",
         true,
         false,
-        3),
+        1),
   };
 
   // =========================================================================
@@ -260,10 +260,11 @@ final class ForPathStepGenerator {
     // Constructor
     appendConstructor(sb, desc, className, n);
 
-    // from(), let() -- only if not terminal
+    // from(), let(), focus() -- only if not terminal
     if (!terminal) {
       appendFromMethod(sb, desc, n);
       appendLetMethod(sb, desc, n);
+      appendFocusMethod(sb, desc, n);
     }
 
     // when() -- only for filterable
@@ -592,6 +593,28 @@ final class ForPathStepGenerator {
       sb.append("monad, ");
     }
     sb.append("newComp);\n");
+    sb.append("  }\n\n");
+  }
+
+  // =========================================================================
+  // focus() method (non-terminal only)
+  // =========================================================================
+
+  private static void appendFocusMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
+    int next = n + 1;
+    String nextType = vp[n];
+    String nextClassName = desc.stepsPrefix + next;
+
+    // Method signature
+    sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<");
+    appendNextClassTypeArgs(sb, desc, next);
+    sb.append("> focus(\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(">, ").append(nextType).append("> extractor) {\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+    sb.append("    return let(extractor);\n");
     sb.append("  }\n\n");
   }
 
