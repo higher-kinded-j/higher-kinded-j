@@ -1,0 +1,2 @@
+// PLACEHOLDER - Run with -DupdateGolden=true to generate.
+// ./gradlew :hkj-processor:test --tests "*ForComprehensionGoldenFileTest*" -DupdateGolden=true
