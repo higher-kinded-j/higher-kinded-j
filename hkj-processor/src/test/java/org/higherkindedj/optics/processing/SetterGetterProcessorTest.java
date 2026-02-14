@@ -48,7 +48,7 @@ class SetterGetterProcessorTest {
           javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      assertThat(compilation.generatedSourceFile("com.test.PointSetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PointSetters")).isPresent();
 
       String code =
           compilation
@@ -173,7 +173,7 @@ class SetterGetterProcessorTest {
           javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      assertThat(compilation.generatedSourceFile("com.generated.ItemSetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemSetters")).isPresent();
     }
 
     @Test
@@ -289,7 +289,7 @@ class SetterGetterProcessorTest {
           javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      assertThat(compilation.generatedSourceFile("com.test.PointGetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PointGetters")).isPresent();
 
       String code =
           compilation
@@ -411,7 +411,7 @@ class SetterGetterProcessorTest {
           javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      assertThat(compilation.generatedSourceFile("com.generated.ItemGetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemGetters")).isPresent();
     }
 
     @Test
@@ -498,7 +498,7 @@ class SetterGetterProcessorTest {
           javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      assertThat(compilation.generatedSourceFile("com.test.ColorPrisms")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.ColorPrisms")).isPresent();
 
       String code =
           compilation
