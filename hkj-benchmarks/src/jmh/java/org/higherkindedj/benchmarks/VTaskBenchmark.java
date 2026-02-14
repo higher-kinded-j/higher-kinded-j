@@ -83,7 +83,7 @@ public class VTaskBenchmark {
    * <p>Measures the cost of running a pure VTask on a virtual thread.
    */
   @Benchmark
-  public Integer runSucceed() throws Throwable {
+  public Integer runSucceed() {
     return pureVTask.run();
   }
 
@@ -93,7 +93,7 @@ public class VTaskBenchmark {
    * <p>Measures the cost of running a delayed VTask on a virtual thread.
    */
   @Benchmark
-  public Integer runDelay() throws Throwable {
+  public Integer runDelay() {
     return delayedVTask.run();
   }
 
@@ -113,7 +113,7 @@ public class VTaskBenchmark {
    * <p>Measures cost of running a mapped VTask.
    */
   @Benchmark
-  public Integer mapExecution() throws Throwable {
+  public Integer mapExecution() {
     return pureVTask.map(x -> x + 1).run();
   }
 
@@ -125,7 +125,7 @@ public class VTaskBenchmark {
 
   /** FlatMap operation execution. */
   @Benchmark
-  public Integer flatMapExecution() throws Throwable {
+  public Integer flatMapExecution() {
     return pureVTask.flatMap(x -> VTask.succeed(x * 2)).run();
   }
 
@@ -149,7 +149,7 @@ public class VTaskBenchmark {
    * <p>Measures cost of executing deep VTask chains.
    */
   @Benchmark
-  public Integer longChainExecution() throws Throwable {
+  public Integer longChainExecution() {
     VTask<Integer> result = pureVTask;
     for (int i = 0; i < 50; i++) {
       result = result.map(x -> x + 1);
@@ -159,7 +159,7 @@ public class VTaskBenchmark {
 
   /** Chained operations with mixed map/flatMap. */
   @Benchmark
-  public Integer chainedOperations() throws Throwable {
+  public Integer chainedOperations() {
     return pureVTask
         .map(x -> x + 1)
         .flatMap(x -> VTask.succeed(x * 2))
@@ -174,7 +174,7 @@ public class VTaskBenchmark {
    * <p>Measures the cost of sequential flatMap operations.
    */
   @Benchmark
-  public Integer sequentialComposition() throws Throwable {
+  public Integer sequentialComposition() {
     return pureVTask.flatMap(x -> VTask.succeed(x * 2)).flatMap(y -> VTask.succeed(y + 10)).run();
   }
 
@@ -190,7 +190,7 @@ public class VTaskBenchmark {
 
   /** Nested flatMap execution. */
   @Benchmark
-  public Integer nestedFlatMapExecution() throws Throwable {
+  public Integer nestedFlatMapExecution() {
     return pureVTask
         .flatMap(x -> VTask.succeed(x + 1))
         .flatMap(x -> VTask.succeed(x * 2))
@@ -205,7 +205,7 @@ public class VTaskBenchmark {
    * <p>Tests if VTask can handle deep recursive chains without stack overflow.
    */
   @Benchmark
-  public Integer deepRecursion() throws Throwable {
+  public Integer deepRecursion() {
     VTask<Integer> result = VTask.succeed(0);
     for (int i = 0; i < 50; i++) {
       result = result.flatMap(x -> VTask.succeed(x + 1));
@@ -219,7 +219,7 @@ public class VTaskBenchmark {
    * <p>Simulates acquiring a resource, using it, and cleaning up.
    */
   @Benchmark
-  public String realWorldResourcePattern(Blackhole blackhole) throws Throwable {
+  public String realWorldResourcePattern(Blackhole blackhole) {
     VTask<String> program =
         VTask.succeed("resource")
             .flatMap(
@@ -238,7 +238,7 @@ public class VTaskBenchmark {
    * <p>Measures cost of simple map operations in VTask.
    */
   @Benchmark
-  public Integer simpleComputation() throws Throwable {
+  public Integer simpleComputation() {
     return VTask.succeed(42).map(x -> x * 2).run();
   }
 
@@ -265,7 +265,7 @@ public class VTaskBenchmark {
 
   /** Error recovery. */
   @Benchmark
-  public Integer errorRecovery() throws Throwable {
+  public Integer errorRecovery() {
     return VTask.<Integer>fail(new RuntimeException("error")).recover(e -> -1).run();
   }
 }

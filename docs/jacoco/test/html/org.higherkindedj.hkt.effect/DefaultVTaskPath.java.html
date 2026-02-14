@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultVTaskPath.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.effect</a> &gt; <span class="el_source">DefaultVTaskPath.java</span></div><h1>DefaultVTaskPath.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.effect;
+
+import java.time.Duration;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.vtask.Par;
+import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
+
+/**
+ * Default implementation of {@link VTaskPath}.
+ *
+ * &lt;p&gt;This class wraps a {@link VTask} and delegates all operations to it, providing the fluent
+ * Effect Path API.
+ *
+ * @param &lt;A&gt; the type of the value produced by the computation
+ */
+final class DefaultVTaskPath&lt;A&gt; implements VTaskPath&lt;A&gt; {
+
+  private final VTask&lt;A&gt; value;
+
+  /**
+   * Creates a new DefaultVTaskPath wrapping the given VTask.
+   *
+   * @param value the VTask to wrap; must not be null
+   */
+<span class="fc" id="L39">  DefaultVTaskPath(VTask&lt;A&gt; value) {</span>
+<span class="fc" id="L40">    this.value = Objects.requireNonNull(value, &quot;value must not be null&quot;);</span>
+<span class="fc" id="L41">  }</span>
+
+  @Override
+  public VTask&lt;A&gt; run() {
+<span class="fc" id="L45">    return value;</span>
+  }
+
+  @Override
+  public A unsafeRun() {
+    try {
+<span class="fc" id="L51">      return value.run();</span>
+<span class="fc" id="L52">    } catch (RuntimeException | Error e) {</span>
+<span class="fc" id="L53">      throw e;</span>
+<span class="nc" id="L54">    } catch (Throwable t) {</span>
+<span class="nc" id="L55">      throw new RuntimeException(t);</span>
+    }
+  }
+
+  @Override
+  public CompletableFuture&lt;A&gt; runAsync() {
+<span class="fc" id="L61">    return value.runAsync();</span>
+  }
+
+  // ===== Composable implementation =====
+
+  @Override
+  public &lt;B&gt; VTaskPath&lt;B&gt; map(Function&lt;? super A, ? extends B&gt; mapper) {
+<span class="fc" id="L68">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+<span class="fc" id="L69">    return new DefaultVTaskPath&lt;&gt;(value.map(mapper));</span>
+  }
+
+  @Override
+  public VTaskPath&lt;A&gt; peek(Consumer&lt;? super A&gt; consumer) {
+<span class="fc" id="L74">    Objects.requireNonNull(consumer, &quot;consumer must not be null&quot;);</span>
+<span class="fc" id="L75">    return new DefaultVTaskPath&lt;&gt;(value.peek(consumer));</span>
+  }
+
+  @Override
+  public VTaskPath&lt;Unit&gt; asUnit() {
+<span class="fc" id="L80">    return new DefaultVTaskPath&lt;&gt;(value.asUnit());</span>
+  }
+
+  // ===== Combinable implementation =====
+
+  @Override
+  public &lt;B, C&gt; VTaskPath&lt;C&gt; zipWith(
+      Combinable&lt;B&gt; other, BiFunction&lt;? super A, ? super B, ? extends C&gt; combiner) {
+<span class="fc" id="L88">    Objects.requireNonNull(other, &quot;other must not be null&quot;);</span>
+<span class="fc" id="L89">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc bfc" id="L91" title="All 2 branches covered.">    if (!(other instanceof VTaskPath&lt;?&gt; otherVTask)) {</span>
+<span class="fc" id="L92">      throw new IllegalArgumentException(&quot;Cannot zipWith non-VTaskPath: &quot; + other.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L96">    VTaskPath&lt;B&gt; typedOther = (VTaskPath&lt;B&gt;) otherVTask;</span>
+
+<span class="fc" id="L98">    return new DefaultVTaskPath&lt;&gt;(Par.map2(this.run(), typedOther.run(), combiner));</span>
+  }
+
+  @Override
+  public &lt;B, C, D&gt; VTaskPath&lt;D&gt; zipWith3(
+      VTaskPath&lt;B&gt; second,
+      VTaskPath&lt;C&gt; third,
+      Function3&lt;? super A, ? super B, ? super C, ? extends D&gt; combiner) {
+<span class="fc" id="L106">    Objects.requireNonNull(second, &quot;second must not be null&quot;);</span>
+<span class="fc" id="L107">    Objects.requireNonNull(third, &quot;third must not be null&quot;);</span>
+<span class="fc" id="L108">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+    // Adapt the combiner to match Par.map3's invariant signature
+<span class="fc" id="L111">    Function3&lt;A, B, C, D&gt; adaptedCombiner = (a, b, c) -&gt; combiner.apply(a, b, c);</span>
+<span class="fc" id="L112">    return new DefaultVTaskPath&lt;&gt;(Par.map3(this.run(), second.run(), third.run(), adaptedCombiner));</span>
+  }
+
+  // ===== Chainable implementation =====
+
+  @Override
+  public &lt;B&gt; VTaskPath&lt;B&gt; via(Function&lt;? super A, ? extends Chainable&lt;B&gt;&gt; mapper) {
+<span class="fc" id="L119">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+
+<span class="fc" id="L121">    return new DefaultVTaskPath&lt;&gt;(</span>
+<span class="fc" id="L122">        VTask.delay(</span>
+            () -&gt; {
+<span class="fc" id="L124">              A a = this.unsafeRun();</span>
+<span class="fc" id="L125">              Chainable&lt;B&gt; result = mapper.apply(a);</span>
+<span class="fc" id="L126">              Objects.requireNonNull(result, &quot;mapper must not return null&quot;);</span>
+
+<span class="fc bfc" id="L128" title="All 2 branches covered.">              if (!(result instanceof VTaskPath&lt;?&gt; vtaskPath)) {</span>
+<span class="fc" id="L129">                throw new IllegalArgumentException(</span>
+<span class="fc" id="L130">                    &quot;via mapper must return VTaskPath, got: &quot; + result.getClass());</span>
+              }
+
+              @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L134">              VTaskPath&lt;B&gt; typedResult = (VTaskPath&lt;B&gt;) vtaskPath;</span>
+<span class="fc" id="L135">              return typedResult.unsafeRun();</span>
+            }));
+  }
+
+  @Override
+  public &lt;B&gt; VTaskPath&lt;B&gt; flatMap(Function&lt;? super A, ? extends Chainable&lt;B&gt;&gt; mapper) {
+<span class="fc" id="L141">    return via(mapper);</span>
+  }
+
+  @Override
+  public &lt;B&gt; VTaskPath&lt;B&gt; then(Supplier&lt;? extends Chainable&lt;B&gt;&gt; supplier) {
+<span class="fc" id="L146">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+
+<span class="fc" id="L148">    return new DefaultVTaskPath&lt;&gt;(</span>
+<span class="fc" id="L149">        VTask.delay(</span>
+            () -&gt; {
+              // Execute this VTask for its side effects
+<span class="fc" id="L152">              this.unsafeRun();</span>
+
+<span class="fc" id="L154">              Chainable&lt;B&gt; result = supplier.get();</span>
+<span class="fc" id="L155">              Objects.requireNonNull(result, &quot;supplier must not return null&quot;);</span>
+
+<span class="fc bfc" id="L157" title="All 2 branches covered.">              if (!(result instanceof VTaskPath&lt;?&gt; vtaskPath)) {</span>
+<span class="fc" id="L158">                throw new IllegalArgumentException(</span>
+<span class="fc" id="L159">                    &quot;then supplier must return VTaskPath, got: &quot; + result.getClass());</span>
+              }
+
+              @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L163">              VTaskPath&lt;B&gt; typedResult = (VTaskPath&lt;B&gt;) vtaskPath;</span>
+<span class="fc" id="L164">              return typedResult.unsafeRun();</span>
+            }));
+  }
+
+  // ===== Error handling =====
+
+  @Override
+  public VTaskPath&lt;A&gt; handleError(Function&lt;? super Throwable, ? extends A&gt; recovery) {
+<span class="fc" id="L172">    Objects.requireNonNull(recovery, &quot;recovery must not be null&quot;);</span>
+<span class="fc" id="L173">    return new DefaultVTaskPath&lt;&gt;(value.recover(recovery));</span>
+  }
+
+  @Override
+  public VTaskPath&lt;A&gt; handleErrorWith(
+      Function&lt;? super Throwable, ? extends VTaskPath&lt;A&gt;&gt; recovery) {
+<span class="fc" id="L179">    Objects.requireNonNull(recovery, &quot;recovery must not be null&quot;);</span>
+<span class="fc" id="L180">    return new DefaultVTaskPath&lt;&gt;(</span>
+<span class="fc" id="L181">        value.recoverWith(</span>
+            t -&gt; {
+<span class="fc" id="L183">              VTaskPath&lt;A&gt; fallback = recovery.apply(t);</span>
+<span class="fc" id="L184">              Objects.requireNonNull(fallback, &quot;recovery must not return null&quot;);</span>
+<span class="fc" id="L185">              return fallback.run();</span>
+            }));
+  }
+
+  // ===== Timeout =====
+
+  @Override
+  public VTaskPath&lt;A&gt; timeout(Duration duration) {
+<span class="fc" id="L193">    Objects.requireNonNull(duration, &quot;duration must not be null&quot;);</span>
+<span class="fc" id="L194">    return new DefaultVTaskPath&lt;&gt;(value.timeout(duration));</span>
+  }
+
+  // ===== Focus Bridge Methods =====
+
+  @Override
+  public &lt;B&gt; VTaskPath&lt;B&gt; focus(FocusPath&lt;A, B&gt; path) {
+<span class="fc" id="L201">    Objects.requireNonNull(path, &quot;path must not be null&quot;);</span>
+<span class="fc" id="L202">    return map(path::get);</span>
+  }
+
+  @Override
+  public &lt;B&gt; VTaskPath&lt;B&gt; focus(
+      AffinePath&lt;A, B&gt; path, Supplier&lt;? extends RuntimeException&gt; exceptionIfAbsent) {
+<span class="fc" id="L208">    Objects.requireNonNull(path, &quot;path must not be null&quot;);</span>
+<span class="fc" id="L209">    Objects.requireNonNull(exceptionIfAbsent, &quot;exceptionIfAbsent must not be null&quot;);</span>
+<span class="fc" id="L210">    return via(</span>
+        a -&gt;
+<span class="fc" id="L212">            path.getOptional(a)</span>
+<span class="fc" id="L213">                .&lt;VTaskPath&lt;B&gt;&gt;map(Path::vtaskPure)</span>
+<span class="fc" id="L214">                .orElseGet(</span>
+                    () -&gt;
+<span class="fc" id="L216">                        Path.vtask(</span>
+                            () -&gt; {
+<span class="fc" id="L218">                              throw exceptionIfAbsent.get();</span>
+                            })));
+  }
+
+  // ===== Conversion Methods =====
+
+  @Override
+  public TryPath&lt;A&gt; toTryPath() {
+<span class="fc" id="L226">    return new TryPath&lt;&gt;(runSafe());</span>
+  }
+
+  @Override
+  public IOPath&lt;A&gt; toIOPath() {
+<span class="fc" id="L231">    return new IOPath&lt;&gt;(IO.delay(this::unsafeRun));</span>
+  }
+
+  // ===== Object methods =====
+
+  @Override
+  public boolean equals(Object obj) {
+    // VTask equality is based on reference since VTask represents a computation
+<span class="fc bfc" id="L239" title="All 2 branches covered.">    return this == obj;</span>
+  }
+
+  @Override
+  public int hashCode() {
+<span class="fc" id="L244">    return System.identityHashCode(this);</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="fc" id="L249">    return &quot;VTaskPath(&lt;deferred&gt;)&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

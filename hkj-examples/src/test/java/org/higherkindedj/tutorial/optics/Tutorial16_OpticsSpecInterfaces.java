@@ -226,7 +226,7 @@ public class Tutorial16_OpticsSpecInterfaces {
      * code is equivalent to: items().andThen(Traversals.forList())
      */
     public static Traversal<OrderRecord, LineItemRecord> eachItem() {
-      return items().andThen(org.higherkindedj.optics.util.Traversals.forList());
+      return items().andThen(Traversals.forList());
     }
   }
 

@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FocusPaths.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.focus</a> &gt; <span class="el_source">FocusPaths.java</span></div><h1>FocusPaths.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.focus;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.indexed.Pair;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Static utilities for creating optics used in Focus path navigation.
+ *
+ * &lt;p&gt;This class provides pre-built optics for common collection types that are used internally by
+ * the Focus DSL for methods like {@code each()}, {@code at()}, {@code some()}, and {@code atKey()}.
+ *
+ * &lt;h2&gt;Supported Types&lt;/h2&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link List} - via {@link #listElements()} and {@link #listAt(int)}
+ *   &lt;li&gt;{@link Map} - via {@link #mapValues()} and {@link #mapAt(Object)}
+ *   &lt;li&gt;{@link Optional} - via {@link #optionalSome()}
+ * &lt;/ul&gt;
+ *
+ * &lt;h2&gt;Example Usage&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Get a traversal over list elements
+ * Traversal&lt;List&lt;String&gt;, String&gt; strings = FocusPaths.listElements();
+ *
+ * // Get an affine for a specific index
+ * Affine&lt;List&lt;String&gt;, String&gt; second = FocusPaths.listAt(1);
+ *
+ * // Get an affine for Optional unwrapping
+ * Affine&lt;Optional&lt;String&gt;, String&gt; some = FocusPaths.optionalSome();
+ * }&lt;/pre&gt;
+ */
+@NullMarked
+public final class FocusPaths {
+
+  private FocusPaths() {
+    // Utility class
+  }
+
+  // ===== List Optics =====
+
+  /**
+   * Creates a traversal over all elements in a list.
+   *
+   * @param &lt;E&gt; the element type
+   * @return a traversal focusing on all list elements
+   */
+  public static &lt;E&gt; Traversal&lt;List&lt;E&gt;, E&gt; listElements() {
+<span class="fc" id="L65">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, List&lt;E&gt;&gt; modifyF(
+          Function&lt;E, Kind&lt;F, E&gt;&gt; f, List&lt;E&gt; source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L70">          return app.of(source);</span>
+        }
+
+        // Start with the first element
+<span class="fc" id="L74">        Kind&lt;F, List&lt;E&gt;&gt; result = app.map(List::of, f.apply(source.get(0)));</span>
+
+        // Combine with remaining elements
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        for (int i = 1; i &lt; source.size(); i++) {</span>
+<span class="fc" id="L78">          Kind&lt;F, E&gt; modifiedElement = f.apply(source.get(i));</span>
+<span class="fc" id="L79">          result = app.map2(result, modifiedElement, FocusPaths::appendToList);</span>
+        }
+
+<span class="fc" id="L82">        return result;</span>
+      }
+    };
+  }
+
+  /**
+   * Creates an affine focusing on a specific index in a list.
+   *
+   * &lt;p&gt;The affine will return empty if the index is out of bounds. Setting a value at an index
+   * requires the index to be within the current list size.
+   *
+   * @param index the index to focus on
+   * @param &lt;E&gt; the element type
+   * @return an affine focusing on the element at the given index
+   */
+  public static &lt;E&gt; Affine&lt;List&lt;E&gt;, E&gt; listAt(int index) {
+<span class="fc" id="L98">    return Affine.of(</span>
+        list -&gt;
+<span class="fc bfc" id="L100" title="All 4 branches covered.">            (index &gt;= 0 &amp;&amp; index &lt; list.size()) ? Optional.of(list.get(index)) : Optional.empty(),</span>
+        (list, element) -&gt; {
+<span class="fc bfc" id="L102" title="All 4 branches covered.">          if (index &gt;= 0 &amp;&amp; index &lt; list.size()) {</span>
+<span class="fc" id="L103">            List&lt;E&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L104">            result.set(index, element);</span>
+<span class="fc" id="L105">            return result;</span>
+          }
+<span class="fc" id="L107">          return list;</span>
+        });
+  }
+
+  /**
+   * Creates an affine focusing on the first element of a list.
+   *
+   * @param &lt;E&gt; the element type
+   * @return an affine focusing on the first element
+   */
+  public static &lt;E&gt; Affine&lt;List&lt;E&gt;, E&gt; listHead() {
+<span class="fc" id="L118">    return listAt(0);</span>
+  }
+
+  /**
+   * Creates an affine focusing on the last element of a list.
+   *
+   * @param &lt;E&gt; the element type
+   * @return an affine focusing on the last element
+   */
+  public static &lt;E&gt; Affine&lt;List&lt;E&gt;, E&gt; listLast() {
+<span class="fc" id="L128">    return Affine.of(</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.empty() : Optional.of(list.get(list.size() - 1)),</span>
+        (list, element) -&gt; {
+<span class="fc bfc" id="L131" title="All 2 branches covered.">          if (!list.isEmpty()) {</span>
+<span class="fc" id="L132">            List&lt;E&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L133">            result.set(result.size() - 1, element);</span>
+<span class="fc" id="L134">            return result;</span>
+          }
+<span class="fc" id="L136">          return list;</span>
+        });
+  }
+
+  /**
+   * Creates a prism that decomposes a list into its head (first element) and tail (remaining
+   * elements).
+   *
+   * &lt;p&gt;This is the classic functional programming &quot;cons&quot; pattern, where a non-empty list is viewed
+   * as a pair of its first element and the rest. Also known as &quot;headTail&quot; decomposition.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;List&lt;String&gt;, Pair&lt;String, List&lt;String&gt;&gt;&gt; cons = FocusPaths.listCons();
+   *
+   * // Decompose: [a, b, c] -&gt; Pair(a, [b, c])
+   * Optional&lt;Pair&lt;String, List&lt;String&gt;&gt;&gt; result = cons.getOptional(List.of(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;));
+   *
+   * // Build: Pair(x, [y, z]) -&gt; [x, y, z]
+   * List&lt;String&gt; built = cons.build(Pair.of(&quot;x&quot;, List.of(&quot;y&quot;, &quot;z&quot;)));
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;E&gt; the element type
+   * @return a prism from list to (head, tail) pair
+   * @see #listSnoc() for the reverse decomposition (init, last)
+   */
+  public static &lt;E&gt; Prism&lt;List&lt;E&gt;, Pair&lt;E, List&lt;E&gt;&gt;&gt; listCons() {
+<span class="fc" id="L164">    return Prism.of(</span>
+        list -&gt; {
+<span class="fc bfc" id="L166" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L167">            return Optional.empty();</span>
+          }
+<span class="fc" id="L169">          return Optional.of(Pair.of(list.get(0), List.copyOf(list.subList(1, list.size()))));</span>
+        },
+        pair -&gt; {
+<span class="fc" id="L172">          List&lt;E&gt; result = new ArrayList&lt;&gt;(pair.second().size() + 1);</span>
+<span class="fc" id="L173">          result.add(pair.first());</span>
+<span class="fc" id="L174">          result.addAll(pair.second());</span>
+<span class="fc" id="L175">          return List.copyOf(result);</span>
+        });
+  }
+
+  /**
+   * Alias for {@link #listCons()} using Java-familiar naming.
+   *
+   * @param &lt;E&gt; the element type
+   * @return a prism from list to (head, tail) pair
+   * @see #listCons()
+   */
+  public static &lt;E&gt; Prism&lt;List&lt;E&gt;, Pair&lt;E, List&lt;E&gt;&gt;&gt; listHeadTail() {
+<span class="fc" id="L187">    return listCons();</span>
+  }
+
+  /**
+   * Creates a prism that decomposes a list into its init (all but last element) and last element.
+   *
+   * &lt;p&gt;This is the reverse of &quot;cons&quot;, known as &quot;snoc&quot; (cons spelled backwards). A non-empty list is
+   * viewed as a pair of all elements except the last, and the last element. Also known as
+   * &quot;initLast&quot; decomposition.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;List&lt;Integer&gt;, Pair&lt;List&lt;Integer&gt;, Integer&gt;&gt; snoc = FocusPaths.listSnoc();
+   *
+   * // Decompose: [1, 2, 3] -&gt; Pair([1, 2], 3)
+   * Optional&lt;Pair&lt;List&lt;Integer&gt;, Integer&gt;&gt; result = snoc.getOptional(List.of(1, 2, 3));
+   *
+   * // Build: Pair([1, 2], 3) -&gt; [1, 2, 3]
+   * List&lt;Integer&gt; built = snoc.build(Pair.of(List.of(1, 2), 3));
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;E&gt; the element type
+   * @return a prism from list to (init, last) pair
+   * @see #listCons() for the opposite decomposition (head, tail)
+   */
+  public static &lt;E&gt; Prism&lt;List&lt;E&gt;, Pair&lt;List&lt;E&gt;, E&gt;&gt; listSnoc() {
+<span class="fc" id="L214">    return Prism.of(</span>
+        list -&gt; {
+<span class="fc bfc" id="L216" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L217">            return Optional.empty();</span>
+          }
+<span class="fc" id="L219">          int lastIndex = list.size() - 1;</span>
+<span class="fc" id="L220">          return Optional.of(Pair.of(List.copyOf(list.subList(0, lastIndex)), list.get(lastIndex)));</span>
+        },
+        pair -&gt; {
+<span class="fc" id="L223">          List&lt;E&gt; result = new ArrayList&lt;&gt;(pair.first().size() + 1);</span>
+<span class="fc" id="L224">          result.addAll(pair.first());</span>
+<span class="fc" id="L225">          result.add(pair.second());</span>
+<span class="fc" id="L226">          return List.copyOf(result);</span>
+        });
+  }
+
+  /**
+   * Alias for {@link #listSnoc()} using Java-familiar naming.
+   *
+   * @param &lt;E&gt; the element type
+   * @return a prism from list to (init, last) pair
+   * @see #listSnoc()
+   */
+  public static &lt;E&gt; Prism&lt;List&lt;E&gt;, Pair&lt;List&lt;E&gt;, E&gt;&gt; listInitLast() {
+<span class="fc" id="L238">    return listSnoc();</span>
+  }
+
+  /**
+   * Creates a prism that matches empty lists.
+   *
+   * &lt;p&gt;This prism is the complement of {@link #listCons()} and {@link #listSnoc()}. It matches only
+   * empty lists and builds empty lists from {@link Unit}.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Prism&lt;List&lt;String&gt;, Unit&gt; empty = FocusPaths.listEmpty();
+   *
+   * // Check if list is empty
+   * boolean isEmpty = empty.matches(List.of());  // true
+   * boolean hasElements = empty.matches(List.of(&quot;a&quot;));  // false
+   *
+   * // Build an empty list
+   * List&lt;String&gt; emptyList = empty.build(Unit.INSTANCE);  // []
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;E&gt; the element type
+   * @return a prism matching empty lists
+   */
+  public static &lt;E&gt; Prism&lt;List&lt;E&gt;, Unit&gt; listEmpty() {
+<span class="fc" id="L264">    return Prism.of(</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.of(Unit.INSTANCE) : Optional.empty(), _ -&gt; List.of());</span>
+  }
+
+  /**
+   * Creates an affine focusing on the tail (all elements except the first) of a list.
+   *
+   * &lt;p&gt;The affine returns empty for empty lists. Setting replaces all elements after the first.
+   *
+   * @param &lt;E&gt; the element type
+   * @return an affine focusing on the tail
+   */
+  public static &lt;E&gt; Affine&lt;List&lt;E&gt;, List&lt;E&gt;&gt; listTail() {
+<span class="fc" id="L277">    return Affine.of(</span>
+        list -&gt;
+<span class="fc bfc" id="L279" title="All 2 branches covered.">            list.isEmpty()</span>
+<span class="fc" id="L280">                ? Optional.empty()</span>
+<span class="fc" id="L281">                : Optional.of(List.copyOf(list.subList(1, list.size()))),</span>
+        (list, newTail) -&gt; {
+<span class="fc bfc" id="L283" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L284">            return list;</span>
+          }
+<span class="fc" id="L286">          List&lt;E&gt; result = new ArrayList&lt;&gt;(newTail.size() + 1);</span>
+<span class="fc" id="L287">          result.add(list.get(0));</span>
+<span class="fc" id="L288">          result.addAll(newTail);</span>
+<span class="fc" id="L289">          return List.copyOf(result);</span>
+        });
+  }
+
+  /**
+   * Creates an affine focusing on the init (all elements except the last) of a list.
+   *
+   * &lt;p&gt;The affine returns empty for empty lists. Setting replaces all elements before the last.
+   *
+   * @param &lt;E&gt; the element type
+   * @return an affine focusing on the init
+   */
+  public static &lt;E&gt; Affine&lt;List&lt;E&gt;, List&lt;E&gt;&gt; listInit() {
+<span class="fc" id="L302">    return Affine.of(</span>
+        list -&gt;
+<span class="fc bfc" id="L304" title="All 2 branches covered.">            list.isEmpty()</span>
+<span class="fc" id="L305">                ? Optional.empty()</span>
+<span class="fc" id="L306">                : Optional.of(List.copyOf(list.subList(0, list.size() - 1))),</span>
+        (list, newInit) -&gt; {
+<span class="fc bfc" id="L308" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L309">            return list;</span>
+          }
+<span class="fc" id="L311">          List&lt;E&gt; result = new ArrayList&lt;&gt;(newInit.size() + 1);</span>
+<span class="fc" id="L312">          result.addAll(newInit);</span>
+<span class="fc" id="L313">          result.add(list.get(list.size() - 1));</span>
+<span class="fc" id="L314">          return List.copyOf(result);</span>
+        });
+  }
+
+  // ===== Map Optics =====
+
+  /**
+   * Creates a traversal over all values in a map.
+   *
+   * &lt;p&gt;Note: The traversal order depends on the map implementation. For predictable ordering, use a
+   * {@code LinkedHashMap} or {@code TreeMap}.
+   *
+   * @param &lt;K&gt; the key type
+   * @param &lt;V&gt; the value type
+   * @return a traversal focusing on all map values
+   */
+  public static &lt;K, V&gt; Traversal&lt;Map&lt;K, V&gt;, V&gt; mapValues() {
+<span class="fc" id="L331">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, Map&lt;K, V&gt;&gt; modifyF(
+          Function&lt;V, Kind&lt;F, V&gt;&gt; f, Map&lt;K, V&gt; source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L336">          return app.of(source);</span>
+        }
+
+        // Convert to list for ordered processing
+<span class="fc" id="L340">        List&lt;Map.Entry&lt;K, V&gt;&gt; entries = new ArrayList&lt;&gt;(source.entrySet());</span>
+
+        // Start with the first entry
+<span class="fc" id="L343">        Map.Entry&lt;K, V&gt; first = entries.get(0);</span>
+<span class="fc" id="L344">        Kind&lt;F, Map&lt;K, V&gt;&gt; result =</span>
+<span class="fc" id="L345">            app.map(v -&gt; Map.of(first.getKey(), v), f.apply(first.getValue()));</span>
+
+        // Combine with remaining entries
+<span class="fc bfc" id="L348" title="All 2 branches covered.">        for (int i = 1; i &lt; entries.size(); i++) {</span>
+<span class="fc" id="L349">          Map.Entry&lt;K, V&gt; entry = entries.get(i);</span>
+<span class="fc" id="L350">          Kind&lt;F, V&gt; modifiedValue = f.apply(entry.getValue());</span>
+<span class="fc" id="L351">          K key = entry.getKey();</span>
+<span class="fc" id="L352">          result = app.map2(result, modifiedValue, (map, v) -&gt; putInMap(map, key, v));</span>
+        }
+
+<span class="fc" id="L355">        return result;</span>
+      }
+    };
+  }
+
+  /**
+   * Creates an affine focusing on a specific key in a map.
+   *
+   * &lt;p&gt;The affine will return empty if the key is not present. Setting a value will add or update
+   * the key.
+   *
+   * @param key the key to focus on
+   * @param &lt;K&gt; the key type
+   * @param &lt;V&gt; the value type
+   * @return an affine focusing on the value at the given key
+   */
+  public static &lt;K, V&gt; Affine&lt;Map&lt;K, V&gt;, V&gt; mapAt(K key) {
+<span class="fc" id="L372">    return Affine.of(</span>
+<span class="fc" id="L373">        map -&gt; Optional.ofNullable(map.get(key)),</span>
+        (map, value) -&gt; {
+<span class="fc" id="L375">          Map&lt;K, V&gt; result = new HashMap&lt;&gt;(map);</span>
+<span class="fc" id="L376">          result.put(key, value);</span>
+<span class="fc" id="L377">          return result;</span>
+        },
+        map -&gt; {
+<span class="fc" id="L380">          Map&lt;K, V&gt; result = new HashMap&lt;&gt;(map);</span>
+<span class="fc" id="L381">          result.remove(key);</span>
+<span class="fc" id="L382">          return result;</span>
+        });
+  }
+
+  // ===== Optional Optics =====
+
+  /**
+   * Creates an affine that unwraps an Optional.
+   *
+   * &lt;p&gt;The affine returns empty if the Optional is empty. Setting always creates a present
+   * Optional.
+   *
+   * @param &lt;E&gt; the inner type
+   * @return an affine for unwrapping Optional
+   */
+  public static &lt;E&gt; Affine&lt;Optional&lt;E&gt;, E&gt; optionalSome() {
+<span class="fc" id="L398">    return Affine.of(</span>
+<span class="fc" id="L399">        Function.identity(), (opt, value) -&gt; Optional.of(value), opt -&gt; Optional.empty());</span>
+  }
+
+  // ===== Nullable Optics =====
+
+  /**
+   * Creates an affine that treats null as absent.
+   *
+   * &lt;p&gt;This is useful for working with legacy APIs or records that use null to represent absent
+   * values instead of {@link Optional}. The affine wraps null checks in Optional semantics,
+   * allowing seamless integration with the Focus DSL.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * record LegacyUser(String name, @Nullable String nickname) {}
+   *
+   * // Create a path to the nullable nickname field
+   * FocusPath&lt;LegacyUser, @Nullable String&gt; nicknamePath = LegacyUserFocus.nickname();
+   *
+   * // Chain with nullable() to get an AffinePath that handles null safely
+   * AffinePath&lt;LegacyUser, String&gt; safeNickname = nicknamePath.nullable();
+   *
+   * // Now use it like any other AffinePath
+   * Optional&lt;String&gt; result = safeNickname.getOptional(user);  // Empty if null
+   * LegacyUser updated = safeNickname.set(&quot;Ally&quot;, user);       // Sets the nickname
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;E&gt; the element type (non-null)
+   * @return an affine that treats null as absent
+   */
+  @SuppressWarnings(&quot;nullness&quot;) // Intentionally working with nullable values
+  public static &lt;E&gt; Affine&lt;E, E&gt; nullable() {
+<span class="fc" id="L432">    return Affine.of(Optional::ofNullable, (ignored, value) -&gt; value);</span>
+  }
+
+  // ===== Array Optics =====
+
+  /**
+   * Creates a traversal over all elements in an array.
+   *
+   * @param &lt;E&gt; the element type
+   * @return a traversal focusing on all array elements
+   */
+  public static &lt;E&gt; Traversal&lt;E[], E&gt; arrayElements() {
+<span class="fc" id="L444">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      @SuppressWarnings(&quot;unchecked&quot;)
+      public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; Kind&lt;F, E[]&gt; modifyF(
+          Function&lt;E, Kind&lt;F, E&gt;&gt; f, E[] source, Applicative&lt;F&gt; app) {
+<span class="fc bfc" id="L449" title="All 2 branches covered.">        if (source.length == 0) {</span>
+<span class="fc" id="L450">          return app.of(source);</span>
+        }
+
+        // Start with the first element wrapped in a list
+<span class="fc" id="L454">        Kind&lt;F, List&lt;E&gt;&gt; result = app.map(List::of, f.apply(source[0]));</span>
+
+        // Combine with remaining elements
+<span class="fc bfc" id="L457" title="All 2 branches covered.">        for (int i = 1; i &lt; source.length; i++) {</span>
+<span class="fc" id="L458">          Kind&lt;F, E&gt; modifiedElement = f.apply(source[i]);</span>
+<span class="fc" id="L459">          result = app.map2(result, modifiedElement, FocusPaths::appendToList);</span>
+        }
+
+        // Convert back to array
+<span class="fc" id="L463">        return app.map(</span>
+            list -&gt;
+<span class="fc" id="L465">                list.toArray(</span>
+                    (E[])
+<span class="fc" id="L467">                        java.lang.reflect.Array.newInstance(</span>
+<span class="fc" id="L468">                            source.getClass().getComponentType(), list.size())),</span>
+            result);
+      }
+    };
+  }
+
+  /**
+   * Creates an affine focusing on a specific index in an array.
+   *
+   * @param index the index to focus on
+   * @param &lt;E&gt; the element type
+   * @return an affine focusing on the element at the given index
+   */
+  public static &lt;E&gt; Affine&lt;E[], E&gt; arrayAt(int index) {
+<span class="fc" id="L482">    return Affine.of(</span>
+<span class="fc bfc" id="L483" title="All 4 branches covered.">        arr -&gt; (index &gt;= 0 &amp;&amp; index &lt; arr.length) ? Optional.of(arr[index]) : Optional.empty(),</span>
+        (arr, element) -&gt; {
+<span class="fc bfc" id="L485" title="All 4 branches covered.">          if (index &gt;= 0 &amp;&amp; index &lt; arr.length) {</span>
+<span class="fc" id="L486">            E[] result = arr.clone();</span>
+<span class="fc" id="L487">            result[index] = element;</span>
+<span class="fc" id="L488">            return result;</span>
+          }
+<span class="fc" id="L490">          return arr;</span>
+        });
+  }
+
+  // ===== Helper Methods =====
+
+  private static &lt;E&gt; List&lt;E&gt; appendToList(List&lt;E&gt; list, E element) {
+<span class="fc" id="L497">    List&lt;E&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L498">    result.add(element);</span>
+<span class="fc" id="L499">    return result;</span>
+  }
+
+  private static &lt;K, V&gt; Map&lt;K, V&gt; putInMap(Map&lt;K, V&gt; map, K key, V value) {
+<span class="fc" id="L503">    Map&lt;K, V&gt; result = new HashMap&lt;&gt;(map);</span>
+<span class="fc" id="L504">    result.put(key, value);</span>
+<span class="fc" id="L505">    return result;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

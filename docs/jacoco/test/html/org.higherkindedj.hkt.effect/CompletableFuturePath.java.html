@@ -1,0 +1,710 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CompletableFuturePath.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.effect</a> &gt; <span class="el_source">CompletableFuturePath.java</span></div><h1>CompletableFuturePath.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.effect;
+
+import java.time.Duration;
+import java.util.Objects;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.*;
+import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Recoverable;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.trymonad.Try;
+
+/**
+ * A fluent path wrapper for {@link CompletableFuture} async computations.
+ *
+ * &lt;p&gt;{@code CompletableFuturePath} represents asynchronous computations that may complete with a
+ * value or fail with an exception. It provides error recovery and timeout handling capabilities.
+ *
+ * &lt;h2&gt;Use Cases&lt;/h2&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Async API calls
+ *   &lt;li&gt;Parallel computation
+ *   &lt;li&gt;Non-blocking I/O
+ *   &lt;li&gt;Timeout handling
+ * &lt;/ul&gt;
+ *
+ * &lt;h2&gt;Creating CompletableFuturePath instances&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // From existing future
+ * CompletableFuturePath&lt;User&gt; userPath = CompletableFuturePath.fromFuture(
+ *     userService.findByIdAsync(userId));
+ *
+ * // Already completed
+ * CompletableFuturePath&lt;Integer&gt; completed = CompletableFuturePath.completed(42);
+ *
+ * // Failed
+ * CompletableFuturePath&lt;Integer&gt; failed = CompletableFuturePath.failed(new IOException(&quot;...&quot;));
+ *
+ * // Async supplier
+ * CompletableFuturePath&lt;Data&gt; async = CompletableFuturePath.supplyAsync(() -&gt; loadData());
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Composing operations&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * CompletableFuturePath&lt;Order&gt; orderPath = CompletableFuturePath.fromFuture(
+ *         userService.findByIdAsync(userId))
+ *     .via(user -&gt; CompletableFuturePath.fromFuture(
+ *         orderService.getOrdersAsync(user.id())))
+ *     .map(orders -&gt; orders.get(0))
+ *     .withTimeout(Duration.ofSeconds(5))
+ *     .recover(ex -&gt; Order.empty());
+ *
+ * Order order = orderPath.join();
+ * }&lt;/pre&gt;
+ *
+ * @param &lt;A&gt; the type of the computed value
+ */
+public final class CompletableFuturePath&lt;A&gt; implements Recoverable&lt;Exception, A&gt; {
+
+  private final CompletableFuture&lt;A&gt; future;
+
+  /**
+   * Creates a new CompletableFuturePath wrapping the given future.
+   *
+   * @param future the CompletableFuture to wrap; must not be null
+   */
+<span class="fc" id="L78">  CompletableFuturePath(CompletableFuture&lt;A&gt; future) {</span>
+<span class="fc" id="L79">    this.future = Objects.requireNonNull(future, &quot;future must not be null&quot;);</span>
+<span class="fc" id="L80">  }</span>
+
+  // ===== Factory Methods =====
+
+  /**
+   * Creates a CompletableFuturePath from an existing future.
+   *
+   * @param future the CompletableFuture to wrap; must not be null
+   * @param &lt;A&gt; the value type
+   * @return a CompletableFuturePath wrapping the future
+   * @throws NullPointerException if future is null
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; fromFuture(CompletableFuture&lt;A&gt; future) {
+<span class="fc" id="L93">    return new CompletableFuturePath&lt;&gt;(future);</span>
+  }
+
+  /**
+   * Creates an already-completed CompletableFuturePath with the given value.
+   *
+   * @param value the completed value
+   * @param &lt;A&gt; the value type
+   * @return a completed CompletableFuturePath
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; completed(A value) {
+<span class="fc" id="L104">    return new CompletableFuturePath&lt;&gt;(CompletableFuture.completedFuture(value));</span>
+  }
+
+  /**
+   * Creates a failed CompletableFuturePath with the given exception.
+   *
+   * @param exception the exception; must not be null
+   * @param &lt;A&gt; the value type
+   * @return a failed CompletableFuturePath
+   * @throws NullPointerException if exception is null
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; failed(Exception exception) {
+<span class="fc" id="L116">    Objects.requireNonNull(exception, &quot;exception must not be null&quot;);</span>
+<span class="fc" id="L117">    return new CompletableFuturePath&lt;&gt;(CompletableFuture.failedFuture(exception));</span>
+  }
+
+  /**
+   * Creates a CompletableFuturePath from a supplier, running async on the common fork-join pool.
+   *
+   * @param supplier the supplier for the value; must not be null
+   * @param &lt;A&gt; the value type
+   * @return a CompletableFuturePath running asynchronously
+   * @throws NullPointerException if supplier is null
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; supplyAsync(Supplier&lt;A&gt; supplier) {
+<span class="fc" id="L129">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+<span class="fc" id="L130">    return new CompletableFuturePath&lt;&gt;(CompletableFuture.supplyAsync(supplier));</span>
+  }
+
+  /**
+   * Creates a CompletableFuturePath from a supplier, running on the given executor.
+   *
+   * @param supplier the supplier for the value; must not be null
+   * @param executor the executor to run on; must not be null
+   * @param &lt;A&gt; the value type
+   * @return a CompletableFuturePath running on the executor
+   * @throws NullPointerException if supplier or executor is null
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; supplyAsync(Supplier&lt;A&gt; supplier, Executor executor) {
+<span class="fc" id="L143">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+<span class="fc" id="L144">    Objects.requireNonNull(executor, &quot;executor must not be null&quot;);</span>
+<span class="fc" id="L145">    return new CompletableFuturePath&lt;&gt;(CompletableFuture.supplyAsync(supplier, executor));</span>
+  }
+
+  // ===== Terminal Operations =====
+
+  /**
+   * Returns the underlying CompletableFuture.
+   *
+   * @return the wrapped CompletableFuture
+   */
+  public CompletableFuture&lt;A&gt; run() {
+<span class="fc" id="L156">    return future;</span>
+  }
+
+  /**
+   * Returns the underlying CompletableFuture.
+   *
+   * &lt;p&gt;Alias for {@link #run()} for compatibility with standard CompletableFuture APIs.
+   *
+   * @return the wrapped CompletableFuture
+   */
+  public CompletableFuture&lt;A&gt; toCompletableFuture() {
+<span class="fc" id="L167">    return future;</span>
+  }
+
+  /**
+   * Blocks and returns the result when complete.
+   *
+   * @return the computed value
+   * @throws CompletionException if the computation failed
+   */
+  public A join() {
+<span class="fc" id="L177">    return future.join();</span>
+  }
+
+  /**
+   * Blocks and returns the result, with timeout.
+   *
+   * @param timeout the maximum time to wait; must not be null
+   * @return the computed value
+   * @throws TimeoutException if the timeout is exceeded
+   * @throws CompletionException if the computation failed
+   * @throws NullPointerException if timeout is null
+   */
+  public A join(Duration timeout) throws TimeoutException {
+<span class="fc" id="L190">    Objects.requireNonNull(timeout, &quot;timeout must not be null&quot;);</span>
+    try {
+<span class="fc" id="L192">      return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);</span>
+<span class="fc" id="L193">    } catch (ExecutionException e) {</span>
+<span class="fc" id="L194">      throw new CompletionException(e.getCause());</span>
+<span class="fc" id="L195">    } catch (InterruptedException e) {</span>
+<span class="fc" id="L196">      Thread.currentThread().interrupt();</span>
+<span class="fc" id="L197">      throw new CompletionException(e);</span>
+    }
+  }
+
+  /**
+   * Returns whether this future is done (completed normally, exceptionally, or cancelled).
+   *
+   * @return true if done
+   */
+  public boolean isDone() {
+<span class="fc" id="L207">    return future.isDone();</span>
+  }
+
+  /**
+   * Returns whether this future completed exceptionally.
+   *
+   * @return true if completed exceptionally
+   */
+  public boolean isCompletedExceptionally() {
+<span class="fc" id="L216">    return future.isCompletedExceptionally();</span>
+  }
+
+  // ===== Composable implementation =====
+
+  @Override
+  public &lt;B&gt; CompletableFuturePath&lt;B&gt; map(Function&lt;? super A, ? extends B&gt; mapper) {
+<span class="fc" id="L223">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+<span class="fc" id="L224">    return new CompletableFuturePath&lt;&gt;(future.thenApply(mapper));</span>
+  }
+
+  @Override
+  public CompletableFuturePath&lt;A&gt; peek(Consumer&lt;? super A&gt; consumer) {
+<span class="fc" id="L229">    Objects.requireNonNull(consumer, &quot;consumer must not be null&quot;);</span>
+<span class="fc" id="L230">    return new CompletableFuturePath&lt;&gt;(</span>
+<span class="fc" id="L231">        future.thenApply(</span>
+            a -&gt; {
+<span class="fc" id="L233">              consumer.accept(a);</span>
+<span class="fc" id="L234">              return a;</span>
+            }));
+  }
+
+  // ===== Combinable implementation =====
+
+  @Override
+  public &lt;B, C&gt; CompletableFuturePath&lt;C&gt; zipWith(
+      Combinable&lt;B&gt; other, BiFunction&lt;? super A, ? super B, ? extends C&gt; combiner) {
+<span class="fc" id="L243">    Objects.requireNonNull(other, &quot;other must not be null&quot;);</span>
+<span class="fc" id="L244">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc bfc" id="L246" title="All 2 branches covered.">    if (!(other instanceof CompletableFuturePath&lt;?&gt; otherFuture)) {</span>
+<span class="fc" id="L247">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L248">          &quot;Cannot zipWith non-CompletableFuturePath: &quot; + other.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L252">    CompletableFuturePath&lt;B&gt; typedOther = (CompletableFuturePath&lt;B&gt;) otherFuture;</span>
+
+<span class="fc" id="L254">    return new CompletableFuturePath&lt;&gt;(future.thenCombine(typedOther.future, combiner));</span>
+  }
+
+  /**
+   * Combines this path with two others using a ternary function.
+   *
+   * &lt;p&gt;All three futures are combined in parallel.
+   *
+   * @param second the second path; must not be null
+   * @param third the third path; must not be null
+   * @param combiner the function to combine the values; must not be null
+   * @param &lt;B&gt; the type of the second path's value
+   * @param &lt;C&gt; the type of the third path's value
+   * @param &lt;D&gt; the type of the combined result
+   * @return a new path containing the combined result
+   */
+  public &lt;B, C, D&gt; CompletableFuturePath&lt;D&gt; zipWith3(
+      CompletableFuturePath&lt;B&gt; second,
+      CompletableFuturePath&lt;C&gt; third,
+      Function3&lt;? super A, ? super B, ? super C, ? extends D&gt; combiner) {
+<span class="fc" id="L274">    Objects.requireNonNull(second, &quot;second must not be null&quot;);</span>
+<span class="fc" id="L275">    Objects.requireNonNull(third, &quot;third must not be null&quot;);</span>
+<span class="fc" id="L276">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc" id="L278">    CompletableFuture&lt;D&gt; combined =</span>
+        future
+<span class="fc" id="L280">            .thenCombine(second.future, (a, b) -&gt; new Object[] {a, b})</span>
+<span class="fc" id="L281">            .thenCombine(</span>
+                third.future,
+                (arr, c) -&gt; {
+                  @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L285">                  A a = (A) arr[0];</span>
+                  @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L287">                  B b = (B) arr[1];</span>
+<span class="fc" id="L288">                  return combiner.apply(a, b, c);</span>
+                });
+
+<span class="fc" id="L291">    return new CompletableFuturePath&lt;&gt;(combined);</span>
+  }
+
+  // ===== Chainable implementation =====
+
+  @Override
+  public &lt;B&gt; CompletableFuturePath&lt;B&gt; via(Function&lt;? super A, ? extends Chainable&lt;B&gt;&gt; mapper) {
+<span class="fc" id="L298">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+
+<span class="fc" id="L300">    CompletableFuture&lt;B&gt; composed =</span>
+<span class="fc" id="L301">        future.thenCompose(</span>
+            a -&gt; {
+<span class="fc" id="L303">              Chainable&lt;B&gt; result = mapper.apply(a);</span>
+<span class="fc" id="L304">              Objects.requireNonNull(result, &quot;mapper must not return null&quot;);</span>
+
+<span class="fc bfc" id="L306" title="All 2 branches covered.">              if (!(result instanceof CompletableFuturePath&lt;?&gt; futurePath)) {</span>
+<span class="fc" id="L307">                throw new IllegalArgumentException(</span>
+<span class="fc" id="L308">                    &quot;via mapper must return CompletableFuturePath, got: &quot; + result.getClass());</span>
+              }
+
+              @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L312">              CompletableFuturePath&lt;B&gt; typedResult = (CompletableFuturePath&lt;B&gt;) futurePath;</span>
+<span class="fc" id="L313">              return typedResult.future;</span>
+            });
+
+<span class="fc" id="L316">    return new CompletableFuturePath&lt;&gt;(composed);</span>
+  }
+
+  @Override
+  public &lt;B&gt; CompletableFuturePath&lt;B&gt; then(Supplier&lt;? extends Chainable&lt;B&gt;&gt; supplier) {
+<span class="fc" id="L321">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+
+<span class="fc" id="L323">    CompletableFuture&lt;B&gt; sequenced =</span>
+<span class="fc" id="L324">        future.thenCompose(</span>
+            ignored -&gt; {
+<span class="fc" id="L326">              Chainable&lt;B&gt; result = supplier.get();</span>
+<span class="fc" id="L327">              Objects.requireNonNull(result, &quot;supplier must not return null&quot;);</span>
+
+<span class="fc bfc" id="L329" title="All 2 branches covered.">              if (!(result instanceof CompletableFuturePath&lt;?&gt; futurePath)) {</span>
+<span class="fc" id="L330">                throw new IllegalArgumentException(</span>
+<span class="fc" id="L331">                    &quot;then supplier must return CompletableFuturePath, got: &quot; + result.getClass());</span>
+              }
+
+              @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L335">              CompletableFuturePath&lt;B&gt; typedResult = (CompletableFuturePath&lt;B&gt;) futurePath;</span>
+<span class="fc" id="L336">              return typedResult.future;</span>
+            });
+
+<span class="fc" id="L339">    return new CompletableFuturePath&lt;&gt;(sequenced);</span>
+  }
+
+  // ===== Recoverable implementation =====
+
+  @Override
+  public CompletableFuturePath&lt;A&gt; recover(Function&lt;? super Exception, ? extends A&gt; recovery) {
+<span class="fc" id="L346">    Objects.requireNonNull(recovery, &quot;recovery must not be null&quot;);</span>
+<span class="fc" id="L347">    return new CompletableFuturePath&lt;&gt;(</span>
+<span class="fc" id="L348">        future.exceptionally(</span>
+            ex -&gt; {
+<span class="fc" id="L350">              Exception exception = unwrapException(ex);</span>
+<span class="fc" id="L351">              return recovery.apply(exception);</span>
+            }));
+  }
+
+  @Override
+  public CompletableFuturePath&lt;A&gt; recoverWith(
+      Function&lt;? super Exception, ? extends Recoverable&lt;Exception, A&gt;&gt; recovery) {
+<span class="fc" id="L358">    Objects.requireNonNull(recovery, &quot;recovery must not be null&quot;);</span>
+
+<span class="fc" id="L360">    CompletableFuture&lt;A&gt; recovered =</span>
+<span class="fc" id="L361">        future.exceptionallyCompose(</span>
+            ex -&gt; {
+<span class="fc" id="L363">              Exception exception = unwrapException(ex);</span>
+<span class="fc" id="L364">              Recoverable&lt;Exception, A&gt; result = recovery.apply(exception);</span>
+<span class="fc" id="L365">              Objects.requireNonNull(result, &quot;recovery must not return null&quot;);</span>
+
+<span class="fc bfc" id="L367" title="All 2 branches covered.">              if (!(result instanceof CompletableFuturePath&lt;?&gt; futurePath)) {</span>
+<span class="fc" id="L368">                throw new IllegalArgumentException(</span>
+<span class="fc" id="L369">                    &quot;recoverWith must return CompletableFuturePath, got: &quot; + result.getClass());</span>
+              }
+
+              @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L373">              CompletableFuturePath&lt;A&gt; typedResult = (CompletableFuturePath&lt;A&gt;) futurePath;</span>
+<span class="fc" id="L374">              return typedResult.future;</span>
+            });
+
+<span class="fc" id="L377">    return new CompletableFuturePath&lt;&gt;(recovered);</span>
+  }
+
+  @Override
+  public CompletableFuturePath&lt;A&gt; orElse(
+      Supplier&lt;? extends Recoverable&lt;Exception, A&gt;&gt; alternative) {
+<span class="fc" id="L383">    Objects.requireNonNull(alternative, &quot;alternative must not be null&quot;);</span>
+<span class="fc" id="L384">    return recoverWith(ignored -&gt; alternative.get());</span>
+  }
+
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;E2&gt; Recoverable&lt;E2, A&gt; mapError(Function&lt;? super Exception, ? extends E2&gt; mapper) {
+    // CompletableFuturePath uses Exception as a fixed error type. mapError transforms the error
+    // type,
+    // but for CompletableFuturePath we can't actually change the underlying Exception.
+    // We return this cast to the new error type, which is a limitation of the type system.
+<span class="fc" id="L394">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+<span class="fc" id="L395">    return (Recoverable&lt;E2, A&gt;) this;</span>
+  }
+
+  // ===== Async-Specific Operations =====
+
+  /**
+   * Adds a timeout to this computation.
+   *
+   * &lt;p&gt;If the timeout is exceeded, the future completes exceptionally with a TimeoutException.
+   *
+   * @param timeout the maximum duration; must not be null
+   * @return a new CompletableFuturePath with timeout
+   * @throws NullPointerException if timeout is null
+   */
+  public CompletableFuturePath&lt;A&gt; withTimeout(Duration timeout) {
+<span class="fc" id="L410">    Objects.requireNonNull(timeout, &quot;timeout must not be null&quot;);</span>
+<span class="fc" id="L411">    return new CompletableFuturePath&lt;&gt;(future.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS));</span>
+  }
+
+  /**
+   * Returns a default value if this computation times out.
+   *
+   * @param defaultValue the value to return on timeout
+   * @param timeout the timeout duration; must not be null
+   * @return a new CompletableFuturePath that completes with default on timeout
+   * @throws NullPointerException if timeout is null
+   */
+  public CompletableFuturePath&lt;A&gt; completeOnTimeout(A defaultValue, Duration timeout) {
+<span class="fc" id="L423">    Objects.requireNonNull(timeout, &quot;timeout must not be null&quot;);</span>
+<span class="fc" id="L424">    return new CompletableFuturePath&lt;&gt;(</span>
+<span class="fc" id="L425">        future.completeOnTimeout(defaultValue, timeout.toMillis(), TimeUnit.MILLISECONDS));</span>
+  }
+
+  /**
+   * Runs the subsequent processing on a different executor.
+   *
+   * @param executor the executor for subsequent operations; must not be null
+   * @return a new CompletableFuturePath that runs subsequent operations on the executor
+   * @throws NullPointerException if executor is null
+   */
+  public CompletableFuturePath&lt;A&gt; onExecutor(Executor executor) {
+<span class="fc" id="L436">    Objects.requireNonNull(executor, &quot;executor must not be null&quot;);</span>
+<span class="fc" id="L437">    return new CompletableFuturePath&lt;&gt;(future.thenApplyAsync(Function.identity(), executor));</span>
+  }
+
+  // ===== Parallel Execution =====
+
+  /**
+   * Combines this CompletableFuturePath with another in parallel.
+   *
+   * &lt;p&gt;Both futures are already running concurrently, and this method combines their results when
+   * both complete. This is semantically similar to {@link #zipWith} but makes the parallel intent
+   * explicit.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * CompletableFuturePath&lt;UserProfile&gt; profile =
+   *     fetchUser.parZipWith(fetchOrders, UserProfile::new);
+   * }&lt;/pre&gt;
+   *
+   * @param other the other path to combine with; must not be null
+   * @param combiner the function to combine results; must not be null
+   * @param &lt;B&gt; the type of the other value
+   * @param &lt;C&gt; the type of the combined result
+   * @return a CompletableFuturePath containing the combined result
+   * @throws NullPointerException if other or combiner is null
+   */
+  public &lt;B, C&gt; CompletableFuturePath&lt;C&gt; parZipWith(
+      CompletableFuturePath&lt;B&gt; other, BiFunction&lt;? super A, ? super B, ? extends C&gt; combiner) {
+<span class="fc" id="L465">    Objects.requireNonNull(other, &quot;other must not be null&quot;);</span>
+<span class="fc" id="L466">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+<span class="fc" id="L467">    return new CompletableFuturePath&lt;&gt;(future.thenCombine(other.future, combiner));</span>
+  }
+
+  /**
+   * Races this CompletableFuturePath against another, returning the first successful result.
+   *
+   * &lt;p&gt;Both futures race, and the result of whichever completes successfully first is returned. If
+   * one fails but the other succeeds, the successful result is returned. Only if both fail is the
+   * exception from the last failure propagated.
+   *
+   * &lt;p&gt;This &quot;first success&quot; semantic is useful for redundant data sources:
+   *
+   * &lt;pre&gt;{@code
+   * CompletableFuturePath&lt;Config&gt; config = loadFromCache.race(loadFromRemote);
+   * // Returns whichever succeeds first; only fails if both fail
+   * }&lt;/pre&gt;
+   *
+   * @param other the other path to race against; must not be null
+   * @return a CompletableFuturePath that completes with the first successful result
+   * @throws NullPointerException if other is null
+   */
+  public CompletableFuturePath&lt;A&gt; race(CompletableFuturePath&lt;A&gt; other) {
+<span class="fc" id="L489">    Objects.requireNonNull(other, &quot;other must not be null&quot;);</span>
+
+<span class="fc" id="L491">    CompletableFuture&lt;A&gt; result = new CompletableFuture&lt;&gt;();</span>
+<span class="fc" id="L492">    AtomicInteger failureCount = new AtomicInteger(0);</span>
+<span class="fc" id="L493">    AtomicReference&lt;Throwable&gt; lastFailure = new AtomicReference&lt;&gt;();</span>
+
+<span class="fc" id="L495">    BiConsumer&lt;A, Throwable&gt; handler =</span>
+        (value, ex) -&gt; {
+<span class="fc bfc" id="L497" title="All 2 branches covered.">          if (ex == null) {</span>
+<span class="fc" id="L498">            result.complete(value);</span>
+          } else {
+<span class="fc" id="L500">            lastFailure.set(ex);</span>
+<span class="pc bpc" id="L501" title="1 of 4 branches missed.">            if (failureCount.incrementAndGet() == 2 &amp;&amp; !result.isDone()) {</span>
+<span class="fc" id="L502">              result.completeExceptionally(lastFailure.get());</span>
+            }
+          }
+<span class="fc" id="L505">        };</span>
+
+<span class="fc" id="L507">    future.whenComplete(handler);</span>
+<span class="fc" id="L508">    other.future.whenComplete(handler);</span>
+
+<span class="fc" id="L510">    return new CompletableFuturePath&lt;&gt;(result);</span>
+  }
+
+  // ===== Retry Operations =====
+
+  /**
+   * Creates a CompletableFuturePath that executes the supplier with retry support.
+   *
+   * &lt;p&gt;Each retry attempt calls the supplier again, allowing the operation to be retried properly.
+   * The retry logic runs asynchronously on the common fork-join pool.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * RetryPolicy policy = RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofMillis(100))
+   *     .retryOn(IOException.class);
+   *
+   * CompletableFuturePath&lt;String&gt; resilient =
+   *     CompletableFuturePath.supplyAsyncWithRetry(() -&gt; httpClient.get(url), policy);
+   * }&lt;/pre&gt;
+   *
+   * @param supplier the supplier for the value; called on each retry attempt; must not be null
+   * @param policy the retry policy; must not be null
+   * @param &lt;A&gt; the value type
+   * @return a CompletableFuturePath that retries the supplier on failure
+   * @throws NullPointerException if supplier or policy is null
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; supplyAsyncWithRetry(
+      Supplier&lt;A&gt; supplier, RetryPolicy policy) {
+<span class="fc" id="L539">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+<span class="fc" id="L540">    Objects.requireNonNull(policy, &quot;policy must not be null&quot;);</span>
+<span class="fc" id="L541">    return new CompletableFuturePath&lt;&gt;(</span>
+<span class="fc" id="L542">        CompletableFuture.supplyAsync(() -&gt; Retry.execute(policy, supplier)));</span>
+  }
+
+  /**
+   * Creates a CompletableFuturePath that executes the supplier with exponential backoff retry.
+   *
+   * &lt;p&gt;This is a convenience method that uses exponential backoff with jitter.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * CompletableFuturePath&lt;String&gt; resilient =
+   *     CompletableFuturePath.supplyAsyncWithRetry(() -&gt; httpClient.get(url), 3, Duration.ofMillis(100));
+   * }&lt;/pre&gt;
+   *
+   * @param supplier the supplier for the value; called on each retry attempt; must not be null
+   * @param maxAttempts maximum number of attempts (must be at least 1)
+   * @param initialDelay initial delay between attempts; must not be null
+   * @param &lt;A&gt; the value type
+   * @return a CompletableFuturePath that retries the supplier on failure
+   * @throws NullPointerException if supplier or initialDelay is null
+   * @throws IllegalArgumentException if maxAttempts is less than 1
+   */
+  public static &lt;A&gt; CompletableFuturePath&lt;A&gt; supplyAsyncWithRetry(
+      Supplier&lt;A&gt; supplier, int maxAttempts, Duration initialDelay) {
+<span class="fc" id="L567">    return supplyAsyncWithRetry(</span>
+<span class="fc" id="L568">        supplier, RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));</span>
+  }
+
+  /**
+   * Returns a CompletableFuturePath that retries reading this computation's result.
+   *
+   * &lt;p&gt;&lt;strong&gt;Note:&lt;/strong&gt; This method retries calling {@code join()} on the existing future. If
+   * the future has already failed, retrying will not help because CompletableFuture caches its
+   * result. For retrying an operation that may fail, use {@link #supplyAsyncWithRetry(Supplier,
+   * RetryPolicy)} instead.
+   *
+   * @param policy the retry policy; must not be null
+   * @return a CompletableFuturePath that retries on failure
+   * @throws NullPointerException if policy is null
+   * @deprecated Use {@link #supplyAsyncWithRetry(Supplier, RetryPolicy)} for proper retry
+   *     semantics. This method only retries reading from an already-completed future.
+   */
+  @Deprecated
+  public CompletableFuturePath&lt;A&gt; withRetry(RetryPolicy policy) {
+<span class="fc" id="L587">    Objects.requireNonNull(policy, &quot;policy must not be null&quot;);</span>
+<span class="fc" id="L588">    return new CompletableFuturePath&lt;&gt;(</span>
+<span class="fc" id="L589">        CompletableFuture.supplyAsync(() -&gt; Retry.execute(policy, () -&gt; this.join())));</span>
+  }
+
+  /**
+   * Returns a CompletableFuturePath that retries reading this computation's result with exponential
+   * backoff.
+   *
+   * &lt;p&gt;&lt;strong&gt;Note:&lt;/strong&gt; This method retries calling {@code join()} on the existing future. If
+   * the future has already failed, retrying will not help because CompletableFuture caches its
+   * result. For retrying an operation that may fail, use {@link #supplyAsyncWithRetry(Supplier,
+   * int, Duration)} instead.
+   *
+   * @param maxAttempts maximum number of attempts (must be at least 1)
+   * @param initialDelay initial delay between attempts; must not be null
+   * @return a CompletableFuturePath that retries on failure
+   * @throws NullPointerException if initialDelay is null
+   * @throws IllegalArgumentException if maxAttempts is less than 1
+   * @deprecated Use {@link #supplyAsyncWithRetry(Supplier, int, Duration)} for proper retry
+   *     semantics. This method only retries reading from an already-completed future.
+   */
+  @Deprecated
+  public CompletableFuturePath&lt;A&gt; retry(int maxAttempts, Duration initialDelay) {
+<span class="fc" id="L611">    return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));</span>
+  }
+
+  // ===== Conversions =====
+
+  /**
+   * Converts to an IOPath (blocking).
+   *
+   * &lt;p&gt;The IOPath will block on the future when run.
+   *
+   * @return an IOPath that blocks on this future
+   */
+  public IOPath&lt;A&gt; toIOPath() {
+<span class="fc" id="L624">    return new IOPath&lt;&gt;(this::join);</span>
+  }
+
+  /**
+   * Converts to a TryPath (blocking).
+   *
+   * &lt;p&gt;Blocks until the future completes, capturing any exception.
+   *
+   * @return a TryPath containing the result or exception
+   */
+  public TryPath&lt;A&gt; toTryPath() {
+<span class="fc" id="L635">    return new TryPath&lt;&gt;(Try.of(this::join));</span>
+  }
+
+  /**
+   * Converts to an EitherPath (blocking).
+   *
+   * &lt;p&gt;Blocks until the future completes. Exceptions become Left values.
+   *
+   * @return an EitherPath with Exception as Left
+   */
+  public EitherPath&lt;Exception, A&gt; toEitherPath() {
+    try {
+<span class="fc" id="L647">      return new EitherPath&lt;&gt;(Either.right(join()));</span>
+<span class="fc" id="L648">    } catch (CompletionException e) {</span>
+      Exception cause =
+<span class="fc bfc" id="L650" title="All 2 branches covered.">          e.getCause() instanceof Exception ex ? ex : new RuntimeException(e.getCause());</span>
+<span class="fc" id="L651">      return new EitherPath&lt;&gt;(Either.left(cause));</span>
+    }
+  }
+
+  /**
+   * Converts to a MaybePath (blocking).
+   *
+   * &lt;p&gt;Blocks until the future completes. Returns Nothing if the future fails or produces null.
+   *
+   * @return a MaybePath containing the result if successful and non-null
+   */
+  public MaybePath&lt;A&gt; toMaybePath() {
+    try {
+<span class="fc" id="L664">      A result = join();</span>
+<span class="fc bfc" id="L665" title="All 2 branches covered.">      return result != null</span>
+<span class="fc" id="L666">          ? new MaybePath&lt;&gt;(Maybe.just(result))</span>
+<span class="fc" id="L667">          : new MaybePath&lt;&gt;(Maybe.nothing());</span>
+<span class="fc" id="L668">    } catch (CompletionException e) {</span>
+<span class="fc" id="L669">      return new MaybePath&lt;&gt;(Maybe.nothing());</span>
+    }
+  }
+
+  // ===== Helper Methods =====
+
+  /** Unwraps CompletionException to get the underlying exception. */
+  private static Exception unwrapException(Throwable ex) {
+<span class="fc bfc" id="L677" title="All 2 branches covered.">    Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;</span>
+<span class="fc bfc" id="L678" title="All 2 branches covered.">    if (cause instanceof Exception e) {</span>
+<span class="fc" id="L679">      return e;</span>
+    }
+    // Wrap Errors in RuntimeException
+<span class="fc" id="L682">    return new RuntimeException(cause);</span>
+  }
+
+  // ===== Object methods =====
+
+  @Override
+  public boolean equals(Object obj) {
+<span class="fc bfc" id="L689" title="All 2 branches covered.">    if (this == obj) return true;</span>
+<span class="fc bfc" id="L690" title="All 2 branches covered.">    if (!(obj instanceof CompletableFuturePath&lt;?&gt; other)) return false;</span>
+<span class="fc" id="L691">    return future.equals(other.future);</span>
+  }
+
+  @Override
+  public int hashCode() {
+<span class="fc" id="L696">    return future.hashCode();</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="fc bfc" id="L701" title="All 2 branches covered.">    if (future.isDone()) {</span>
+<span class="fc bfc" id="L702" title="All 2 branches covered.">      if (future.isCompletedExceptionally()) {</span>
+<span class="fc" id="L703">        return &quot;CompletableFuturePath(&lt;failed&gt;)&quot;;</span>
+      }
+<span class="fc" id="L705">      return &quot;CompletableFuturePath(&quot; + future.join() + &quot;)&quot;;</span>
+    }
+<span class="fc" id="L707">    return &quot;CompletableFuturePath(&lt;pending&gt;)&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

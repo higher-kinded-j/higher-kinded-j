@@ -115,10 +115,15 @@ VTaskPath provides three execution methods:
 ```java
 VTaskPath<Integer> task = Path.vtask(() -> compute());
 
-// 1. run() - Blocks, may throw
+// 1. unsafeRun() - Blocks, may throw
+//    Checked exceptions are wrapped in VTaskExecutionException;
+//    RuntimeException and Error are thrown directly.
 try {
-    Integer result = task.run();
-} catch (Exception e) {
+    Integer result = task.unsafeRun();
+} catch (VTaskExecutionException e) {
+    // Checked exception wrapped — original available via e.getCause()
+    handleError(e.getCause());
+} catch (RuntimeException e) {
     handleError(e);
 }
 

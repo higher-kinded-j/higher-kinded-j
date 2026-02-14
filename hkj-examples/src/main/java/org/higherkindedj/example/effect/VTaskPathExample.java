@@ -71,7 +71,9 @@ public class VTaskPathExample {
     try {
       String result = fetchData.run();
       System.out.println("   Result: " + result);
-    } catch (Throwable e) {
+    } catch (RuntimeException e) {
+      // run() wraps checked exceptions in VTaskExecutionException (a RuntimeException);
+      // other RuntimeExceptions and Errors are thrown directly.
       System.out.println("   Error: " + e.getMessage());
     }
 

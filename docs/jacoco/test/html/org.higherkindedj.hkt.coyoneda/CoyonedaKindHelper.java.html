@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CoyonedaKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.coyoneda</a> &gt; <span class="el_source">CoyonedaKindHelper.java</span></div><h1>CoyonedaKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.coyoneda;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Helper for converting between Coyoneda and Kind representations.
+ *
+ * &lt;p&gt;This enum provides utilities for:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Widening concrete Coyoneda types to their Kind representation
+ *   &lt;li&gt;Narrowing Kind representations back to concrete Coyoneda types
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code COYONEDA}. For example:
+ *
+ * &lt;pre&gt;{@code
+ * CoyonedaKindHelper.COYONEDA.widen(Coyoneda.lift(someKind));
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;Or, with static import:
+ *
+ * &lt;pre&gt;{@code
+ * import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
+ * COYONEDA.widen(...);
+ * }&lt;/pre&gt;
+ */
+<span class="fc" id="L34">public enum CoyonedaKindHelper {</span>
+  /** Singleton instance of the CoyonedaKindHelper. */
+<span class="fc" id="L36">  COYONEDA;</span>
+
+  /**
+   * Holder record that wraps a Coyoneda instance and implements CoyonedaKind.
+   *
+   * &lt;p&gt;This enables the concrete Coyoneda type to be represented as a Kind.
+   *
+   * @param &lt;F&gt; The underlying type constructor
+   * @param &lt;A&gt; The result type
+   */
+  record CoyonedaHolder&lt;F extends WitnessArity&lt;TypeArity.Unary&gt;, A&gt;(Coyoneda&lt;F, A&gt; coyoneda)
+      implements CoyonedaKind&lt;F, A&gt; {}
+
+  /**
+   * Widens a concrete Coyoneda type to its Kind representation.
+   *
+   * &lt;p&gt;This allows Coyoneda to be used with type classes that operate on Kind types.
+   *
+   * @param coyoneda The Coyoneda instance to widen. Must not be null.
+   * @param &lt;F&gt; The underlying type constructor
+   * @param &lt;A&gt; The result type
+   * @return The Kind representation of the Coyoneda instance
+   * @throws NullPointerException if coyoneda is null
+   */
+  public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;, A&gt; Kind&lt;CoyonedaKind.Witness&lt;F&gt;, A&gt; widen(
+      Coyoneda&lt;F, A&gt; coyoneda) {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">    if (coyoneda == null) {</span>
+<span class="fc" id="L63">      throw new NullPointerException(&quot;Coyoneda to widen cannot be null&quot;);</span>
+    }
+<span class="fc" id="L65">    return new CoyonedaHolder&lt;&gt;(coyoneda);</span>
+  }
+
+  /**
+   * Narrows a Kind representation back to a concrete Coyoneda type.
+   *
+   * &lt;p&gt;This is the inverse of {@link #widen(Coyoneda)}.
+   *
+   * @param kind The Kind representation to narrow. May be null.
+   * @param &lt;F&gt; The underlying type constructor
+   * @param &lt;A&gt; The result type
+   * @return The concrete Coyoneda instance
+   * @throws KindUnwrapException if kind is null or not a valid CoyonedaKind representation
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;, A&gt; Coyoneda&lt;F, A&gt; narrow(
+      @Nullable Kind&lt;CoyonedaKind.Witness&lt;F&gt;, A&gt; kind) {
+<span class="fc bfc" id="L82" title="All 2 branches covered.">    if (kind == null) {</span>
+<span class="fc" id="L83">      throw new KindUnwrapException(&quot;Cannot narrow null Kind to Coyoneda&quot;);</span>
+    }
+<span class="fc bfc" id="L85" title="All 2 branches covered.">    if (kind instanceof CoyonedaHolder&lt;?, ?&gt; holder) {</span>
+<span class="fc" id="L86">      return (Coyoneda&lt;F, A&gt;) holder.coyoneda();</span>
+    }
+<span class="fc" id="L88">    throw new KindUnwrapException(</span>
+<span class="fc" id="L89">        &quot;Cannot narrow Kind to Coyoneda: expected CoyonedaHolder but got &quot; + kind.getClass());</span>
+  }
+
+  /**
+   * Convenience factory that lifts a Kind into Coyoneda and wraps it as a Kind.
+   *
+   * &lt;p&gt;This combines {@link Coyoneda#lift(Kind)} and {@link #widen(Coyoneda)} in a single
+   * operation.
+   *
+   * @param fa The Kind to lift and widen. Must not be null.
+   * @param &lt;F&gt; The type constructor
+   * @param &lt;A&gt; The value type
+   * @return A Kind representing Coyoneda containing the lifted value
+   * @throws NullPointerException if fa is null
+   */
+  public &lt;F extends WitnessArity&lt;TypeArity.Unary&gt;, A&gt; Kind&lt;CoyonedaKind.Witness&lt;F&gt;, A&gt; lift(
+      Kind&lt;F, A&gt; fa) {
+<span class="fc" id="L106">    return widen(Coyoneda.lift(fa));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

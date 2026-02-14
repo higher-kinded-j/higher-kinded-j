@@ -149,7 +149,7 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     }
 
     public static Traversal<OrderRecord, LineItemRecord> eachItem() {
-      return items().andThen(org.higherkindedj.optics.util.Traversals.forList());
+      return items().andThen(Traversals.forList());
     }
   }
 

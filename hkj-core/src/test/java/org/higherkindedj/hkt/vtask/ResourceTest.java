@@ -71,7 +71,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("fromAutoCloseable() silently handles close exception")
-    void fromAutoCloseableHandlesCloseException() throws Throwable {
+    void fromAutoCloseableHandlesCloseException() {
       AtomicBoolean closeCalled = new AtomicBoolean(false);
 
       AutoCloseable failingCloseable =
@@ -91,7 +91,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("pure() creates resource without acquire/release")
-    void pureCreatesNoOpResource() throws Throwable {
+    void pureCreatesNoOpResource() {
       Resource<String> resource = Resource.pure("test");
 
       String result = resource.useSync(s -> s).run();
@@ -106,7 +106,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("use() acquires, uses, and releases resource")
-    void useAcquiresUsesAndReleases() throws Throwable {
+    void useAcquiresUsesAndReleases() {
       List<String> events = new ArrayList<>();
 
       Resource<String> resource =
@@ -185,7 +185,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("useSync() works with non-effectful functions")
-    void useSyncWorksWithSimpleFunctions() throws Throwable {
+    void useSyncWorksWithSimpleFunctions() {
       AtomicBoolean released = new AtomicBoolean(false);
 
       Resource<String> resource = Resource.make(() -> "hello", s -> released.set(true));
@@ -205,7 +205,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("map() transforms resource value and releases")
-    void mapTransformsResourceValue() throws Throwable {
+    void mapTransformsResourceValue() {
       AtomicBoolean released = new AtomicBoolean(false);
       Resource<String> resource = Resource.make(() -> "hello", s -> released.set(true));
 
@@ -215,6 +215,22 @@ class ResourceTest {
 
       assertThat(result).isEqualTo(5);
       assertThat(released).as("Resource should be released after map and use").isTrue();
+    }
+
+    @Test
+    @DisplayName("map() skips release when acquired resource is null")
+    void mapSkipsReleaseWhenAcquiredResourceIsNull() {
+      AtomicBoolean releaseCalled = new AtomicBoolean(false);
+      Resource<String> nullResource = Resource.make(() -> null, s -> releaseCalled.set(true));
+
+      Resource<Integer> mapped = nullResource.map(s -> 42);
+
+      Integer result = mapped.useSync(i -> i).run();
+
+      assertThat(result).isEqualTo(42);
+      assertThat(releaseCalled)
+          .as("Release should not be called when acquired resource is null")
+          .isFalse();
     }
 
     @Test
@@ -277,7 +293,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("flatMap() chains resource acquisition and releases in LIFO order")
-    void flatMapChainsResources() throws Throwable {
+    void flatMapChainsResources() {
       List<String> events = new ArrayList<>();
 
       Resource<String> first =
@@ -304,6 +320,26 @@ class ResourceTest {
       assertThat(events)
           .as("Acquire in order, release in LIFO order")
           .containsExactly("acquire-first", "acquire-second", "release-second", "release-first");
+    }
+
+    @Test
+    @DisplayName("flatMap() skips outer release when acquired resource is null")
+    void flatMapSkipsOuterReleaseWhenAcquiredResourceIsNull() {
+      AtomicBoolean outerReleaseCalled = new AtomicBoolean(false);
+      AtomicBoolean innerReleased = new AtomicBoolean(false);
+
+      Resource<String> nullResource = Resource.make(() -> null, s -> outerReleaseCalled.set(true));
+
+      Resource<Integer> chained =
+          nullResource.flatMap(s -> Resource.make(() -> 42, i -> innerReleased.set(true)));
+
+      Integer result = chained.useSync(i -> i).run();
+
+      assertThat(result).isEqualTo(42);
+      assertThat(innerReleased).as("Inner resource should be released").isTrue();
+      assertThat(outerReleaseCalled)
+          .as("Outer release should not be called when acquired resource is null")
+          .isFalse();
     }
 
     @Test
@@ -495,7 +531,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("and() combines two resources")
-    void andCombinesTwoResources() throws Throwable {
+    void andCombinesTwoResources() {
       List<String> events = new ArrayList<>();
 
       Resource<String> first =
@@ -645,7 +681,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("and() with three resources")
-    void andWithThreeResources() throws Throwable {
+    void andWithThreeResources() {
       AtomicInteger releaseOrder = new AtomicInteger(0);
       List<Integer> releases = new ArrayList<>();
 
@@ -925,7 +961,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("withFinalizer() runs after release")
-    void withFinalizerRunsAfterRelease() throws Throwable {
+    void withFinalizerRunsAfterRelease() {
       List<String> events = new ArrayList<>();
 
       Resource<String> resource =
@@ -976,7 +1012,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("onFailure() returns resource that can be used")
-    void onFailureReturnsUsableResource() throws Throwable {
+    void onFailureReturnsUsableResource() {
       AtomicBoolean released = new AtomicBoolean(false);
       Resource<String> resource =
           Resource.make(() -> "test", s -> released.set(true)).onFailure(s -> {});
@@ -994,7 +1030,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("database connection pattern")
-    void databaseConnectionPattern() throws Throwable {
+    void databaseConnectionPattern() {
       // Simulated connection
       record Connection(String id) implements AutoCloseable {
         @Override
@@ -1025,7 +1061,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("nested resources pattern")
-    void nestedResourcesPattern() throws Throwable {
+    void nestedResourcesPattern() {
       List<String> events = new ArrayList<>();
 
       Resource<String> outer =
@@ -1055,7 +1091,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("file handling pattern")
-    void fileHandlingPattern() throws Throwable {
+    void fileHandlingPattern() {
       // Simulated file handle
       AtomicBoolean fileClosed = new AtomicBoolean(false);
 

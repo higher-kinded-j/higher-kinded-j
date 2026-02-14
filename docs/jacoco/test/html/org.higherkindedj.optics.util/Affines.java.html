@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Affines.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.util</a> &gt; <span class="el_source">Affines.java</span></div><h1>Affines.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.util;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.optics.Affine;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * A final utility class providing common {@link Affine} instances and helper methods.
+ *
+ * &lt;p&gt;This class contains factory methods for creating affines that work with common Java types like
+ * {@link Optional}, nullable fields, and collections with optional access patterns.
+ *
+ * &lt;p&gt;An Affine focuses on &lt;b&gt;zero or one&lt;/b&gt; element within a structure. Unlike a Prism which can
+ * {@code build} a new structure from scratch, an Affine can only {@code set} a value within an
+ * existing structure. This makes Affine ideal for optional fields within product types.
+ *
+ * &lt;h2&gt;When to use Affine vs Prism&lt;/h2&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Affine:&lt;/b&gt; Optional fields in records, nullable properties, conditional access
+ *   &lt;li&gt;&lt;b&gt;Prism:&lt;/b&gt; Sum type variants (sealed interfaces), type-safe instanceof checks
+ * &lt;/ul&gt;
+ */
+@NullMarked
+public final class Affines {
+  /** Private constructor to prevent instantiation. */
+  private Affines() {}
+
+  /**
+   * Creates an affine for accessing the value inside an {@link Optional} field.
+   *
+   * &lt;p&gt;This is one of the most common uses of Affine: accessing optional fields in records or
+   * classes. The affine focuses on the contained value when present, and returns empty when the
+   * Optional is empty.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * record User(String name, Optional&lt;String&gt; email) {}
+   *
+   * Affine&lt;Optional&lt;String&gt;, String&gt; someAffine = Affines.some();
+   *
+   * Optional&lt;String&gt; present = Optional.of(&quot;alice@example.com&quot;);
+   * Optional&lt;String&gt; result = someAffine.getOptional(present);  // Optional.of(&quot;alice@example.com&quot;)
+   *
+   * Optional&lt;String&gt; empty = Optional.empty();
+   * Optional&lt;String&gt; noMatch = someAffine.getOptional(empty);  // Optional.empty()
+   *
+   * // Setting always wraps in Optional.of()
+   * Optional&lt;String&gt; updated = someAffine.set(&quot;new@example.com&quot;, present);
+   * // Optional.of(&quot;new@example.com&quot;)
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The type of the value inside the {@code Optional}.
+   * @return An affine focusing on present values in an {@code Optional}.
+   */
+  public static &lt;A&gt; Affine&lt;Optional&lt;A&gt;, A&gt; some() {
+<span class="fc" id="L65">    return Affine.of(Function.identity(), (opt, value) -&gt; Optional.of(value));</span>
+  }
+
+  /**
+   * Creates an affine for accessing the value inside an {@link Optional} field, with removal
+   * support.
+   *
+   * &lt;p&gt;This variant supports the {@link Affine#remove} operation, allowing you to clear an Optional
+   * field to empty.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;Optional&lt;String&gt;, String&gt; someAffine = Affines.someWithRemove();
+   *
+   * Optional&lt;String&gt; present = Optional.of(&quot;alice@example.com&quot;);
+   *
+   * // Remove clears the Optional
+   * Optional&lt;String&gt; cleared = someAffine.remove(present);  // Optional.empty()
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The type of the value inside the {@code Optional}.
+   * @return An affine focusing on present values in an {@code Optional}, with removal support.
+   */
+  public static &lt;A&gt; Affine&lt;Optional&lt;A&gt;, A&gt; someWithRemove() {
+<span class="fc" id="L90">    return Affine.of(</span>
+<span class="fc" id="L91">        Function.identity(), (opt, value) -&gt; Optional.of(value), opt -&gt; Optional.empty());</span>
+  }
+
+  /**
+   * Creates an affine for accessing the value inside a {@link Maybe} when it is {@code Just}.
+   *
+   * &lt;p&gt;Similar to {@link #some()} but for the higher-kinded-j {@code Maybe} type.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;Maybe&lt;String&gt;, String&gt; justAffine = Affines.just();
+   *
+   * Maybe&lt;String&gt; present = Maybe.just(&quot;hello&quot;);
+   * Optional&lt;String&gt; result = justAffine.getOptional(present);  // Optional.of(&quot;hello&quot;)
+   *
+   * Maybe&lt;String&gt; nothing = Maybe.nothing();
+   * Optional&lt;String&gt; noMatch = justAffine.getOptional(nothing);  // Optional.empty()
+   *
+   * Maybe&lt;String&gt; updated = justAffine.set(&quot;world&quot;, present);  // Maybe.just(&quot;world&quot;)
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The type of the value inside the {@code Maybe}.
+   * @return An affine focusing on {@code Just} values in a {@code Maybe}.
+   */
+  public static &lt;A&gt; Affine&lt;Maybe&lt;A&gt;, A&gt; just() {
+<span class="fc" id="L117">    return Affine.of(</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        maybe -&gt; maybe.isJust() ? Optional.of(maybe.get()) : Optional.empty(),</span>
+<span class="fc" id="L119">        (maybe, value) -&gt; Maybe.just(value));</span>
+  }
+
+  /**
+   * Creates an affine for accessing nullable fields.
+   *
+   * &lt;p&gt;This is useful for working with legacy code or APIs that use null to represent absent
+   * values. The affine wraps null checks in Optional semantics.
+   *
+   * &lt;p&gt;&lt;b&gt;Warning:&lt;/b&gt; The setter will set the value directly (including potentially null values
+   * passed to it). Use with care.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * // For a record with a nullable field (legacy pattern)
+   * record LegacyUser(String name, @Nullable String nickname) {}
+   *
+   * // Create an affine using nullable() with appropriate getter/setter
+   * Affine&lt;LegacyUser, String&gt; nicknameAffine = Affine.of(
+   *     user -&gt; Optional.ofNullable(user.nickname()),
+   *     (user, nickname) -&gt; new LegacyUser(user.name(), nickname)
+   * );
+   *
+   * LegacyUser user = new LegacyUser(&quot;Alice&quot;, null);
+   * Optional&lt;String&gt; result = nicknameAffine.getOptional(user);  // Optional.empty()
+   *
+   * LegacyUser updated = nicknameAffine.set(&quot;Ally&quot;, user);
+   * // LegacyUser[name=Alice, nickname=Ally]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The type of the nullable value.
+   * @return An affine that treats null as absent.
+   */
+  public static &lt;A&gt; Affine&lt;@Nullable A, A&gt; nullable() {
+<span class="fc" id="L154">    return Affine.of(Optional::ofNullable, (ignored, value) -&gt; value);</span>
+  }
+
+  /**
+   * Creates an affine for accessing the first element of a {@link List}.
+   *
+   * &lt;p&gt;This affine focuses on the first element when the list is non-empty. Setting replaces the
+   * first element whilst preserving the rest of the list.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;String&gt;, String&gt; headAffine = Affines.listHead();
+   *
+   * List&lt;String&gt; list = List.of(&quot;first&quot;, &quot;second&quot;, &quot;third&quot;);
+   * Optional&lt;String&gt; result = headAffine.getOptional(list);  // Optional.of(&quot;first&quot;)
+   *
+   * List&lt;String&gt; empty = List.of();
+   * Optional&lt;String&gt; noMatch = headAffine.getOptional(empty);  // Optional.empty()
+   *
+   * // Setting replaces first element, keeps rest
+   * List&lt;String&gt; updated = headAffine.set(&quot;NEW&quot;, list);
+   * // [NEW, second, third]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the first element of a list.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, A&gt; listHead() {
+<span class="fc" id="L183">    return Affine.of(</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.empty() : Optional.of(list.getFirst()),</span>
+        (list, value) -&gt; {
+<span class="fc bfc" id="L186" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L187">            return List.of(value);</span>
+          }
+<span class="fc" id="L189">          List&lt;A&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L190">          result.set(0, value);</span>
+<span class="fc" id="L191">          return List.copyOf(result);</span>
+        });
+  }
+
+  /**
+   * Creates an affine for accessing the last element of a {@link List}.
+   *
+   * &lt;p&gt;This affine focuses on the last element when the list is non-empty. Setting replaces the
+   * last element whilst preserving the rest of the list.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;String&gt;, String&gt; lastAffine = Affines.listLast();
+   *
+   * List&lt;String&gt; list = List.of(&quot;first&quot;, &quot;second&quot;, &quot;third&quot;);
+   * Optional&lt;String&gt; result = lastAffine.getOptional(list);  // Optional.of(&quot;third&quot;)
+   *
+   * // Setting replaces last element, keeps rest
+   * List&lt;String&gt; updated = lastAffine.set(&quot;NEW&quot;, list);
+   * // [first, second, NEW]
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the last element of a list.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, A&gt; listLast() {
+<span class="fc" id="L218">    return Affine.of(</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        list -&gt; list.isEmpty() ? Optional.empty() : Optional.of(list.getLast()),</span>
+        (list, value) -&gt; {
+<span class="fc bfc" id="L221" title="All 2 branches covered.">          if (list.isEmpty()) {</span>
+<span class="fc" id="L222">            return List.of(value);</span>
+          }
+<span class="fc" id="L224">          List&lt;A&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L225">          result.set(result.size() - 1, value);</span>
+<span class="fc" id="L226">          return List.copyOf(result);</span>
+        });
+  }
+
+  /**
+   * Creates an affine for accessing an element at a specific index in a {@link List}.
+   *
+   * &lt;p&gt;This affine focuses on the element at the given index when it exists. Setting replaces that
+   * element whilst preserving the rest of the list.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;List&lt;String&gt;, String&gt; secondAffine = Affines.listAt(1);
+   *
+   * List&lt;String&gt; list = List.of(&quot;first&quot;, &quot;second&quot;, &quot;third&quot;);
+   * Optional&lt;String&gt; result = secondAffine.getOptional(list);  // Optional.of(&quot;second&quot;)
+   *
+   * List&lt;String&gt; shortList = List.of(&quot;only&quot;);
+   * Optional&lt;String&gt; noMatch = secondAffine.getOptional(shortList);  // Optional.empty()
+   *
+   * // Setting replaces element at index, keeps rest
+   * List&lt;String&gt; updated = secondAffine.set(&quot;NEW&quot;, list);
+   * // [first, NEW, third]
+   * }&lt;/pre&gt;
+   *
+   * @param index The zero-based index to focus on.
+   * @param &lt;A&gt; The element type of the list.
+   * @return An affine focusing on the element at the specified index.
+   */
+  public static &lt;A&gt; Affine&lt;List&lt;A&gt;, A&gt; listAt(int index) {
+<span class="fc" id="L257">    return Affine.of(</span>
+        list -&gt;
+<span class="fc bfc" id="L259" title="All 4 branches covered.">            (index &gt;= 0 &amp;&amp; index &lt; list.size()) ? Optional.of(list.get(index)) : Optional.empty(),</span>
+        (list, value) -&gt; {
+<span class="fc bfc" id="L261" title="All 4 branches covered.">          if (index &lt; 0 || index &gt;= list.size()) {</span>
+<span class="fc" id="L262">            return list;</span>
+          }
+<span class="fc" id="L264">          List&lt;A&gt; result = new ArrayList&lt;&gt;(list);</span>
+<span class="fc" id="L265">          result.set(index, value);</span>
+<span class="fc" id="L266">          return List.copyOf(result);</span>
+        });
+  }
+
+  // ===== Utility Methods =====
+
+  /**
+   * Extracts all focused values from a structure using an affine.
+   *
+   * &lt;p&gt;Since an affine focuses on zero or one element, this returns either an empty list or a
+   * singleton list.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Affine&lt;Optional&lt;String&gt;, String&gt; someAffine = Affines.some();
+   *
+   * List&lt;String&gt; present = Affines.getAll(someAffine, Optional.of(&quot;hello&quot;));  // [hello]
+   * List&lt;String&gt; absent = Affines.getAll(someAffine, Optional.empty());       // []
+   * }&lt;/pre&gt;
+   *
+   * @param affine The affine to use for extraction.
+   * @param source The source structure.
+   * @param &lt;S&gt; The source type.
+   * @param &lt;A&gt; The focus type.
+   * @return A list containing zero or one element.
+   */
+  public static &lt;S, A&gt; List&lt;A&gt; getAll(Affine&lt;S, A&gt; affine, S source) {
+<span class="fc" id="L294">    return affine.getOptional(source).map(List::of).orElse(List.of());</span>
+  }
+
+  /**
+   * Modifies the focused value using a function.
+   *
+   * &lt;p&gt;This is a static helper that delegates to {@link Affine#modify}. Provided for consistency
+   * with {@link Traversals#modify}.
+   *
+   * @param affine The affine to use.
+   * @param modifier The function to apply.
+   * @param source The source structure.
+   * @param &lt;S&gt; The source type.
+   * @param &lt;A&gt; The focus type.
+   * @return The modified structure.
+   */
+  public static &lt;S, A&gt; S modify(Affine&lt;S, A&gt; affine, Function&lt;A, A&gt; modifier, S source) {
+<span class="fc" id="L311">    return affine.modify(modifier, source);</span>
+  }
+
+  /**
+   * Checks if the affine focuses on a value in the given structure.
+   *
+   * &lt;p&gt;This is a static helper that delegates to {@link Affine#matches}.
+   *
+   * @param affine The affine to use.
+   * @param source The source structure.
+   * @param &lt;S&gt; The source type.
+   * @param &lt;A&gt; The focus type.
+   * @return {@code true} if a value is present, {@code false} otherwise.
+   */
+  public static &lt;S, A&gt; boolean matches(Affine&lt;S, A&gt; affine, S source) {
+<span class="fc" id="L326">    return affine.matches(source);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

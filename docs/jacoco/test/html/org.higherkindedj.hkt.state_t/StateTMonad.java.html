@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StateTMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.state_t</a> &gt; <span class="el_source">StateTMonad.java</span></div><h1>StateTMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.state_t;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Provides a {@link Monad} instance for the {@link StateT} monad transformer.
+ *
+ * &lt;p&gt;The {@code StateT&lt;S, F, A&gt;} monad transformer wraps a computation that takes an initial state
+ * of type {@code S} and produces a result of type {@code A} along with a new state, all within the
+ * context of an underlying monad {@code F}.
+ *
+ * &lt;p&gt;This {@code Monad} instance enables chaining stateful operations. The underlying monad {@code
+ * F} dictates how the stateful computations are executed (e.g., synchronously, asynchronously, with
+ * error handling). This transformer sequences operations using the flatMap and map capabilities of
+ * the underlying monad.
+ *
+ * @param &lt;S&gt; The type of the state threaded through the computations.
+ * @param &lt;F&gt; The higher-kinded type witness for the underlying monad.
+ * @see StateT
+ * @see Monad
+ */
+public final class StateTMonad&lt;S, F extends WitnessArity&lt;TypeArity.Unary&gt;&gt;
+    implements Monad&lt;StateTKind.Witness&lt;S, F&gt;&gt; {
+
+<span class="fc" id="L36">  private static final Class&lt;StateTMonad&gt; STATE_T_MONAD_CLASS = StateTMonad.class;</span>
+  private final Monad&lt;F&gt; monadF;
+
+  // Private constructor, use factory method
+<span class="fc" id="L40">  private StateTMonad(Monad&lt;F&gt; monadF) {</span>
+<span class="fc" id="L41">    this.monadF =</span>
+<span class="fc" id="L42">        Validation.transformer().requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L43">  }</span>
+
+  /**
+   * Creates a {@link Monad} instance for {@link StateT} given a {@link Monad} instance for the
+   * underlying monad {@code F}.
+   *
+   * @param monadF The {@link Monad} instance for the underlying monad {@code F}.
+   * @param &lt;S&gt; The type of the state.
+   * @param &lt;F&gt; The higher-kinded type witness for the underlying monad {@code F}.
+   * @return A {@code Monad&lt;StateTKind.Witness&lt;S, F&gt;&gt;} instance.
+   * @throws NullPointerException if {@code monadF} is null.
+   */
+  public static &lt;S, F extends WitnessArity&lt;TypeArity.Unary&gt;&gt; StateTMonad&lt;S, F&gt; instance(
+      Monad&lt;F&gt; monadF) {
+<span class="fc" id="L57">    return new StateTMonad&lt;&gt;(monadF);</span>
+  }
+
+  /**
+   * Lifts a pure value {@code a} into the {@code StateT&lt;S, F, A&gt;} monad.
+   *
+   * &lt;p&gt;The resulting {@code StateT} computation, when run with an initial state {@code s}, will
+   * produce the value {@code a} and leave the state {@code s} unchanged. The operation is performed
+   * within the context of the underlying monad {@code F} using its {@code of} method.
+   *
+   * @param a The pure value to lift. Can be {@code null}.
+   * @param &lt;A&gt; The type of the value.
+   * @return A {@code StateT&lt;S, F, A&gt;} instance representing the lifted value.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;StateTKind.Witness&lt;S, F&gt;, A&gt; of(@Nullable A a) {
+<span class="fc" id="L73">    Function&lt;S, Kind&lt;F, StateTuple&lt;S, A&gt;&gt;&gt; runFn = s -&gt; monadF.of(StateTuple.of(s, a));</span>
+<span class="fc" id="L74">    return StateT.&lt;S, F, A&gt;create(runFn, monadF);</span>
+  }
+
+  /**
+   * Transforms the value type of a {@code StateT&lt;S, F, A&gt;} from {@code A} to {@code B} using the
+   * provided function {@code f}, without altering the state transformation behaviour.
+   *
+   * @param f The function to apply to the value. Must not be {@code null}.
+   * @param fa The {@code StateT&lt;S, F, A&gt;} instance whose value is to be transformed.
+   * @param &lt;A&gt; The original value type.
+   * @param &lt;B&gt; The new value type.
+   * @return A new {@code StateT&lt;S, F, B&gt;} instance.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     StateT} representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;StateTKind.Witness&lt;S, F&gt;, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;StateTKind.Witness&lt;S, F&gt;, A&gt; fa) {
+<span class="fc" id="L93">    Validation.function().requireMapper(f, &quot;f&quot;, STATE_T_MONAD_CLASS, MAP);</span>
+<span class="fc" id="L94">    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, MAP);</span>
+
+<span class="fc" id="L96">    StateT&lt;S, F, A&gt; stateT = StateTKind.narrow(fa);</span>
+<span class="fc" id="L97">    Function&lt;S, Kind&lt;F, StateTuple&lt;S, B&gt;&gt;&gt; newRunFn =</span>
+        s -&gt;
+<span class="fc" id="L99">            monadF.map(</span>
+<span class="fc" id="L100">                stateTuple -&gt; StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())),</span>
+<span class="fc" id="L101">                stateT.runStateT(s));</span>
+<span class="fc" id="L102">    return StateT.&lt;S, F, B&gt;create(newRunFn, monadF);</span>
+  }
+
+  /**
+   * Applies a function wrapped in a {@code StateT&lt;S, F, Function&lt;A, B&gt;&gt;} to a value wrapped in a
+   * {@code StateT&lt;S, F, A&gt;}.
+   *
+   * &lt;p&gt;This operation sequences the state transformations:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;The {@code stateTf} (which contains the function) is run with an initial state {@code
+   *       s0}, producing an intermediate state {@code s1} and a function {@code func}.
+   *   &lt;li&gt;The {@code stateTa} (which contains the argument) is then run with state {@code s1},
+   *       producing the final state {@code s2} and a value {@code valA}.
+   *   &lt;li&gt;The function {@code func} is applied to {@code valA} to get the final result {@code B}.
+   * &lt;/ol&gt;
+   *
+   * All operations are performed within the context of the underlying monad {@code F}, using its
+   * {@code flatMap} and {@code map} methods.
+   *
+   * &lt;p&gt;&lt;b&gt;Important Note on Nulls:&lt;/b&gt; The value {@code valA} extracted from the second computation
+   * ({@code fa}) may be {@code null}. This implementation passes this potentially null value
+   * directly to the function extracted from the first computation ({@code ff}). It is the
+   * developer's responsibility to ensure that the provided function can handle a {@code null} input
+   * if the preceding computations can result in a {@code null} value. Failure to do so may result
+   * in a {@code NullPointerException} during execution.
+   *
+   * @param ff The {@code StateT&lt;S, F, Function&lt;A, B&gt;&gt;} containing the function to apply. The
+   *     function wrapped within the StateT must not be null.
+   * @param fa The {@code StateT&lt;S, F, A&gt;} containing the value to which the function is applied.
+   *     Must not be {@code null}.
+   * @param &lt;A&gt; The type of the input value for the function.
+   * @param &lt;B&gt; The type of the result of the function application.
+   * @return A new {@code StateT&lt;S, F, B&gt;} instance representing the result of applying the function
+   *     and sequencing the state transformations.
+   * @throws NullPointerException if {@code ff}, {@code fa}, or the function wrapped within {@code
+   *     ff} is {@code null}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} is not
+   *     a valid {@code StateT} representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;StateTKind.Witness&lt;S, F&gt;, B&gt; ap(
+      Kind&lt;StateTKind.Witness&lt;S, F&gt;, ? extends Function&lt;A, B&gt;&gt; ff,
+      Kind&lt;StateTKind.Witness&lt;S, F&gt;, A&gt; fa) {
+<span class="fc" id="L146">    Validation.kind().requireNonNull(ff, STATE_T_MONAD_CLASS, AP, &quot;function&quot;);</span>
+<span class="fc" id="L147">    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, AP, &quot;argument&quot;);</span>
+
+<span class="fc" id="L149">    StateT&lt;S, F, ? extends Function&lt;A, B&gt;&gt; stateTf = StateTKind.narrow(ff);</span>
+<span class="fc" id="L150">    StateT&lt;S, F, A&gt; stateTa = StateTKind.narrow(fa);</span>
+
+<span class="fc" id="L152">    Function&lt;S, Kind&lt;F, StateTuple&lt;S, B&gt;&gt;&gt; newRunFn =</span>
+        s0 -&gt;
+<span class="fc" id="L154">            monadF.flatMap(</span>
+                tupleF -&gt; {
+<span class="fc" id="L156">                  Function&lt;A, B&gt; function = tupleF.value();</span>
+<span class="fc" id="L157">                  S s1 = tupleF.state();</span>
+
+<span class="fc" id="L159">                  Validation.function()</span>
+<span class="fc" id="L160">                      .requireFunction(function, &quot;wrapped function&quot;, STATE_T_MONAD_CLASS, AP);</span>
+
+<span class="fc" id="L162">                  Kind&lt;F, StateTuple&lt;S, A&gt;&gt; resultA = stateTa.runStateT(s1);</span>
+
+<span class="fc" id="L164">                  return monadF.map(</span>
+                      tupleA -&gt; {
+<span class="fc" id="L166">                        S s2 = tupleA.state();</span>
+<span class="fc" id="L167">                        B finalValue = function.apply(tupleA.value());</span>
+<span class="fc" id="L168">                        return StateTuple.of(s2, finalValue);</span>
+                      },
+                      resultA);
+                },
+<span class="fc" id="L172">                stateTf.runStateT(s0));</span>
+
+<span class="fc" id="L174">    return StateT.create(newRunFn, monadF);</span>
+  }
+
+  /**
+   * Sequentially composes two {@link StateT} computations.
+   *
+   * &lt;p&gt;This operation, also known as {@code bind} or {@code &gt;&gt;=} (in Haskell), allows chaining of
+   * stateful computations where the result of the first computation ({@code fa}) is used to
+   * generate the next computation using function {@code f}.
+   *
+   * &lt;p&gt;The process is as follows:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;The initial {@code StateT&lt;S, F, A&gt;} computation ({@code fa}) is run with an initial state
+   *       {@code s0}. This yields a value {@code a} and an intermediate state {@code s1}, all
+   *       within the context of the underlying monad {@code F}.
+   *   &lt;li&gt;The function {@code f} is applied to the value {@code a}. This function {@code f} must
+   *       return a new {@code StateT&lt;S, F, B&gt;} computation.
+   *   &lt;li&gt;This new {@code StateT&lt;S, F, B&gt;} computation is then run with the intermediate state
+   *       {@code s1}. This produces the final value {@code b} and the final state {@code s2}.
+   * &lt;/ol&gt;
+   *
+   * This entire sequence is managed by the {@code flatMap} operation of the underlying monad {@code
+   * F}.
+   *
+   * @param f A function that takes the result of type {@code A} from the first {@code StateT}
+   *     computation ({@code fa}) and returns a new {@code StateT&lt;S, F, B&gt;} computation. Must not be
+   *     {@code null}.
+   * @param fa The initial {@code StateT&lt;S, F, A&gt;} computation. Must not be {@code null}.
+   * @param &lt;A&gt; The value type of the initial computation.
+   * @param &lt;B&gt; The value type of the computation returned by function {@code f}.
+   * @return A new {@code StateT&lt;S, F, B&gt;} representing the composed computation. Its run function
+   *     is effectively {@code s0 -&gt; monadF.flatMap(tupleA -&gt;
+   *     StateTKind.narrow(f.apply(tupleA.value())).runStateT(tupleA.state()),
+   *     StateTKind.narrow(fa).runStateT(s0))}.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     StateT} representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;StateTKind.Witness&lt;S, F&gt;, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;StateTKind.Witness&lt;S, F&gt;, B&gt;&gt; f,
+      Kind&lt;StateTKind.Witness&lt;S, F&gt;, A&gt; fa) {
+<span class="fc" id="L217">    Validation.function().requireFlatMapper(f, &quot;f&quot;, STATE_T_MONAD_CLASS, FLAT_MAP);</span>
+<span class="fc" id="L218">    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, FLAT_MAP);</span>
+
+<span class="fc" id="L220">    StateT&lt;S, F, A&gt; stateTa = StateTKind.narrow(fa);</span>
+
+<span class="fc" id="L222">    Function&lt;S, Kind&lt;F, StateTuple&lt;S, B&gt;&gt;&gt; newRunFn =</span>
+        s0 -&gt;
+<span class="fc" id="L224">            monadF.&lt;StateTuple&lt;S, A&gt;, StateTuple&lt;S, B&gt;&gt;flatMap(</span>
+                tupleA -&gt; {
+<span class="fc" id="L226">                  Kind&lt;StateTKind.Witness&lt;S, F&gt;, B&gt; kindB = f.apply(tupleA.value());</span>
+<span class="fc" id="L227">                  Validation.function()</span>
+<span class="fc" id="L228">                      .requireNonNullResult(kindB, &quot;f&quot;, STATE_T_MONAD_CLASS, FLAT_MAP);</span>
+<span class="fc" id="L229">                  StateT&lt;S, F, B&gt; stateTb = StateTKind.narrow(kindB);</span>
+<span class="fc" id="L230">                  return stateTb.runStateT(tupleA.state());</span>
+                },
+<span class="fc" id="L232">                stateTa.runStateT(s0));</span>
+
+<span class="fc" id="L234">    return StateT.&lt;S, F, B&gt;create(newRunFn, monadF);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -54,7 +54,7 @@ public class ConcurrencyScalingBenchmark {
    */
   @Benchmark
   @Threads(1)
-  public Integer vtask_singleThread() throws Throwable {
+  public Integer vtask_singleThread() {
     return vtask.map(x -> x + 1).map(x -> x * 2).run();
   }
 
@@ -78,7 +78,7 @@ public class ConcurrencyScalingBenchmark {
    */
   @Benchmark
   @Threads(4)
-  public Integer vtask_fourThreads() throws Throwable {
+  public Integer vtask_fourThreads() {
     return vtask.map(x -> x + 1).map(x -> x * 2).run();
   }
 
@@ -103,7 +103,7 @@ public class ConcurrencyScalingBenchmark {
    */
   @Benchmark
   @Threads(Threads.MAX)
-  public Integer vtask_maxThreads() throws Throwable {
+  public Integer vtask_maxThreads() {
     return vtask.map(x -> x + 1).map(x -> x * 2).run();
   }
 

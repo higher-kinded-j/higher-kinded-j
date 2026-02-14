@@ -120,11 +120,12 @@ public enum VTaskKindHelper implements VTaskConverterOps {
    * @param kind The {@code Kind<VTaskKind.Witness, A>} holding the VTask computation. Must not be
    *     null.
    * @return The result of executing the VTask computation.
-   * @throws Throwable If the computation fails.
+   * @throws VTaskExecutionException if the computation throws a checked exception
+   * @throws RuntimeException if the computation throws an unchecked exception
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} cannot be
    *     unwrapped.
    */
-  public <A> @Nullable A run(Kind<VTaskKind.Witness, A> kind) throws Throwable {
+  public <A> @Nullable A run(Kind<VTaskKind.Witness, A> kind) {
     return this.narrow(kind).run();
   }
 

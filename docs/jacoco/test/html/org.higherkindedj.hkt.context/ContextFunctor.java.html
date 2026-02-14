@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContextFunctor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.context</a> &gt; <span class="el_source">ContextFunctor.java</span></div><h1>ContextFunctor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.context;
+
+import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Implements the {@link Functor} interface for the {@link Context} type, using {@link
+ * ContextKind.Witness} as the higher-kinded type witness.
+ *
+ * &lt;p&gt;A {@code ContextFunctor} allows mapping a function over the result value {@code A} of a {@code
+ * Context&lt;R, A&gt;}, while keeping the scoped value type {@code R} fixed. The {@code R} type parameter
+ * of this class specifies the fixed scoped value type for which this functor instance operates.
+ *
+ * @param &lt;R&gt; The fixed scoped value type of the {@link Context} for which this functor instance is
+ *     defined.
+ * @see Context
+ * @see ContextKind
+ * @see ContextKind.Witness
+ * @see Functor
+ * @see ContextKindHelper
+ */
+public class ContextFunctor&lt;R&gt; implements Functor&lt;ContextKind.Witness&lt;R&gt;&gt; {
+
+<span class="fc" id="L31">  private static final Class&lt;ContextFunctor&gt; CONTEXT_FUNCTOR_CLASS = ContextFunctor.class;</span>
+
+<span class="fc" id="L33">  private static final ContextFunctor&lt;?&gt; INSTANCE = new ContextFunctor&lt;&gt;();</span>
+
+  /** Protected constructor to allow subclassing while enforcing singleton-per-type pattern. */
+<span class="fc" id="L36">  protected ContextFunctor() {}</span>
+
+  /**
+   * Returns the singleton instance of {@code ContextFunctor} for a given scoped value type {@code
+   * R}.
+   *
+   * @param &lt;R&gt; The scoped value type.
+   * @return The singleton {@code ContextFunctor&lt;R&gt;} instance.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static &lt;R&gt; ContextFunctor&lt;R&gt; instance() {
+<span class="fc" id="L47">    return (ContextFunctor&lt;R&gt;) INSTANCE;</span>
+  }
+
+  /**
+   * Maps a function {@code f} over the value {@code A} contained within a {@code
+   * Kind&lt;ContextKind.Witness&lt;R&gt;, A&gt;}.
+   *
+   * &lt;p&gt;This operation transforms a {@code Context&lt;R, A&gt;} into a {@code Context&lt;R, B&gt;} by applying
+   * the function {@code f} to the result of the original context, without altering the required
+   * scoped value type {@code R}.
+   *
+   * @param f The function to map over the context's result. Must not be null.
+   * @param fa The higher-kinded representation of a {@code Context&lt;R, A&gt;}. Must not be null.
+   * @param &lt;A&gt; The original result type of the Context.
+   * @param &lt;B&gt; The new result type after applying the function {@code f}.
+   * @return A new {@code Kind&lt;ContextKind.Witness&lt;R&gt;, B&gt;} representing the transformed {@code
+   *     Context&lt;R, B&gt;}. Never null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+   *     to a valid Context representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;ContextKind.Witness&lt;R&gt;, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;ContextKind.Witness&lt;R&gt;, A&gt; fa) {
+
+<span class="fc" id="L72">    Validation.function().requireMapper(f, &quot;f&quot;, CONTEXT_FUNCTOR_CLASS, MAP);</span>
+<span class="fc" id="L73">    Validation.kind().requireNonNull(fa, CONTEXT_FUNCTOR_CLASS, MAP);</span>
+
+<span class="fc" id="L75">    Context&lt;R, A&gt; contextA = CONTEXT.narrow(fa);</span>
+<span class="fc" id="L76">    Context&lt;R, B&gt; contextB = contextA.map(f);</span>
+<span class="fc" id="L77">    return CONTEXT.widen(contextB);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -48,7 +48,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("widen() preserves VTask laziness")
-    void widenPreservesVTaskLaziness() throws Throwable {
+    void widenPreservesVTaskLaziness() {
       AtomicInteger counter = new AtomicInteger(0);
       VTask<Integer> vtask =
           VTask.of(
@@ -104,7 +104,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("narrow() preserves VTask identity")
-    void narrowPreservesVTaskIdentity() throws Throwable {
+    void narrowPreservesVTaskIdentity() {
       VTask<String> original = VTask.succeed(TEST_STRING);
       Kind<VTaskKind.Witness, String> widened = VTASK.widen(original);
       VTask<String> narrowed = VTASK.narrow(widened);
@@ -120,7 +120,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("of() creates VTask from Callable")
-    void ofCreatesVTaskFromCallable() throws Throwable {
+    void ofCreatesVTaskFromCallable() {
       Callable<Integer> callable = () -> TEST_VALUE;
 
       Kind<VTaskKind.Witness, Integer> kind = VTASK.of(callable);
@@ -136,7 +136,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("delay() creates VTask from Supplier")
-    void delayCreatesVTaskFromSupplier() throws Throwable {
+    void delayCreatesVTaskFromSupplier() {
       Supplier<Integer> supplier = () -> TEST_VALUE;
 
       Kind<VTaskKind.Witness, Integer> kind = VTASK.delay(supplier);
@@ -152,7 +152,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("succeed() creates successful VTask")
-    void succeedCreatesSuccessfulVTask() throws Throwable {
+    void succeedCreatesSuccessfulVTask() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.succeed(TEST_VALUE);
 
       assertThat(VTASK.narrow(kind).run()).isEqualTo(TEST_VALUE);
@@ -160,7 +160,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("succeed() handles null value")
-    void succeedHandlesNullValue() throws Throwable {
+    void succeedHandlesNullValue() {
       Kind<VTaskKind.Witness, String> kind = VTASK.succeed(null);
 
       assertThat(VTASK.narrow(kind).run()).isNull();
@@ -192,7 +192,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("run() executes and returns value")
-    void runExecutesAndReturnsValue() throws Throwable {
+    void runExecutesAndReturnsValue() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.succeed(TEST_VALUE);
 
       Integer result = VTASK.run(kind);
@@ -270,7 +270,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("handles nested VTask types")
-    void handlesNestedVTaskTypes() throws Throwable {
+    void handlesNestedVTaskTypes() {
       VTask<VTask<Integer>> nested = VTask.succeed(VTask.succeed(TEST_VALUE));
 
       Kind<VTaskKind.Witness, VTask<Integer>> kind = VTASK.widen(nested);
@@ -281,7 +281,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("handles generic types")
-    void handlesGenericTypes() throws Throwable {
+    void handlesGenericTypes() {
       VTask<List<Integer>> vtask = VTask.succeed(List.of(1, 2, 3));
 
       Kind<VTaskKind.Witness, List<Integer>> kind = VTASK.widen(vtask);

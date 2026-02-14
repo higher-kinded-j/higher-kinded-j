@@ -52,7 +52,7 @@ public class VTaskVsIOBenchmark {
   }
 
   @Benchmark
-  public Integer vtask_simpleExecution() throws Throwable {
+  public Integer vtask_simpleExecution() {
     return vtask.run();
   }
 
@@ -64,7 +64,7 @@ public class VTaskVsIOBenchmark {
   }
 
   @Benchmark
-  public Integer vtask_mapChain() throws Throwable {
+  public Integer vtask_mapChain() {
     return vtask.map(x -> x + 1).map(x -> x * 2).map(x -> x - 5).run();
   }
 
@@ -79,7 +79,7 @@ public class VTaskVsIOBenchmark {
   }
 
   @Benchmark
-  public Integer vtask_flatMapChain() throws Throwable {
+  public Integer vtask_flatMapChain() {
     return vtask
         .flatMap(x -> VTask.succeed(x + 1))
         .flatMap(x -> VTask.succeed(x * 2))
@@ -99,7 +99,7 @@ public class VTaskVsIOBenchmark {
   }
 
   @Benchmark
-  public Integer vtask_deepRecursion() throws Throwable {
+  public Integer vtask_deepRecursion() {
     VTask<Integer> result = vtask;
     for (int i = 0; i < 50; i++) {
       result = result.flatMap(x -> VTask.succeed(x + 1));
@@ -119,7 +119,7 @@ public class VTaskVsIOBenchmark {
   }
 
   @Benchmark
-  public Integer vtask_longMapChain() throws Throwable {
+  public Integer vtask_longMapChain() {
     VTask<Integer> result = vtask;
     for (int i = 0; i < 50; i++) {
       result = result.map(x -> x + 1);
@@ -140,7 +140,7 @@ public class VTaskVsIOBenchmark {
   }
 
   @Benchmark
-  public Integer vtask_mixedOperations() throws Throwable {
+  public Integer vtask_mixedOperations() {
     return vtask
         .map(x -> x + 1)
         .flatMap(x -> VTask.succeed(x * 2))
