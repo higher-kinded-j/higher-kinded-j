@@ -143,7 +143,7 @@ class MutationKillingPhase2Test {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = true)
               public record Person(String name, Address address) {}
               """);
 
@@ -210,7 +210,7 @@ class MutationKillingPhase2Test {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(maxNavigatorDepth = 1)
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
               public record Level1(Level2 nested) {}
               """);
 
@@ -831,7 +831,7 @@ class MutationKillingPhase2Test {
               """
               package org.jspecify.annotations;
               import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD})
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD, ElementType.RECORD_COMPONENT})
               @Retention(RetentionPolicy.RUNTIME)
               public @interface Nullable {}
               """);
@@ -851,7 +851,7 @@ class MutationKillingPhase2Test {
               package com.example;
               import org.jspecify.annotations.Nullable;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = true)
               public record Person(String name, @Nullable Address address) {}
               """);
 
@@ -889,7 +889,7 @@ class MutationKillingPhase2Test {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = true)
               public record Person(String name, Address address) {}
               """);
 
@@ -1052,7 +1052,7 @@ class MutationKillingPhase2Test {
               package com.example;
               import java.util.Optional;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = true)
               public record Office(String name, Optional<Address> address) {}
               """);
       var outer =
@@ -1061,7 +1061,7 @@ class MutationKillingPhase2Test {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = true)
               public record Company(String name, Office office) {}
               """);
 
@@ -1136,15 +1136,12 @@ class MutationKillingPhase2Test {
     void forComprehensionArity2ShouldGenerateMapAll() throws IOException {
       var source =
           JavaFileObjects.forSourceString(
-              "com.test.TestFor",
+              "org.higherkindedj.hkt.expression.package-info",
               """
-              package com.test;
-              import org.higherkindedj.optics.annotations.GenerateForComprehension;
+              @GenerateForComprehensions(minArity = 2, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
 
-              public class TestFor {
-                  @GenerateForComprehension(minArity = 2, maxArity = 3)
-                  public static void generate() {}
-              }
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
               """);
 
       Compilation compilation =
@@ -1153,7 +1150,8 @@ class MutationKillingPhase2Test {
       assertThat(compilation).succeeded();
 
       // Check Tuple2 has mapAll
-      Optional<JavaFileObject> tuple2 = compilation.generatedSourceFile("com.test.Tuple2");
+      Optional<JavaFileObject> tuple2 =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2");
       org.assertj.core.api.Assertions.assertThat(tuple2).isPresent();
       String code = tuple2.get().getCharContent(true).toString();
       assertThat(code).contains("mapAll");
@@ -1256,7 +1254,7 @@ class MutationKillingPhase2Test {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(includeFields = {"address"})
+              @GenerateFocus(generateNavigators = true, includeFields = {"address"})
               public record Person(String name, Address address) {}
               """);
 
@@ -1293,7 +1291,7 @@ class MutationKillingPhase2Test {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(excludeFields = {"address"})
+              @GenerateFocus(generateNavigators = true, excludeFields = {"address"})
               public record Person(String name, Address address) {}
               """);
 
