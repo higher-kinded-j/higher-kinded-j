@@ -419,7 +419,7 @@
 <td class=''><pre><span  class=''>@SupportedSourceVersion(SourceVersion.RELEASE_25)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_30'/>
 30
 </td>
@@ -430,7 +430,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>public class GetterProcessor extends AbstractProcessor {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>public class GetterProcessor extends AbstractProcessor {</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -475,7 +475,7 @@
 <td class=''><pre><span  class=''>  public boolean process(Set&#60;? extends TypeElement&#62; annotations, RoundEnvironment roundEnv) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_34'/>
 34
 </td>
@@ -486,10 +486,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    for (TypeElement annotation : annotations) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    for (TypeElement annotation : annotations) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_35'/>
 35
 </td>
@@ -500,10 +500,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      Set&#60;? extends Element&#62; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      Set&#60;? extends Element&#62; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_36'/>
 36
 </td>
@@ -514,43 +514,43 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      for (Element element : annotatedElements) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      for (Element element : annotatedElements) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_37'/>
 37
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_37'>2</a>
 <span>
-1. process : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
-2. process : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
+1. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>        if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>        if (element.getKind() != ElementKind.RECORD) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_38'/>
 38
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_38'>1</a>
 <span>
-1. process : removed call to org/higherkindedj/optics/processing/GetterProcessor::error &rarr; NO_COVERAGE<br/>
+1. process : removed call to org/higherkindedj/optics/processing/GetterProcessor::error &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>          error(&#34;The @GenerateGetters annotation can only be applied to records.&#34;, element);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>          error(&#34;The @GenerateGetters annotation can only be applied to records.&#34;, element);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_39'/>
 39
 </td>
@@ -561,7 +561,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>          continue;</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>          continue;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -592,20 +592,20 @@
 <td class=''><pre><span  class=''>        try {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_42'/>
 42
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_42'>1</a>
 <span>
-1. process : removed call to org/higherkindedj/optics/processing/GetterProcessor::generateGettersFile &rarr; NO_COVERAGE<br/>
+1. process : removed call to org/higherkindedj/optics/processing/GetterProcessor::generateGettersFile &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>          generateGettersFile((TypeElement) element);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>          generateGettersFile((TypeElement) element);</span></pre></td></tr>
 
 <tr>
 <td class='uncovered'>
@@ -638,7 +638,7 @@
 <td class='uncovered'><pre><span  class='survived'>          error(&#34;Could not generate getters file: &#34; + e.getMessage(), element);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_45'/>
 45
 </td>
@@ -649,10 +649,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        }</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_46'/>
 46
 </td>
@@ -663,10 +663,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      }</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_47'/>
 47
 </td>
@@ -677,10 +677,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_48'/>
 48
 </td>
@@ -688,12 +688,12 @@
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_48'>1</a>
 <span>
-1. process : replaced boolean return with false for org/higherkindedj/optics/processing/GetterProcessor::process &rarr; NO_COVERAGE<br/>
+1. process : replaced boolean return with false for org/higherkindedj/optics/processing/GetterProcessor::process &rarr; SURVIVED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    return true;</span></pre></td></tr>
+<td class='covered'><pre><span  class='survived'>    return true;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -738,7 +738,7 @@
 <td class=''><pre><span  class=''>  private void generateGettersFile(TypeElement recordElement) throws IOException {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_52'/>
 52
 </td>
@@ -749,10 +749,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String recordName = recordElement.getSimpleName().toString();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String recordName = recordElement.getSimpleName().toString();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_53'/>
 53
 </td>
@@ -763,10 +763,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String defaultPackage =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String defaultPackage =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_54'/>
 54
 </td>
@@ -777,7 +777,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -808,7 +808,7 @@
 <td class=''><pre><span  class=''>    // Check for custom target package in annotation</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_57'/>
 57
 </td>
@@ -819,10 +819,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_58'/>
 58
 </td>
@@ -833,24 +833,24 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String targetPackage = annotation.targetPackage();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String targetPackage = annotation.targetPackage();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_59'/>
 59
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_59'>2</a>
 <span>
-1. generateGettersFile : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-2. generateGettersFile : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+1. generateGettersFile : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. generateGettersFile : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -867,7 +867,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_61'/>
 61
 </td>
@@ -878,7 +878,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String gettersClassName = recordName + &#34;Getters&#34;;</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String gettersClassName = recordName + &#34;Getters&#34;;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -895,7 +895,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_63'/>
 63
 </td>
@@ -906,10 +906,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    final ClassName generatedAnnotation =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    final ClassName generatedAnnotation =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_64'/>
 64
 </td>
@@ -920,7 +920,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        ClassName.get(&#34;org.higherkindedj.optics.annotations&#34;, &#34;Generated&#34;);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        ClassName.get(&#34;org.higherkindedj.optics.annotations&#34;, &#34;Generated&#34;);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -937,7 +937,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_66'/>
 66
 </td>
@@ -948,10 +948,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    TypeSpec.Builder gettersClassBuilder =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    TypeSpec.Builder gettersClassBuilder =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_67'/>
 67
 </td>
@@ -962,10 +962,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        TypeSpec.classBuilder(gettersClassName)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        TypeSpec.classBuilder(gettersClassName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_68'/>
 68
 </td>
@@ -976,10 +976,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addAnnotation(generatedAnnotation)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addAnnotation(generatedAnnotation)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_69'/>
 69
 </td>
@@ -990,10 +990,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_70'/>
 70
 </td>
@@ -1004,10 +1004,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>                &#34;Generated getters for {@link $T}. Do not edit.&#34;, ClassName.get(recordElement))</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>                &#34;Generated getters for {@link $T}. Do not edit.&#34;, ClassName.get(recordElement))</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_71'/>
 71
 </td>
@@ -1018,10 +1018,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_72'/>
 72
 </td>
@@ -1032,7 +1032,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1049,7 +1049,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_74'/>
 74
 </td>
@@ -1060,10 +1060,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    List&#60;? extends RecordComponentElement&#62; components = recordElement.getRecordComponents();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    List&#60;? extends RecordComponentElement&#62; components = recordElement.getRecordComponents();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_75'/>
 75
 </td>
@@ -1074,7 +1074,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    TypeName recordTypeName = getParameterizedTypeName(recordElement);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    TypeName recordTypeName = getParameterizedTypeName(recordElement);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1091,7 +1091,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_77'/>
 77
 </td>
@@ -1102,10 +1102,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    for (RecordComponentElement component : components) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    for (RecordComponentElement component : components) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_78'/>
 78
 </td>
@@ -1116,10 +1116,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      gettersClassBuilder.addMethod(createGetterMethod(component, recordElement, recordTypeName));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      gettersClassBuilder.addMethod(createGetterMethod(component, recordElement, recordTypeName));</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_79'/>
 79
 </td>
@@ -1130,7 +1130,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1147,7 +1147,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_81'/>
 81
 </td>
@@ -1158,10 +1158,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    for (RecordComponentElement component : components) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    for (RecordComponentElement component : components) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_82'/>
 82
 </td>
@@ -1172,10 +1172,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      gettersClassBuilder.addMethod(createGetMethod(component, recordElement, recordTypeName));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      gettersClassBuilder.addMethod(createGetMethod(component, recordElement, recordTypeName));</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_83'/>
 83
 </td>
@@ -1186,7 +1186,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1203,7 +1203,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_85'/>
 85
 </td>
@@ -1214,10 +1214,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    JavaFile javaFile =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    JavaFile javaFile =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_86'/>
 86
 </td>
@@ -1228,10 +1228,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        JavaFile.builder(packageName, gettersClassBuilder.build())</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        JavaFile.builder(packageName, gettersClassBuilder.build())</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_87'/>
 87
 </td>
@@ -1242,10 +1242,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addFileComment(&#34;Generated by hkj-optics-processor. Do not edit.&#34;)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addFileComment(&#34;Generated by hkj-optics-processor. Do not edit.&#34;)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_88'/>
 88
 </td>
@@ -1256,7 +1256,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .build();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .build();</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1273,23 +1273,23 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_90'/>
 90
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_90'>1</a>
 <span>
-1. generateGettersFile : removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; NO_COVERAGE<br/>
+1. generateGettersFile : removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    javaFile.writeTo(processingEnv.getFiler());</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    javaFile.writeTo(processingEnv.getFiler());</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_91'/>
 91
 </td>
@@ -1300,7 +1300,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1331,7 +1331,7 @@
 <td class=''><pre><span  class=''>  private TypeName getParameterizedTypeName(TypeElement typeElement) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_94'/>
 94
 </td>
@@ -1342,40 +1342,40 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    List&#60;? extends TypeParameterElement&#62; typeParameters = typeElement.getTypeParameters();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    List&#60;? extends TypeParameterElement&#62; typeParameters = typeElement.getTypeParameters();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_95'/>
 95
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_95'>2</a>
 <span>
-1. getParameterizedTypeName : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-2. getParameterizedTypeName : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+1. getParameterizedTypeName : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. getParameterizedTypeName : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    if (typeParameters.isEmpty()) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    if (typeParameters.isEmpty()) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_96'/>
 96
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_96'>1</a>
 <span>
-1. getParameterizedTypeName : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; NO_COVERAGE<br/>
+1. getParameterizedTypeName : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>      return ClassName.get(typeElement);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>      return ClassName.get(typeElement);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1392,7 +1392,7 @@
 <td class=''><pre><span  class=''>    } else {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_98'/>
 98
 </td>
@@ -1403,26 +1403,26 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      List&#60;TypeVariableName&#62; typeVars = typeParameters.stream().map(TypeVariableName::get).toList();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      List&#60;TypeVariableName&#62; typeVars = typeParameters.stream().map(TypeVariableName::get).toList();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_99'/>
 99
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_99'>1</a>
 <span>
-1. getParameterizedTypeName : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; NO_COVERAGE<br/>
+1. getParameterizedTypeName : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>      return ParameterizedTypeName.get(</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>      return ParameterizedTypeName.get(</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_100'/>
 100
 </td>
@@ -1433,7 +1433,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>          ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>          ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1520,7 +1520,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_107'/>
 107
 </td>
@@ -1531,10 +1531,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String componentName = component.getSimpleName().toString();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String componentName = component.getSimpleName().toString();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_108'/>
 108
 </td>
@@ -1545,7 +1545,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    TypeName componentTypeName = TypeName.get(component.asType());</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    TypeName componentTypeName = TypeName.get(component.asType());</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1562,7 +1562,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_110'/>
 110
 </td>
@@ -1573,10 +1573,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    ParameterizedTypeName getterTypeName =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    ParameterizedTypeName getterTypeName =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_111'/>
 111
 </td>
@@ -1587,10 +1587,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        ParameterizedTypeName.get(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        ParameterizedTypeName.get(</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_112'/>
 112
 </td>
@@ -1601,7 +1601,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            ClassName.get(Getter.class), recordTypeName, componentTypeName.box());</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            ClassName.get(Getter.class), recordTypeName, componentTypeName.box());</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1618,7 +1618,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_114'/>
 114
 </td>
@@ -1629,10 +1629,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    MethodSpec.Builder methodBuilder =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    MethodSpec.Builder methodBuilder =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_115'/>
 115
 </td>
@@ -1643,10 +1643,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        MethodSpec.methodBuilder(componentName)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        MethodSpec.methodBuilder(componentName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_116'/>
 116
 </td>
@@ -1657,7 +1657,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1702,7 +1702,7 @@
 <td class=''><pre><span  class=''>                Getter.class,</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_120'/>
 120
 </td>
@@ -1713,7 +1713,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>                component.getSimpleName(),</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>                component.getSimpleName(),</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1744,7 +1744,7 @@
 <td class=''><pre><span  class=''>                recordTypeName,</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_123'/>
 123
 </td>
@@ -1755,10 +1755,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>                componentTypeName.box())</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>                componentTypeName.box())</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_124'/>
 124
 </td>
@@ -1769,10 +1769,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_125'/>
 125
 </td>
@@ -1783,7 +1783,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .returns(getterTypeName);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .returns(getterTypeName);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1800,7 +1800,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_127'/>
 127
 </td>
@@ -1811,10 +1811,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_128'/>
 128
 </td>
@@ -1825,10 +1825,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_129'/>
 129
 </td>
@@ -1839,7 +1839,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1856,7 +1856,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_131'/>
 131
 </td>
@@ -1867,7 +1867,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    methodBuilder.addStatement(&#34;return $T.of($T::$L)&#34;, Getter.class, recordTypeName, componentName);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    methodBuilder.addStatement(&#34;return $T.of($T::$L)&#34;, Getter.class, recordTypeName, componentName);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1884,20 +1884,20 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_133'/>
 133
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_133'>1</a>
 <span>
-1. createGetterMethod : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetterMethod &rarr; NO_COVERAGE<br/>
+1. createGetterMethod : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetterMethod &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    return methodBuilder.build();</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    return methodBuilder.build();</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1970,7 +1970,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_139'/>
 139
 </td>
@@ -1981,10 +1981,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String componentName = component.getSimpleName().toString();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String componentName = component.getSimpleName().toString();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_140'/>
 140
 </td>
@@ -1995,10 +1995,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    TypeName componentTypeName = TypeName.get(component.asType());</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    TypeName componentTypeName = TypeName.get(component.asType());</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_141'/>
 141
 </td>
@@ -2009,10 +2009,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String methodName = &#34;get&#34; + capitalise(componentName);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String methodName = &#34;get&#34; + capitalise(componentName);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_142'/>
 142
 </td>
@@ -2023,7 +2023,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String gettersClassName = recordElement.getSimpleName().toString() + &#34;Getters&#34;;</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String gettersClassName = recordElement.getSimpleName().toString() + &#34;Getters&#34;;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2040,7 +2040,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_144'/>
 144
 </td>
@@ -2051,10 +2051,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    MethodSpec.Builder methodBuilder =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    MethodSpec.Builder methodBuilder =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_145'/>
 145
 </td>
@@ -2065,10 +2065,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        MethodSpec.methodBuilder(methodName)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        MethodSpec.methodBuilder(methodName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_146'/>
 146
 </td>
@@ -2079,7 +2079,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2208,7 +2208,7 @@
 <td class=''><pre><span  class=''>                componentName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_156'/>
 156
 </td>
@@ -2219,10 +2219,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_157'/>
 157
 </td>
@@ -2233,10 +2233,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .returns(componentTypeName)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .returns(componentTypeName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_158'/>
 158
 </td>
@@ -2247,7 +2247,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .addParameter(recordTypeName, &#34;source&#34;);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .addParameter(recordTypeName, &#34;source&#34;);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2264,7 +2264,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_160'/>
 160
 </td>
@@ -2275,10 +2275,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    List&#60;? extends TypeParameterElement&#62; typeParameters = recordElement.getTypeParameters();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    List&#60;? extends TypeParameterElement&#62; typeParameters = recordElement.getTypeParameters();</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_161'/>
 161
 </td>
@@ -2289,10 +2289,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    for (TypeParameterElement typeParam : typeParameters) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    for (TypeParameterElement typeParam : typeParameters) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_162'/>
 162
 </td>
@@ -2303,10 +2303,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_163'/>
 163
 </td>
@@ -2317,7 +2317,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2334,7 +2334,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_165'/>
 165
 </td>
@@ -2345,10 +2345,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String typeArguments =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String typeArguments =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_166'/>
 166
 </td>
@@ -2359,26 +2359,26 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        typeParameters.stream()</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        typeParameters.stream()</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_167'/>
 167
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_167'>1</a>
 <span>
-1. lambda$createGetMethod$0 : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::lambda$createGetMethod$0 &rarr; NO_COVERAGE<br/>
+1. lambda$createGetMethod$0 : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::lambda$createGetMethod$0 &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>            .map(p -&#62; p.getSimpleName().toString())</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>            .map(p -&#62; p.getSimpleName().toString())</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_168'/>
 168
 </td>
@@ -2389,7 +2389,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            .collect(Collectors.joining(&#34;, &#34;));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            .collect(Collectors.joining(&#34;, &#34;));</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2406,24 +2406,24 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_170'/>
 170
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_170'>2</a>
 <span>
-1. createGetMethod : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-2. createGetMethod : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+1. createGetMethod : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. createGetMethod : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    if (typeArguments.isEmpty()) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    if (typeArguments.isEmpty()) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_171'/>
 171
 </td>
@@ -2434,7 +2434,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      methodBuilder.addStatement(&#34;return $L().get(source)&#34;, componentName);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      methodBuilder.addStatement(&#34;return $L().get(source)&#34;, componentName);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2451,7 +2451,7 @@
 <td class=''><pre><span  class=''>    } else {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_173'/>
 173
 </td>
@@ -2462,7 +2462,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      methodBuilder.addStatement(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      methodBuilder.addStatement(</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2507,20 +2507,20 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_177'/>
 177
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_177'>1</a>
 <span>
-1. createGetMethod : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetMethod &rarr; NO_COVERAGE<br/>
+1. createGetMethod : replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetMethod &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    return methodBuilder.build();</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    return methodBuilder.build();</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2565,7 +2565,7 @@
 <td class=''><pre><span  class=''>  private String capitalise(String s) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_181'/>
 181
 </td>
@@ -2573,15 +2573,15 @@
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_181'>4</a>
 <span>
-1. capitalise : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-2. capitalise : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
-3. capitalise : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-4. capitalise : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+1. capitalise : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. capitalise : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+3. capitalise : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+4. capitalise : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    if (s == null || s.isEmpty()) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='survived'>    if (s == null || s.isEmpty()) {</span></pre></td></tr>
 
 <tr>
 <td class='uncovered'>
@@ -2614,20 +2614,20 @@
 <td class=''><pre><span  class=''>    }</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_184'/>
 184
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_184'>1</a>
 <span>
-1. capitalise : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::capitalise &rarr; NO_COVERAGE<br/>
+1. capitalise : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::capitalise &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    return s.substring(0, 1).toUpperCase() + s.substring(1);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    return s.substring(0, 1).toUpperCase() + s.substring(1);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2672,23 +2672,23 @@
 <td class=''><pre><span  class=''>  private void error(String msg, Element e) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_188'/>
 188
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_188'>1</a>
 <span>
-1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE<br/>
+1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@7efaa137_189'/>
 189
 </td>
@@ -2699,7 +2699,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2726,8 +2726,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_37'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldFailOnNonRecord()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2738,7 +2738,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_38'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/GetterProcessor::error &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldFailOnNonRecord()]</span></span> removed call to org/higherkindedj/optics/processing/GetterProcessor::error &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2749,7 +2749,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_42'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/GetterProcessor::generateGettersFile &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> removed call to org/higherkindedj/optics/processing/GetterProcessor::generateGettersFile &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2771,8 +2771,13 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_48'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/GetterProcessor::process &rarr; NO_COVERAGE</span>
-</div> 
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/GetterProcessor::process &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldFailOnNonRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodNonGenericCallsGetterDirectly()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForSimpleRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodGenericUsesExplicitTypeArgs()]</li> 
+</ul>
+</div></div> 
 </td>
 </tr>
 <tr>
@@ -2782,8 +2787,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_59'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateGettersFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateGettersFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateGettersFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateGettersFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2794,7 +2799,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_90'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateGettersFile<br/><b>Killed by : </b>none</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateGettersFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2805,8 +2810,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_95'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2817,7 +2822,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_96'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2828,7 +2833,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_99'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>getParameterizedTypeName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::getParameterizedTypeName &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2839,7 +2844,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_133'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createGetterMethod<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetterMethod &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createGetterMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetterMethod &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2850,7 +2855,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_167'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>lambda$createGetMethod$0<br/><b>Killed by : </b>none</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::lambda$createGetMethod$0 &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>lambda$createGetMethod$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::lambda$createGetMethod$0 &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2861,8 +2866,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_170'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createGetMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createGetMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createGetMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createGetMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2873,7 +2878,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_177'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createGetMethod<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetMethod &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createGetMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/GetterProcessor::createGetMethod &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2884,10 +2889,20 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_181'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[4],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[4],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[4],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodNonGenericCallsGetterDirectly()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForSimpleRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodGenericUsesExplicitTypeArgs()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.GetterProcessor,-method=capitalise,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodNonGenericCallsGetterDirectly()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForSimpleRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodGenericUsesExplicitTypeArgs()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2909,7 +2924,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_184'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>none</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::capitalise &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>capitalise<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/GetterProcessor::capitalise &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2920,7 +2935,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@7efaa137_188'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>none</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldFailOnNonRecord()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -2950,6 +2965,7 @@
 
 <h2>Tests examined</h2>
 <ul>
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldFailOnNonRecord()] (16 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldSupportCustomTargetPackage()] (19 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForRecordWithStringField()] (19 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodNonGenericCallsGetterDirectly()] (20 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForSimpleRecord()] (20 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:shouldGenerateGettersForGenericRecord()] (20 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:GetterProcessorTests]/[method:getMethodGenericUsesExplicitTypeArgs()] (21 ms)</li>
 </ul>
 
 <br/>

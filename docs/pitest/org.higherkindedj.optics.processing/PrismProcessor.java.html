@@ -801,35 +801,35 @@
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_57'/>
 57
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_57'>4</a>
 <span>
-1. process : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
-2. process : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
-3. process : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
+1. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+3. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
 4. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='covered'><pre><span  class='survived'>        if (element.getKind() != ElementKind.INTERFACE &#38;&#38; element.getKind() != ElementKind.ENUM) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>        if (element.getKind() != ElementKind.INTERFACE &#38;&#38; element.getKind() != ElementKind.ENUM) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_58'/>
 58
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_58'>1</a>
 <span>
-1. process : removed call to org/higherkindedj/optics/processing/PrismProcessor::error &rarr; NO_COVERAGE<br/>
+1. process : removed call to org/higherkindedj/optics/processing/PrismProcessor::error &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>          error(</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>          error(</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -860,7 +860,7 @@
 <td class=''><pre><span  class=''>              element);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_61'/>
 61
 </td>
@@ -871,7 +871,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>          continue;</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>          continue;</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1489,17 +1489,17 @@
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_105'/>
 105
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_105'>2</a>
 <span>
-1. generatePrismsFile : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+1. generatePrismsFile : removed conditional - replaced equality check with true &rarr; KILLED<br/>
 2. generatePrismsFile : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='covered'><pre><span  class='survived'>    if (sumTypeElement.getModifiers().contains(Modifier.SEALED)) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    if (sumTypeElement.getModifiers().contains(Modifier.SEALED)) {</span></pre></td></tr>
 
 <tr>
 <td class='covered'>
@@ -1600,7 +1600,7 @@
 <td class=''><pre><span  class=''>    // Handle Enums</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_113'/>
 113
 </td>
@@ -1608,16 +1608,16 @@
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_113'>2</a>
 <span>
-1. generatePrismsFile : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-2. generatePrismsFile : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+1. generatePrismsFile : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. generatePrismsFile : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    else if (sumTypeElement.getKind() == ElementKind.ENUM) {</span></pre></td></tr>
+<td class='covered'><pre><span  class='survived'>    else if (sumTypeElement.getKind() == ElementKind.ENUM) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_114'/>
 114
 </td>
@@ -1628,10 +1628,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      List&#60;VariableElement&#62; enumConstants =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      List&#60;VariableElement&#62; enumConstants =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_115'/>
 115
 </td>
@@ -1642,28 +1642,28 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>          sumTypeElement.getEnclosedElements().stream()</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>          sumTypeElement.getEnclosedElements().stream()</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_116'/>
 116
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_116'>3</a>
 <span>
-1. lambda$generatePrismsFile$0 : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
-2. lambda$generatePrismsFile$0 : replaced boolean return with true for org/higherkindedj/optics/processing/PrismProcessor::lambda$generatePrismsFile$0 &rarr; NO_COVERAGE<br/>
-3. lambda$generatePrismsFile$0 : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+1. lambda$generatePrismsFile$0 : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. lambda$generatePrismsFile$0 : replaced boolean return with true for org/higherkindedj/optics/processing/PrismProcessor::lambda$generatePrismsFile$0 &rarr; KILLED<br/>
+3. lambda$generatePrismsFile$0 : removed conditional - replaced equality check with false &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>              .filter(e -&#62; e.getKind() == ElementKind.ENUM_CONSTANT)</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>              .filter(e -&#62; e.getKind() == ElementKind.ENUM_CONSTANT)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_117'/>
 117
 </td>
@@ -1674,10 +1674,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>              .map(VariableElement.class::cast)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>              .map(VariableElement.class::cast)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_118'/>
 118
 </td>
@@ -1688,7 +1688,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>              .collect(Collectors.toList());</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>              .collect(Collectors.toList());</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -1705,7 +1705,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_120'/>
 120
 </td>
@@ -1716,10 +1716,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      for (VariableElement enumConstant : enumConstants) {</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      for (VariableElement enumConstant : enumConstants) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_121'/>
 121
 </td>
@@ -1730,10 +1730,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        prismsClassBuilder.addMethod(createPrismMethodForEnum(sumTypeElement, enumConstant));</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        prismsClassBuilder.addMethod(createPrismMethodForEnum(sumTypeElement, enumConstant));</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_122'/>
 122
 </td>
@@ -1744,7 +1744,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>      }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>      }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2535,7 +2535,7 @@
 <td class=''><pre><span  class=''>  private MethodSpec createPrismMethodForEnum(TypeElement enumType, VariableElement enumConstant) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_179'/>
 179
 </td>
@@ -2546,10 +2546,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    String methodName = ProcessorUtils.toCamelCase(enumConstant.getSimpleName().toString());</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    String methodName = ProcessorUtils.toCamelCase(enumConstant.getSimpleName().toString());</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_180'/>
 180
 </td>
@@ -2560,7 +2560,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    ClassName enumClassName = ClassName.get(enumType);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    ClassName enumClassName = ClassName.get(enumType);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2577,7 +2577,7 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_182'/>
 182
 </td>
@@ -2588,10 +2588,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>    ParameterizedTypeName prismTypeName =</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>    ParameterizedTypeName prismTypeName =</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_183'/>
 183
 </td>
@@ -2602,7 +2602,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        ParameterizedTypeName.get(ClassName.get(Prism.class), enumClassName, enumClassName);</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        ParameterizedTypeName.get(ClassName.get(Prism.class), enumClassName, enumClassName);</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2619,23 +2619,23 @@
 <td class=''><pre><span  class=''></span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_185'/>
 185
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_185'>1</a>
 <span>
-1. createPrismMethodForEnum : replaced return value with null for org/higherkindedj/optics/processing/PrismProcessor::createPrismMethodForEnum &rarr; NO_COVERAGE<br/>
+1. createPrismMethodForEnum : replaced return value with null for org/higherkindedj/optics/processing/PrismProcessor::createPrismMethodForEnum &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    return MethodSpec.methodBuilder(methodName)</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    return MethodSpec.methodBuilder(methodName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_186'/>
 186
 </td>
@@ -2646,7 +2646,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        .addJavadoc(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        .addJavadoc(</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2705,7 +2705,7 @@
 <td class=''><pre><span  class=''>            Prism.class,</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_191'/>
 191
 </td>
@@ -2716,7 +2716,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            enumConstant.getSimpleName(),</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            enumConstant.getSimpleName(),</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2761,7 +2761,7 @@
 <td class=''><pre><span  class=''>            enumClassName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_195'/>
 195
 </td>
@@ -2772,10 +2772,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_196'/>
 196
 </td>
@@ -2786,10 +2786,10 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        .returns(prismTypeName)</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        .returns(prismTypeName)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_197'/>
 197
 </td>
@@ -2800,7 +2800,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        .addStatement(</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        .addStatement(</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2845,7 +2845,7 @@
 <td class=''><pre><span  class=''>            enumClassName,</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_201'/>
 201
 </td>
@@ -2856,7 +2856,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>            enumConstant.getSimpleName(),</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>            enumConstant.getSimpleName(),</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -2887,7 +2887,7 @@
 <td class=''><pre><span  class=''>            Optional.class)</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_204'/>
 204
 </td>
@@ -2898,7 +2898,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>        .build();</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>        .build();</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -3027,23 +3027,23 @@
 <td class=''><pre><span  class=''>  private void error(String msg, Element e) {</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_214'/>
 214
 </td>
-<td class='survived'>
+<td class='killed'>
 <span class='pop'>
 <a href='#grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_214'>1</a>
 <span>
-1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE<br/>
+1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED<br/>
 
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class='survived'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
+<td class='covered'><pre><span  class='killed'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span></pre></td></tr>
 
 <tr>
-<td class='uncovered'>
+<td class='covered'>
 <a name='org.pitest.mutationtest.report.html.SourceFile@22876aea_215'/>
 215
 </td>
@@ -3054,7 +3054,7 @@
 </span>
 </span>
 </td>
-<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
 
 <tr>
 <td class='na'>
@@ -3081,15 +3081,10 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_57'/> 
 
-<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
-<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[36],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[36],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
-<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[36],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
-<ul>
-<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> 
-</ul>
-</div></div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldFailOnNonSealedNonEnumType()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldFailOnNonSealedNonEnumType()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3100,7 +3095,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_58'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/PrismProcessor::error &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldFailOnNonSealedNonEnumType()]</span></span> removed call to org/higherkindedj/optics/processing/PrismProcessor::error &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3137,7 +3132,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> 
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldFailOnNonSealedNonEnumType()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForSealedInterface()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> 
 </ul>
 </div></div> 
 </td>
@@ -3153,7 +3148,7 @@
 <a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
 <div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[35],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
 <ul>
-<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> 
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForSealedInterface()]</li> <li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> 
 </ul>
 </div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
@@ -3166,13 +3161,8 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_105'/> 
 
-<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
-<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[114],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[114],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
-<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[114],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
-<ul>
-<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> 
-</ul>
-</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForSealedInterface()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3183,8 +3173,13 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_113'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[162],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[162],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.PrismProcessor,-method=generatePrismsFile,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[162],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generatePrismsFile<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3195,9 +3190,9 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_116'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>lambda$generatePrismsFile$0<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>lambda$generatePrismsFile$0<br/><b>Killed by : </b>none</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/PrismProcessor::lambda$generatePrismsFile$0 &rarr; NO_COVERAGE</span>
-</div> <p class='NO_COVERAGE'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>lambda$generatePrismsFile$0<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>lambda$generatePrismsFile$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>lambda$generatePrismsFile$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/PrismProcessor::lambda$generatePrismsFile$0 &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>lambda$generatePrismsFile$0<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3230,7 +3225,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_185'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createPrismMethodForEnum<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/PrismProcessor::createPrismMethodForEnum &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createPrismMethodForEnum<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/PrismProcessor::createPrismMethodForEnum &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3241,7 +3236,7 @@
 
 <a name='grouporg.pitest.mutationtest.report.html.SourceFile@22876aea_214'/> 
 
-<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>none</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE</span>
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldFailOnNonSealedNonEnumType()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
 </div> 
 </td>
 </tr>
@@ -3271,7 +3266,7 @@
 
 <h2>Tests examined</h2>
 <ul>
-<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()] (23 ms)</li><li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()] (20 ms)</li>
+<li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldFailOnNonSealedNonEnumType()] (14 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorAnnotationClaimingTests]/[method:prismProcessorGeneratesPrisms()] (21 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForSealedInterface()] (20 ms)</li><li>org.higherkindedj.optics.processing.SetterGetterProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SetterGetterProcessorTest]/[nested-class:PrismProcessorEnumTests]/[method:shouldGeneratePrismsForEnum()] (21 ms)</li><li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()] (20 ms)</li>
 </ul>
 
 <br/>

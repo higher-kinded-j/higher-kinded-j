@@ -8,8 +8,6 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
-import java.util.Optional;
-import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,11 +42,12 @@ class SetterGetterProcessorTest {
               public record Point(int x, int y) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PointSetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PointSetters"))
+          .isPresent();
 
       String code =
           compilation
@@ -82,8 +81,7 @@ class SetterGetterProcessorTest {
               public record Name(String first, String last) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
 
@@ -116,8 +114,7 @@ class SetterGetterProcessorTest {
               public record Pair<A, B>(A first, B second) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
 
@@ -149,8 +146,7 @@ class SetterGetterProcessorTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("records");
@@ -169,11 +165,12 @@ class SetterGetterProcessorTest {
               public record Item(String value) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemSetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.ItemSetters"))
+          .isPresent();
     }
 
     @Test
@@ -189,8 +186,7 @@ class SetterGetterProcessorTest {
               public record Simple(String value) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       String code =
@@ -217,8 +213,7 @@ class SetterGetterProcessorTest {
               public record Box<T>(T content) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       String code =
@@ -245,8 +240,7 @@ class SetterGetterProcessorTest {
               public record Data(String name, int count) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new SetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       String code =
@@ -285,11 +279,12 @@ class SetterGetterProcessorTest {
               public record Point(int x, int y) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PointGetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PointGetters"))
+          .isPresent();
 
       String code =
           compilation
@@ -321,8 +316,7 @@ class SetterGetterProcessorTest {
               public record Name(String first, String last) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
 
@@ -354,8 +348,7 @@ class SetterGetterProcessorTest {
               public record Pair<A, B>(A first, B second) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
 
@@ -387,8 +380,7 @@ class SetterGetterProcessorTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("records");
@@ -407,11 +399,12 @@ class SetterGetterProcessorTest {
               public record Item(String value) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemGetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.ItemGetters"))
+          .isPresent();
     }
 
     @Test
@@ -427,8 +420,7 @@ class SetterGetterProcessorTest {
               public record Simple(String value) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       String code =
@@ -455,8 +447,7 @@ class SetterGetterProcessorTest {
               public record Box<T>(T content) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new GetterProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
       String code =
@@ -494,11 +485,12 @@ class SetterGetterProcessorTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new PrismProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.ColorPrisms")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.ColorPrisms"))
+          .isPresent();
 
       String code =
           compilation
@@ -525,8 +517,7 @@ class SetterGetterProcessorTest {
               public class BadPrism {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new PrismProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("sealed interfaces or enums");
@@ -548,8 +539,7 @@ class SetterGetterProcessorTest {
               }
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new PrismProcessor()).compile(source);
+      Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
 
