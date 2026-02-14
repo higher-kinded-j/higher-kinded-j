@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.expression;
 
@@ -14,6 +14,10 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.MaybeKind;
@@ -24,10 +28,6 @@ import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTMonad;
-import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.tuple.Tuple3;
 
 public class ForComprehensionExample {
@@ -137,7 +137,9 @@ public class ForComprehensionExample {
             .let(t -> t._2() * 10) // d = 50
             .let(t -> t._3() + "!") // e = "ALICE!"
             .let(t -> t._1() + " has " + t._2() + " letters") // f
-            .yield((name, len, upper, score, exclaimed, summary) -> summary + " (score: " + score + ")");
+            .yield(
+                (name, len, upper, score, exclaimed, summary) ->
+                    summary + " (score: " + score + ")");
 
     System.out.println("6-step result: " + IdKindHelper.ID.unwrap(result));
     // 6-step result: Alice has 5 letters (score: 50)

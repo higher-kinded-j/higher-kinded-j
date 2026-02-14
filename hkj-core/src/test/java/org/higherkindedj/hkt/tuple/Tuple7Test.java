@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.tuple;
 
@@ -211,8 +211,7 @@ class Tuple7Test {
       var tuple1 = new Tuple7<>("Alice", 30, true, 5.5, 'A', 100L, (short) 7);
 
       assertThat(tuple1).isNotEqualTo(new Tuple7<>("Bob", 30, true, 5.5, 'A', 100L, (short) 7));
-      assertThat(tuple1)
-          .isNotEqualTo(new Tuple7<>("Alice", 30, true, 5.5, 'A', 100L, (short) 99));
+      assertThat(tuple1).isNotEqualTo(new Tuple7<>("Alice", 30, true, 5.5, 'A', 100L, (short) 99));
     }
 
     @Test
