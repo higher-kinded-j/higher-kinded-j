@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.hkt.tuple.Tuple4;
 import org.higherkindedj.hkt.tuple.Tuple5;
+import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 
@@ -128,11 +129,17 @@ public final class For {
           MonadicSteps3,
           MonadicSteps4,
           MonadicSteps5,
+          MonadicSteps6,
+          MonadicSteps7,
+          MonadicSteps8,
           FilterableSteps1,
           FilterableSteps2,
           FilterableSteps3,
           FilterableSteps4,
-          FilterableSteps5 {}
+          FilterableSteps5,
+          FilterableSteps6,
+          FilterableSteps7,
+          FilterableSteps8 {}
 
   // --- Monadic (Non-Filterable) Steps ---
 
@@ -514,8 +521,8 @@ public final class For {
   }
 
   /**
-   * Represents the fifth (and final supported) step in a non-filterable for-comprehension, holding
-   * a tuple of five results.
+   * Represents the fifth step in a non-filterable for-comprehension, holding a tuple of five
+   * results.
    */
   public static final class MonadicSteps5<M extends WitnessArity<TypeArity.Unary>, A, B, C, D, E>
       implements Steps<M> {
@@ -525,6 +532,59 @@ public final class For {
     private MonadicSteps5(Monad<M> monad, Kind<M, Tuple5<A, B, C, D, E>> computation) {
       this.monad = monad;
       this.computation = computation;
+    }
+
+    /**
+     * Adds a new monadic generator to the comprehension.
+     *
+     * @param next A function taking the current 5-tuple of results and returning a new monadic
+     *     computation.
+     * @param <F> The value type of the new computation.
+     * @return The next step in the builder, now tracking six results.
+     */
+    public <F> MonadicSteps6<M, A, B, C, D, E, F> from(
+        Function<Tuple5<A, B, C, D, E>, Kind<M, F>> next) {
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.flatMap(
+              t ->
+                  monad.map(
+                      f -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f), next.apply(t)),
+              this.computation);
+      return new MonadicSteps6<>(monad, newComputation);
+    }
+
+    /**
+     * Adds a pure computation to the comprehension.
+     *
+     * @param f A function taking the current 5-tuple of results and returning a new pure value.
+     * @param <F> The type of the new computed value.
+     * @return The next step in the builder, now tracking six results.
+     */
+    public <F> MonadicSteps6<M, A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.map(
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)),
+              this.computation);
+      return new MonadicSteps6<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <F> The type of the extracted value.
+     * @return The next step in the builder, now tracking six values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <F> MonadicSteps6<M, A, B, C, D, E, F> focus(
+        Function<Tuple5<A, B, C, D, E>, F> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.map(
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), extractor.apply(t)),
+              this.computation);
+      return new MonadicSteps6<>(monad, newComputation);
     }
 
     /**
@@ -1072,6 +1132,39 @@ public final class For {
     }
 
     /**
+     * Adds a new monadic generator to the comprehension.
+     *
+     * @param next A function producing the next monadic computation.
+     * @param <F> The value type of the new computation.
+     * @return The next step in the builder, now tracking six results.
+     */
+    public <F> FilterableSteps6<M, A, B, C, D, E, F> from(
+        Function<Tuple5<A, B, C, D, E>, Kind<M, F>> next) {
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.flatMap(
+              t ->
+                  monad.map(
+                      f -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f), next.apply(t)),
+              this.computation);
+      return new FilterableSteps6<>(monad, newComputation);
+    }
+
+    /**
+     * Adds a pure computation to the comprehension.
+     *
+     * @param f A function producing a new pure value.
+     * @param <F> The type of the new computed value.
+     * @return The next step in the builder, now tracking six results.
+     */
+    public <F> FilterableSteps6<M, A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.map(
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)),
+              this.computation);
+      return new FilterableSteps6<>(monad, newComputation);
+    }
+
+    /**
      * Filters the results of the comprehension based on a predicate.
      *
      * @param filter The predicate to apply to the tuple of results.
@@ -1082,6 +1175,50 @@ public final class For {
           monad.flatMap(
               abcde -> filter.test(abcde) ? monad.of(abcde) : monad.zero(), this.computation);
       return new FilterableSteps5<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <F> The type of the extracted value.
+     * @return The next step in the builder, now tracking six values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <F> FilterableSteps6<M, A, B, C, D, E, F> focus(
+        Function<Tuple5<A, B, C, D, E>, F> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.map(
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), extractor.apply(t)),
+              this.computation);
+      return new FilterableSteps6<>(monad, newComputation);
+    }
+
+    /**
+     * Attempts to extract a value using a function that returns an {@link Optional}. If the
+     * optional is present, the extracted value is added to the accumulated tuple. If it's empty,
+     * the computation short-circuits using the monad's {@link MonadZero#zero()} element.
+     *
+     * @param matcher A function that takes the current tuple and returns an optional extracted
+     *     value.
+     * @param <F> The type of the extracted value when present.
+     * @return The next step in the builder if the match succeeds, or short-circuits to zero.
+     * @throws NullPointerException if {@code matcher} is null.
+     */
+    public <F> FilterableSteps6<M, A, B, C, D, E, F> match(
+        Function<Tuple5<A, B, C, D, E>, Optional<F>> matcher) {
+      Objects.requireNonNull(matcher, "matcher must not be null");
+      Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
+          monad.flatMap(
+              t ->
+                  matcher
+                      .apply(t)
+                      .map(f -> monad.of(Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f)))
+                      .orElseGet(monad::zero),
+              this.computation);
+      return new FilterableSteps6<>(monad, newComputation);
     }
 
     /**

@@ -51,6 +51,7 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.hkt.tuple.Tuple4;
 import org.higherkindedj.hkt.tuple.Tuple5;
+import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.hkt.vtask.VTaskKindHelper;
 import org.higherkindedj.hkt.vtask.VTaskMonad;
@@ -548,6 +549,25 @@ public final class ForPath {
       this.computation = computation;
     }
 
+    public <F> MaybePathSteps6<A, B, C, D, E, F> from(
+        Function<Tuple5<A, B, C, D, E>, MaybePath<F>> next) {
+      Kind<MaybeKind.Witness, Tuple6<A, B, C, D, E, F>> newComp =
+          MONAD.flatMap(
+              t ->
+                  MONAD.map(
+                      f -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f),
+                      MaybeKindHelper.MAYBE.widen(next.apply(t).run())),
+              computation);
+      return new MaybePathSteps6<>(newComp);
+    }
+
+    public <F> MaybePathSteps6<A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
+      Kind<MaybeKind.Witness, Tuple6<A, B, C, D, E, F>> newComp =
+          MONAD.map(
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), computation);
+      return new MaybePathSteps6<>(newComp);
+    }
+
     public MaybePathSteps5<A, B, C, D, E> when(Predicate<Tuple5<A, B, C, D, E>> predicate) {
       Kind<MaybeKind.Witness, Tuple5<A, B, C, D, E>> newComp =
           MONAD.flatMap(
@@ -693,6 +713,24 @@ public final class ForPath {
       this.computation = computation;
     }
 
+    public <D> OptionalPathSteps4<A, B, C, D> from(
+        Function<Tuple3<A, B, C>, OptionalPath<D>> next) {
+      Kind<OptionalKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.flatMap(
+              abc ->
+                  MONAD.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      OptionalKindHelper.OPTIONAL.widen(next.apply(abc).run())),
+              computation);
+      return new OptionalPathSteps4<>(newComp);
+    }
+
+    public <D> OptionalPathSteps4<A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<OptionalKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new OptionalPathSteps4<>(newComp);
+    }
+
     public OptionalPathSteps3<A, B, C> when(Predicate<Tuple3<A, B, C>> predicate) {
       Kind<OptionalKind.Witness, Tuple3<A, B, C>> newComp =
           MONAD.flatMap(abc -> predicate.test(abc) ? MONAD.of(abc) : MONAD.zero(), computation);
@@ -822,6 +860,26 @@ public final class ForPath {
       this.computation = computation;
     }
 
+    public <D> EitherPathSteps4<E, A, B, C, D> from(
+        Function<Tuple3<A, B, C>, EitherPath<E, D>> next) {
+      EitherMonad<E> m = monad();
+      Kind<EitherKind.Witness<E>, Tuple4<A, B, C, D>> newComp =
+          m.flatMap(
+              abc ->
+                  m.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      EitherKindHelper.EITHER.widen(next.apply(abc).run())),
+              computation);
+      return new EitherPathSteps4<>(newComp);
+    }
+
+    public <D> EitherPathSteps4<E, A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      EitherMonad<E> m = monad();
+      Kind<EitherKind.Witness<E>, Tuple4<A, B, C, D>> newComp =
+          m.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new EitherPathSteps4<>(newComp);
+    }
+
     public <R> EitherPath<E, R> yield(Function3<A, B, C, R> f) {
       EitherMonad<E> m = monad();
       Kind<EitherKind.Witness<E>, R> result =
@@ -930,6 +988,23 @@ public final class ForPath {
       this.computation = computation;
     }
 
+    public <D> TryPathSteps4<A, B, C, D> from(Function<Tuple3<A, B, C>, TryPath<D>> next) {
+      Kind<TryKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.flatMap(
+              abc ->
+                  MONAD.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      TryKindHelper.TRY.widen(next.apply(abc).run())),
+              computation);
+      return new TryPathSteps4<>(newComp);
+    }
+
+    public <D> TryPathSteps4<A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<TryKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new TryPathSteps4<>(newComp);
+    }
+
     public <R> TryPath<R> yield(Function3<A, B, C, R> f) {
       Kind<TryKind.Witness, R> result =
           MONAD.map(
@@ -1034,6 +1109,23 @@ public final class ForPath {
 
     private IOPathSteps3(Kind<IOKind.Witness, Tuple3<A, B, C>> computation) {
       this.computation = computation;
+    }
+
+    public <D> IOPathSteps4<A, B, C, D> from(Function<Tuple3<A, B, C>, IOPath<D>> next) {
+      Kind<IOKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.flatMap(
+              abc ->
+                  MONAD.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      IOKindHelper.IO_OP.widen(next.apply(abc).run())),
+              computation);
+      return new IOPathSteps4<>(newComp);
+    }
+
+    public <D> IOPathSteps4<A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<IOKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new IOPathSteps4<>(newComp);
     }
 
     public <R> IOPath<R> yield(Function3<A, B, C, R> f) {
@@ -1230,6 +1322,25 @@ public final class ForPath {
       this.computation = computation;
     }
 
+    public <F> VTaskPathSteps6<A, B, C, D, E, F> from(
+        Function<Tuple5<A, B, C, D, E>, VTaskPath<F>> next) {
+      Kind<VTaskKind.Witness, Tuple6<A, B, C, D, E, F>> newComp =
+          MONAD.flatMap(
+              t ->
+                  MONAD.map(
+                      f2 -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f2),
+                      VTaskKindHelper.VTASK.widen(next.apply(t).run())),
+              computation);
+      return new VTaskPathSteps6<>(newComp);
+    }
+
+    public <F> VTaskPathSteps6<A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
+      Kind<VTaskKind.Witness, Tuple6<A, B, C, D, E, F>> newComp =
+          MONAD.map(
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), computation);
+      return new VTaskPathSteps6<>(newComp);
+    }
+
     public <R> VTaskPath<R> yield(Function5<A, B, C, D, E, R> f) {
       Kind<VTaskKind.Witness, R> result =
           MONAD.map(
@@ -1335,6 +1446,23 @@ public final class ForPath {
 
     private IdPathSteps3(Kind<IdKind.Witness, Tuple3<A, B, C>> computation) {
       this.computation = computation;
+    }
+
+    public <D> IdPathSteps4<A, B, C, D> from(Function<Tuple3<A, B, C>, IdPath<D>> next) {
+      Kind<IdKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.flatMap(
+              abc ->
+                  MONAD.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      IdKindHelper.ID.widen(next.apply(abc).run())),
+              computation);
+      return new IdPathSteps4<>(newComp);
+    }
+
+    public <D> IdPathSteps4<A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<IdKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new IdPathSteps4<>(newComp);
     }
 
     public <R> IdPath<R> yield(Function3<A, B, C, R> f) {
@@ -1452,6 +1580,23 @@ public final class ForPath {
       this.computation = computation;
     }
 
+    public <D> NonDetPathSteps4<A, B, C, D> from(Function<Tuple3<A, B, C>, NonDetPath<D>> next) {
+      Kind<ListKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.flatMap(
+              abc ->
+                  MONAD.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d),
+                      ListKindHelper.LIST.widen(next.apply(abc).run())),
+              computation);
+      return new NonDetPathSteps4<>(newComp);
+    }
+
+    public <D> NonDetPathSteps4<A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<ListKind.Witness, Tuple4<A, B, C, D>> newComp =
+          MONAD.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new NonDetPathSteps4<>(newComp);
+    }
+
     public NonDetPathSteps3<A, B, C> when(Predicate<Tuple3<A, B, C>> predicate) {
       Kind<ListKind.Witness, Tuple3<A, B, C>> newComp =
           MONAD.flatMap(abc -> predicate.test(abc) ? MONAD.of(abc) : MONAD.zero(), computation);
@@ -1558,6 +1703,21 @@ public final class ForPath {
     private GenericPathSteps3(Monad<F> monad, Kind<F, Tuple3<A, B, C>> computation) {
       this.monad = monad;
       this.computation = computation;
+    }
+
+    public <D> GenericPathSteps4<F, A, B, C, D> from(
+        Function<Tuple3<A, B, C>, GenericPath<F, D>> next) {
+      Kind<F, Tuple4<A, B, C, D>> newComp =
+          monad.flatMap(
+              abc -> monad.map(d -> Tuple.of(abc._1(), abc._2(), abc._3(), d), next.apply(abc).runKind()),
+              computation);
+      return new GenericPathSteps4<>(monad, newComp);
+    }
+
+    public <D> GenericPathSteps4<F, A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
+      Kind<F, Tuple4<A, B, C, D>> newComp =
+          monad.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), computation);
+      return new GenericPathSteps4<>(monad, newComp);
     }
 
     public <R> GenericPath<F, R> yield(Function3<A, B, C, R> f) {
