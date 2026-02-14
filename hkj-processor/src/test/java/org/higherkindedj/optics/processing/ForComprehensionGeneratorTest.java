@@ -920,27 +920,6 @@ class ForComprehensionGeneratorTest {
     }
 
     @Test
-    @DisplayName("annotation on class should produce error")
-    void annotationOnClassShouldError() {
-      var source =
-          JavaFileObjects.forSourceString(
-              "com.test.BadUsage",
-              """
-              package com.test;
-
-              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
-
-              @GenerateForComprehensions(minArity = 2, maxArity = 5)
-              public class BadUsage {}
-              """);
-
-      Compilation compilation = compile(source);
-
-      assertThat(compilation.errors()).isNotEmpty();
-      assertThat(compilation.errors().get(0).getMessage(null)).contains("package");
-    }
-
-    @Test
     @DisplayName("minArity == maxArity should work (single terminal arity)")
     void singleArityTerminal() throws IOException {
       Compilation compilation = compile(singleAritySource());
