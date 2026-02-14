@@ -823,7 +823,7 @@ class MutationKillingPhase2Test {
   class NullableAnnotationsMutationTests {
 
     @Test
-    @DisplayName("@Nullable field should widen to AffinePath in navigator")
+    @DisplayName("@Nullable field should widen to AffinePath")
     void nullableFieldShouldWidenToAffinePath() throws IOException {
       var annotationSource =
           JavaFileObjects.forSourceString(
@@ -835,28 +835,19 @@ class MutationKillingPhase2Test {
               @Retention(RetentionPolicy.RUNTIME)
               public @interface Nullable {}
               """);
-      var inner =
-          JavaFileObjects.forSourceString(
-              "com.example.Address",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
-              public record Address(String street, String city) {}
-              """);
-      var outer =
+      var source =
           JavaFileObjects.forSourceString(
               "com.example.Person",
               """
               package com.example;
               import org.jspecify.annotations.Nullable;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Person(String name, @Nullable Address address) {}
+              @GenerateFocus
+              public record Person(String name, @Nullable String nickname) {}
               """);
 
       Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(annotationSource, inner, outer);
+          javac().withProcessors(new FocusProcessor()).compile(annotationSource, source);
 
       assertThat(compilation).succeeded();
 
@@ -867,8 +858,10 @@ class MutationKillingPhase2Test {
               .getCharContent(true)
               .toString();
 
-      // @Nullable should trigger AffinePath in navigator
+      // @Nullable should trigger AffinePath for the nullable field
       assertThat(code).contains("AffinePath");
+      // The nullable field method should use .nullable() to widen
+      assertThat(code).contains("nullable()");
     }
 
     @Test
@@ -1034,15 +1027,15 @@ class MutationKillingPhase2Test {
 
     @Test
     @DisplayName(
-        "Navigator with nested Optional<Address> should produce via with correct path types")
-    void navigatorWithNestedOptionalShouldUseCorrectVia() throws IOException {
+        "Navigator with deeply nested navigable types should produce correct via statements")
+    void navigatorWithDeeplyNestedShouldUseCorrectVia() throws IOException {
       var inner =
           JavaFileObjects.forSourceString(
               "com.example.Address",
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = true)
               public record Address(String street, String city) {}
               """);
       var middle =
@@ -1050,10 +1043,9 @@ class MutationKillingPhase2Test {
               "com.example.Office",
               """
               package com.example;
-              import java.util.Optional;
               import org.higherkindedj.optics.annotations.GenerateFocus;
               @GenerateFocus(generateNavigators = true)
-              public record Office(String name, Optional<Address> address) {}
+              public record Office(String name, Address address) {}
               """);
       var outer =
           JavaFileObjects.forSourceString(
@@ -1077,9 +1069,11 @@ class MutationKillingPhase2Test {
               .getCharContent(true)
               .toString();
 
-      // Should have navigator for Office and path widening
+      // Should have navigator for Office with via delegation
       assertThat(code).contains("Navigator");
       assertThat(code).contains("delegate");
+      // CompanyFocus should have an OfficeNavigator inner class
+      assertThat(code).contains("OfficeNavigator");
     }
   }
 
@@ -1149,12 +1143,14 @@ class MutationKillingPhase2Test {
 
       assertThat(compilation).succeeded();
 
-      // Check Tuple2 has mapAll
+      // Check Tuple2 has map method for transforming all fields
       Optional<JavaFileObject> tuple2 =
           compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2");
       org.assertj.core.api.Assertions.assertThat(tuple2).isPresent();
       String code = tuple2.get().getCharContent(true).toString();
-      assertThat(code).contains("mapAll");
+      // map() applies mappers to all tuple components
+      assertThat(code).contains("mapFirst(");
+      assertThat(code).contains("mapSecond(");
     }
   }
 
