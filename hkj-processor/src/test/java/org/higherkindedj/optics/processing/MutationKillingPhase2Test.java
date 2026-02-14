@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
  *   <li>PrismProcessor (targetPackage, sealed vs enum)
  *   <li>TraversalProcessor (targetPackage)
  *   <li>FocusProcessor (targetPackage, process return, analyseFieldType)
- *   <li>PathProcessor (determinePathType, targetPackage)
+ *   <li>ForComprehensionProcessor (error diagnostics, validation)
  *   <li>NullableAnnotations (hasNullableAnnotation)
  *   <li>KindFieldInfo (of, parameterised factory methods)
  *   <li>KindRegistry.KindMapping (instance, factory)
@@ -1085,6 +1085,21 @@ class MutationKillingPhase2Test {
       assertThat(code).contains("delegate");
       // CompanyFocus should have an OfficeNavigator inner class
       assertThat(code).contains("OfficeNavigator");
+      // The via statement for the delegate's fields should use toLens()
+      assertThat(code).contains("delegate.via(OfficeFocus.");
+      assertThat(code).contains(".toLens())");
+      // Verify the navigator has methods for each field of the target record
+      assertThat(code).contains("FocusPath<S, String>");
+
+      // Also verify OfficeFocus generated code has AddressNavigator
+      String officeCode =
+          compilation
+              .generatedSourceFile("com.example.OfficeFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+      assertThat(officeCode).contains("AddressNavigator");
+      assertThat(officeCode).contains("delegate.via(AddressFocus.");
     }
   }
 
@@ -1401,6 +1416,430 @@ class MutationKillingPhase2Test {
       // Verify code in custom package
       assertThat(code).contains("package com.custom");
       assertThat(code).contains("@Generated");
+    }
+  }
+
+  // =============================================================================
+  // FocusProcessor getPathDescription / getPathGetMethod Tests
+  // Targets: EmptyObjectReturnValsMutator on lines 498, 507
+  // Verifies Javadoc content in generated code reflects correct path descriptions
+  // =============================================================================
+
+  @Nested
+  @DisplayName("FocusProcessor Javadoc Path Description Tests")
+  class FocusProcessorJavadocTests {
+
+    @Test
+    @DisplayName("Optional field Javadoc should contain AffinePath description and getOptional")
+    void optionalFieldJavadocShouldContainAffinePath() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.example.Config",
+              """
+              package com.example;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Config(String name, Optional<String> description) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+
+      String code =
+          compilation
+              .generatedSourceFile("com.example.ConfigFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      // getPathDescription returns "AffinePath" for Optional - used in @return Javadoc
+      assertThat(code).contains("AffinePath<Config, String>");
+      // getPathGetMethod returns "getOptional" for Optional - used in example Javadoc
+      assertThat(code).contains("getOptional");
+    }
+
+    @Test
+    @DisplayName("Collection field Javadoc should contain TraversalPath description and getAll")
+    void collectionFieldJavadocShouldContainTraversalPath() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.example.Team",
+              """
+              package com.example;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Team(String name, List<String> members) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+
+      String code =
+          compilation
+              .generatedSourceFile("com.example.TeamFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      // getPathDescription returns "TraversalPath" for Collection - used in @return Javadoc
+      assertThat(code).contains("TraversalPath<Team, String>");
+      // getPathGetMethod returns "getAll" for Collection - used in example Javadoc
+      assertThat(code).contains("getAll");
+    }
+
+    @Test
+    @DisplayName("Regular field Javadoc should contain FocusPath description and get method")
+    void regularFieldJavadocShouldContainFocusPath() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.example.Label",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Label(String text) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+
+      String code =
+          compilation
+              .generatedSourceFile("com.example.LabelFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      // getPathDescription returns "FocusPath" for regular fields
+      assertThat(code).contains("FocusPath<Label, String>");
+      // getPathGetMethod returns "get" for regular fields - used in Javadoc examples
+      assertThat(code).contains(".get(");
+    }
+  }
+
+  // =============================================================================
+  // Navigator isNavigableType Tests
+  // Targets: BooleanTrueReturnValsMutator on line 678 (isNavigableType)
+  // Verifies non-navigable types do NOT get navigator inner classes
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Navigator isNavigableType Tests")
+  class NavigatorIsNavigableTypeTests {
+
+    @Test
+    @DisplayName("Non-navigable field types should not produce navigator inner classes")
+    void nonNavigableFieldShouldNotProduceNavigator() throws IOException {
+      var inner =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Address(String street, String city) {}
+              """);
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.example.Person",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Person(String name, Address address) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      assertThat(compilation).succeeded();
+
+      String code =
+          compilation
+              .generatedSourceFile("com.example.PersonFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      // Address IS navigable (has @GenerateFocus) - should have navigator
+      assertThat(code).contains("AddressNavigator");
+      // String is NOT navigable - should NOT have a NameNavigator
+      assertThat(code).doesNotContain("NameNavigator");
+      assertThat(code).doesNotContain("StringNavigator");
+    }
+  }
+
+  // =============================================================================
+  // TupleGenerator generateMapAll VoidMethodCall Tests
+  // Targets: VoidMethodCallMutator on line 126 (generateMapAll call removal)
+  // Verifies the map-all method (mapping all tuple elements) is generated
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TupleGenerator generateMapAll Tests")
+  class TupleGeneratorMapAllMethodTests {
+
+    @Test
+    @DisplayName("Tuple2 should have map() method that maps all elements with named mappers")
+    void tuple2ShouldHaveMapAllMethod() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 2, maxArity = 2)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+
+      Optional<JavaFileObject> tuple2 =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2");
+      org.assertj.core.api.Assertions.assertThat(tuple2).isPresent();
+      String code = tuple2.get().getCharContent(true).toString();
+
+      // The map() method generated by generateMapAll uses named mappers: firstMapper, secondMapper
+      assertThat(code).contains("firstMapper");
+      assertThat(code).contains("secondMapper");
+      // The map() method applies all mappers
+      assertThat(code).contains("firstMapper.apply(_1)");
+      assertThat(code).contains("secondMapper.apply(_2)");
+    }
+
+    @Test
+    @DisplayName("Tuple3 should have map() method that maps all three elements")
+    void tuple3ShouldHaveMapAllMethod() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 3, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+
+      Optional<JavaFileObject> tuple3 =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3");
+      org.assertj.core.api.Assertions.assertThat(tuple3).isPresent();
+      String code = tuple3.get().getCharContent(true).toString();
+
+      // The map() method for Tuple3 must include thirdMapper
+      assertThat(code).contains("thirdMapper");
+      assertThat(code).contains("thirdMapper.apply(_3)");
+    }
+  }
+
+  // =============================================================================
+  // ForComprehensionProcessor error() VoidMethodCall Tests
+  // Targets: VoidMethodCallMutator on lines 84, 90, 96
+  // Verifies error diagnostics are reported for invalid inputs
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ForComprehensionProcessor Error Diagnostic Tests")
+  class ForComprehensionProcessorErrorTests {
+
+    @Test
+    @DisplayName("minArity < 2 should produce error diagnostic")
+    void minArityLessThan2ShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 1, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("minArity must be >= 2");
+    }
+
+    @Test
+    @DisplayName("maxArity < minArity should produce error diagnostic")
+    void maxArityLessThanMinArityShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 5, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("maxArity");
+    }
+
+    @Test
+    @DisplayName("maxArity > 26 should produce error diagnostic")
+    void maxArityGreaterThan26ShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 2, maxArity = 27)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("maxArity must be <= 26");
+    }
+
+    @Test
+    @DisplayName("Valid arity range should succeed and generate Tuple classes")
+    void validArityRangeShouldSucceed() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 2, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      // Verify Tuple2 and Tuple3 are generated
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2"))
+          .isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3"))
+          .isPresent();
+    }
+  }
+
+  // =============================================================================
+  // Navigator Javadoc path description Tests
+  // Targets: NavigatorClassGenerator.addNavigationMethods pathDescription switch
+  // Verifies navigator method Javadoc reflects correct path type
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Navigator Path Description Javadoc Tests")
+  class NavigatorPathDescriptionTests {
+
+    @Test
+    @DisplayName("Navigator method for regular field should have FocusPath in Javadoc")
+    void navigatorRegularFieldJavadocShouldContainFocusPath() throws IOException {
+      var inner =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, String city) {}
+              """);
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.example.Person",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Person(String name, Address address) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      assertThat(compilation).succeeded();
+
+      String code =
+          compilation
+              .generatedSourceFile("com.example.PersonFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      // Navigator methods for regular String fields should mention FocusPath in Javadoc
+      assertThat(code).contains("a FocusPath focusing on");
+      // The via statement should use toLens()
+      assertThat(code).contains("toLens()");
+    }
+  }
+
+  // =============================================================================
+  // TraversalProcessor additional mutation tests
+  // Targets: TraversalProcessor conditionals and error paths
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TraversalProcessor Additional Mutation Tests")
+  class TraversalProcessorAdditionalTests {
+
+    @Test
+    @DisplayName("Traversal with custom targetPackage should generate in custom package")
+    void traversalWithCustomTargetPackage() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Items",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateTraversals(targetPackage = "com.custom")
+              public record Items(List<String> names) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.custom.ItemsTraversals"))
+          .isPresent();
+    }
+
+    @Test
+    @DisplayName("Traversal on non-record should fail")
+    void traversalOnNonRecordShouldFail() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.BadTraversal",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateTraversals
+              public class BadTraversal {
+                  private String name;
+              }
+              """);
+
+      Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("records");
     }
   }
 }
