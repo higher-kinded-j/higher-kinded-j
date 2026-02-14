@@ -9,6 +9,8 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -16,8 +18,10 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.ContainerType;
+import org.higherkindedj.optics.processing.external.SpecAnalysis;
 import org.higherkindedj.optics.processing.external.TypeAnalysis;
 import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
+import org.higherkindedj.optics.processing.kind.KindRegistry;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -4572,6 +4576,914 @@ class MutationKillingTest {
     @DisplayName("already camelCase should be unchanged")
     void alreadyCamelCase() {
       assertThat(ProcessorUtils.toCamelCase("myMethod")).isEqualTo("myMethod");
+    }
+  }
+
+  // =============================================================================
+  // ForComprehensionProcessor Error Reporting Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ForComprehensionProcessor Error Reporting Tests")
+  class ForComprehensionErrorReportingTests {
+
+    @Test
+    @DisplayName("maxArity=27 should produce boundary error")
+    void maxArity27ShouldFail() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 2, maxArity = 27)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation.errors()).isNotEmpty();
+      assertThat(compilation.errors().get(0).getMessage(null))
+          .contains("maxArity must be <= 26");
+    }
+
+    @Test
+    @DisplayName("maxArity < minArity should produce error with both values")
+    void maxArityLessThanMinArity() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 5, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation.errors()).isNotEmpty();
+      assertThat(compilation.errors().get(0).getMessage(null))
+          .contains("maxArity")
+          .contains("minArity");
+    }
+
+    @Test
+    @DisplayName("annotation on class element should produce error")
+    void annotationOnClassShouldFail() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.BadUsage",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+
+              @GenerateForComprehensions(minArity = 2, maxArity = 4)
+              public class BadUsage {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      assertThat(compilation.errors()).isNotEmpty();
+      assertThat(compilation.errors().get(0).getMessage(null))
+          .contains("can only be applied to packages");
+    }
+  }
+
+  // =============================================================================
+  // ForStepGenerator Yield Method Presence Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ForStepGenerator Yield Method Specifics")
+  class ForStepGeneratorYieldTests {
+
+    private static JavaFileObject packageInfo() {
+      return JavaFileObjects.forSourceString(
+          "org.higherkindedj.hkt.expression.package-info",
+          """
+          @GenerateForComprehensions(minArity = 3, maxArity = 4)
+          package org.higherkindedj.hkt.expression;
+
+          import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+          """);
+    }
+
+    private String getGeneratedSource(Compilation compilation, String className)
+        throws IOException {
+      Optional<JavaFileObject> file = compilation.generatedSourceFile(className);
+      assertThat(file).as("Generated file should exist: %s", className).isPresent();
+      return file.get().getCharContent(true).toString();
+    }
+
+    @Test
+    @DisplayName("MonadicSteps should have yield with spread function")
+    void monadicStepsYieldSpread() throws IOException {
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(packageInfo());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MonadicSteps3");
+
+      // Spread yield: f.apply(t._1(), t._2(), t._3())
+      assertThat(source).contains("f.apply(t._1(), t._2(), t._3())");
+    }
+
+    @Test
+    @DisplayName("MonadicSteps should have yield with tuple function")
+    void monadicStepsYieldTuple() throws IOException {
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(packageInfo());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MonadicSteps3");
+
+      // Tuple yield: yield(Function<Tuple3<...>, R> f)
+      assertThat(source).contains("yield(Function<Tuple3<");
+      assertThat(source).contains("monad.map(f, computation)");
+    }
+
+    @Test
+    @DisplayName("FilterableSteps should have yield with spread function")
+    void filterableStepsYieldSpread() throws IOException {
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(packageInfo());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FilterableSteps3");
+
+      // Spread yield
+      assertThat(source).contains("f.apply(t._1(), t._2(), t._3())");
+    }
+
+    @Test
+    @DisplayName("FilterableSteps should have yield with tuple function")
+    void filterableStepsYieldTuple() throws IOException {
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(packageInfo());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FilterableSteps3");
+
+      // Tuple yield
+      assertThat(source).contains("yield(Function<Tuple3<");
+      assertThat(source).contains("monad.map(f, computation)");
+    }
+
+    @Test
+    @DisplayName("MonadicSteps4 terminal should also have both yield variants")
+    void monadicSteps4TerminalYieldVariants() throws IOException {
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(packageInfo());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MonadicSteps4");
+
+      assertThat(source).contains("f.apply(t._1(), t._2(), t._3(), t._4())");
+      assertThat(source).contains("yield(Function<Tuple4<");
+    }
+
+    @Test
+    @DisplayName("FilterableSteps4 terminal should also have both yield variants")
+    void filterableSteps4TerminalYieldVariants() throws IOException {
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(packageInfo());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FilterableSteps4");
+
+      assertThat(source).contains("f.apply(t._1(), t._2(), t._3(), t._4())");
+      assertThat(source).contains("yield(Function<Tuple4<");
+    }
+  }
+
+  // =============================================================================
+  // TupleGenerator mapAll Method Presence Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TupleGenerator mapAll Method Tests")
+  class TupleGeneratorMapAllTests {
+
+    @Test
+    @DisplayName("Tuple3 should have map() method with validation")
+    void tuple3HasMapWithValidation() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 3, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+      Optional<JavaFileObject> file =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3");
+      assertThat(file).isPresent();
+      String code = file.get().getCharContent(true).toString();
+
+      // map() method should validate each mapper parameter
+      assertThat(code).contains("Validation.function().requireMapper(firstMapper,");
+      assertThat(code).contains("Validation.function().requireMapper(secondMapper,");
+      assertThat(code).contains("Validation.function().requireMapper(thirdMapper,");
+
+      // map() should apply all mappers to create new tuple
+      assertThat(code).contains("firstMapper.apply(_1)");
+      assertThat(code).contains("secondMapper.apply(_2)");
+      assertThat(code).contains("thirdMapper.apply(_3)");
+    }
+
+    @Test
+    @DisplayName("Tuple3 should have individual mapFirst, mapSecond, mapThird methods")
+    void tuple3HasIndividualMapMethods() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 3, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+      Optional<JavaFileObject> file =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3");
+      assertThat(file).isPresent();
+      String code = file.get().getCharContent(true).toString();
+
+      assertThat(code).contains("mapFirst(");
+      assertThat(code).contains("mapSecond(");
+      assertThat(code).contains("mapThird(");
+    }
+  }
+
+  // =============================================================================
+  // SpecAnalysis Empty Factory Method Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("SpecAnalysis Empty Factory Tests")
+  class SpecAnalysisEmptyTests {
+
+    @Test
+    @DisplayName("CopyStrategyInfo.empty() should return non-null with empty fields")
+    void copyStrategyInfoEmptyNonNull() {
+      SpecAnalysis.CopyStrategyInfo info = SpecAnalysis.CopyStrategyInfo.empty();
+      assertThat(info).isNotNull();
+      assertThat(info.getter()).isEmpty();
+      assertThat(info.toBuilder()).isEmpty();
+      assertThat(info.setter()).isEmpty();
+      assertThat(info.build()).isEmpty();
+      assertThat(info.witherMethod()).isEmpty();
+      assertThat(info.copyConstructor()).isEmpty();
+      assertThat(info.parameterOrder()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("PrismHintInfo.empty() should return non-null")
+    void prismHintInfoEmptyNonNull() {
+      SpecAnalysis.PrismHintInfo info = SpecAnalysis.PrismHintInfo.empty();
+      assertThat(info).isNotNull();
+      assertThat(info.targetType()).isNull();
+      assertThat(info.predicate()).isEmpty();
+      assertThat(info.getter()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("TraversalHintInfo.empty() should return non-null with empty fields")
+    void traversalHintInfoEmptyNonNull() {
+      SpecAnalysis.TraversalHintInfo info = SpecAnalysis.TraversalHintInfo.empty();
+      assertThat(info).isNotNull();
+      assertThat(info.traversalReference()).isEmpty();
+      assertThat(info.fieldName()).isEmpty();
+      assertThat(info.fieldTraversal()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CopyStrategyInfo.forBuilder creates non-null with correct fields")
+    void copyStrategyInfoForBuilderNonNull() {
+      SpecAnalysis.CopyStrategyInfo info =
+          SpecAnalysis.CopyStrategyInfo.forBuilder("getX", "toBuilder", "setX", "build");
+      assertThat(info).isNotNull();
+      assertThat(info.getter()).isEqualTo("getX");
+      assertThat(info.toBuilder()).isEqualTo("toBuilder");
+      assertThat(info.setter()).isEqualTo("setX");
+      assertThat(info.build()).isEqualTo("build");
+    }
+
+    @Test
+    @DisplayName("PrismHintInfo.forInstanceOf creates non-null")
+    void prismHintInfoForInstanceOfNonNull() {
+      SpecAnalysis.PrismHintInfo info = SpecAnalysis.PrismHintInfo.forInstanceOf(null);
+      assertThat(info).isNotNull();
+    }
+
+    @Test
+    @DisplayName("PrismHintInfo.forMatchWhen creates non-null with correct fields")
+    void prismHintInfoForMatchWhenNonNull() {
+      SpecAnalysis.PrismHintInfo info =
+          SpecAnalysis.PrismHintInfo.forMatchWhen("isLeaf", "asLeaf");
+      assertThat(info).isNotNull();
+      assertThat(info.predicate()).isEqualTo("isLeaf");
+      assertThat(info.getter()).isEqualTo("asLeaf");
+    }
+
+    @Test
+    @DisplayName("TraversalHintInfo.forTraverseWith creates non-null")
+    void traversalHintInfoForTraverseWithNonNull() {
+      SpecAnalysis.TraversalHintInfo info =
+          SpecAnalysis.TraversalHintInfo.forTraverseWith("Traversals.list()");
+      assertThat(info).isNotNull();
+      assertThat(info.traversalReference()).isEqualTo("Traversals.list()");
+    }
+
+    @Test
+    @DisplayName("TraversalHintInfo.forThroughField creates non-null")
+    void traversalHintInfoForThroughFieldNonNull() {
+      SpecAnalysis.TraversalHintInfo info =
+          SpecAnalysis.TraversalHintInfo.forThroughField("items", "Traversals.forList()");
+      assertThat(info).isNotNull();
+      assertThat(info.fieldName()).isEqualTo("items");
+      assertThat(info.fieldTraversal()).isEqualTo("Traversals.forList()");
+      assertThat(info.traversalReference()).isEmpty();
+    }
+  }
+
+  // =============================================================================
+  // KindRegistry KindMapping Factory Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("KindRegistry KindMapping Factory Tests")
+  class KindRegistryMappingTests {
+
+    @Test
+    @DisplayName("instance() should return non-null with isParameterised=false")
+    void instanceReturnsNonNullNonParameterised() {
+      // This test targets NullReturnValsMutator on KindMapping.instance()
+      var mapping =
+          KindRegistry.lookup("org.higherkindedj.hkt.list.ListKind.Witness");
+      assertThat(mapping).isPresent();
+      assertThat(mapping.get()).isNotNull();
+      assertThat(mapping.get().isParameterised()).isFalse();
+      assertThat(mapping.get().traverseExpression()).endsWith(".INSTANCE");
+    }
+
+    @Test
+    @DisplayName("factory() should return non-null with isParameterised=true")
+    void factoryReturnsNonNullParameterised() {
+      // This test targets NullReturnValsMutator on KindMapping.factory()
+      var mapping =
+          KindRegistry.lookup("org.higherkindedj.hkt.either.EitherKind.Witness");
+      assertThat(mapping).isPresent();
+      assertThat(mapping.get()).isNotNull();
+      assertThat(mapping.get().isParameterised()).isTrue();
+      assertThat(mapping.get().traverseExpression()).endsWith(".instance()");
+    }
+
+    @Test
+    @DisplayName("extractWitnessTypeArgs with only closing bracket returns empty")
+    void extractTypeArgsOnlyClosingBracket() {
+      assertThat(KindRegistry.extractWitnessTypeArgs("A>B")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("extractWitnessTypeArgs with reversed brackets returns empty")
+    void extractTypeArgsReversedBrackets() {
+      // end ('>') at index 1, start ('<') at index 3 — end < start
+      assertThat(KindRegistry.extractWitnessTypeArgs("A>B<C")).isEmpty();
+    }
+  }
+
+  // =============================================================================
+  // ForPathStepGenerator Yield Method Presence Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("ForPathStepGenerator Yield Method Tests")
+  class ForPathStepGeneratorYieldTests {
+
+    @Test
+    @DisplayName("Path steps should have both yield variants")
+    void pathStepsShouldHaveBothYieldVariants() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 3, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      // Check MaybePathSteps3 (terminal, filterable)
+      Optional<JavaFileObject> file =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.MaybePathSteps3");
+      assertThat(file).isPresent();
+      String code = file.get().getCharContent(true).toString();
+
+      // Spread yield with tuple accessors
+      assertThat(code).contains("t._1()");
+      assertThat(code).contains("t._2()");
+      assertThat(code).contains("t._3()");
+      // Tuple yield
+      assertThat(code).contains("yield(Function<Tuple3<");
+    }
+
+    @Test
+    @DisplayName("TryPathSteps should have yield methods")
+    void tryPathStepsShouldHaveYieldMethods() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.expression.package-info",
+              """
+              @GenerateForComprehensions(minArity = 3, maxArity = 3)
+              package org.higherkindedj.hkt.expression;
+
+              import org.higherkindedj.optics.annotations.GenerateForComprehensions;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ForComprehensionProcessor()).compile(source);
+
+      Optional<JavaFileObject> file =
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.TryPathSteps3");
+      assertThat(file).isPresent();
+      String code = file.get().getCharContent(true).toString();
+
+      assertThat(code).contains("yield(Function<Tuple3<");
+      assertThat(code).contains("f.apply(t._1(), t._2(), t._3())");
+    }
+  }
+
+  // =============================================================================
+  // FocusProcessor Generated Output Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("FocusProcessor Path Description Tests")
+  class FocusProcessorPathTests {
+
+    @Test
+    @DisplayName("Focus with Optional field should generate AffinePath")
+    void focusWithOptionalFieldGeneratesAffinePath() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Inner",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Inner(String value) {}
+              """);
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.test.Outer",
+              """
+              package com.test;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Outer(Optional<String> opt, String name) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(source, outer);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.OuterFocus")).isPresent();
+    }
+
+    @Test
+    @DisplayName("Focus with Collection field should generate TraversalPath")
+    void focusWithCollectionFieldGeneratesTraversalPath() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Container",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Container(List<String> items, String label) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(source);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.ContainerFocus")).isPresent();
+    }
+  }
+
+  // =============================================================================
+  // TypeKindAnalyser analyseType Edge Cases
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TypeKindAnalyser Edge Cases")
+  class TypeKindAnalyserEdgeCases {
+
+    @Test
+    @DisplayName("interface should be detected as UNSUPPORTED")
+    void interfaceIsUnsupported() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.MyInterface",
+              """
+              package com.test;
+              public interface MyInterface {
+                  String name();
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.MyInterface", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+
+    @Test
+    @DisplayName("enum should be detected as UNSUPPORTED")
+    void enumIsUnsupported() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.MyEnum",
+              """
+              package com.test;
+              public enum MyEnum {
+                  A, B, C;
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.MyEnum", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+
+    @Test
+    @DisplayName("class without any methods should be UNSUPPORTED")
+    void classWithNoMethodsIsUnsupported() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Empty",
+              """
+              package com.test;
+              public class Empty {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Empty", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.UNSUPPORTED);
+    }
+
+    @Test
+    @DisplayName("record with multiple container types detected correctly")
+    void recordWithMultipleContainerTypes() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.MultiContainer",
+              """
+              package com.test;
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+              public record MultiContainer(
+                  List<String> items,
+                  Map<String, Integer> data,
+                  Optional<String> opt,
+                  String plain) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.MultiContainer", source);
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.RECORD);
+      assertThat(analysis.fields()).hasSize(4);
+
+      // Verify each field has correct container type
+      assertThat(analysis.fields().get(0).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.LIST);
+      assertThat(analysis.fields().get(1).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.MAP);
+      assertThat(analysis.fields().get(2).containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.OPTIONAL);
+      assertThat(analysis.fields().get(3).hasTraversal()).isFalse();
+    }
+  }
+
+  // =============================================================================
+  // Processor Return Value Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Processor Annotation Claiming Tests")
+  class ProcessorAnnotationClaimingTests {
+
+    @Test
+    @DisplayName("LensProcessor should successfully generate lenses for valid record")
+    void lensProcessorGeneratesLenses() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Point",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateLenses;
+              @GenerateLenses
+              public record Point(int x, int y) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new LensProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.PointLenses")).isPresent();
+    }
+
+    @Test
+    @DisplayName("LensProcessor on non-record should produce error")
+    void lensProcessorOnNonRecordShouldFail() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.NotRecord",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateLenses;
+              @GenerateLenses
+              public class NotRecord {
+                  private String name;
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new LensProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("records");
+    }
+
+    @Test
+    @DisplayName("TraversalProcessor should generate traversals for valid record")
+    void traversalProcessorGeneratesTraversals() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Items",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateTraversals
+              public record Items(List<String> values) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.ItemsTraversals")).isPresent();
+    }
+
+    @Test
+    @DisplayName("TraversalProcessor on non-record should produce error")
+    void traversalProcessorOnNonRecordShouldFail() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.NotRecord",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateTraversals
+              public class NotRecord {
+                  private String name;
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("records");
+    }
+
+    @Test
+    @DisplayName("FoldProcessor should generate folds for record with iterable field")
+    void foldProcessorGeneratesFolds() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Numbers",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFolds;
+              @GenerateFolds
+              public record Numbers(List<Integer> values, String label) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FoldProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.NumbersFolds")).isPresent();
+    }
+
+    @Test
+    @DisplayName("FoldProcessor on non-record should produce error")
+    void foldProcessorOnNonRecordShouldFail() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.NotRecord",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateFolds;
+              @GenerateFolds
+              public class NotRecord {
+                  private String name;
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FoldProcessor()).compile(source);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("records");
+    }
+
+    @Test
+    @DisplayName("PrismProcessor should generate prisms for sealed interface")
+    void prismProcessorGeneratesPrisms() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Shape",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GeneratePrisms;
+              @GeneratePrisms
+              public sealed interface Shape permits Shape.Circle, Shape.Rect {
+                  record Circle(double radius) implements Shape {}
+                  record Rect(double w, double h) implements Shape {}
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new PrismProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.ShapePrisms")).isPresent();
+    }
+
+    @Test
+    @DisplayName("IsoProcessor should generate iso from annotated method")
+    void isoProcessorGeneratesIso() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Converters",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateIsos;
+              import org.higherkindedj.optics.Iso;
+              import org.higherkindedj.hkt.tuple.Tuple;
+              import org.higherkindedj.hkt.tuple.Tuple2;
+
+              public class Converters {
+                  public record Point(int x, int y) {}
+
+                  @GenerateIsos
+                  public static Iso<Point, Tuple2<Integer, Integer>> pointToTuple() {
+                      return Iso.of(
+                          point -> Tuple.of(point.x(), point.y()),
+                          tuple -> new Point(tuple._1(), tuple._2())
+                      );
+                  }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new IsoProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+    }
+  }
+
+  // =============================================================================
+  // NavigatorClassGenerator - Path Kind Widening Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("NavigatorClassGenerator Path Widening Tests")
+  class NavigatorPathWideningTests {
+
+    @Test
+    @DisplayName("Navigator with nested record should generate navigator inner classes")
+    void navigatorWithNestedRecordGeneratesInnerClasses() {
+      var inner =
+          JavaFileObjects.forSourceString(
+              "com.test.Address",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Address(String street, String city) {}
+              """);
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.test.Person",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Person(String name, Address address) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.test.PersonFocus")).isPresent();
+    }
+  }
+
+  // =============================================================================
+  // TraversalProcessor Raw Type and Edge Case Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TraversalProcessor Edge Cases")
+  class TraversalProcessorEdgeCases {
+
+    @Test
+    @DisplayName("Record with raw List type should not generate traversal")
+    void rawListDoesNotGenerateTraversal() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.RawList",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @SuppressWarnings("rawtypes")
+              @GenerateTraversals
+              public record RawList(List items) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      Optional<JavaFileObject> file =
+          compilation.generatedSourceFile("com.test.RawListTraversals");
+      assertThat(file).isPresent();
+      // Raw type should not have a traversal method generated
+      String code = file.get().getCharContent(true).toString();
+      assertThat(code).doesNotContain("eachItems");
+    }
+
+    @Test
+    @DisplayName("Record with parameterized List should generate traversal")
+    void parameterizedListGeneratesTraversal() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.ParamList",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateTraversals
+              public record ParamList(List<String> items) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      Optional<JavaFileObject> file =
+          compilation.generatedSourceFile("com.test.ParamListTraversals");
+      assertThat(file).isPresent();
+      String code = file.get().getCharContent(true).toString();
+      assertThat(code).contains("eachItems");
+    }
+
+    @Test
+    @DisplayName("Traversal with custom target package should respect package")
+    void traversalWithCustomTargetPackage() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Data",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateTraversals(targetPackage = "com.generated")
+              public record Data(List<String> items) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.generated.DataTraversals")).isPresent();
     }
   }
 }
