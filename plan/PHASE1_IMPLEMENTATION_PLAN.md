@@ -559,3 +559,133 @@ No changes to the processor or generator logic.
 The ratio is roughly **4:1 generated-to-hand-written**. All generated output is covered
 by golden file tests, and the generator logic lives in the same module as the existing
 Lens, Prism, and Traversal processors.
+
+---
+
+## Phase 1b: Consolidation (Post-Completion Opportunity)
+
+Once the generator is proven at arities 6-8, the same templates can replace the
+hand-written arities 2-5, reducing long-term maintenance to near zero. This is a
+separate follow-on task, not part of the initial Phase 1 delivery.
+
+### Approach
+
+The `ForComprehensionProcessor` accepts a `minArity` parameter (defaulting to 6 in
+Phase 1). Lowering it to 2 causes the processor to generate Tuple2-8, MonadicSteps2-8,
+FilterableSteps2-8, and all ForPath step classes from arity 2 upward.
+
+```java
+@GenerateForComprehensions(minArity = 2, maxArity = 8)
+package org.higherkindedj.hkt.expression;
+```
+
+### What Can Be Replaced
+
+| Artefact | Current | After Consolidation |
+|----------|---------|---------------------|
+| `Tuple2..5` records | Hand-written (4 files) | Generated |
+| `MonadicSteps2..5` | Hand-written inner classes in `For.java` | Generated top-level classes |
+| `FilterableSteps2..5` | Hand-written inner classes in `For.java` | Generated top-level classes |
+| All 31 ForPath inner classes | Hand-written in `ForPath.java` | Generated top-level classes |
+| `Function3..5` | Hand-written in hkj-api | Remain hand-written (JPMS) |
+
+### What Stays Hand-Written
+
+| Artefact | Reason |
+|----------|--------|
+| `MonadicSteps1` / `FilterableSteps1` | Structurally unique entry points: hold `Kind<M, A>` not a Tuple; accept `Kind` directly, not a `Function<TupleN, Kind>` |
+| `For.java` factory methods | `from()`, `withMonad()`, etc. are the public API entry points |
+| `ForPath.java` factory methods | `from(Path.just(...))` entry points and path-type dispatch |
+| `ForState`, `ForTraversal`, `ForIndexed` | Not arity-limited; no step class hierarchy |
+| `Function3..5` in hkj-api | JPMS prevents cross-module generation |
+| `Tuple` sealed interface | Factory `of()` overloads and permits clause |
+
+### Prerequisites
+
+1. Phase 1 is complete and all tests pass at arities 6-8
+2. Generated output matches hand-written output character-for-character (verified by diff)
+3. Golden file tests cover representative arities (at least arity 3 and arity 5)
+4. The `minArity` annotation element is added to `@GenerateForComprehensions`
+
+### Migration Steps
+
+1. Add `int minArity() default 6;` to `@GenerateForComprehensions`
+2. Update the processor to accept `minArity` and generate from that value
+3. Generate Tuple2-5 and diff against hand-written versions; fix any template deviations
+4. Generate MonadicSteps2-5 and FilterableSteps2-5; diff against hand-written inner classes
+5. Remove hand-written inner classes from `For.java` (keep Steps1 and factory methods)
+6. Remove hand-written inner classes from `ForPath.java` (keep factory methods)
+7. Remove hand-written `Tuple2..5` records (keep `Tuple` sealed interface)
+8. Update sealed permits to reference only generated types
+9. Update golden files for the newly generated arities
+10. Verify all existing tests pass without modification
+
+### Estimated Reduction
+
+- ~1800 hand-written lines removed from `For.java` (8 inner classes become generated)
+- ~2400 hand-written lines removed from `ForPath.java` (31 inner classes become generated)
+- ~400 hand-written lines removed from `Tuple2..5` (4 records become generated)
+- Total: ~4600 lines of hand-written boilerplate eliminated
+- Remaining hand-written: Steps1 classes (~300 lines), factory methods (~200 lines),
+  Function3-5 (~90 lines), Tuple sealed interface (~100 lines)
+
+---
+
+## Documentation, Examples, and Tutorials Update Checklist
+
+After Phase 1 completion, the following documentation and example artefacts need
+updating to reflect the extended arity support.
+
+### hkj-book (User-Facing Documentation)
+
+| File | Section | Update Required |
+|------|---------|-----------------|
+| `hkj-book/src/functional/for_comprehension.md` | Overview | Note that comprehensions support up to 8 bindings (previously 5) |
+| `hkj-book/src/functional/for_comprehension.md` | Examples | Add a 6+ binding example demonstrating the extended range |
+| `hkj-book/src/effect/forpath_comprehension.md` | Overview | Note extended arity support across all 9 path types |
+| `hkj-book/src/effect/forpath_comprehension.md` | Path type table | Update max arity column for each path type |
+| `hkj-book/src/effect/forpath_comprehension.md` | VTaskPath example | Consider extending the 4-binding example to 6+ |
+| `hkj-book/src/functional/functional_api.md` | MonadZero reference | Mention FilterableSteps support up to arity 8 |
+| `hkj-book/src/release-history.md` | New release entry | Document arity extension, new Tuple types, generated code infrastructure |
+| `hkj-book/src/glossary.md` | Tuple entry | Add references to Tuple6-8 if a Tuple glossary entry exists |
+| `hkj-book/src/SUMMARY.md` | No change | Chapter structure unchanged (for-comprehension and ForPath pages already listed) |
+
+### hkj-book Tutorials
+
+| File | Update Required |
+|------|-----------------|
+| `hkj-book/src/tutorials/effect/effect_journey.md` | ForPath exercise could mention extended arities |
+| `hkj-book/src/tutorials/coretypes/error_handling_journey.md` | Links to for-comprehension docs (no content change needed) |
+| `hkj-book/src/tutorials/concurrency/vtask_journey.md` | Note VTaskPath now supports up to 8 bindings |
+
+### hkj-examples Module
+
+| File | Update Required |
+|------|-----------------|
+| `hkj-examples/.../expression/ForComprehensionExample.java` | Add example demonstrating 6+ binding comprehension |
+| `hkj-examples/.../effect/ForPathExample.java` | Add example demonstrating extended ForPath arities |
+| `hkj-examples/.../effect/ForPathExample.java` | Show at least one path type (e.g. EitherPath) at arity 6+ |
+
+### Source Code Javadoc
+
+| File | Update Required |
+|------|-----------------|
+| `hkj-api/.../function/package-info.java` | Add references to Function6, Function7, Function8 |
+| `hkj-core/.../expression/For.java` | Update class-level Javadoc to mention arity 8 support |
+| `hkj-core/.../expression/ForPath.java` | Update class-level Javadoc to mention extended arities |
+| `hkj-core/.../tuple/Tuple.java` | Update sealed interface Javadoc to reference Tuple6-8 |
+
+### Migration and Release Documentation
+
+| File | Update Required |
+|------|-----------------|
+| New `MIGRATION-0.x.0.md` | Document new types (Tuple6-8, Function6-8), generated step classes, sealed permits changes |
+| `README.md` (root) | Mention extended for-comprehension arity if the README references comprehension features |
+
+### What Does NOT Need Updating
+
+- `ForState.java` / `ForTraversal.java` / `ForIndexed.java` documentation: these are not arity-limited
+- Optics documentation (lenses, prisms, traversals): unaffected by arity extension
+- Spring Boot integration guides: no for-comprehension content
+- HKT core concepts documentation: arity extension does not change the encoding
+- `STYLE-GUIDE.md` / `TESTING-GUIDE.md` / `PERFORMANCE-TESTING-GUIDE.md`: these are process guides, not feature docs
