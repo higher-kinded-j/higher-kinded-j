@@ -3,9 +3,12 @@
 ## Overview
 
 Phase 1 removes the hard cap of 5 bindings in for-comprehensions. Rather than hand-writing
-~6000 lines of mechanically repetitive boilerplate, we build a **source generator** that
-produces the Tuple, Function, For step, and ForPath step classes from templates. The generator
-itself becomes the maintained artefact; the output is regenerable on demand.
+~6000 lines of mechanically repetitive boilerplate, we extend the existing `hkj-processor`
+annotation processor to generate Tuple, For step, and ForPath step classes from templates.
+The generator logic lives alongside the existing Lens, Prism, and Traversal processors;
+it is triggered by a new `@GenerateForComprehensions` annotation on a `package-info.java`
+in `hkj-core`. The only hand-written artefacts are `Function6-8` in `hkj-api` (~90 lines
+total), sealed permits updates, and bridge methods on existing Step5 classes.
 
 Today the hand-written code limits comprehensions to 5 chained operations across 10 inner
 classes in `For.java`, 31 in `ForPath.java`, 4 tuple records, and 3 function interfaces.
@@ -14,98 +17,69 @@ maintenance burden to near zero for the generated artefacts.
 
 ## Goals
 
-1. Build a JavaPoet-based source generator as a new Gradle module (`hkj-generator`)
-2. Generate `Tuple6..8`, `Function6..8`, `MonadicSteps6..8`, `FilterableSteps6..8`, and
-   all 9 ForPath step families up to arity 8 from a single configurable run
-3. Wire generation into the Gradle build so generated sources compile alongside hand-written code
-4. Add golden file tests for all generated output
-5. Add comprehensive runtime tests following TESTING-GUIDE.md patterns
+1. Add a `ForComprehensionProcessor` to the existing `hkj-processor` module
+2. Generate `Tuple6..8`, `MonadicSteps6..8`, `FilterableSteps6..8`, and
+   all 9 ForPath step families up to arity 8 via annotation processing during `hkj-core` compilation
+3. Hand-write `Function6-8` in `hkj-api` (trivially small; JPMS prevents cross-module generation)
+4. Add golden file tests in `hkj-processor` following the existing GoldenFileTest pattern
+5. Add comprehensive runtime tests in `hkj-core` following TESTING-GUIDE.md patterns
 6. Maintain full backward compatibility; arities 1-5 remain hand-written as the reference implementation
 
 ## Non-Goals
 
-- Replacing the hand-written arities 1-5 (they remain the source of truth and reference pattern)
+- Creating a new module (hkj-generator or similar)
+- Replacing the hand-written arities 1-5 (they remain the source of truth and reference)
 - Changing the tuple-based accumulation strategy (Phase 2 addresses named bindings)
 - Adding new comprehension features (parallel, traverse, MTL; those are later phases)
 - Generating ForState, ForTraversal, or ForIndexed extensions (they are not arity-limited)
 
 ---
 
-## Architecture Decision: Why a Separate Generator Module
+## Architecture Decision: Use hkj-processor
 
 ### Options Considered
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| **A. Annotation processor** | Existing infrastructure; auto-discovered | Requires annotated source as trigger; wrong fit for "generate from nothing" |
-| **B. Gradle JavaExec task** | Simple to wire | Generator code mixed into buildSrc or root; no standalone testability |
-| **C. Dedicated generator module** | Testable in isolation; reusable; clean separation | New module in settings.gradle.kts |
+| **A. Extend hkj-processor** | Existing infrastructure, JavaPoet, AutoService, golden file tests, SPI, already wired into hkj-core | Cannot generate into hkj-api (JPMS split package) |
+| **B. Dedicated generator module** | Clean separation | Duplicates tooling; new module overhead |
+| **C. Gradle JavaExec task** | Simple to wire | Generator code has no natural home; not testable like a processor |
 
-**Decision: Option C** (`hkj-generator` module).
+**Decision: Option A** (extend `hkj-processor`).
 
 Rationale:
-- The generator produces source files for two target modules (`hkj-api` for Functions, `hkj-core`
-  for Tuples/Steps). An annotation processor cannot produce code in a *different* module from
-  the one it processes.
-- A dedicated module uses the same JavaPoet (Palantir 0.7.0) already used by `hkj-processor`.
-- It can be tested independently with golden file comparisons, exactly matching the existing
-  `hkj-processor` test pattern.
-- The generation is invoked via a Gradle task that runs before `compileJava` in the target modules.
-- The configurable maximum arity lives in one place; raising it from 8 to 12 or 16 is a
-  single property change.
+- `hkj-processor` already uses JavaPoet (Palantir 0.7.0), `@AutoService`, golden file tests,
+  property-based tests, and the full annotation processor lifecycle.
+- `hkj-core/build.gradle.kts` already declares `annotationProcessor(project(":hkj-processor"))`.
+- The `ImportOpticsProcessor` already handles `PACKAGE`-level annotations via `package-info.java`,
+  proving this trigger mechanism works.
+- The only artefact that cannot be generated into `hkj-core` is `Function6-8`, which lives
+  in `hkj-api` due to JPMS constraints (`org.higherkindedj.hkt.function` is exported by
+  `hkj-api`). These are 3 trivial `@FunctionalInterface` files (~30 lines each) that are
+  cheaper to hand-write than to build cross-module generation infrastructure for.
 
-### Build Integration
+### Trigger Mechanism
 
-```
-hkj-generator/
-  src/main/java/.../generator/
-    TupleGenerator.java          -- generates TupleN records
-    FunctionGenerator.java       -- generates FunctionN interfaces
-    ForStepGenerator.java        -- generates MonadicStepsN, FilterableStepsN
-    ForPathStepGenerator.java    -- generates per-path-type step classes
-    GeneratorMain.java           -- CLI entry point
-    GeneratorConfig.java         -- arity range, output dirs, package names
-  src/test/java/.../generator/
-    TupleGeneratorTest.java      -- golden file comparison
-    FunctionGeneratorTest.java
-    ForStepGeneratorTest.java
-    ForPathStepGeneratorTest.java
-  src/test/resources/golden/
-    Tuple6.java.golden
-    Tuple7.java.golden
-    Tuple8.java.golden
-    Function6.java.golden
-    ...
-  build.gradle.kts               -- depends on javapoet, junit, assertj
-```
+A new annotation `@GenerateForComprehensions` in `hkj-annotations`, placed on a
+`package-info.java` in `hkj-core`:
 
-**Gradle wiring** (root `build.gradle.kts` or per-module):
-
-```kotlin
-// In hkj-core/build.gradle.kts
-val generateForComprehensionSources by tasks.registering(JavaExec::class) {
-    group = "build"
-    description = "Generate Tuple, Function, For step, and ForPath step classes"
-    mainClass.set("org.higherkindedj.generator.GeneratorMain")
-    classpath = project(":hkj-generator").sourceSets.main.get().runtimeClasspath
-    args(
-        "--min-arity", "6",
-        "--max-arity", "8",
-        "--tuple-output", layout.buildDirectory.dir("generated/sources/forComprehension/main/java").get().asFile.path,
-        "--function-output", project(":hkj-api").layout.buildDirectory.dir("generated/sources/forComprehension/main/java").get().asFile.path,
-        "--for-output", layout.buildDirectory.dir("generated/sources/forComprehension/main/java").get().asFile.path,
-        "--forpath-output", layout.buildDirectory.dir("generated/sources/forComprehension/main/java").get().asFile.path
-    )
+```java
+// hkj-annotations: new annotation
+@Target(ElementType.PACKAGE)
+@Retention(RetentionPolicy.CLASS)
+public @interface GenerateForComprehensions {
+    int maxArity() default 8;
 }
 
-sourceSets.main.get().java.srcDir(
-    layout.buildDirectory.dir("generated/sources/forComprehension/main/java")
-)
+// hkj-core: trigger
+@GenerateForComprehensions(maxArity = 8)
+package org.higherkindedj.hkt.expression;
 
-tasks.named("compileJava") {
-    dependsOn(generateForComprehensionSources)
-}
+import org.higherkindedj.optics.annotations.GenerateForComprehensions;
 ```
+
+The processor reads `maxArity` from the annotation and generates all artefacts into
+`hkj-core`'s generated sources directory (managed automatically by `processingEnv.getFiler()`).
 
 ---
 
@@ -132,6 +106,7 @@ All are `@GenerateLenses`-annotated records implementing the sealed `Tuple` inte
 | `Function5<T1,T2,T3,T4,T5,R>` | 5 | `@Nullable R` |
 
 Java's `Function<T,R>` and `BiFunction<T,U,R>` cover arities 1-2.
+Used by `Applicative.java`, `Monad.java`, and `Lens.java` in hkj-api.
 
 ### For.java (10 hand-written inner classes)
 
@@ -159,292 +134,243 @@ Java's `Function<T,R>` and `BiFunction<T,U,R>` cover arities 1-2.
 
 ## Implementation Tasks
 
-### Task 1: Create the `hkj-generator` Module
+### Task 1: Add `@GenerateForComprehensions` Annotation
 
-**New module**: `hkj-generator`
+**Module**: `hkj-annotations`
+**Package**: `org.higherkindedj.optics.annotations`
 
-**Dependencies**: Palantir JavaPoet 0.7.0, JUnit 6, AssertJ, Google Java Format (for output formatting)
-
-**Configuration class** (`GeneratorConfig`):
 ```java
-public record GeneratorConfig(
-    int minArity,       // 6 (start after hand-written)
-    int maxArity,       // 8 (configurable)
-    Path tupleOutputDir,
-    Path functionOutputDir,
-    Path forOutputDir,
-    Path forPathOutputDir,
-    String tuplePackage,    // org.higherkindedj.hkt.tuple
-    String functionPackage, // org.higherkindedj.hkt.function
-    String forPackage,      // org.higherkindedj.hkt.expression
-    String forPathPackage   // org.higherkindedj.hkt.expression
-) {}
+@Target(ElementType.PACKAGE)
+@Retention(RetentionPolicy.CLASS)
+public @interface GenerateForComprehensions {
+    /** Maximum arity for generated comprehension support. Default 8. */
+    int maxArity() default 8;
+}
 ```
 
-**Entry point** (`GeneratorMain`): Parses CLI args, creates config, runs all generators.
+### Task 2: Hand-Write Function6, Function7, Function8
 
-**`settings.gradle.kts` change**: Add `include("hkj-generator")`.
+**Module**: `hkj-api`
+**Package**: `org.higherkindedj.hkt.function`
 
-### Task 2: TupleGenerator
+Three trivial files (~30 lines each) following the exact pattern of Function5:
 
-**Generates**: `Tuple6.java`, `Tuple7.java`, `Tuple8.java` (or up to maxArity)
+```java
+@FunctionalInterface
+public interface Function6<T1, T2, T3, T4, T5, T6, R> {
+    @Nullable R apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6);
+}
+```
+
+**Why hand-written**: JPMS prevents generating into `hkj-api` from `hkj-processor` (which
+runs during `hkj-core` compilation). The `org.higherkindedj.hkt.function` package is
+exported by `hkj-api`'s `module-info.java`. These 3 files are the only hand-written
+boilerplate in the entire plan outside of bridge methods.
+
+### Task 3: Create `ForComprehensionProcessor` in hkj-processor
+
+**Module**: `hkj-processor`
+**Package**: `org.higherkindedj.optics.processing`
+
+```java
+@AutoService(Processor.class)
+@SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateForComprehensions")
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class ForComprehensionProcessor extends AbstractProcessor {
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        for (Element element : roundEnv.getElementsAnnotatedWith(GenerateForComprehensions.class)) {
+            if (element.getKind() != ElementKind.PACKAGE) continue;
+
+            GenerateForComprehensions config =
+                element.getAnnotation(GenerateForComprehensions.class);
+            int maxArity = config.maxArity();
+
+            generateTuples(6, maxArity);
+            generateMonadicSteps(6, maxArity);
+            generateFilterableSteps(6, maxArity);
+            generatePathSteps(6, maxArity);
+        }
+        return true;
+    }
+}
+```
+
+**Register in `module-info.java`**:
+```java
+provides javax.annotation.processing.Processor with
+    // ... existing processors ...
+    org.higherkindedj.optics.processing.ForComprehensionProcessor;
+```
+
+**Internal generator classes** (within hkj-processor, not public):
+
+| Class | Responsibility |
+|-------|---------------|
+| `TupleGenerator` | Generates `Tuple6..N` records using JavaPoet |
+| `ForStepGenerator` | Generates `MonadicSteps6..N` and `FilterableSteps6..N` |
+| `ForPathStepGenerator` | Generates `*PathSteps` for all 9 path types |
+
+These are package-private helper classes used by `ForComprehensionProcessor`, not
+separate processors. They follow the same JavaPoet patterns as the existing
+`ExternalLensGenerator`, `PrismCodeGenerator`, etc.
+
+### Task 4: TupleGenerator
+
+**Generates**: `Tuple6.java` through `Tuple{maxArity}.java` into `org.higherkindedj.hkt.tuple`
 
 **Template rules** (derived from hand-written Tuple2-5):
 
-For each arity N, generate a record:
+For each arity N from 6 to maxArity, generates a record:
+- `@GenerateLenses` annotation (triggers lens generation in the same compilation round)
+- Implements `Tuple` sealed interface
+- Components: `@Nullable A _1` through `_N`
+- `map(f1..fN)` applying each function to the corresponding component
+- `mapFirst()` through `mapNth()` for per-component transformation
+- Type parameter names: A, B, C, D, E, F, G, H
+- Javadoc: British English, no emojis, no em dashes
 
-```java
-package org.higherkindedj.hkt.tuple;
+**Note on sealed permits**: The `Tuple` sealed interface in hand-written code must be
+updated to permit the generated types. The generator emits a warning message via
+`processingEnv.getMessager()` listing the required permits if they are missing.
 
-import java.util.Objects;
-import java.util.function.Function;
-import org.higherkindedj.annotations.GenerateLenses;
-import org.jspecify.annotations.Nullable;
+### Task 5: ForStepGenerator
 
-/**
- * An immutable tuple of N elements.
- *
- * @param <A> ... through <{LAST}> type parameters
- * @param _1 ... through _N component descriptions
- */
-@GenerateLenses
-public record TupleN<A, B, C, D, E, F, ...>(
-    @Nullable A _1,
-    @Nullable B _2,
-    ... through _N
-) implements Tuple {
+**Generates**: `MonadicSteps6..N` and `FilterableSteps6..N` as top-level classes
+in `org.higherkindedj.hkt.expression`
 
-    /** Applies a function to each component simultaneously. */
-    public <A2, B2, ...> TupleN<A2, B2, ...> map(
-        Function<? super A, ? extends A2> f1,
-        Function<? super B, ? extends B2> f2,
-        ... through fN
-    ) {
-        return new TupleN<>(f1.apply(_1), f2.apply(_2), ...);
-    }
-
-    /** Transforms the first component. */
-    public <A2> TupleN<A2, B, C, ...> mapFirst(Function<? super A, ? extends A2> f) {
-        return new TupleN<>(f.apply(_1), _2, _3, ...);
-    }
-
-    // mapSecond, mapThird, ... mapNth for each component
-}
-```
-
-**Type parameter naming convention**: A, B, C, D, E, F, G, H (matching existing Tuple2-5 pattern).
-
-**Also generates** additions to `Tuple.java`:
-- New `of()` factory overloads (generated as a patch file or separate helper class)
-- Note: The sealed `permits` clause must be updated in the hand-written `Tuple.java`;
-  the generator produces a comment indicating what must be added.
-
-### Task 3: FunctionGenerator
-
-**Generates**: `Function6.java`, `Function7.java`, `Function8.java`
-
-**Template rules** (derived from hand-written Function3-5):
-
-```java
-package org.higherkindedj.hkt.function;
-
-import org.jspecify.annotations.Nullable;
-
-/**
- * Represents a function that accepts N arguments and produces a result.
- *
- * @param <T1> ... through <TN> argument types
- * @param <R> the type of the result
- */
-@FunctionalInterface
-public interface FunctionN<T1, T2, ..., TN, R> {
-    /**
-     * Applies this function to the given arguments.
-     *
-     * @param t1 ... through tN argument descriptions
-     * @return the function result
-     */
-    @Nullable R apply(T1 t1, T2 t2, ..., TN tN);
-}
-```
-
-**Type parameter naming**: T1..TN, R (matching existing Function3-5).
-
-### Task 4: ForStepGenerator
-
-**Generates**: `MonadicSteps6..8` and `FilterableSteps6..8` as standalone Java files.
-
-These are generated as **top-level classes** in separate files rather than inner classes of
-`For.java`. The hand-written `For.java` is modified minimally:
-- Update `Steps<M>` sealed interface permits to include the generated classes
-- Add `from()`/`let()`/`focus()` to `MonadicSteps5` and `FilterableSteps5` returning Steps6
+Generated as top-level classes (not inner classes of `For.java`) to keep the hand-written
+file stable. They implement `For.Steps<M>` and follow the exact pattern of the hand-written
+steps.
 
 **Template rules for MonadicStepsN** (derived from MonadicSteps2-5):
+- `implements For.Steps<M>`
+- Package-private constructor: `MonadicStepsN(Monad<M> monad, Kind<M, TupleN<...>> computation)`
+- `from()` / `let()` / `focus()` returning `MonadicSteps(N+1)` (omitted at maxArity)
+- `yield(FunctionN<A, B, ..., R>)` returning `Kind<M, R>` (spread variant)
+- `yield(Function<TupleN<A, B, ...>, R>)` returning `Kind<M, R>` (tuple variant)
+- `Objects.requireNonNull()` on all parameters
 
-```java
-package org.higherkindedj.hkt.expression;
+**Template rules for FilterableStepsN** (adds to above):
+- `when(Predicate<TupleN<...>>)` returning same FilterableStepsN
+- `match(Function<TupleN<...>, Optional<X>>)` returning `FilterableSteps(N+1)` (omitted at maxArity)
 
-// imports...
-
-/**
- * Step N in a non-filterable for-comprehension, holding N accumulated results.
- *
- * @param <M> The witness type of the Monad.
- * @param <A> through <{N}> the accumulated value types.
- */
-public final class MonadicStepsN<M extends WitnessArity<TypeArity.Unary>, A, B, C, ...>
-    implements For.Steps<M> {
-
-    private final Monad<M> monad;
-    private final Kind<M, TupleN<A, B, C, ...>> computation;
-
-    MonadicStepsN(Monad<M> monad, Kind<M, TupleN<A, B, C, ...>> computation) {
-        this.monad = monad;
-        this.computation = computation;
-    }
-
-    // from() -> MonadicSteps(N+1)  [omitted at maxArity]
-    // let()  -> MonadicSteps(N+1)  [omitted at maxArity]
-    // focus() -> MonadicSteps(N+1) [omitted at maxArity]
-
-    // yield(FunctionN<A, B, ..., R>) -> Kind<M, R>
-    // yield(Function<TupleN<A, B, ...>, R>) -> Kind<M, R>
-}
-```
-
-**Template rules for FilterableStepsN** add:
-- `when(Predicate<TupleN<...>>)` -> same FilterableStepsN
-- `match(Function<TupleN<...>, Optional<X>>)` -> FilterableSteps(N+1) [omitted at maxArity]
-
-**Key implementation patterns** (from existing steps):
-- `from()`: `monad.flatMap(t -> monad.map(x -> Tuple.of(t._1(), ..., t._N(), x), next.apply(t)), computation)`
-- `let()`: `monad.map(t -> Tuple.of(t._1(), ..., t._N(), f.apply(t)), computation)`
-- `focus()`: `monad.map(t -> Tuple.of(t._1(), ..., t._N(), extractor.apply(t)), computation)`
+**Key implementation patterns**:
+- `from()`: `monad.flatMap(t -> monad.map(x -> Tuple.of(t._1(), ..., x), next.apply(t)), computation)`
+- `let()`: `monad.map(t -> Tuple.of(t._1(), ..., f.apply(t)), computation)`
 - `when()`: `monad.flatMap(t -> pred.test(t) ? monad.of(t) : ((MonadZero<M>) monad).zero(), computation)`
-- `yield(spread)`: `monad.map(t -> f.apply(t._1(), t._2(), ..., t._N()), computation)`
-- `yield(tuple)`: `monad.map(f, computation)`
+- `yield(spread)`: `monad.map(t -> f.apply(t._1(), ..., t._N()), computation)`
 
-### Task 5: ForPathStepGenerator
+### Task 6: ForPathStepGenerator
 
 **Generates**: Per-path-type step classes for arities beyond what is hand-written.
 
-This is the largest generator. For each path type descriptor:
+Uses a built-in descriptor table:
 
+| Path Type | Witness | Extra Type Params | Filterable | Current Max | Monad Instance |
+|-----------|---------|-------------------|------------|-------------|----------------|
+| MaybePath | `MaybeKind.Witness` | none | Yes | 5 | `MaybeMonad.INSTANCE` |
+| OptionalPath | `OptionalKind.Witness` | none | Yes | 3 | `OptionalMonad.INSTANCE` |
+| EitherPath | `EitherKind.Witness<E>` | `E` | No | 3 | `EitherMonad.instance()` |
+| TryPath | `TryKind.Witness` | none | No | 3 | `TryMonad.INSTANCE` |
+| IOPath | `IOKind.Witness` | none | No | 3 | `IOMonad.INSTANCE` |
+| VTaskPath | `VTaskKind.Witness` | none | No | 5 | `VTaskMonad.INSTANCE` |
+| IdPath | `IdKind.Witness` | none | No | 3 | `IdMonad.INSTANCE` |
+| NonDetPath | `ListKind.Witness` | none | Yes | 3 | `ListMonad.INSTANCE` |
+| GenericPath | `F` | `F` | No | 3 | (passed in) |
+
+For each path type, for each arity from `currentMaxArity + 1` to `maxArity`, generates
+a step class as a top-level file (e.g. `EitherPathSteps4.java`).
+
+Each class:
+- Wraps `Kind<WitnessType, TupleN<...>>` internally
+- Exposes `from()`, `let()`, `focus()`, `yield()` returning the concrete Path type
+- Filterable variants also expose `when()`
+- `yield()` narrows from `Kind` to the concrete Path type using the appropriate KindHelper
+
+### Task 7: Minimal Hand-Written Changes (Sealed Permits + Bridge Methods)
+
+These are the only hand-written changes to existing source files:
+
+**`Tuple.java`**: Update sealed `permits` and add `of()` factory overloads:
 ```java
-record PathTypeDescriptor(
-    String pathTypeName,         // e.g. "EitherPath"
-    String witnessType,          // e.g. "EitherKind.Witness<E>"
-    String kindHelperField,      // e.g. "EITHER"
-    String kindHelperClass,      // e.g. "EitherKindHelper"
-    boolean filterable,          // whether it supports when()
-    List<String> extraTypeParams, // e.g. ["E"] for EitherPath<E, A>
-    int currentMaxArity,         // e.g. 3 for EitherPath
-    String narrowMethod,         // e.g. "narrow" or custom
-    String widenMethod           // e.g. "widen" or custom
-) {}
+public sealed interface Tuple
+    permits Tuple2, Tuple3, Tuple4, Tuple5,
+            Tuple6, Tuple7, Tuple8 {  // <-- add generated types
+
+    static <A, B, C, D, E, F> Tuple6<A, B, C, D, E, F> of(...) { ... }
+    static <A, B, C, D, E, F, G> Tuple7<A, B, C, D, E, F, G> of(...) { ... }
+    static <A, B, C, D, E, F, G, H> Tuple8<A, B, C, D, E, F, G, H> of(...) { ... }
+}
 ```
 
-The generator has a built-in table of all 9 path types:
+**`For.java`**: Update `Steps<M>` sealed permits and add bridge methods on Steps5:
+```java
+public sealed interface Steps<M>
+    permits MonadicSteps1, ..., MonadicSteps5,
+            MonadicSteps6, MonadicSteps7, MonadicSteps8,
+            FilterableSteps1, ..., FilterableSteps5,
+            FilterableSteps6, FilterableSteps7, FilterableSteps8 {}
 
-| Path Type | Witness | Extra Type Params | Filterable | Current Max |
-|-----------|---------|-------------------|------------|-------------|
-| MaybePath | `MaybeKind.Witness` | none | Yes | 5 |
-| OptionalPath | `OptionalKind.Witness` | none | Yes | 3 |
-| EitherPath | `EitherKind.Witness<E>` | `E` | No | 3 |
-| TryPath | `TryKind.Witness` | none | No | 3 |
-| IOPath | `IOKind.Witness` | none | No | 3 |
-| VTaskPath | `VTaskKind.Witness` | none | No | 5 |
-| IdPath | `IdKind.Witness` | none | No | 3 |
-| NonDetPath | `ListKind.Witness` | none | Yes | 3 |
-| GenericPath | `F` | `F` | No | 3 |
+// MonadicSteps5: add from(), let(), focus() returning MonadicSteps6
+// FilterableSteps5: add from(), let(), focus(), match() returning FilterableSteps6
+```
 
-For each path type, for each arity from `currentMaxArity + 1` to `maxArity`, generate a
-step class following the exact pattern of the existing hand-written classes.
+**`ForPath.java`**: Add bridge methods on the highest existing step class for each path type.
+For example, `EitherPathSteps3.from()` returns the generated `EitherPathSteps4`.
 
-**Generated as**: Separate top-level files (e.g. `EitherPathSteps4.java` through
-`EitherPathSteps8.java`) to avoid bloating ForPath.java.
+**`hkj-core/module-info.java`**: Already exports `org.higherkindedj.hkt.expression` and
+`org.higherkindedj.hkt.tuple`, so no changes needed (generated classes go into existing
+exported packages).
 
-The hand-written `ForPath.java` is modified minimally to import and delegate to the
-generated classes where the existing step classes would have returned them.
+**`hkj-processor/module-info.java`**: Add `ForComprehensionProcessor` to `provides` clause.
 
-### Task 6: Golden File Tests for All Generated Output
+**`package-info.java`**: Create trigger file in `hkj-core`:
+```java
+@GenerateForComprehensions(maxArity = 8)
+package org.higherkindedj.hkt.expression;
+```
 
-**Module**: `hkj-generator` (test source set)
+### Task 8: Golden File Tests
 
-For each generated file, create a corresponding `.golden` file containing the expected output.
-Tests run the generator and compare output character-by-character (after normalisation).
+**Module**: `hkj-processor` (test source set)
 
-**Test pattern** (following `hkj-processor/GoldenFileTest.java`):
+Following the existing `GoldenFileTest.java` pattern with `RuntimeCompilationHelper`:
 
 ```java
 @ParameterizedTest(name = "Generated {0} matches golden file")
 @MethodSource("goldenTestCases")
-@DisplayName("Generated code matches golden file")
-void generatedCodeMatchesGolden(String fileName, String goldenPath) {
-    String generated = runGenerator(fileName);
-    String golden = readGolden(goldenPath);
+@DisplayName("Generated for-comprehension code matches golden file")
+void generatedCodeMatchesGolden(String className, String goldenPath) {
+    Compilation compilation = compile(PACKAGE_INFO_WITH_ANNOTATION);
+    assertThat(compilation.status()).isEqualTo(Compilation.Status.SUCCESS);
+    String generated = getGeneratedSource(compilation, className);
+    String golden = readGoldenFile(goldenPath);
     assertThat(normalise(generated)).isEqualTo(normalise(golden));
 }
 ```
 
-**Golden files to create**:
+**Golden files** (`hkj-processor/src/test/resources/golden/`):
 
 | Golden File | Generator |
 |-------------|-----------|
 | `Tuple6.java.golden` | TupleGenerator |
 | `Tuple7.java.golden` | TupleGenerator |
 | `Tuple8.java.golden` | TupleGenerator |
-| `Function6.java.golden` | FunctionGenerator |
-| `Function7.java.golden` | FunctionGenerator |
-| `Function8.java.golden` | FunctionGenerator |
 | `MonadicSteps6.java.golden` | ForStepGenerator |
 | `MonadicSteps7.java.golden` | ForStepGenerator |
 | `MonadicSteps8.java.golden` | ForStepGenerator |
 | `FilterableSteps6.java.golden` | ForStepGenerator |
 | `FilterableSteps7.java.golden` | ForStepGenerator |
 | `FilterableSteps8.java.golden` | ForStepGenerator |
-| `EitherPathSteps4.java.golden` | ForPathStepGenerator |
-| `MaybePathSteps6.java.golden` | ForPathStepGenerator |
-| `VTaskPathSteps6.java.golden` | ForPathStepGenerator |
-| ... (representative sample per path type) | |
+| `EitherPathSteps4.java.golden` | ForPathStepGenerator (representative) |
+| `MaybePathSteps6.java.golden` | ForPathStepGenerator (representative) |
+| `VTaskPathSteps6.java.golden` | ForPathStepGenerator (representative) |
 
-**Updating golden files**: `./gradlew :hkj-generator:test --tests "*updateGoldenFiles*" -DupdateGolden=true`
+**Updating**: `./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true`
 
-### Task 7: Minimal Hand-Written Changes (Sealed Permits + Bridge Methods)
-
-These are the only hand-written changes required in the existing source:
-
-**`Tuple.java`**: Update sealed `permits` clause and add `of()` factory overloads:
-```java
-public sealed interface Tuple
-    permits Tuple2, Tuple3, Tuple4, Tuple5,
-            Tuple6, Tuple7, Tuple8 {  // <-- add generated types
-
-    // Add of() overloads for arities 6, 7, 8
-    static <A, B, C, D, E, F> Tuple6<A, B, C, D, E, F> of(A a, B b, C c, D d, E e, F f) { ... }
-    static <A, B, C, D, E, F, G> Tuple7<A, B, C, D, E, F, G> of(A a, B b, C c, D d, E e, F f, G g) { ... }
-    static <A, B, C, D, E, F, G, H> Tuple8<A, B, C, D, E, F, G, H> of(A a, B b, C c, D d, E e, F f, G g, H h) { ... }
-}
-```
-
-**`For.java`**: Update `Steps<M>` sealed interface and add bridge methods on Steps5:
-```java
-// In Steps<M>: add permits for generated step classes
-public sealed interface Steps<M extends WitnessArity<TypeArity.Unary>>
-    permits MonadicSteps1, ..., MonadicSteps5,
-            MonadicSteps6, MonadicSteps7, MonadicSteps8,      // <-- generated
-            FilterableSteps1, ..., FilterableSteps5,
-            FilterableSteps6, FilterableSteps7, FilterableSteps8 {} // <-- generated
-
-// In MonadicSteps5: add from(), let(), focus() returning MonadicSteps6
-// In FilterableSteps5: add from(), let(), focus(), match() returning FilterableSteps6
-```
-
-**`ForPath.java`**: Add bridge methods on the highest existing step class for each path type
-so it returns the generated Steps class at the next arity. For example, `EitherPathSteps3.from()`
-would return the generated `EitherPathSteps4`.
-
-### Task 8: Runtime Tests for Generated Arities
+### Task 9: Runtime Tests for Generated Arities
 
 **Module**: `hkj-core` (test source set)
 
@@ -463,7 +389,7 @@ would return the generated `EitherPathSteps4`.
 
 **ForPathTest.java extensions**:
 - Tests for each path type at their newly available arities
-- Priority order: EitherPath, TryPath, IOPath, VTaskPath, MaybePath
+- Priority: EitherPath, TryPath, IOPath, VTaskPath, MaybePath
 - Both success and failure/empty paths tested
 
 **Testing patterns** (per TESTING-GUIDE.md):
@@ -474,36 +400,37 @@ would return the generated `EitherPathSteps4`.
 - Null validation tests for all public methods
 - Both tuple-variant and spread-variant yield tested
 - `@ParameterizedTest` with `@MethodSource` where arity can be parameterised
+- Property-based tests with jqwik for Tuple map identity law
 
 ---
 
 ## Implementation Order
 
 ```
-Task 1: hkj-generator module skeleton ──┐
-                                         │
-Task 2: TupleGenerator      ──────────┐ │
-Task 3: FunctionGenerator   ──────────┤ │
-                                      ├─┴──→ Task 4: ForStepGenerator
-                                      │            │
-                                      │            ├──→ Task 5: ForPathStepGenerator
-                                      │            │
-                                      │            └──→ Task 6: Golden file tests
-                                      │
-                                      └─────→ Task 7: Hand-written bridge changes
-                                                   │
-                                                   └──→ Task 8: Runtime tests
+Task 1: @GenerateForComprehensions annotation  ──┐
+Task 2: Function6-8 in hkj-api (hand-written)  ──┤
+                                                  │
+                                                  ├──→ Task 3: ForComprehensionProcessor skeleton
+                                                  │         │
+                                                  │    Task 4: TupleGenerator  ────────┐
+                                                  │    Task 5: ForStepGenerator  ──────┤
+                                                  │    Task 6: ForPathStepGenerator  ──┤
+                                                  │                                    │
+                                                  │                                    ├─→ Task 8: Golden file tests
+                                                  │                                    │
+                                                  └─→ Task 7: Sealed permits + bridges ┤
+                                                                                       │
+                                                                                       └─→ Task 9: Runtime tests
 ```
 
 **Recommended execution order**:
 
-1. **Task 1**: Module skeleton, build.gradle.kts, GeneratorConfig, GeneratorMain
-2. **Tasks 2 + 3 (parallel)**: TupleGenerator and FunctionGenerator
-3. **Task 4**: ForStepGenerator (requires Tuple and Function types to exist)
-4. **Task 5**: ForPathStepGenerator (requires ForStepGenerator patterns)
-5. **Task 6**: Golden file tests for all generators
-6. **Task 7**: Minimal hand-written bridge changes (sealed permits, factory overloads, bridge methods)
-7. **Task 8**: Runtime integration tests
+1. **Tasks 1 + 2 (parallel)**: Annotation + Function6-8 (no dependencies between them)
+2. **Task 3**: Processor skeleton with empty generate methods
+3. **Tasks 4, 5, 6 (sequential)**: Generator implementations (each builds on prior patterns)
+4. **Task 8**: Golden file tests (validate generator output)
+5. **Task 7**: Bridge methods + sealed permits in hand-written code
+6. **Task 9**: Runtime integration tests
 
 ---
 
@@ -511,26 +438,26 @@ Task 3: FunctionGenerator   ──────────┤ │
 
 | Artefact | Arities 1-5 | Arities 6-8 | Maintenance |
 |----------|-------------|-------------|-------------|
-| `Tuple` records | Hand-written | **Generated** | Generator template |
-| `Function` interfaces | Hand-written (3-5), stdlib (1-2) | **Generated** | Generator template |
-| `MonadicSteps` | Hand-written (inner classes in For.java) | **Generated** (top-level) | Generator template |
-| `FilterableSteps` | Hand-written (inner classes in For.java) | **Generated** (top-level) | Generator template |
-| `*PathSteps` | Hand-written (inner classes in ForPath.java) | **Generated** (top-level) | Generator template |
+| `Tuple` records | Hand-written | **Generated** by hkj-processor | Processor template |
+| `Function` interfaces | Hand-written (hkj-api) | Hand-written (hkj-api) | Manual (3 trivial files) |
+| `MonadicSteps` | Hand-written (For.java inner) | **Generated** (top-level) | Processor template |
+| `FilterableSteps` | Hand-written (For.java inner) | **Generated** (top-level) | Processor template |
+| `*PathSteps` | Hand-written (ForPath.java inner) | **Generated** (top-level) | Processor template |
 | `Tuple.of()` overloads | Hand-written | Hand-written (3 lines) | Manual |
 | Sealed `permits` clauses | Hand-written | Hand-written (list update) | Manual |
-| Bridge methods (Steps5 -> Steps6) | N/A (new) | Hand-written | Manual |
-| Golden files | N/A | **Generated** then committed | `./gradlew :hkj-generator:test -DupdateGolden=true` |
+| Bridge methods (Steps5 -> Steps6) | N/A | Hand-written | Manual |
+| Golden files | Existing in hkj-processor | New golden files | `./gradlew ... -DupdateGolden=true` |
 | Runtime tests | Hand-written | Hand-written | Manual |
 
-**Key insight**: Raising from arity 8 to arity 12 in the future requires:
-1. Change `maxArity` property from 8 to 12
-2. Run generator
-3. Update sealed permits (add 4 more types)
+**Raising arity from 8 to 12 in the future requires**:
+1. Change `@GenerateForComprehensions(maxArity = 12)` in package-info.java
+2. Add Function9-12 in hkj-api (4 trivial files)
+3. Update sealed permits in Tuple.java and For.java
 4. Update Steps8 bridge methods to point to Steps9
-5. Commit golden files
+5. Update golden files
 6. Add runtime tests for arities 9-12
 
-No new generator code is needed. This is the maintenance burden reduction.
+No changes to the processor or generator logic.
 
 ---
 
@@ -538,23 +465,26 @@ No new generator code is needed. This is the maintenance burden reduction.
 
 ### Generated Code Standards
 
-- [ ] Every generated file starts with `// Generated by hkj-generator. Do not edit.`
+- [ ] Every generated file includes `@Generated("hkj-processor")` annotation
 - [ ] Generated Javadoc follows STYLE-GUIDE.md: British English, no emojis, no em dashes
 - [ ] Generated code passes `./gradlew spotlessCheck` (Google Java Format)
 - [ ] JSpecify `@Nullable` annotations match hand-written equivalents
 - [ ] `Objects.requireNonNull()` with descriptive messages on all public method parameters
 - [ ] Package-private constructors for step classes
 
-### Generator Code Standards
+### Processor Code Standards
 
 - [ ] Java 25 with `--enable-preview`
-- [ ] Unit tested with golden file comparisons
-- [ ] Configurable arity range via `GeneratorConfig`
+- [ ] `@AutoService(Processor.class)` registration
+- [ ] Added to `module-info.java` `provides` clause
+- [ ] Tested with golden file comparisons (following GoldenFileTest pattern)
+- [ ] Tested with RuntimeCompilationHelper (following GeneratedOpticLawsTest pattern)
 - [ ] Deterministic output (no timestamps, no random ordering)
+- [ ] Error messages via `processingEnv.getMessager()` for misconfiguration
 
 ### Testing Standards (per TESTING-GUIDE.md)
 
-- [ ] Golden file tests in `hkj-generator` module
+- [ ] Golden file tests in `hkj-processor` module
 - [ ] Runtime tests in `hkj-core` test source set
 - [ ] `@DisplayName` on every test class and method
 - [ ] `@Nested` classes for logical grouping
@@ -568,13 +498,12 @@ No new generator code is needed. This is the maintenance burden reduction.
 
 - [ ] No JMH benchmarks required for this phase
 - [ ] Optional: benchmark in `hkj-benchmarks` comparing arity-5 vs arity-8 chain overhead
-- [ ] Generation itself should complete in under 5 seconds
+- [ ] Annotation processing should not noticeably increase compilation time
 
 ### Documentation Standards (per STYLE-GUIDE.md)
 
 - [ ] Generated Javadoc on all public types and methods
 - [ ] `@see` references to related types (e.g. Tuple6 references Tuple5 and Tuple7)
-- [ ] README in `hkj-generator/` explaining how to run and configure the generator
 - [ ] Update main README to mention extended arity support
 
 ---
@@ -583,18 +512,17 @@ No new generator code is needed. This is the maintenance burden reduction.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Generated code drifts from hand-written patterns | Medium | High | Golden file tests; review generated vs hand-written side by side |
-| Generated top-level steps break sealed permits | Low | High | Generator emits comments listing required permits changes |
-| JavaPoet output formatting differs from Spotless | Medium | Low | Run `spotlessApply` after generation; or format in generator |
-| Module dependency cycle (generator needs types that depend on generation) | Low | High | Generator depends on nothing from hkj-core; it generates source text only |
+| Generated code drifts from hand-written patterns | Medium | High | Golden file tests; review generated vs hand-written side-by-side |
+| Generated top-level steps break sealed permits | Low | High | Processor emits warning via Messager listing required permits |
+| Annotation processing round ordering with @GenerateLenses on generated Tuples | Medium | Medium | Test that lens generation works on processor-generated Tuples |
 | Type inference degrades at higher arities | Low | High | Test with explicit type annotations in runtime tests |
-| Build ordering: generated sources must exist before compilation | Medium | Medium | Gradle task dependency `compileJava.dependsOn(generateSources)` |
+| PIT mutation testing threshold affected by new processor code | Low | Low | Adjust threshold or exclude generator classes from mutation |
 
 ---
 
 ## Success Criteria
 
-1. `./gradlew :hkj-generator:test` passes all golden file comparisons
+1. `./gradlew :hkj-processor:test` passes all golden file comparisons
 2. `./gradlew :hkj-core:test` passes all existing tests (backward compatibility)
 3. `./gradlew :hkj-core:test` passes new runtime tests for arities 6-8
 4. A for-comprehension can chain 8 `from()` calls and yield with all 8 values
@@ -602,25 +530,32 @@ No new generator code is needed. This is the maintenance burden reduction.
 6. `when()` filtering works at arities 6-8 for filterable path types
 7. `focus()` and `match()` work at arities 6-7 (stepping into 7, 8)
 8. All code passes `./gradlew spotlessCheck`
-9. Raising maxArity from 8 to 12 requires zero changes to generator code
+9. Changing `maxArity` from 8 to 12 requires zero changes to processor code
 
 ---
 
 ## Estimated Scope
 
-| Component | Hand-Written Lines | Generated Lines | Notes |
-|-----------|-------------------|----------------|-------|
-| hkj-generator module | ~800 | 0 | Generator code + tests |
-| Golden files | 0 | ~4000 | Committed test fixtures |
-| Tuple6-8 | 0 | ~450 | Generated records |
-| Function6-8 | 0 | ~90 | Generated interfaces |
-| MonadicSteps6-8 | 0 | ~400 | Generated top-level classes |
-| FilterableSteps6-8 | 0 | ~500 | Generated top-level classes |
-| ForPath steps (41 classes) | 0 | ~3200 | Generated top-level classes |
-| Sealed permits + bridges | ~50 | 0 | Minimal hand-written changes |
-| Runtime tests | ~1200 | 0 | Hand-written tests |
-| **Total hand-written** | **~2050** | | |
-| **Total generated** | | **~8640** | |
+| Component | Lines | Type | Notes |
+|-----------|-------|------|-------|
+| `@GenerateForComprehensions` annotation | ~15 | Hand-written | hkj-annotations |
+| `Function6-8` | ~90 | Hand-written | hkj-api (JPMS constraint) |
+| `ForComprehensionProcessor` | ~80 | Hand-written | hkj-processor (orchestrator) |
+| `TupleGenerator` | ~150 | Hand-written | hkj-processor (JavaPoet template) |
+| `ForStepGenerator` | ~200 | Hand-written | hkj-processor (JavaPoet template) |
+| `ForPathStepGenerator` | ~250 | Hand-written | hkj-processor (JavaPoet template, descriptor table) |
+| Golden file tests | ~100 | Hand-written | hkj-processor test |
+| Sealed permits + bridges | ~80 | Hand-written | hkj-core (Tuple.java, For.java, ForPath.java) |
+| Runtime tests | ~1200 | Hand-written | hkj-core test |
+| `package-info.java` trigger | ~5 | Hand-written | hkj-core |
+| **Total hand-written** | **~2170** | | |
+| Generated Tuple6-8 | ~450 | Generated | hkj-core (by processor) |
+| Generated MonadicSteps6-8 | ~400 | Generated | hkj-core (by processor) |
+| Generated FilterableSteps6-8 | ~500 | Generated | hkj-core (by processor) |
+| Generated PathSteps (41 classes) | ~3200 | Generated | hkj-core (by processor) |
+| Golden file fixtures | ~4000 | Generated then committed | hkj-processor test resources |
+| **Total generated** | **~8550** | | |
 
-The ratio is roughly **4:1 generated-to-hand-written**. Every line of generated code is
-covered by a golden file test, ensuring it stays correct as the generator evolves.
+The ratio is roughly **4:1 generated-to-hand-written**. All generated output is covered
+by golden file tests, and the generator logic lives in the same module as the existing
+Lens, Prism, and Traversal processors.
