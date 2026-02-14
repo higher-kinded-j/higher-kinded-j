@@ -808,26 +808,46 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("getStandardTraversal returns correct reference for each container kind")
     void getStandardTraversalForAllKinds() {
-      assertThat(generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.LIST))
+      assertThat(
+              generator.getStandardTraversal(
+                  org.higherkindedj.optics.processing.external.ContainerType.Kind.LIST))
           .contains("Traversals.forList()");
-      assertThat(generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.SET))
+      assertThat(
+              generator.getStandardTraversal(
+                  org.higherkindedj.optics.processing.external.ContainerType.Kind.SET))
           .contains("Traversals.forSet()");
-      assertThat(generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.OPTIONAL))
+      assertThat(
+              generator.getStandardTraversal(
+                  org.higherkindedj.optics.processing.external.ContainerType.Kind.OPTIONAL))
           .contains("Traversals.forOptional()");
-      assertThat(generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.ARRAY))
+      assertThat(
+              generator.getStandardTraversal(
+                  org.higherkindedj.optics.processing.external.ContainerType.Kind.ARRAY))
           .contains("Traversals.forArray()");
-      assertThat(generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.MAP))
+      assertThat(
+              generator.getStandardTraversal(
+                  org.higherkindedj.optics.processing.external.ContainerType.Kind.MAP))
           .contains("Traversals.forMapValues()");
     }
 
     @Test
     @DisplayName("each container kind maps to a distinct traversal")
     void eachKindMapsToDistinctTraversal() {
-      var list = generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.LIST);
-      var set = generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.SET);
-      var optional = generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.OPTIONAL);
-      var array = generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.ARRAY);
-      var map = generator.getStandardTraversal(org.higherkindedj.optics.processing.external.ContainerType.Kind.MAP);
+      var list =
+          generator.getStandardTraversal(
+              org.higherkindedj.optics.processing.external.ContainerType.Kind.LIST);
+      var set =
+          generator.getStandardTraversal(
+              org.higherkindedj.optics.processing.external.ContainerType.Kind.SET);
+      var optional =
+          generator.getStandardTraversal(
+              org.higherkindedj.optics.processing.external.ContainerType.Kind.OPTIONAL);
+      var array =
+          generator.getStandardTraversal(
+              org.higherkindedj.optics.processing.external.ContainerType.Kind.ARRAY);
+      var map =
+          generator.getStandardTraversal(
+              org.higherkindedj.optics.processing.external.ContainerType.Kind.MAP);
 
       // All should be different
       assertThat(list).isNotEqualTo(set);
@@ -904,8 +924,7 @@ class SpecMutationKillingTest {
                 // Pass null targetType - should fall back to focusType
                 PrismHintInfo info = PrismHintInfo.forInstanceOf(null);
                 return generator
-                    .generatePrismCode(
-                        PrismHintKind.INSTANCE_OF, info, null, proc.getTypeMirror())
+                    .generatePrismCode(PrismHintKind.INSTANCE_OF, info, null, proc.getTypeMirror())
                     .toString();
               },
               source);
@@ -931,8 +950,7 @@ class SpecMutationKillingTest {
               proc -> {
                 PrismHintInfo info = PrismHintInfo.forInstanceOf(proc.getTypeMirror());
                 return generator
-                    .generatePrismCode(
-                        PrismHintKind.INSTANCE_OF, info, null, proc.getTypeMirror())
+                    .generatePrismCode(PrismHintKind.INSTANCE_OF, info, null, proc.getTypeMirror())
                     .toString();
               },
               source);

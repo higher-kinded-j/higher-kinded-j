@@ -1,0 +1,4585 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>PathProcessor.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.effect;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import com.google.auto.service.AutoService;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import com.palantir.javapoet.*;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.io.IOException;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.*;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.annotation.processing.AbstractProcessor;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.annotation.processing.Processor;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.annotation.processing.RoundEnvironment;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.annotation.processing.SupportedAnnotationTypes;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.annotation.processing.SupportedSourceVersion;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.SourceVersion;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.element.*;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.DeclaredType;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.TypeMirror;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.tools.Diagnostic;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import org.higherkindedj.hkt.effect.annotation.PathVia;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Annotation processor that generates Path bridge classes for service interfaces.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;This processor handles {@link GeneratePathBridge} annotations on interfaces and generates</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * companion classes that wrap service methods returning effect types (Optional, Either, Try, etc.)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * into corresponding Path types.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;h2&#62;Generated Code Structure&#60;/h2&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;For an interface {@code UserService}, the processor generates {@code UserServicePaths} with:</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;A constructor taking the delegate interface</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;Methods for each {@link PathVia}-annotated method, returning the appropriate Path type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;/ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see GeneratePathBridge</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see PathVia</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>@AutoService(Processor.class)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>@SupportedAnnotationTypes(&#34;org.higherkindedj.hkt.effect.annotation.GeneratePathBridge&#34;)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>@SupportedSourceVersion(SourceVersion.RELEASE_25)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public class PathProcessor extends AbstractProcessor {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName OBJECTS = ClassName.get(&#34;java.util&#34;, &#34;Objects&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName PATH = ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;Path&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName SEMIGROUP = ClassName.get(&#34;org.higherkindedj.hkt&#34;, &#34;Semigroup&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_49'/>
+49
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_49'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName GENERATED =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      ClassName.get(&#34;org.higherkindedj.optics.annotations&#34;, &#34;Generated&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  // Path type class names</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName MAYBE_PATH =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;MaybePath&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName EITHER_PATH =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;EitherPath&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName TRY_PATH =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;TryPath&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_59'/>
+59
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_59'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName VALIDATION_PATH =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;ValidationPath&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName OPTIONAL_PATH =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;OptionalPath&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final ClassName IO_PATH = ClassName.get(&#34;org.higherkindedj.hkt.effect&#34;, &#34;IOPath&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  @Override</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public boolean process(Set&#60;? extends TypeElement&#62; annotations, RoundEnvironment roundEnv) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    for (TypeElement annotation : annotations) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_68'/>
+68
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_68'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      Set&#60;? extends Element&#62; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      for (Element element : annotatedElements) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_70'/>
+70
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_70'>2</a>
+<span>
+1. process : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. process : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (element.getKind() != ElementKind.INTERFACE) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_71'/>
+71
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_71'>1</a>
+<span>
+1. process : removed call to org/higherkindedj/optics/processing/effect/PathProcessor::error &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>          error(&#34;@GeneratePathBridge can only be applied to interfaces.&#34;, element);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_72'/>
+72
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_72'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          continue;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_74'/>
+74
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_74'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        try {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_75'/>
+75
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_75'>1</a>
+<span>
+1. process : removed call to org/higherkindedj/optics/processing/effect/PathProcessor::generateBridgeClass &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>          generateBridgeClass((TypeElement) element);</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_76'/>
+76
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_76'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>        } catch (IOException e) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_77'/>
+77
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_77'>1</a>
+<span>
+1. process : removed call to org/higherkindedj/optics/processing/effect/PathProcessor::error &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>          error(&#34;Could not generate Path bridge class: &#34; + e.getMessage(), element);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_80'/>
+80
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_80'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_81'/>
+81
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_81'>1</a>
+<span>
+1. process : replaced boolean return with false for org/higherkindedj/optics/processing/effect/PathProcessor::process &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    return true;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_82'/>
+82
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_82'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_83'/>
+83
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_83'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_84'/>
+84
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_84'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private void generateBridgeClass(TypeElement interfaceElement) throws IOException {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_85'/>
+85
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_85'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String interfaceName = interfaceElement.getSimpleName().toString();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_86'/>
+86
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_86'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String defaultPackage =</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_87'/>
+87
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_87'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        processingEnv</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_88'/>
+88
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_88'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .getElementUtils()</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_89'/>
+89
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_89'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .getPackageOf(interfaceElement)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_90'/>
+90
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_90'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .getQualifiedName()</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_91'/>
+91
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_91'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .toString();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_92'/>
+92
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_92'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_93'/>
+93
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_93'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    GeneratePathBridge annotation = interfaceElement.getAnnotation(GeneratePathBridge.class);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_94'/>
+94
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_94'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String targetPackage = annotation.targetPackage();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_95'/>
+95
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_95'>2</a>
+<span>
+1. generateBridgeClass : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. generateBridgeClass : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_96'/>
+96
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_96'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String suffix = annotation.suffix();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_97'/>
+97
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_97'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String bridgeClassName = interfaceName + suffix;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_98'/>
+98
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_98'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_99'/>
+99
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_99'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    ClassName interfaceClassName = ClassName.get(interfaceElement);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_100'/>
+100
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_100'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_101'/>
+101
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_101'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Build the bridge class</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_102'/>
+102
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_102'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeSpec.Builder classBuilder =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_103'/>
+103
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_103'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        TypeSpec.classBuilder(bridgeClassName)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_104'/>
+104
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_104'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addAnnotation(GENERATED)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_105'/>
+105
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_105'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_106'/>
+106
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_106'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                &#34;Generated Path bridge for {@link $T}.\n\n&#60;p&#62;Do not edit.\n&#34;, interfaceClassName)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_107'/>
+107
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_107'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC, Modifier.FINAL);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_108'/>
+108
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_108'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_109'/>
+109
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_109'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Add delegate field</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_110'/>
+110
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_110'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    classBuilder.addField(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_111'/>
+111
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_111'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        FieldSpec.builder(interfaceClassName, &#34;delegate&#34;, Modifier.PRIVATE, Modifier.FINAL)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_112'/>
+112
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_112'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .build());</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_113'/>
+113
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_113'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_114'/>
+114
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_114'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Add constructor</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_115'/>
+115
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_115'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    classBuilder.addMethod(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_116'/>
+116
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_116'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        MethodSpec.constructorBuilder()</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_117'/>
+117
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_117'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_118'/>
+118
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_118'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addParameter(interfaceClassName, &#34;delegate&#34;)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_119'/>
+119
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_119'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addJavadoc(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_120'/>
+120
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_120'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                &#34;Creates a new Path bridge wrapping the given delegate.\n\n&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_121'/>
+121
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_121'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                    + &#34;@param delegate the service to wrap; must not be null\n&#34;)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_122'/>
+122
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_122'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addStatement(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_123'/>
+123
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_123'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                &#34;this.delegate = $T.requireNonNull(delegate, $S)&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_124'/>
+124
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_124'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                OBJECTS,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_125'/>
+125
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_125'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                &#34;delegate must not be null&#34;)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_126'/>
+126
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_126'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .build());</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_127'/>
+127
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_127'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_128'/>
+128
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_128'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Process @PathVia methods</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_129'/>
+129
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_129'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    for (Element enclosed : interfaceElement.getEnclosedElements()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_130'/>
+130
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_130'>2</a>
+<span>
+1. generateBridgeClass : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. generateBridgeClass : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      if (enclosed.getKind() == ElementKind.METHOD) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_131'/>
+131
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_131'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        ExecutableElement method = (ExecutableElement) enclosed;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_132'/>
+132
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_132'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        PathVia pathVia = method.getAnnotation(PathVia.class);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_133'/>
+133
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_133'>2</a>
+<span>
+1. generateBridgeClass : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. generateBridgeClass : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (pathVia != null) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_134'/>
+134
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_134'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          MethodSpec bridgeMethod = createBridgeMethod(method, pathVia);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_135'/>
+135
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_135'>2</a>
+<span>
+1. generateBridgeClass : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. generateBridgeClass : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>          if (bridgeMethod != null) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_136'/>
+136
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_136'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            classBuilder.addMethod(bridgeMethod);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_137'/>
+137
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_137'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_138'/>
+138
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_138'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_139'/>
+139
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_139'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_140'/>
+140
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_140'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_141'/>
+141
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_141'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_142'/>
+142
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_142'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Write the file</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_143'/>
+143
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_143'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    JavaFile javaFile =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_144'/>
+144
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_144'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        JavaFile.builder(packageName, classBuilder.build())</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_145'/>
+145
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_145'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addFileComment(&#34;Generated by PathProcessor. Do not edit.&#34;)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_146'/>
+146
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_146'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .build();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_147'/>
+147
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_147'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_148'/>
+148
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_148'>1</a>
+<span>
+1. generateBridgeClass : removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    javaFile.writeTo(processingEnv.getFiler());</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_149'/>
+149
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_149'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_150'/>
+150
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_150'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_151'/>
+151
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_151'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private MethodSpec createBridgeMethod(ExecutableElement method, PathVia pathVia) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_152'/>
+152
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_152'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    String methodName =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_153'/>
+153
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_153'>2</a>
+<span>
+1. createBridgeMethod : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. createBridgeMethod : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        pathVia.name().isEmpty() ? method.getSimpleName().toString() : pathVia.name();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_154'/>
+154
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_154'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String doc = pathVia.doc();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_155'/>
+155
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_155'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_156'/>
+156
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_156'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeMirror returnType = method.getReturnType();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_157'/>
+157
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_157'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    PathTypeMapping mapping = determinePathType(returnType);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_158'/>
+158
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_158'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_159'/>
+159
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_159'>2</a>
+<span>
+1. createBridgeMethod : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. createBridgeMethod : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (mapping == null) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_160'/>
+160
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_160'>1</a>
+<span>
+1. createBridgeMethod : removed call to org/higherkindedj/optics/processing/effect/PathProcessor::error &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      error(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_161'/>
+161
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_161'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          &#34;Unsupported return type for @PathVia: &#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_162'/>
+162
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_162'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              + returnType</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_163'/>
+163
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_163'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              + &#34;. Supported types: Optional, Maybe, Either, Try, Validated, IO.&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_164'/>
+164
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_164'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          method);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_165'/>
+165
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_165'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      return null;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_166'/>
+166
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_166'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_167'/>
+167
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_167'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_168'/>
+168
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_168'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    MethodSpec.Builder methodBuilder =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_169'/>
+169
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_169'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        MethodSpec.methodBuilder(methodName)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_170'/>
+170
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_170'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .addModifiers(Modifier.PUBLIC)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_171'/>
+171
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_171'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            .returns(mapping.pathType());</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_172'/>
+172
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_172'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_173'/>
+173
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_173'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Add documentation</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_174'/>
+174
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_174'>2</a>
+<span>
+1. createBridgeMethod : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. createBridgeMethod : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (!doc.isEmpty()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_175'/>
+175
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_175'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      methodBuilder.addJavadoc(&#34;$L\n\n&#34;, doc);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_176'/>
+176
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_176'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_177'/>
+177
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_177'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    methodBuilder.addJavadoc(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_178'/>
+178
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_178'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        &#34;@return Path-wrapped result from {@link $L#$L}\n&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_179'/>
+179
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_179'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        method.getEnclosingElement().getSimpleName(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_180'/>
+180
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_180'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        method.getSimpleName());</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_181'/>
+181
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_181'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_182'/>
+182
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_182'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Copy parameters</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_183'/>
+183
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_183'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    List&#60;String&#62; paramNames = new ArrayList&#60;&#62;();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_184'/>
+184
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_184'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    for (VariableElement param : method.getParameters()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_185'/>
+185
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_185'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      String paramName = param.getSimpleName().toString();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_186'/>
+186
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_186'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      paramNames.add(paramName);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_187'/>
+187
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_187'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      methodBuilder.addParameter(TypeName.get(param.asType()), paramName);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_188'/>
+188
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_188'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_189'/>
+189
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_189'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_190'/>
+190
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_190'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Add Semigroup parameter for Validated types</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_191'/>
+191
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_191'>2</a>
+<span>
+1. createBridgeMethod : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. createBridgeMethod : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (mapping.requiresSemigroup()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_192'/>
+192
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_192'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      methodBuilder.addParameter(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_193'/>
+193
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_193'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          ParameterizedTypeName.get(SEMIGROUP, mapping.errorType()), &#34;semigroup&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_194'/>
+194
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_194'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      paramNames.add(&#34;semigroup&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_195'/>
+195
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_195'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_196'/>
+196
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_196'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_197'/>
+197
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_197'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Build the method body</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_198'/>
+198
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_198'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String delegateCall =</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_199'/>
+199
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_199'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        &#34;delegate.&#34;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_200'/>
+200
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_200'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            + method.getSimpleName()</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_201'/>
+201
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_201'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            + &#34;(&#34;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_202'/>
+202
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_202'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            + String.join(&#34;, &#34;, paramNames.subList(0, method.getParameters().size()))</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_203'/>
+203
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_203'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            + &#34;)&#34;;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_204'/>
+204
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_204'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_205'/>
+205
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_205'>2</a>
+<span>
+1. createBridgeMethod : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. createBridgeMethod : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (mapping.requiresSemigroup()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_206'/>
+206
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_206'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      methodBuilder.addStatement(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_207'/>
+207
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_207'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          &#34;return $T.$L($L, semigroup)&#34;, PATH, mapping.factoryMethod(), delegateCall);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_208'/>
+208
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_208'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    } else {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_209'/>
+209
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_209'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      methodBuilder.addStatement(&#34;return $T.$L($L)&#34;, PATH, mapping.factoryMethod(), delegateCall);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_210'/>
+210
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_210'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_211'/>
+211
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_211'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_212'/>
+212
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_212'>1</a>
+<span>
+1. createBridgeMethod : replaced return value with null for org/higherkindedj/optics/processing/effect/PathProcessor::createBridgeMethod &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return methodBuilder.build();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_213'/>
+213
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_213'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_214'/>
+214
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_214'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_215'/>
+215
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_215'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private PathTypeMapping determinePathType(TypeMirror returnType) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_216'/>
+216
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_216'>2</a>
+<span>
+1. determinePathType : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. determinePathType : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (!(returnType instanceof DeclaredType declaredType)) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_217'/>
+217
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_217'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>      return null;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_218'/>
+218
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_218'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_219'/>
+219
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_219'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_220'/>
+220
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_220'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    Element typeElement = declaredType.asElement();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_221'/>
+221
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_221'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String typeName = typeElement.getSimpleName().toString();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_222'/>
+222
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_222'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    String qualifiedName =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_223'/>
+223
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_223'>2</a>
+<span>
+1. determinePathType : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. determinePathType : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>        typeElement instanceof TypeElement te ? te.getQualifiedName().toString() : typeName;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_224'/>
+224
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_224'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_225'/>
+225
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_225'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    List&#60;? extends TypeMirror&#62; typeArgs = declaredType.getTypeArguments();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_226'/>
+226
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_226'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_227'/>
+227
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_227'>1</a>
+<span>
+1. determinePathType : Changed switch default to be first case &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return switch (qualifiedName) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_228'/>
+228
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_228'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      case &#34;java.util.Optional&#34; -&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_229'/>
+229
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_229'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName valueType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_230'/>
+230
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_230'>2</a>
+<span>
+1. determinePathType : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. determinePathType : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_231'/>
+231
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_231'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        yield new PathTypeMapping(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_232'/>
+232
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_232'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            ParameterizedTypeName.get(OPTIONAL_PATH, valueType), &#34;optional&#34;, false, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_233'/>
+233
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_233'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_234'/>
+234
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_234'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      case &#34;org.higherkindedj.hkt.maybe.Maybe&#34; -&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_235'/>
+235
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_235'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName valueType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_236'/>
+236
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_236'>2</a>
+<span>
+1. determinePathType : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. determinePathType : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_237'/>
+237
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_237'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        yield new PathTypeMapping(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_238'/>
+238
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_238'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            ParameterizedTypeName.get(MAYBE_PATH, valueType), &#34;maybe&#34;, false, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_239'/>
+239
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_239'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_240'/>
+240
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_240'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      case &#34;org.higherkindedj.hkt.either.Either&#34; -&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_241'/>
+241
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_241'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName errorType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_242'/>
+242
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_242'>3</a>
+<span>
+1. determinePathType : removed conditional - replaced comparison check with true &rarr; SURVIVED<br/>
+2. determinePathType : changed conditional boundary &rarr; SURVIVED<br/>
+3. determinePathType : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.size() &#62;= 1 ? TypeName.get(typeArgs.get(0)) : ClassName.get(Object.class);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_243'/>
+243
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_243'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName valueType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_244'/>
+244
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_244'>3</a>
+<span>
+1. determinePathType : removed conditional - replaced comparison check with true &rarr; SURVIVED<br/>
+2. determinePathType : changed conditional boundary &rarr; KILLED<br/>
+3. determinePathType : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.size() &#62;= 2 ? TypeName.get(typeArgs.get(1)) : ClassName.get(Object.class);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_245'/>
+245
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_245'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        yield new PathTypeMapping(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_246'/>
+246
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_246'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            ParameterizedTypeName.get(EITHER_PATH, errorType, valueType), &#34;either&#34;, false, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_247'/>
+247
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_247'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_248'/>
+248
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_248'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      case &#34;org.higherkindedj.hkt.trymonad.Try&#34; -&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_249'/>
+249
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_249'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName valueType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_250'/>
+250
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_250'>2</a>
+<span>
+1. determinePathType : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. determinePathType : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_251'/>
+251
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_251'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        yield new PathTypeMapping(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_252'/>
+252
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_252'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            ParameterizedTypeName.get(TRY_PATH, valueType), &#34;tryPath&#34;, false, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_253'/>
+253
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_253'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_254'/>
+254
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_254'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      case &#34;org.higherkindedj.hkt.validated.Validated&#34; -&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_255'/>
+255
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_255'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName errorType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_256'/>
+256
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_256'>3</a>
+<span>
+1. determinePathType : removed conditional - replaced comparison check with true &rarr; SURVIVED<br/>
+2. determinePathType : changed conditional boundary &rarr; SURVIVED<br/>
+3. determinePathType : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.size() &#62;= 1 ? TypeName.get(typeArgs.get(0)) : ClassName.get(Object.class);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_257'/>
+257
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_257'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName valueType =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_258'/>
+258
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_258'>3</a>
+<span>
+1. determinePathType : removed conditional - replaced comparison check with true &rarr; SURVIVED<br/>
+2. determinePathType : changed conditional boundary &rarr; KILLED<br/>
+3. determinePathType : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>            typeArgs.size() &#62;= 2 ? TypeName.get(typeArgs.get(1)) : ClassName.get(Object.class);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_259'/>
+259
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_259'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        yield new PathTypeMapping(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_260'/>
+260
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_260'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            ParameterizedTypeName.get(VALIDATION_PATH, errorType, valueType),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_261'/>
+261
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_261'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            &#34;validated&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_262'/>
+262
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_262'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            true,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_263'/>
+263
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_263'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            errorType);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_264'/>
+264
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_264'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_265'/>
+265
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_265'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      case &#34;org.higherkindedj.hkt.io.IO&#34; -&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_266'/>
+266
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_266'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeName valueType =</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_267'/>
+267
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_267'>2</a>
+<span>
+1. determinePathType : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
+2. determinePathType : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_268'/>
+268
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_268'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>        yield new PathTypeMapping(ParameterizedTypeName.get(IO_PATH, valueType), &#34;io&#34;, false, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_269'/>
+269
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_269'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_270'/>
+270
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_270'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      default -&#62; null;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_271'/>
+271
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_271'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    };</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_272'/>
+272
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_272'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_273'/>
+273
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_273'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_274'/>
+274
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_274'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private void error(String message, Element element) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_275'/>
+275
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_275'>1</a>
+<span>
+1. error : removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_276'/>
+276
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_276'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_277'/>
+277
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_277'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_278'/>
+278
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_278'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_279'/>
+279
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_279'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Represents the mapping from a source type to a Path type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_280'/>
+280
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_280'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_281'/>
+281
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_281'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param pathType the Path type to use</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_282'/>
+282
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_282'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param factoryMethod the Path factory method name</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_283'/>
+283
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_283'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param requiresSemigroup whether a Semigroup parameter is needed</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_284'/>
+284
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_284'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param errorType the error type (for Validated)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_285'/>
+285
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_285'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_286'/>
+286
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_286'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private record PathTypeMapping(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_287'/>
+287
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_287'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TypeName pathType, String factoryMethod, boolean requiresSemigroup, TypeName errorType) {}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7b4f1512_288'/>
+288
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_288'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_70'>70</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_70'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForClass()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_71'>71</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_71'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForClass()]</span></span> removed call to org/higherkindedj/optics/processing/effect/PathProcessor::error &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_75'>75</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_75'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed call to org/higherkindedj/optics/processing/effect/PathProcessor::generateBridgeClass &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_77'>77</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_77'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/effect/PathProcessor::error &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_81'>81</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_81'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>process<br/><b>Killed by : </b>none</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/effect/PathProcessor::process &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=process,-methodDesc=(Ljava/util/Set;Ljavax/annotation/processing/RoundEnvironment;)Z],-indexes=[84],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanFalseReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForClass()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_95'>95</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_95'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=generateBridgeClass,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[41],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=generateBridgeClass,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[41],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=generateBridgeClass,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[41],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_130'>130</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_130'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=generateBridgeClass,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[194],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=generateBridgeClass,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[194],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=generateBridgeClass,-methodDesc=(Ljavax/lang/model/element/TypeElement;)V],-indexes=[194],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_133'>133</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_133'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_135'>135</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_135'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_148'>148</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_148'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>generateBridgeClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed call to com/palantir/javapoet/JavaFile::writeTo &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_153'>153</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_153'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_159'>159</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_159'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_160'>160</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_160'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> removed call to org/higherkindedj/optics/processing/effect/PathProcessor::error &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_174'>174</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_174'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=createBridgeMethod,-methodDesc=(Ljavax/lang/model/element/ExecutableElement;Lorg/higherkindedj/hkt/effect/annotation/PathVia;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[76],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=createBridgeMethod,-methodDesc=(Ljavax/lang/model/element/ExecutableElement;Lorg/higherkindedj/hkt/effect/annotation/PathVia;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[76],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=createBridgeMethod,-methodDesc=(Ljavax/lang/model/element/ExecutableElement;Lorg/higherkindedj/hkt/effect/annotation/PathVia;)Lcom/palantir/javapoet/MethodSpec;],-indexes=[76],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_191'>191</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_191'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_205'>205</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_205'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_212'>212</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_212'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createBridgeMethod<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/effect/PathProcessor::createBridgeMethod &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_216'>216</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_216'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[5],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[5],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[5],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_223'>223</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_223'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_227'>227</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_227'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()]</span></span> Changed switch default to be first case &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_230'>230</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_230'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[123],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[123],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[123],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_236'>236</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_236'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[161],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[161],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[161],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_242'>242</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_242'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[200],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[200],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[200],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> changed conditional boundary &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[200],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[200],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[200],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_244'>244</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_244'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[219],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[219],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[219],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</li> <li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_250'>250</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_250'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[261],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[261],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[261],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_256'>256</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_256'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[300],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[300],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[300],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> changed conditional boundary &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[300],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[300],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[300],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_258'>258</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_258'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[319],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[319],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.effect.PathProcessor,-method=determinePathType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Lorg/higherkindedj/optics/processing/effect/PathProcessor$PathTypeMapping;],-indexes=[319],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_267'>267</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_267'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>determinePathType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7b4f1512_275'>275</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7b4f1512_275'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>error<br/><b>Killed by : </b>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForClass()]</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForUnsupportedReturnType()] (18 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomMethodName()] (19 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldIncludeDocumentation()] (22 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForTryMethod()] (20 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForMaybeMethod()] (20 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForValidatedMethod()] (20 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForOptionalMethod()] (21 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateBridgeForEitherMethod()] (21 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:AnnotationOptions]/[method:shouldUseCustomSuffix()] (30 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:MultipleMethods]/[method:shouldGenerateMultipleBridgeMethods()] (21 ms)</li><li>org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.effect.PathProcessorIntegrationTest]/[nested-class:ErrorCases]/[method:shouldFailForClass()] (16 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>

@@ -1,0 +1,3773 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>KindFieldAnalyser.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.kind;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import com.palantir.javapoet.TypeName;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.List;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.Optional;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.annotation.processing.ProcessingEnvironment;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.element.RecordComponentElement;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.element.TypeElement;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.DeclaredType;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.TypeKind;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.TypeMirror;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.tools.Diagnostic;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import org.higherkindedj.optics.annotations.TraverseField;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import org.higherkindedj.optics.processing.kind.KindRegistry.KindMapping;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Analyses record fields to detect and extract information about {@code Kind&#60;F, A&#62;} types.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;This analyser supports both library-provided Kind types (detected automatically via {@link</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * KindRegistry}) and user-defined Kind types (configured via {@link TraverseField} annotation).</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;h2&#62;Detection Process&#60;/h2&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;ol&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;Check if the field type is {@code Kind&#60;F, A&#62;}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;If annotated with {@code @TraverseField}, use the explicit configuration</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;Otherwise, look up the witness type in {@link KindRegistry}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;If not found, return empty (field will use standard FocusPath generation)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;/ol&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;h2&#62;Design for Nested Kind Support&#60;/h2&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;This analyser is designed to support future nested Kind type detection. The current</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * implementation analyses only the outermost Kind layer, but the {@link KindFieldInfo} structure</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * and analysis methods are extensible for recursive analysis of types like {@code Kind&#60;F, Kind&#60;G,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * A&#62;&#62;}.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see KindRegistry</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see KindFieldInfo</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see TraverseField</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>public class KindFieldAnalyser {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private final ProcessingEnvironment processingEnv;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_49'/>
+49
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_49'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates a new analyser.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param processingEnv the annotation processing environment</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public KindFieldAnalyser(ProcessingEnvironment processingEnv) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    this.processingEnv = processingEnv;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Analyses a record component to determine if it is a Kind field.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_59'/>
+59
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_59'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;If the field is a {@code Kind&#60;F, A&#62;} type and either:</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *   &#60;li&#62;Has a {@code @TraverseField} annotation with explicit configuration, or</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *   &#60;li&#62;Uses a witness type registered in {@link KindRegistry}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;/ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;then a {@link KindFieldInfo} is returned with the necessary information for code generation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_68'/>
+68
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_68'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param component the record component to analyse</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_70'/>
+70
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_70'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return an Optional containing the analysis result, or empty if not a recognised Kind field</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_71'/>
+71
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_71'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_72'/>
+72
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_72'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public Optional&#60;KindFieldInfo&#62; analyse(RecordComponentElement component) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeMirror fieldType = component.asType();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_74'/>
+74
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_74'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_75'/>
+75
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_75'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Check if this is a Kind&#60;F, A&#62; type</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_76'/>
+76
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_76'>2</a>
+<span>
+1. analyse : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. analyse : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (!isKindType(fieldType)) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_77'/>
+77
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_77'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      return Optional.empty();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_80'/>
+80
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_80'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Extract Kind type arguments: Kind&#60;WitnessType, ElementType&#62;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_81'/>
+81
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_81'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    DeclaredType kindType = (DeclaredType) fieldType;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_82'/>
+82
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_82'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    List&#60;? extends TypeMirror&#62; typeArgs = kindType.getTypeArguments();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_83'/>
+83
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_83'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_84'/>
+84
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_84'>2</a>
+<span>
+1. analyse : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. analyse : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (typeArgs.size() != 2) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_85'/>
+85
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_85'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      // Malformed Kind type</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_86'/>
+86
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_86'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>      return Optional.empty();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_87'/>
+87
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_87'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_88'/>
+88
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_88'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_89'/>
+89
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_89'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeMirror witnessTypeMirror = typeArgs.get(0);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_90'/>
+90
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_90'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeMirror elementTypeMirror = typeArgs.get(1);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_91'/>
+91
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_91'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeName elementType = TypeName.get(elementTypeMirror).box();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_92'/>
+92
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_92'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_93'/>
+93
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_93'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Check for explicit @TraverseField annotation first</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_94'/>
+94
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_94'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TraverseField traverseFieldAnnotation = component.getAnnotation(TraverseField.class);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_95'/>
+95
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_95'>2</a>
+<span>
+1. analyse : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. analyse : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (traverseFieldAnnotation != null) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_96'/>
+96
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_96'>1</a>
+<span>
+1. analyse : replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::analyse &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return Optional.of(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_97'/>
+97
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_97'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          createFromAnnotation(traverseFieldAnnotation, witnessTypeMirror, elementType));</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_98'/>
+98
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_98'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_99'/>
+99
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_99'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_100'/>
+100
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_100'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Try to look up in registry</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_101'/>
+101
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_101'>1</a>
+<span>
+1. analyse : replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::analyse &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return createFromRegistry(witnessTypeMirror, elementType, component);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_102'/>
+102
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_102'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_103'/>
+103
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_103'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_104'/>
+104
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_104'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_105'/>
+105
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_105'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Checks if a type is the {@code Kind&#60;F, A&#62;} interface.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_106'/>
+106
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_106'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_107'/>
+107
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_107'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param type the type to check</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_108'/>
+108
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_108'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if this is a Kind type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_109'/>
+109
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_109'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_110'/>
+110
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_110'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private boolean isKindType(TypeMirror type) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_111'/>
+111
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_111'>2</a>
+<span>
+1. isKindType : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. isKindType : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (type.getKind() != TypeKind.DECLARED) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_112'/>
+112
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_112'>1</a>
+<span>
+1. isKindType : replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::isKindType &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>      return false;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_113'/>
+113
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_113'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_114'/>
+114
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_114'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_115'/>
+115
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_115'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    DeclaredType declaredType = (DeclaredType) type;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_116'/>
+116
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_116'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TypeElement typeElement = (TypeElement) declaredType.asElement();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_117'/>
+117
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_117'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String qualifiedName = typeElement.getQualifiedName().toString();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_118'/>
+118
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_118'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_119'/>
+119
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_119'>2</a>
+<span>
+1. isKindType : replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::isKindType &rarr; SURVIVED<br/>
+2. isKindType : replaced boolean return with false for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::isKindType &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    return KindRegistry.isKindInterface(qualifiedName);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_120'/>
+120
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_120'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_121'/>
+121
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_121'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_122'/>
+122
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_122'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_123'/>
+123
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_123'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates KindFieldInfo from an explicit @TraverseField annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_124'/>
+124
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_124'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_125'/>
+125
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_125'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param annotation the TraverseField annotation</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_126'/>
+126
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_126'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witnessTypeMirror the witness type from the Kind</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_127'/>
+127
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_127'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param elementType the element type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_128'/>
+128
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_128'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return the KindFieldInfo</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_129'/>
+129
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_129'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_130'/>
+130
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_130'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private KindFieldInfo createFromAnnotation(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_131'/>
+131
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_131'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TraverseField annotation, TypeMirror witnessTypeMirror, TypeName elementType) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_132'/>
+132
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_132'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_133'/>
+133
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_133'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String witnessType = witnessTypeMirror.toString();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_134'/>
+134
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_134'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String baseWitness = KindRegistry.extractBaseWitnessType(witnessType);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_135'/>
+135
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_135'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String typeArgs = KindRegistry.extractWitnessTypeArgs(witnessType);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_136'/>
+136
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_136'>2</a>
+<span>
+1. createFromAnnotation : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. createFromAnnotation : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    boolean isParameterised = !typeArgs.isEmpty();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_137'/>
+137
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_137'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_138'/>
+138
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_138'>1</a>
+<span>
+1. createFromAnnotation : replaced return value with null for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::createFromAnnotation &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new KindFieldInfo(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_139'/>
+139
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_139'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        baseWitness,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_140'/>
+140
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_140'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        elementType,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_141'/>
+141
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_141'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        annotation.traverse(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_142'/>
+142
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_142'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        annotation.semantics(),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_143'/>
+143
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_143'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        isParameterised,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_144'/>
+144
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_144'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        typeArgs);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_145'/>
+145
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_145'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_146'/>
+146
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_146'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_147'/>
+147
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_147'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_148'/>
+148
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_148'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates KindFieldInfo from registry lookup.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_149'/>
+149
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_149'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_150'/>
+150
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_150'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witnessTypeMirror the witness type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_151'/>
+151
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_151'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param elementType the element type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_152'/>
+152
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_152'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param component the component (for error reporting)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_153'/>
+153
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_153'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return Optional containing the KindFieldInfo, or empty if not registered</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_154'/>
+154
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_154'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_155'/>
+155
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_155'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private Optional&#60;KindFieldInfo&#62; createFromRegistry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_156'/>
+156
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_156'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TypeMirror witnessTypeMirror, TypeName elementType, RecordComponentElement component) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_157'/>
+157
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_157'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_158'/>
+158
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_158'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String witnessType = witnessTypeMirror.toString();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_159'/>
+159
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_159'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String baseWitness = KindRegistry.extractBaseWitnessType(witnessType);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_160'/>
+160
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_160'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String typeArgs = KindRegistry.extractWitnessTypeArgs(witnessType);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_161'/>
+161
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_161'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_162'/>
+162
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_162'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    Optional&#60;KindMapping&#62; mapping = KindRegistry.lookup(baseWitness);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_163'/>
+163
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_163'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_164'/>
+164
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_164'>2</a>
+<span>
+1. createFromRegistry : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. createFromRegistry : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (mapping.isEmpty()) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_165'/>
+165
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_165'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      // Not a known type - emit a note if it looks like a library type</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_166'/>
+166
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_166'>2</a>
+<span>
+1. createFromRegistry : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. createFromRegistry : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      if (KindRegistry.isLibraryWitness(baseWitness)) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_167'/>
+167
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_167'>1</a>
+<span>
+1. createFromRegistry : removed call to org/higherkindedj/optics/processing/kind/KindFieldAnalyser::note &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>        note(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_168'/>
+168
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_168'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            &#34;Kind field with witness type &#39;&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_169'/>
+169
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_169'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                + baseWitness</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_170'/>
+170
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_170'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                + &#34;&#39; is not registered. &#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_171'/>
+171
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_171'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                + &#34;Consider adding @TraverseField annotation for explicit configuration.&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_172'/>
+172
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_172'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            component);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_173'/>
+173
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_173'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_174'/>
+174
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_174'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      return Optional.empty();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_175'/>
+175
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_175'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_176'/>
+176
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_176'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_177'/>
+177
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_177'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    KindMapping kindMapping = mapping.get();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_178'/>
+178
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_178'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_179'/>
+179
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_179'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Build the traverse expression</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_180'/>
+180
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_180'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    String traverseExpression = kindMapping.traverseExpression();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_181'/>
+181
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_181'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_182'/>
+182
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_182'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // For parameterised types, inject the type arguments</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_183'/>
+183
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_183'>4</a>
+<span>
+1. createFromRegistry : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. createFromRegistry : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+3. createFromRegistry : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+4. createFromRegistry : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (kindMapping.isParameterised() &#38;&#38; !typeArgs.isEmpty()) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_184'/>
+184
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_184'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      // Transform &#34;EitherTraverse.instance()&#34; to &#34;EitherTraverse.&#60;String&#62;instance()&#34;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_185'/>
+185
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_185'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      traverseExpression = injectTypeArgs(traverseExpression, typeArgs);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_186'/>
+186
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_186'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_187'/>
+187
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_187'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_188'/>
+188
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_188'>1</a>
+<span>
+1. createFromRegistry : replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::createFromRegistry &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return Optional.of(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_189'/>
+189
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_189'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        new KindFieldInfo(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_190'/>
+190
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_190'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            baseWitness,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_191'/>
+191
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_191'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            elementType,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_192'/>
+192
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_192'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            traverseExpression,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_193'/>
+193
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_193'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            kindMapping.semantics(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_194'/>
+194
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_194'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            kindMapping.isParameterised(),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_195'/>
+195
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_195'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            typeArgs));</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_196'/>
+196
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_196'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_197'/>
+197
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_197'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_198'/>
+198
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_198'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_199'/>
+199
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_199'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Injects type arguments into a factory method call.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_200'/>
+200
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_200'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_201'/>
+201
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_201'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;For example, transforms &#34;EitherTraverse.instance()&#34; to</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_202'/>
+202
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_202'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#34;EitherTraverse.&#38;lt;String&#38;gt;instance()&#34;.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_203'/>
+203
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_203'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_204'/>
+204
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_204'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param expression the original expression</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_205'/>
+205
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_205'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param typeArgs the type arguments to inject</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_206'/>
+206
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_206'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return the modified expression</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_207'/>
+207
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_207'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_208'/>
+208
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_208'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private String injectTypeArgs(String expression, String typeArgs) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_209'/>
+209
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_209'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Find the method name position (last dot before parenthesis)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_210'/>
+210
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_210'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    int parenPos = expression.indexOf(&#39;(&#39;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_211'/>
+211
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_211'>3</a>
+<span>
+1. injectTypeArgs : removed conditional - replaced comparison check with true &rarr; SURVIVED<br/>
+2. injectTypeArgs : removed conditional - replaced comparison check with false &rarr; SURVIVED<br/>
+3. injectTypeArgs : changed conditional boundary &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (parenPos &#60;= 0) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_212'/>
+212
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_212'>1</a>
+<span>
+1. injectTypeArgs : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::injectTypeArgs &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>      return expression;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_213'/>
+213
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_213'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_214'/>
+214
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_214'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_215'/>
+215
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_215'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    int lastDot = expression.lastIndexOf(&#39;.&#39;, parenPos);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_216'/>
+216
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_216'>3</a>
+<span>
+1. injectTypeArgs : changed conditional boundary &rarr; SURVIVED<br/>
+2. injectTypeArgs : removed conditional - replaced comparison check with false &rarr; SURVIVED<br/>
+3. injectTypeArgs : removed conditional - replaced comparison check with true &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (lastDot &#60; 0) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_217'/>
+217
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_217'>1</a>
+<span>
+1. injectTypeArgs : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::injectTypeArgs &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>      return expression;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_218'/>
+218
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_218'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_219'/>
+219
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_219'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_220'/>
+220
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_220'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Insert &#60;typeArgs&#62; after the dot</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_221'/>
+221
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_221'>3</a>
+<span>
+1. injectTypeArgs : Replaced integer addition with subtraction &rarr; KILLED<br/>
+2. injectTypeArgs : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::injectTypeArgs &rarr; KILLED<br/>
+3. injectTypeArgs : Replaced integer addition with subtraction &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return expression.substring(0, lastDot + 1)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_222'/>
+222
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_222'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        + &#34;&#60;&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_223'/>
+223
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_223'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        + typeArgs</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_224'/>
+224
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_224'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        + &#34;&#62;&#34;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_225'/>
+225
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_225'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        + expression.substring(lastDot + 1);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_226'/>
+226
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_226'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_227'/>
+227
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_227'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_228'/>
+228
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_228'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_229'/>
+229
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_229'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Emits a note diagnostic.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_230'/>
+230
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_230'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_231'/>
+231
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_231'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param message the message</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_232'/>
+232
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_232'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param element the element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_233'/>
+233
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_233'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_234'/>
+234
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_234'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  private void note(String message, RecordComponentElement element) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_235'/>
+235
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_235'>1</a>
+<span>
+1. note : removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, element);</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_236'/>
+236
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_236'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@5867c87_237'/>
+237
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_237'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_76'>76</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_76'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[11],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[11],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[11],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:PackageConfiguration]/[method:shouldGenerateInCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusClassWithCorrectSuffix()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusPathMethodsForRecord()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateStandardFocusPathForNonNavigableFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldNotGenerateNavigatorsWhenDisabled()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:JavadocGeneration]/[method:shouldIncludeNavigatorNoteInJavadoc()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:PathTypeWidening]/[method:shouldDetectPathKindForRegularTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NavigatorDelegateMethods]/[method:shouldGenerateFocusPathDelegateMethods()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldExcludeSpecifiedFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldOnlyIncludeSpecifiedFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NestedNavigation]/[method:shouldGenerateNavigationForDeeplyNestedTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateNavigatorClassForNavigableField()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:DepthLimiting]/[method:shouldRespectMaxNavigatorDepth()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_84'>84</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_84'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[32],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_95'>95</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_95'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[68],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[68],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=analyse,-methodDesc=(Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[68],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_96'>96</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_96'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</span></span> replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::analyse &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_101'>101</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_101'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>analyse<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</span></span> replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::analyse &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_111'>111</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_111'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isKindType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isKindType<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=isKindType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[6],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=isKindType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[6],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=isKindType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[6],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:PackageConfiguration]/[method:shouldGenerateInCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusClassWithCorrectSuffix()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusPathMethodsForRecord()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateStandardFocusPathForNonNavigableFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldNotGenerateNavigatorsWhenDisabled()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:JavadocGeneration]/[method:shouldIncludeNavigatorNoteInJavadoc()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:PathTypeWidening]/[method:shouldDetectPathKindForRegularTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NavigatorDelegateMethods]/[method:shouldGenerateFocusPathDelegateMethods()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldExcludeSpecifiedFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldOnlyIncludeSpecifiedFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NestedNavigation]/[method:shouldGenerateNavigationForDeeplyNestedTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateNavigatorClassForNavigableField()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:DepthLimiting]/[method:shouldRespectMaxNavigatorDepth()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_112'>112</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_112'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isKindType<br/><b>Killed by : </b>none</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::isKindType &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_119'>119</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_119'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isKindType<br/><b>Killed by : </b>none</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::isKindType &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=isKindType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[33],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanTrueReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=isKindType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[33],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanTrueReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=isKindType,-methodDesc=(Ljavax/lang/model/type/TypeMirror;)Z],-indexes=[33],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.BooleanTrueReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:PackageConfiguration]/[method:shouldGenerateInCustomTargetPackage()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusClassWithCorrectSuffix()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusPathMethodsForRecord()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateStandardFocusPathForNonNavigableFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldNotGenerateNavigatorsWhenDisabled()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:JavadocGeneration]/[method:shouldIncludeNavigatorNoteInJavadoc()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:PathTypeWidening]/[method:shouldDetectPathKindForRegularTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NavigatorDelegateMethods]/[method:shouldGenerateFocusPathDelegateMethods()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldExcludeSpecifiedFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldOnlyIncludeSpecifiedFields()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NestedNavigation]/[method:shouldGenerateNavigationForDeeplyNestedTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateNavigatorClassForNavigableField()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:DepthLimiting]/[method:shouldRespectMaxNavigatorDepth()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isKindType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::isKindType &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_136'>136</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_136'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromAnnotation<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromAnnotation,-methodDesc=(Lorg/higherkindedj/optics/annotations/TraverseField;Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;)Lorg/higherkindedj/optics/processing/kind/KindFieldInfo;],-indexes=[20],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromAnnotation,-methodDesc=(Lorg/higherkindedj/optics/annotations/TraverseField;Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;)Lorg/higherkindedj/optics/processing/kind/KindFieldInfo;],-indexes=[20],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromAnnotation,-methodDesc=(Lorg/higherkindedj/optics/annotations/TraverseField;Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;)Lorg/higherkindedj/optics/processing/kind/KindFieldInfo;],-indexes=[20],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFromAnnotation<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromAnnotation,-methodDesc=(Lorg/higherkindedj/optics/annotations/TraverseField;Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;)Lorg/higherkindedj/optics/processing/kind/KindFieldInfo;],-indexes=[20],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromAnnotation,-methodDesc=(Lorg/higherkindedj/optics/annotations/TraverseField;Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;)Lorg/higherkindedj/optics/processing/kind/KindFieldInfo;],-indexes=[20],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromAnnotation,-methodDesc=(Lorg/higherkindedj/optics/annotations/TraverseField;Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;)Lorg/higherkindedj/optics/processing/kind/KindFieldInfo;],-indexes=[20],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_138'>138</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_138'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromAnnotation<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::createFromAnnotation &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_164'>164</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_164'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_166'>166</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_166'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[30],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[30],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[30],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[30],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[30],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[30],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_167'>167</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_167'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed call to org/higherkindedj/optics/processing/kind/KindFieldAnalyser::note &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_183'>183</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_183'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[59],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[59],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[59],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[62],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[59],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[59],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=createFromRegistry,-methodDesc=(Ljavax/lang/model/type/TypeMirror;Lcom/palantir/javapoet/TypeName;Ljavax/lang/model/element/RecordComponentElement;)Ljava/util/Optional;],-indexes=[59],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_188'>188</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_188'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>createFromRegistry<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()]</span></span> replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::createFromRegistry &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_211'>211</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_211'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> changed conditional boundary &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_212'>212</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_212'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::injectTypeArgs &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_216'>216</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_216'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> changed conditional boundary &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> <p class='SURVIVED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> removed conditional - replaced comparison check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindFieldAnalyser,-method=injectTypeArgs,-methodDesc=(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;],-indexes=[26],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_ORDER_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_217'>217</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_217'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>none</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::injectTypeArgs &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_221'>221</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_221'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</span></span> Replaced integer addition with subtraction &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindFieldAnalyser::injectTypeArgs &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>injectTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</span></span> Replaced integer addition with subtraction &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@5867c87_235'>235</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@5867c87_235'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>note<br/><b>Killed by : </b>none</span></span> removed call to javax/annotation/processing/Messager::printMessage &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()] (25 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()] (26 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()] (29 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()] (31 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:PackageConfiguration]/[method:shouldGenerateInCustomTargetPackage()] (32 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()] (29 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusClassWithCorrectSuffix()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusPathMethodsForRecord()] (34 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateStandardFocusPathForNonNavigableFields()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()] (34 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()] (40 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldNotGenerateNavigatorsWhenDisabled()] (43 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:JavadocGeneration]/[method:shouldIncludeNavigatorNoteInJavadoc()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:PathTypeWidening]/[method:shouldDetectPathKindForRegularTypes()] (31 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NavigatorDelegateMethods]/[method:shouldGenerateFocusPathDelegateMethods()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()] (58 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldExcludeSpecifiedFields()] (36 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldOnlyIncludeSpecifiedFields()] (37 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NestedNavigation]/[method:shouldGenerateNavigationForDeeplyNestedTypes()] (37 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateNavigatorClassForNavigableField()] (42 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:DepthLimiting]/[method:shouldRespectMaxNavigatorDepth()] (45 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>

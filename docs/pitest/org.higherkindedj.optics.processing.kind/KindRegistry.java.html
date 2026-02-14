@@ -1,0 +1,2878 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>KindRegistry.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.kind;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.Map;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.Optional;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import org.higherkindedj.optics.annotations.KindSemantics;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Registry of known Kind witness types and their corresponding Traverse instances.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;This registry provides the mapping between Higher-Kinded-J library witness types and their</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Traverse implementations. The Focus processor uses this registry to automatically generate</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * appropriate {@code traverseOver()} calls for recognised Kind fields.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;h2&#62;Supported Types&#60;/h2&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;table border=&#34;1&#34;&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;caption&#62;Library Type Mappings&#60;/caption&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;th&#62;Witness Type&#60;/th&#62;&#60;th&#62;Traverse Instance&#60;/th&#62;&#60;th&#62;Semantics&#60;/th&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;ListKind.Witness&#60;/td&#62;&#60;td&#62;ListTraverse.INSTANCE&#60;/td&#62;&#60;td&#62;ZERO_OR_MORE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;MaybeKind.Witness&#60;/td&#62;&#60;td&#62;MaybeTraverse.INSTANCE&#60;/td&#62;&#60;td&#62;ZERO_OR_ONE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;OptionalKind.Witness&#60;/td&#62;&#60;td&#62;OptionalTraverse.INSTANCE&#60;/td&#62;&#60;td&#62;ZERO_OR_ONE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;StreamKind.Witness&#60;/td&#62;&#60;td&#62;StreamTraverse.INSTANCE&#60;/td&#62;&#60;td&#62;ZERO_OR_MORE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;TryKind.Witness&#60;/td&#62;&#60;td&#62;TryTraverse.INSTANCE&#60;/td&#62;&#60;td&#62;ZERO_OR_ONE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;IdKind.Witness&#60;/td&#62;&#60;td&#62;IdTraverse.INSTANCE&#60;/td&#62;&#60;td&#62;EXACTLY_ONE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;EitherKind.Witness&#60;/td&#62;&#60;td&#62;EitherTraverse.instance()&#60;/td&#62;&#60;td&#62;ZERO_OR_ONE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;tr&#62;&#60;td&#62;ValidatedKind.Witness&#60;/td&#62;&#60;td&#62;ValidatedTraverse.instance()&#60;/td&#62;&#60;td&#62;ZERO_OR_ONE&#60;/td&#62;&#60;/tr&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;/table&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;h2&#62;Extensibility&#60;/h2&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;For custom Kind types not in this registry, users can annotate fields with {@link</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * org.higherkindedj.optics.annotations.TraverseField} to provide explicit Traverse configuration.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see KindFieldAnalyser</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @see org.higherkindedj.optics.annotations.TraverseField</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>public final class KindRegistry {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** Base package for Higher-Kinded-J HKT types. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static final String HKT_PACKAGE = &#34;org.higherkindedj.hkt&#34;;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The Kind interface fully qualified name. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static final String KIND_INTERFACE = HKT_PACKAGE + &#34;.Kind&#34;;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Represents a registered Kind type mapping.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_49'/>
+49
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_49'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param traverseExpression the code to obtain the Traverse instance</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param semantics the cardinality semantics</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param isParameterised whether this witness type requires type parameters</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public record KindMapping(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String traverseExpression, KindSemantics semantics, boolean isParameterised) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates a mapping for a non-parameterised type with an INSTANCE field. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    static KindMapping instance(String traverseClass, KindSemantics semantics) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_59'/>
+59
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_59'>1</a>
+<span>
+1. instance : replaced return value with null for org/higherkindedj/optics/processing/kind/KindRegistry$KindMapping::instance &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      return new KindMapping(traverseClass + &#34;.INSTANCE&#34;, semantics, false);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates a mapping for a parameterised type with a factory method. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    static KindMapping factory(String traverseClass, KindSemantics semantics) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_64'/>
+64
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_64'>1</a>
+<span>
+1. factory : replaced return value with null for org/higherkindedj/optics/processing/kind/KindRegistry$KindMapping::factory &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      return new KindMapping(traverseClass + &#34;.instance()&#34;, semantics, true);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_68'/>
+68
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_68'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Map from witness type qualified name to its Traverse mapping.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_70'/>
+70
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_70'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_71'/>
+71
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_71'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;The keys are the fully qualified names of the Witness inner classes, without the type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_72'/>
+72
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_72'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * parameters.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_74'/>
+74
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_74'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  private static final Map&#60;String, KindMapping&#62; KNOWN_KINDS =</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_75'/>
+75
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_75'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      Map.ofEntries(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_76'/>
+76
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_76'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // List - zero or more elements</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_77'/>
+77
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_77'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.list.ListKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.instance(HKT_PACKAGE + &#34;.list.ListTraverse&#34;, KindSemantics.ZERO_OR_MORE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_80'/>
+80
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_80'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_81'/>
+81
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_81'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Maybe - zero or one element</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_82'/>
+82
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_82'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_83'/>
+83
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_83'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.maybe.MaybeKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_84'/>
+84
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_84'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.instance(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_85'/>
+85
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_85'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                  HKT_PACKAGE + &#34;.maybe.MaybeTraverse&#34;, KindSemantics.ZERO_OR_ONE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_86'/>
+86
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_86'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_87'/>
+87
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_87'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Optional - zero or one element</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_88'/>
+88
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_88'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_89'/>
+89
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_89'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.optional.OptionalKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_90'/>
+90
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_90'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.instance(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_91'/>
+91
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_91'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                  HKT_PACKAGE + &#34;.optional.OptionalTraverse&#34;, KindSemantics.ZERO_OR_ONE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_92'/>
+92
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_92'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_93'/>
+93
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_93'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Stream - zero or more elements</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_94'/>
+94
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_94'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_95'/>
+95
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_95'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.stream.StreamKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_96'/>
+96
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_96'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.instance(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_97'/>
+97
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_97'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                  HKT_PACKAGE + &#34;.stream.StreamTraverse&#34;, KindSemantics.ZERO_OR_MORE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_98'/>
+98
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_98'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_99'/>
+99
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_99'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Try - zero or one element (success case)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_100'/>
+100
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_100'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_101'/>
+101
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_101'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.trymonad.TryKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_102'/>
+102
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_102'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.instance(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_103'/>
+103
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_103'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                  HKT_PACKAGE + &#34;.trymonad.TryTraverse&#34;, KindSemantics.ZERO_OR_ONE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_104'/>
+104
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_104'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_105'/>
+105
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_105'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Id - exactly one element</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_106'/>
+106
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_106'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_107'/>
+107
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_107'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.id.IdKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_108'/>
+108
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_108'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.instance(HKT_PACKAGE + &#34;.id.IdTraverse&#34;, KindSemantics.EXACTLY_ONE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_109'/>
+109
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_109'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_110'/>
+110
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_110'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Either - zero or one element (right-biased, parameterised)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_111'/>
+111
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_111'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_112'/>
+112
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_112'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.either.EitherKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_113'/>
+113
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_113'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.factory(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_114'/>
+114
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_114'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                  HKT_PACKAGE + &#34;.either.EitherTraverse&#34;, KindSemantics.ZERO_OR_ONE)),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_115'/>
+115
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_115'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_116'/>
+116
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_116'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>          // Validated - zero or one element (valid case, parameterised)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_117'/>
+117
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_117'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          Map.entry(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_118'/>
+118
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_118'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>              HKT_PACKAGE + &#34;.validated.ValidatedKind.Witness&#34;,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_119'/>
+119
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_119'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              KindMapping.factory(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_120'/>
+120
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_120'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                  HKT_PACKAGE + &#34;.validated.ValidatedTraverse&#34;, KindSemantics.ZERO_OR_ONE)));</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_121'/>
+121
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_121'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_122'/>
+122
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_122'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>  private KindRegistry() {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_123'/>
+123
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_123'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Utility class</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_124'/>
+124
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_124'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_125'/>
+125
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_125'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_126'/>
+126
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_126'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_127'/>
+127
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_127'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Looks up a mapping for the given witness type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_128'/>
+128
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_128'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_129'/>
+129
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_129'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witnessQualifiedName the fully qualified name of the witness type, without type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_130'/>
+130
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_130'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *     parameters</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_131'/>
+131
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_131'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return an Optional containing the mapping if found, empty otherwise</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_132'/>
+132
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_132'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_133'/>
+133
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_133'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static Optional&#60;KindMapping&#62; lookup(String witnessQualifiedName) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_134'/>
+134
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_134'>1</a>
+<span>
+1. lookup : replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindRegistry::lookup &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return Optional.ofNullable(KNOWN_KINDS.get(witnessQualifiedName));</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_135'/>
+135
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_135'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_136'/>
+136
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_136'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_137'/>
+137
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_137'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_138'/>
+138
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_138'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Checks if a qualified name refers to the Kind interface.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_139'/>
+139
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_139'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_140'/>
+140
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_140'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param qualifiedName the type&#39;s qualified name</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_141'/>
+141
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_141'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if this is the Kind interface</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_142'/>
+142
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_142'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_143'/>
+143
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_143'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static boolean isKindInterface(String qualifiedName) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_144'/>
+144
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_144'>2</a>
+<span>
+1. isKindInterface : replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindRegistry::isKindInterface &rarr; KILLED<br/>
+2. isKindInterface : replaced boolean return with false for org/higherkindedj/optics/processing/kind/KindRegistry::isKindInterface &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return KIND_INTERFACE.equals(qualifiedName);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_145'/>
+145
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_145'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_146'/>
+146
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_146'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_147'/>
+147
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_147'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_148'/>
+148
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_148'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Checks if a witness type is from the Higher-Kinded-J library.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_149'/>
+149
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_149'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_150'/>
+150
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_150'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witnessQualifiedName the witness type&#39;s qualified name</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_151'/>
+151
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_151'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if this is a library witness type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_152'/>
+152
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_152'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_153'/>
+153
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_153'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static boolean isLibraryWitness(String witnessQualifiedName) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_154'/>
+154
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_154'>2</a>
+<span>
+1. isLibraryWitness : replaced boolean return with false for org/higherkindedj/optics/processing/kind/KindRegistry::isLibraryWitness &rarr; KILLED<br/>
+2. isLibraryWitness : replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindRegistry::isLibraryWitness &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return witnessQualifiedName.startsWith(HKT_PACKAGE + &#34;.&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_155'/>
+155
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_155'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_156'/>
+156
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_156'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_157'/>
+157
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_157'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_158'/>
+158
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_158'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Extracts the base witness type name from a potentially parameterised type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_159'/>
+159
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_159'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_160'/>
+160
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_160'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;For example, &#34;org.higherkindedj.hkt.either.EitherKind.Witness&#38;lt;String&#38;gt;&#34; becomes</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_161'/>
+161
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_161'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#34;org.higherkindedj.hkt.either.EitherKind.Witness&#34;.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_162'/>
+162
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_162'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_163'/>
+163
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_163'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witnessType the full witness type string</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_164'/>
+164
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_164'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return the base type without parameters</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_165'/>
+165
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_165'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_166'/>
+166
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_166'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static String extractBaseWitnessType(String witnessType) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_167'/>
+167
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_167'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    int angleBracket = witnessType.indexOf(&#39;&#60;&#39;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_168'/>
+168
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_168'>3</a>
+<span>
+1. extractBaseWitnessType : changed conditional boundary &rarr; KILLED<br/>
+2. extractBaseWitnessType : removed conditional - replaced comparison check with true &rarr; KILLED<br/>
+3. extractBaseWitnessType : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (angleBracket &#62; 0) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_169'/>
+169
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_169'>1</a>
+<span>
+1. extractBaseWitnessType : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindRegistry::extractBaseWitnessType &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return witnessType.substring(0, angleBracket);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_170'/>
+170
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_170'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_171'/>
+171
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_171'>1</a>
+<span>
+1. extractBaseWitnessType : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindRegistry::extractBaseWitnessType &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return witnessType;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_172'/>
+172
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_172'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_173'/>
+173
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_173'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_174'/>
+174
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_174'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_175'/>
+175
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_175'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Extracts type arguments from a parameterised witness type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_176'/>
+176
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_176'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_177'/>
+177
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_177'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;For example, &#34;EitherKind.Witness&#38;lt;String&#38;gt;&#34; returns &#34;String&#34;.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_178'/>
+178
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_178'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_179'/>
+179
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_179'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witnessType the full witness type string</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_180'/>
+180
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_180'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return the type arguments, or empty string if none</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_181'/>
+181
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_181'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_182'/>
+182
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_182'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static String extractWitnessTypeArgs(String witnessType) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_183'/>
+183
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_183'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    int start = witnessType.indexOf(&#39;&#60;&#39;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_184'/>
+184
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_184'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    int end = witnessType.lastIndexOf(&#39;&#62;&#39;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_185'/>
+185
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_185'>6</a>
+<span>
+1. extractWitnessTypeArgs : changed conditional boundary &rarr; SURVIVED<br/>
+2. extractWitnessTypeArgs : changed conditional boundary &rarr; KILLED<br/>
+3. extractWitnessTypeArgs : removed conditional - replaced comparison check with true &rarr; KILLED<br/>
+4. extractWitnessTypeArgs : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+5. extractWitnessTypeArgs : removed conditional - replaced comparison check with true &rarr; KILLED<br/>
+6. extractWitnessTypeArgs : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (start &#62; 0 &#38;&#38; end &#62; start) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_186'/>
+186
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_186'>2</a>
+<span>
+1. extractWitnessTypeArgs : Replaced integer addition with subtraction &rarr; KILLED<br/>
+2. extractWitnessTypeArgs : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindRegistry::extractWitnessTypeArgs &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return witnessType.substring(start + 1, end);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_187'/>
+187
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_187'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_188'/>
+188
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_188'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    return &#34;&#34;;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_189'/>
+189
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_189'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@61be2a65_190'/>
+190
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_190'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_59'>59</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_59'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>instance<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/kind/KindRegistry$KindMapping::instance &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry$KindMapping,-method=instance,-methodDesc=(Ljava/lang/String;Lorg/higherkindedj/optics/annotations/KindSemantics;)Lorg/higherkindedj/optics/processing/kind/KindRegistry$KindMapping;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry$KindMapping,-method=instance,-methodDesc=(Ljava/lang/String;Lorg/higherkindedj/optics/annotations/KindSemantics;)Lorg/higherkindedj/optics/processing/kind/KindRegistry$KindMapping;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry$KindMapping,-method=instance,-methodDesc=(Ljava/lang/String;Lorg/higherkindedj/optics/annotations/KindSemantics;)Lorg/higherkindedj/optics/processing/kind/KindRegistry$KindMapping;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_64'>64</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_64'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>factory<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/kind/KindRegistry$KindMapping::factory &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry$KindMapping,-method=factory,-methodDesc=(Ljava/lang/String;Lorg/higherkindedj/optics/annotations/KindSemantics;)Lorg/higherkindedj/optics/processing/kind/KindRegistry$KindMapping;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry$KindMapping,-method=factory,-methodDesc=(Ljava/lang/String;Lorg/higherkindedj/optics/annotations/KindSemantics;)Lorg/higherkindedj/optics/processing/kind/KindRegistry$KindMapping;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry$KindMapping,-method=factory,-methodDesc=(Ljava/lang/String;Lorg/higherkindedj/optics/annotations/KindSemantics;)Lorg/higherkindedj/optics/processing/kind/KindRegistry$KindMapping;],-indexes=[10],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_134'>134</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_134'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>lookup<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindTryKindWitness()]</span></span> replaced return value with Optional.empty for org/higherkindedj/optics/processing/kind/KindRegistry::lookup &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_144'>144</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_144'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isKindInterface<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:isKindInterfacePartialMatch()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindRegistry::isKindInterface &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isKindInterface<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KindInterfaceDetection]/[method:shouldIdentifyKindInterface()]</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/kind/KindRegistry::isKindInterface &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_154'>154</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_154'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isLibraryWitness<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:LibraryWitnessDetection]/[method:shouldIdentifyLibraryWitnessTypes()]</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/kind/KindRegistry::isLibraryWitness &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isLibraryWitness<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:LibraryWitnessDetection]/[method:shouldNotIdentifyCustomWitnessAsLibrary()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/kind/KindRegistry::isLibraryWitness &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_168'>168</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_168'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>extractBaseWitnessType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtZero()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>extractBaseWitnessType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtZero()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>extractBaseWitnessType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtOne()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_169'>169</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_169'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>extractBaseWitnessType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtOne()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindRegistry::extractBaseWitnessType &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_171'>171</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_171'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>extractBaseWitnessType<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtZero()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindRegistry::extractBaseWitnessType &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_185'>185</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_185'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtZero()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithEndEqualToStart()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtOne()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtZero()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>5.<span><b>5</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtOne()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>6.<span><b>6</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>none</span></span> changed conditional boundary &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry,-method=extractWitnessTypeArgs,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[19],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry,-method=extractWitnessTypeArgs,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[19],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.kind.KindRegistry,-method=extractWitnessTypeArgs,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[19],-mutator=org.pitest.mutationtest.engine.gregor.mutators.ConditionalsBoundaryMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithEndEqualToStart()]</li> <li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtOne()]</li> <li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithEndJustAfterStart()]</li> <li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldExtractTypeArguments()]</li> <li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldHandleNestedTypeArguments()]</li> <li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@61be2a65_186'>186</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@61be2a65_186'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtOne()]</span></span> Replaced integer addition with subtraction &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>extractWitnessTypeArgs<br/><b>Killed by : </b>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtOne()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/kind/KindRegistry::extractWitnessTypeArgs &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithEndEqualToStart()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtZero()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithStartAtOne()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractTypeArgsWithEndJustAfterStart()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldExtractTypeArguments()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldReturnEmptyForNonParameterisedWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldHandleNestedTypeArguments()] (0 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:UnknownKindTypes]/[method:shouldGenerateFocusPathForUnrecognisedKind()] (25 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldUseKindFieldAnnotationForCustomTypes()] (26 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:StreamKindFieldSupport]/[method:shouldGenerateTraversalPathForStreamKind()] (29 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:CustomKindFieldSupport]/[method:shouldRespectZeroOrOneSemanticsFromAnnotation()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldGenerateTraversalPathForListKind()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:TryKindFieldSupport]/[method:shouldGenerateAffinePathForTryKind()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:IdKindFieldSupport]/[method:shouldGenerateAffinePathForIdKind()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MaybeKindFieldSupport]/[method:shouldGenerateAffinePathForMaybeKind()] (31 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ParameterisedWitnessSupport]/[method:shouldHandleEitherKindWithTypeParameter()] (29 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:OptionalKindFieldSupport]/[method:shouldGenerateAffinePathForOptionalKind()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:MixedFieldTypes]/[method:shouldHandleMixedFieldTypes()] (34 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorKindFieldTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorKindFieldTest]/[nested-class:ListKindFieldSupport]/[method:shouldHandleNestedRecordTypeInKind()] (40 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:GenericRecordSupport]/[method:shouldGenerateFocusPathMethodsForGenericRecord()] (58 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:isKindInterfacePartialMatch()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KindInterfaceDetection]/[method:shouldIdentifyKindInterface()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:isKindInterfaceEmptyString()] (0 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:PackageConfiguration]/[method:shouldGenerateInCustomTargetPackage()] (32 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusClassWithCorrectSuffix()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorIntegrationTest]/[nested-class:BasicCodeGeneration]/[method:shouldGenerateFocusPathMethodsForRecord()] (34 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateStandardFocusPathForNonNavigableFields()] (30 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldNotGenerateNavigatorsWhenDisabled()] (43 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:JavadocGeneration]/[method:shouldIncludeNavigatorNoteInJavadoc()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:PathTypeWidening]/[method:shouldDetectPathKindForRegularTypes()] (31 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NavigatorDelegateMethods]/[method:shouldGenerateFocusPathDelegateMethods()] (33 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldExcludeSpecifiedFields()] (36 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:FieldFiltering]/[method:shouldOnlyIncludeSpecifiedFields()] (37 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:NestedNavigation]/[method:shouldGenerateNavigationForDeeplyNestedTypes()] (37 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:BasicNavigatorGeneration]/[method:shouldGenerateNavigatorClassForNavigableField()] (42 ms)</li><li>org.higherkindedj.optics.processing.FocusProcessorNavigatorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.FocusProcessorNavigatorTest]/[nested-class:DepthLimiting]/[method:shouldRespectMaxNavigatorDepth()] (45 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtZero()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldReturnUnchangedForNonParameterised()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:extractBaseWithAngleBracketAtOne()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:TypeArgumentExtraction]/[method:shouldExtractBaseWitnessType()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:UnknownTypeLookups]/[method:shouldReturnEmptyForUnknownWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:UnknownTypeLookups]/[method:shouldReturnEmptyForNonExistentLibraryType()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindTryKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindMaybeKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindStreamKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindValidatedKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindIdKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindOptionalKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindListKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:KnownTypeLookups]/[method:shouldFindEitherKindWitness()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:LibraryWitnessDetection]/[method:shouldIdentifyLibraryWitnessTypes()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:LibraryWitnessDetection]/[method:shouldNotIdentifyCustomWitnessAsLibrary()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:isLibraryWitnessExactPackage()] (0 ms)</li><li>org.higherkindedj.optics.processing.kind.KindRegistryTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.kind.KindRegistryTest]/[nested-class:BoundaryConditionTests]/[method:isLibraryWitnessWithDotSuffix()] (0 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>

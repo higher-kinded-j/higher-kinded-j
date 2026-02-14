@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>ProcessorUtils.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.util;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.Locale;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Shared utility methods for annotation processors in the optics module.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;This class provides common string manipulation utilities used across multiple processors.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>public final class ProcessorUtils {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>  private ProcessorUtils() {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Utility class - prevent instantiation</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Converts a string to camelCase.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;Handles various input formats:</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *   &#60;li&#62;SNAKE_CASE: &#34;MY_CONSTANT&#34; &#8594; &#34;myConstant&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *   &#60;li&#62;ALL_CAPS: &#34;MONDAY&#34; &#8594; &#34;monday&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *   &#60;li&#62;PascalCase: &#34;MyClass&#34; &#8594; &#34;myClass&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *   &#60;li&#62;Already camelCase: &#34;myMethod&#34; &#8594; &#34;myMethod&#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;/ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param s the string to convert</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return the camelCase version of the string</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static String toCamelCase(String s) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_34'/>
+34
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_34'>4</a>
+<span>
+1. toCamelCase : removed conditional - replaced equality check with false &rarr; SURVIVED<br/>
+2. toCamelCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+3. toCamelCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+4. toCamelCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (s == null || s.isEmpty()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_35'/>
+35
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_35'>1</a>
+<span>
+1. toCamelCase : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return s;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Handle SNAKE_CASE (with underscores)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_39'/>
+39
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_39'>2</a>
+<span>
+1. toCamelCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. toCamelCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (s.contains(&#34;_&#34;)) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      String[] parts = s.split(&#34;_&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      StringBuilder camelCaseString = new StringBuilder(parts[0].toLowerCase(Locale.ROOT));</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_42'/>
+42
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_42'>3</a>
+<span>
+1. toCamelCase : changed conditional boundary &rarr; KILLED<br/>
+2. toCamelCase : removed conditional - replaced comparison check with true &rarr; KILLED<br/>
+3. toCamelCase : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      for (int i = 1; i &#60; parts.length; i++) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_43'/>
+43
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_43'>2</a>
+<span>
+1. toCamelCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. toCamelCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (!parts[i].isEmpty()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>          camelCaseString</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              .append(parts[i].substring(0, 1).toUpperCase(Locale.ROOT))</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>              .append(parts[i].substring(1).toLowerCase(Locale.ROOT));</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_49'/>
+49
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_49'>1</a>
+<span>
+1. toCamelCase : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return camelCaseString.toString();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Handle ALL_CAPS (no underscores but all uppercase letters)</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_53'/>
+53
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_53'>2</a>
+<span>
+1. toCamelCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+2. toCamelCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    if (isAllUpperCase(s)) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_54'/>
+54
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_54'>1</a>
+<span>
+1. toCamelCase : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return s.toLowerCase(Locale.ROOT);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    // Handle PascalCase</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_58'/>
+58
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_58'>2</a>
+<span>
+1. toCamelCase : removed conditional - replaced equality check with true &rarr; SURVIVED<br/>
+2. toCamelCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>    if (Character.isUpperCase(s.charAt(0))) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_59'/>
+59
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_59'>1</a>
+<span>
+1. toCamelCase : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return Character.toLowerCase(s.charAt(0)) + s.substring(1);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_62'/>
+62
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_62'>1</a>
+<span>
+1. toCamelCase : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return s;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Checks if a string contains only uppercase letters.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_68'/>
+68
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_68'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * &#60;p&#62;Non-letter characters are ignored in the check.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_70'/>
+70
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_70'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param s the string to check</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_71'/>
+71
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_71'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if all letter characters are uppercase, false otherwise</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_72'/>
+72
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_72'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static boolean isAllUpperCase(String s) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_74'/>
+74
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_74'>3</a>
+<span>
+1. isAllUpperCase : removed conditional - replaced comparison check with false &rarr; KILLED<br/>
+2. isAllUpperCase : removed conditional - replaced comparison check with true &rarr; KILLED<br/>
+3. isAllUpperCase : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    for (int i = 0; i &#60; s.length(); i++) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_75'/>
+75
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_75'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>      char c = s.charAt(i);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_76'/>
+76
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_76'>4</a>
+<span>
+1. isAllUpperCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. isAllUpperCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+3. isAllUpperCase : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+4. isAllUpperCase : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      if (Character.isLetter(c) &#38;&#38; !Character.isUpperCase(c)) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_77'/>
+77
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_77'>1</a>
+<span>
+1. isAllUpperCase : replaced boolean return with true for org/higherkindedj/optics/processing/util/ProcessorUtils::isAllUpperCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return false;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_80'/>
+80
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_80'>1</a>
+<span>
+1. isAllUpperCase : replaced boolean return with false for org/higherkindedj/optics/processing/util/ProcessorUtils::isAllUpperCase &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return true;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_81'/>
+81
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_81'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7070ae1_82'/>
+82
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_82'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_34'>34</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_34'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharUppercase()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='SURVIVED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.util.ProcessorUtils,-method=toCamelCase,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.util.ProcessorUtils,-method=toCamelCase,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.util.ProcessorUtils,-method=toCamelCase,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[7],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_ELSE]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:emptyReturnsEmpty()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleEmpty()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharUppercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseTrailingUnderscore()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharLowercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleSingleLowercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:alreadyCamelCase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleSingleUppercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseConsecutiveUnderscores()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseSingleUnderscore()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:underscoreWithEmptyParts()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:leadingUnderscore()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseLeadingUnderscore()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertPascalCase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleAllUppercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldPreserveCamelCase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertSnakeCase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseMultipleUnderscores()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:toCamelCaseSplitPartsIteration()]</li> <li>org.higherkindedj.optics.processing.GeneratedPrismPropertyTest.[engine:jqwik]/[class:org.higherkindedj.optics.processing.GeneratedPrismPropertyTest]/[property:prismPreviewIsTotalForPaymentMethod(java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, int)]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> <li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#3]</li> <li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#2]</li> <li>org.higherkindedj.optics.processing.GeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GeneratedOpticLawsTest]/[nested-class:ComposedOpticsLaws]/[test-factory:prismOperationsMaintainTypeSafety()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedPrismHasAnnotationAndStructure()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForEnumConstants()]</li> <li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:SealedInterfaceProcessing]/[method:shouldGeneratePrismsForSealedInterface()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedEnumPrismUsesEquals()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForSealedSubtypes()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGenerateEnumPrismsWithCorrectMethodNames()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGeneratePrismClassWithGeneratedAnnotation()]</li> <li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:EnumProcessing]/[method:shouldConvertSnakeCaseToCamelCase()]</li> <li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:SealedInterfaceEdgeCases]/[method:shouldHandleSealedInterfaceWithInferredPermits()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleSingleConstantEnum()]</li> <li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:EnumProcessing]/[method:shouldGeneratePrismsForEnum()]</li> <li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:EnumChangeTests]/[method:shouldRegenerateOnEnumConstantAddition()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleSelfReferentialSealedTypes()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleGenericSealedVariants()]</li> <li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantRemoval()]</li> <li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantAddition()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMultiLevelSealedHierarchy()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleLargeEnum()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMixedSealedSubtypes()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:nullReturnsNull()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharUppercase()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_35'>35</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_35'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:nullReturnsNull()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_39'>39</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_39'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseTrailingUnderscore()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:alreadyCamelCase()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_42'>42</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_42'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseTrailingUnderscore()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseTrailingUnderscore()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertSnakeCase()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_43'>43</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_43'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertSnakeCase()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseConsecutiveUnderscores()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_49'>49</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_49'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseTrailingUnderscore()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_53'>53</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_53'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleAllUppercase()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:alreadyCamelCase()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_54'>54</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_54'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharUppercase()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_58'>58</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_58'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.util.ProcessorUtils,-method=toCamelCase,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[109],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.util.ProcessorUtils,-method=toCamelCase,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[109],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.util.ProcessorUtils,-method=toCamelCase,-methodDesc=(Ljava/lang/String;)Ljava/lang/String;],-indexes=[109],-mutator=org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleSingleLowercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:alreadyCamelCase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharLowercase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertPascalCase()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldPreserveCamelCase()]</li> <li>org.higherkindedj.optics.processing.GeneratedPrismPropertyTest.[engine:jqwik]/[class:org.higherkindedj.optics.processing.GeneratedPrismPropertyTest]/[property:prismPreviewIsTotalForPaymentMethod(java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, int)]</li> <li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()]</li> <li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#2]</li> <li>org.higherkindedj.optics.processing.GeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GeneratedOpticLawsTest]/[nested-class:ComposedOpticsLaws]/[test-factory:prismOperationsMaintainTypeSafety()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedPrismHasAnnotationAndStructure()]</li> <li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:SealedInterfaceProcessing]/[method:shouldGeneratePrismsForSealedInterface()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForSealedSubtypes()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGeneratePrismClassWithGeneratedAnnotation()]</li> <li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:SealedInterfaceEdgeCases]/[method:shouldHandleSealedInterfaceWithInferredPermits()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleSelfReferentialSealedTypes()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleGenericSealedVariants()]</li> <li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantAddition()]</li> <li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantRemoval()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMultiLevelSealedHierarchy()]</li> <li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMixedSealedSubtypes()]</li> 
+</ul>
+</div></div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertPascalCase()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_59'>59</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_59'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertPascalCase()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_62'>62</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_62'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toCamelCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleSingleLowercase()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/util/ProcessorUtils::toCamelCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_74'>74</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_74'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseTwoChars()]</span></span> removed conditional - replaced comparison check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnTrueForEmpty()]</span></span> removed conditional - replaced comparison check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnTrueForEmpty()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_76'>76</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_76'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldIgnoreNonLetters()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseTwoChars()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseTwoChars()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseTwoChars()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_77'>77</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_77'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseTwoChars()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/util/ProcessorUtils::isAllUpperCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7070ae1_80'>80</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7070ae1_80'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isAllUpperCase<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnTrueForEmpty()]</span></span> replaced boolean return with false for org/higherkindedj/optics/processing/util/ProcessorUtils::isAllUpperCase &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseTwoChars()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharUppercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:singleCharLowercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnFalseForMixedCase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldIgnoreNonLetters()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleSingleLowercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:alreadyCamelCase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnTrueForAllUppercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:isAllUpperCaseSingleChar()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleSingleUppercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnFalseWithAnyLowercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertPascalCase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:isAllUpperCaseLoopTerminates()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleAllUppercase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldPreserveCamelCase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:toCamelCaseSplitPartsIteration()] (0 ms)</li><li>org.higherkindedj.optics.processing.GeneratedPrismPropertyTest.[engine:jqwik]/[class:org.higherkindedj.optics.processing.GeneratedPrismPropertyTest]/[property:prismPreviewIsTotalForPaymentMethod(java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, int)] (9 ms)</li><li>org.higherkindedj.optics.processing.PrismProcessorIntegrationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.PrismProcessorIntegrationTest]/[method:shouldGeneratePrismsForSealedInterface()] (24 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#3] (23 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#2] (24 ms)</li><li>org.higherkindedj.optics.processing.GeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GeneratedOpticLawsTest]/[nested-class:ComposedOpticsLaws]/[test-factory:prismOperationsMaintainTypeSafety()]/[dynamic-test:#1] (1 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedPrismHasAnnotationAndStructure()] (21 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForEnumConstants()] (22 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:SealedInterfaceProcessing]/[method:shouldGeneratePrismsForSealedInterface()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedEnumPrismUsesEquals()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForSealedSubtypes()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGenerateEnumPrismsWithCorrectMethodNames()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGeneratePrismClassWithGeneratedAnnotation()] (23 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:EnumProcessing]/[method:shouldConvertSnakeCaseToCamelCase()] (22 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:SealedInterfaceEdgeCases]/[method:shouldHandleSealedInterfaceWithInferredPermits()] (31 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleSingleConstantEnum()] (37 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:EnumProcessing]/[method:shouldGeneratePrismsForEnum()] (40 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:EnumChangeTests]/[method:shouldRegenerateOnEnumConstantAddition()] (44 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleSelfReferentialSealedTypes()] (46 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleGenericSealedVariants()] (48 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantRemoval()] (46 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantAddition()] (46 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMultiLevelSealedHierarchy()] (71 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleLargeEnum()] (76 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMixedSealedSubtypes()] (93 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:isAllUpperCaseShouldReturnTrueForEmpty()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:emptyReturnsEmpty()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleEmpty()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:nullReturnsNull()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldHandleNull()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsTests]/[method:toCamelCaseShouldConvertSnakeCase()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseLeadingUnderscore()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseConsecutiveUnderscores()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseSingleUnderscore()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:underscoreWithEmptyParts()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ProcessorUtilsToCamelCaseEdgeCases]/[method:leadingUnderscore()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseMultipleUnderscores()] (0 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:StringLoopBoundaryTests]/[method:toCamelCaseTrailingUnderscore()] (0 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>

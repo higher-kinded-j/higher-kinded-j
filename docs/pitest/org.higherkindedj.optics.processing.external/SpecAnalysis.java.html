@@ -1,0 +1,3453 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>SpecAnalysis.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.external;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.List;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.element.ExecutableElement;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.element.TypeElement;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.TypeMirror;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Result of analysing a spec interface extending {@code OpticsSpec&#60;S&#62;}.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;The analysis captures information needed to generate optics from the spec interface:</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;The source type {@code S} from {@code OpticsSpec&#60;S&#62;}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;Abstract methods requiring generation (annotated with copy strategies)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;Default methods to copy unchanged</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;The target package for generated code</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;/ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param specInterface the analysed spec interface element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param sourceType the source type {@code S} from {@code OpticsSpec&#60;S&#62;}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param sourceTypeElement the source type as a TypeElement (for generating code)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param opticMethods abstract methods that define optics to generate</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param defaultMethods default methods to copy into the generated class</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public record SpecAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    TypeElement specInterface,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    TypeMirror sourceType,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    TypeElement sourceTypeElement,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    List&#60;OpticMethodInfo&#62; opticMethods,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    List&#60;ExecutableElement&#62; defaultMethods) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The kind of optic defined by a method. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public enum OpticKind {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    LENS,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    PRISM,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TRAVERSAL,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    AFFINE,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    ISO,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    GETTER,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    FOLD</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The copy strategy specified by an annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public enum CopyStrategyKind {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    VIA_BUILDER,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_49'/>
+49
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_49'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    WITHER,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    VIA_CONSTRUCTOR,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    VIA_COPY_AND_SET,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    NONE // For prisms and traversals that don&#39;t need copy strategies</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The prism matching strategy specified by an annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public enum PrismHintKind {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    INSTANCE_OF,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    MATCH_WHEN,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_59'/>
+59
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_59'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    NONE</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The traversal strategy specified by an annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public enum TraversalHintKind {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    TRAVERSE_WITH,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    THROUGH_FIELD,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    NONE</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_68'/>
+68
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_68'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_70'/>
+70
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_70'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Information about an abstract method defining an optic.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_71'/>
+71
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_71'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_72'/>
+72
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_72'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param method the abstract method element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param opticKind the kind of optic (Lens, Prism, Traversal, etc.)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_74'/>
+74
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_74'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param focusType the focus type {@code A} in {@code Lens&#60;S, A&#62;}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_75'/>
+75
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_75'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param copyStrategy the copy strategy for lenses</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_76'/>
+76
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_76'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param copyStrategyInfo parsed annotation values for the copy strategy</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_77'/>
+77
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_77'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param prismHint the prism hint for prisms</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param prismHintInfo parsed annotation values for the prism hint</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param traversalHint the traversal hint for traversals</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_80'/>
+80
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_80'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param traversalHintInfo parsed annotation values for the traversal hint</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_81'/>
+81
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_81'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_82'/>
+82
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_82'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public record OpticMethodInfo(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_83'/>
+83
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_83'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      ExecutableElement method,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_84'/>
+84
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_84'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      OpticKind opticKind,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_85'/>
+85
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_85'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TypeMirror focusType,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_86'/>
+86
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_86'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      CopyStrategyKind copyStrategy,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_87'/>
+87
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_87'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      CopyStrategyInfo copyStrategyInfo,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_88'/>
+88
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_88'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      PrismHintKind prismHint,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_89'/>
+89
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_89'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      PrismHintInfo prismHintInfo,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_90'/>
+90
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_90'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TraversalHintKind traversalHint,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_91'/>
+91
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_91'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TraversalHintInfo traversalHintInfo) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_92'/>
+92
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_92'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_93'/>
+93
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_93'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_94'/>
+94
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_94'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * Returns the method name.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_95'/>
+95
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_95'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_96'/>
+96
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_96'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * @return the simple name of the method</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_97'/>
+97
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_97'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_98'/>
+98
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_98'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public String methodName() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_99'/>
+99
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_99'>1</a>
+<span>
+1. methodName : replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::methodName &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return method.getSimpleName().toString();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_100'/>
+100
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_100'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_101'/>
+101
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_101'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_102'/>
+102
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_102'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_103'/>
+103
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_103'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * Returns whether this optic requires a copy strategy annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_104'/>
+104
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_104'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_105'/>
+105
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_105'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * @return true if this is a lens that needs a copy strategy</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_106'/>
+106
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_106'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_107'/>
+107
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_107'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public boolean requiresCopyStrategy() {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_108'/>
+108
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_108'>3</a>
+<span>
+1. requiresCopyStrategy : replaced boolean return with true for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::requiresCopyStrategy &rarr; NO_COVERAGE<br/>
+2. requiresCopyStrategy : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+3. requiresCopyStrategy : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>      return opticKind == OpticKind.LENS;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_109'/>
+109
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_109'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_110'/>
+110
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_110'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_111'/>
+111
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_111'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_112'/>
+112
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_112'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * Returns whether this optic requires a prism hint annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_113'/>
+113
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_113'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_114'/>
+114
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_114'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * @return true if this is a prism that needs a hint</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_115'/>
+115
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_115'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_116'/>
+116
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_116'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public boolean requiresPrismHint() {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_117'/>
+117
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_117'>3</a>
+<span>
+1. requiresPrismHint : replaced boolean return with true for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::requiresPrismHint &rarr; NO_COVERAGE<br/>
+2. requiresPrismHint : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
+3. requiresPrismHint : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>      return opticKind == OpticKind.PRISM;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_118'/>
+118
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_118'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_119'/>
+119
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_119'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_120'/>
+120
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_120'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_121'/>
+121
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_121'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * Returns whether this optic requires a traversal hint annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_122'/>
+122
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_122'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_123'/>
+123
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_123'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * @return true if this is a traversal that needs a hint</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_124'/>
+124
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_124'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_125'/>
+125
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_125'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public boolean requiresTraversalHint() {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_126'/>
+126
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_126'>3</a>
+<span>
+1. requiresTraversalHint : removed conditional - replaced equality check with true &rarr; NO_COVERAGE<br/>
+2. requiresTraversalHint : replaced boolean return with true for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::requiresTraversalHint &rarr; NO_COVERAGE<br/>
+3. requiresTraversalHint : removed conditional - replaced equality check with false &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>      return opticKind == OpticKind.TRAVERSAL;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_127'/>
+127
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_127'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_128'/>
+128
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_128'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_129'/>
+129
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_129'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_130'/>
+130
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_130'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_131'/>
+131
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_131'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Parsed values from a copy strategy annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_132'/>
+132
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_132'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_133'/>
+133
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_133'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param getter the getter method name on source (for @ViaBuilder)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_134'/>
+134
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_134'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param toBuilder the toBuilder method name (for @ViaBuilder)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_135'/>
+135
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_135'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param setter the setter method name (for @ViaBuilder, @ViaCopyAndSet)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_136'/>
+136
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_136'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param build the build method name (for @ViaBuilder)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_137'/>
+137
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_137'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witherMethod the wither method name (for @Wither)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_138'/>
+138
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_138'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param parameterOrder the constructor parameter order (for @ViaConstructor)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_139'/>
+139
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_139'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param copyConstructor the copy constructor type (for @ViaCopyAndSet)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_140'/>
+140
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_140'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_141'/>
+141
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_141'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public record CopyStrategyInfo(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_142'/>
+142
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_142'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String getter,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_143'/>
+143
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_143'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String toBuilder,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_144'/>
+144
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_144'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String setter,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_145'/>
+145
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_145'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String build,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_146'/>
+146
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_146'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String witherMethod,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_147'/>
+147
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_147'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String[] parameterOrder,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_148'/>
+148
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_148'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String copyConstructor) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_149'/>
+149
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_149'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_150'/>
+150
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_150'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates an empty copy strategy info. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_151'/>
+151
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_151'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static CopyStrategyInfo empty() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_152'/>
+152
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_152'>1</a>
+<span>
+1. empty : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::empty &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      return new CopyStrategyInfo(&#34;&#34;, &#34;&#34;, &#34;&#34;, &#34;&#34;, &#34;&#34;, new String[0], &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_153'/>
+153
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_153'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_154'/>
+154
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_154'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_155'/>
+155
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_155'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @ViaBuilder annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_156'/>
+156
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_156'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static CopyStrategyInfo forBuilder(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_157'/>
+157
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_157'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        String getter, String toBuilder, String setter, String build) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_158'/>
+158
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_158'>1</a>
+<span>
+1. forBuilder : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forBuilder &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new CopyStrategyInfo(getter, toBuilder, setter, build, &#34;&#34;, new String[0], &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_159'/>
+159
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_159'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_160'/>
+160
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_160'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_161'/>
+161
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_161'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @Wither annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_162'/>
+162
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_162'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static CopyStrategyInfo forWither(String getter, String witherMethod) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_163'/>
+163
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_163'>1</a>
+<span>
+1. forWither : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forWither &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new CopyStrategyInfo(getter, &#34;&#34;, &#34;&#34;, &#34;&#34;, witherMethod, new String[0], &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_164'/>
+164
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_164'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_165'/>
+165
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_165'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_166'/>
+166
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_166'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @ViaConstructor annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_167'/>
+167
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_167'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static CopyStrategyInfo forConstructor(String[] parameterOrder) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_168'/>
+168
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_168'>1</a>
+<span>
+1. forConstructor : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forConstructor &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new CopyStrategyInfo(&#34;&#34;, &#34;&#34;, &#34;&#34;, &#34;&#34;, &#34;&#34;, parameterOrder, &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_169'/>
+169
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_169'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_170'/>
+170
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_170'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_171'/>
+171
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_171'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @ViaCopyAndSet annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_172'/>
+172
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_172'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static CopyStrategyInfo forCopyAndSet(String copyConstructor, String setter) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_173'/>
+173
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_173'>1</a>
+<span>
+1. forCopyAndSet : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forCopyAndSet &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new CopyStrategyInfo(&#34;&#34;, &#34;&#34;, setter, &#34;&#34;, &#34;&#34;, new String[0], copyConstructor);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_174'/>
+174
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_174'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_175'/>
+175
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_175'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_176'/>
+176
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_176'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_177'/>
+177
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_177'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_178'/>
+178
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_178'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Parsed values from a prism hint annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_179'/>
+179
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_179'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_180'/>
+180
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_180'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param targetType the target subtype (for @InstanceOf)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_181'/>
+181
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_181'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param predicate the predicate method name (for @MatchWhen)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_182'/>
+182
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_182'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param getter the getter method name (for @MatchWhen)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_183'/>
+183
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_183'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_184'/>
+184
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_184'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public record PrismHintInfo(TypeMirror targetType, String predicate, String getter) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_185'/>
+185
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_185'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_186'/>
+186
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_186'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates an empty prism hint info. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_187'/>
+187
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_187'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static PrismHintInfo empty() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_188'/>
+188
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_188'>1</a>
+<span>
+1. empty : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo::empty &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      return new PrismHintInfo(null, &#34;&#34;, &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_189'/>
+189
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_189'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_190'/>
+190
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_190'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_191'/>
+191
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_191'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @InstanceOf annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_192'/>
+192
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_192'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static PrismHintInfo forInstanceOf(TypeMirror targetType) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_193'/>
+193
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_193'>1</a>
+<span>
+1. forInstanceOf : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo::forInstanceOf &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new PrismHintInfo(targetType, &#34;&#34;, &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_194'/>
+194
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_194'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_195'/>
+195
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_195'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_196'/>
+196
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_196'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @MatchWhen annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_197'/>
+197
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_197'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static PrismHintInfo forMatchWhen(String predicate, String getter) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_198'/>
+198
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_198'>1</a>
+<span>
+1. forMatchWhen : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo::forMatchWhen &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new PrismHintInfo(null, predicate, getter);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_199'/>
+199
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_199'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_200'/>
+200
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_200'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_201'/>
+201
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_201'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_202'/>
+202
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_202'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_203'/>
+203
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_203'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Parsed values from a traversal hint annotation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_204'/>
+204
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_204'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_205'/>
+205
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_205'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param traversalReference the traversal reference (for @TraverseWith)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_206'/>
+206
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_206'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param fieldName the field name (for @ThroughField)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_207'/>
+207
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_207'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param fieldTraversal the explicit traversal for the field (for @ThroughField)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_208'/>
+208
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_208'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_209'/>
+209
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_209'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public record TraversalHintInfo(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_210'/>
+210
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_210'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      String traversalReference, String fieldName, String fieldTraversal) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_211'/>
+211
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_211'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_212'/>
+212
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_212'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates an empty traversal hint info. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_213'/>
+213
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_213'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static TraversalHintInfo empty() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_214'/>
+214
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_214'>1</a>
+<span>
+1. empty : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo::empty &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>      return new TraversalHintInfo(&#34;&#34;, &#34;&#34;, &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_215'/>
+215
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_215'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_216'/>
+216
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_216'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_217'/>
+217
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_217'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @TraverseWith annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_218'/>
+218
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_218'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static TraversalHintInfo forTraverseWith(String traversalReference) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_219'/>
+219
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_219'>1</a>
+<span>
+1. forTraverseWith : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo::forTraverseWith &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new TraversalHintInfo(traversalReference, &#34;&#34;, &#34;&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_220'/>
+220
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_220'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_221'/>
+221
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_221'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_222'/>
+222
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_222'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Creates info for @ThroughField annotation. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_223'/>
+223
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_223'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static TraversalHintInfo forThroughField(String fieldName, String traversal) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_224'/>
+224
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_224'>1</a>
+<span>
+1. forThroughField : replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo::forThroughField &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>      return new TraversalHintInfo(&#34;&#34;, fieldName, traversal);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_225'/>
+225
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_225'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_226'/>
+226
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_226'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@46c33614_227'/>
+227
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_227'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_99'>99</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_99'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>methodName<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyAbstractMethods()]</span></span> replaced return value with &#34;&#34; for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::methodName &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_108'>108</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_108'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requiresCopyStrategy<br/><b>Killed by : </b>none</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::requiresCopyStrategy &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requiresCopyStrategy<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>requiresCopyStrategy<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_117'>117</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_117'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requiresPrismHint<br/><b>Killed by : </b>none</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::requiresPrismHint &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requiresPrismHint<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>requiresPrismHint<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_126'>126</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_126'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requiresTraversalHint<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with true &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requiresTraversalHint<br/><b>Killed by : </b>none</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/external/SpecAnalysis$OpticMethodInfo::requiresTraversalHint &rarr; NO_COVERAGE</span>
+</div> <p class='NO_COVERAGE'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>requiresTraversalHint<br/><b>Killed by : </b>none</span></span> removed conditional - replaced equality check with false &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_152'>152</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_152'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>empty<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::empty &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$CopyStrategyInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo;],-indexes=[14],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$CopyStrategyInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo;],-indexes=[14],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$CopyStrategyInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo;],-indexes=[14],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:noneStrategyThrows()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:prismWithoutHintFails()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:lensWithoutCopyStrategyFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectTraversal()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectPrismWithoutHint()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:FocusTypeExtraction]/[method:shouldExtractFocusType()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectLens()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectLensWithoutCopyStrategy()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:traversalWithoutHintFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectPrism()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyDefaultMethods()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:TraversalHintParsing]/[method:shouldParseTraverseWith()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:instanceOfWithNonSubtypeFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyAbstractMethods()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseWither()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:PrismHintParsing]/[method:shouldParseInstanceOf()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldRejectNonSubtypeInstanceOf()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderCustom()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldNotFoundProducesError()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldNotFindFieldViaPrivateFieldOnly()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForFieldNotFound()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForUnrecognisedContainerType()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderDefaults()]</li> <li>org.higherkindedj.optics.processing.SpecOpticPropertyTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecOpticPropertyTest]/[nested-class:LensPropertyTests]/[test-factory:putPutLawProperty()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:extractFocusTypeBoundaryExactlyTwo()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:defaultMethodsArePreserved()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForRawListType()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithBuilderDefaults()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:MatchWhenPrismHint]/[method:shouldGeneratePrismWithMatchWhen()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithCustomBuilderMethods()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:WitherCopyStrategy]/[method:shouldGenerateLensWithWither()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:BasicSpecInterface]/[method:shouldGenerateOpticsFromSpecInterface()]</li> <li>org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest]/[nested-class:WitherLensLaws]/[test-factory:witherLensesSatisfyGetPut()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:TraverseWithHint]/[method:shouldGenerateTraversalWithReference()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldGeneratePrismWithInstanceOf()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithSpecSuffix()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnRecordFoundViaComponent()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ExplicitTraversalOverride]/[method:shouldUseExplicitTraversalWhenProvided()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ArrayFieldAutoDetection]/[method:shouldAutoDetectArrayField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldFindFieldViaPublicField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipStaticMethods()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipMethodsWithParameters()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectHashSetAsSet()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipPrivateMethods()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectSetField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaJavaBeanGetter()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaRecordStyleAccessor()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectArrayListAsList()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectListField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:OptionalFieldAutoDetection]/[method:shouldAutoDetectOptionalField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaBooleanIsGetter()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectMapField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectHashMapAsMap()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnClassFoundViaJavaBeanGetter()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithoutSpecSuffix()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_158'>158</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_158'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forBuilder<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:generateGetterLambdaWithExplicitGetter()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forBuilder &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_163'>163</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_163'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forWither<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:WitherSetterGeneration]/[method:shouldGenerateWitherSetter()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forWither &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_168'>168</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_168'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forConstructor<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaConstructorWithEmptyParameterOrder()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forConstructor &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_173'>173</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_173'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forCopyAndSet<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaCopyAndSetWithSpecifiedCopyConstructor()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$CopyStrategyInfo::forCopyAndSet &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_188'>188</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_188'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>empty<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo::empty &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$PrismHintInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo;],-indexes=[9],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$PrismHintInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo;],-indexes=[9],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$PrismHintInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo;],-indexes=[9],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismCodeGeneratorMutationTests]/[method:noneHintKindThrows()]</li> <li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:InstanceOfPrismGeneration]/[method:shouldGenerateCorrectGetterAndReverseGet()]</li> <li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:EdgeCases]/[method:shouldHandleNestedClasses()]</li> <li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:InstanceOfPrismGeneration]/[method:shouldGenerateInstanceOfPrism()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:prismWithoutHintFails()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:lensWithoutCopyStrategyFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectTraversal()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectPrismWithoutHint()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:FocusTypeExtraction]/[method:shouldExtractFocusType()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectLens()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectLensWithoutCopyStrategy()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:traversalWithoutHintFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectPrism()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyDefaultMethods()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:TraversalHintParsing]/[method:shouldParseTraverseWith()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:instanceOfWithNonSubtypeFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyAbstractMethods()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseWither()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:PrismHintParsing]/[method:shouldParseInstanceOf()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldRejectNonSubtypeInstanceOf()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderCustom()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldNotFoundProducesError()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldNotFindFieldViaPrivateFieldOnly()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForFieldNotFound()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForUnrecognisedContainerType()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderDefaults()]</li> <li>org.higherkindedj.optics.processing.SpecOpticPropertyTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecOpticPropertyTest]/[nested-class:LensPropertyTests]/[test-factory:putPutLawProperty()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:extractFocusTypeBoundaryExactlyTwo()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:defaultMethodsArePreserved()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForRawListType()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithBuilderDefaults()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:MatchWhenPrismHint]/[method:shouldGeneratePrismWithMatchWhen()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithCustomBuilderMethods()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:WitherCopyStrategy]/[method:shouldGenerateLensWithWither()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:BasicSpecInterface]/[method:shouldGenerateOpticsFromSpecInterface()]</li> <li>org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest]/[nested-class:WitherLensLaws]/[test-factory:witherLensesSatisfyGetPut()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:TraverseWithHint]/[method:shouldGenerateTraversalWithReference()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldGeneratePrismWithInstanceOf()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithSpecSuffix()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnRecordFoundViaComponent()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ExplicitTraversalOverride]/[method:shouldUseExplicitTraversalWhenProvided()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ArrayFieldAutoDetection]/[method:shouldAutoDetectArrayField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldFindFieldViaPublicField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipStaticMethods()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipMethodsWithParameters()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectHashSetAsSet()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipPrivateMethods()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectSetField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaJavaBeanGetter()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaRecordStyleAccessor()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectArrayListAsList()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectListField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:OptionalFieldAutoDetection]/[method:shouldAutoDetectOptionalField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaBooleanIsGetter()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectMapField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectHashMapAsMap()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnClassFoundViaJavaBeanGetter()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithoutSpecSuffix()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_193'>193</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_193'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forInstanceOf<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismNullTargetTests]/[method:instanceOfWithTargetTypeUsesIt()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo::forInstanceOf &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_198'>198</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_198'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forMatchWhen<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismCodeGeneratorMutationTests]/[method:matchWhenGeneratesPredicateAndGetter()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$PrismHintInfo::forMatchWhen &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_214'>214</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_214'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>empty<br/><b>Killed by : </b>none</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo::empty &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$TraversalHintInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo;],-indexes=[9],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$TraversalHintInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo;],-indexes=[9],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=org.higherkindedj.optics.processing.external.SpecAnalysis$TraversalHintInfo,-method=empty,-methodDesc=()Lorg/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo;],-indexes=[9],-mutator=org.pitest.mutationtest.engine.gregor.mutators.returns.NullReturnValsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalCodeGeneratorMutationTests]/[method:noneHintKindThrows()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:prismWithoutHintFails()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:lensWithoutCopyStrategyFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectTraversal()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectPrismWithoutHint()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:FocusTypeExtraction]/[method:shouldExtractFocusType()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectLens()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectLensWithoutCopyStrategy()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:traversalWithoutHintFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectPrism()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyDefaultMethods()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:TraversalHintParsing]/[method:shouldParseTraverseWith()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:instanceOfWithNonSubtypeFails()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyAbstractMethods()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseWither()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:PrismHintParsing]/[method:shouldParseInstanceOf()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldRejectNonSubtypeInstanceOf()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderCustom()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldNotFoundProducesError()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldNotFindFieldViaPrivateFieldOnly()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForFieldNotFound()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForUnrecognisedContainerType()]</li> <li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderDefaults()]</li> <li>org.higherkindedj.optics.processing.SpecOpticPropertyTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecOpticPropertyTest]/[nested-class:LensPropertyTests]/[test-factory:putPutLawProperty()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:extractFocusTypeBoundaryExactlyTwo()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:defaultMethodsArePreserved()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForRawListType()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithBuilderDefaults()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:MatchWhenPrismHint]/[method:shouldGeneratePrismWithMatchWhen()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithCustomBuilderMethods()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:WitherCopyStrategy]/[method:shouldGenerateLensWithWither()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:BasicSpecInterface]/[method:shouldGenerateOpticsFromSpecInterface()]</li> <li>org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest]/[nested-class:WitherLensLaws]/[test-factory:witherLensesSatisfyGetPut()]/[dynamic-test:#1]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:TraverseWithHint]/[method:shouldGenerateTraversalWithReference()]</li> <li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldGeneratePrismWithInstanceOf()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithSpecSuffix()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnRecordFoundViaComponent()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ExplicitTraversalOverride]/[method:shouldUseExplicitTraversalWhenProvided()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ArrayFieldAutoDetection]/[method:shouldAutoDetectArrayField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldFindFieldViaPublicField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipStaticMethods()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipMethodsWithParameters()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectHashSetAsSet()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipPrivateMethods()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectSetField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaJavaBeanGetter()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaRecordStyleAccessor()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectArrayListAsList()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectListField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:OptionalFieldAutoDetection]/[method:shouldAutoDetectOptionalField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaBooleanIsGetter()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectMapField()]</li> <li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectHashMapAsMap()]</li> <li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnClassFoundViaJavaBeanGetter()]</li> <li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithoutSpecSuffix()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_219'>219</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_219'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forTraverseWith<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalReferenceDetectionTests]/[method:traverseWithMethodCallStyle()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo::forTraverseWith &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@46c33614_224'>224</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@46c33614_224'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forThroughField<br/><b>Killed by : </b>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalCodeGeneratorMutationTests]/[method:throughFieldWithExplicitTraversalUsesIt()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/SpecAnalysis$TraversalHintInfo::forThroughField &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:noneStrategyThrows()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:prismWithoutHintFails()] (15 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:lensWithoutCopyStrategyFails()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectTraversal()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectPrismWithoutHint()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:FocusTypeExtraction]/[method:shouldExtractFocusType()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectLens()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ErrorCases]/[method:shouldRejectLensWithoutCopyStrategy()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:traversalWithoutHintFails()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:OpticKindDetection]/[method:shouldDetectPrism()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyDefaultMethods()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:TraversalHintParsing]/[method:shouldParseTraverseWith()] (17 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:instanceOfWithNonSubtypeFails()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:MethodCategorisation]/[method:shouldIdentifyAbstractMethods()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseWither()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:PrismHintParsing]/[method:shouldParseInstanceOf()] (17 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldRejectNonSubtypeInstanceOf()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderCustom()] (18 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldNotFoundProducesError()] (16 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldNotFindFieldViaPrivateFieldOnly()] (17 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForFieldNotFound()] (17 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForUnrecognisedContainerType()] (19 ms)</li><li>org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.SpecInterfaceAnalyserTest]/[nested-class:CopyStrategyParsing]/[method:shouldParseViaBuilderDefaults()] (32 ms)</li><li>org.higherkindedj.optics.processing.SpecOpticPropertyTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecOpticPropertyTest]/[nested-class:LensPropertyTests]/[test-factory:putPutLawProperty()]/[dynamic-test:#1] (1 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:extractFocusTypeBoundaryExactlyTwo()] (19 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecInterfaceAnalyserMutationTests]/[method:defaultMethodsArePreserved()] (20 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ErrorCases]/[method:shouldReportErrorForRawListType()] (32 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithBuilderDefaults()] (20 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:MatchWhenPrismHint]/[method:shouldGeneratePrismWithMatchWhen()] (21 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:ViaBuilderCopyStrategy]/[method:shouldGenerateLensWithCustomBuilderMethods()] (20 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:WitherCopyStrategy]/[method:shouldGenerateLensWithWither()] (21 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:BasicSpecInterface]/[method:shouldGenerateOpticsFromSpecInterface()] (21 ms)</li><li>org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecGeneratedOpticLawsTest]/[nested-class:WitherLensLaws]/[test-factory:witherLensesSatisfyGetPut()]/[dynamic-test:#1] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:TraverseWithHint]/[method:shouldGenerateTraversalWithReference()] (21 ms)</li><li>org.higherkindedj.optics.processing.SpecInterfaceProcessingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecInterfaceProcessingTest]/[nested-class:InstanceOfPrismHint]/[method:shouldGeneratePrismWithInstanceOf()] (23 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithSpecSuffix()] (30 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnRecordFoundViaComponent()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ExplicitTraversalOverride]/[method:shouldUseExplicitTraversalWhenProvided()] (26 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ArrayFieldAutoDetection]/[method:shouldAutoDetectArrayField()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldFindFieldViaPublicField()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipStaticMethods()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipMethodsWithParameters()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectHashSetAsSet()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipPrivateMethods()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectSetField()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaJavaBeanGetter()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaRecordStyleAccessor()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectArrayListAsList()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectListField()] (23 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:OptionalFieldAutoDetection]/[method:shouldAutoDetectOptionalField()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaBooleanIsGetter()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectMapField()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectHashMapAsMap()] (22 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnClassFoundViaJavaBeanGetter()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SpecInterfaceClassNameTests]/[method:specInterfaceWithoutSpecSuffix()] (68 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaCopyAndSetWithSpecifiedCopyConstructor()] (15 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaCopyAndSetWithEmptyCopyConstructor()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:ViaCopyAndSetSetterGeneration]/[method:shouldGenerateCopyAndSetSetter()] (15 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalCodeGeneratorMutationTests]/[method:noneHintKindThrows()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalReferenceDetectionTests]/[method:traverseWithMethodCallStyle()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalReferenceDetectionTests]/[method:traverseWithFieldReferenceStyle()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalCodeGeneratorMutationTests]/[method:traverseWithGeneratesDirectReference()] (0 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:TraverseWithGeneration]/[method:shouldHandleParameterisedFactoryMethods()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:TraverseWithGeneration]/[method:shouldGenerateTraversalReference()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:TraverseWithGeneration]/[method:shouldHandleStaticFieldReferences()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:EdgeCases]/[method:shouldHandleNestedTypes()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:EdgeCases]/[method:shouldHandleFullyQualifiedNames()] (17 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismCodeGeneratorMutationTests]/[method:noneHintKindThrows()] (0 ms)</li><li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:InstanceOfPrismGeneration]/[method:shouldGenerateCorrectGetterAndReverseGet()] (14 ms)</li><li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:EdgeCases]/[method:shouldHandleNestedClasses()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:InstanceOfPrismGeneration]/[method:shouldGenerateInstanceOfPrism()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:WitherSetterGeneration]/[method:shouldGenerateWitherSetter()] (14 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:generateGetterLambdaWithExplicitGetter()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:generateGetterLambdaWithEmptyGetter()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaBuilderWithEmptyDefaults()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaBuilderWithCustomNames()] (0 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:ViaBuilderSetterGeneration]/[method:shouldGenerateBuilderSetterCustom()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:GetterLambdaGeneration]/[method:shouldGenerateExplicitGetter()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:ViaBuilderSetterGeneration]/[method:shouldGenerateBuilderSetterDefaults()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:GetterLambdaGeneration]/[method:shouldGenerateRecordStyleGetter()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaConstructorWithEmptyParameterOrder()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaConstructorWithMultipleParameters()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:ViaConstructorSetterGeneration]/[method:shouldRequireParameterOrder()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaConstructorWithSingleParameter()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:CopyStrategyMutationTests]/[method:viaConstructorFirstParameterBoundary()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.CopyStrategyCodeGeneratorTest]/[nested-class:ViaConstructorSetterGeneration]/[method:shouldGenerateConstructorSetterWithOrder()] (16 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalCodeGeneratorMutationTests]/[method:throughFieldWithExplicitTraversalUsesIt()] (0 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:TraversalCodeGeneratorMutationTests]/[method:throughFieldWithEmptyTraversalThrowsException()] (0 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:ThroughFieldGeneration]/[method:shouldUseExplicitTraversal()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TraversalCodeGeneratorTest]/[nested-class:ThroughFieldGeneration]/[method:shouldGenerateTraversalThroughListField()] (17 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismNullTargetTests]/[method:instanceOfWithTargetTypeUsesIt()] (14 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismCodeGeneratorMutationTests]/[method:instanceOfGeneratesInstanceofCheck()] (14 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismNullTargetTests]/[method:instanceOfWithNullTargetUseFocusType()] (15 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:PrismCodeGeneratorMutationTests]/[method:matchWhenGeneratesPredicateAndGetter()] (14 ms)</li><li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:MatchWhenPrismGeneration]/[method:shouldGenerateMatchWhenPrism()] (14 ms)</li><li>org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.PrismCodeGeneratorTest]/[nested-class:MatchWhenPrismGeneration]/[method:shouldUsePredicateAndGetter()] (15 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>

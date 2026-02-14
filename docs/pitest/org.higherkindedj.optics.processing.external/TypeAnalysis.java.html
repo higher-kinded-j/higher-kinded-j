@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>TypeAnalysis.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.external;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.List;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.element.TypeElement;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Result of analysing an external type to determine what optics to generate.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;The analysis captures the kind of type (record, sealed interface, enum, or wither-based class)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * along with the relevant information needed for optics generation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param typeElement the analysed type element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param typeKind the determined kind of the type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param fields field information for lens generation (records and wither classes)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param witherMethods wither method information for wither-based classes</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param permittedSubtypes permitted subtypes for sealed interfaces</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param enumConstants enum constants for enum types</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param hasMutableFields whether the type has mutable fields (setters)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public record TypeAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    TypeElement typeElement,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    TypeKind typeKind,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    List&#60;FieldInfo&#62; fields,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    List&#60;WitherInfo&#62; witherMethods,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    List&#60;TypeElement&#62; permittedSubtypes,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    List&#60;String&#62; enumConstants,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    boolean hasMutableFields) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The kind of type that was analysed. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public enum TypeKind {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A Java record type. Lenses are generated via canonical constructor. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    RECORD,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A sealed interface. Prisms are generated for each permitted subtype. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    SEALED_INTERFACE,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** An enum type. Prisms are generated for each constant. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    ENUM,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A class with wither methods. Lenses are generated via withX() methods. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    WITHER_CLASS,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A type that cannot have optics generated (e.g., mutable class without withers). */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    UNSUPPORTED</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_49'/>
+49
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_49'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates an analysis result for a record type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param typeElement the record type element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param fields the record components as field info</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new TypeAnalysis for the record</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static TypeAnalysis forRecord(TypeElement typeElement, List&#60;FieldInfo&#62; fields) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_57'/>
+57
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_57'>1</a>
+<span>
+1. forRecord : replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forRecord &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new TypeAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        typeElement, TypeKind.RECORD, fields, List.of(), List.of(), List.of(), false);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_59'/>
+59
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_59'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates an analysis result for a sealed interface.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param typeElement the sealed interface element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param permittedSubtypes the permitted subtypes</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new TypeAnalysis for the sealed interface</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_68'/>
+68
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_68'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static TypeAnalysis forSealedInterface(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TypeElement typeElement, List&#60;TypeElement&#62; permittedSubtypes) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_70'/>
+70
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_70'>1</a>
+<span>
+1. forSealedInterface : replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forSealedInterface &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new TypeAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_71'/>
+71
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_71'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        typeElement,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_72'/>
+72
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_72'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeKind.SEALED_INTERFACE,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_74'/>
+74
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_74'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_75'/>
+75
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_75'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        permittedSubtypes,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_76'/>
+76
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_76'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_77'/>
+77
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_77'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        false);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_80'/>
+80
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_80'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_81'/>
+81
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_81'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates an analysis result for an enum type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_82'/>
+82
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_82'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_83'/>
+83
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_83'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param typeElement the enum type element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_84'/>
+84
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_84'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param enumConstants the enum constant names</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_85'/>
+85
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_85'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new TypeAnalysis for the enum</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_86'/>
+86
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_86'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_87'/>
+87
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_87'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static TypeAnalysis forEnum(TypeElement typeElement, List&#60;String&#62; enumConstants) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_88'/>
+88
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_88'>1</a>
+<span>
+1. forEnum : replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forEnum &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new TypeAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_89'/>
+89
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_89'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        typeElement, TypeKind.ENUM, List.of(), List.of(), List.of(), enumConstants, false);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_90'/>
+90
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_90'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_91'/>
+91
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_91'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_92'/>
+92
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_92'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_93'/>
+93
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_93'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates an analysis result for a class with wither methods.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_94'/>
+94
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_94'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_95'/>
+95
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_95'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param typeElement the class type element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_96'/>
+96
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_96'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param fields the fields derived from wither methods</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_97'/>
+97
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_97'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param witherMethods the detected wither methods</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_98'/>
+98
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_98'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param hasMutableFields whether the class also has setter methods</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_99'/>
+99
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_99'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new TypeAnalysis for the wither class</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_100'/>
+100
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_100'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_101'/>
+101
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_101'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static TypeAnalysis forWitherClass(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_102'/>
+102
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_102'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      TypeElement typeElement,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_103'/>
+103
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_103'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      List&#60;FieldInfo&#62; fields,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_104'/>
+104
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_104'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      List&#60;WitherInfo&#62; witherMethods,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_105'/>
+105
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_105'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>      boolean hasMutableFields) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_106'/>
+106
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_106'>1</a>
+<span>
+1. forWitherClass : replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forWitherClass &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new TypeAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_107'/>
+107
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_107'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        typeElement,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_108'/>
+108
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_108'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeKind.WITHER_CLASS,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_109'/>
+109
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_109'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        fields,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_110'/>
+110
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_110'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        witherMethods,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_111'/>
+111
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_111'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_112'/>
+112
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_112'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_113'/>
+113
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_113'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        hasMutableFields);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_114'/>
+114
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_114'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_115'/>
+115
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_115'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_116'/>
+116
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_116'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_117'/>
+117
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_117'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates an analysis result for an unsupported type.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_118'/>
+118
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_118'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_119'/>
+119
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_119'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param typeElement the unsupported type element</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_120'/>
+120
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_120'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param hasMutableFields whether the type has mutable fields</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_121'/>
+121
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_121'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new TypeAnalysis indicating the type is unsupported</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_122'/>
+122
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_122'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_123'/>
+123
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_123'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static TypeAnalysis unsupported(TypeElement typeElement, boolean hasMutableFields) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_124'/>
+124
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_124'>1</a>
+<span>
+1. unsupported : replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::unsupported &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new TypeAnalysis(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_125'/>
+125
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_125'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        typeElement,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_126'/>
+126
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_126'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        TypeKind.UNSUPPORTED,</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_127'/>
+127
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_127'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_128'/>
+128
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_128'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_129'/>
+129
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_129'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_130'/>
+130
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_130'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        List.of(),</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_131'/>
+131
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_131'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        hasMutableFields);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_132'/>
+132
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_132'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_133'/>
+133
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_133'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_134'/>
+134
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_134'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_135'/>
+135
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_135'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Returns whether this type supports lens generation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_136'/>
+136
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_136'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_137'/>
+137
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_137'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if lenses can be generated for this type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_138'/>
+138
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_138'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_139'/>
+139
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_139'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public boolean supportsLenses() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_140'/>
+140
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_140'>5</a>
+<span>
+1. supportsLenses : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+2. supportsLenses : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+3. supportsLenses : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+4. supportsLenses : replaced boolean return with true for org/higherkindedj/optics/processing/external/TypeAnalysis::supportsLenses &rarr; KILLED<br/>
+5. supportsLenses : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return typeKind == TypeKind.RECORD || typeKind == TypeKind.WITHER_CLASS;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_141'/>
+141
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_141'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_142'/>
+142
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_142'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_143'/>
+143
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_143'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_144'/>
+144
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_144'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Returns whether this type supports prism generation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_145'/>
+145
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_145'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_146'/>
+146
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_146'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if prisms can be generated for this type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_147'/>
+147
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_147'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_148'/>
+148
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_148'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public boolean supportsPrisms() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_149'/>
+149
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_149'>5</a>
+<span>
+1. supportsPrisms : replaced boolean return with true for org/higherkindedj/optics/processing/external/TypeAnalysis::supportsPrisms &rarr; KILLED<br/>
+2. supportsPrisms : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+3. supportsPrisms : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+4. supportsPrisms : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+5. supportsPrisms : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return typeKind == TypeKind.SEALED_INTERFACE || typeKind == TypeKind.ENUM;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_150'/>
+150
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_150'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4178074f_151'/>
+151
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_151'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_57'>57</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_57'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forRecord<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EmptyNullCaseTests]/[method:recordWithNoComponents()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forRecord &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_70'>70</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_70'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forSealedInterface<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:OrderDependentConditionalTests]/[method:shouldCheckSealedBeforeRegularInterface()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forSealedInterface &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_88'>88</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_88'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forEnum<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:OrderDependentConditionalTests]/[method:shouldCheckEnumBeforeClass()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forEnum &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_106'>106</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_106'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forWitherClass<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:WitherClassAnalysis]/[method:shouldDetectMutableFields()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::forWitherClass &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_124'>124</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_124'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>unsupported<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/TypeAnalysis::unsupported &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_140'>140</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_140'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>supportsLenses<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>supportsLenses<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EmptyNullCaseTests]/[method:recordWithNoComponents()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>supportsLenses<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:WitherClassAnalysis]/[method:shouldIdentifyWitherClass()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>supportsLenses<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/external/TypeAnalysis::supportsLenses &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>5.<span><b>5</b><br/><b>Location : </b>supportsLenses<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4178074f_149'>149</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4178074f_149'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>supportsPrisms<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/external/TypeAnalysis::supportsPrisms &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>supportsPrisms<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>supportsPrisms<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:EnumAnalysis]/[method:shouldIdentifyEnum()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>supportsPrisms<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:SealedInterfaceAnalysis]/[method:shouldIdentifySealedInterface()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>5.<span><b>5</b><br/><b>Location : </b>supportsPrisms<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:unsupportedShouldSetCorrectValues()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:SealedInterfaceAnalysis]/[method:shouldIdentifySealedInterface()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:EnumAnalysis]/[method:shouldIdentifyEnum()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:RecordAnalysis]/[method:shouldIdentifyRecord()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:sealedInterfaceBooleanReturns()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisBooleanReturnTests]/[method:unsupportedTypeNoSupport()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:UnsupportedTypeAnalysis]/[method:shouldIdentifyUnsupportedClass()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:enumBooleanReturns()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisBooleanReturnTests]/[method:supportsPrismsForEnum()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:unsupportedTypeBooleanReturns()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisBooleanReturnTests]/[method:supportsLensesForAllTypeKinds()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:recordBooleanReturns()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:WitherClassAnalysis]/[method:shouldIdentifyWitherClass()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisBooleanReturnTests]/[method:supportsLensesForWitherClass()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisBooleanReturnTests]/[method:supportsPrismsForSealedInterface()] (38 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:OrderDependentConditionalTests]/[method:shouldCheckSealedBeforeRegularInterface()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:sealedInterfaceSubtypeLoopProcessesAll()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:SealedInterfaceAnalysis]/[method:shouldExtractPermittedSubtypes()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EmptyNullCaseTests]/[method:sealedInterfaceWithSingleSubtype()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:forSealedInterfaceShouldSetCorrectValues()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:SealedInterfaceEdgeCases]/[method:sealedInterfaceNoPermittedSubtypes()] (26 ms)</li><li>org.higherkindedj.optics.processing.GeneratedPrismPropertyTest.[engine:jqwik]/[class:org.higherkindedj.optics.processing.GeneratedPrismPropertyTest]/[property:prismPreviewIsTotalForPaymentMethod(java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, int)] (9 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDistinguishInterfaceFromSealedInterface()] (32 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#2] (24 ms)</li><li>org.higherkindedj.optics.processing.GeneratedOpticLawsTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GeneratedOpticLawsTest]/[nested-class:ComposedOpticsLaws]/[test-factory:prismOperationsMaintainTypeSafety()]/[dynamic-test:#1] (1 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedPrismHasAnnotationAndStructure()] (21 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:SealedInterfaceProcessing]/[method:shouldGeneratePrismsForSealedInterface()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForSealedSubtypes()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGeneratePrismClassWithGeneratedAnnotation()] (23 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:SealedInterfaceEdgeCases]/[method:shouldHandleSealedInterfaceWithInferredPermits()] (31 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleSelfReferentialSealedTypes()] (46 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleGenericSealedVariants()] (48 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantAddition()] (46 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SealedInterfaceChangeTests]/[method:shouldRegenerateOnVariantRemoval()] (46 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMultiLevelSealedHierarchy()] (71 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:ComplexSealedHierarchiesTests]/[method:shouldHandleMixedSealedSubtypes()] (93 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MutableFieldDetectionTests]/[method:setterExactly3Chars()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionBoundaryTests]/[method:privateWitherMethodIgnored()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:setterMethodExactly3Chars()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionEdgeCases]/[method:methodNotStartingWithWith()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionBoundaryTests]/[method:staticWitherMethodIgnored()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:setterMethodExactly4Chars()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MutableFieldDetectionTests]/[method:nonVoidSetterNotMutable()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionBoundaryTests]/[method:witherMethodTwoParams()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:UnsupportedTypeAnalysis]/[method:shouldDetectMutableClassAsUnsupported()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:witherMustTakeOneParameter()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionBoundaryTests]/[method:witherMethodWrongReturnType()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:witherMustNotBeStatic()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:witherMustBePublic()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionEdgeCases]/[method:witherWithWrongReturnType()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MutableFieldDetectionTests]/[method:classWithSetterHasMutableFields()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:witherMustReturnSameType()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:getterMustBePublic()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:getterMustTakeNoParams()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:getterMustNotBeStatic()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:getterReturnTypeMustMatchWitherParam()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GetterDetectionEdgeCases]/[method:getterWithWrongReturnType()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:importOpticsOnUnsupportedTypeShouldError()] (16 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:ErrorCases]/[method:shouldRejectUnsupportedType()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:witherMethodExactly4Chars()] (26 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:importOpticsOnMutableClassWithoutWithersShouldError()] (16 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:UnsupportedTypeErrors]/[method:shouldReportNonSealedInterface()] (20 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:AnnotationPlacementErrors]/[method:shouldReportImportOpticsOnClass()] (19 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:WitherDetectionErrors]/[method:shouldReportWrongReturnTypeWither()] (18 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:ErrorLocationTests]/[method:errorShouldPointToRelevantElement()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDistinguishRecordFromClass()] (32 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:UnsupportedTypeErrors]/[method:shouldReportAbstractClass()] (22 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:UnsupportedTypeErrors]/[method:shouldReportPlainClassWithoutWithers()] (27 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EmptyNullCaseTests]/[method:recordWithNoComponents()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectArrayContainer()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:RecordAnalysis]/[method:shouldExtractFieldInfo()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:OrderDependentConditionalTests]/[method:shouldCheckRecordBeforeClass()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectListContainer()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerSubtypeRawTypeTests]/[method:plainStringNoContainerType()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:emptyTypeArgumentsReturnsNoContainer()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectSetContainer()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerSubtypeRawTypeTests]/[method:linkedListNotDetectedViaExactMatch()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerSubtypeRawTypeTests]/[method:linkedHashSetNotDetectedViaExactMatch()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:arrayFieldDetected()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:rawMapNotDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:nonContainerFieldHasNoTraversal()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:RawTypeBoundaryTests]/[method:rawOptionalNotDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AdditionalBoundaryTests]/[method:listWithOneTypeArgShouldBeDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDetectOptionalContainer()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectOptionalContainer()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:mapWithExactly2TypeArgs()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactOptionalDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:RawTypeBoundaryTests]/[method:rawSetNotDetected()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactSetDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:optionalContainerShouldReturnIsMapFalse()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectMapContainer()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:setContainerShouldReturnIsMapFalse()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:listContainerShouldReturnIsMapFalse()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:RawTypeBoundaryTests]/[method:mapWithOneTypeArgNotDetected()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactMapDetected()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:mapContainerShouldReturnIsMapTrue()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerSubtypeRawTypeTests]/[method:treeMapNotDetectedViaExactMatch()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:recordComponentLoopProcessesAll()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:arrayContainerShouldReturnIsMapFalse()] (25 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MultipleFieldTests]/[method:recordWithManyComponents()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:RawTypeBoundaryTests]/[method:rawListNotDetected()] (27 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDetectSetContainer()] (28 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactListDetected()] (30 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:forRecordShouldSetCorrectTypeKind()] (31 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:RecordAnalysis]/[method:shouldDetectContainerFields()] (29 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDetectListNotArrayList()] (34 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleEmptyRecord()] (29 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AnnotationPlacementTests]/[method:shouldWorkOnInterface()] (19 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AnnotationPlacementTests]/[method:shouldWorkOnClass()] (19 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AnnotationPlacementTests]/[method:shouldWorkOnPackageInfo()] (19 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:importOpticsOnClassShouldWork()] (19 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsSpecDetectionTests]/[method:interfaceNotExtendingOpticsSpecNotSpec()] (19 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsSpecDetectionTests]/[method:classWithImportOpticsGeneratesLenses()] (20 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:TargetPackageConfiguration]/[method:shouldUseAnnotatedPackageByDefault()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AnnotationValueExtractionTests]/[method:shouldHandleSingleClass()] (20 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:TargetPackageConfiguration]/[method:shouldUseCustomTargetPackage()] (21 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:importOpticsWithCustomTargetPackage()] (22 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:TypeLevelAnnotation]/[method:shouldSupportAnnotationOnClass()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AnnotationValueExtractionTests]/[method:shouldHandleMultipleClasses()] (22 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#4] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGenerateFileComment()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedLensHasGetterAndWithMethod()] (21 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGenerateLensPerComponentWithType()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedLensHasAnnotation()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGenerateLensClassWithPrivateConstructor()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeTests]/[method:shouldGenerateWithMethodForEachField()] (21 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:RecordProcessing]/[method:shouldGenerateWithMethodsForRecord()] (21 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:RecordProcessing]/[method:shouldGenerateLensesForGenericRecord()] (21 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:RecordProcessing]/[method:shouldGenerateLensesForExternalRecord()] (21 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGenerateJavadocOnLensMethods()] (21 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:genericRecordShouldHaveTypeParams()] (20 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleSingleFieldRecord()] (31 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#1] (26 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeTests]/[method:shouldGenerateTraversalForListField()] (22 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleRecursiveRecords()] (32 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleBinaryTreeStructure()] (33 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:SpecialCasesTests]/[method:shouldHandleAnnotatedFields()] (35 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:TypeParameterChangeTests]/[method:shouldRegenerateOnTypeBoundChange()] (40 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SourceChangeTests]/[method:shouldRegenerateOnFieldAddition()] (41 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:SpecialCasesTests]/[method:shouldHandleArrayFields()] (32 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SourceChangeTests]/[method:shouldRegenerateOnFieldTypeChange()] (42 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:SpecialCasesTests]/[method:shouldHandlePrimitiveFields()] (46 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:NestedGenericsTests]/[method:shouldHandleDeeplyNestedGenerics()] (34 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:SourceChangeTests]/[method:shouldRegenerateOnFieldRemoval()] (43 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#5] (27 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGenerateLensWithTraversalForContainerFields()] (24 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:NestedGenericsTests]/[method:shouldHandleMultipleTypeParameters()] (28 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:TypeRemovalTests]/[method:shouldCompileWithRemovedType()] (51 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:TypeParameterChangeTests]/[method:shouldRegenerateOnTypeParameterChange()] (51 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:NestedGenericsTests]/[method:shouldHandleWildcardGenerics()] (45 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:UnusualNamesTests]/[method:shouldHandleUppercaseFieldNames()] (58 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:UnusualNamesTests]/[method:shouldHandleLongFieldNames()] (61 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:SpecialCasesTests]/[method:shouldHandleMultipleInterfaces()] (68 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleMutuallyRecursiveTypes()] (55 ms)</li><li>org.higherkindedj.optics.processing.GeneratedLensPropertyTest.[engine:jqwik]/[class:org.higherkindedj.optics.processing.GeneratedLensPropertyTest]/[property:ageLensPutGetLaw(java.lang.String, int, int, boolean)] (103 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:UnusualNamesTests]/[method:shouldHandleSingleCharFieldNames()] (128 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:UnusualNamesTests]/[method:shouldHandleKeywordFieldNames()] (441 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:WitherClassAnalysis]/[method:shouldDetectMutableFields()] (14 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GetterPatternTests]/[method:shouldDetectBooleanStyleGetter()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AdditionalBoundaryTests]/[method:witherWith5CharsShouldBeDetected()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:WitherDetectionEdgeCases]/[method:witherWithSubtypeReturn()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AdditionalBoundaryTests]/[method:setterWith4CharsShouldBeDetected()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:witherMethodExactly5Chars()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AdditionalBoundaryTests]/[method:capitaliseShouldHandleEmpty()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GetterDetectionEdgeCases]/[method:isBooleanGetterDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:immutableWitherClassHasNoMutableFields()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MultipleFieldTests]/[method:classWithManyWithers()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:witherDetectionProcessesAllMethods()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:classWithStaticSettersShouldReturnFalse()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MutableFieldDetectionTests]/[method:witherClassWithSetterHasMutableFields()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:methodNamedSetShouldNotBeDetected()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:classWithPrivateSettersShouldReturnFalse()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:getterCandidateLoopTriesAllPatterns()] (15 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:OrderDependentConditionalTests]/[method:shouldCheckWitherMethodConditionsInOrder()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GetterPatternTests]/[method:shouldDetectJavaBeanStyleGetter()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanReturnTests]/[method:mutableWitherClassHasMutableFields()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GetterDetectionEdgeCases]/[method:recordStyleGetterDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:classWithNonVoidSettersShouldReturnFalse()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:forWitherClassShouldSetCorrectValues()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:detectMutableFieldsReturnsFalseForMethodsOnly()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:WitherClassAnalysis]/[method:shouldExtractWitherInfo()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:classWithoutSettersShouldReturnFalse()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GetterPatternTests]/[method:shouldDetectRecordStyleGetter()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:classWithWrongParamCountSettersShouldReturnFalse()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BooleanFalseReturnTests]/[method:classWithValidSetterShouldReturnTrue()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerSubtypeRawTypeTests]/[method:rawArrayListReturnsEmpty()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EmptyNullCaseTests]/[method:classWithSingleWither()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:importOpticsOnMutableClassShouldError()] (15 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:ErrorCases]/[method:shouldRejectMutableClassWithoutFlag()] (17 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:MutableTypeErrors]/[method:shouldReportSpecificSetterName()] (19 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:MutableTypeErrors]/[method:shouldReportMutableClassWithSetters()] (19 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:ErrorCases]/[method:shouldAllowMutableClassWithFlag()] (20 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:WitherClassProcessing]/[method:shouldGenerateLensesForWitherClass()] (21 ms)</li><li>org.higherkindedj.optics.processing.ErrorMessageTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ErrorMessageTest]/[nested-class:WitherDetectionErrors]/[method:shouldReportPartialWitherMethods()] (25 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGenerateWitherBasedLens()] (20 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:importOpticsOnMutableClassWithAllowMutableShouldSucceed()] (29 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:OrderDependentConditionalTests]/[method:shouldCheckEnumBeforeClass()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:enumConstantLoopProcessesAll()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MultipleFieldTests]/[method:enumWithManyConstants()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EmptyNullCaseTests]/[method:enumWithSingleConstant()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EnumEdgeCases]/[method:enumWithMethods()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:EnumEdgeCases]/[method:enumWithFields()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:TypeAnalysisStaticFactoryTests]/[method:forEnumShouldSetCorrectValues()] (18 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:EnumAnalysis]/[method:shouldExtractEnumConstants()] (31 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#3] (23 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGeneratePrismForEnumConstants()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeStructuralValidation]/[method:generatedEnumPrismUsesEquals()] (22 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:EnumProcessing]/[method:shouldConvertSnakeCaseToCamelCase()] (22 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:VoidMethodCallTests]/[method:shouldGenerateEnumPrismsWithCorrectMethodNames()] (22 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleSingleConstantEnum()] (37 ms)</li><li>org.higherkindedj.optics.processing.ImportOpticsProcessorTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ImportOpticsProcessorTest]/[nested-class:EnumProcessing]/[method:shouldGeneratePrismsForEnum()] (40 ms)</li><li>org.higherkindedj.optics.processing.IncrementalCompilationTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.IncrementalCompilationTest]/[nested-class:EnumChangeTests]/[method:shouldRegenerateOnEnumConstantAddition()] (44 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:EmptyAndMinimalTypesTests]/[method:shouldHandleLargeEnum()] (76 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>

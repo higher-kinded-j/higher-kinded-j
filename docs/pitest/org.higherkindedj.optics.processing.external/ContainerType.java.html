@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>ContainerType.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Copyright (c) 2025 - 2026 Magnus Smith</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>// Licensed under the MIT License. See LICENSE.md in the project root for license information.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package org.higherkindedj.optics.processing.external;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import javax.lang.model.type.TypeMirror;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * Represents a detected container type for traversal generation.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;This record captures information about container fields (List, Set, Optional, arrays, Map)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * that can have traversals generated for them.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param kind the kind of container</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param elementType the type of elements in the container</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param keyType for Map containers, the key type; null otherwise</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public record ContainerType(Kind kind, TypeMirror elementType, TypeMirror keyType) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /** The kind of container. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>  public enum Kind {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A {@code java.util.List&#60;E&#62;} container. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    LIST,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A {@code java.util.Set&#60;E&#62;} container. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    SET,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A {@code java.util.Optional&#60;E&#62;} container. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    OPTIONAL,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A Java array type {@code E[]}. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    ARRAY,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A {@code java.util.Map&#60;K, V&#62;} container. Traversal is over values only. */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    MAP</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates a ContainerType for a single-element container (List, Set, Optional, array).</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param kind the container kind</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param elementType the element type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new ContainerType</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static ContainerType of(Kind kind, TypeMirror elementType) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_45'/>
+45
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_45'>1</a>
+<span>
+1. of : replaced return value with null for org/higherkindedj/optics/processing/external/ContainerType::of &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new ContainerType(kind, elementType, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_49'/>
+49
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_49'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Creates a ContainerType for a Map container.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param keyType the key type</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @param valueType the value type (used as element type for traversal)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return a new ContainerType for Map</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public static ContainerType forMap(TypeMirror keyType, TypeMirror valueType) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_56'/>
+56
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_56'>1</a>
+<span>
+1. forMap : replaced return value with null for org/higherkindedj/optics/processing/external/ContainerType::forMap &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return new ContainerType(Kind.MAP, valueType, keyType);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_59'/>
+59
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_59'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * Returns whether this is a Map container.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   * @return true if this is a Map container</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>   */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  public boolean isMap() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_65'/>
+65
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_65'>3</a>
+<span>
+1. isMap : replaced boolean return with true for org/higherkindedj/optics/processing/external/ContainerType::isMap &rarr; KILLED<br/>
+2. isMap : removed conditional - replaced equality check with false &rarr; KILLED<br/>
+3. isMap : removed conditional - replaced equality check with true &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>    return kind == Kind.MAP;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>  }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@2c289a9e_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@2c289a9e_45'>45</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_45'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>of<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldPreserveElementTypeForArrays()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/ContainerType::of &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@2c289a9e_56'>56</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_56'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>forMap<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectTreeMapAsMap()]</span></span> replaced return value with null for org/higherkindedj/optics/processing/external/ContainerType::forMap &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@2c289a9e_65'>65</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@2c289a9e_65'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isMap<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:arrayFieldDetected()]</span></span> replaced boolean return with true for org/higherkindedj/optics/processing/external/ContainerType::isMap &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isMap<br/><b>Killed by : </b>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectMapContainer()]</span></span> removed conditional - replaced equality check with false &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>isMap<br/><b>Killed by : </b>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:arrayFieldDetected()]</span></span> removed conditional - replaced equality check with true &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>EXPERIMENTAL_SWITCH</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_EQUAL_IF</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_ELSE</li>
+<li class='mutator'>REMOVE_CONDITIONALS_ORDER_IF</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldPreserveElementTypeForArrays()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectObjectArray()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectArrayContainer()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectLinkedListAsList()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectListContainer()] (15 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectArrayListAsList()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectHashSetAsSet()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectLinkedHashSetAsSet()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectTreeSetAsSet()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectSetContainer()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:arrayFieldDetected()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectCopyOnWriteArrayListAsList()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:AdditionalBoundaryTests]/[method:listWithOneTypeArgShouldBeDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDetectOptionalContainer()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectOptionalContainer()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactOptionalDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactSetDetected()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:optionalContainerShouldReturnIsMapFalse()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:setContainerShouldReturnIsMapFalse()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:listContainerShouldReturnIsMapFalse()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:FinalMutationKillingTests]/[method:recordComponentLoopProcessesAll()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:arrayContainerShouldReturnIsMapFalse()] (25 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:MultipleFieldTests]/[method:recordWithManyComponents()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDetectSetContainer()] (28 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactListDetected()] (30 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:RecordAnalysis]/[method:shouldDetectContainerFields()] (29 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ConditionalEqualityTests]/[method:shouldDetectListNotArrayList()] (34 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:GeneratedCodeTests]/[method:shouldGenerateTraversalForListField()] (22 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnRecordFoundViaComponent()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ArrayFieldAutoDetection]/[method:shouldAutoDetectArrayField()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldFindFieldViaPublicField()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipStaticMethods()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipMethodsWithParameters()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectHashSetAsSet()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupEdgeCases]/[method:shouldSkipPrivateMethods()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:SetFieldAutoDetection]/[method:shouldAutoDetectSetField()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaJavaBeanGetter()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaRecordStyleAccessor()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectArrayListAsList()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:ListFieldAutoDetection]/[method:shouldAutoDetectListField()] (23 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:OptionalFieldAutoDetection]/[method:shouldAutoDetectOptionalField()] (22 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:FieldLookupViaAccessors]/[method:shouldFindFieldViaBooleanIsGetter()] (21 ms)</li><li>org.higherkindedj.optics.processing.SpecMutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.SpecMutationKillingTest]/[nested-class:SpecAnalyserFieldLookupTests]/[method:fieldOnClassFoundViaJavaBeanGetter()] (22 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:SpecialCasesTests]/[method:shouldHandleArrayFields()] (32 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:NestedGenericsTests]/[method:shouldHandleDeeplyNestedGenerics()] (34 ms)</li><li>org.higherkindedj.optics.processing.GoldenFileTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.GoldenFileTest]/[test-template:generatedCodeMatchesGolden(org.higherkindedj.optics.processing.GoldenFileTest$GoldenTestCase)]/[test-template-invocation:#5] (27 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ImportOpticsProcessorEqualityTests]/[method:shouldGenerateLensWithTraversalForContainerFields()] (24 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:NestedGenericsTests]/[method:shouldHandleWildcardGenerics()] (45 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:RecursiveTypesTests]/[method:shouldHandleMutuallyRecursiveTypes()] (55 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectTreeMapAsMap()] (16 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetectionWithSubtypes]/[method:shouldDetectHashMapAsMap()] (17 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:BoundaryConditionTests]/[method:mapWithExactly2TypeArgs()] (17 ms)</li><li>org.higherkindedj.optics.processing.external.TypeKindAnalyserTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.external.TypeKindAnalyserTest]/[nested-class:ContainerTypeDetection]/[method:shouldDetectMapContainer()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeExactDetectionTests]/[method:exactMapDetected()] (16 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:RawTypeBoundaryTests]/[method:mapWithOneTypeArgNotDetected()] (18 ms)</li><li>org.higherkindedj.optics.processing.MutationKillingTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.MutationKillingTest]/[nested-class:ContainerTypeIsMapTests]/[method:mapContainerShouldReturnIsMapTrue()] (18 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectMapField()] (21 ms)</li><li>org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.ThroughFieldAutoDetectTest]/[nested-class:MapFieldAutoDetection]/[method:shouldAutoDetectHashMapAsMap()] (22 ms)</li><li>org.higherkindedj.optics.processing.EdgeCaseTest.[engine:junit-jupiter]/[class:org.higherkindedj.optics.processing.EdgeCaseTest]/[nested-class:NestedGenericsTests]/[method:shouldHandleMultipleTypeParameters()] (28 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.22.0
+
+</body>
+</html>
