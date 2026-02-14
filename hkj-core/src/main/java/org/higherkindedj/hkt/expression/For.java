@@ -563,8 +563,7 @@ public final class For {
     public <F> MonadicSteps6<M, A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
       Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
           monad.map(
-              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)),
-              this.computation);
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), this.computation);
       return new MonadicSteps6<>(monad, newComputation);
     }
 
@@ -1159,8 +1158,7 @@ public final class For {
     public <F> FilterableSteps6<M, A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
       Kind<M, Tuple6<A, B, C, D, E, F>> newComputation =
           monad.map(
-              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)),
-              this.computation);
+              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), this.computation);
       return new FilterableSteps6<>(monad, newComputation);
     }
 

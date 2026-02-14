@@ -563,8 +563,7 @@ public final class ForPath {
 
     public <F> MaybePathSteps6<A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
       Kind<MaybeKind.Witness, Tuple6<A, B, C, D, E, F>> newComp =
-          MONAD.map(
-              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), computation);
+          MONAD.map(t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), computation);
       return new MaybePathSteps6<>(newComp);
     }
 
@@ -1336,8 +1335,7 @@ public final class ForPath {
 
     public <F> VTaskPathSteps6<A, B, C, D, E, F> let(Function<Tuple5<A, B, C, D, E>, F> f) {
       Kind<VTaskKind.Witness, Tuple6<A, B, C, D, E, F>> newComp =
-          MONAD.map(
-              t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), computation);
+          MONAD.map(t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), f.apply(t)), computation);
       return new VTaskPathSteps6<>(newComp);
     }
 
@@ -1709,7 +1707,9 @@ public final class ForPath {
         Function<Tuple3<A, B, C>, GenericPath<F, D>> next) {
       Kind<F, Tuple4<A, B, C, D>> newComp =
           monad.flatMap(
-              abc -> monad.map(d -> Tuple.of(abc._1(), abc._2(), abc._3(), d), next.apply(abc).runKind()),
+              abc ->
+                  monad.map(
+                      d -> Tuple.of(abc._1(), abc._2(), abc._3(), d), next.apply(abc).runKind()),
               computation);
       return new GenericPathSteps4<>(monad, newComp);
     }

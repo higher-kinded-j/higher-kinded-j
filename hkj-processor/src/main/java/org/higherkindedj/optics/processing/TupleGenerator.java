@@ -27,7 +27,13 @@ final class TupleGenerator {
   };
 
   private static final String[] MAP_OPS = {
-    "MAP_FIRST", "MAP_SECOND", "MAP_THIRD", "MAP_FOURTH", "MAP_FIFTH", "MAP_SIXTH", "MAP_SEVENTH",
+    "MAP_FIRST",
+    "MAP_SECOND",
+    "MAP_THIRD",
+    "MAP_FOURTH",
+    "MAP_FIFTH",
+    "MAP_SIXTH",
+    "MAP_SEVENTH",
     "MAP_EIGHTH"
   };
 
@@ -60,7 +66,8 @@ final class TupleGenerator {
 
     // Javadoc
     sb.append("/**\n");
-    sb.append(" * An immutable tuple containing ").append(n)
+    sb.append(" * An immutable tuple containing ")
+        .append(n)
         .append(" elements of potentially different types.\n");
     sb.append(" *\n");
     sb.append(
@@ -70,11 +77,17 @@ final class TupleGenerator {
     sb.append(" * {@code hashCode()}, and {@code toString()}.\n");
     sb.append(" *\n");
     for (int i = 0; i < n; i++) {
-      sb.append(" * @param <").append(TYPE_PARAMS[i]).append("> The type of the ")
-          .append(ORDINAL_LOWER[i]).append(" element.\n");
+      sb.append(" * @param <")
+          .append(TYPE_PARAMS[i])
+          .append("> The type of the ")
+          .append(ORDINAL_LOWER[i])
+          .append(" element.\n");
     }
     for (int i = 0; i < n; i++) {
-      sb.append(" * @param _").append(i + 1).append(" The ").append(ORDINAL_LOWER[i])
+      sb.append(" * @param _")
+          .append(i + 1)
+          .append(" The ")
+          .append(ORDINAL_LOWER[i])
           .append(" element of the tuple.\n");
     }
     sb.append(" */\n");
@@ -96,8 +109,13 @@ final class TupleGenerator {
 
     // Class constant
     sb.append("  @SuppressWarnings(\"rawtypes\")\n");
-    sb.append("  private static final Class<").append(className).append("> ")
-        .append(constName).append(" = ").append(className).append(".class;\n\n");
+    sb.append("  private static final Class<")
+        .append(className)
+        .append("> ")
+        .append(constName)
+        .append(" = ")
+        .append(className)
+        .append(".class;\n\n");
 
     // map() method - transforms all elements
     generateMapAll(sb, n, className, constName);
@@ -117,19 +135,27 @@ final class TupleGenerator {
   private static void generateMapAll(StringBuilder sb, int n, String className, String constName) {
     // Javadoc
     sb.append("  /**\n");
-    sb.append("   * Transforms all ").append(n)
+    sb.append("   * Transforms all ")
+        .append(n)
         .append(" elements of this tuple using the provided mapping functions.\n");
     sb.append("   *\n");
     for (int i = 0; i < n; i++) {
-      sb.append("   * @param ").append(ORDINAL_LOWER[i])
+      sb.append("   * @param ")
+          .append(ORDINAL_LOWER[i])
           .append("Mapper The non-null function to apply to the ")
-          .append(ORDINAL_LOWER[i]).append(" element.\n");
+          .append(ORDINAL_LOWER[i])
+          .append(" element.\n");
     }
     for (int i = 0; i < n; i++) {
-      sb.append("   * @param <").append(TYPE_PARAMS[i]).append("2> The type of the ")
-          .append(ORDINAL_LOWER[i]).append(" element in the resulting tuple.\n");
+      sb.append("   * @param <")
+          .append(TYPE_PARAMS[i])
+          .append("2> The type of the ")
+          .append(ORDINAL_LOWER[i])
+          .append(" element in the resulting tuple.\n");
     }
-    sb.append("   * @return A new {@code ").append(className).append("} with all elements transformed.\n");
+    sb.append("   * @return A new {@code ")
+        .append(className)
+        .append("} with all elements transformed.\n");
     sb.append("   * @throws NullPointerException if any mapper is null.\n");
     sb.append("   */\n");
 
@@ -146,9 +172,13 @@ final class TupleGenerator {
     }
     sb.append("> map(\n");
     for (int i = 0; i < n; i++) {
-      sb.append("      Function<? super ").append(TYPE_PARAMS[i])
-          .append(", ? extends ").append(TYPE_PARAMS[i]).append("2> ")
-          .append(ORDINAL_LOWER[i]).append("Mapper");
+      sb.append("      Function<? super ")
+          .append(TYPE_PARAMS[i])
+          .append(", ? extends ")
+          .append(TYPE_PARAMS[i])
+          .append("2> ")
+          .append(ORDINAL_LOWER[i])
+          .append("Mapper");
       if (i < n - 1) sb.append(",\n");
     }
     sb.append(") {\n");
@@ -156,17 +186,23 @@ final class TupleGenerator {
     // Validation
     for (int i = 0; i < n; i++) {
       sb.append("    Validation.function().requireMapper(")
-          .append(ORDINAL_LOWER[i]).append("Mapper, \"")
-          .append(ORDINAL_LOWER[i]).append("Mapper\", ")
-          .append(constName).append(", MAP);\n");
+          .append(ORDINAL_LOWER[i])
+          .append("Mapper, \"")
+          .append(ORDINAL_LOWER[i])
+          .append("Mapper\", ")
+          .append(constName)
+          .append(", MAP);\n");
     }
     sb.append("\n");
 
     // Return
     sb.append("    return new ").append(className).append("<>(\n");
     for (int i = 0; i < n; i++) {
-      sb.append("        ").append(ORDINAL_LOWER[i]).append("Mapper.apply(_")
-          .append(i + 1).append(")");
+      sb.append("        ")
+          .append(ORDINAL_LOWER[i])
+          .append("Mapper.apply(_")
+          .append(i + 1)
+          .append(")");
       if (i < n - 1) sb.append(",\n");
     }
     sb.append(");\n");
@@ -182,17 +218,25 @@ final class TupleGenerator {
 
     // Javadoc
     sb.append("  /**\n");
-    sb.append("   * Transforms only the ").append(ordinalLower)
-        .append(" element of this tuple.\n");
+    sb.append("   * Transforms only the ").append(ordinalLower).append(" element of this tuple.\n");
     sb.append("   *\n");
-    sb.append("   * @param ").append(ordinalLower)
+    sb.append("   * @param ")
+        .append(ordinalLower)
         .append("Mapper The non-null function to apply to the ")
-        .append(ordinalLower).append(" element.\n");
-    sb.append("   * @param <").append(typeParam).append("2> The type of the ")
-        .append(ordinalLower).append(" element in the resulting tuple.\n");
-    sb.append("   * @return A new {@code ").append(className).append("} with the ")
-        .append(ordinalLower).append(" element transformed.\n");
-    sb.append("   * @throws NullPointerException if {@code ").append(ordinalLower)
+        .append(ordinalLower)
+        .append(" element.\n");
+    sb.append("   * @param <")
+        .append(typeParam)
+        .append("2> The type of the ")
+        .append(ordinalLower)
+        .append(" element in the resulting tuple.\n");
+    sb.append("   * @return A new {@code ")
+        .append(className)
+        .append("} with the ")
+        .append(ordinalLower)
+        .append(" element transformed.\n");
+    sb.append("   * @throws NullPointerException if {@code ")
+        .append(ordinalLower)
         .append("Mapper} is null.\n");
     sb.append("   */\n");
 
@@ -206,15 +250,26 @@ final class TupleGenerator {
         sb.append(TYPE_PARAMS[i]);
       }
     }
-    sb.append("> map").append(ordinal).append("(Function<? super ").append(typeParam)
-        .append(", ? extends ").append(typeParam).append("2> ").append(ordinalLower)
+    sb.append("> map")
+        .append(ordinal)
+        .append("(Function<? super ")
+        .append(typeParam)
+        .append(", ? extends ")
+        .append(typeParam)
+        .append("2> ")
+        .append(ordinalLower)
         .append("Mapper) {\n");
 
     // Validation
     sb.append("    Validation.function().requireMapper(")
-        .append(ordinalLower).append("Mapper, \"")
-        .append(ordinalLower).append("Mapper\", ")
-        .append(constName).append(", ").append(mapOp).append(");\n");
+        .append(ordinalLower)
+        .append("Mapper, \"")
+        .append(ordinalLower)
+        .append("Mapper\", ")
+        .append(constName)
+        .append(", ")
+        .append(mapOp)
+        .append(");\n");
 
     // Return
     sb.append("    return new ").append(className).append("<>(");

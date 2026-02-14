@@ -26,7 +26,9 @@ final class ForPathStepGenerator {
 
   private ForPathStepGenerator() {}
 
-  /** Returns the value type parameters for a descriptor, avoiding collision with extra type params. */
+  /**
+   * Returns the value type parameters for a descriptor, avoiding collision with extra type params.
+   */
   private static String[] valueParams(PathTypeDescriptor desc) {
     if ("E".equals(desc.extraTypeParamName) && !desc.isGeneric) return EITHER_VALUE_PARAMS;
     if (desc.isGeneric) return GENERIC_VALUE_PARAMS;
@@ -53,7 +55,7 @@ final class ForPathStepGenerator {
       boolean isGeneric, // true only for Generic (uses runKind, instance monad)
       boolean isNonDet, // true only for NonDet (uses NonDetPath.of)
       int currentMaxArity // current hand-written max arity
-  ) {}
+      ) {}
 
   private static final PathTypeDescriptor[] PATH_TYPES = {
     new PathTypeDescriptor(
@@ -239,7 +241,10 @@ final class ForPathStepGenerator {
     appendImports(sb, desc, n, terminal);
 
     // Class javadoc
-    sb.append("/** Step ").append(n).append(" in a ").append(desc.pathTypeName)
+    sb.append("/** Step ")
+        .append(n)
+        .append(" in a ")
+        .append(desc.pathTypeName)
         .append(" comprehension. */\n");
     sb.append("@Generated\n");
 
@@ -434,15 +439,24 @@ final class ForPathStepGenerator {
       // Either: no static field, uses private static method
       // Nothing here for field; monad() method added below
     } else if (desc.isStaticMonad) {
-      sb.append("  private static final ").append(desc.monadType).append(" MONAD = ")
-          .append(desc.monadAccess).append(";\n");
+      sb.append("  private static final ")
+          .append(desc.monadType)
+          .append(" MONAD = ")
+          .append(desc.monadAccess)
+          .append(";\n");
     } else {
       // Id: static final from factory method
-      sb.append("  private static final ").append(desc.monadType).append(" MONAD = ")
-          .append(desc.monadAccess).append(";\n");
+      sb.append("  private static final ")
+          .append(desc.monadType)
+          .append(" MONAD = ")
+          .append(desc.monadAccess)
+          .append(";\n");
     }
 
-    sb.append("  private final Kind<").append(desc.witnessType).append(", Tuple").append(n)
+    sb.append("  private final Kind<")
+        .append(desc.witnessType)
+        .append(", Tuple")
+        .append(n)
         .append("<");
     appendValueTypeParams(sb, desc, n);
     sb.append(">> computation;\n\n");
@@ -599,8 +613,11 @@ final class ForPathStepGenerator {
     appendValueTypeParams(sb, desc, n);
     sb.append(">> newComp =\n");
     sb.append("        ").append(m).append(".flatMap(\n");
-    sb.append("            t -> predicate.test(t) ? ").append(m).append(".of(t) : ")
-        .append(m).append(".zero(),\n");
+    sb.append("            t -> predicate.test(t) ? ")
+        .append(m)
+        .append(".of(t) : ")
+        .append(m)
+        .append(".zero(),\n");
     sb.append("            computation);\n");
     sb.append("    return new ").append(className).append("<>(");
     if (desc.isGeneric) {
@@ -636,8 +653,11 @@ final class ForPathStepGenerator {
     sb.append("            t ->\n");
     sb.append("                matcher\n");
     sb.append("                    .apply(t)\n");
-    sb.append("                    .map(").append(nextType.toLowerCase())
-        .append(" -> ").append(m).append(".of(Tuple.of(");
+    sb.append("                    .map(")
+        .append(nextType.toLowerCase())
+        .append(" -> ")
+        .append(m)
+        .append(".of(Tuple.of(");
     for (int i = 0; i < n; i++) {
       sb.append("t._").append(i + 1).append("(), ");
     }
@@ -689,7 +709,10 @@ final class ForPathStepGenerator {
   private static void appendYieldTuple(StringBuilder sb, PathTypeDescriptor desc, int n) {
     String returnType = yieldReturnType(desc);
 
-    sb.append("  public <R> ").append(returnType).append(" yield(Function<Tuple").append(n)
+    sb.append("  public <R> ")
+        .append(returnType)
+        .append(" yield(Function<Tuple")
+        .append(n)
         .append("<");
     appendValueTypeParams(sb, desc, n);
     sb.append(">, R> f) {\n");
@@ -698,7 +721,8 @@ final class ForPathStepGenerator {
     sb.append("    Kind<").append(desc.witnessType).append(", R> result =\n");
     sb.append("        ").append(m).append(".map(\n");
     sb.append("            t -> Objects.requireNonNull(f.apply(t), \"")
-        .append(YIELD_NULL_MSG).append("\"),\n");
+        .append(YIELD_NULL_MSG)
+        .append("\"),\n");
     sb.append("            computation);\n");
 
     appendReturnPath(sb, desc);
@@ -713,11 +737,15 @@ final class ForPathStepGenerator {
     if (desc.isGeneric) {
       sb.append("    return GenericPath.of(result, monad);\n");
     } else if (desc.isNonDet) {
-      sb.append("    return NonDetPath.of(").append(desc.kindHelperField)
+      sb.append("    return NonDetPath.of(")
+          .append(desc.kindHelperField)
           .append(".narrow(result));\n");
     } else {
-      sb.append("    return ").append(desc.pathFactoryExpr).append("(")
-          .append(desc.kindHelperField).append(".narrow(result));\n");
+      sb.append("    return ")
+          .append(desc.pathFactoryExpr)
+          .append("(")
+          .append(desc.kindHelperField)
+          .append(".narrow(result));\n");
     }
   }
 

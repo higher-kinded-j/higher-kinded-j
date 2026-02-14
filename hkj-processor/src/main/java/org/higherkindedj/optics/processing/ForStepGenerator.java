@@ -31,8 +31,8 @@ final class ForStepGenerator {
   // MonadicStepsN
   // ---------------------------------------------------------------------------
 
-  private static void generateMonadicSteps(
-      int n, int maxArity, ProcessingEnvironment processingEnv) throws IOException {
+  private static void generateMonadicSteps(int n, int maxArity, ProcessingEnvironment processingEnv)
+      throws IOException {
     boolean terminal = (n == maxArity);
     String className = "MonadicSteps" + n;
     String qualifiedName = PACKAGE + "." + className;
@@ -59,10 +59,10 @@ final class ForStepGenerator {
     sb.append("\n");
 
     // Class declaration
-    sb.append("/** Step ").append(n)
-        .append(" in a non-filterable for-comprehension. */\n");
+    sb.append("/** Step ").append(n).append(" in a non-filterable for-comprehension. */\n");
     sb.append("@Generated\n");
-    sb.append("public final class ").append(className)
+    sb.append("public final class ")
+        .append(className)
         .append("<M extends WitnessArity<TypeArity.Unary>");
     for (int i = 0; i < n; i++) {
       sb.append(", ").append(TYPE_PARAMS[i]);
@@ -76,8 +76,11 @@ final class ForStepGenerator {
     sb.append(">> computation;\n\n");
 
     // Constructor (package-private)
-    sb.append("  ").append(className)
-        .append("(Monad<M> monad, Kind<M, Tuple").append(n).append("<");
+    sb.append("  ")
+        .append(className)
+        .append("(Monad<M> monad, Kind<M, Tuple")
+        .append(n)
+        .append("<");
     appendTypeParams(sb, n);
     sb.append(">> computation) {\n");
     sb.append("    this.monad = monad;\n");
@@ -91,8 +94,7 @@ final class ForStepGenerator {
       String nextClassName = "MonadicSteps" + next;
 
       // from()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -116,8 +118,7 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
 
       // let()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -139,8 +140,7 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
 
       // focus()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -148,8 +148,7 @@ final class ForStepGenerator {
       sb.append("      Function<Tuple").append(n).append("<");
       appendTypeParams(sb, n);
       sb.append(">, ").append(nextType).append("> extractor) {\n");
-      sb.append(
-          "    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+      sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
       sb.append("    Kind<M, Tuple").append(next).append("<");
       appendTypeParams(sb, next);
       sb.append(">> newComputation =\n");
@@ -211,10 +210,10 @@ final class ForStepGenerator {
     sb.append("\n");
 
     // Class declaration
-    sb.append("/** Step ").append(n)
-        .append(" in a filterable for-comprehension. */\n");
+    sb.append("/** Step ").append(n).append(" in a filterable for-comprehension. */\n");
     sb.append("@Generated\n");
-    sb.append("public final class ").append(className)
+    sb.append("public final class ")
+        .append(className)
         .append("<M extends WitnessArity<TypeArity.Unary>");
     for (int i = 0; i < n; i++) {
       sb.append(", ").append(TYPE_PARAMS[i]);
@@ -228,8 +227,11 @@ final class ForStepGenerator {
     sb.append(">> computation;\n\n");
 
     // Constructor (package-private)
-    sb.append("  ").append(className)
-        .append("(MonadZero<M> monad, Kind<M, Tuple").append(n).append("<");
+    sb.append("  ")
+        .append(className)
+        .append("(MonadZero<M> monad, Kind<M, Tuple")
+        .append(n)
+        .append("<");
     appendTypeParams(sb, n);
     sb.append(">> computation) {\n");
     sb.append("    this.monad = monad;\n");
@@ -243,8 +245,7 @@ final class ForStepGenerator {
       String nextClassName = "FilterableSteps" + next;
 
       // from()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -268,8 +269,7 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
 
       // let()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -291,8 +291,7 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
 
       // focus()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -300,8 +299,7 @@ final class ForStepGenerator {
       sb.append("      Function<Tuple").append(n).append("<");
       appendTypeParams(sb, n);
       sb.append(">, ").append(nextType).append("> extractor) {\n");
-      sb.append(
-          "    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+      sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
       sb.append("    Kind<M, Tuple").append(next).append("<");
       appendTypeParams(sb, next);
       sb.append(">> newComputation =\n");
@@ -316,8 +314,7 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
 
       // match()
-      sb.append("  public <").append(nextType).append("> ").append(nextClassName)
-          .append("<M");
+      sb.append("  public <").append(nextType).append("> ").append(nextClassName).append("<M");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(TYPE_PARAMS[i]);
       }
@@ -325,8 +322,7 @@ final class ForStepGenerator {
       sb.append("      Function<Tuple").append(n).append("<");
       appendTypeParams(sb, n);
       sb.append(">, Optional<").append(nextType).append(">> matcher) {\n");
-      sb.append(
-          "    Objects.requireNonNull(matcher, \"matcher must not be null\");\n");
+      sb.append("    Objects.requireNonNull(matcher, \"matcher must not be null\");\n");
       sb.append("    Kind<M, Tuple").append(next).append("<");
       appendTypeParams(sb, next);
       sb.append(">> newComputation =\n");
@@ -334,7 +330,8 @@ final class ForStepGenerator {
       sb.append("            t ->\n");
       sb.append("                matcher\n");
       sb.append("                    .apply(t)\n");
-      sb.append("                    .map(").append(nextType.toLowerCase())
+      sb.append("                    .map(")
+          .append(nextType.toLowerCase())
           .append(" -> monad.of(Tuple.of(");
       for (int i = 0; i < n; i++) {
         sb.append("t._").append(i + 1).append("(), ");

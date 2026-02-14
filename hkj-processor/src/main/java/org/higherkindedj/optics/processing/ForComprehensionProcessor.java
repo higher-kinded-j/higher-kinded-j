@@ -70,9 +70,7 @@ public class ForComprehensionProcessor extends AbstractProcessor {
           continue;
         }
         if (maxArity < minArity) {
-          error(
-              "maxArity (" + maxArity + ") must be >= minArity (" + minArity + ")",
-              element);
+          error("maxArity (" + maxArity + ") must be >= minArity (" + minArity + ")", element);
           continue;
         }
         if (maxArity > 26) {

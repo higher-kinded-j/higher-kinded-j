@@ -122,8 +122,7 @@ public sealed interface Tuple permits Tuple2, Tuple3, Tuple4, Tuple5, Tuple6, Tu
    * @param <G> The type of the seventh element.
    * @return A new {@link Tuple7} instance.
    */
-  static <A, B, C, D, E, F, G> Tuple7<A, B, C, D, E, F, G> of(
-      A a, B b, C c, D d, E e, F f, G g) {
+  static <A, B, C, D, E, F, G> Tuple7<A, B, C, D, E, F, G> of(A a, B b, C c, D d, E e, F f, G g) {
     return new Tuple7<>(a, b, c, d, e, f, g);
   }
 
