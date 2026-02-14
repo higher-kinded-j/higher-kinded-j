@@ -1015,7 +1015,14 @@ class SpecMutationKillingTest {
               """
               package com.external;
               import java.util.List;
-              public record RecordTeam(List<String> players) {}
+              public record RecordTeam(List<String> players) {
+                  public Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private List<String> players;
+                      public Builder players(List<String> p) { this.players = p; return this; }
+                      public RecordTeam build() { return new RecordTeam(players); }
+                  }
+              }
               """);
 
       var spec =
@@ -1023,14 +1030,20 @@ class SpecMutationKillingTest {
               "com.test.RecordTeamSpec",
               """
               package com.test;
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.ImportOptics;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
               import com.external.RecordTeam;
+              import java.util.List;
 
               @ImportOptics
               public interface RecordTeamSpec extends OpticsSpec<RecordTeam> {
+                  @ViaBuilder
+                  Lens<RecordTeam, List<String>> players();
+
                   @ThroughField(field = "players")
                   Traversal<RecordTeam, String> allPlayers();
               }
@@ -1055,6 +1068,12 @@ class SpecMutationKillingTest {
                   private final List<String> players;
                   public ClassTeam(List<String> players) { this.players = players; }
                   public List<String> getPlayers() { return players; }
+                  public Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private List<String> players;
+                      public Builder players(List<String> p) { this.players = p; return this; }
+                      public ClassTeam build() { return new ClassTeam(players); }
+                  }
               }
               """);
 
@@ -1063,14 +1082,20 @@ class SpecMutationKillingTest {
               "com.test.ClassTeamSpec",
               """
               package com.test;
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.ImportOptics;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
               import com.external.ClassTeam;
+              import java.util.List;
 
               @ImportOptics
               public interface ClassTeamSpec extends OpticsSpec<ClassTeam> {
+                  @ViaBuilder(getter = "getPlayers")
+                  Lens<ClassTeam, List<String>> players();
+
                   @ThroughField(field = "players")
                   Traversal<ClassTeam, String> allPlayers();
               }
@@ -1091,7 +1116,14 @@ class SpecMutationKillingTest {
               """
               package com.external;
               import java.util.List;
-              public record SmallTeam(List<String> members) {}
+              public record SmallTeam(List<String> members) {
+                  public Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private List<String> members;
+                      public Builder members(List<String> m) { this.members = m; return this; }
+                      public SmallTeam build() { return new SmallTeam(members); }
+                  }
+              }
               """);
 
       var spec =
