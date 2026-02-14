@@ -4106,7 +4106,9 @@ class MutationKillingTest {
       // Should succeed - treated as regular class list annotation, not as spec interface
       assertThat(compilation).succeeded();
       // Should generate lenses for MyRecord
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.MyRecordLenses")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.MyRecordLenses"))
+          .isPresent();
     }
 
     @Test
@@ -4134,7 +4136,9 @@ class MutationKillingTest {
           javac().withProcessors(new ImportOpticsProcessor()).compile(source, record);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PairLenses")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PairLenses"))
+          .isPresent();
     }
   }
 
@@ -4190,7 +4194,9 @@ class MutationKillingTest {
       // Interface name is "PersonOptics" which does NOT end with "Spec"
       // So generated class should be "PersonOpticsImpl"
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PersonOpticsImpl")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PersonOpticsImpl"))
+          .isPresent();
     }
 
     @Test
@@ -4237,7 +4243,9 @@ class MutationKillingTest {
       // Interface name is "PersonOpticsSpec" which ends with "Spec"
       // So generated class should be "PersonOptics" (Spec stripped)
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PersonOptics")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PersonOptics"))
+          .isPresent();
     }
   }
 
@@ -5051,7 +5059,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source, outer);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.OuterFocus")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.OuterFocus"))
+          .isPresent();
     }
 
     @Test
@@ -5071,7 +5081,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.ContainerFocus")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.ContainerFocus"))
+          .isPresent();
     }
   }
 
@@ -5190,7 +5202,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new LensProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PointLenses")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PointLenses"))
+          .isPresent();
     }
 
     @Test
@@ -5231,7 +5245,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.ItemsTraversals")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.ItemsTraversals"))
+          .isPresent();
     }
 
     @Test
@@ -5272,7 +5288,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FoldProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.NumbersFolds")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.NumbersFolds"))
+          .isPresent();
     }
 
     @Test
@@ -5315,7 +5333,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.ShapePrisms")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.ShapePrisms"))
+          .isPresent();
     }
 
     @Test
@@ -5383,7 +5403,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PersonFocus")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PersonFocus"))
+          .isPresent();
     }
   }
 
@@ -5412,7 +5434,9 @@ class MutationKillingTest {
 
       assertThat(compilation).succeeded();
       // Non-traversable fields should still generate the class but no traversal methods
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.PlainTraversals")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.PlainTraversals"))
+          .isPresent();
     }
 
     @Test
@@ -5457,7 +5481,9 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.DataTraversals")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.DataTraversals"))
+          .isPresent();
     }
   }
 }

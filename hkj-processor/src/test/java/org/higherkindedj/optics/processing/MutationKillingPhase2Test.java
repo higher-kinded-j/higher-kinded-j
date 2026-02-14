@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
@@ -257,7 +258,9 @@ class MutationKillingPhase2Test {
 
       assertThat(compilation).succeeded();
       // Must verify that the file is generated in the custom package
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemFolds")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.ItemFolds"))
+          .isPresent();
     }
 
     @Test
@@ -435,7 +438,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new IsoProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ConversionsIsos")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.ConversionsIsos"))
+          .isPresent();
     }
 
     @Test
@@ -481,7 +486,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new LensProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.PointLenses")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.PointLenses"))
+          .isPresent();
     }
 
     @Test
@@ -596,7 +603,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.ColorPrisms")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.ColorPrisms"))
+          .isPresent();
     }
 
     @Test
@@ -692,7 +701,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.generated.PointFocus")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.generated.PointFocus"))
+          .isPresent();
     }
 
     @Test
@@ -1180,7 +1191,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.test.ItemsTraversals")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.test.ItemsTraversals"))
+          .isPresent();
     }
   }
 
@@ -1332,7 +1345,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.custom.DataGetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.custom.DataGetters"))
+          .isPresent();
 
       String code =
           compilation
@@ -1372,7 +1387,9 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(compilation.generatedSourceFile("com.custom.DataSetters")).isPresent();
+      org.assertj.core.api.Assertions.assertThat(
+              compilation.generatedSourceFile("com.custom.DataSetters"))
+          .isPresent();
 
       String code =
           compilation
