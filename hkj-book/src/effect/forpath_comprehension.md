@@ -66,8 +66,9 @@ no rewrapping, no boilerplate.
 | `NonDetPath<A>` | `ForPath.from(nonDetPath)` | Yes |
 | `GenericPath<F, A>` | `ForPath.from(genericPath)` | Optional |
 
-The `when()` guard operation is only available for Path types backed by `MonadZero`,
-which can represent emptiness or failure.
+All nine path types support up to **8 chained bindings**. The `when()` guard operation
+is only available for Path types backed by `MonadZero`, which can represent emptiness
+or failure.
 
 ---
 

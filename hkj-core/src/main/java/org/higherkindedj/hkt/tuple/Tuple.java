@@ -15,6 +15,9 @@ package org.higherkindedj.hkt.tuple;
  * @see Tuple3
  * @see Tuple4
  * @see Tuple5
+ * @see Tuple6
+ * @see Tuple7
+ * @see Tuple8
  */
 public sealed interface Tuple permits Tuple2, Tuple3, Tuple4, Tuple5, Tuple6, Tuple7, Tuple8 {
 
