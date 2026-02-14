@@ -2635,9 +2635,7 @@ class MutationKillingTest {
               """);
 
       var compilation =
-          javac()
-              .withProcessors(new ImportOpticsProcessor())
-              .compile(plainInterface, packageInfo);
+          javac().withProcessors(new ImportOpticsProcessor()).compile(plainInterface, packageInfo);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("not a record");
@@ -2677,9 +2675,7 @@ class MutationKillingTest {
               """);
 
       var compilation =
-          javac()
-              .withProcessors(new ImportOpticsProcessor())
-              .compile(mutableClass, packageInfo);
+          javac().withProcessors(new ImportOpticsProcessor()).compile(mutableClass, packageInfo);
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("mutable fields");
@@ -2719,9 +2715,7 @@ class MutationKillingTest {
               """);
 
       var compilation =
-          javac()
-              .withProcessors(new ImportOpticsProcessor())
-              .compile(mutableClass, packageInfo);
+          javac().withProcessors(new ImportOpticsProcessor()).compile(mutableClass, packageInfo);
 
       assertThat(compilation).succeeded();
     }
@@ -2754,9 +2748,7 @@ class MutationKillingTest {
               """);
 
       var compilation =
-          javac()
-              .withProcessors(new ImportOpticsProcessor())
-              .compile(mutableNoWither, packageInfo);
+          javac().withProcessors(new ImportOpticsProcessor()).compile(mutableNoWither, packageInfo);
 
       assertThat(compilation).failed();
       // This should hit the UNSUPPORTED + hasMutableFields path
@@ -2796,9 +2788,7 @@ class MutationKillingTest {
           "com.myapp.ColoredLenses",
           "public static Lens<Colored, Integer> brightness()");
       assertGeneratedCodeContains(
-          compilation,
-          "com.myapp.ColoredLenses",
-          "public static Lens<Colored, Boolean> visible()");
+          compilation, "com.myapp.ColoredLenses", "public static Lens<Colored, Boolean> visible()");
     }
 
     @Test
@@ -2848,13 +2838,9 @@ class MutationKillingTest {
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
-          compilation,
-          "com.myapp.ResultPrisms",
-          "public static Prism<Result, Success> success()");
+          compilation, "com.myapp.ResultPrisms", "public static Prism<Result, Success> success()");
       assertGeneratedCodeContains(
-          compilation,
-          "com.myapp.ResultPrisms",
-          "public static Prism<Result, Failure> failure()");
+          compilation, "com.myapp.ResultPrisms", "public static Prism<Result, Failure> failure()");
     }
 
     @Test
@@ -2884,9 +2870,7 @@ class MutationKillingTest {
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
-          compilation,
-          "com.myapp.PriorityPrisms",
-          "public static Prism<Priority, Priority> low()");
+          compilation, "com.myapp.PriorityPrisms", "public static Prism<Priority, Priority> low()");
       assertGeneratedCodeContains(
           compilation,
           "com.myapp.PriorityPrisms",
@@ -2939,8 +2923,7 @@ class MutationKillingTest {
       assertGeneratedCodeContains(
           compilation, "com.myapp.InventoryLenses", "Traversal<Inventory, String>");
       // Verify Optional generates affine/optional traversal
-      assertGeneratedCodeContains(
-          compilation, "com.myapp.InventoryLenses", "description");
+      assertGeneratedCodeContains(compilation, "com.myapp.InventoryLenses", "description");
     }
 
     @Test
@@ -3027,8 +3010,7 @@ class MutationKillingTest {
       assertGeneratedCodeContains(compilation, "com.myapp.TaggedLenses", "@Generated");
       assertGeneratedCodeContains(
           compilation, "com.myapp.TaggedLenses", "public final class TaggedLenses");
-      assertGeneratedCodeContains(
-          compilation, "com.myapp.TaggedLenses", "private TaggedLenses()");
+      assertGeneratedCodeContains(compilation, "com.myapp.TaggedLenses", "private TaggedLenses()");
     }
 
     @Test
@@ -3061,9 +3043,7 @@ class MutationKillingTest {
               """);
 
       var compilation =
-          javac()
-              .withProcessors(new ImportOpticsProcessor())
-              .compile(sealed, textMsg, packageInfo);
+          javac().withProcessors(new ImportOpticsProcessor()).compile(sealed, textMsg, packageInfo);
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(compilation, "com.myapp.MsgPrisms", "@Generated");

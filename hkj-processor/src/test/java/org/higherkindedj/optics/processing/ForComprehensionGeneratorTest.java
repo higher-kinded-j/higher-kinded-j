@@ -140,15 +140,11 @@ class ForComprehensionGeneratorTest {
       String source = getGeneratedSource(compilation, "org.higherkindedj.hkt.tuple.Tuple6");
 
       assertThat(source).contains("import java.util.function.Function;");
+      assertThat(source).contains("import org.higherkindedj.hkt.util.validation.Validation;");
+      assertThat(source).contains("import org.higherkindedj.optics.annotations.GenerateLenses;");
+      assertThat(source).contains("import org.higherkindedj.optics.annotations.Generated;");
       assertThat(source)
-          .contains("import org.higherkindedj.hkt.util.validation.Validation;");
-      assertThat(source)
-          .contains("import org.higherkindedj.optics.annotations.GenerateLenses;");
-      assertThat(source)
-          .contains("import org.higherkindedj.optics.annotations.Generated;");
-      assertThat(source)
-          .contains(
-              "import static org.higherkindedj.hkt.util.validation.Operation.*;");
+          .contains("import static org.higherkindedj.hkt.util.validation.Operation.*;");
     }
 
     @Test
@@ -187,10 +183,8 @@ class ForComprehensionGeneratorTest {
       String source = getGeneratedSource(compilation, "org.higherkindedj.hkt.tuple.Tuple6");
 
       // The map() method should validate each mapper
-      assertThat(source)
-          .contains("Validation.function().requireMapper(firstMapper,");
-      assertThat(source)
-          .contains("Validation.function().requireMapper(sixthMapper,");
+      assertThat(source).contains("Validation.function().requireMapper(firstMapper,");
+      assertThat(source).contains("Validation.function().requireMapper(sixthMapper,");
     }
 
     @Test
@@ -239,8 +233,7 @@ class ForComprehensionGeneratorTest {
       Compilation compilation = compile(packageInfoSource());
       String source = getGeneratedSource(compilation, "org.higherkindedj.hkt.tuple.Tuple6");
 
-      assertThat(source)
-          .contains("An immutable tuple containing 6 elements");
+      assertThat(source).contains("An immutable tuple containing 6 elements");
       assertThat(source).contains("@param <A>");
       assertThat(source).contains("@param <F>");
       assertThat(source).contains("@param _1");
@@ -350,8 +343,7 @@ class ForComprehensionGeneratorTest {
       assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple;");
       assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple6;");
       assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple7;");
-      assertThat(source)
-          .contains("import org.higherkindedj.hkt.function.Function6;");
+      assertThat(source).contains("import org.higherkindedj.hkt.function.Function6;");
     }
 
     @Test
@@ -410,8 +402,7 @@ class ForComprehensionGeneratorTest {
       String source =
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MonadicSteps6");
 
-      assertThat(source)
-          .contains("The yield function must not return null.");
+      assertThat(source).contains("The yield function must not return null.");
     }
 
     @Test
@@ -456,8 +447,7 @@ class ForComprehensionGeneratorTest {
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MonadicSteps3");
 
       assertThat(source).doesNotContain("import java.util.function.BiFunction;");
-      assertThat(source)
-          .contains("import org.higherkindedj.hkt.function.Function3;");
+      assertThat(source).contains("import org.higherkindedj.hkt.function.Function3;");
     }
 
     // ---------------------------------------------------------------------------
@@ -558,8 +548,7 @@ class ForComprehensionGeneratorTest {
       String source =
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FilterableSteps6");
 
-      assertThat(source)
-          .contains("Objects.requireNonNull(matcher, \"matcher must not be null\")");
+      assertThat(source).contains("Objects.requireNonNull(matcher, \"matcher must not be null\")");
     }
   }
 
@@ -576,8 +565,7 @@ class ForComprehensionGeneratorTest {
     void maybePathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.MaybePathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.MaybePathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -594,8 +582,7 @@ class ForComprehensionGeneratorTest {
     void eitherPathStepsExtraTypeParam() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.EitherPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.EitherPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -610,8 +597,7 @@ class ForComprehensionGeneratorTest {
     void genericPathStepsMonadField() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.GenericPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.GenericPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -625,8 +611,7 @@ class ForComprehensionGeneratorTest {
     void tryPathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.TryPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.TryPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -642,8 +627,7 @@ class ForComprehensionGeneratorTest {
     void ioPathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.IOPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.IOPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -657,8 +641,7 @@ class ForComprehensionGeneratorTest {
     void vtaskPathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.VTaskPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.VTaskPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -672,8 +655,7 @@ class ForComprehensionGeneratorTest {
     void idPathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.IdPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.IdPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -687,8 +669,7 @@ class ForComprehensionGeneratorTest {
     void nonDetPathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.NonDetPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.NonDetPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -704,8 +685,7 @@ class ForComprehensionGeneratorTest {
     void optionalPathStepsGenerated() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.OptionalPathSteps2");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.OptionalPathSteps2");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -840,8 +820,7 @@ class ForComprehensionGeneratorTest {
     void nonDetPathYieldUsesNonDetPathOf() throws IOException {
       Compilation compilation = compile(packageInfoSource());
       String source =
-          getGeneratedSource(
-              compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps6");
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps6");
 
       assertThat(source).contains("NonDetPath.of(");
     }
@@ -968,8 +947,7 @@ class ForComprehensionGeneratorTest {
 
       // Should generate exactly one arity (terminal), no from/let/focus
       Optional<JavaFileObject> file =
-          compilation.generatedSourceFile(
-              "org.higherkindedj.hkt.expression.MonadicSteps6");
+          compilation.generatedSourceFile("org.higherkindedj.hkt.expression.MonadicSteps6");
 
       assertThat(file).isPresent();
       String source = file.get().getCharContent(true).toString();
@@ -986,30 +964,20 @@ class ForComprehensionGeneratorTest {
       Compilation compilation = compile(minAritySource());
 
       // Should generate MonadicSteps2 and MonadicSteps3
-      assertThat(
-              compilation.generatedSourceFile(
-                  "org.higherkindedj.hkt.expression.MonadicSteps2"))
+      assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.expression.MonadicSteps2"))
           .isPresent();
-      assertThat(
-              compilation.generatedSourceFile(
-                  "org.higherkindedj.hkt.expression.MonadicSteps3"))
+      assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.expression.MonadicSteps3"))
           .isPresent();
       // Also FilterableSteps
       assertThat(
-              compilation.generatedSourceFile(
-                  "org.higherkindedj.hkt.expression.FilterableSteps2"))
+              compilation.generatedSourceFile("org.higherkindedj.hkt.expression.FilterableSteps2"))
           .isPresent();
       assertThat(
-              compilation.generatedSourceFile(
-                  "org.higherkindedj.hkt.expression.FilterableSteps3"))
+              compilation.generatedSourceFile("org.higherkindedj.hkt.expression.FilterableSteps3"))
           .isPresent();
       // And Tuples
-      assertThat(
-              compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2"))
-          .isPresent();
-      assertThat(
-              compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3"))
-          .isPresent();
+      assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2")).isPresent();
+      assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3")).isPresent();
     }
 
     @Test
@@ -1020,9 +988,7 @@ class ForComprehensionGeneratorTest {
       Compilation compilation = compile(source);
 
       // Should generate files exactly once (not duplicated)
-      assertThat(
-              compilation.generatedSourceFile(
-                  "org.higherkindedj.hkt.expression.MonadicSteps6"))
+      assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.expression.MonadicSteps6"))
           .isPresent();
     }
   }
