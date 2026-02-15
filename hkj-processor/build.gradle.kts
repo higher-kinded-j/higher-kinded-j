@@ -50,7 +50,8 @@ tasks.register<Test>("updateGoldenFiles") {
     classpath = sourceSets.test.get().runtimeClasspath
     systemProperty("updateGolden", "true")
     filter {
-        includeTestsMatching("*GoldenFileTest.updateGoldenFiles")
+        includeTestsMatching("*GoldenFileTest.generatedCodeMatchesGolden")
+        includeTestsMatching("*ForComprehensionGoldenFileTest.generatedCodeMatchesGolden")
     }
 }
 

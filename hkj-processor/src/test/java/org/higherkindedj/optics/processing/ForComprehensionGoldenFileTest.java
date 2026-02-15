@@ -17,8 +17,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -192,6 +190,22 @@ class ForComprehensionGoldenFileTest {
         .isPresent();
 
     String generated = generatedFile.get().getCharContent(true).toString();
+
+    // When run with -DupdateGolden=true, update the golden file instead of comparing
+    if ("true".equals(System.getProperty("updateGolden"))) {
+      Path goldenDir = Path.of("src/test/resources/golden/forcomp");
+      if (!Files.exists(goldenDir)) {
+        goldenDir = Path.of("hkj-processor/src/test/resources/golden/forcomp");
+      }
+      if (!Files.exists(goldenDir)) {
+        Files.createDirectories(goldenDir);
+      }
+      Path goldenPath = goldenDir.resolve(testCase.goldenFileName());
+      Files.writeString(goldenPath, generated, StandardCharsets.UTF_8);
+      System.out.println("Updated: " + testCase.goldenFileName());
+      return;
+    }
+
     String golden = readGoldenFile(testCase.goldenFileName());
 
     if (golden == null || golden.contains("PLACEHOLDER")) {
@@ -204,41 +218,6 @@ class ForComprehensionGoldenFileTest {
     assertThat(normalizeForComparison(generated))
         .as("Generated code should match golden file for %s", testCase.description())
         .isEqualTo(normalizeForComparison(golden));
-  }
-
-  /**
-   * Updates golden files when run with -DupdateGolden=true.
-   *
-   * <p>Run with: ./gradlew :hkj-processor:updateGoldenFiles
-   */
-  @Test
-  @EnabledIfSystemProperty(named = "updateGolden", matches = "true")
-  @DisplayName("Update for-comprehension golden files (run with -DupdateGolden=true)")
-  void updateGoldenFiles() throws IOException {
-    Path goldenDir = Path.of("src/test/resources/golden/forcomp");
-    if (!Files.exists(goldenDir)) {
-      goldenDir = Path.of("hkj-processor/src/test/resources/golden/forcomp");
-    }
-    if (!Files.exists(goldenDir)) {
-      Files.createDirectories(goldenDir);
-      System.out.println("Created golden directory: " + goldenDir.toAbsolutePath());
-    }
-
-    Compilation compilation = compile();
-
-    for (GoldenTestCase testCase : goldenFileTestCases().toList()) {
-      Optional<JavaFileObject> generatedFile =
-          compilation.generatedSourceFile(testCase.generatedClassName());
-      if (generatedFile.isEmpty()) {
-        System.err.println("Generated file not found: " + testCase.generatedClassName());
-        continue;
-      }
-
-      String generated = generatedFile.get().getCharContent(true).toString();
-      Path goldenPath = goldenDir.resolve(testCase.goldenFileName());
-      Files.writeString(goldenPath, generated, StandardCharsets.UTF_8);
-      System.out.println("Updated: " + testCase.goldenFileName());
-    }
   }
 
   // =============================================================================
