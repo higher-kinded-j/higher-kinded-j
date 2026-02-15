@@ -26,7 +26,18 @@ dependencies {
 
 
 tasks.javadoc {
+  // Ensure annotation processing runs first so generated classes (Tuple2-12,
+  // MonadicSteps2-12, FilterableSteps2-12, *PathSteps2, etc.) are available.
+  dependsOn(tasks.compileJava)
+
+  // Include both hand-written and annotation-processor-generated sources
   source = sourceSets.main.get().allJava
+  val generatedSources = layout.buildDirectory.dir("generated/sources/annotationProcessor/java/main")
+  source(generatedSources)
+
+  // Add compiled classes to classpath so javadoc can resolve all symbols
+  classpath = files(sourceSets.main.get().compileClasspath, sourceSets.main.get().output.classesDirs)
+
   exclude("org/higherkindedj/example/**")
   (options as? CoreJavadocOptions)?.addStringOption("Xdoclint:none", "-quiet")
 }
