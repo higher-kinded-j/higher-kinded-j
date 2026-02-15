@@ -19,8 +19,8 @@ import org.higherkindedj.spring.example.domain.ValidationError;
 import org.springframework.stereotype.Service;
 
 /**
- * User service demonstrating Either-based error handling. All methods return Either<DomainError, T>
- * instead of throwing exceptions.
+ * User service demonstrating Either-based error handling. All methods return {@code
+ * Either<DomainError, T>} instead of throwing exceptions.
  */
 @Service
 public class UserService {
