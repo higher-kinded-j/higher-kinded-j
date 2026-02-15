@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -112,6 +113,14 @@ class VTaskPathTest {
           .isThrownBy(() -> Path.vtask(null))
           .withMessageContaining("callable must not be null");
     }
+
+    @Test
+    @DisplayName("Path.vtaskPath() validates non-null VTask")
+    void pathVtaskPathValidatesNonNullVTask() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.vtaskPath(null))
+          .withMessageContaining("vtask must not be null");
+    }
   }
 
   @Nested
@@ -152,7 +161,7 @@ class VTaskPathTest {
     }
 
     @Test
-    @DisplayName("unsafeRun() wraps checked exceptions in RuntimeException")
+    @DisplayName("unsafeRun() wraps checked exceptions in VTaskExecutionException")
     void unsafeRunWrapsCheckedExceptions() {
       VTaskPath<Integer> path =
           Path.vtask(
@@ -160,7 +169,7 @@ class VTaskPathTest {
                 throw new Exception("checked error");
               });
 
-      assertThatVTaskPath(path).fails().withExceptionType(RuntimeException.class);
+      assertThatVTaskPath(path).fails().withExceptionType(VTaskExecutionException.class);
     }
 
     @Test
@@ -271,6 +280,16 @@ class VTaskPathTest {
     }
 
     @Test
+    @DisplayName("peek() validates null consumer")
+    void peekValidatesNullConsumer() {
+      VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.peek(null))
+          .withMessageContaining("consumer must not be null");
+    }
+
+    @Test
     @DisplayName("peek() is also lazy")
     void peekIsAlsoLazy() {
       AtomicBoolean peeked = new AtomicBoolean(false);
@@ -361,6 +380,16 @@ class VTaskPathTest {
       Integer flatMapResult = path.flatMap(s -> Path.vtaskPure(s.length())).unsafeRun();
 
       assertThat(viaResult).isEqualTo(flatMapResult);
+    }
+
+    @Test
+    @DisplayName("then() validates null supplier")
+    void thenValidatesNullSupplier() {
+      VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.then(null))
+          .withMessageContaining("supplier must not be null");
     }
 
     @Test
@@ -479,6 +508,25 @@ class VTaskPathTest {
     }
 
     @Test
+    @DisplayName("zipWith3() validates null parameters")
+    void zipWith3ValidatesNullParameters() {
+      VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
+      VTaskPath<Integer> other = Path.vtaskPure(1);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a))
+          .withMessageContaining("second must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a))
+          .withMessageContaining("third must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(other, other, null))
+          .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
     @DisplayName("zipWith() throws when given non-VTaskPath")
     void zipWithThrowsWhenGivenNonVTaskPath() {
       VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
@@ -493,6 +541,26 @@ class VTaskPathTest {
   @Nested
   @DisplayName("Error Handling Operations")
   class ErrorHandlingOperationsTests {
+
+    @Test
+    @DisplayName("handleError() validates null recovery")
+    void handleErrorValidatesNullRecovery() {
+      VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.handleError(null))
+          .withMessageContaining("recovery must not be null");
+    }
+
+    @Test
+    @DisplayName("handleErrorWith() validates null recovery")
+    void handleErrorWithValidatesNullRecovery() {
+      VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.handleErrorWith(null))
+          .withMessageContaining("recovery must not be null");
+    }
 
     @Test
     @DisplayName("handleError() provides fallback for exceptions")
