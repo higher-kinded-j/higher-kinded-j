@@ -1285,22 +1285,82 @@ When intentional changes are made to code generation:
 
 Mutation testing measures test quality by introducing small changes (mutants) to the code and verifying tests catch them.
 
-**Configuration:** PIT is configured in `hkj-processor/build.gradle.kts`:
+**Configuration:** PIT is configured in `hkj-processor/build.gradle.kts` with two profiles:
 
-```kotlin
-pitest {
-    pitestVersion.set("1.22.0")
-    targetClasses.set(setOf("org.higherkindedj.optics.processing.*"))
-    mutators.set(setOf("STRONGER"))
-    mutationThreshold.set(70)  // Initial target, aim for 80%
-}
-```
+#### Profiles
 
-**Running Mutation Tests:**
+| Setting | `conservative` (default) | `full` |
+|---------|--------------------------|--------|
+| Threads | Half available CPUs | All available CPUs |
+| Mutators | `DEFAULT` | `STRONGER` |
+| Heap per fork | `512m` | `1g` |
+| Mutation threshold | 70% | 70% |
+
+The **conservative** profile is the default and is suitable for laptops, CI runners, or machines where you want to keep resources available for other work. The **full** profile uses all available CPU cores and the more comprehensive `STRONGER` mutator set for thorough analysis.
+
+#### Running Mutation Tests
 
 ```bash
+# Conservative (default) — safe for laptops and lower-spec machines
 ./gradlew :hkj-processor:pitest
+
+# Full — all cores, stronger mutators
+./gradlew :hkj-processor:pitest -Ppitest.profile=full
 ```
+
+#### Fine-Tuning Individual Settings
+
+Each profile setting can be overridden independently via project properties. These overrides take precedence over the profile:
+
+```bash
+# Use conservative profile but with 4 threads
+./gradlew :hkj-processor:pitest -Ppitest.threads=4
+
+# Use full profile but cap heap at 768m
+./gradlew :hkj-processor:pitest -Ppitest.profile=full -Ppitest.heap=768m
+
+# Use STRONGER mutators with only 2 threads (constrained machine)
+./gradlew :hkj-processor:pitest -Ppitest.mutators=STRONGER -Ppitest.threads=2
+```
+
+| Property | Values | Description |
+|----------|--------|-------------|
+| `pitest.profile` | `conservative`, `full` | Selects the base profile |
+| `pitest.threads` | Any positive integer | Overrides thread count |
+| `pitest.mutators` | `DEFAULT`, `STRONGER`, `ALL` | Overrides mutator group |
+| `pitest.heap` | e.g. `512m`, `1g` | Overrides per-fork JVM heap |
+
+#### Tuning Guidance
+
+**Choosing a profile:**
+- Start with `conservative` (the default). It generates fewer mutants (`DEFAULT` mutators) and uses fewer threads, keeping your machine responsive.
+- Switch to `full` when you want a comprehensive analysis before merging, or on a dedicated build machine with resources to spare.
+
+**Thread count considerations:**
+- Each PIT thread forks a separate JVM, so memory usage scales linearly with thread count. On an 8-core machine with 16GB RAM, `full` (8 threads) will consume roughly 8GB of heap for PIT alone.
+- If you see `OutOfMemoryError` or heavy swapping, reduce threads: `-Ppitest.threads=2`.
+- A good rule of thumb: allow ~1GB of total system RAM per PIT thread (heap + JVM overhead).
+
+**Mutator groups:**
+- `DEFAULT` — Standard mutators (conditionals, math, return values). Fast; catches the majority of test weaknesses.
+- `STRONGER` — Adds additional mutators (e.g. remove conditionals, constructor calls). ~2-3x more mutants generated. Use for thorough analysis.
+- `ALL` — Every available mutator. Generates the most mutants, takes the longest. Rarely needed; useful for one-off deep audits.
+
+**Heap sizing:**
+- `512m` is sufficient for most annotation processor mutations since the generated code is relatively small.
+- Increase to `768m` or `1g` if you see `OutOfMemoryError` in PIT output, especially when using `STRONGER` or `ALL` mutators.
+
+**Persisting preferences in `gradle.properties`:**
+
+To avoid typing `-P` flags every time, add your preferred settings to `gradle.properties`:
+
+```properties
+# gradle.properties (local — do not commit to shared repo)
+pitest.profile=full
+pitest.threads=4
+```
+
+Or in `~/.gradle/gradle.properties` for machine-wide defaults.
 
 **Reports:** `hkj-processor/build/reports/pitest/`
 
@@ -1371,8 +1431,11 @@ The `IncrementalCompilationTest` class verifies the processor handles source cha
 # Run edge case tests
 ./gradlew :hkj-processor:test --tests "*EdgeCaseTest"
 
-# Run mutation testing (local only)
+# Run mutation testing — conservative (default)
 ./gradlew :hkj-processor:pitest
+
+# Run mutation testing — full (all cores, STRONGER mutators)
+./gradlew :hkj-processor:pitest -Ppitest.profile=full
 ```
 
 ## Summary

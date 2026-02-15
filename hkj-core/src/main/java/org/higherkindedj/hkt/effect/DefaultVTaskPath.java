@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -52,7 +53,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable t) {
-      throw new RuntimeException(t);
+      throw new VTaskExecutionException(t);
     }
   }
 

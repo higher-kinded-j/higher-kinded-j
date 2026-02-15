@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
@@ -781,16 +781,26 @@ public class NavigatorClassGenerator {
                         : "source." + c.getSimpleName() + "()")
             .collect(Collectors.joining(", "));
 
-    // Generate: return new ComponentNavigator<>(FocusPath.of(Lens.of(...)));
+    // Determine path kind to apply correct widening for @Nullable fields
+    PathKind fieldKind = getFieldPathKind(component, fieldType);
+    String pathWidening =
+        switch (fieldKind) {
+          case AFFINE -> ".nullable()";
+          case TRAVERSAL -> ".each()";
+          default -> "";
+        };
+
+    // Generate: return new ComponentNavigator<>(FocusPath.of(Lens.of(...))widening);
     methodBuilder.addStatement(
-        "return new $L<>($T.of($T.of($T::$L, (source, newValue) -> new $T($L))))",
+        "return new $L<>($T.of($T.of($T::$L, (source, newValue) -> new $T($L)))$L)",
         navigatorClassName,
         FOCUS_PATH_CLASS,
         Lens.class,
         recordTypeName,
         componentName,
         recordTypeName,
-        constructorArgs);
+        constructorArgs,
+        pathWidening);
 
     return methodBuilder.build();
   }

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.util.validation;
 
@@ -76,6 +76,9 @@ public enum Operation {
   MAP_THIRD("mapThird"),
   MAP_FOURTH("mapFourth"),
   MAP_FIFTH("mapFifth"),
+  MAP_SIXTH("mapSixth"),
+  MAP_SEVENTH("mapSeventh"),
+  MAP_EIGHTH("mapEighth"),
   MAP_ERROR("mapError"),
   MAP_WRITTEN("mapWritten");
 

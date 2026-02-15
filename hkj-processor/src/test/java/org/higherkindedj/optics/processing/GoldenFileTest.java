@@ -1,10 +1,10 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -36,7 +36,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * <p>When intentional changes are made to the code generator, run:
  *
  * <pre>
- * ./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
+ * ./gradlew :hkj-processor:updateGoldenFiles
  * </pre>
  *
  * <p>This regenerates all golden files with the current output.
@@ -221,14 +221,12 @@ class GoldenFileTest {
     String generated = getGeneratedSource(compilation, testCase.generatedClassName());
     String golden = readGoldenFile(testCase.goldenFileName());
 
-    // Skip test if golden file doesn't exist or is a placeholder
-    // Run: ./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
-    // to generate actual golden files
-    assumeTrue(
-        golden != null && !golden.contains("PLACEHOLDER"),
-        "Golden file not initialized: "
-            + testCase.goldenFileName()
-            + ". Run with -DupdateGolden=true to generate.");
+    if (golden == null || golden.contains("PLACEHOLDER")) {
+      fail(
+          "Golden file not initialised: "
+              + testCase.goldenFileName()
+              + ". Run: ./gradlew updateGoldenFiles");
+    }
 
     assertThat(normalizeForComparison(generated))
         .as("Generated code should match golden file for %s", testCase.description())
