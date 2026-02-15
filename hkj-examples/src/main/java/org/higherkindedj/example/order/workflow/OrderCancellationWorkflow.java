@@ -78,9 +78,8 @@ public class OrderCancellationWorkflow {
   /**
    * Cancels an order, performing compensating transactions as needed.
    *
-   * <p>Uses via() chains for composing the cancellation steps since EitherPath ForPath is limited
-   * to 3 steps. Each step checks whether the previous action occurred and performs the appropriate
-   * compensation.
+   * <p>Uses via() chains for composing the cancellation steps. Each step checks whether the
+   * previous action occurred and performs the appropriate compensation.
    *
    * @param order the order to cancel
    * @param reason the cancellation reason

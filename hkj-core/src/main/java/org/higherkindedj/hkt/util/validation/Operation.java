@@ -79,6 +79,10 @@ public enum Operation {
   MAP_SIXTH("mapSixth"),
   MAP_SEVENTH("mapSeventh"),
   MAP_EIGHTH("mapEighth"),
+  MAP_NINTH("mapNinth"),
+  MAP_TENTH("mapTenth"),
+  MAP_ELEVENTH("mapEleventh"),
+  MAP_TWELFTH("mapTwelfth"),
   MAP_ERROR("mapError"),
   MAP_WRITTEN("mapWritten");
 

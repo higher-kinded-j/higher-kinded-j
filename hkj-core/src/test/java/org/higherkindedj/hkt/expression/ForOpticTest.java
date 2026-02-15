@@ -655,6 +655,98 @@ class ForOpticTest {
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("D:DEEP:4");
     }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight focus operations into arity 9")
+    void arity8Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .focus(t -> t._5().toUpperCase())
+              .focus(t -> t._7().charAt(0))
+              .focus(t -> t._5().charAt(1))
+              .yield((l1, l2, l3, l4, val, len, upper, ch, ch2) -> "" + ch + ch2 + ":" + upper);
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("De:DEEP");
+    }
+
+    @Test
+    @DisplayName("Arity 9: should chain nine focus operations into arity 10")
+    void arity9Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .focus(t -> t._5().toUpperCase())
+              .focus(t -> t._7().charAt(0))
+              .focus(t -> t._5().charAt(1))
+              .focus(t -> t._5().substring(0, 2))
+              .yield(
+                  (l1, l2, l3, l4, val, len, upper, ch, ch2, sub) ->
+                      sub + "-" + upper + "(" + len + ")");
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("de-DEEP(4)");
+    }
+
+    @Test
+    @DisplayName("Arity 10: should chain ten focus operations into arity 11")
+    void arity10Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .focus(t -> t._5().toUpperCase())
+              .focus(t -> t._7().charAt(0))
+              .focus(t -> t._5().charAt(1))
+              .focus(t -> t._5().substring(0, 2))
+              .focus(t -> t._10().length())
+              .yield(
+                  (l1, l2, l3, l4, val, len, upper, ch, ch2, sub, subLen) ->
+                      sub + "[" + subLen + "]=" + upper);
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("de[2]=DEEP");
+    }
+
+    @Test
+    @DisplayName("Arity 11: should chain eleven focus operations into arity 12")
+    void arity11Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .focus(t -> t._5().toUpperCase())
+              .focus(t -> t._7().charAt(0))
+              .focus(t -> t._5().charAt(1))
+              .focus(t -> t._5().substring(0, 2))
+              .focus(t -> t._10().length())
+              .focus(t -> t._5().contains("ee"))
+              .yield(
+                  (l1, l2, l3, l4, val, len, upper, ch, ch2, sub, subLen, hasEE) ->
+                      upper + ":" + hasEE + ":" + subLen);
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("DEEP:true:2");
+    }
   }
 
   // --- Higher Arity match() Tests ---

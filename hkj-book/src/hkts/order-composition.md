@@ -1,11 +1,11 @@
 # Order Workflow: Effect Composition
 
-This page covers the core composition patterns used in the order workflow: typed error hierarchies, the `via()` chain pattern, `ForPath` comprehensions, and recovery strategies.
+This page covers the core composition patterns used in the order workflow: typed error hierarchies, `ForPath` comprehensions for flat multi-step composition, sub-comprehensions for encapsulating related steps, and recovery strategies.
 
 ~~~admonish info title="What You'll Learn"
 - Modelling domain errors with sealed interfaces for exhaustive handling
-- Composing multi-step workflows with `EitherPath` and `via()` chains
-- Using `ForPath` comprehensions for readable sequential composition
+- Composing multi-step workflows with `ForPath` comprehensions (up to 12 steps)
+- Encapsulating sub-workflows as composable building blocks
 - Implementing recovery patterns for non-fatal errors
 ~~~
 
@@ -91,33 +91,53 @@ Add a new error type, and the compiler tells you everywhere that needs updating.
 
 ---
 
-## Composing the Workflow with `via()`
+## Composing the Workflow with ForPath
 
-The `via()` method is the workhorse of Effect Path composition. It chains computations where each step depends on the previous result:
+`ForPath` is the primary composition tool for multi-step workflows. It provides a flat, readable syntax where each step chains sequentially, with automatic error propagation and all intermediate values accessible via the accumulated tuple.
+
+### The Full Workflow as a Single Comprehension
+
+With arity-12 support, the entire order processing pipeline — all eight steps — composes into one flat `ForPath` comprehension:
 
 ```java
-private EitherPath<OrderError, OrderResult> processOrderCore(
-    ValidatedOrder order, Customer customer) {
+public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
+    var orderId = OrderId.generate();
+    var customerId = new CustomerId(request.customerId());
 
-    return reserveInventory(order.orderId(), order.lines())
-        .via(reservation ->
-            applyDiscounts(order, customer)
-                .via(discount ->
-                    processPayment(order, discount)
-                        .via(payment ->
-                            createShipment(order, order.shippingAddress())
-                                .via(shipment ->
-                                    sendNotifications(order, customer, discount)
-                                        .map(notification ->
-                                            buildOrderResult(order, discount,
-                                                payment, shipment, notification))))));
+    return ForPath.from(validateShippingAddress(request.shippingAddress()))  // 1. address
+        .from(validAddress -> lookupAndValidateCustomer(customerId))         // 2. customer
+        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))    // 3. order
+        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))       // 4. reservation
+        .from(t -> applyDiscounts(t._3(), t._2()))                           // 5. discount
+        .from(t -> processPayment(t._3(), t._5()))                           // 6. payment
+        .from(t -> createShipment(t._3(), t._1()))                           // 7. shipment
+        .from(t -> sendNotifications(t._3(), t._2(), t._5()))                // 8. notification
+        .yield((validAddress, customer, order, reservation, discount,
+                payment, shipment, notification) ->
+            buildOrderResult(order, discount, payment, shipment, notification));
 }
 ```
 
 Each step:
-1. Receives the success value from the previous step
+1. Receives the accumulated tuple of all previous results (or just the first value at step 2)
 2. Returns a new `EitherPath`
-3. Automatically propagates errors (if the previous step failed, this step is skipped)
+3. Automatically propagates errors (if any previous step failed, subsequent steps are skipped)
+
+The final `yield` destructures all eight values by name, making the result assembly fully readable.
+
+### Tuple Position Reference
+
+Within each `from` lambda, positions map to earlier steps:
+
+| Position | Value | Type |
+|----------|-------|------|
+| `_1()` | validAddress | `ValidatedShippingAddress` |
+| `_2()` | customer | `Customer` |
+| `_3()` | order | `ValidatedOrder` |
+| `_4()` | reservation | `InventoryReservation` |
+| `_5()` | discount | `DiscountResult` |
+| `_6()` | payment | `PaymentConfirmation` |
+| `_7()` | shipment | `ShipmentInfo` |
 
 ### Individual Steps Are Simple
 
@@ -137,13 +157,13 @@ private EitherPath<OrderError, PaymentConfirmation> processPayment(
 }
 ```
 
-The `Path.either()` factory lifts an `Either<E, A>` into an `EitherPath<E, A>`. Your services return `Either`; the workflow composes them with `via()`.
+The `Path.either()` factory lifts an `Either<E, A>` into an `EitherPath<E, A>`. Your services return `Either`; the workflow composes them within ForPath.
 
 ---
 
-## Pattern Spotlight: ForPath Comprehensions
+## Pattern Spotlight: Sub-Comprehensions
 
-For workflows with several sequential steps, `ForPath` provides a cleaner syntax:
+Smaller groups of related steps can use their own `ForPath` and be called as a single step from the main comprehension:
 
 ```java
 private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
@@ -153,17 +173,17 @@ private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId cu
 }
 ```
 
-This is equivalent to nested `via()` calls but reads more naturally for simple sequences.
+This keeps the main comprehension readable while encapsulating sub-workflows.
 
 ### When to Use ForPath vs via()
 
 | Pattern | Best For |
 |---------|----------|
-| `ForPath` | 2-3 sequential steps with simple dependencies |
-| `via()` chains | Longer chains, complex branching, or when intermediate values are reused |
+| `ForPath` | Multi-step sequential workflows (up to 12 steps) |
+| `via()` | One-off chaining, conditional branching, or when tuple access would be awkward |
 
-~~~admonish note title="ForPath Limitation"
-`ForPath` for `EitherPath` currently supports up to 3 steps. For longer sequences, use nested `via()` chains as shown in the main workflow.
+~~~admonish tip title="ForPath supports up to 12 steps"
+`ForPath` for all Path types — including `EitherPath`, `MaybePath`, `TryPath`, `IOPath`, and `VTaskPath` — supports up to 12 steps. This is sufficient for virtually any real-world workflow.
 ~~~
 
 ---
@@ -197,8 +217,8 @@ The `recoverWith()` method catches errors and provides a fallback. Here, notific
 
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
-* **`via()` chains** compose sequential operations with automatic error propagation
-* **`ForPath` comprehensions** provide readable syntax for simple sequences (up to 3 steps)
+* **`ForPath` comprehensions** compose multi-step workflows into flat, readable pipelines (up to 12 steps)
+* **`via()` chains** remain useful for one-off chaining and conditional branching
 * **Recovery patterns** (`recover`, `recoverWith`) handle non-fatal errors gracefully
 ~~~
 

@@ -15,7 +15,9 @@ import javax.annotation.processing.ProcessingEnvironment;
 final class ForStepGenerator {
 
   private static final String PACKAGE = "org.higherkindedj.hkt.expression";
-  private static final String[] TYPE_PARAMS = {"A", "B", "C", "D", "E", "F", "G", "H"};
+  private static final String[] TYPE_PARAMS = {
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
+  };
 
   private ForStepGenerator() {}
 

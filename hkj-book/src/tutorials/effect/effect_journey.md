@@ -62,7 +62,7 @@ assertThat(result.run().getRight()).isEqualTo(4.0);
 **File**: `Tutorial02_EffectPathAdvanced.java`
 
 ```java
-// Exercise 1: ForPath comprehensions (supports up to 8 chained bindings)
+// Exercise 1: ForPath comprehensions (supports up to 12 chained bindings)
 MaybePath<Integer> result = ForPath.from(Path.just(10))
     .from(n -> Path.just(n * 2))
     .yield((a, b) -> a + b);

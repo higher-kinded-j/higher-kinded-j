@@ -437,7 +437,8 @@ conversion paths.
 
 ## A Realistic Example
 
-Bringing the patterns together:
+Bringing the patterns together with a `ForPath` comprehension, where every
+intermediate value stays in scope through the accumulated tuple:
 
 ```java
 public class OrderService {
@@ -446,28 +447,27 @@ public class OrderService {
     private final PaymentService payments;
 
     public EitherPath<OrderError, Order> placeOrder(OrderRequest request) {
-        // Validate request (fail-fast)
-        return validateRequest(request)
-            .peek(v -> log.debug("Request validated"))
+        return ForPath.from(validateRequest(request)
+                .peek(v -> log.debug("Request validated")))
 
             // Get user (convert Maybe → Either)
-            .via(valid -> Path.maybe(users.findById(valid.userId()))
-                .toEitherPath(() -> new OrderError.UserNotFound(valid.userId())))
-            .peek(user -> log.debug("Found user: {}", user.getId()))
+            .from(valid -> Path.maybe(users.findById(valid.userId()))
+                .toEitherPath(() -> new OrderError.UserNotFound(valid.userId()))
+                .peek(user -> log.debug("Found user: {}", user.getId())))
 
             // Check inventory
-            .via(user -> Path.either(inventory.check(request.items()))
+            .from(t -> Path.either(inventory.check(request.items()))
                 .mapError(OrderError.InventoryError::new))
 
-            // Process payment
-            .via(available -> Path.tryOf(() ->
-                    payments.charge(user, available.total()))
-                .toEitherPath(OrderError.PaymentFailed::new))
-            .peek(payment -> log.info("Payment processed: {}", payment.getId()))
+            // Process payment (user = t._2(), available = t._3())
+            .from(t -> Path.tryOf(() ->
+                    payments.charge(t._2(), t._3().total()))
+                .toEitherPath(OrderError.PaymentFailed::new)
+                .peek(payment -> log.info("Payment processed: {}", payment.getId())))
 
             // Create order
-            .via(payment -> Path.right(
-                createOrder(user, request.items(), payment)));
+            .yield((valid, user, available, payment) ->
+                createOrder(user, request.items(), payment));
     }
 
     private EitherPath<OrderError, ValidatedRequest> validateRequest(
@@ -480,9 +480,10 @@ public class OrderService {
 }
 ```
 
-The structure is visible: validate, fetch, check, charge, create. Errors
-propagate with appropriate types. Logging traces the happy path. Each
-conversion (`toEitherPath`, `mapError`) happens at a deliberate boundary.
+The structure is visible: validate, fetch, check, charge, create. All
+intermediate values are available in the `yield` by name. Errors propagate
+with appropriate types. Each conversion (`toEitherPath`, `mapError`)
+happens at a deliberate boundary.
 
 ---
 
@@ -555,7 +556,8 @@ Path.maybe(findUser(id))
 
 | Pattern | Method | When to Use |
 |---------|--------|-------------|
-| Sequential | `via` | Each step depends on the previous |
+| Sequential (flat) | `ForPath` | Multi-step pipelines needing previous values (up to 12 steps) |
+| Sequential | `via` | One-off chaining, conditional branching |
 | Sequential (ignore value) | `then` | Sequencing without data flow |
 | Independent | `zipWith` | Combine unrelated computations |
 | Parallel binary | `parZipWith` | Two independent computations |

@@ -54,7 +54,7 @@ class ForComprehensionGoldenFileTest {
     return JavaFileObjects.forSourceString(
         "org.higherkindedj.hkt.expression.package-info",
         """
-        @GenerateForComprehensions(minArity = 2, maxArity = 8)
+        @GenerateForComprehensions(minArity = 2, maxArity = 12)
         package org.higherkindedj.hkt.expression;
 
         import org.higherkindedj.optics.annotations.GenerateForComprehensions;
@@ -133,7 +133,44 @@ class ForComprehensionGoldenFileTest {
         new GoldenTestCase(
             "GenericPathSteps6 (generic witness)",
             "org.higherkindedj.hkt.expression.GenericPathSteps6",
-            "GenericPathSteps6.java.golden"));
+            "GenericPathSteps6.java.golden"),
+        // Phase 1c arities (9-12) - representative samples
+        new GoldenTestCase(
+            "Tuple9 record (first Phase 1c arity)",
+            "org.higherkindedj.hkt.tuple.Tuple9",
+            "Tuple9.java.golden"),
+        new GoldenTestCase(
+            "Tuple12 record (terminal Phase 1c arity)",
+            "org.higherkindedj.hkt.tuple.Tuple12",
+            "Tuple12.java.golden"),
+        new GoldenTestCase(
+            "MonadicSteps9 (non-terminal Phase 1c)",
+            "org.higherkindedj.hkt.expression.MonadicSteps9",
+            "MonadicSteps9.java.golden"),
+        new GoldenTestCase(
+            "MonadicSteps12 (terminal)",
+            "org.higherkindedj.hkt.expression.MonadicSteps12",
+            "MonadicSteps12.java.golden"),
+        new GoldenTestCase(
+            "FilterableSteps9 (non-terminal Phase 1c)",
+            "org.higherkindedj.hkt.expression.FilterableSteps9",
+            "FilterableSteps9.java.golden"),
+        new GoldenTestCase(
+            "FilterableSteps12 (terminal)",
+            "org.higherkindedj.hkt.expression.FilterableSteps12",
+            "FilterableSteps12.java.golden"),
+        new GoldenTestCase(
+            "MaybePathSteps9 (filterable Phase 1c)",
+            "org.higherkindedj.hkt.expression.MaybePathSteps9",
+            "MaybePathSteps9.java.golden"),
+        new GoldenTestCase(
+            "EitherPathSteps9 (extra type param Phase 1c)",
+            "org.higherkindedj.hkt.expression.EitherPathSteps9",
+            "EitherPathSteps9.java.golden"),
+        new GoldenTestCase(
+            "GenericPathSteps9 (generic witness Phase 1c)",
+            "org.higherkindedj.hkt.expression.GenericPathSteps9",
+            "GenericPathSteps9.java.golden"));
   }
 
   // =============================================================================

@@ -183,7 +183,8 @@ service callers get `Either` with meaningful errors.
 
 ### Chained Service Calls
 
-When each step depends on the previous:
+When each step depends on previous results, use `ForPath` to keep all
+intermediate values in scope via the accumulated tuple:
 
 ```java
 public class OrderService {
@@ -193,20 +194,21 @@ public class OrderService {
 
     public EitherPath<OrderError, Order> placeOrder(
             String userId, List<Item> items) {
-        return users.getById(userId)
-            .mapError(OrderError::fromUserError)
-            .via(user -> inventory.reserve(items)
+        return ForPath.from(users.getById(userId)
+                .mapError(OrderError::fromUserError))
+            .from(user -> inventory.reserve(items)
                 .mapError(OrderError::fromInventoryError))
-            .via(reservation -> payments.charge(user, reservation.total())
+            .from(t -> payments.charge(t._1(), t._2().total())  // user, reservation
                 .mapError(OrderError::fromPaymentError))
-            .via(payment -> Path.right(
-                createOrder(user, items, payment)));
+            .yield((user, reservation, payment) ->
+                createOrder(user, items, payment));
     }
 }
 ```
 
 Each `mapError` translates the sub-service error into the order domain.
-The final `Order` is created only if all steps succeed.
+The `yield` destructures all three values by name, and the `Order` is
+created only if all steps succeed.
 
 ### Service with Fallbacks
 

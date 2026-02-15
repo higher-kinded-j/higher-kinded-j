@@ -972,7 +972,7 @@ class ForPathTest {
   // ========================================================================
 
   @Nested
-  @DisplayName("MaybePath Extended Arity (6-8)")
+  @DisplayName("MaybePath Extended Arity (6-12)")
   class MaybePathExtendedArityTests {
 
     @Test
@@ -1085,10 +1085,57 @@ class ForPathTest {
 
       assertTrue(result.run().isNothing());
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .from(t -> Path.just(7))
+              .from(t -> Path.just(8))
+              .from(t -> Path.just(9))
+              .from(t -> Path.just(10))
+              .from(t -> Path.just(11))
+              .from(t -> Path.just(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertEquals(Maybe.just(78), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 12: should support when() filter")
+    void arity12_when() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .from(t -> Path.just(7))
+              .from(t -> Path.just(8))
+              .from(t -> Path.just(9))
+              .from(t -> Path.just(10))
+              .from(t -> Path.just(11))
+              .from(t -> Path.just(12))
+              .when(t -> t._12() > 100)
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertTrue(result.run().isNothing());
+    }
   }
 
   @Nested
-  @DisplayName("OptionalPath Extended Arity (4-8)")
+  @DisplayName("OptionalPath Extended Arity (4-12)")
   class OptionalPathExtendedArityTests {
 
     @Test
@@ -1151,10 +1198,33 @@ class ForPathTest {
 
       assertEquals(Optional.of(36), result.run());
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      OptionalPath<Integer> result =
+          ForPath.from(Path.present(1))
+              .from(a -> Path.present(2))
+              .from(t -> Path.present(3))
+              .from(t -> Path.present(4))
+              .from(t -> Path.present(5))
+              .from(t -> Path.present(6))
+              .from(t -> Path.present(7))
+              .from(t -> Path.present(8))
+              .from(t -> Path.present(9))
+              .from(t -> Path.present(10))
+              .from(t -> Path.present(11))
+              .from(t -> Path.present(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertEquals(Optional.of(78), result.run());
+    }
   }
 
   @Nested
-  @DisplayName("EitherPath Extended Arity (4-8)")
+  @DisplayName("EitherPath Extended Arity (4-12)")
   class EitherPathExtendedArityTests {
 
     @Test
@@ -1220,10 +1290,34 @@ class ForPathTest {
       assertTrue(result.run().isLeft());
       assertEquals("Error at step 3", result.run().getLeft());
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      EitherPath<String, Integer> result =
+          ForPath.from(Path.<String, Integer>right(1))
+              .from(a -> Path.<String, Integer>right(2))
+              .from(t -> Path.<String, Integer>right(3))
+              .from(t -> Path.<String, Integer>right(4))
+              .from(t -> Path.<String, Integer>right(5))
+              .from(t -> Path.<String, Integer>right(6))
+              .from(t -> Path.<String, Integer>right(7))
+              .from(t -> Path.<String, Integer>right(8))
+              .from(t -> Path.<String, Integer>right(9))
+              .from(t -> Path.<String, Integer>right(10))
+              .from(t -> Path.<String, Integer>right(11))
+              .from(t -> Path.<String, Integer>right(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertTrue(result.run().isRight());
+      assertEquals(78, result.run().getRight());
+    }
   }
 
   @Nested
-  @DisplayName("TryPath Extended Arity (4-8)")
+  @DisplayName("TryPath Extended Arity (4-12)")
   class TryPathExtendedArityTests {
 
     @Test
@@ -1273,10 +1367,34 @@ class ForPathTest {
       assertTrue(result.run().isSuccess());
       assertEquals(36, result.run().orElse(null));
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      TryPath<Integer> result =
+          ForPath.from(Path.success(1))
+              .from(a -> Path.success(2))
+              .from(t -> Path.success(3))
+              .from(t -> Path.success(4))
+              .from(t -> Path.success(5))
+              .from(t -> Path.success(6))
+              .from(t -> Path.success(7))
+              .from(t -> Path.success(8))
+              .from(t -> Path.success(9))
+              .from(t -> Path.success(10))
+              .from(t -> Path.success(11))
+              .from(t -> Path.success(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertTrue(result.run().isSuccess());
+      assertEquals(78, result.run().orElse(null));
+    }
   }
 
   @Nested
-  @DisplayName("IOPath Extended Arity (4-8)")
+  @DisplayName("IOPath Extended Arity (4-12)")
   class IOPathExtendedArityTests {
 
     @Test
@@ -1323,10 +1441,33 @@ class ForPathTest {
 
       assertEquals(36, result.unsafeRun());
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      IOPath<Integer> result =
+          ForPath.from(Path.ioPure(1))
+              .from(a -> Path.ioPure(2))
+              .from(t -> Path.ioPure(3))
+              .from(t -> Path.ioPure(4))
+              .from(t -> Path.ioPure(5))
+              .from(t -> Path.ioPure(6))
+              .from(t -> Path.ioPure(7))
+              .from(t -> Path.ioPure(8))
+              .from(t -> Path.ioPure(9))
+              .from(t -> Path.ioPure(10))
+              .from(t -> Path.ioPure(11))
+              .from(t -> Path.ioPure(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertEquals(78, result.unsafeRun());
+    }
   }
 
   @Nested
-  @DisplayName("IdPath Extended Arity (4-8)")
+  @DisplayName("IdPath Extended Arity (4-12)")
   class IdPathExtendedArityTests {
 
     @Test
@@ -1373,10 +1514,33 @@ class ForPathTest {
 
       assertEquals(36, result.run().value());
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      IdPath<Integer> result =
+          ForPath.from(Path.id(1))
+              .from(a -> Path.id(2))
+              .from(t -> Path.id(3))
+              .from(t -> Path.id(4))
+              .from(t -> Path.id(5))
+              .from(t -> Path.id(6))
+              .from(t -> Path.id(7))
+              .from(t -> Path.id(8))
+              .from(t -> Path.id(9))
+              .from(t -> Path.id(10))
+              .from(t -> Path.id(11))
+              .from(t -> Path.id(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertEquals(78, result.run().value());
+    }
   }
 
   @Nested
-  @DisplayName("NonDetPath Extended Arity (4-8)")
+  @DisplayName("NonDetPath Extended Arity (4-12)")
   class NonDetPathExtendedArityTests {
 
     @Test
@@ -1439,10 +1603,33 @@ class ForPathTest {
 
       assertEquals(List.of(36), result.run());
     }
+
+    @Test
+    @DisplayName("Arity 12: should produce Cartesian product")
+    void arity12_yield() {
+      NonDetPath<Integer> result =
+          ForPath.from(Path.list(1))
+              .from(a -> Path.list(2))
+              .from(t -> Path.list(3))
+              .from(t -> Path.list(4))
+              .from(t -> Path.list(5))
+              .from(t -> Path.list(6))
+              .from(t -> Path.list(7))
+              .from(t -> Path.list(8))
+              .from(t -> Path.list(9))
+              .from(t -> Path.list(10))
+              .from(t -> Path.list(11))
+              .from(t -> Path.list(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertEquals(List.of(78), result.run());
+    }
   }
 
   @Nested
-  @DisplayName("VTaskPath Extended Arity (6-8)")
+  @DisplayName("VTaskPath Extended Arity (6-12)")
   class VTaskPathExtendedArityTests {
 
     @Test
@@ -1497,10 +1684,33 @@ class ForPathTest {
 
       assertEquals("sum=36", result.unsafeRun());
     }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .from(t -> Path.vtaskPure(5))
+              .from(t -> Path.vtaskPure(6))
+              .from(t -> Path.vtaskPure(7))
+              .from(t -> Path.vtaskPure(8))
+              .from(t -> Path.vtaskPure(9))
+              .from(t -> Path.vtaskPure(10))
+              .from(t -> Path.vtaskPure(11))
+              .from(t -> Path.vtaskPure(12))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      assertEquals(78, result.unsafeRun());
+    }
   }
 
   @Nested
-  @DisplayName("GenericPath Extended Arity (4-8)")
+  @DisplayName("GenericPath Extended Arity (4-12)")
   class GenericPathExtendedArityTests {
 
     @Test
@@ -1549,6 +1759,30 @@ class ForPathTest {
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
       assertEquals(Maybe.just(36), maybeResult);
+    }
+
+    @Test
+    @DisplayName("Arity 12: should chain twelve generators and yield")
+    void arity12_yield() {
+      GenericPath<MaybeKind.Witness, Integer> result =
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
+              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(9), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(11), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(12), MaybeMonad.INSTANCE))
+              .yield(
+                  (a, b, c, d, e, f, g, h, i, j, k, l) ->
+                      a + b + c + d + e + f + g + h + i + j + k + l);
+
+      Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
+      assertEquals(Maybe.just(78), maybeResult);
     }
   }
 

@@ -16,14 +16,18 @@ final class TupleGenerator {
 
   private static final String PACKAGE = "org.higherkindedj.hkt.tuple";
 
-  private static final String[] TYPE_PARAMS = {"A", "B", "C", "D", "E", "F", "G", "H"};
+  private static final String[] TYPE_PARAMS = {
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
+  };
 
   private static final String[] ORDINALS = {
-    "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth"
+    "First", "Second", "Third", "Fourth", "Fifth", "Sixth",
+    "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", "Twelfth"
   };
 
   private static final String[] ORDINAL_LOWER = {
-    "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth"
+    "first", "second", "third", "fourth", "fifth", "sixth",
+    "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"
   };
 
   private static final String[] MAP_OPS = {
@@ -34,7 +38,11 @@ final class TupleGenerator {
     "MAP_FIFTH",
     "MAP_SIXTH",
     "MAP_SEVENTH",
-    "MAP_EIGHTH"
+    "MAP_EIGHTH",
+    "MAP_NINTH",
+    "MAP_TENTH",
+    "MAP_ELEVENTH",
+    "MAP_TWELFTH"
   };
 
   private TupleGenerator() {}

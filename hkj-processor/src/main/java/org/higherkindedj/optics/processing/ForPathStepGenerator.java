@@ -15,14 +15,23 @@ import javax.annotation.processing.ProcessingEnvironment;
 final class ForPathStepGenerator {
 
   private static final String PACKAGE = "org.higherkindedj.hkt.expression";
-  private static final String[] TYPE_PARAMS = {"A", "B", "C", "D", "E", "F", "G", "H"};
+  private static final String[] TYPE_PARAMS = {
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
+  };
+
   private static final String YIELD_NULL_MSG = "The yield function must not return null.";
 
   // Value type params for types with extra type param that would collide.
-  // Either has extra E, so skip E: A, B, C, D, F, G, H, I
-  private static final String[] EITHER_VALUE_PARAMS = {"A", "B", "C", "D", "F", "G", "H", "I"};
-  // Generic has extra F, so skip F: A, B, C, D, E, G, H, I
-  private static final String[] GENERIC_VALUE_PARAMS = {"A", "B", "C", "D", "E", "G", "H", "I"};
+  // Either has extra E, so skip E: A, B, C, D, F, G, H, I, J, K, L, N
+  // Note: M is skipped because 'm' is used as the local monad variable name in generated code,
+  // which would collide with the lambda parameter derived from M.toLowerCase().
+  private static final String[] EITHER_VALUE_PARAMS = {
+    "A", "B", "C", "D", "F", "G", "H", "I", "J", "K", "L", "N"
+  };
+  // Generic has extra F, so skip F: A, B, C, D, E, G, H, I, J, K, L, M
+  private static final String[] GENERIC_VALUE_PARAMS = {
+    "A", "B", "C", "D", "E", "G", "H", "I", "J", "K", "L", "M"
+  };
 
   private ForPathStepGenerator() {}
 
