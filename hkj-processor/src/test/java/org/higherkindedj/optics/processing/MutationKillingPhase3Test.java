@@ -132,9 +132,9 @@ class MutationKillingPhase3Test {
     }
 
     @Test
-    @DisplayName("Affine context → Traversal field should widen to Traversal")
-    void affineToTraversalWideningShouldProduceTraversalPath() throws IOException {
-      // Three-level: Outer has Optional<Middle>, Middle has List<Inner>
+    @DisplayName("Affine context (Optional field) should produce AffinePath return type")
+    void affineContextShouldProduceAffinePathReturnType() throws IOException {
+      // Optional<Branch> field → AffinePath (not directly navigable into Branch)
       var inner =
           JavaFileObjects.forSourceString(
               "com.example.Leaf",
@@ -162,7 +162,7 @@ class MutationKillingPhase3Test {
               import org.higherkindedj.optics.annotations.GenerateFocus;
               import java.util.Optional;
               @GenerateFocus(generateNavigators = true)
-              public record Tree(Optional<Branch> branch) {}
+              public record Tree(Optional<Branch> branch, String name) {}
               """);
 
       Compilation compilation =
@@ -177,10 +177,10 @@ class MutationKillingPhase3Test {
               .getCharContent(true)
               .toString();
 
-      // The navigator should correctly widen through Affine → Traversal
-      // Tree.branch is Optional → AffinePath, and Branch.leaves is List → TraversalPath
-      // When navigating from Affine context to Traversal field, result should be TraversalPath
-      assertThat(code).contains("BranchNavigator");
+      // Optional<Branch> → AffinePath (branch is wrapped in Optional)
+      assertThat(code).contains("AffinePath<Tree, Branch>");
+      // name is plain String → FocusPath
+      assertThat(code).contains("FocusPath<Tree, String>");
     }
   }
 
@@ -434,9 +434,9 @@ class MutationKillingPhase3Test {
               .toString();
 
       // getPathDescription should return "FocusPath" not ""
-      assertThat(code).contains("FocusPath");
-      // The Javadoc should contain the description
-      assertThat(code).contains("a FocusPath focusing on");
+      assertThat(code).contains("FocusPath<Widget, String>");
+      // getPathGetMethod should return "get" for regular fields (not empty)
+      assertThat(code).contains(".get(instance)");
     }
   }
 
@@ -1504,8 +1504,19 @@ class MutationKillingPhase3Test {
     }
 
     @Test
-    @DisplayName("Nullable field should return AFFINE path kind")
-    void nullableFieldShouldReturnAffinePath() throws IOException {
+    @DisplayName("Nullable navigable field should return AFFINE path kind in navigator")
+    void nullableNavigableFieldShouldReturnAffinePath() throws IOException {
+      // Provide @Nullable annotation as a source file for the compilation
+      var nullableAnnotation =
+          JavaFileObjects.forSourceString(
+              "org.jspecify.annotations.Nullable",
+              """
+              package org.jspecify.annotations;
+              import java.lang.annotation.*;
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD, ElementType.RECORD_COMPONENT})
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """);
       var inner =
           JavaFileObjects.forSourceString(
               "com.example.Note",
@@ -1527,20 +1538,22 @@ class MutationKillingPhase3Test {
               """);
 
       Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(nullableAnnotation, inner, outer);
 
-      // This may or may not compile depending on @Nullable being on classpath
-      // The key test is that if it compiles, @Nullable → AffinePath
-      if (compilation.status() == Compilation.Status.SUCCESS) {
-        String code =
-            compilation
-                .generatedSourceFile("com.example.DocumentFocus")
-                .get()
-                .getCharContent(true)
-                .toString();
+      assertThat(compilation).succeeded();
 
-        assertThat(code).contains("AffinePath");
-      }
+      String code =
+          compilation
+              .generatedSourceFile("com.example.DocumentFocus")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      // @Nullable navigable field should produce AffinePath navigator
+      assertThat(code).contains("AffinePath");
+      assertThat(code).contains("FootnoteNavigator");
     }
   }
 
@@ -2162,20 +2175,21 @@ class MutationKillingPhase3Test {
   class IsoProcessorProcessMethodTests {
 
     @Test
-    @DisplayName("Iso with two methods should generate bidirectional iso")
-    void isoWithTwoMethodsShouldGenerate() {
+    @DisplayName("Iso method returning Iso type should generate Isos class")
+    void isoMethodReturningIsoTypeShouldGenerate() throws IOException {
       var source =
           JavaFileObjects.forSourceString(
               "com.example.Converters",
               """
               package com.example;
+              import org.higherkindedj.optics.Iso;
               import org.higherkindedj.optics.annotations.GenerateIsos;
 
               public class Converters {
                   @GenerateIsos
-                  public static String intToString(int x) { return String.valueOf(x); }
-                  @GenerateIsos
-                  public static int stringToInt(String s) { return Integer.parseInt(s); }
+                  public static Iso<String, Integer> stringToInt() {
+                      return Iso.of(Integer::parseInt, String::valueOf);
+                  }
               }
               """);
 
@@ -2183,6 +2197,16 @@ class MutationKillingPhase3Test {
           javac().withProcessors(new IsoProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
+
+      String code =
+          compilation
+              .generatedSourceFile("com.example.ConvertersIsos")
+              .get()
+              .getCharContent(true)
+              .toString();
+
+      assertThat(code).contains("stringToInt");
+      assertThat(code).contains("Iso<String, Integer>");
     }
   }
 
