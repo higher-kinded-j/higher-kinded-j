@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
@@ -256,17 +256,10 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
             if (subtask == null) {
               throw new IllegalStateException("No subtask completed");
             }
-            // Coverage note: The default branch (UNAVAILABLE state) is unreachable in normal
-            // operation. After onComplete() is called, subtasks are guaranteed to be in SUCCESS
-            // or FAILED state. The UNAVAILABLE state only exists before a subtask completes,
-            // but firstCompleted is only set in onComplete(), so this defensive code cannot
-            // be exercised through normal StructuredTaskScope usage.
-            return switch (subtask.state()) {
-              case SUCCESS -> subtask.get();
-              case FAILED -> throw subtask.exception();
-              default ->
-                  throw new IllegalStateException("Subtask not completed: " + subtask.state());
-            };
+            if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
+              throw subtask.exception();
+            }
+            return subtask.get();
           }
         };
   }
@@ -322,15 +315,11 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
             List<E> errors = new ArrayList<>();
             List<T> successes = new ArrayList<>();
 
-            // Coverage note: The default branch (UNAVAILABLE state) is unreachable in normal
-            // operation. After join() returns, all forked subtasks are guaranteed to be in
-            // SUCCESS or FAILED state. The UNAVAILABLE state only exists before a subtask
-            // completes, but join() blocks until all subtasks complete.
             for (StructuredTaskScope.Subtask<? extends T> subtask : allSubtasks) {
-              switch (subtask.state()) {
-                case SUCCESS -> successes.add(subtask.get());
-                case FAILED -> errors.add(errorMapper.apply(subtask.exception()));
-                default -> {} // UNAVAILABLE - defensive, unreachable after join
+              if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
+                errors.add(errorMapper.apply(subtask.exception()));
+              } else {
+                successes.add(subtask.get());
               }
             }
 
@@ -346,24 +335,5 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
   @Override
   public StructuredTaskScope.Joiner<T, Validated<List<E>, List<T>>> joiner() {
     return delegate;
-  }
-
-  /**
-   * Returns the result wrapped in Either, adapting the Validated result.
-   *
-   * <p>Coverage note: The catch block is unreachable in normal operation. The delegate's result()
-   * method is designed to never throw - it accumulates all results into a Validated and always
-   * returns successfully (either Valid or Invalid). The catch block is purely defensive code.
-   *
-   * @return Either containing the Validated result
-   */
-  @Override
-  public Either<Throwable, Validated<List<E>, List<T>>> resultEither() {
-    try {
-      return Either.right(delegate.result());
-    } catch (Throwable t) {
-      // Defensive: delegate.result() should never throw as it returns Validated
-      return Either.left(t);
-    }
   }
 }

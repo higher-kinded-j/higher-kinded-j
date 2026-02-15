@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
@@ -81,6 +81,10 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
       try {
         executedValue = wrappedTask.run();
         executedException = null;
+      } catch (VTaskExecutionException e) {
+        // Unwrap to expose the original checked exception for cleaner assertions
+        executedValue = null;
+        executedException = e.getCause();
       } catch (Throwable t) {
         executedValue = null;
         executedException = t;

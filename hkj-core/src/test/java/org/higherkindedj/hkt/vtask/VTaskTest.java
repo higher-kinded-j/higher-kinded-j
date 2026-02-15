@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
@@ -29,7 +29,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("of() creates VTask from Callable")
-    void ofCreatesVTaskFromCallable() throws Throwable {
+    void ofCreatesVTaskFromCallable() {
       VTask<Integer> task = VTask.of(() -> TEST_VALUE);
       assertThat(task.run()).isEqualTo(TEST_VALUE);
     }
@@ -42,7 +42,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("delay() creates lazy VTask")
-    void delayCreatesLazyVTask() throws Throwable {
+    void delayCreatesLazyVTask() {
       AtomicInteger counter = new AtomicInteger(0);
 
       VTask<Integer> task = VTask.delay(() -> counter.incrementAndGet());
@@ -65,14 +65,14 @@ class VTaskTest {
 
     @Test
     @DisplayName("succeed() creates VTask with immediate value")
-    void succeedCreatesVTaskWithValue() throws Throwable {
+    void succeedCreatesVTaskWithValue() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
       assertThat(task.run()).isEqualTo(TEST_VALUE);
     }
 
     @Test
     @DisplayName("succeed() can create VTask with null value")
-    void succeedCanCreateVTaskWithNullValue() throws Throwable {
+    void succeedCanCreateVTaskWithNullValue() {
       VTask<String> task = VTask.succeed(null);
       assertThat(task.run()).isNull();
     }
@@ -94,7 +94,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("exec() creates VTask from Runnable")
-    void execCreatesVTaskFromRunnable() throws Throwable {
+    void execCreatesVTaskFromRunnable() {
       AtomicInteger counter = new AtomicInteger(0);
       VTask<Unit> task = VTask.exec(() -> counter.incrementAndGet());
 
@@ -114,7 +114,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("blocking() creates VTask from blocking Callable")
-    void blockingCreatesVTaskFromBlockingCallable() throws Throwable {
+    void blockingCreatesVTaskFromBlockingCallable() {
       VTask<Integer> task = VTask.blocking(() -> TEST_VALUE);
       assertThat(task.run()).isEqualTo(TEST_VALUE);
     }
@@ -192,7 +192,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("run() executes the task synchronously")
-    void runExecutesTaskSynchronously() throws Throwable {
+    void runExecutesTaskSynchronously() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       assertThat(task.run()).isEqualTo(TEST_VALUE);
@@ -270,12 +270,27 @@ class VTaskTest {
   }
 
   @Nested
+  @DisplayName("VTaskExecutionException")
+  class VTaskExecutionExceptionTests {
+
+    @Test
+    @DisplayName("two-arg constructor preserves message and cause")
+    void twoArgConstructorPreservesMessageAndCause() {
+      Throwable cause = new Exception("original");
+      VTaskExecutionException exception = new VTaskExecutionException("context info", cause);
+
+      assertThat(exception.getMessage()).isEqualTo("context info");
+      assertThat(exception.getCause()).isSameAs(cause);
+    }
+  }
+
+  @Nested
   @DisplayName("Composition Methods")
   class CompositionMethods {
 
     @Test
     @DisplayName("map() transforms the value")
-    void mapTransformsValue() throws Throwable {
+    void mapTransformsValue() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<String> mapped = task.map(i -> "Value: " + i);
@@ -316,7 +331,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("flatMap() chains VTask computations")
-    void flatMapChainsVTaskComputations() throws Throwable {
+    void flatMapChainsVTaskComputations() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<String> flatMapped = task.flatMap(i -> VTask.succeed("Value: " + i));
@@ -346,7 +361,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("via() is alias for flatMap()")
-    void viaIsAliasForFlatMap() throws Throwable {
+    void viaIsAliasForFlatMap() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<String> viaResult = task.via(i -> VTask.succeed("Value: " + i));
@@ -356,7 +371,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("then() sequences tasks discarding first result")
-    void thenSequencesTasks() throws Throwable {
+    void thenSequencesTasks() {
       AtomicInteger counter = new AtomicInteger(0);
       VTask<Integer> first = VTask.delay(() -> counter.incrementAndGet());
       VTask<String> second = VTask.succeed("result");
@@ -389,7 +404,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("peek() performs side effect without modifying result")
-    void peekPerformsSideEffectWithoutModifyingResult() throws Throwable {
+    void peekPerformsSideEffectWithoutModifyingResult() {
       AtomicReference<Integer> observed = new AtomicReference<>();
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -425,7 +440,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("timeout() allows fast tasks to complete")
-    void timeoutAllowsFastTasksToComplete() throws Throwable {
+    void timeoutAllowsFastTasksToComplete() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
       VTask<Integer> withTimeout = task.timeout(Duration.ofSeconds(1));
 
@@ -471,7 +486,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("recover() handles failure")
-    void recoverHandlesFailure() throws Throwable {
+    void recoverHandlesFailure() {
       RuntimeException exception = new RuntimeException("Error");
       VTask<Integer> failing = VTask.fail(exception);
 
@@ -482,7 +497,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("recover() passes through success")
-    void recoverPassesThroughSuccess() throws Throwable {
+    void recoverPassesThroughSuccess() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<Integer> recovered = task.recover(e -> -1);
@@ -492,7 +507,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("recoverWith() handles failure with new task")
-    void recoverWithHandlesFailure() throws Throwable {
+    void recoverWithHandlesFailure() {
       RuntimeException exception = new RuntimeException("Error");
       VTask<Integer> failing = VTask.fail(exception);
 
@@ -503,7 +518,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("recoverWith() passes through success")
-    void recoverWithPassesThroughSuccess() throws Throwable {
+    void recoverWithPassesThroughSuccess() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<Integer> recovered = task.recoverWith(e -> VTask.succeed(-1));
@@ -552,7 +567,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("mapError() passes through success")
-    void mapErrorPassesThroughSuccess() throws Throwable {
+    void mapErrorPassesThroughSuccess() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<Integer> mapped = task.mapError(e -> new IllegalStateException("Wrapped"));
@@ -567,7 +582,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("asUnit() discards result and returns Unit")
-    void asUnitDiscardsResult() throws Throwable {
+    void asUnitDiscardsResult() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
       VTask<Unit> unitTask = task.asUnit();
@@ -577,7 +592,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("asUnit() preserves side effects")
-    void asUnitPreservesSideEffects() throws Throwable {
+    void asUnitPreservesSideEffects() {
       AtomicInteger counter = new AtomicInteger(0);
       VTask<Integer> task =
           VTask.delay(
@@ -625,7 +640,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("Multiple map operations don't execute until run")
-    void multipleMapOperationsDontExecuteUntilRun() throws Throwable {
+    void multipleMapOperationsDontExecuteUntilRun() {
       AtomicInteger executions = new AtomicInteger(0);
 
       VTask<Integer> task =
@@ -660,7 +675,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("Complex chain with map, flatMap, and asUnit")
-    void complexChainWithMapFlatMapAndAsUnit() throws Throwable {
+    void complexChainWithMapFlatMapAndAsUnit() {
       AtomicReference<String> log = new AtomicReference<>("");
 
       VTask<Integer> step1 =
@@ -694,7 +709,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("Sequential side effects with exec")
-    void sequentialSideEffectsWithExec() throws Throwable {
+    void sequentialSideEffectsWithExec() {
       AtomicReference<String> log = new AtomicReference<>("");
 
       VTask<Unit> task =

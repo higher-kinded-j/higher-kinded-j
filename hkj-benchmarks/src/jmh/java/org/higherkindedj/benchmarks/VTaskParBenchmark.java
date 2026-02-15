@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
@@ -71,7 +71,7 @@ public class VTaskParBenchmark {
    * <p>Measures overhead of StructuredTaskScope for parallel execution.
    */
   @Benchmark
-  public Par.Tuple2<Integer, Integer> zipTwoTasks() throws Throwable {
+  public Par.Tuple2<Integer, Integer> zipTwoTasks() {
     return Par.zip(taskA, taskB).run();
   }
 
@@ -81,7 +81,7 @@ public class VTaskParBenchmark {
    * <p>Provides baseline for comparison with parallel version.
    */
   @Benchmark
-  public Par.Tuple2<Integer, Integer> sequentialZipEquivalent() throws Throwable {
+  public Par.Tuple2<Integer, Integer> sequentialZipEquivalent() {
     Integer a = taskA.run();
     Integer b = taskB.run();
     return new Par.Tuple2<>(a, b);
@@ -89,7 +89,7 @@ public class VTaskParBenchmark {
 
   /** Parallel zip of three tasks. */
   @Benchmark
-  public Par.Tuple3<Integer, Integer, Integer> zip3Tasks() throws Throwable {
+  public Par.Tuple3<Integer, Integer, Integer> zip3Tasks() {
     return Par.zip3(taskA, taskB, taskC).run();
   }
 
@@ -97,13 +97,13 @@ public class VTaskParBenchmark {
 
   /** Parallel map2 combining two results. */
   @Benchmark
-  public Integer map2Tasks() throws Throwable {
+  public Integer map2Tasks() {
     return Par.map2(taskA, taskB, Integer::sum).run();
   }
 
   /** Sequential equivalent of map2. */
   @Benchmark
-  public Integer sequentialMap2Equivalent() throws Throwable {
+  public Integer sequentialMap2Equivalent() {
     Integer a = taskA.run();
     Integer b = taskB.run();
     return a + b;
@@ -111,7 +111,7 @@ public class VTaskParBenchmark {
 
   /** Parallel map3 combining three results. */
   @Benchmark
-  public Integer map3Tasks() throws Throwable {
+  public Integer map3Tasks() {
     return Par.map3(taskA, taskB, taskC, (a, b, c) -> a + b + c).run();
   }
 
@@ -123,13 +123,13 @@ public class VTaskParBenchmark {
    * <p>Uses parameterized list size.
    */
   @Benchmark
-  public List<Integer> allTasks() throws Throwable {
+  public List<Integer> allTasks() {
     return Par.all(smallTaskList).run();
   }
 
   /** Sequential equivalent of all. */
   @Benchmark
-  public List<Integer> sequentialAllEquivalent() throws Throwable {
+  public List<Integer> sequentialAllEquivalent() {
     List<Integer> results = new ArrayList<>(smallTaskList.size());
     for (VTask<Integer> task : smallTaskList) {
       results.add(task.run());
@@ -145,13 +145,13 @@ public class VTaskParBenchmark {
    * <p>Uses parameterized list size.
    */
   @Benchmark
-  public List<Integer> traverseList() throws Throwable {
+  public List<Integer> traverseList() {
     return Par.traverse(items, i -> VTask.succeed(i * 2)).run();
   }
 
   /** Sequential equivalent of traverse. */
   @Benchmark
-  public List<Integer> sequentialTraverseEquivalent() throws Throwable {
+  public List<Integer> sequentialTraverseEquivalent() {
     List<Integer> results = new ArrayList<>(items.size());
     for (Integer item : items) {
       results.add(VTask.succeed(item * 2).run());
@@ -167,7 +167,7 @@ public class VTaskParBenchmark {
    * <p>All tasks succeed immediately; measures race combinator overhead.
    */
   @Benchmark
-  public Integer raceWithImmediateWinner() throws Throwable {
+  public Integer raceWithImmediateWinner() {
     List<VTask<Integer>> tasks = List.of(VTask.succeed(1), VTask.succeed(2), VTask.succeed(3));
     return Par.race(tasks).run();
   }
@@ -180,7 +180,7 @@ public class VTaskParBenchmark {
    * <p>Demonstrates virtual thread scalability.
    */
   @Benchmark
-  public List<Integer> highConcurrencyAll() throws Throwable {
+  public List<Integer> highConcurrencyAll() {
     List<VTask<Integer>> tasks = new ArrayList<>(listSize);
     for (int i = 0; i < listSize; i++) {
       final int val = i;
@@ -191,7 +191,7 @@ public class VTaskParBenchmark {
 
   /** High concurrency traverse. */
   @Benchmark
-  public List<Integer> highConcurrencyTraverse() throws Throwable {
+  public List<Integer> highConcurrencyTraverse() {
     return Par.traverse(items, i -> VTask.succeed(i * 2)).run();
   }
 }

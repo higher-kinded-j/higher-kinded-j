@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.tutorial.optics;
 
@@ -226,7 +226,7 @@ public class Tutorial16_OpticsSpecInterfaces {
      * code is equivalent to: items().andThen(Traversals.forList())
      */
     public static Traversal<OrderRecord, LineItemRecord> eachItem() {
-      return items().andThen(org.higherkindedj.optics.util.Traversals.forList());
+      return items().andThen(Traversals.forList());
     }
   }
 

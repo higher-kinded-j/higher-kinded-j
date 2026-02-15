@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
@@ -964,6 +964,591 @@ class ForPathTest {
               .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5()));
 
       assertEquals(Maybe.just("sum=15"), result.run());
+    }
+  }
+
+  // ========================================================================
+  // Extended Arity Tests (6-8) — Generated Step Classes
+  // ========================================================================
+
+  @Nested
+  @DisplayName("MaybePath Extended Arity (6-8)")
+  class MaybePathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(Maybe.just(21), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should yield with tuple function")
+    void arity6_yieldTuple() {
+      MaybePath<String> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5() + t._6()));
+
+      assertEquals(Maybe.just("sum=21"), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should support when() filter")
+    void arity6_when() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .when(t -> t._6() > 10)
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertTrue(result.run().isNothing());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should support let()")
+    void arity6_let() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .let(t -> t._1() + t._2() + t._3() + t._4() + t._5())
+              .yield((a, b, c, d, e, sum) -> sum);
+
+      assertEquals(Maybe.just(15), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 7: should chain seven generators and yield")
+    void arity7_yield() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .from(t -> Path.just(7))
+              .yield((a, b, c, d, e, f, g) -> a + b + c + d + e + f + g);
+
+      assertEquals(Maybe.just(28), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.just(4))
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .from(t -> Path.just(7))
+              .from(t -> Path.just(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertEquals(Maybe.just(36), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should short-circuit on Nothing")
+    void arity8_shortCircuit() {
+      MaybePath<Integer> result =
+          ForPath.from(Path.just(1))
+              .from(a -> Path.just(2))
+              .from(t -> Path.just(3))
+              .from(t -> Path.<Integer>nothing())
+              .from(t -> Path.just(5))
+              .from(t -> Path.just(6))
+              .from(t -> Path.just(7))
+              .from(t -> Path.just(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertTrue(result.run().isNothing());
+    }
+  }
+
+  @Nested
+  @DisplayName("OptionalPath Extended Arity (4-8)")
+  class OptionalPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should chain four generators and yield")
+    void arity4_yield() {
+      OptionalPath<Integer> result =
+          ForPath.from(Path.present(1))
+              .from(a -> Path.present(2))
+              .from(t -> Path.present(3))
+              .from(t -> Path.present(4))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertEquals(Optional.of(10), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      OptionalPath<Integer> result =
+          ForPath.from(Path.present(1))
+              .from(a -> Path.present(2))
+              .from(t -> Path.present(3))
+              .from(t -> Path.present(4))
+              .from(t -> Path.present(5))
+              .from(t -> Path.present(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(Optional.of(21), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should support when() filter")
+    void arity6_when() {
+      OptionalPath<Integer> result =
+          ForPath.from(Path.present(1))
+              .from(a -> Path.present(2))
+              .from(t -> Path.present(3))
+              .from(t -> Path.present(4))
+              .from(t -> Path.present(5))
+              .from(t -> Path.present(6))
+              .when(t -> t._6() > 10)
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertTrue(result.run().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      OptionalPath<Integer> result =
+          ForPath.from(Path.present(1))
+              .from(a -> Path.present(2))
+              .from(t -> Path.present(3))
+              .from(t -> Path.present(4))
+              .from(t -> Path.present(5))
+              .from(t -> Path.present(6))
+              .from(t -> Path.present(7))
+              .from(t -> Path.present(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertEquals(Optional.of(36), result.run());
+    }
+  }
+
+  @Nested
+  @DisplayName("EitherPath Extended Arity (4-8)")
+  class EitherPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should chain four generators and yield")
+    void arity4_yield() {
+      EitherPath<String, Integer> result =
+          ForPath.from(Path.<String, Integer>right(1))
+              .from(a -> Path.<String, Integer>right(2))
+              .from(t -> Path.<String, Integer>right(3))
+              .from(t -> Path.<String, Integer>right(4))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertTrue(result.run().isRight());
+      assertEquals(10, result.run().getRight());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      EitherPath<String, Integer> result =
+          ForPath.from(Path.<String, Integer>right(1))
+              .from(a -> Path.<String, Integer>right(2))
+              .from(t -> Path.<String, Integer>right(3))
+              .from(t -> Path.<String, Integer>right(4))
+              .from(t -> Path.<String, Integer>right(5))
+              .from(t -> Path.<String, Integer>right(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertTrue(result.run().isRight());
+      assertEquals(21, result.run().getRight());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      EitherPath<String, Integer> result =
+          ForPath.from(Path.<String, Integer>right(1))
+              .from(a -> Path.<String, Integer>right(2))
+              .from(t -> Path.<String, Integer>right(3))
+              .from(t -> Path.<String, Integer>right(4))
+              .from(t -> Path.<String, Integer>right(5))
+              .from(t -> Path.<String, Integer>right(6))
+              .from(t -> Path.<String, Integer>right(7))
+              .from(t -> Path.<String, Integer>right(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertTrue(result.run().isRight());
+      assertEquals(36, result.run().getRight());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should short-circuit on Left")
+    void arity6_shortCircuit() {
+      EitherPath<String, Integer> result =
+          ForPath.from(Path.<String, Integer>right(1))
+              .from(a -> Path.<String, Integer>right(2))
+              .from(t -> Path.<String, Integer>left("Error at step 3"))
+              .from(t -> Path.<String, Integer>right(4))
+              .from(t -> Path.<String, Integer>right(5))
+              .from(t -> Path.<String, Integer>right(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertTrue(result.run().isLeft());
+      assertEquals("Error at step 3", result.run().getLeft());
+    }
+  }
+
+  @Nested
+  @DisplayName("TryPath Extended Arity (4-8)")
+  class TryPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should chain four generators and yield")
+    void arity4_yield() {
+      TryPath<Integer> result =
+          ForPath.from(Path.success(1))
+              .from(a -> Path.success(2))
+              .from(t -> Path.success(3))
+              .from(t -> Path.success(4))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertTrue(result.run().isSuccess());
+      assertEquals(10, result.run().orElse(null));
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      TryPath<Integer> result =
+          ForPath.from(Path.success(1))
+              .from(a -> Path.success(2))
+              .from(t -> Path.success(3))
+              .from(t -> Path.success(4))
+              .from(t -> Path.success(5))
+              .from(t -> Path.success(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertTrue(result.run().isSuccess());
+      assertEquals(21, result.run().orElse(null));
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      TryPath<Integer> result =
+          ForPath.from(Path.success(1))
+              .from(a -> Path.success(2))
+              .from(t -> Path.success(3))
+              .from(t -> Path.success(4))
+              .from(t -> Path.success(5))
+              .from(t -> Path.success(6))
+              .from(t -> Path.success(7))
+              .from(t -> Path.success(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertTrue(result.run().isSuccess());
+      assertEquals(36, result.run().orElse(null));
+    }
+  }
+
+  @Nested
+  @DisplayName("IOPath Extended Arity (4-8)")
+  class IOPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should chain four generators and yield")
+    void arity4_yield() {
+      IOPath<Integer> result =
+          ForPath.from(Path.ioPure(1))
+              .from(a -> Path.ioPure(2))
+              .from(t -> Path.ioPure(3))
+              .from(t -> Path.ioPure(4))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertEquals(10, result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      IOPath<Integer> result =
+          ForPath.from(Path.ioPure(1))
+              .from(a -> Path.ioPure(2))
+              .from(t -> Path.ioPure(3))
+              .from(t -> Path.ioPure(4))
+              .from(t -> Path.ioPure(5))
+              .from(t -> Path.ioPure(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(21, result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      IOPath<Integer> result =
+          ForPath.from(Path.ioPure(1))
+              .from(a -> Path.ioPure(2))
+              .from(t -> Path.ioPure(3))
+              .from(t -> Path.ioPure(4))
+              .from(t -> Path.ioPure(5))
+              .from(t -> Path.ioPure(6))
+              .from(t -> Path.ioPure(7))
+              .from(t -> Path.ioPure(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertEquals(36, result.unsafeRun());
+    }
+  }
+
+  @Nested
+  @DisplayName("IdPath Extended Arity (4-8)")
+  class IdPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should chain four generators and yield")
+    void arity4_yield() {
+      IdPath<Integer> result =
+          ForPath.from(Path.id(1))
+              .from(a -> Path.id(2))
+              .from(t -> Path.id(3))
+              .from(t -> Path.id(4))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertEquals(10, result.run().value());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      IdPath<Integer> result =
+          ForPath.from(Path.id(1))
+              .from(a -> Path.id(2))
+              .from(t -> Path.id(3))
+              .from(t -> Path.id(4))
+              .from(t -> Path.id(5))
+              .from(t -> Path.id(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(21, result.run().value());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      IdPath<Integer> result =
+          ForPath.from(Path.id(1))
+              .from(a -> Path.id(2))
+              .from(t -> Path.id(3))
+              .from(t -> Path.id(4))
+              .from(t -> Path.id(5))
+              .from(t -> Path.id(6))
+              .from(t -> Path.id(7))
+              .from(t -> Path.id(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertEquals(36, result.run().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("NonDetPath Extended Arity (4-8)")
+  class NonDetPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should produce Cartesian product")
+    void arity4_yield() {
+      NonDetPath<Integer> result =
+          ForPath.from(Path.list(1, 2))
+              .from(a -> Path.list(10))
+              .from(t -> Path.list(100))
+              .from(t -> Path.list(1000))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      assertEquals(List.of(1111, 1112), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should produce Cartesian product")
+    void arity6_yield() {
+      NonDetPath<Integer> result =
+          ForPath.from(Path.list(1, 2))
+              .from(a -> Path.list(10))
+              .from(t -> Path.list(100))
+              .from(t -> Path.list(1000))
+              .from(t -> Path.list(10000))
+              .from(t -> Path.list(100000))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(List.of(111111, 111112), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should support when() filter")
+    void arity6_when() {
+      NonDetPath<Integer> result =
+          ForPath.from(Path.list(1, 2, 3))
+              .from(a -> Path.list(10))
+              .from(t -> Path.list(100))
+              .from(t -> Path.list(1000))
+              .from(t -> Path.list(10000))
+              .from(t -> Path.list(100000))
+              .when(t -> t._1() == 2)
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(List.of(111112), result.run());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should produce Cartesian product")
+    void arity8_yield() {
+      NonDetPath<Integer> result =
+          ForPath.from(Path.list(1))
+              .from(a -> Path.list(2))
+              .from(t -> Path.list(3))
+              .from(t -> Path.list(4))
+              .from(t -> Path.list(5))
+              .from(t -> Path.list(6))
+              .from(t -> Path.list(7))
+              .from(t -> Path.list(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertEquals(List.of(36), result.run());
+    }
+  }
+
+  @Nested
+  @DisplayName("VTaskPath Extended Arity (6-8)")
+  class VTaskPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .from(t -> Path.vtaskPure(5))
+              .from(t -> Path.vtaskPure(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      assertEquals(21, result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      VTaskPath<Integer> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .from(t -> Path.vtaskPure(5))
+              .from(t -> Path.vtaskPure(6))
+              .from(t -> Path.vtaskPure(7))
+              .from(t -> Path.vtaskPure(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      assertEquals(36, result.unsafeRun());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should yield with tuple function")
+    void arity8_yieldTuple() {
+      VTaskPath<String> result =
+          ForPath.from(Path.vtaskPure(1))
+              .from(a -> Path.vtaskPure(2))
+              .from(t -> Path.vtaskPure(3))
+              .from(t -> Path.vtaskPure(4))
+              .from(t -> Path.vtaskPure(5))
+              .from(t -> Path.vtaskPure(6))
+              .from(t -> Path.vtaskPure(7))
+              .from(t -> Path.vtaskPure(8))
+              .yield(
+                  t ->
+                      "sum="
+                          + (t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7()
+                              + t._8()));
+
+      assertEquals("sum=36", result.unsafeRun());
+    }
+  }
+
+  @Nested
+  @DisplayName("GenericPath Extended Arity (4-8)")
+  class GenericPathExtendedArityTests {
+
+    @Test
+    @DisplayName("Arity 4: should chain four generators and yield")
+    void arity4_yield() {
+      GenericPath<MaybeKind.Witness, Integer> result =
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
+              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
+              .yield((a, b, c, d) -> a + b + c + d);
+
+      Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
+      assertEquals(Maybe.just(10), maybeResult);
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six generators and yield")
+    void arity6_yield() {
+      GenericPath<MaybeKind.Witness, Integer> result =
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
+              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), MaybeMonad.INSTANCE))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+
+      Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
+      assertEquals(Maybe.just(21), maybeResult);
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain eight generators and yield")
+    void arity8_yield() {
+      GenericPath<MaybeKind.Witness, Integer> result =
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
+              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), MaybeMonad.INSTANCE))
+              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), MaybeMonad.INSTANCE))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+
+      Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
+      assertEquals(Maybe.just(36), maybeResult);
     }
   }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
@@ -168,6 +168,111 @@ class ForTest {
               .from(t -> Id.of('e'))
               .yield(t -> "" + t._1() + t._2() + t._3() + t._4() + t._5());
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1b3.0truee");
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain and yield")
+    void arity6_yield() {
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .from(t -> Id.of(6))
+              .yield((a, b, c, d, e, f) -> "" + a + b + c + d + e + f);
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("123456");
+    }
+
+    @Test
+    @DisplayName("Arity 6: should yield with tuple function")
+    void arity6_yieldTuple() {
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .from(t -> Id.of(6))
+              .yield(t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6());
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("123456");
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain let and yield")
+    void arity6_let() {
+      Kind<IdKind.Witness, Integer> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .let(t -> t._1() + t._2() + t._3() + t._4() + t._5())
+              .yield((a, b, c, d, e, sum) -> sum);
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo(15);
+    }
+
+    @Test
+    @DisplayName("Arity 7: should chain and yield")
+    void arity7_yield() {
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .from(t -> Id.of(6))
+              .from(t -> Id.of(7))
+              .yield((a, b, c, d, e, f, g) -> "" + a + b + c + d + e + f + g);
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1234567");
+    }
+
+    @Test
+    @DisplayName("Arity 7: should yield with tuple function")
+    void arity7_yieldTuple() {
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .from(t -> Id.of(6))
+              .from(t -> Id.of(7))
+              .yield(t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7());
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1234567");
+    }
+
+    @Test
+    @DisplayName("Arity 8: should chain and yield")
+    void arity8_yield() {
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .from(t -> Id.of(6))
+              .from(t -> Id.of(7))
+              .from(t -> Id.of(8))
+              .yield((a, b, c, d, e, f, g, h) -> "" + a + b + c + d + e + f + g + h);
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("12345678");
+    }
+
+    @Test
+    @DisplayName("Arity 8: should yield with tuple function")
+    void arity8_yieldTuple() {
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(1))
+              .from(a -> Id.of(2))
+              .from(t -> Id.of(3))
+              .from(t -> Id.of(4))
+              .from(t -> Id.of(5))
+              .from(t -> Id.of(6))
+              .from(t -> Id.of(7))
+              .from(t -> Id.of(8))
+              .yield(
+                  t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7() + t._8());
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("12345678");
     }
   }
 
@@ -356,6 +461,97 @@ class ForTest {
               .yield(t -> t._1() + t._2() + t._3() + t._4() + t._5());
       assertThat(LIST.narrow(result)).containsExactly(11112);
     }
+
+    @Test
+    @DisplayName("Arity 6: should yield values")
+    void arity6_yield() {
+      Kind<ListKind.Witness, String> result =
+          For.from(listMonad, LIST.widen(Arrays.asList(1)))
+              .from(a -> LIST.widen(Arrays.asList("b")))
+              .from(t -> LIST.widen(Arrays.asList(true)))
+              .from(t -> LIST.widen(Arrays.asList(4.0)))
+              .from(t -> LIST.widen(Arrays.asList('e')))
+              .from(t -> LIST.widen(Arrays.asList(6L)))
+              .yield((a, b, c, d, e, f) -> "" + a + b + c + d + e + f);
+      assertThat(LIST.narrow(result)).containsExactly("1btrue4.0e6");
+    }
+
+    @Test
+    @DisplayName("Arity 6: should filter with 'when'")
+    void arity6_withFilter() {
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(Arrays.asList(1, 2)))
+              .from(a -> LIST.widen(Arrays.asList(10)))
+              .from(t -> LIST.widen(Arrays.asList(100)))
+              .from(t -> LIST.widen(Arrays.asList(1000)))
+              .from(t -> LIST.widen(Arrays.asList(10000)))
+              .from(t -> LIST.widen(Arrays.asList(100000)))
+              .when(t -> t._1() == 2)
+              .yield(t -> t._1() + t._2() + t._3() + t._4() + t._5() + t._6());
+      assertThat(LIST.narrow(result)).containsExactly(111112);
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain let on filterable steps")
+    void arity6_let() {
+      Kind<ListKind.Witness, String> result =
+          For.from(listMonad, LIST.widen(Arrays.asList(1)))
+              .from(a -> LIST.widen(Arrays.asList(2)))
+              .from(t -> LIST.widen(Arrays.asList(3)))
+              .from(t -> LIST.widen(Arrays.asList(4)))
+              .from(t -> LIST.widen(Arrays.asList(5)))
+              .let(t -> t._1() + t._2() + t._3() + t._4() + t._5())
+              .yield((a, b, c, d, e, sum) -> "sum=" + sum);
+      assertThat(LIST.narrow(result)).containsExactly("sum=15");
+    }
+
+    @Test
+    @DisplayName("Arity 7: should yield values")
+    void arity7_yield() {
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(Arrays.asList(1)))
+              .from(a -> LIST.widen(Arrays.asList(2)))
+              .from(t -> LIST.widen(Arrays.asList(3)))
+              .from(t -> LIST.widen(Arrays.asList(4)))
+              .from(t -> LIST.widen(Arrays.asList(5)))
+              .from(t -> LIST.widen(Arrays.asList(6)))
+              .from(t -> LIST.widen(Arrays.asList(7)))
+              .yield((a, b, c, d, e, f, g) -> a + b + c + d + e + f + g);
+      assertThat(LIST.narrow(result)).containsExactly(28);
+    }
+
+    @Test
+    @DisplayName("Arity 8: should yield values")
+    void arity8_yield() {
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(Arrays.asList(1)))
+              .from(a -> LIST.widen(Arrays.asList(2)))
+              .from(t -> LIST.widen(Arrays.asList(3)))
+              .from(t -> LIST.widen(Arrays.asList(4)))
+              .from(t -> LIST.widen(Arrays.asList(5)))
+              .from(t -> LIST.widen(Arrays.asList(6)))
+              .from(t -> LIST.widen(Arrays.asList(7)))
+              .from(t -> LIST.widen(Arrays.asList(8)))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+      assertThat(LIST.narrow(result)).containsExactly(36);
+    }
+
+    @Test
+    @DisplayName("Arity 8: should filter with 'when'")
+    void arity8_withFilter() {
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(Arrays.asList(1, 2)))
+              .from(a -> LIST.widen(Arrays.asList(10)))
+              .from(t -> LIST.widen(Arrays.asList(100)))
+              .from(t -> LIST.widen(Arrays.asList(1000)))
+              .from(t -> LIST.widen(Arrays.asList(10000)))
+              .from(t -> LIST.widen(Arrays.asList(100000)))
+              .from(t -> LIST.widen(Arrays.asList(1000000)))
+              .from(t -> LIST.widen(Arrays.asList(10000000)))
+              .when(t -> t._1() == 1)
+              .yield(t -> t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7() + t._8());
+      assertThat(LIST.narrow(result)).containsExactly(11111111);
+    }
   }
 
   @Nested
@@ -513,6 +709,78 @@ class ForTest {
               .from(t -> MAYBE.just(1000))
               .yield(t -> t._1() + t._2() + t._3() + t._4());
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just(1111));
+    }
+
+    @Test
+    @DisplayName("Arity 5: should yield values")
+    void arity5_yield() {
+      Kind<MaybeKind.Witness, Integer> result =
+          For.from(maybeMonad, MAYBE.just(1))
+              .from(a -> MAYBE.just(10))
+              .from(t -> MAYBE.just(100))
+              .from(t -> MAYBE.just(1000))
+              .from(t -> MAYBE.just(10000))
+              .yield((a, b, c, d, e) -> a + b + c + d + e);
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just(11111));
+    }
+
+    @Test
+    @DisplayName("Arity 6: should yield values")
+    void arity6_yield() {
+      Kind<MaybeKind.Witness, Integer> result =
+          For.from(maybeMonad, MAYBE.just(1))
+              .from(a -> MAYBE.just(2))
+              .from(t -> MAYBE.just(3))
+              .from(t -> MAYBE.just(4))
+              .from(t -> MAYBE.just(5))
+              .from(t -> MAYBE.just(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just(21));
+    }
+
+    @Test
+    @DisplayName("Arity 6: should filter with 'when'")
+    void arity6_withFilter() {
+      Kind<MaybeKind.Witness, Integer> result =
+          For.from(maybeMonad, MAYBE.just(1))
+              .from(a -> MAYBE.just(2))
+              .from(t -> MAYBE.just(3))
+              .from(t -> MAYBE.just(4))
+              .from(t -> MAYBE.just(5))
+              .from(t -> MAYBE.just(6))
+              .when(t -> t._6() > 10)
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("Arity 6: should short-circuit on Nothing")
+    void arity6_shortCircuit() {
+      Kind<MaybeKind.Witness, Integer> result =
+          For.from(maybeMonad, MAYBE.just(1))
+              .from(a -> MAYBE.just(2))
+              .from(t -> MAYBE.just(3))
+              .from(t -> MAYBE.just(4))
+              .from(t -> MAYBE.<Integer>nothing())
+              .from(t -> MAYBE.just(6))
+              .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("Arity 8: should yield values")
+    void arity8_yield() {
+      Kind<MaybeKind.Witness, Integer> result =
+          For.from(maybeMonad, MAYBE.just(1))
+              .from(a -> MAYBE.just(2))
+              .from(t -> MAYBE.just(3))
+              .from(t -> MAYBE.just(4))
+              .from(t -> MAYBE.just(5))
+              .from(t -> MAYBE.just(6))
+              .from(t -> MAYBE.just(7))
+              .from(t -> MAYBE.just(8))
+              .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just(36));
     }
   }
 }

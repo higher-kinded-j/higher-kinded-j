@@ -31,7 +31,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 4. Run the Gradle build task.
+      # 4. Verify golden files are up to date.
+      #    Regenerates golden files and fails if they differ from what's committed.
+      #    This ensures code generator changes are always accompanied by updated golden files.
+      - name: Verify golden files are up to date
+        run: |
+          ./gradlew :hkj-processor:updateGoldenFiles
+          if ! git diff --exit-code -- '*.golden'; then
+            echo "::error::Golden files are out of date. Run: ./gradlew :hkj-processor:updateGoldenFiles"
+            exit 1
+          fi
+
+      # 5. Run the Gradle build task.
       #    This will compile, run tests (triggering jacocoTestReport via finalizedBy)
       #    and generate the XML report needed by Codecov.
       - name: Build with Gradle & Generate JaCoCo Report

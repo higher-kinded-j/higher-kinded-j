@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
@@ -104,7 +104,7 @@ public class VTaskVsPlatformThreadsBenchmark {
    * <p>Uses StructuredTaskScope internally for structured concurrency.
    */
   @Benchmark
-  public List<Integer> vtask_parAll() throws Throwable {
+  public List<Integer> vtask_parAll() {
     return Par.all(vtasks).run();
   }
 
@@ -131,7 +131,7 @@ public class VTaskVsPlatformThreadsBenchmark {
    * <p>Virtual threads excel here because blocking doesn't consume OS thread.
    */
   @Benchmark
-  public List<Integer> vtask_blockingIO() throws Throwable {
+  public List<Integer> vtask_blockingIO() {
     List<VTask<Integer>> ioTasks =
         IntStream.range(0, taskCount)
             .mapToObj(
@@ -178,7 +178,7 @@ public class VTaskVsPlatformThreadsBenchmark {
    * <p>Shows overhead of Par.all by comparing to sequential execution.
    */
   @Benchmark
-  public List<Integer> vtask_sequential() throws Throwable {
+  public List<Integer> vtask_sequential() {
     List<Integer> results = new ArrayList<>(taskCount);
     for (VTask<Integer> task : vtasks) {
       results.add(task.run());

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.kind;
 
@@ -233,6 +233,99 @@ class KindRegistryTest {
       String typeArgs = KindRegistry.extractWitnessTypeArgs(simple);
 
       assertThat(typeArgs).isEmpty();
+    }
+  }
+
+  // =============================================================================
+  // Boundary Condition Tests - Kill ConditionalsBoundaryMutator
+  // =============================================================================
+
+  @Nested
+  @DisplayName("Boundary Condition Tests")
+  class BoundaryConditionTests {
+
+    @Test
+    @DisplayName("extractBaseWitnessType with angle bracket at position 0 should return unchanged")
+    void extractBaseWithAngleBracketAtZero() {
+      // Tests: angleBracket > 0 boundary (angle bracket at position 0 means no prefix)
+      String input = "<String>";
+      String result = KindRegistry.extractBaseWitnessType(input);
+      // angleBracket == 0, so condition > 0 is false, should return unchanged
+      assertThat(result).isEqualTo("<String>");
+    }
+
+    @Test
+    @DisplayName("extractBaseWitnessType with angle bracket at position 1 should extract")
+    void extractBaseWithAngleBracketAtOne() {
+      // Tests: angleBracket > 0 boundary (angle bracket at position 1)
+      String input = "A<B>";
+      String result = KindRegistry.extractBaseWitnessType(input);
+      assertThat(result).isEqualTo("A");
+    }
+
+    @Test
+    @DisplayName("extractWitnessTypeArgs with start at 0 and valid end should return unchanged")
+    void extractTypeArgsWithStartAtZero() {
+      // Tests: start > 0 boundary
+      String input = "<String>";
+      String result = KindRegistry.extractWitnessTypeArgs(input);
+      // start == 0, so condition start > 0 is false, should return empty
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("extractWitnessTypeArgs with start at 1 should extract")
+    void extractTypeArgsWithStartAtOne() {
+      // Tests: start > 0 boundary
+      String input = "A<B>";
+      String result = KindRegistry.extractWitnessTypeArgs(input);
+      assertThat(result).isEqualTo("B");
+    }
+
+    @Test
+    @DisplayName("extractWitnessTypeArgs with end equal to start should return empty")
+    void extractTypeArgsWithEndEqualToStart() {
+      // Tests: end > start boundary - only one angle bracket found
+      String input = "A<";
+      String result = KindRegistry.extractWitnessTypeArgs(input);
+      // No closing >, lastIndexOf('>') returns -1 which is not > start
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("extractWitnessTypeArgs with end just after start should extract single char")
+    void extractTypeArgsWithEndJustAfterStart() {
+      // Tests: end > start boundary
+      String input = "X<Y>";
+      String result = KindRegistry.extractWitnessTypeArgs(input);
+      assertThat(result).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("isKindInterface should return false for empty string")
+    void isKindInterfaceEmptyString() {
+      assertThat(KindRegistry.isKindInterface("")).isFalse();
+    }
+
+    @Test
+    @DisplayName("isKindInterface should return false for partial match")
+    void isKindInterfacePartialMatch() {
+      assertThat(KindRegistry.isKindInterface("org.higherkindedj.hkt.Kin")).isFalse();
+      assertThat(KindRegistry.isKindInterface("org.higherkindedj.hkt.Kind2")).isFalse();
+    }
+
+    @Test
+    @DisplayName("isLibraryWitness should return false for exact package without dot suffix")
+    void isLibraryWitnessExactPackage() {
+      // Tests: startsWith("org.higherkindedj.hkt.") - note the trailing dot
+      assertThat(KindRegistry.isLibraryWitness("org.higherkindedj.hkt")).isFalse();
+      assertThat(KindRegistry.isLibraryWitness("org.higherkindedj.hktx.Foo")).isFalse();
+    }
+
+    @Test
+    @DisplayName("isLibraryWitness should return true for package with dot suffix")
+    void isLibraryWitnessWithDotSuffix() {
+      assertThat(KindRegistry.isLibraryWitness("org.higherkindedj.hkt.X")).isTrue();
     }
   }
 }

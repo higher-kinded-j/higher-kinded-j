@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
@@ -601,6 +601,60 @@ class ForOpticTest {
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("DEEP");
     }
+
+    @Test
+    @DisplayName("Arity 5: should chain five focus operations into arity 6")
+    void arity5Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .yield((l1, l2, l3, l4, val, len) -> val + "(" + len + ")");
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("deep(4)");
+    }
+
+    @Test
+    @DisplayName("Arity 6: should chain six focus operations into arity 7")
+    void arity6Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .focus(t -> t._5().toUpperCase())
+              .yield((l1, l2, l3, l4, val, len, upper) -> upper + "(" + len + ")");
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("DEEP(4)");
+    }
+
+    @Test
+    @DisplayName("Arity 7: should chain seven focus operations into arity 8")
+    void arity7Focus() {
+      Level1 data = new Level1(new Level2(new Level3(new Level4("deep"))));
+
+      Kind<IdKind.Witness, String> result =
+          For.from(idMonad, Id.of(data))
+              .focus(l1l2)
+              .focus(t -> l2l3.get(t._2()))
+              .focus(t -> l3l4.get(t._3()))
+              .focus(t -> l4val.get(t._4()))
+              .focus(t -> t._5().length())
+              .focus(t -> t._5().toUpperCase())
+              .focus(t -> t._7().charAt(0))
+              .yield((l1, l2, l3, l4, val, len, upper, ch) -> "" + ch + ":" + upper + ":" + len);
+
+      assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("D:DEEP:4");
+    }
   }
 
   // --- Higher Arity match() Tests ---
@@ -951,6 +1005,188 @@ class ForOpticTest {
       // n=10: sum = 10 + 7 = 17 > 10 -> doubled = 34
       // n=15: sum = 15 + 12 = 27 > 10 -> doubled = 54
       assertThat(LIST.narrow(result)).containsExactly("Result: 34", "Result: 54");
+    }
+  }
+
+  // --- FilterableSteps5 Comprehensive Tests ---
+
+  @Nested
+  @DisplayName("FilterableSteps5 focus() and match() Tests")
+  class FilterableSteps5Test {
+    private final ListMonad listMonad = ListMonad.INSTANCE;
+
+    @Test
+    @DisplayName("focus() should extract value from 5-tuple into arity 6")
+    void focusExtractsFromTuple5() {
+      List<Integer> nums = List.of(1);
+
+      Kind<ListKind.Witness, String> result =
+          For.from(listMonad, LIST.widen(nums))
+              .from(n -> LIST.widen(List.of(n * 2)))
+              .from(t -> LIST.widen(List.of(t._2() * 3)))
+              .from(t -> LIST.widen(List.of(t._3() * 4)))
+              .from(t -> LIST.widen(List.of(t._4() * 5)))
+              .focus(t -> t._1() + t._2() + t._3() + t._4() + t._5())
+              .yield((a, b, c, d, e, sum) -> "sum=" + sum);
+
+      // 1 + 2 + 6 + 24 + 120 = 153
+      assertThat(LIST.narrow(result)).containsExactly("sum=153");
+    }
+
+    @Test
+    @DisplayName("match() should filter based on optional from 5-tuple into arity 6")
+    void matchFiltersFromTuple5() {
+      List<Integer> xs = List.of(1, 2, 3);
+
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(xs))
+              .from(x -> LIST.widen(List.of(x * 10)))
+              .from(t -> LIST.widen(List.of(t._1() + t._2())))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .match(t -> t._3() > 20 ? Optional.of(t._3()) : Optional.empty())
+              .yield((a, b, c, d, e, matched) -> matched);
+
+      // x=1: sum=1+10=11, 11 > 20 false -> filtered
+      // x=2: sum=2+20=22, 22 > 20 true -> matched=22
+      // x=3: sum=3+30=33, 33 > 20 true -> matched=33
+      assertThat(LIST.narrow(result)).containsExactly(22, 33);
+    }
+
+    @Test
+    @DisplayName("focus() should work with subsequent when filter at arity 6")
+    void focusWithWhenAtArity6() {
+      List<Integer> nums = List.of(1, 2, 3);
+
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(nums))
+              .from(n -> LIST.widen(List.of(n * 10)))
+              .from(t -> LIST.widen(List.of(t._2() + 5)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .focus(t -> t._1() + t._2() + t._3())
+              .when(t -> t._6() > 30)
+              .yield((a, b, c, d, e, sum) -> sum);
+
+      // n=1: sum=1+10+15=26, 26>30 false -> filtered
+      // n=2: sum=2+20+25=47, 47>30 true -> included
+      // n=3: sum=3+30+35=68, 68>30 true -> included
+      assertThat(LIST.narrow(result)).containsExactly(47, 68);
+    }
+  }
+
+  // --- FilterableSteps6 Comprehensive Tests ---
+
+  @Nested
+  @DisplayName("FilterableSteps6 focus() and match() Tests")
+  class FilterableSteps6Test {
+    private final ListMonad listMonad = ListMonad.INSTANCE;
+
+    @Test
+    @DisplayName("focus() should extract value from 6-tuple into arity 7")
+    void focusExtractsFromTuple6() {
+      List<Integer> nums = List.of(1);
+
+      Kind<ListKind.Witness, String> result =
+          For.from(listMonad, LIST.widen(nums))
+              .from(n -> LIST.widen(List.of(2)))
+              .from(t -> LIST.widen(List.of(3)))
+              .from(t -> LIST.widen(List.of(4)))
+              .from(t -> LIST.widen(List.of(5)))
+              .from(t -> LIST.widen(List.of(6)))
+              .focus(t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6())
+              .yield((a, b, c, d, e, f, concat) -> concat);
+
+      assertThat(LIST.narrow(result)).containsExactly("123456");
+    }
+
+    @Test
+    @DisplayName("match() should filter based on optional from 6-tuple into arity 7")
+    void matchFiltersFromTuple6() {
+      List<Integer> xs = List.of(1, 2, 3);
+
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(xs))
+              .from(x -> LIST.widen(List.of(x * 2)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .match(t -> t._2() > 3 ? Optional.of(t._2()) : Optional.empty())
+              .yield((a, b, c, d, e, f, matched) -> matched);
+
+      // x=1: x*2=2, 2>3 false -> filtered
+      // x=2: x*2=4, 4>3 true -> matched=4
+      // x=3: x*2=6, 6>3 true -> matched=6
+      assertThat(LIST.narrow(result)).containsExactly(4, 6);
+    }
+
+    @Test
+    @DisplayName("focus() should chain with when at arity 7")
+    void focusWithWhenAtArity7() {
+      List<String> words = List.of("short", "longer word");
+
+      Kind<ListKind.Witness, String> result =
+          For.from(listMonad, LIST.widen(words))
+              .from(w -> LIST.widen(List.of(w.length())))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .focus(t -> t._1().toUpperCase())
+              .when(t -> t._2() > 5)
+              .yield((w, len, c, d, e, f, upper) -> upper);
+
+      assertThat(LIST.narrow(result)).containsExactly("LONGER WORD");
+    }
+  }
+
+  // --- FilterableSteps7 Comprehensive Tests ---
+
+  @Nested
+  @DisplayName("FilterableSteps7 focus() and match() Tests")
+  class FilterableSteps7Test {
+    private final ListMonad listMonad = ListMonad.INSTANCE;
+
+    @Test
+    @DisplayName("focus() should extract value from 7-tuple into arity 8")
+    void focusExtractsFromTuple7() {
+      List<Integer> nums = List.of(1);
+
+      Kind<ListKind.Witness, String> result =
+          For.from(listMonad, LIST.widen(nums))
+              .from(n -> LIST.widen(List.of(2)))
+              .from(t -> LIST.widen(List.of(3)))
+              .from(t -> LIST.widen(List.of(4)))
+              .from(t -> LIST.widen(List.of(5)))
+              .from(t -> LIST.widen(List.of(6)))
+              .from(t -> LIST.widen(List.of(7)))
+              .focus(t -> t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7())
+              .yield((a, b, c, d, e, f, g, sum) -> "sum=" + sum);
+
+      assertThat(LIST.narrow(result)).containsExactly("sum=28");
+    }
+
+    @Test
+    @DisplayName("match() should filter based on optional from 7-tuple into arity 8")
+    void matchFiltersFromTuple7() {
+      List<Integer> xs = List.of(1, 2, 3);
+
+      Kind<ListKind.Witness, Integer> result =
+          For.from(listMonad, LIST.widen(xs))
+              .from(x -> LIST.widen(List.of(x * 3)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .from(t -> LIST.widen(List.of(0)))
+              .match(t -> t._2() > 5 ? Optional.of(t._2()) : Optional.empty())
+              .yield((a, b, c, d, e, f, g, matched) -> matched);
+
+      // x=1: x*3=3, 3>5 false -> filtered
+      // x=2: x*3=6, 6>5 true -> matched=6
+      // x=3: x*3=9, 9>5 true -> matched=9
+      assertThat(LIST.narrow(result)).containsExactly(6, 9);
     }
   }
 }

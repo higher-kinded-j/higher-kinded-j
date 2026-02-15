@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
@@ -54,7 +54,7 @@ public class ConcurrencyScalingBenchmark {
    */
   @Benchmark
   @Threads(1)
-  public Integer vtask_singleThread() throws Throwable {
+  public Integer vtask_singleThread() {
     return vtask.map(x -> x + 1).map(x -> x * 2).run();
   }
 
@@ -78,7 +78,7 @@ public class ConcurrencyScalingBenchmark {
    */
   @Benchmark
   @Threads(4)
-  public Integer vtask_fourThreads() throws Throwable {
+  public Integer vtask_fourThreads() {
     return vtask.map(x -> x + 1).map(x -> x * 2).run();
   }
 
@@ -103,7 +103,7 @@ public class ConcurrencyScalingBenchmark {
    */
   @Benchmark
   @Threads(Threads.MAX)
-  public Integer vtask_maxThreads() throws Throwable {
+  public Integer vtask_maxThreads() {
     return vtask.map(x -> x + 1).map(x -> x * 2).run();
   }
 

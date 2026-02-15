@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
@@ -73,7 +73,7 @@ public class AbstractionOverheadBenchmark {
    * <p>Shows overhead of VTask for simple operations (includes virtual thread spawn).
    */
   @Benchmark
-  public int vtask_simple() throws Throwable {
+  public int vtask_simple() {
     return VTask.succeed(1).map(x -> x + 1).map(x -> x * 2).run();
   }
 
@@ -127,7 +127,7 @@ public class AbstractionOverheadBenchmark {
    * <p>Tests if overhead scales linearly with operations.
    */
   @Benchmark
-  public int vtask_chain() throws Throwable {
+  public int vtask_chain() {
     return VTask.succeed(1)
         .map(x -> x + 1)
         .map(x -> x * 2)

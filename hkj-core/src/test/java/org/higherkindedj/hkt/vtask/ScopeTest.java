@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
@@ -198,7 +198,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() collects all successful results")
-    void joinCollectsAllResults() throws Throwable {
+    void joinCollectsAllResults() {
       VTask<List<String>> result =
           Scope.<String>allSucceed()
               .fork(VTask.succeed("first"))
@@ -213,7 +213,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() executes tasks in parallel")
-    void joinExecutesInParallel() throws Throwable {
+    void joinExecutesInParallel() {
       AtomicInteger counter = new AtomicInteger(0);
 
       VTask<List<Integer>> result =
@@ -261,7 +261,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() with empty scope returns empty list")
-    void joinWithEmptyScopeReturnsEmptyList() throws Throwable {
+    void joinWithEmptyScopeReturnsEmptyList() {
       VTask<List<String>> result = Scope.<String>allSucceed().join();
 
       List<String> values = result.run();
@@ -276,7 +276,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() returns first successful result")
-    void joinReturnsFirstSuccess() throws Throwable {
+    void joinReturnsFirstSuccess() {
       VTask<String> result =
           Scope.<String>anySucceed()
               .fork(VTask.succeed("fast"))
@@ -300,7 +300,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() returns first completed success")
-    void joinReturnsFirstCompletedSuccess() throws Throwable {
+    void joinReturnsFirstCompletedSuccess() {
       VTask<String> result =
           Scope.<String>firstComplete()
               .fork(VTask.succeed("fast"))
@@ -355,12 +355,14 @@ class ScopeTest {
                       }))
               .join();
 
-      assertThatThrownBy(result::run).isInstanceOf(TimeoutException.class);
+      assertThatThrownBy(result::run)
+          .isInstanceOf(VTaskExecutionException.class)
+          .hasCauseInstanceOf(TimeoutException.class);
     }
 
     @Test
     @DisplayName("join() completes within timeout")
-    void joinCompletesWithinTimeout() throws Throwable {
+    void joinCompletesWithinTimeout() {
       VTask<List<String>> result =
           Scope.<String>allSucceed()
               .timeout(Duration.ofSeconds(5))
@@ -379,7 +381,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() returns Valid when all succeed")
-    void joinReturnsValidWhenAllSucceed() throws Throwable {
+    void joinReturnsValidWhenAllSucceed() {
       VTask<Validated<List<String>, List<String>>> result =
           Scope.<String, String>accumulating(Throwable::getMessage)
               .fork(VTask.succeed("first"))
@@ -394,7 +396,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("join() accumulates all errors")
-    void joinAccumulatesAllErrors() throws Throwable {
+    void joinAccumulatesAllErrors() {
       VTask<Validated<List<String>, List<String>>> result =
           Scope.<String, String>accumulating(Throwable::getMessage)
               .fork(VTask.succeed("success"))
@@ -415,19 +417,19 @@ class ScopeTest {
 
     @Test
     @DisplayName("joinSafe() returns Try.success on success")
-    void joinSafeReturnsSuccessOnSuccess() throws Throwable {
+    void joinSafeReturnsSuccessOnSuccess() {
       VTask<Try<List<String>>> result =
           Scope.<String>allSucceed().fork(VTask.succeed("test")).joinSafe();
 
       Try<List<String>> tryResult = result.run();
 
       assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.get()).containsExactly("test");
+      assertThat(tryResult.orElse(null)).containsExactly("test");
     }
 
     @Test
     @DisplayName("joinSafe() returns Try.failure on failure")
-    void joinSafeReturnsFailureOnFailure() throws Throwable {
+    void joinSafeReturnsFailureOnFailure() {
       VTask<Try<List<String>>> result =
           Scope.<String>allSucceed().fork(VTask.fail(new RuntimeException("error"))).joinSafe();
 
@@ -439,7 +441,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("joinEither() returns Right on success")
-    void joinEitherReturnsRightOnSuccess() throws Throwable {
+    void joinEitherReturnsRightOnSuccess() {
       VTask<Either<Throwable, List<String>>> result =
           Scope.<String>allSucceed().fork(VTask.succeed("test")).joinEither();
 
@@ -451,7 +453,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("joinEither() returns Left on failure")
-    void joinEitherReturnsLeftOnFailure() throws Throwable {
+    void joinEitherReturnsLeftOnFailure() {
       VTask<Either<Throwable, List<String>>> result =
           Scope.<String>allSucceed().fork(VTask.fail(new RuntimeException("error"))).joinEither();
 
@@ -463,7 +465,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("joinMaybe() returns Just on success")
-    void joinMaybeReturnsJustOnSuccess() throws Throwable {
+    void joinMaybeReturnsJustOnSuccess() {
       VTask<Maybe<List<String>>> result =
           Scope.<String>allSucceed().fork(VTask.succeed("test")).joinMaybe();
 
@@ -475,7 +477,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("joinMaybe() returns Nothing on failure")
-    void joinMaybeReturnsNothingOnFailure() throws Throwable {
+    void joinMaybeReturnsNothingOnFailure() {
       VTask<Maybe<List<String>>> result =
           Scope.<String>allSucceed().fork(VTask.fail(new RuntimeException("error"))).joinMaybe();
 
@@ -491,7 +493,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("fetch multiple resources in parallel")
-    void fetchMultipleResourcesInParallel() throws Throwable {
+    void fetchMultipleResourcesInParallel() {
       // Simulate fetching user data from multiple sources
       VTask<String> fetchName = VTask.of(() -> "John");
       VTask<String> fetchEmail = VTask.of(() -> "john@example.com");
@@ -507,7 +509,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("validation with error accumulation")
-    void validationWithErrorAccumulation() throws Throwable {
+    void validationWithErrorAccumulation() {
       record ValidationError(String field, String message) {}
 
       VTask<Validated<List<ValidationError>, List<String>>> validation =
@@ -526,7 +528,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("racing multiple service calls")
-    void racingMultipleServiceCalls() throws Throwable {
+    void racingMultipleServiceCalls() {
       AtomicBoolean slowCalled = new AtomicBoolean(false);
 
       VTask<String> result =

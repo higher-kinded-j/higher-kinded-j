@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
@@ -26,7 +26,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("flatMap() sequences computations")
-    void flatMapSequencesComputations() throws Throwable {
+    void flatMapSequencesComputations() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
       Function<Integer, Kind<VTaskKind.Witness, String>> f =
           i -> VTASK.widen(VTask.succeed("Value: " + i));
@@ -39,7 +39,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("flatMap() chains multiple operations")
-    void flatMapChainsMultipleOperations() throws Throwable {
+    void flatMapChainsMultipleOperations() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
 
       Kind<VTaskKind.Witness, String> result =
@@ -111,7 +111,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("handleErrorWith() recovers from error")
-    void handleErrorWithRecoversFromError() throws Throwable {
+    void handleErrorWithRecoversFromError() {
       RuntimeException exception = new RuntimeException("Original error");
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.fail(exception));
       Function<Throwable, Kind<VTaskKind.Witness, Integer>> handler =
@@ -125,7 +125,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("handleErrorWith() passes through successful VTask")
-    void handleErrorWithPassesThroughSuccessfulVTask() throws Throwable {
+    void handleErrorWithPassesThroughSuccessfulVTask() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
       Function<Throwable, Kind<VTaskKind.Witness, Integer>> handler =
           e -> VTASK.widen(VTask.succeed(-1));
@@ -138,7 +138,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("handleErrorWith() can inspect the error")
-    void handleErrorWithCanInspectError() throws Throwable {
+    void handleErrorWithCanInspectError() {
       RuntimeException exception = new RuntimeException("Specific error");
       Kind<VTaskKind.Witness, String> ma = VTASK.widen(VTask.fail(exception));
       Function<Throwable, Kind<VTaskKind.Witness, String>> handler =
@@ -214,7 +214,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("Left identity: flatMap(f, of(a)) == f(a)")
-    void leftIdentityLaw() throws Throwable {
+    void leftIdentityLaw() {
       Function<Integer, Kind<VTaskKind.Witness, String>> f =
           i -> VTASK.widen(VTask.succeed("Value: " + i));
 
@@ -226,7 +226,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("Right identity: flatMap(of, ma) == ma")
-    void rightIdentityLaw() throws Throwable {
+    void rightIdentityLaw() {
       VTask<Integer> original = VTask.succeed(TEST_VALUE);
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(original);
       Function<Integer, Kind<VTaskKind.Witness, Integer>> ofFunc = monad::of;
@@ -238,7 +238,7 @@ class VTaskMonadTest {
 
     @Test
     @DisplayName("Associativity: flatMap(g, flatMap(f, ma)) == flatMap(x -> flatMap(g, f(x)), ma)")
-    void associativityLaw() throws Throwable {
+    void associativityLaw() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
       Function<Integer, Kind<VTaskKind.Witness, String>> f =
           i -> VTASK.widen(VTask.succeed("Value: " + i));

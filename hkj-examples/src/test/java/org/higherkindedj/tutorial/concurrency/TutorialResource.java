@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.tutorial.concurrency;
 
@@ -63,7 +63,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 1: Create Resource from AutoCloseable")
-    void exercise1_fromAutoCloseable() throws Throwable {
+    void exercise1_fromAutoCloseable() {
       AtomicBoolean closed = new AtomicBoolean(false);
 
       // A simple AutoCloseable for testing
@@ -100,7 +100,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 2: Create Resource with make()")
-    void exercise2_makeResource() throws Throwable {
+    void exercise2_makeResource() {
       List<String> events = new ArrayList<>();
 
       // TODO: Replace answerRequired() with:
@@ -136,7 +136,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 3: Use resource with VTask")
-    void exercise3_useWithVTask() throws Throwable {
+    void exercise3_useWithVTask() {
       AtomicInteger counter = new AtomicInteger(0);
 
       Resource<Integer> resource =
@@ -205,7 +205,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 5: Chain resources with flatMap")
-    void exercise5_flatMapResources() throws Throwable {
+    void exercise5_flatMapResources() {
       List<String> events = new ArrayList<>();
 
       Resource<String> outer =
@@ -241,7 +241,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 6: Combine resources with and()")
-    void exercise6_andResources() throws Throwable {
+    void exercise6_andResources() {
       List<String> events = new ArrayList<>();
 
       Resource<String> first =
@@ -291,7 +291,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 7: Transform with map")
-    void exercise7_mapResource() throws Throwable {
+    void exercise7_mapResource() {
       Resource<Integer> numberResource = Resource.pure(21);
 
       // TODO: Replace answerRequired() with:
@@ -312,7 +312,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 8: Add finaliser")
-    void exercise8_withFinalizer() throws Throwable {
+    void exercise8_withFinalizer() {
       List<String> events = new ArrayList<>();
 
       Resource<String> base =
@@ -342,7 +342,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Exercise 9: Use pure for simple values")
-    void exercise9_pureResource() throws Throwable {
+    void exercise9_pureResource() {
       AtomicBoolean released = new AtomicBoolean(false);
 
       // TODO: Replace answerRequired() with: Resource.pure(10)
@@ -381,7 +381,7 @@ public class TutorialResource {
      */
     @Test
     @DisplayName("Complete workflow example")
-    void completeWorkflowExample() throws Throwable {
+    void completeWorkflowExample() {
       List<String> events = new ArrayList<>();
 
       // Simulated database resources

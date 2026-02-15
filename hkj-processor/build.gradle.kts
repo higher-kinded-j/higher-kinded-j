@@ -33,6 +33,27 @@ tasks.test {
     useJUnitPlatform()
 }
 
+// =============================================================================
+// Golden File Management
+// =============================================================================
+//
+// Regenerates all golden files from current code generator output.
+// Run when the code generator changes intentionally:
+//
+//   ./gradlew :hkj-processor:updateGoldenFiles
+//
+tasks.register<Test>("updateGoldenFiles") {
+    description = "Regenerates golden files from current code generator output"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    systemProperty("updateGolden", "true")
+    filter {
+        includeTestsMatching("*GoldenFileTest.updateGoldenFiles")
+    }
+}
+
 
 // Central configuration for publishing. This is inherited by all submodules
 // that apply the 'com.vanniktech.maven.publish' plugin.
@@ -82,9 +103,36 @@ mavenPublishing {
 // PIT mutation testing is configured for local development use only,
 // not as a CI gate. Use it to measure and improve test quality.
 //
-// Run with: ./gradlew :hkj-processor:pitest
+// Profiles (controlled via -Ppitest.profile=<value>):
+//
+//   conservative (default) — Suitable for laptops and lower-spec machines.
+//     Uses half the available CPU cores and DEFAULT mutators.
+//     Run with: ./gradlew :hkj-processor:pitest
+//
+//   full — Uses all CPU cores and STRONGER mutators for thorough analysis.
+//     Run with: ./gradlew :hkj-processor:pitest -Ppitest.profile=full
+//
+// Fine-tuning individual settings (these override the profile):
+//   -Ppitest.threads=N         Override thread count
+//   -Ppitest.mutators=GROUP    Override mutator group (DEFAULT, STRONGER, ALL)
+//   -Ppitest.heap=SIZE         Override per-fork heap (e.g. 768m, 1g)
+//
 // Reports: hkj-processor/build/reports/pitest/
 //
+
+val pitestProfile = (project.findProperty("pitest.profile") as String?) ?: "conservative"
+val isFull = pitestProfile == "full"
+
+val cpuCount = Runtime.getRuntime().availableProcessors()
+val profileThreads = if (isFull) cpuCount else maxOf(1, cpuCount / 2)
+val profileMutators = if (isFull) "STRONGER" else "DEFAULT"
+val profileHeap = if (isFull) "1g" else "512m"
+
+// Allow per-setting overrides via project properties
+val effectiveThreads = (project.findProperty("pitest.threads") as String?)?.toInt() ?: profileThreads
+val effectiveMutators = (project.findProperty("pitest.mutators") as String?) ?: profileMutators
+val effectiveHeap = (project.findProperty("pitest.heap") as String?) ?: profileHeap
+
 pitest {
     // Use PIT version 1.22.0 as specified in project requirements
     pitestVersion.set("1.22.0")
@@ -100,8 +148,8 @@ pitest {
         "org.higherkindedj.optics.processing.*Tests"
     ))
 
-    // Use STRONGER mutators for thorough testing
-    mutators.set(setOf("STRONGER"))
+    // Mutator group: DEFAULT (conservative) or STRONGER (full)
+    mutators.set(setOf(effectiveMutators))
 
     // Output formats
     outputFormats.set(setOf("HTML", "XML"))
@@ -109,15 +157,18 @@ pitest {
     // Disable timestamped reports for cleaner output
     timestampedReports.set(false)
 
-    // Mutation threshold: 64% (improved from initial 60%)
-    // 114 mutations have no test coverage (error handling paths)
-    mutationThreshold.set(64)
+    // Mutation threshold: 70% (improved from 64% via ForComprehensionGeneratorTest
+    // and expanded MutationKillingTest covering generator code paths)
+    mutationThreshold.set(70)
 
     // JUnit 6 support
     junit5PluginVersion.set("1.2.3")
 
-    // Threads for faster execution
-    threads.set(Runtime.getRuntime().availableProcessors())
+    // Thread count: half CPUs (conservative) or all CPUs (full)
+    threads.set(effectiveThreads)
+
+    // Heap per forked JVM
+    jvmArgs.set(listOf("-Xmx${effectiveHeap}"))
 
     // Exclude test infrastructure from mutation
     excludedClasses.set(setOf(

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.tutorial.concurrency;
 
@@ -57,7 +57,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Exercise 1: Create a VTask with of()")
-    void exercise1_createVTaskWithOf() throws Throwable {
+    void exercise1_createVTaskWithOf() {
       String input = "Hello, VTask!";
 
       // TODO: Replace answerRequired() with VTask.of(() -> input.length())
@@ -115,7 +115,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Exercise 3: Transform with map()")
-    void exercise3_mapTransformation() throws Throwable {
+    void exercise3_mapTransformation() {
       VTask<String> greeting = VTask.succeed("Hello, Virtual Threads!");
 
       // TODO: Replace answerRequired() with greeting.map(String::length)
@@ -136,7 +136,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Exercise 4: Chain with flatMap()")
-    void exercise4_flatMapChaining() throws Throwable {
+    void exercise4_flatMapChaining() {
       VTask<Integer> getNumber = VTask.succeed(21);
 
       // TODO: Replace answerRequired() with:
@@ -193,7 +193,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Exercise 6: Recover from failure")
-    void exercise6_recoverFromFailure() throws Throwable {
+    void exercise6_recoverFromFailure() {
       VTask<Integer> failingTask = VTask.fail(new RuntimeException("Computation failed"));
 
       // TODO: Replace answerRequired() with:
@@ -223,7 +223,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Exercise 7: Parallel execution with map2()")
-    void exercise7_parallelMap2() throws Throwable {
+    void exercise7_parallelMap2() {
       VTask<Integer> taskA =
           VTask.of(
               () -> {
@@ -257,7 +257,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Exercise 8: Race tasks with Par.race()")
-    void exercise8_raceTasks() throws Throwable {
+    void exercise8_raceTasks() {
       VTask<String> slow =
           VTask.of(
               () -> {
@@ -310,7 +310,7 @@ public class TutorialVTask {
      */
     @Test
     @DisplayName("Complete workflow example")
-    void completeWorkflowExample() throws Throwable {
+    void completeWorkflowExample() {
       // Simulated service calls
       VTask<String> fetchUser =
           VTask.of(

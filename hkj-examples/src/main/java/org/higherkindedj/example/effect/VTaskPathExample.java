@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.effect;
 
@@ -71,7 +71,9 @@ public class VTaskPathExample {
     try {
       String result = fetchData.run();
       System.out.println("   Result: " + result);
-    } catch (Throwable e) {
+    } catch (RuntimeException e) {
+      // run() wraps checked exceptions in VTaskExecutionException (a RuntimeException);
+      // other RuntimeExceptions and Errors are thrown directly.
       System.out.println("   Error: " + e.getMessage());
     }
 

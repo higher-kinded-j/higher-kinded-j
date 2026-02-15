@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect.context;
 
@@ -435,7 +435,7 @@ class VTaskContextTest {
 
     @Test
     @DisplayName("toVTask() returns underlying VTask")
-    void toVTaskReturnsUnderlyingVTask() throws Throwable {
+    void toVTaskReturnsUnderlyingVTask() {
       VTaskContext<Integer> context = VTaskContext.pure(TEST_INT);
 
       VTask<Integer> vtask = context.toVTask();

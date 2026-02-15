@@ -1,8 +1,9 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -541,7 +542,7 @@ public final class Traversals {
     // Convert to list and traverse efficiently
     @SuppressWarnings("unchecked")
     final Function<A, Kind<F, B>> fCast = (Function<A, Kind<F, B>>) f;
-    return traverseList(java.util.Arrays.asList(array), fCast, applicative);
+    return traverseList(Arrays.asList(array), fCast, applicative);
   }
 
   /**

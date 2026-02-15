@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
@@ -17,8 +17,10 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.external.ContainerType;
 import org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator;
 import org.higherkindedj.optics.processing.external.PrismCodeGenerator;
+import org.higherkindedj.optics.processing.external.SpecAnalysis;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintInfo;
@@ -791,6 +793,381 @@ class SpecMutationKillingTest {
 
       assertThat(compilation).succeeded();
       // Default methods are preserved in the generated implementation
+    }
+  }
+
+  // =============================================================================
+  // TraversalCodeGenerator - getStandardTraversal switch tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TraversalCodeGenerator Standard Traversal Tests")
+  class TraversalStandardTests {
+
+    private final TraversalCodeGenerator generator = new TraversalCodeGenerator();
+
+    @Test
+    @DisplayName("getStandardTraversal returns correct reference for each container kind")
+    void getStandardTraversalForAllKinds() {
+      assertThat(
+              generator.getStandardTraversal(
+                  ContainerType.Kind.LIST))
+          .contains("Traversals.forList()");
+      assertThat(
+              generator.getStandardTraversal(
+                  ContainerType.Kind.SET))
+          .contains("Traversals.forSet()");
+      assertThat(
+              generator.getStandardTraversal(
+                  ContainerType.Kind.OPTIONAL))
+          .contains("Traversals.forOptional()");
+      assertThat(
+              generator.getStandardTraversal(
+                  ContainerType.Kind.ARRAY))
+          .contains("Traversals.forArray()");
+      assertThat(
+              generator.getStandardTraversal(
+                  ContainerType.Kind.MAP))
+          .contains("Traversals.forMapValues()");
+    }
+
+    @Test
+    @DisplayName("each container kind maps to a distinct traversal")
+    void eachKindMapsToDistinctTraversal() {
+      var list =
+          generator.getStandardTraversal(
+              ContainerType.Kind.LIST);
+      var set =
+          generator.getStandardTraversal(
+              ContainerType.Kind.SET);
+      var optional =
+          generator.getStandardTraversal(
+              ContainerType.Kind.OPTIONAL);
+      var array =
+          generator.getStandardTraversal(
+              ContainerType.Kind.ARRAY);
+      var map =
+          generator.getStandardTraversal(
+              ContainerType.Kind.MAP);
+
+      // All should be different
+      assertThat(list).isNotEqualTo(set);
+      assertThat(list).isNotEqualTo(optional);
+      assertThat(list).isNotEqualTo(array);
+      assertThat(list).isNotEqualTo(map);
+      assertThat(set).isNotEqualTo(optional);
+      assertThat(set).isNotEqualTo(array);
+      assertThat(set).isNotEqualTo(map);
+      assertThat(optional).isNotEqualTo(array);
+      assertThat(optional).isNotEqualTo(map);
+      assertThat(array).isNotEqualTo(map);
+    }
+  }
+
+  // =============================================================================
+  // TRAVERSE_WITH method vs field reference detection
+  // =============================================================================
+
+  @Nested
+  @DisplayName("TraversalCodeGenerator Reference Detection Tests")
+  class TraversalReferenceDetectionTests {
+
+    private final TraversalCodeGenerator generator = new TraversalCodeGenerator();
+
+    @Test
+    @DisplayName("TRAVERSE_WITH with method call ending in () generates method-style code")
+    void traverseWithMethodCallStyle() {
+      TraversalHintInfo info = TraversalHintInfo.forTraverseWith("com.example.Traversals.list()");
+      CodeBlock result =
+          generator.generateTraversalCode(
+              TraversalHintKind.TRAVERSE_WITH, info, null, null, "Spec");
+      assertThat(result.toString()).contains("com.example.Traversals.list()");
+    }
+
+    @Test
+    @DisplayName("TRAVERSE_WITH with field reference not ending in () generates field-style code")
+    void traverseWithFieldReferenceStyle() {
+      TraversalHintInfo info = TraversalHintInfo.forTraverseWith("com.example.Traversals.INSTANCE");
+      CodeBlock result =
+          generator.generateTraversalCode(
+              TraversalHintKind.TRAVERSE_WITH, info, null, null, "Spec");
+      assertThat(result.toString()).contains("com.example.Traversals.INSTANCE");
+      // Should NOT contain "()" at the end
+      assertThat(result.toString().trim()).doesNotEndWith("()");
+    }
+  }
+
+  // =============================================================================
+  // PrismCodeGenerator - INSTANCE_OF with null target type
+  // =============================================================================
+
+  @Nested
+  @DisplayName("PrismCodeGenerator Null Target Tests")
+  class PrismNullTargetTests {
+
+    private final PrismCodeGenerator generator = new PrismCodeGenerator();
+
+    @Test
+    @DisplayName("INSTANCE_OF with null targetType falls back to focusType")
+    void instanceOfWithNullTargetUseFocusType() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.FocusType",
+              """
+              package com.test;
+              public class FocusType {}
+              """);
+
+      String result =
+          runGeneratorInProcessor(
+              "com.test.FocusType",
+              proc -> {
+                // Pass null targetType - should fall back to focusType
+                PrismHintInfo info = PrismHintInfo.forInstanceOf(null);
+                return generator
+                    .generatePrismCode(PrismHintKind.INSTANCE_OF, info, null, proc.getTypeMirror())
+                    .toString();
+              },
+              source);
+
+      assertThat(result).contains("FocusType");
+      assertThat(result).contains("instanceof");
+    }
+
+    @Test
+    @DisplayName("INSTANCE_OF with non-null targetType uses targetType")
+    void instanceOfWithTargetTypeUsesIt() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.TargetType",
+              """
+              package com.test;
+              public class TargetType {}
+              """);
+
+      String result =
+          runGeneratorInProcessor(
+              "com.test.TargetType",
+              proc -> {
+                PrismHintInfo info = PrismHintInfo.forInstanceOf(proc.getTypeMirror());
+                return generator
+                    .generatePrismCode(PrismHintKind.INSTANCE_OF, info, null, proc.getTypeMirror())
+                    .toString();
+              },
+              source);
+
+      assertThat(result).contains("TargetType");
+    }
+  }
+
+  // =============================================================================
+  // SpecAnalysis requiresCopyStrategy/requiresPrismHint/requiresTraversalHint
+  // =============================================================================
+
+  @Nested
+  @DisplayName("SpecAnalysis OpticKind Tests")
+  class SpecAnalysisOpticKindTests {
+
+    @Test
+    @DisplayName("OpticKind enum should have all expected values")
+    void opticKindEnumValues() {
+      SpecAnalysis.OpticKind[] kinds = SpecAnalysis.OpticKind.values();
+      assertThat(kinds)
+          .containsExactlyInAnyOrder(
+              SpecAnalysis.OpticKind.LENS,
+              SpecAnalysis.OpticKind.PRISM,
+              SpecAnalysis.OpticKind.TRAVERSAL,
+              SpecAnalysis.OpticKind.AFFINE,
+              SpecAnalysis.OpticKind.ISO,
+              SpecAnalysis.OpticKind.GETTER,
+              SpecAnalysis.OpticKind.FOLD);
+    }
+
+    @Test
+    @DisplayName("CopyStrategyKind enum should have all expected values")
+    void copyStrategyKindEnumValues() {
+      CopyStrategyKind[] kinds = CopyStrategyKind.values();
+      assertThat(kinds)
+          .containsExactlyInAnyOrder(
+              CopyStrategyKind.VIA_BUILDER,
+              CopyStrategyKind.WITHER,
+              CopyStrategyKind.VIA_CONSTRUCTOR,
+              CopyStrategyKind.VIA_COPY_AND_SET,
+              CopyStrategyKind.NONE);
+    }
+
+    @Test
+    @DisplayName("PrismHintKind enum should have all expected values")
+    void prismHintKindEnumValues() {
+      PrismHintKind[] kinds = PrismHintKind.values();
+      assertThat(kinds)
+          .containsExactlyInAnyOrder(
+              PrismHintKind.INSTANCE_OF, PrismHintKind.MATCH_WHEN, PrismHintKind.NONE);
+    }
+
+    @Test
+    @DisplayName("TraversalHintKind enum should have all expected values")
+    void traversalHintKindEnumValues() {
+      TraversalHintKind[] kinds = TraversalHintKind.values();
+      assertThat(kinds)
+          .containsExactlyInAnyOrder(
+              TraversalHintKind.TRAVERSE_WITH,
+              TraversalHintKind.THROUGH_FIELD,
+              TraversalHintKind.NONE);
+    }
+  }
+
+  // =============================================================================
+  // SpecInterfaceAnalyser - findFieldType edge cases
+  // =============================================================================
+
+  @Nested
+  @DisplayName("SpecInterfaceAnalyser Field Lookup Edge Cases")
+  class SpecAnalyserFieldLookupTests {
+
+    @Test
+    @DisplayName("field on record type found via component name")
+    void fieldOnRecordFoundViaComponent() {
+      var team =
+          JavaFileObjects.forSourceString(
+              "com.external.RecordTeam",
+              """
+              package com.external;
+              import java.util.List;
+              public record RecordTeam(List<String> players) {
+                  public Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private List<String> players;
+                      public Builder players(List<String> p) { this.players = p; return this; }
+                      public RecordTeam build() { return new RecordTeam(players); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.RecordTeamSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.RecordTeam;
+              import java.util.List;
+
+              @ImportOptics
+              public interface RecordTeamSpec extends OpticsSpec<RecordTeam> {
+                  @ViaBuilder
+                  Lens<RecordTeam, List<String>> players();
+
+                  @ThroughField(field = "players")
+                  Traversal<RecordTeam, String> allPlayers();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(team, spec);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("field on class found via JavaBean getter")
+    void fieldOnClassFoundViaJavaBeanGetter() {
+      var team =
+          JavaFileObjects.forSourceString(
+              "com.external.ClassTeam",
+              """
+              package com.external;
+              import java.util.List;
+              public class ClassTeam {
+                  private final List<String> players;
+                  public ClassTeam(List<String> players) { this.players = players; }
+                  public List<String> getPlayers() { return players; }
+                  public Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private List<String> players;
+                      public Builder players(List<String> p) { this.players = p; return this; }
+                      public ClassTeam build() { return new ClassTeam(players); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.ClassTeamSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.ClassTeam;
+              import java.util.List;
+
+              @ImportOptics
+              public interface ClassTeamSpec extends OpticsSpec<ClassTeam> {
+                  @ViaBuilder(getter = "getPlayers")
+                  Lens<ClassTeam, List<String>> players();
+
+                  @ThroughField(field = "players")
+                  Traversal<ClassTeam, String> allPlayers();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(team, spec);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("field not found should produce error")
+    void fieldNotFoundProducesError() {
+      var team =
+          JavaFileObjects.forSourceString(
+              "com.external.SmallTeam",
+              """
+              package com.external;
+              import java.util.List;
+              public record SmallTeam(List<String> members) {
+                  public Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private List<String> members;
+                      public Builder members(List<String> m) { this.members = m; return this; }
+                      public SmallTeam build() { return new SmallTeam(members); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SmallTeamSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import com.external.SmallTeam;
+
+              @ImportOptics
+              public interface SmallTeamSpec extends OpticsSpec<SmallTeam> {
+                  @ThroughField(field = "nonExistentField")
+                  Traversal<SmallTeam, String> allMembers();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(team, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("not found");
     }
   }
 
