@@ -261,9 +261,7 @@ class MutationKillingPhase2Test {
 
       assertThat(compilation).succeeded();
       // Must verify that the file is generated in the custom package
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.ItemFolds"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemFolds")).isPresent();
     }
 
     @Test
@@ -441,8 +439,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new IsoProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.ConversionsIsos"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.ConversionsIsos"))
           .isPresent();
     }
 
@@ -489,8 +486,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new LensProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.PointLenses"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.PointLenses"))
           .isPresent();
     }
 
@@ -606,8 +602,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.ColorPrisms"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.ColorPrisms"))
           .isPresent();
     }
 
@@ -704,8 +699,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.PointFocus"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.PointFocus"))
           .isPresent();
     }
 
@@ -940,8 +934,7 @@ class MutationKillingPhase2Test {
       assertThat(info.traverseExpression()).isEqualTo("ListTraverse.INSTANCE");
       assertThat(info.isParameterised()).isFalse();
       assertThat(info.witnessTypeArgs()).isEmpty();
-      assertThat(info.semantics())
-          .isEqualTo(KindSemantics.ZERO_OR_MORE);
+      assertThat(info.semantics()).isEqualTo(KindSemantics.ZERO_OR_MORE);
     }
 
     @Test
@@ -960,8 +953,7 @@ class MutationKillingPhase2Test {
       assertThat(info.traverseExpression()).isEqualTo("EitherTraverse.<String>instance()");
       assertThat(info.isParameterised()).isTrue();
       assertThat(info.witnessTypeArgs()).isEqualTo("String");
-      assertThat(info.semantics())
-          .isEqualTo(KindSemantics.ZERO_OR_ONE);
+      assertThat(info.semantics()).isEqualTo(KindSemantics.ZERO_OR_ONE);
     }
   }
 
@@ -984,8 +976,7 @@ class MutationKillingPhase2Test {
       assertThat(mapping.get().traverseExpression()).contains("ListTraverse");
       assertThat(mapping.get().traverseExpression()).contains("INSTANCE");
       assertThat(mapping.get().isParameterised()).isFalse();
-      assertThat(mapping.get().semantics())
-          .isEqualTo(KindSemantics.ZERO_OR_MORE);
+      assertThat(mapping.get().semantics()).isEqualTo(KindSemantics.ZERO_OR_MORE);
     }
 
     @Test
@@ -998,8 +989,7 @@ class MutationKillingPhase2Test {
       assertThat(mapping.get().traverseExpression()).contains("EitherTraverse");
       assertThat(mapping.get().traverseExpression()).contains("instance()");
       assertThat(mapping.get().isParameterised()).isTrue();
-      assertThat(mapping.get().semantics())
-          .isEqualTo(KindSemantics.ZERO_OR_ONE);
+      assertThat(mapping.get().semantics()).isEqualTo(KindSemantics.ZERO_OR_ONE);
     }
 
     @Test
@@ -1209,8 +1199,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.ItemsTraversals"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.ItemsTraversals"))
           .isPresent();
     }
   }
@@ -1363,9 +1352,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.custom.DataGetters"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.custom.DataGetters")).isPresent();
 
       String code =
           compilation
@@ -1405,9 +1392,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.custom.DataSetters"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.custom.DataSetters")).isPresent();
 
       String code =
           compilation
@@ -1734,11 +1719,9 @@ class MutationKillingPhase2Test {
 
       assertThat(compilation).succeeded();
       // Verify Tuple2 and Tuple3 are generated
-      Assertions.assertThat(
-              compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2"))
+      Assertions.assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple2"))
           .isPresent();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3"))
+      Assertions.assertThat(compilation.generatedSourceFile("org.higherkindedj.hkt.tuple.Tuple3"))
           .isPresent();
     }
   }
@@ -1819,8 +1802,7 @@ class MutationKillingPhase2Test {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.custom.ItemsTraversals"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.custom.ItemsTraversals"))
           .isPresent();
     }
 

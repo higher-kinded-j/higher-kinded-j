@@ -4107,9 +4107,7 @@ class MutationKillingTest {
       // Should succeed - treated as regular class list annotation, not as spec interface
       assertThat(compilation).succeeded();
       // Should generate lenses for MyRecord
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.MyRecordLenses"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.MyRecordLenses")).isPresent();
     }
 
     @Test
@@ -4137,9 +4135,7 @@ class MutationKillingTest {
           javac().withProcessors(new ImportOpticsProcessor()).compile(source, record);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PairLenses"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PairLenses")).isPresent();
     }
   }
 
@@ -4195,8 +4191,7 @@ class MutationKillingTest {
       // Interface name is "PersonOptics" which does NOT end with "Spec"
       // So generated class should be "PersonOpticsImpl"
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PersonOpticsImpl"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PersonOpticsImpl"))
           .isPresent();
     }
 
@@ -4244,9 +4239,7 @@ class MutationKillingTest {
       // Interface name is "PersonOpticsSpec" which ends with "Spec"
       // So generated class should be "PersonOptics" (Spec stripped)
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PersonOptics"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PersonOptics")).isPresent();
     }
   }
 
@@ -5060,9 +5053,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source, outer);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.OuterFocus"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.OuterFocus")).isPresent();
     }
 
     @Test
@@ -5082,9 +5073,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.ContainerFocus"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.ContainerFocus")).isPresent();
     }
   }
 
@@ -5203,9 +5192,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new LensProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PointLenses"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PointLenses")).isPresent();
     }
 
     @Test
@@ -5246,8 +5233,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.ItemsTraversals"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.ItemsTraversals"))
           .isPresent();
     }
 
@@ -5289,9 +5275,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FoldProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.NumbersFolds"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.NumbersFolds")).isPresent();
     }
 
     @Test
@@ -5334,9 +5318,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.ShapePrisms"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.ShapePrisms")).isPresent();
     }
 
     @Test
@@ -5404,9 +5386,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PersonFocus"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PersonFocus")).isPresent();
     }
   }
 
@@ -5435,8 +5415,7 @@ class MutationKillingTest {
 
       assertThat(compilation).succeeded();
       // Non-traversable fields should still generate the class but no traversal methods
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PlainTraversals"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PlainTraversals"))
           .isPresent();
     }
 
@@ -5482,8 +5461,7 @@ class MutationKillingTest {
       Compilation compilation = javac().withProcessors(new TraversalProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.DataTraversals"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.DataTraversals"))
           .isPresent();
     }
   }

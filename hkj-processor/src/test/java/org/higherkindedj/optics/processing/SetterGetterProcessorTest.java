@@ -46,9 +46,7 @@ class SetterGetterProcessorTest {
       Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PointSetters"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PointSetters")).isPresent();
 
       String code =
           compilation
@@ -169,8 +167,7 @@ class SetterGetterProcessorTest {
       Compilation compilation = javac().withProcessors(new SetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.ItemSetters"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemSetters"))
           .isPresent();
     }
 
@@ -283,9 +280,7 @@ class SetterGetterProcessorTest {
       Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.PointGetters"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.PointGetters")).isPresent();
 
       String code =
           compilation
@@ -403,8 +398,7 @@ class SetterGetterProcessorTest {
       Compilation compilation = javac().withProcessors(new GetterProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.generated.ItemGetters"))
+      Assertions.assertThat(compilation.generatedSourceFile("com.generated.ItemGetters"))
           .isPresent();
     }
 
@@ -489,9 +483,7 @@ class SetterGetterProcessorTest {
       Compilation compilation = javac().withProcessors(new PrismProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
-      Assertions.assertThat(
-              compilation.generatedSourceFile("com.test.ColorPrisms"))
-          .isPresent();
+      Assertions.assertThat(compilation.generatedSourceFile("com.test.ColorPrisms")).isPresent();
 
       String code =
           compilation

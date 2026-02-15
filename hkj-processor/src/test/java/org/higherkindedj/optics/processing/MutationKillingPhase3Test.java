@@ -1384,8 +1384,7 @@ class MutationKillingPhase3Test {
     @Test
     @DisplayName("toCamelCase should convert underscore_case to camelCase")
     void toCamelCaseShouldConvertUnderscoreCase() {
-      String result =
-          ProcessorUtils.toCamelCase("hello_world");
+      String result = ProcessorUtils.toCamelCase("hello_world");
       assertThat(result).isEqualTo("helloWorld");
     }
 
@@ -1406,8 +1405,7 @@ class MutationKillingPhase3Test {
     @Test
     @DisplayName("toCamelCase should handle multiple underscores")
     void toCamelCaseShouldHandleMultipleUnderscores() {
-      String result =
-          ProcessorUtils.toCamelCase("my_long_name_here");
+      String result = ProcessorUtils.toCamelCase("my_long_name_here");
       assertThat(result).isEqualTo("myLongNameHere");
     }
   }

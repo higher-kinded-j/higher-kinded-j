@@ -809,46 +809,26 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("getStandardTraversal returns correct reference for each container kind")
     void getStandardTraversalForAllKinds() {
-      assertThat(
-              generator.getStandardTraversal(
-                  ContainerType.Kind.LIST))
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.LIST))
           .contains("Traversals.forList()");
-      assertThat(
-              generator.getStandardTraversal(
-                  ContainerType.Kind.SET))
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.SET))
           .contains("Traversals.forSet()");
-      assertThat(
-              generator.getStandardTraversal(
-                  ContainerType.Kind.OPTIONAL))
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.OPTIONAL))
           .contains("Traversals.forOptional()");
-      assertThat(
-              generator.getStandardTraversal(
-                  ContainerType.Kind.ARRAY))
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.ARRAY))
           .contains("Traversals.forArray()");
-      assertThat(
-              generator.getStandardTraversal(
-                  ContainerType.Kind.MAP))
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.MAP))
           .contains("Traversals.forMapValues()");
     }
 
     @Test
     @DisplayName("each container kind maps to a distinct traversal")
     void eachKindMapsToDistinctTraversal() {
-      var list =
-          generator.getStandardTraversal(
-              ContainerType.Kind.LIST);
-      var set =
-          generator.getStandardTraversal(
-              ContainerType.Kind.SET);
-      var optional =
-          generator.getStandardTraversal(
-              ContainerType.Kind.OPTIONAL);
-      var array =
-          generator.getStandardTraversal(
-              ContainerType.Kind.ARRAY);
-      var map =
-          generator.getStandardTraversal(
-              ContainerType.Kind.MAP);
+      var list = generator.getStandardTraversal(ContainerType.Kind.LIST);
+      var set = generator.getStandardTraversal(ContainerType.Kind.SET);
+      var optional = generator.getStandardTraversal(ContainerType.Kind.OPTIONAL);
+      var array = generator.getStandardTraversal(ContainerType.Kind.ARRAY);
+      var map = generator.getStandardTraversal(ContainerType.Kind.MAP);
 
       // All should be different
       assertThat(list).isNotEqualTo(set);
