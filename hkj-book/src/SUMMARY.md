@@ -178,6 +178,7 @@
 - [More Functional Thinking](reading.md)
 
 - [Glossary](glossary.md)
+- [Release History](release-history.md)
 
 # Project Info
 - [Contributing](./CONTRIBUTING.md)

@@ -12,6 +12,27 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
+### [v0.3.5](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.5) -- 15 February 2026
+
+**Extended For-Comprehensions, VTask API Refinement, and Documentation Restructure**
+
+This release extends for-comprehension arity to 12, simplifies the VTask API, adds Maybe-to-Either conversions, upgrades to JUnit 6, and delivers a comprehensive documentation restructure with quickstart guides, cheat sheets, migration cookbooks, and railway diagrams.
+
+- [For-Comprehension Arity 12](functional/for_comprehension.md) -- `For` and `ForPath` now support up to 12 monadic bindings (previously 5), with generated `Tuple9`–`Tuple12` and `Function9`–`Function12`
+- [VTask API](monads/vtask_monad.md) -- `VTask.run()` no longer declares `throws Throwable`; checked exceptions are wrapped in `VTaskExecutionException`
+- [Maybe.toEither](monads/maybe_monad.md) -- New `toEither(L)` and `toEither(Supplier<L>)` conversion methods for seamless `Maybe` → `Either` transitions
+- [Quickstart](quickstart.md) -- New getting-started guide with Gradle and Maven setup including `--enable-preview` configuration
+- [Cheat Sheet](cheatsheet.md) -- Quick-reference for Path types, operators, escape hatches, and type conversions
+- [Stack Archetypes](transformers/archetypes.md) -- 7 named transformer stack archetypes with colour-coded railway diagrams
+- [Migration Cookbook](migration_cookbook.md) -- 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
+- [Compiler Error Guide](compiler_errors.md) -- Solutions for the 5 most common Effect Path compiler errors
+- [Effects-Optics Capstone](capstone_focus_effect.md) -- Combined effects and optics pipeline example
+- Railway operator diagrams for all 8 Effect Path operators and for EitherT, MaybeT, OptionalT transformers
+- JUnit 6.0.2 upgrade (from 5.14.1) across all test modules
+- Golden file test infrastructure with automated sync verification and pitest mutation coverage improvements
+
+---
+
 ### [v0.3.4](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.4) -- 31 January 2026
 
 **External Type Optics and Examples Gallery**
