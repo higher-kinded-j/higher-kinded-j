@@ -84,7 +84,7 @@ A **`MonadZero`** is a `Monad` that also extends `Alternative`, combining monadi
 * **Key Methods**:
   * `zero()`: Returns the zero/empty element for the monad (implements `empty()` from Alternative).
   * Inherits `orElse()` and `guard()` from `Alternative`.
-* **Use Case**: Primarily enables filtering in for-comprehensions via the `when()` clause at all supported arities (up to 8 bindings). Also provides all Alternative operations for monadic contexts. Implemented by List, Maybe, Optional, and Stream.
+* **Use Case**: Primarily enables filtering in for-comprehensions via the `when()` clause at all supported arities (up to 12 bindings). Also provides all Alternative operations for monadic contexts. Implemented by List, Maybe, Optional, and Stream.
 
 ---
 

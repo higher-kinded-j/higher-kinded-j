@@ -48,21 +48,24 @@ public sealed interface OrderError {
 
 ### ForPath Comprehensions
 
-Clean, readable workflow composition with `ForPath`:
+The entire workflow composes into a single flat `ForPath` comprehension (8 steps, well within the arity-12 limit):
 
 ```java
-public EitherPath<OrderError, OrderResult> processOrder(OrderRequest request) {
-    return ForPath.forPath(validateRequest(request))
-        .bind(validated -> lookupCustomer(validated.customerId()))
-        .bind((validated, customer) -> reserveInventory(validated.lines()))
-        .bind((validated, customer, reservation) ->
-            applyDiscounts(validated, customer))
-        .bind((validated, customer, reservation, discount) ->
-            processPayment(customer, discount.finalAmount()))
-        .bind((validated, customer, reservation, discount, payment) ->
-            createShipment(validated, reservation))
-        .map((validated, customer, reservation, discount, payment, shipment) ->
-            new OrderResult(validated.orderId(), shipment, payment));
+public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
+    var orderId = OrderId.generate();
+    var customerId = new CustomerId(request.customerId());
+
+    return ForPath.from(validateShippingAddress(request.shippingAddress()))  // 1. address
+        .from(validAddress -> lookupAndValidateCustomer(customerId))         // 2. customer
+        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))    // 3. order
+        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))       // 4. reservation
+        .from(t -> applyDiscounts(t._3(), t._2()))                           // 5. discount
+        .from(t -> processPayment(t._3(), t._5()))                           // 6. payment
+        .from(t -> createShipment(t._3(), t._1()))                           // 7. shipment
+        .from(t -> sendNotifications(t._3(), t._2(), t._5()))                // 8. notification
+        .yield((validAddress, customer, order, reservation, discount,
+                payment, shipment, notification) ->
+            buildOrderResult(order, discount, payment, shipment, notification));
 }
 ```
 

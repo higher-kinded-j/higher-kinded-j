@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.function.Function8;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple8;
+import org.higherkindedj.hkt.tuple.Tuple9;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 8 in a non-filterable for-comprehension. */
@@ -23,6 +24,36 @@ public final class MonadicSteps8<M extends WitnessArity<TypeArity.Unary>, A, B, 
   MonadicSteps8(Monad<M> monad, Kind<M, Tuple8<A, B, C, D, E, F, G, H>> computation) {
     this.monad = monad;
     this.computation = computation;
+  }
+
+  public <I> MonadicSteps9<M, A, B, C, D, E, F, G, H, I> from(
+      Function<Tuple8<A, B, C, D, E, F, G, H>, Kind<M, I>> next) {
+    Kind<M, Tuple9<A, B, C, D, E, F, G, H, I>> newComputation =
+        monad.flatMap(
+            t -> monad.map(
+                i -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), i),
+                next.apply(t)),
+            this.computation);
+    return new MonadicSteps9<>(monad, newComputation);
+  }
+
+  public <I> MonadicSteps9<M, A, B, C, D, E, F, G, H, I> let(
+      Function<Tuple8<A, B, C, D, E, F, G, H>, I> f) {
+    Kind<M, Tuple9<A, B, C, D, E, F, G, H, I>> newComputation =
+        monad.map(
+            t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), f.apply(t)),
+            this.computation);
+    return new MonadicSteps9<>(monad, newComputation);
+  }
+
+  public <I> MonadicSteps9<M, A, B, C, D, E, F, G, H, I> focus(
+      Function<Tuple8<A, B, C, D, E, F, G, H>, I> extractor) {
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    Kind<M, Tuple9<A, B, C, D, E, F, G, H, I>> newComputation =
+        monad.map(
+            t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), extractor.apply(t)),
+            this.computation);
+    return new MonadicSteps9<>(monad, newComputation);
   }
 
   public <R> Kind<M, R> yield(Function8<A, B, C, D, E, F, G, H, R> f) {

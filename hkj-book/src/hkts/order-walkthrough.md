@@ -9,16 +9,16 @@ Enterprise software can be like this. Consider order processing. Every step can 
 This walkthrough demonstrates how to build a robust, multi-step order workflow using the Effect Path API and Focus DSL. You will see how typed errors, composable operations, and functional patterns transform the pyramid of doom into a railway of clarity.
 
 ~~~admonish info title="What You'll Learn"
-- Composing multi-step workflows with `EitherPath` and `via()` chains
+- Composing multi-step workflows with `ForPath` comprehensions (up to 12 steps)
 - Modelling domain errors with sealed interfaces for exhaustive handling
-- Using `ForPath` comprehensions for readable sequential composition
+- Encapsulating sub-workflows as composable building blocks
 - Implementing resilience patterns: retry policies, timeouts, and recovery
 - Scaling with structured concurrency, resource management, and virtual threads
 - Adapting these patterns to your own domain
 ~~~
 
 ~~~admonish info title="In This Chapter"
-- **Effect Composition** – The core patterns for building workflows: sealed error hierarchies for type-safe error handling, `via()` chains for sequential composition, `ForPath` comprehensions for readable syntax, and recovery patterns for graceful degradation.
+- **Effect Composition** – The core patterns for building workflows: sealed error hierarchies for type-safe error handling, `ForPath` comprehensions for flat multi-step composition (up to 12 steps), sub-comprehensions for encapsulating related steps, and recovery patterns for graceful degradation.
 - **Production Patterns** – Making workflows production-ready: retry policies with exponential backoff, timeouts for external services, Focus DSL for immutable state updates, feature flags for configuration, and code generation to eliminate boilerplate.
 - **Concurrency and Scale** – Patterns for high-throughput systems: context propagation with `ScopedValue` for cross-cutting concerns, structured concurrency with `Scope` for parallel operations, resource management with the bracket pattern, and virtual thread execution for massive scale.
 ~~~
@@ -101,24 +101,33 @@ The problems multiply:
 
 ## The Map: Effect Path Tames Complexity
 
-The Effect Path API provides a unified approach. Here is the same workflow:
+The Effect Path API provides a unified approach. Here is the same workflow using a `ForPath` comprehension — all eight steps composed into a single flat pipeline:
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
-    return validateShippingAddress(request.shippingAddress())
-        .via(validAddress ->
-            lookupAndValidateCustomer(request.customerId())
-                .via(customer ->
-                    buildValidatedOrder(request, customer, validAddress)
-                        .via(order -> processOrderCore(order, customer))));
+    var orderId = OrderId.generate();
+    var customerId = new CustomerId(request.customerId());
+
+    return ForPath.from(validateShippingAddress(request.shippingAddress()))
+        .from(validAddress -> lookupAndValidateCustomer(customerId))
+        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))
+        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
+        .from(t -> applyDiscounts(t._3(), t._2()))
+        .from(t -> processPayment(t._3(), t._5()))
+        .from(t -> createShipment(t._3(), t._1()))
+        .from(t -> sendNotifications(t._3(), t._2(), t._5()))
+        .yield((validAddress, customer, order, reservation, discount,
+                payment, shipment, notification) ->
+            buildOrderResult(order, discount, payment, shipment, notification));
 }
 ```
 
 The transformation is dramatic:
 
-- **Flat structure**: Each step chains to the next with `via()`
+- **Flat structure**: All eight steps read top-to-bottom in a single `ForPath` comprehension
 - **Typed errors**: `OrderError` is a sealed interface; the compiler ensures exhaustive handling
 - **Automatic propagation**: Failures short-circuit; no explicit checks required
+- **Named results**: The final `yield` destructures all values by name for readability
 - **Composable**: Each step returns `EitherPath<OrderError, T>`, so they combine naturally
 
 ---
@@ -135,13 +144,20 @@ Notice how errors branch off at each decision point, while success flows forward
 
 Step back and consider what this example builds. An order workflow with eight distinct steps, seven potential error types, recovery logic, retry policies, feature flags, immutable state updates, and concurrent execution. In traditional Java, this would likely span hundreds of lines of nested conditionals, try-catch blocks, and defensive null checks.
 
-Instead, the core workflow fits in a single method:
+Instead, the core workflow fits in a single `ForPath` comprehension — eight steps, flat and readable:
 
 ```java
-return validateShippingAddress(request.shippingAddress())
-    .via(validAddress -> lookupAndValidateCustomer(request.customerId())
-        .via(customer -> buildValidatedOrder(request, customer, validAddress)
-            .via(order -> processOrderCore(order, customer))));
+return ForPath.from(validateShippingAddress(request.shippingAddress()))
+    .from(validAddress -> lookupAndValidateCustomer(customerId))
+    .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))
+    .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
+    .from(t -> applyDiscounts(t._3(), t._2()))
+    .from(t -> processPayment(t._3(), t._5()))
+    .from(t -> createShipment(t._3(), t._1()))
+    .from(t -> sendNotifications(t._3(), t._2(), t._5()))
+    .yield((validAddress, customer, order, reservation, discount,
+            payment, shipment, notification) ->
+        buildOrderResult(order, discount, payment, shipment, notification));
 ```
 
 This is not magic. It is the result of combining a small number of simple, composable building blocks:
@@ -150,14 +166,15 @@ This is not magic. It is the result of combining a small number of simple, compo
 |----------------|--------------|
 | `Either<E, A>` | Represents success or typed failure |
 | `EitherPath<E, A>` | Wraps `Either` with chainable operations |
-| `via(f)` | Sequences operations, propagating errors |
+| `ForPath` | Composes up to 12 sequential steps into a flat comprehension |
+| `via(f)` | One-off chaining for simple cases |
 | `map(f)` | Transforms success values |
 | `recoverWith(f)` | Handles failures with fallbacks |
 | Sealed interfaces | Enables exhaustive error handling |
 | Records | Provides immutable data with minimal syntax |
 | Annotations | Generates lenses, prisms, and bridges |
 
-None of these concepts is particularly complex. `Either` is just a container with two cases. `via` is just `flatMap` with a friendlier name. Sealed interfaces are just sum types. Records are just product types. Lenses are just pairs of getter and setter functions.
+None of these concepts is particularly complex. `Either` is just a container with two cases. `ForPath` is just a for-comprehension that accumulates results in a tuple. Sealed interfaces are just sum types. Records are just product types. Lenses are just pairs of getter and setter functions.
 
 The power comes from *composition*. Each building block does one thing well, and they combine without friction. Error propagation is automatic. State updates are immutable. Pattern matching is exhaustive. Code generation eliminates boilerplate.
 
@@ -178,7 +195,7 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ## Chapter Contents
 
-1. [Effect Composition](order-composition.md) - Sealed errors, via() chains, ForPath, recovery patterns
+1. [Effect Composition](order-composition.md) - Sealed errors, ForPath comprehensions, sub-workflows, recovery patterns
 2. [Production Patterns](order-production.md) - Retry, timeout, Focus DSL, feature flags, code generation
 3. [Concurrency and Scale](order-concurrency.md) - Context propagation, Scope, Resource, VTaskPath
 
@@ -186,8 +203,7 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
-* **`via()` chains** compose sequential operations with automatic error propagation
-* **`ForPath` comprehensions** provide readable syntax for simple sequences
+* **`ForPath` comprehensions** compose multi-step workflows into flat, readable pipelines (up to 12 steps)
 * **Recovery patterns** handle non-fatal errors gracefully
 * **Resilience utilities** add retry and timeout behaviour without cluttering business logic
 * **Focus DSL** complements Effect Path for immutable state updates

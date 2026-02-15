@@ -50,8 +50,8 @@ public class PartialFulfilmentWorkflow {
    * Processes an order with partial fulfilment support. Ships available items and creates
    * back-orders for unavailable ones.
    *
-   * <p>Uses via() chains for composing workflow steps since EitherPath ForPath is limited to 3
-   * steps.
+   * <p>Uses via() chains for composing workflow steps where intermediate values require
+   * partitioning logic between steps.
    *
    * @param order the validated order to process
    * @return either an error or the partial fulfilment result

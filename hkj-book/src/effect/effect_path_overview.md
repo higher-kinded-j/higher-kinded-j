@@ -255,6 +255,11 @@ The nesting has gone. Each step follows the same pattern: transform or chain,
 handle errors consistently, let failures propagate automatically. The business
 logic reads top-to-bottom instead of outside-in.
 
+For longer pipelines where later steps need results from earlier ones (not just
+the immediately preceding step), [`ForPath`](forpath_comprehension.md)
+comprehensions provide an even flatter syntax with all intermediate values
+accessible by position.
+
 This isn't magic. The underlying complexity hasn't vanished; you still need
 to handle the same failure cases. But the *accidental* complexity (the
 pyramids, the repeated null checks, the catch blocks that just wrap and

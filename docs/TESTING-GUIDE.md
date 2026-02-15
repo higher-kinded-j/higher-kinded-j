@@ -1276,7 +1276,7 @@ void generatedCodeMatchesGolden(GoldenTestCase testCase) throws IOException {
 When intentional changes are made to code generation:
 
 ```bash
-./gradlew :hkj-processor:test --tests "*updateGoldenFiles*" -DupdateGolden=true
+./gradlew :hkj-processor:updateGoldenFiles
 ```
 
 **Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/GoldenFileTest.java`

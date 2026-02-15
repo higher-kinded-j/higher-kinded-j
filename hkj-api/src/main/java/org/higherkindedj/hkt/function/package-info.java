@@ -5,11 +5,14 @@
  * <p>This includes interfaces for functions with more than two arguments: {@link
  * org.higherkindedj.hkt.function.Function3}, {@link org.higherkindedj.hkt.function.Function4},
  * {@link org.higherkindedj.hkt.function.Function5}, {@link
- * org.higherkindedj.hkt.function.Function6}, {@link org.higherkindedj.hkt.function.Function7}, and
- * {@link org.higherkindedj.hkt.function.Function8}. These are primarily used to support the {@code
- * mapN} and {@code yield} methods in type classes like {@link org.higherkindedj.hkt.Applicative}
- * and in the {@code org.higherkindedj.hkt.expression.For} comprehension builder, enabling the
- * combination of up to 8 monadic values.
+ * org.higherkindedj.hkt.function.Function6}, {@link org.higherkindedj.hkt.function.Function7},
+ * {@link org.higherkindedj.hkt.function.Function8}, {@link
+ * org.higherkindedj.hkt.function.Function9}, {@link org.higherkindedj.hkt.function.Function10},
+ * {@link org.higherkindedj.hkt.function.Function11}, and {@link
+ * org.higherkindedj.hkt.function.Function12}. These are primarily used to support the {@code mapN}
+ * and {@code yield} methods in type classes like {@link org.higherkindedj.hkt.Applicative} and in
+ * the {@code org.higherkindedj.hkt.expression.For} comprehension builder, enabling the combination
+ * of up to 12 monadic values.
  */
 @NullMarked
 package org.higherkindedj.hkt.function;

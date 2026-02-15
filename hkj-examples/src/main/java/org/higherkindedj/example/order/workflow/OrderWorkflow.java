@@ -39,22 +39,42 @@ import org.higherkindedj.hkt.expression.ForPath;
 /**
  * The main order processing workflow.
  *
- * <p>This class demonstrates the power of ForPath for composing complex multi-step workflows in a
- * readable, declarative style. Each step is chained using for-comprehension syntax, with automatic
- * error propagation.
+ * <p>This class demonstrates the power of {@link ForPath} for composing complex multi-step
+ * workflows in a readable, declarative style. The entire 8-step pipeline is expressed as a single
+ * flat ForPath comprehension with automatic error propagation — no nested {@code via()} pyramids.
  *
  * <h2>Workflow Steps</h2>
  *
  * <ol>
- *   <li>Validate order request and shipping address
+ *   <li>Validate shipping address
  *   <li>Look up customer and verify eligibility
- *   <li>Resolve product details for all line items
- *   <li>Check and reserve inventory
+ *   <li>Build validated order (with promo code validation)
+ *   <li>Reserve inventory
  *   <li>Apply discounts (promo codes and loyalty)
  *   <li>Process payment
  *   <li>Create shipment
  *   <li>Send confirmation notifications
  * </ol>
+ *
+ * <h2>ForPath Comprehension</h2>
+ *
+ * <p>With arity-12 support, all eight steps compose into a single comprehension:
+ *
+ * <pre>{@code
+ * ForPath.from(validateShippingAddress(...))
+ *     .from(validAddress -> lookupAndValidateCustomer(...))
+ *     .from(t -> buildValidatedOrder(..., t._2(), t._1()))
+ *     .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
+ *     .from(t -> applyDiscounts(t._3(), t._2()))
+ *     .from(t -> processPayment(t._3(), t._5()))
+ *     .from(t -> createShipment(t._3(), t._1()))
+ *     .from(t -> sendNotifications(t._3(), t._2(), t._5()))
+ *     .yield((address, customer, order, reservation, discount, payment, shipment, notification) ->
+ *         buildOrderResult(order, discount, payment, shipment, notification));
+ * }</pre>
+ *
+ * <p>Each step receives the accumulated tuple of all previous results, and the final {@code yield}
+ * destructures all eight values by name for maximum readability.
  */
 public class OrderWorkflow {
 
@@ -105,8 +125,23 @@ public class OrderWorkflow {
   /**
    * Processes an order request through the complete workflow.
    *
-   * <p>Uses via() chains for composing workflow steps since EitherPath ForPath is limited to 3
-   * steps. This approach provides the same error propagation with explicit chaining.
+   * <p>Uses a single ForPath comprehension to compose all eight workflow steps into a flat,
+   * readable pipeline. Each step receives the accumulated tuple of previous results; the final
+   * {@code yield} destructures all values by name. Any step failure short-circuits the entire
+   * comprehension and propagates the {@link OrderError}.
+   *
+   * <p>Tuple positions within each {@code from} step:
+   *
+   * <table>
+   *   <tr><th>Position</th><th>Value</th><th>Type</th></tr>
+   *   <tr><td>{@code _1()}</td><td>validAddress</td><td>{@link ValidatedShippingAddress}</td></tr>
+   *   <tr><td>{@code _2()}</td><td>customer</td><td>{@link Customer}</td></tr>
+   *   <tr><td>{@code _3()}</td><td>order</td><td>{@link ValidatedOrder}</td></tr>
+   *   <tr><td>{@code _4()}</td><td>reservation</td><td>{@link InventoryReservation}</td></tr>
+   *   <tr><td>{@code _5()}</td><td>discount</td><td>{@link DiscountResult}</td></tr>
+   *   <tr><td>{@code _6()}</td><td>payment</td><td>{@link PaymentConfirmation}</td></tr>
+   *   <tr><td>{@code _7()}</td><td>shipment</td><td>{@link ShipmentInfo}</td></tr>
+   * </table>
    *
    * @param request the order request to process
    * @return either an error or the successful order result
@@ -115,14 +150,24 @@ public class OrderWorkflow {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
 
-    return validateShippingAddress(request.shippingAddress())
-        .via(
-            validAddress ->
-                lookupAndValidateCustomer(customerId)
-                    .via(
-                        customer ->
-                            buildValidatedOrder(orderId, request, customer, validAddress)
-                                .via(order -> processOrderCore(order, customer))));
+    return ForPath.from(validateShippingAddress(request.shippingAddress()))
+        .from(validAddress -> lookupAndValidateCustomer(customerId))
+        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))
+        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
+        .from(t -> applyDiscounts(t._3(), t._2()))
+        .from(t -> processPayment(t._3(), t._5()))
+        .from(t -> createShipment(t._3(), t._1()))
+        .from(t -> sendNotifications(t._3(), t._2(), t._5()))
+        .yield(
+            (validAddress,
+                customer,
+                order,
+                reservation,
+                discount,
+                payment,
+                shipment,
+                notification) ->
+                buildOrderResult(order, discount, payment, shipment, notification));
   }
 
   // -------------------------------------------------------------------------
@@ -260,34 +305,5 @@ public class OrderWorkflow {
         shipment.trackingNumber(),
         shipment.estimatedDelivery(),
         auditLog);
-  }
-
-  // -------------------------------------------------------------------------
-  // Helper for core processing
-  // -------------------------------------------------------------------------
-
-  private EitherPath<OrderError, OrderResult> processOrderCore(
-      ValidatedOrder order, Customer customer) {
-    return reserveInventory(order.orderId(), order.lines())
-        .via(
-            reservation ->
-                applyDiscounts(order, customer)
-                    .via(
-                        discount ->
-                            processPayment(order, discount)
-                                .via(
-                                    payment ->
-                                        createShipment(order, order.shippingAddress())
-                                            .via(
-                                                shipment ->
-                                                    sendNotifications(order, customer, discount)
-                                                        .map(
-                                                            notification ->
-                                                                buildOrderResult(
-                                                                    order,
-                                                                    discount,
-                                                                    payment,
-                                                                    shipment,
-                                                                    notification))))));
   }
 }
