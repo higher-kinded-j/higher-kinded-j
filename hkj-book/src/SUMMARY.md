@@ -172,6 +172,7 @@
   - [VTask](monads/vtask_monad.md)
     - [Structured Concurrency](monads/vtask_scope.md)
     - [Resource Management](monads/vtask_resource.md)
+  - [VStream](monads/vstream.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 

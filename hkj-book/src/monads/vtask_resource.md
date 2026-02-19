@@ -339,4 +339,4 @@ Practice Resource patterns in [Tutorial: Scope & Resource](../tutorials/concurre
 ---
 
 **Previous:** [Structured Concurrency](vtask_scope.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [VStream](vstream.md)

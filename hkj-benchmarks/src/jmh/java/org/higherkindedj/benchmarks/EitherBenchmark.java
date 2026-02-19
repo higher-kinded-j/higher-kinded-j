@@ -8,6 +8,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -35,6 +36,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
 public class EitherBenchmark {
+
+  @Param({"50"})
+  private int chainDepth;
 
   private Either<String, Integer> right;
   private Either<String, Integer> left;
@@ -115,7 +119,7 @@ public class EitherBenchmark {
   @Benchmark
   public Either<String, Integer> rightLongChain() {
     Either<String, Integer> result = right;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result;
@@ -129,7 +133,7 @@ public class EitherBenchmark {
   @Benchmark
   public Either<String, Integer> leftLongChain() {
     Either<String, Integer> result = left;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result;

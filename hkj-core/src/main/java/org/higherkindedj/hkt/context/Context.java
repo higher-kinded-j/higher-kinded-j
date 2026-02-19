@@ -81,7 +81,8 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    *
    * @return The result of the computation.
    * @throws NoSuchElementException if a required {@link ScopedValue} is not bound.
-   * @throws RuntimeException if the computation fails.
+   * @throws ContextException if the computation fails with a checked exception.
+   * @throws RuntimeException if the computation fails with a runtime exception.
    */
   @Nullable A run();
 
@@ -141,15 +142,23 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
   /**
    * Creates a {@code Context} that fails immediately with the given error when run.
    *
+   * <p>If the error is a checked exception, it will be wrapped in a {@link ContextException} so
+   * that {@link #run()} can remain unchecked. {@link RuntimeException}s are stored as-is, and
+   * {@link Error}s are rethrown immediately.
+   *
+   * <p>Recovery methods ({@link #recover}, {@link #recoverWith}) automatically unwrap {@link
+   * ContextException}, so recovery functions always see the original exception.
+   *
    * @param error The error to fail with. Must not be null.
    * @param <R> The phantom type parameter for the scoped value.
    * @param <A> The phantom type parameter for the result.
    * @return A {@code Context<R, A>} that fails with the given error.
    * @throws NullPointerException if {@code error} is null.
+   * @throws Error if {@code error} is an {@link Error} (e.g. {@link OutOfMemoryError}).
    */
   static <R, A> Context<R, A> fail(Throwable error) {
     Objects.requireNonNull(error, "error cannot be null");
-    return new Failed<>(error);
+    return new Failed<>(ContextException.wrap(error));
   }
 
   // ===== COMBINATOR METHODS =====
@@ -401,10 +410,13 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
   /**
    * Implementation that fails with an error.
    *
+   * <p>Stores a {@link RuntimeException} — checked exceptions are wrapped in {@link
+   * ContextException} by the {@link #fail(Throwable)} factory method before reaching this record.
+   *
    * @param <R> The phantom type parameter for the scoped value.
    * @param <A> The phantom type parameter for the result.
    */
-  record Failed<R, A>(Throwable error) implements Context<R, A> {
+  record Failed<R, A>(RuntimeException error) implements Context<R, A> {
 
     /** Compact constructor for validation. */
     public Failed {
@@ -413,7 +425,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
 
     @Override
     public @Nullable A run() {
-      throw sneakyThrow(error);
+      throw error;
     }
   }
 
@@ -439,7 +451,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
       try {
         return source.run();
       } catch (Throwable t) {
-        return (A) recoveryFunction.apply(t);
+        return (A) recoveryFunction.apply(ContextException.unwrap(t));
       }
     }
   }
@@ -492,7 +504,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
       try {
         return source.run();
       } catch (Throwable t) {
-        throw sneakyThrow(errorMapper.apply(t));
+        throw ContextException.wrap(errorMapper.apply(ContextException.unwrap(t)));
       }
     }
   }
@@ -540,10 +552,12 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
         result = current.run();
       } catch (Throwable error) {
         // Phase 3a: Error path - find a recovery handler
+        // Unwrap ContextException so recovery functions see the original cause
+        Throwable unwrapped = ContextException.unwrap(error);
         while (!stack.isEmpty()) {
           Object item = stack.pop();
           if (item instanceof RecoveryHandler handler) {
-            Context<R, ?> recovery = (Context<R, ?>) handler.recoveryFunction().apply(error);
+            Context<R, ?> recovery = (Context<R, ?>) handler.recoveryFunction().apply(unwrapped);
             Objects.requireNonNull(recovery, "recovery context cannot be null");
             current = recovery;
             continue outer;
@@ -551,7 +565,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
           // Skip continuations when propagating errors
         }
         // No handler found, rethrow
-        throw sneakyThrow(error);
+        throw ContextException.wrap(error);
       }
 
       // Phase 3b: Success path - apply continuations
@@ -572,16 +586,5 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
       // Stack is empty, we have the final result
       return (A) result;
     }
-  }
-
-  /**
-   * Utility method to throw checked exceptions without declaring them.
-   *
-   * @param t The throwable to throw.
-   * @return Never returns; always throws.
-   */
-  @SuppressWarnings("unchecked")
-  private static <T extends Throwable> RuntimeException sneakyThrow(Throwable t) throws T {
-    throw (T) t;
   }
 }

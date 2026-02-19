@@ -8,6 +8,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -33,6 +34,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
 public class MaybeBenchmark {
+
+  @Param({"50"})
+  private int chainDepth;
 
   private Maybe<Integer> just;
   private Maybe<Integer> nothing;
@@ -93,7 +97,7 @@ public class MaybeBenchmark {
   @Benchmark
   public Maybe<Integer> justLongChain() {
     Maybe<Integer> result = just;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result;
@@ -107,7 +111,7 @@ public class MaybeBenchmark {
   @Benchmark
   public Maybe<Integer> nothingLongChain() {
     Maybe<Integer> result = nothing;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result;
