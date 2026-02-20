@@ -370,6 +370,21 @@ Try<Dashboard> dashboard = loadDashboard(userId).runSafe();
 Practice VTaskPath composition in [TutorialVTaskPath.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTaskPath.java) (8 exercises, ~20 minutes).
 ~~~
 
+~~~admonish example title="Benchmarks"
+VTaskPath has dedicated JMH benchmarks measuring wrapper overhead on top of raw VTask. Key expectations:
+
+- **VTaskPath vs raw VTask:** 5-15% overhead — wrapper allocation plus delegation cost
+- **`let()` vs `from()`:** `let()` is ~20% faster as it avoids VTaskPath wrapping
+- Wrapper overhead > 30% is a warning sign suggesting unnecessary allocation
+- Comparison benchmarks against IOPath are also available
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*VTaskPathBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*VTaskPathVsIOPathBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks, and how to interpret results.
+~~~
+
 ~~~admonish tip title="See Also"
 - [VTask Monad](../monads/vtask_monad.md) - Underlying type with full API details
 - [Structured Concurrency](../monads/vtask_scope.md) - Scope and ScopeJoiner for task coordination

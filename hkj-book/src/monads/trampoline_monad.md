@@ -324,6 +324,20 @@ For detailed implementation examples and more advanced use cases, see the [Tramp
 For a comprehensive exploration of recursion, thunks, and trampolines in Java and Scala, see Scott Logic's blog post: [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html).
 ~~~
 
+~~~admonish example title="Benchmarks"
+Trampoline has dedicated JMH benchmarks measuring stack-safe recursion overhead and scaling behaviour. Key expectations:
+
+- **Deep recursion (10,000+)** completes without `StackOverflowError` — stack-safe trampolining is working
+- **Performance scaling is linear with depth** — no exponential blowup or quadratic complexity
+- **`factorialTrampoline` vs `factorialNaive`** show similar performance at depth 100 — trampoline overhead is minimal for moderate depths
+- Non-linear scaling is a warning sign suggesting memory leak or quadratic complexity
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*TrampolineBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+~~~
+
 ---
 
 **Previous:** [Stream](stream_monad.md)

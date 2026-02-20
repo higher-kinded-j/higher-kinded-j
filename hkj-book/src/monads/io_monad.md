@@ -143,9 +143,11 @@ String result = IOKindHelper.unsafeRunSync(potentiallyFailingIO);
    System.out.println("\nRunning printHello again:");
 IOKindHelper.unsafeRunSync(printHello); // Prints "Hello from IO!" again
 ```
+
 ~~~~
 
-~~~admonish title="Example 3: Composing IO Actions with `map` and `flatMap`"
+
+~~~admonish example title="Example 3: Composing IO Actions with _map_ and _flatMap_"
 
 
 - [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
@@ -216,9 +218,13 @@ System.out.println("\nComplete IO Program defined. Executing...");
 // IOKindHelper.unsafeRunSync(program); // Uncomment to run the full program
 ```
 
+
 _Notes:_
-* `map` transforms the *result* of an `IO` action without changing the effect itself (though the transformation happens *after* the effect runs).
-* `flatMap` sequences `IO` actions, ensuring the effect of the first action completes before the second action (which might depend on the first action's result) begins.
+
+- `map` transforms the *result* of an `IO` action without changing the effect itself (though the transformation happens *after* the effect runs).
+- `flatMap` sequences `IO` actions, ensuring the effect of the first action completes before the second action (which might depend on the first action's result) begins.
+
+~~~
 
 ---
 
@@ -241,6 +247,21 @@ IOPath<String> value = Path.io(() -> loadConfig())
 ```
 
 See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+~~~admonish example title="Benchmarks"
+IO has dedicated JMH benchmarks measuring lazy construction, platform thread execution, and map/flatMap chains. Key expectations:
+
+- **Construction** (delay, pure) is very fast (~100+ ops/us) — IO is a lazy wrapper with no immediate execution
+- **IO vs VTask:** IO is ~10-30% faster for simple operations due to no virtual thread spawn overhead
+- **Deep chains (50+)** complete without error — composition overhead dominates at depth
+- At high concurrency (1000+ tasks), VTask scales better than IO due to virtual threads
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*IOBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*VTaskVsIOBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks against VTask, and how to interpret results.
 ~~~
 
 ---

@@ -180,6 +180,7 @@
 
 - [Glossary](glossary.md)
 - [Release History](release-history.md)
+- [Benchmarks & Performance](benchmarks.md)
 
 # Project Info
 - [Contributing](./CONTRIBUTING.md)

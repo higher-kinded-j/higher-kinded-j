@@ -1000,6 +1000,19 @@ For deeper exploration of Free monads and their applications:
 - [Coyoneda](coyoneda.md) - Automatic Functor instances and map fusion
 ~~~
 
+~~~admonish example title="Benchmarks"
+Free has dedicated JMH benchmarks measuring interpretation cost and stack safety. Key expectations:
+
+- **Deep recursion (10,000+)** completes without `StackOverflowError` — Free monad interpretation is stack-safe via trampolining
+- **Performance scaling is linear with depth** — interpretation cost grows proportionally, not exponentially
+- Abstraction overhead of 50-200x vs raw Java is expected and acceptable — real workloads involve I/O that dominates compute time
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*FreeBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+~~~
+
 ---
 
 **Previous:** [Trampoline](trampoline_monad.md)

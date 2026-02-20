@@ -6,6 +6,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionClasses;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
+import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Functor;
@@ -69,7 +70,8 @@ class NamingConventionRules {
    * <p>Examples: MaybeMonad, EitherMonad, ListMonad
    *
    * <p>Note: Selective implementations (which extend Monad) follow the "Selective" naming
-   * convention.
+   * convention. Alternative implementations (which extend Applicative, and may extend Monad) follow
+   * the "Alternative" naming convention.
    */
   @Test
   @DisplayName("Monad implementations should be named <Type>Monad")
@@ -81,6 +83,8 @@ class NamingConventionRules {
         .areNotInterfaces()
         .and()
         .doNotImplement(Selective.class) // Selective implementations use Selective suffix
+        .and()
+        .doNotImplement(Alternative.class) // Alternative implementations use Alternative suffix
         .should()
         .haveSimpleNameEndingWith("Monad")
         .allowEmptyShould(true)
@@ -93,8 +97,8 @@ class NamingConventionRules {
    * <p>Examples: MaybeApplicative, EitherApplicative
    *
    * <p>Note: Classes that implement Monad (which extends Applicative) are excluded as they follow
-   * the Monad naming convention. Selective implementations are also excluded. Anonymous and inner
-   * classes are also excluded.
+   * the Monad naming convention. Selective and Alternative implementations are also excluded.
+   * Anonymous and inner classes are also excluded.
    */
   @Test
   @DisplayName("Applicative implementations should be named <Type>Applicative")
@@ -112,8 +116,38 @@ class NamingConventionRules {
         .doNotImplement(Monad.class) // Monads are named with Monad suffix
         .and()
         .doNotImplement(Selective.class) // Selective implementations use Selective suffix
+        .and()
+        .doNotImplement(Alternative.class) // Alternative implementations use Alternative suffix
         .should()
         .haveSimpleNameEndingWith("Applicative")
+        .allowEmptyShould(true)
+        .check(productionClasses);
+  }
+
+  /**
+   * Alternative implementations must be named with "Alternative" suffix.
+   *
+   * <p>Examples: VStreamAlternative
+   *
+   * <p>Note: Classes that implement Alternative via MonadZero (which bundles Monad + Alternative
+   * into a single class named with "Monad" suffix) are excluded since they follow the Monad naming
+   * convention. Selective implementations that inherit Alternative transitively (via extending a
+   * MonadZero class) are also excluded since they follow the Selective naming convention.
+   */
+  @Test
+  @DisplayName("Alternative implementations should be named <Type>Alternative")
+  void alternative_implementations_should_end_with_alternative() {
+    classes()
+        .that()
+        .implement(Alternative.class)
+        .and()
+        .areNotInterfaces()
+        .and()
+        .haveSimpleNameNotEndingWith("Monad") // MonadZero classes use Monad suffix
+        .and()
+        .doNotImplement(Selective.class) // Selective implementations use Selective suffix
+        .should()
+        .haveSimpleNameEndingWith("Alternative")
         .allowEmptyShould(true)
         .check(productionClasses);
   }

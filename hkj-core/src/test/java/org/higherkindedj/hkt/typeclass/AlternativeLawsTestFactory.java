@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,9 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamAlternative;
+import org.higherkindedj.hkt.vstream.VStreamKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -39,7 +43,7 @@ import org.junit.jupiter.api.TestFactory;
  *       -> fb), () -> fc)}
  * </ul>
  *
- * <p>Implementations tested: Maybe, Optional, List
+ * <p>Implementations tested: Maybe, Optional, List, VStream
  *
  * <p>Note: Stream is excluded because Java Streams can only be consumed once, making them
  * unsuitable for reuse across multiple test methods. List provides equivalent coverage for
@@ -155,6 +159,19 @@ class AlternativeLawsTestFactory {
               public <A> boolean areEqual(
                   Kind<ListKind.Witness, A> a, Kind<ListKind.Witness, A> b) {
                 return LIST.narrow(a).equals(LIST.narrow(b));
+              }
+            }),
+        AlternativeTestData.of(
+            "VStream",
+            VStreamAlternative.INSTANCE,
+            AlternativeSemantics.CONCATENATION,
+            VSTREAM.widen(VStream.of(42)),
+            VSTREAM.widen(VStream.of(100)),
+            new EqualityChecker<VStreamKind.Witness>() {
+              @Override
+              public <A> boolean areEqual(
+                  Kind<VStreamKind.Witness, A> a, Kind<VStreamKind.Witness, A> b) {
+                return VSTREAM.narrow(a).toList().run().equals(VSTREAM.narrow(b).toList().run());
               }
             }));
   }

@@ -33,6 +33,7 @@ Unlike unit tests which verify correctness, these benchmarks:
 | `ForPathVTaskBenchmark` | ForPath with VTask | For-comprehension overhead |
 | `TrampolineBenchmark` | `Trampoline<A>` | Stack-safe recursion |
 | `FreeBenchmark` | `Free<F,A>` | Free monad overhead |
+| `VStreamBenchmark` | `VStream<A>` | Pull-based stream construction, combinators, pipelines |
 | `ConcurrencyScalingBenchmark` | VTask, IO | Thread scaling behaviour |
 | `MemoryFootprintBenchmark` | VTask, IO, CompletableFuture | Memory allocation patterns |
 | `AbstractionOverheadBenchmark` | VTask, IO vs raw Java | Abstraction cost measurement |
@@ -115,6 +116,21 @@ Use these expectations to identify potential problems in benchmark results:
 **Warning signs:**
 - Wrapper overhead > 30% suggests unnecessary allocation
 - ForPath overhead > 50% indicates tuple handling inefficiency
+
+### VStream
+
+| Comparison | Expected Result | Explanation |
+|------------|-----------------|-------------|
+| Construction | Very fast (~100+ ops/us) | Lazy wrappers, no materialisation |
+| VStream map vs Java Stream map | VStream slower | Virtual thread + pull overhead |
+| Deep map chain (50) | Completes without error | MappedStream function composition |
+| Deep flatMap chain (50) | Completes without error | FlatMapStream iterative processing |
+| `existsEarlyMatch` vs `existsNoMatch` | Early match much faster | Short-circuit avoids full traversal |
+
+**Warning signs:**
+- StackOverflowError in deep chains indicates broken stack safety
+- VStream > 100x slower than Java Stream suggests excessive allocation
+- `existsEarlyMatch` same speed as `existsNoMatch` means short-circuit is broken
 
 ### Stack Safety (Trampoline/Free)
 
@@ -203,6 +219,7 @@ Run with GC profiler (`-Pjmh.profilers=gc`) for these:
 ./gradlew :hkj-benchmarks:jmh --includes=".*MaybeBenchmark.*"
 ./gradlew :hkj-benchmarks:jmh --includes=".*IOBenchmark.*"
 ./gradlew :hkj-benchmarks:jmh --includes=".*VTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*"
 ./gradlew :hkj-benchmarks:jmh --includes=".*VTaskVsPlatformThreadsBenchmark.*"
 ```
 
@@ -495,6 +512,24 @@ Available profilers:
 | `traverseList` / `sequentialTraverseEquivalent` | Parallel | Parallel traverse |
 | `raceWithImmediateWinner` | Parallel | Race combinator |
 | `highConcurrencyAll` / `highConcurrencyTraverse` | Parallel | High task counts |
+
+### VStreamBenchmark (30 methods)
+
+| Method | Category | Measures |
+|--------|----------|----------|
+| `constructEmpty` / `constructSingle` | Construction | Empty and single-element streams |
+| `constructFromList` / `constructRange` | Construction | List and range sources |
+| `mapConstruction` / `filterConstruction` | Construction | Lazy combinator building |
+| `flatMapConstruction` / `takeConstruction` / `concatConstruction` | Construction | More lazy combinators |
+| `mapExecution` / `filterExecution` / `flatMapExecution` | Execution | Single combinator materialisation |
+| `takeExecution` / `concatExecution` | Execution | Early termination, concatenation |
+| `toListExecution` / `foldLeftExecution` / `countExecution` | Execution | Terminal operations |
+| `existsEarlyMatch` / `existsNoMatch` / `findEarlyMatch` | Execution | Short-circuit terminals |
+| `pipelineFilterMap` / `pipelineMapFilterTake` | Composition | Multi-stage pipelines |
+| `deepMapChainConstruction` / `deepMapChainExecution` | Composition | 50-deep map chains |
+| `deepFlatMapChainExecution` | Composition | Stack safety for flatMap chains |
+| `baselineJavaStream*` | Execution | Raw Java Stream baselines for comparison |
+| `realWorldTransformPipeline` / `realWorldFlatMapFilter` | Composition | ETL-style patterns |
 
 ### Comparison Benchmarks
 

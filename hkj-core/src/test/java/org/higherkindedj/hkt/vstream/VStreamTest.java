@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.vstream.VStreamAssert.assertThatVStream;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -80,7 +81,7 @@ class VStreamTest {
     @Test
     @DisplayName("fromStream() consumes Java stream lazily")
     void fromStreamConsumesLazily() {
-      java.util.stream.Stream<Integer> javaStream = java.util.stream.Stream.of(1, 2, 3);
+      Stream<Integer> javaStream = Stream.of(1, 2, 3);
       assertThatVStream(VStream.fromStream(javaStream)).producesElements(1, 2, 3);
     }
 
