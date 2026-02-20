@@ -347,6 +347,19 @@ as it works directly with the transformer's `Kind` representation.
 * **Type safety is preserved** throughout the comprehension
 ~~~
 
+~~~admonish example title="Benchmarks"
+ForPath has dedicated JMH benchmarks measuring for-comprehension overhead compared to direct chaining. Key expectations:
+
+- **ForPath vs direct chaining:** 10-25% overhead — primarily from tuple allocation
+- **`let()` vs `from()`:** `let()` is ~20% faster as it avoids Path wrapping
+- ForPath overhead > 50% is a warning sign indicating tuple handling inefficiency
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*ForPathVTaskBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+~~~
+
 ~~~admonish tip title="See Also"
 - [For Comprehension](../functional/for_comprehension.md) - The underlying For class for raw `Kind` values
 - [Effect Path Overview](effect_path_overview.md) - Introduction to the Effect Path API

@@ -188,6 +188,20 @@ Integer length = transformed.unsafeRun();  // Prints "Side effect!"
 - You want immediate execution → use [TryPath](path_try.md)
 - There are no side effects → use [EitherPath](path_either.md) or [MaybePath](path_maybe.md)
 
+~~~admonish example title="Benchmarks"
+IOPath has dedicated JMH benchmarks measuring wrapper overhead on top of raw IO. Key expectations:
+
+- **IOPath vs raw IO:** 5-15% overhead — wrapper allocation plus delegation cost
+- Wrapper overhead > 30% is a warning sign suggesting unnecessary allocation
+- Comparison benchmarks against VTaskPath are available for choosing between effect types
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*IOPathBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*VTaskPathVsIOPathBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks, and how to interpret results.
+~~~
+
 ~~~admonish tip title="See Also"
 - [IO Monad](../monads/io_monad.md) - Underlying type for IOPath
 - [VTaskPath](path_vtask.md) - Virtual thread-based alternative for concurrent workloads

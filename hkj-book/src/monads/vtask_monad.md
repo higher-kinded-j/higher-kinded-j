@@ -398,6 +398,15 @@ Choose `IO` when:
 Practice VTask fundamentals in [Tutorial: VTask](../tutorials/concurrency/vtask_journey.md) (8 exercises, ~25 minutes).
 ~~~
 
+~~~admonish example title="Benchmarks"
+VTask has dedicated JMH benchmarks measuring construction, execution, map/flatMap chains, deep recursion, and parallel combinators. Run them with:
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*VTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*VTaskParBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks against IO, and how to interpret results.
+~~~
+
 ~~~admonish tip title="See Also"
 - [Structured Concurrency](vtask_scope.md) - Scope and ScopeJoiner for advanced task coordination
 - [Resource Management](vtask_resource.md) - Bracket pattern for safe resource handling

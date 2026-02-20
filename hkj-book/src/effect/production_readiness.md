@@ -112,7 +112,7 @@ For the vast majority of applications, particularly those performing any I/O, **
 
 ### Measuring It Yourself
 
-The project includes JMH benchmarks that measure construction, execution, and composition overhead for all Path types. To run them:
+The project includes JMH benchmarks that measure construction, execution, and composition overhead for all Path types. To run the most relevant ones:
 
 ```bash
 ./gradlew jmh --includes=".*IOPathBenchmark.*"
@@ -125,6 +125,10 @@ The project includes JMH benchmarks that measure construction, execution, and co
 - [AbstractionOverheadBenchmark.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/src/jmh/java/org/higherkindedj/benchmarks/AbstractionOverheadBenchmark.java) - Raw Java vs IO vs VTask comparison
 - [MemoryFootprintBenchmark.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/src/jmh/java/org/higherkindedj/benchmarks/MemoryFootprintBenchmark.java) - Allocation rates under GC profiling
 - [TrampolineBenchmark.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/src/jmh/java/org/higherkindedj/benchmarks/TrampolineBenchmark.java) - Stack-safe recursion performance
+~~~
+
+~~~admonish tip title="Full Benchmark Suite"
+The `hkj-benchmarks` module contains 18 benchmark classes covering every major type in the library — not just Effect Path types. For the full picture including VTask, VStream, Either, Maybe, concurrency scaling, and Java baseline comparisons, see [Benchmarks & Performance](../benchmarks.md).
 ~~~
 
 ---

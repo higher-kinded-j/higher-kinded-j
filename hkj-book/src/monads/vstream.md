@@ -476,6 +476,15 @@ virtual thread integration or error recovery.
 Practice VStream basics in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises, ~12-15 minutes).
 ~~~
 
+~~~admonish example title="Benchmarks"
+VStream has a dedicated JMH benchmark suite measuring construction, combinator pipelines, terminal operations, and comparison with raw Java Streams. Run it with:
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+~~~
+
+
 ~~~admonish tip title="See Also"
 - [VTask](vtask_monad.md) - The single-value effect type that powers VStream pulls
 - [VTaskPath](../effect/path_vtask.md) - Fluent Path API wrapper for VTask

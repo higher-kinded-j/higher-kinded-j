@@ -260,6 +260,19 @@ EitherPath<Error, Order> order = Path.either(findUser(id))
 See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
 ~~~
 
+~~~admonish example title="Benchmarks"
+Either has dedicated JMH benchmarks measuring instance reuse, short-circuit efficiency, and chain composition. Key expectations:
+
+- **`leftMap` is 5-10x faster than `rightMap`** — Left reuses the same instance with zero allocation
+- **`leftLongChain` is 10-50x faster than `rightLongChain`** — sustained reuse benefit over 50-deep chains
+- If Left/Nothing operations allocate memory, instance reuse is broken
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*EitherBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, expected ratios, and how to interpret results.
+~~~
+
 ---
 
 **Previous:** [CompletableFuture](cf_monad.md)

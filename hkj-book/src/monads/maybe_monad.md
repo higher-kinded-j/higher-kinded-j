@@ -349,6 +349,20 @@ MaybePath<String> name = Path.maybe(findUser(id))
 See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
 ~~~
 
+~~~admonish example title="Benchmarks"
+Maybe has dedicated JMH benchmarks measuring instance reuse, short-circuit efficiency, filtering, and nullable interop. Key expectations:
+
+- **`nothingMap` is 5-10x faster than `justMap`** — Nothing reuses the same instance with zero allocation
+- **`nothingLongChain` is 10-50x faster than `justLongChain`** — sustained reuse benefit over 50-deep chains
+- `nothingFilter` and `nothingFlatMap` should show similar reuse benefits
+- If Nothing operations allocate memory, instance reuse is broken
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*MaybeBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, expected ratios, and how to interpret results.
+~~~
+
 ---
 
 **Previous:** [List](list_monad.md)

@@ -3,8 +3,11 @@
 package org.higherkindedj.hkt.vstream;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
@@ -50,9 +53,10 @@ import org.jspecify.annotations.Nullable;
  * @param <A> The type of elements produced by this stream.
  * @see VTask
  * @see Step
+ * @see VStreamKind
  */
 @FunctionalInterface
-public interface VStream<A> {
+public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * Pulls the next step from this stream. This is the core operation: the consumer calls {@code
@@ -201,13 +205,17 @@ public interface VStream<A> {
    * @return A {@code VStream} wrapping the Java stream's iterator. Never null.
    * @throws NullPointerException if {@code stream} is null.
    */
-  static <A> VStream<A> fromStream(java.util.stream.Stream<A> stream) {
+  static <A> VStream<A> fromStream(Stream<A> stream) {
     Objects.requireNonNull(stream, "stream must not be null");
     return fromIterator(stream.iterator());
   }
 
   /**
    * Creates a stream that lazily consumes elements from the given iterator.
+   *
+   * <p><b>Warning:</b> The iterator is consumed incrementally. Once exhausted, the resulting {@code
+   * VStream} will be empty on subsequent traversals. If you need a reusable stream, prefer {@link
+   * #fromList(List)}.
    *
    * @param iterator The iterator to consume. Must not be null.
    * @param <A> The type of the elements.
@@ -587,8 +595,11 @@ public interface VStream<A> {
    * @return A new {@code VStream} with duplicates removed. Never null.
    */
   default VStream<A> distinct() {
-    Set<A> seen = new HashSet<>();
-    return filter(seen::add);
+    return VStream.defer(
+        () -> {
+          Set<A> seen = new HashSet<>();
+          return filter(seen::add);
+        });
   }
 
   // =====================================================================
@@ -1063,7 +1074,7 @@ public interface VStream<A> {
    * @return A {@link VTask} producing a {@link org.higherkindedj.hkt.trymonad.Try} of the element
    *     list. Never null.
    */
-  default VTask<org.higherkindedj.hkt.trymonad.Try<List<A>>> runSafe() {
+  default VTask<Try<List<A>>> runSafe() {
     return VTask.delay(() -> toList().runSafe());
   }
 
@@ -1072,7 +1083,7 @@ public interface VStream<A> {
    *
    * @return A {@link java.util.concurrent.CompletableFuture} of the element list. Never null.
    */
-  default java.util.concurrent.CompletableFuture<List<A>> runAsync() {
+  default CompletableFuture<List<A>> runAsync() {
     return toList().runAsync();
   }
 
@@ -1116,27 +1127,20 @@ final class FlatMapStream<A, B> implements VStream<B> {
 
   @Override
   public VTask<Step<B>> pull() {
-    return VTask.of(
-        () -> {
-          VStream<A> currentOuter = outer;
-
-          while (true) {
-            Step<A> outerStep = currentOuter.pull().run();
-            switch (outerStep) {
-              case Step.Emit<A> e -> {
-                VStream<B> inner = f.apply(e.value());
-                Objects.requireNonNull(inner, "flatMap function returned null stream");
-                VStream<B> combined = VStream.concat(inner, e.tail().flatMap(f));
-                // Return the first step from the combined stream
-                return combined.pull().run();
-              }
-              case Step.Skip<A> s -> currentOuter = s.tail();
-              case Step.Done<A> _ -> {
-                return new Step.Done<>();
-              }
-            }
-          }
-        });
+    return outer
+        .pull()
+        .flatMap(
+            step ->
+                switch (step) {
+                  case Step.Emit<A> e -> {
+                    VStream<B> inner = f.apply(e.value());
+                    Objects.requireNonNull(inner, "flatMap function returned null stream");
+                    yield VTask.succeed(
+                        new Step.Skip<>(VStream.concat(inner, e.tail().flatMap(f))));
+                  }
+                  case Step.Skip<A> s -> VTask.succeed(new Step.Skip<>(s.tail().flatMap(f)));
+                  case Step.Done<A> _ -> VTask.succeed(new Step.Done<>());
+                });
   }
 }
 
@@ -1159,51 +1163,39 @@ final class ZipWithStream<A, B, C> implements VStream<C> {
 
   @Override
   public VTask<Step<C>> pull() {
-    return VTask.of(
-        () -> {
-          // Advance left past any Skips
-          VStream<A> currentLeft = left;
-          Step<A> leftStep;
-          while (true) {
-            leftStep = currentLeft.pull().run();
-            switch (leftStep) {
-              case Step.Skip<A> s -> currentLeft = s.tail();
-              default -> {
-                // Emit or Done
-              }
-            }
-            if (!(leftStep instanceof Step.Skip<A>)) break;
-          }
-
-          if (leftStep instanceof Step.Done<A>) {
-            return new Step.Done<>();
-          }
-
-          Step.Emit<A> leftEmit = (Step.Emit<A>) leftStep;
-
-          // Advance right past any Skips
-          VStream<B> currentRight = right;
-          Step<B> rightStep;
-          while (true) {
-            rightStep = currentRight.pull().run();
-            switch (rightStep) {
-              case Step.Skip<B> s -> currentRight = s.tail();
-              default -> {
-                // Emit or Done
-              }
-            }
-            if (!(rightStep instanceof Step.Skip<B>)) break;
-          }
-
-          if (rightStep instanceof Step.Done<B>) {
-            return new Step.Done<>();
-          }
-
-          Step.Emit<B> rightEmit = (Step.Emit<B>) rightStep;
-
-          C combined = combiner.apply(leftEmit.value(), rightEmit.value());
-          return new Step.Emit<>(combined, leftEmit.tail().zipWith(rightEmit.tail(), combiner));
-        });
+    return left.pull()
+        .flatMap(
+            leftStep ->
+                switch (leftStep) {
+                  case Step.Skip<A> s ->
+                      VTask.succeed(new Step.Skip<>(s.tail().zipWith(right, combiner)));
+                  case Step.Done<A> _ -> VTask.succeed(new Step.Done<>());
+                  case Step.Emit<A> leftEmit ->
+                      right
+                          .pull()
+                          .flatMap(
+                              rightStep ->
+                                  switch (rightStep) {
+                                    case Step.Skip<B> s ->
+                                        // Re-emit leftEmit by wrapping in a single-element stream
+                                        // zipped with the skip tail
+                                        VTask.succeed(
+                                            new Step.Skip<>(
+                                                VStream.concat(
+                                                        VStream.of(leftEmit.value()),
+                                                        leftEmit.tail())
+                                                    .zipWith(s.tail(), combiner)));
+                                    case Step.Done<B> _ -> VTask.succeed(new Step.Done<>());
+                                    case Step.Emit<B> rightEmit -> {
+                                      C combined =
+                                          combiner.apply(leftEmit.value(), rightEmit.value());
+                                      yield VTask.succeed(
+                                          new Step.Emit<>(
+                                              combined,
+                                              leftEmit.tail().zipWith(rightEmit.tail(), combiner)));
+                                    }
+                                  });
+                });
   }
 }
 
