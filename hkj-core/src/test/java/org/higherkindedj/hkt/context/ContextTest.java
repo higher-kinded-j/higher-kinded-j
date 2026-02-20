@@ -4,9 +4,11 @@ package org.higherkindedj.hkt.context;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -140,12 +142,21 @@ class ContextTest {
       }
 
       @Test
-      @DisplayName("fail() should propagate checked exceptions")
-      void fail_shouldPropagateCheckedException() {
+      @DisplayName("fail() should wrap checked exceptions in ContextException")
+      void fail_shouldWrapCheckedException() {
         Exception checkedException = new Exception("checked exception");
         Context<String, String> ctx = Context.fail(checkedException);
 
-        assertThatThrownBy(ctx::run).isSameAs(checkedException);
+        assertThatThrownBy(ctx::run)
+            .isInstanceOf(ContextException.class)
+            .hasCause(checkedException);
+      }
+
+      @Test
+      @DisplayName("fail() should rethrow Errors directly")
+      void fail_shouldRethrowErrors() {
+        assertThatThrownBy(() -> Context.fail(new OutOfMemoryError("oom")))
+            .isInstanceOf(OutOfMemoryError.class);
       }
     }
 
@@ -417,6 +428,27 @@ class ContextTest {
             .isThrownBy(() -> ctx.recover(null))
             .withMessageContaining("recoveryFunction cannot be null");
       }
+
+      @Test
+      @DisplayName(
+          "recover() should auto-unwrap ContextException to reveal original checked exception")
+      void recover_shouldUnwrapContextException() {
+        IOException checkedCause = new IOException("disk full");
+        AtomicReference<Throwable> receivedError = new AtomicReference<>();
+
+        Context<String, String> ctx =
+            Context.<String, String>fail(checkedCause)
+                .recover(
+                    e -> {
+                      receivedError.set(e);
+                      return "recovered";
+                    });
+
+        String result = ctx.run();
+
+        assertThat(result).isEqualTo("recovered");
+        assertThat(receivedError.get()).isSameAs(checkedCause);
+      }
     }
 
     @Nested
@@ -455,6 +487,27 @@ class ContextTest {
         assertThatNullPointerException()
             .isThrownBy(() -> ctx.recoverWith(null))
             .withMessageContaining("recoveryFunction cannot be null");
+      }
+
+      @Test
+      @DisplayName(
+          "recoverWith() should auto-unwrap ContextException to reveal original checked exception")
+      void recoverWith_shouldUnwrapContextException() {
+        IOException checkedCause = new IOException("disk full");
+        AtomicReference<Throwable> receivedError = new AtomicReference<>();
+
+        Context<String, String> ctx =
+            Context.<String, String>fail(checkedCause)
+                .recoverWith(
+                    e -> {
+                      receivedError.set(e);
+                      return Context.succeed("recovered");
+                    });
+
+        String result = ctx.run();
+
+        assertThat(result).isEqualTo("recovered");
+        assertThat(receivedError.get()).isSameAs(checkedCause);
       }
 
       @Test
@@ -505,6 +558,39 @@ class ContextTest {
         assertThatNullPointerException()
             .isThrownBy(() -> ctx.mapError(null))
             .withMessageContaining("function cannot be null");
+      }
+
+      @Test
+      @DisplayName("mapError() should auto-unwrap ContextException for the error mapper function")
+      void mapError_shouldUnwrapContextException() {
+        IOException checkedCause = new IOException("disk full");
+        AtomicReference<Throwable> receivedError = new AtomicReference<>();
+
+        Context<String, String> ctx =
+            Context.<String, String>fail(checkedCause)
+                .mapError(
+                    e -> {
+                      receivedError.set(e);
+                      return new IllegalStateException("mapped: " + e.getMessage());
+                    });
+
+        assertThatThrownBy(ctx::run)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("mapped: disk full");
+        assertThat(receivedError.get()).isSameAs(checkedCause);
+      }
+
+      @Test
+      @DisplayName(
+          "mapError() should wrap checked exception returned by error mapper in ContextException")
+      void mapError_shouldWrapCheckedReturnedByMapper() {
+        Exception mappedChecked = new Exception("mapped checked");
+
+        Context<String, String> ctx =
+            Context.<String, String>fail(new RuntimeException("original"))
+                .mapError(e -> mappedChecked);
+
+        assertThatThrownBy(ctx::run).isInstanceOf(ContextException.class).hasCause(mappedChecked);
       }
     }
   }
@@ -719,15 +805,17 @@ class ContextTest {
       }
 
       @Test
-      @DisplayName("Failed record run() should sneaky throw checked exception")
-      void failed_runShouldSneakyThrowCheckedException() {
+      @DisplayName(
+          "Failed record run() should throw ContextException for wrapped checked exception")
+      void failed_runShouldThrowContextExceptionForWrappedChecked() {
         Exception checkedException = new Exception("checked exception");
-        Context.Failed<String, String> failed = new Context.Failed<>(checkedException);
+        ContextException wrapped = new ContextException(checkedException);
+        Context.Failed<String, String> failed = new Context.Failed<>(wrapped);
 
         assertThatThrownBy(failed::run)
-            .isSameAs(checkedException)
-            .isInstanceOf(Exception.class)
-            .hasMessage("checked exception");
+            .isInstanceOf(ContextException.class)
+            .isSameAs(wrapped)
+            .hasCause(checkedException);
       }
 
       @Test
@@ -822,17 +910,17 @@ class ContextTest {
       }
 
       @Test
-      @DisplayName("ErrorMapped record run() should sneaky throw mapped checked exception")
-      void errorMapped_runShouldSneakyThrowMappedCheckedException() {
+      @DisplayName(
+          "ErrorMapped record run() should wrap mapped checked exception in ContextException")
+      void errorMapped_runShouldWrapMappedCheckedException() {
         Context<String, String> source = Context.fail(new RuntimeException("original"));
         Exception checkedException = new Exception("mapped checked exception");
         Context.ErrorMapped<String, String> errorMapped =
             new Context.ErrorMapped<>(source, e -> checkedException);
 
         assertThatThrownBy(errorMapped::run)
-            .isSameAs(checkedException)
-            .isInstanceOf(Exception.class)
-            .hasMessage("mapped checked exception");
+            .isInstanceOf(ContextException.class)
+            .hasCause(checkedException);
       }
 
       @Test
@@ -1120,6 +1208,41 @@ class ContextTest {
       assertThatThrownBy(ctx::run)
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("mapped: chain error");
+    }
+
+    @Test
+    @DisplayName("Checked exception in flatMap chain should be wrapped in ContextException")
+    void checkedExceptionInFlatMapChainShouldBeWrapped() {
+      IOException checked = new IOException("io error");
+
+      Context<String, Integer> ctx =
+          Context.<String, Integer>succeed(1)
+              .flatMap(n -> Context.succeed(n + 1))
+              .flatMap(n -> Context.<String, Integer>fail(checked));
+
+      assertThatThrownBy(ctx::run).isInstanceOf(ContextException.class).hasCause(checked);
+    }
+
+    @Test
+    @DisplayName(
+        "recoverWith in evaluate should auto-unwrap ContextException for checked exceptions")
+    void recoverWithInEvaluateShouldUnwrapChecked() {
+      IOException checked = new IOException("io error");
+      AtomicReference<Throwable> receivedError = new AtomicReference<>();
+
+      Context<String, Integer> ctx =
+          Context.<String, Integer>succeed(1)
+              .flatMap(n -> Context.<String, Integer>fail(checked))
+              .recoverWith(
+                  e -> {
+                    receivedError.set(e);
+                    return Context.succeed(42);
+                  });
+
+      Integer result = ctx.run();
+
+      assertThat(result).isEqualTo(42);
+      assertThat(receivedError.get()).isSameAs(checked);
     }
   }
 }

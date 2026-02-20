@@ -48,6 +48,9 @@ public class TrampolineBenchmark {
   @Param({"100"})
   private int recursionDepth;
 
+  @Param({"50"})
+  private int chainDepth;
+
   private Trampoline<Integer> simpleDone;
   private Trampoline<Integer> simpleDefer;
 
@@ -143,7 +146,7 @@ public class TrampolineBenchmark {
   @Benchmark
   public Trampoline<Integer> longChainConstruction() {
     Trampoline<Integer> result = simpleDone;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result;
@@ -157,7 +160,7 @@ public class TrampolineBenchmark {
   @Benchmark
   public Integer longChainExecution() {
     Trampoline<Integer> result = simpleDone;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result.run();

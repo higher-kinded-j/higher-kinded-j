@@ -8,6 +8,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -35,6 +36,12 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
 public class VTaskBenchmark {
+
+  @Param({"50"})
+  private int chainDepth;
+
+  @Param({"50"})
+  private int recursionDepth;
 
   private VTask<Integer> pureVTask;
   private VTask<Integer> delayedVTask;
@@ -137,7 +144,7 @@ public class VTaskBenchmark {
   @Benchmark
   public VTask<Integer> longChainConstruction() {
     VTask<Integer> result = pureVTask;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result;
@@ -151,7 +158,7 @@ public class VTaskBenchmark {
   @Benchmark
   public Integer longChainExecution() {
     VTask<Integer> result = pureVTask;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < chainDepth; i++) {
       result = result.map(x -> x + 1);
     }
     return result.run();
@@ -207,7 +214,7 @@ public class VTaskBenchmark {
   @Benchmark
   public Integer deepRecursion() {
     VTask<Integer> result = VTask.succeed(0);
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < recursionDepth; i++) {
       result = result.flatMap(x -> VTask.succeed(x + 1));
     }
     return result.run();

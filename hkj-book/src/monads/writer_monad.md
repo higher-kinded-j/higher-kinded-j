@@ -244,5 +244,5 @@ The Higher-Kinded-J enables these operations to be performed generically using s
 
 ---
 
-**Previous:** [Validated](validated_monad.md)
+**Previous:** [VStream](vstream.md)
 **Next:** [Const](const_type.md)

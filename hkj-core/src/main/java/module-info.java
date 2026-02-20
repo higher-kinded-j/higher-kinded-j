@@ -46,5 +46,6 @@ module org.higherkindedj.core {
   exports org.higherkindedj.optics.fluent;
   exports org.higherkindedj.optics.focus;
   exports org.higherkindedj.hkt.vtask;
+  exports org.higherkindedj.hkt.vstream;
   exports org.higherkindedj.hkt.context;
 }
