@@ -277,7 +277,7 @@ Practice Scope patterns in [Tutorial: Scope & Resource](../tutorials/concurrency
 
 ~~~admonish abstract title="Further Reading"
 - [JEP 505: Structured Concurrency](https://openjdk.org/jeps/505) - The official OpenJDK proposal for Java's structured concurrency API
-- [Notes on structured concurrency, or: Go statement considered harmful](https://vorpus.org/blog/notes-on-structured-concurrency-or-go-statement-considered-harmful/) - Nathaniel J. Smith's influential 2018 article that popularized structured concurrency concepts
+- [Notes on structured concurrency, or: Go statement considered harmful](https://vorpus.org/blog/notes-on-structured-concurrency-or-go-statement-considered-harmful/) - Nathaniel J. Smith's influential 2018 article that popularised structured concurrency concepts
 - [Project Loom: Structured Concurrency in Java](https://rockthejvm.com/articles/structured-concurrency-in-java) - Practical tutorial with Java examples
 ~~~
 

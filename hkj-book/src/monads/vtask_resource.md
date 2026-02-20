@@ -331,11 +331,6 @@ Practice Resource patterns in [Tutorial: Scope & Resource](../tutorials/concurre
 - [IO Monad](io_monad.md) - Platform thread-based alternative with similar patterns
 ~~~
 
-~~~admonish abstract title="Further Reading"
-- [Resource Handling in Cats Effect](https://www.baeldung.com/scala/cats-effect-resource-handling) - Baeldung tutorial comparing bracket vs Resource patterns in Scala's Cats Effect
-- [Cats Effect Resource](https://typelevel.org/cats-effect/docs/std/resource) - Typelevel's official documentation for the Resource type that inspired HKJ's design
-~~~
-
 ---
 
 **Previous:** [Structured Concurrency](vtask_scope.md)

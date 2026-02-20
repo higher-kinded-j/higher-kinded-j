@@ -447,7 +447,7 @@ The counter stays at zero after pipeline construction. It only advances when `to
 | Reusability | Reusable | Single-use | Reusable |
 | Infinite streams | Yes (take, takeWhile) | Yes (limit) | No |
 | Error handling | recover, recoverWith | Exceptions | Via effect type |
-| HKT integration | Stage 2 | No | Yes |
+| HKT integration | TBC | No | Yes |
 | Effect composition | VTask per pull | None | Via Path API |
 
 **Use VStream when** you need lazy streaming with virtual thread execution, effectful
