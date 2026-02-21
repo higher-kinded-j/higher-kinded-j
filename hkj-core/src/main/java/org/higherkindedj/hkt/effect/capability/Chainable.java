@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.ReaderPath;
 import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.hkt.effect.TrampolinePath;
+import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.effect.WithStatePath;
 import org.higherkindedj.hkt.effect.WriterPath;
@@ -66,6 +67,7 @@ public sealed interface Chainable<A> extends Combinable<A>
         ListPath,
         NonDetPath,
         StreamPath,
+        VStreamPath,
         TrampolinePath,
         FreePath {
 

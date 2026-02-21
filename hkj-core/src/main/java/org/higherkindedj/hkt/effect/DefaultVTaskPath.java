@@ -16,7 +16,6 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
-import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -48,13 +47,9 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
 
   @Override
   public A unsafeRun() {
-    try {
-      return value.run();
-    } catch (RuntimeException | Error e) {
-      throw e;
-    } catch (Throwable t) {
-      throw new VTaskExecutionException(t);
-    }
+    // VTask.run() already wraps checked exceptions in VTaskExecutionException,
+    // so it can only throw RuntimeException or Error — no additional wrapping needed.
+    return value.run();
   }
 
   @Override
