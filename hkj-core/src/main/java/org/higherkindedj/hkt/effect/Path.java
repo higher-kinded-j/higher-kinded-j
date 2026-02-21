@@ -33,6 +33,7 @@ import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.writer.Writer;
 import org.jspecify.annotations.Nullable;
@@ -134,6 +135,7 @@ import org.jspecify.annotations.Nullable;
  * @see CompletableFuturePath
  * @see NonDetPath
  * @see StreamPath
+ * @see VStreamPath
  * @see TrampolinePath
  * @see FreePath
  * @see FreeApPath
@@ -984,6 +986,131 @@ public final class Path {
    */
   public static <A> StreamPath<A> streamIterate(A seed, UnaryOperator<A> f) {
     return StreamPath.iterate(seed, f);
+  }
+
+  // ===== VStreamPath factory methods =====
+
+  /**
+   * Creates a VStreamPath from an existing VStream.
+   *
+   * <p>The VStream is wrapped directly; no materialisation occurs.
+   *
+   * @param stream the VStream to wrap; must not be null
+   * @param <A> the element type
+   * @return a VStreamPath wrapping the VStream
+   * @throws NullPointerException if stream is null
+   */
+  public static <A> VStreamPath<A> vstream(VStream<A> stream) {
+    Objects.requireNonNull(stream, "stream must not be null");
+    return new DefaultVStreamPath<>(stream);
+  }
+
+  /**
+   * Creates a VStreamPath from the given elements.
+   *
+   * @param elements the elements to include; must not be null
+   * @param <A> the element type
+   * @return a VStreamPath containing the elements
+   * @throws NullPointerException if elements is null
+   */
+  @SafeVarargs
+  public static <A> VStreamPath<A> vstreamOf(A... elements) {
+    Objects.requireNonNull(elements, "elements must not be null");
+    return new DefaultVStreamPath<>(VStream.of(elements));
+  }
+
+  /**
+   * Creates a VStreamPath from a list.
+   *
+   * <p>The list is iterated lazily; it is not copied.
+   *
+   * @param list the list to stream; must not be null
+   * @param <A> the element type
+   * @return a VStreamPath streaming the list
+   * @throws NullPointerException if list is null
+   */
+  public static <A> VStreamPath<A> vstreamFromList(List<A> list) {
+    Objects.requireNonNull(list, "list must not be null");
+    return new DefaultVStreamPath<>(VStream.fromList(list));
+  }
+
+  /**
+   * Creates a VStreamPath with a single element.
+   *
+   * @param value the single element
+   * @param <A> the element type
+   * @return a VStreamPath containing one element
+   */
+  public static <A> VStreamPath<A> vstreamPure(A value) {
+    return new DefaultVStreamPath<>(VStream.of(value));
+  }
+
+  /**
+   * Creates an empty VStreamPath.
+   *
+   * @param <A> the element type
+   * @return an empty VStreamPath
+   */
+  public static <A> VStreamPath<A> vstreamEmpty() {
+    return new DefaultVStreamPath<>(VStream.empty());
+  }
+
+  /**
+   * Creates an infinite VStreamPath by iteration.
+   *
+   * <p><b>Warning:</b> Use {@code take()} to limit infinite streams.
+   *
+   * @param seed the initial value
+   * @param f the iteration function; must not be null
+   * @param <A> the element type
+   * @return an infinite VStreamPath
+   * @throws NullPointerException if f is null
+   */
+  public static <A> VStreamPath<A> vstreamIterate(A seed, UnaryOperator<A> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVStreamPath<>(VStream.iterate(seed, f));
+  }
+
+  /**
+   * Creates an infinite VStreamPath from a supplier.
+   *
+   * <p><b>Warning:</b> Use {@code take()} to limit infinite streams.
+   *
+   * @param supplier the element supplier; must not be null
+   * @param <A> the element type
+   * @return an infinite VStreamPath
+   * @throws NullPointerException if supplier is null
+   */
+  public static <A> VStreamPath<A> vstreamGenerate(Supplier<A> supplier) {
+    Objects.requireNonNull(supplier, "supplier must not be null");
+    return new DefaultVStreamPath<>(VStream.generate(supplier));
+  }
+
+  /**
+   * Creates a VStreamPath of integers in the range {@code [start, end)}.
+   *
+   * @param startInclusive the inclusive start of the range
+   * @param endExclusive the exclusive end of the range
+   * @return a VStreamPath of integers
+   */
+  public static VStreamPath<Integer> vstreamRange(int startInclusive, int endExclusive) {
+    return new DefaultVStreamPath<>(VStream.range(startInclusive, endExclusive));
+  }
+
+  /**
+   * Creates a VStreamPath by effectful unfolding from an initial state.
+   *
+   * @param seed the initial state
+   * @param f a function producing the next value and state, or empty to complete; must not be null
+   * @param <S> the state type
+   * @param <A> the element type
+   * @return a VStreamPath produced by unfolding
+   * @throws NullPointerException if f is null
+   */
+  public static <S, A> VStreamPath<A> vstreamUnfold(
+      S seed, Function<S, VTask<Optional<VStream.Seed<A, S>>>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVStreamPath<>(VStream.unfold(seed, f));
   }
 
   // ===== PathRegistry integration =====

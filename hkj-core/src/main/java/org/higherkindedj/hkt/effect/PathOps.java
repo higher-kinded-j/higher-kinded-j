@@ -536,18 +536,14 @@ public final class PathOps {
               Throwable lastError = null;
               for (VTaskPath<A> path : paths) {
                 Try<A> result = path.runSafe();
-                if (result.isSuccess()) {
-                  // Use fold to extract value without throwing checked exception.
-                  // Coverage note: The failure branch (cause -> null) is unreachable here
-                  // because we already verified result.isSuccess() is true. This is inherent
-                  // to the fold API which requires both branches even when one is impossible.
-                  return result.fold(a -> a, cause -> null);
+                // Use pattern matching on the sealed Try type to extract values
+                // without dead lambda branches that fold() would require.
+                switch (result) {
+                  case Try.Success<A>(var value) -> {
+                    return value;
+                  }
+                  case Try.Failure<A>(var cause) -> lastError = cause;
                 }
-                // Extract the cause from the Failure using fold.
-                // Coverage note: The success branch (a -> null) is unreachable here
-                // because we only reach this line when result.isSuccess() is false.
-                // This is inherent to the fold API which requires both branches.
-                lastError = result.fold(a -> null, cause -> cause);
               }
               // VTaskPath.unsafeRun() only throws RuntimeException or Error
               // (checked exceptions are wrapped), so lastError will always be one of these
@@ -1338,5 +1334,66 @@ public final class PathOps {
 
     List<A> elements = Traversals.getAll(each.each(), structure);
     return traverseTry(elements, f);
+  }
+
+  // ===== VStreamPath Operations =====
+
+  /**
+   * Concatenates a list of VStreamPaths into a single VStreamPath.
+   *
+   * <p>All elements from the first path are emitted before elements from the second, and so on.
+   *
+   * @param paths the list of VStreamPaths to concatenate; must not be null
+   * @param <A> the element type
+   * @return a VStreamPath containing all elements in order
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> VStreamPath<A> concatVStream(List<VStreamPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return Path.vstreamEmpty();
+    }
+
+    return flattenVStream(Path.vstreamFromList(paths));
+  }
+
+  /**
+   * Maps a function over a list and concatenates the resulting VStreamPaths.
+   *
+   * <p>Applies the function to each element and concatenates all resulting streams in order.
+   *
+   * @param items the items to traverse; must not be null
+   * @param f the function to apply; must not be null
+   * @param <A> the input element type
+   * @param <B> the output element type
+   * @return a VStreamPath containing all elements from all mapped streams
+   * @throws NullPointerException if items or f is null
+   */
+  public static <A, B> VStreamPath<B> traverseVStream(
+      List<A> items, Function<A, VStreamPath<B>> f) {
+    Objects.requireNonNull(items, "items must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    if (items.isEmpty()) {
+      return Path.vstreamEmpty();
+    }
+
+    return flattenVStream(Path.vstreamFromList(items).map(f));
+  }
+
+  /**
+   * Flattens a VStreamPath of VStreamPaths by concatenating all inner streams.
+   *
+   * <p>Elements from each inner stream are emitted in order.
+   *
+   * @param nested the nested VStreamPath to flatten; must not be null
+   * @param <A> the element type
+   * @return a flattened VStreamPath
+   * @throws NullPointerException if nested is null
+   */
+  public static <A> VStreamPath<A> flattenVStream(VStreamPath<VStreamPath<A>> nested) {
+    Objects.requireNonNull(nested, "nested must not be null");
+    return nested.via(inner -> inner);
   }
 }

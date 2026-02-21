@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.vstream.VStream;
@@ -49,7 +50,7 @@ public class VStreamBenchmark {
 
   @Setup
   public void setup() {
-    sourceList = new java.util.ArrayList<>(streamSize);
+    sourceList = new ArrayList<>(streamSize);
     for (int i = 0; i < streamSize; i++) {
       sourceList.add(i);
     }

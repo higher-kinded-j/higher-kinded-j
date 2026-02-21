@@ -65,6 +65,7 @@ class EffectPathTestingRules {
           "CompletableFuturePath",
           "ListPath",
           "StreamPath",
+          "VStreamPath",
           "NonDetPath");
 
   @BeforeAll
