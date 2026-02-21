@@ -244,5 +244,5 @@ The Higher-Kinded-J enables these operations to be performed generically using s
 
 ---
 
-**Previous:** [VStream](vstream.md)
+**Previous:** [HKT and Type Classes](vstream_hkt.md)
 **Next:** [Const](const_type.md)

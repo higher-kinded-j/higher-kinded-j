@@ -20,6 +20,7 @@
     - [FreePath](effect/path_free.md)
     - [FreeApPath](effect/path_freeap.md)
     - [VTaskPath](effect/path_vtask.md)
+    - [VStreamPath](effect/path_vstream.md)
   - [Composition Patterns](effect/composition.md)
   - [ForPath Comprehension](effect/forpath_comprehension.md)
   - [Type Conversions](effect/conversions.md)
@@ -173,6 +174,7 @@
     - [Structured Concurrency](monads/vtask_scope.md)
     - [Resource Management](monads/vtask_resource.md)
   - [VStream](monads/vstream.md)
+    - [HKT and Type Classes](monads/vstream_hkt.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 

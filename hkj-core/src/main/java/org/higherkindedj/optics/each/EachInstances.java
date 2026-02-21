@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.FocusPaths;
@@ -266,6 +267,33 @@ public final class EachInstances {
       return TraverseTraversals.forStream();
     }
     // No indexed traversal for Stream
+  }
+
+  // ===== VStream =====
+
+  /**
+   * Creates an {@link Each} instance for {@link VStream} types.
+   *
+   * <p>The returned {@code Each} traverses all elements by materialising the stream. Does not
+   * support indexed access.
+   *
+   * <p><strong>Warning:</strong> The VStream is fully evaluated during traversal. Only use with
+   * finite streams. Infinite streams will cause non-termination.
+   *
+   * @param <A> The element type of the VStream
+   * @return An {@code Each} instance for VStreams
+   * @see VStreamTraversals#forVStream()
+   */
+  public static <A> Each<VStream<A>, A> vstreamEach() {
+    return new VStreamEach<>();
+  }
+
+  private static final class VStreamEach<A> implements Each<VStream<A>, A> {
+    @Override
+    public Traversal<VStream<A>, A> each() {
+      return VStreamTraversals.forVStream();
+    }
+    // No indexed traversal for VStream
   }
 
   // ===== String (Characters) =====

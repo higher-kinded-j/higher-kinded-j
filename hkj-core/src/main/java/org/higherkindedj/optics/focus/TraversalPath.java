@@ -22,6 +22,7 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.StreamPath;
+import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
@@ -891,6 +892,32 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    */
   default StreamPath<A> toStreamPath(S source) {
     return Path.streamFromList(getAll(source));
+  }
+
+  /**
+   * Extracts all focused values and wraps them in a {@link VStreamPath}.
+   *
+   * <p>This bridges from the optics domain to the effect domain using lazy, pull-based streaming
+   * semantics with virtual thread execution. The focused values are materialised into a list and
+   * then wrapped in a VStream.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * TraversalPath<Company, Employee> employeesPath = CompanyFocus.employees();
+   * Company company = new Company(List.of(emp1, emp2, emp3));
+   *
+   * // Extract employees as a VStreamPath for virtual-thread processing
+   * VStreamPath<String> names = employeesPath.toVStreamPath(company)
+   *     .map(Employee::name)
+   *     .filter(n -> n.startsWith("A"));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @return a VStreamPath streaming all focused values
+   */
+  default VStreamPath<A> toVStreamPath(S source) {
+    return Path.vstreamFromList(getAll(source));
   }
 
   /**
