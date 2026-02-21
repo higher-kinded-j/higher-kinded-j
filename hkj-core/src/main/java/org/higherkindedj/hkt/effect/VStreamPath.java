@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -16,8 +17,11 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A fluent path wrapper for {@link VStream} values.
@@ -391,4 +395,38 @@ public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStre
    * @return a NonDetPath containing the materialised elements
    */
   NonDetPath<A> toNonDetPath();
+
+  // ===== Static factory methods =====
+
+  /**
+   * Creates a VStreamPath from a source structure and an {@link Each} instance.
+   *
+   * <p>This factory method bridges from the optics domain to the effect domain by extracting all
+   * elements targeted by the Each instance's traversal and wrapping them in a VStreamPath.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * Each<List<String>, String> listEach = EachInstances.listEach();
+   * List<String> names = List.of("Alice", "Bob", "Charlie");
+   *
+   * VStreamPath<String> namePath = VStreamPath.fromEach(names, listEach);
+   * List<String> upper = namePath.map(String::toUpperCase).toList().unsafeRun();
+   * // ["ALICE", "BOB", "CHARLIE"]
+   * }</pre>
+   *
+   * @param source the source structure to extract elements from; must not be null
+   * @param each the Each instance providing the traversal; must not be null
+   * @param <S> the type of the source structure
+   * @param <A> the element type within the structure
+   * @return a VStreamPath containing all traversed elements
+   * @throws NullPointerException if source or each is null
+   */
+  static <S, A> VStreamPath<A> fromEach(S source, Each<S, A> each) {
+    Objects.requireNonNull(source, "source must not be null");
+    Objects.requireNonNull(each, "each must not be null");
+    Traversal<S, A> traversal = each.each();
+    List<A> elements = Traversals.getAll(traversal, source);
+    return Path.vstreamFromList(elements);
+  }
 }

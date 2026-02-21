@@ -447,7 +447,7 @@ The counter stays at zero after pipeline construction. It only advances when `to
 | Reusability | Reusable | Single-use | Reusable |
 | Infinite streams | Yes (take, takeWhile) | Yes (limit) | No |
 | Error handling | recover, recoverWith | Exceptions | Via effect type |
-| HKT integration | TBC | No | Yes |
+| HKT integration | Yes (Functor, Monad, Traverse) | No | Yes |
 | Effect composition | VTask per pull | None | Via Path API |
 
 **Use VStream when** you need lazy streaming with virtual thread execution, effectful
@@ -486,12 +486,15 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 
 
 ~~~admonish tip title="See Also"
+- [HKT and Type Classes](vstream_hkt.md) - VStream's type class instances for generic programming
+- [VStreamPath](../effect/path_vstream.md) - Fluent Effect Path wrapper for VStream
 - [VTask](vtask_monad.md) - The single-value effect type that powers VStream pulls
 - [VTaskPath](../effect/path_vtask.md) - Fluent Path API wrapper for VTask
 - [Stream](stream_monad.md) - Eager list-based streaming
+- [Each Typeclass](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)
 ~~~
 
 ---
 
 **Previous:** [Resource Management](vtask_resource.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [HKT and Type Classes](vstream_hkt.md)

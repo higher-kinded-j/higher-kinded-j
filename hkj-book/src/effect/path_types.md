@@ -94,6 +94,15 @@ multiple APIs in parallel, or processing streams of events.
 simple blocking code that scales to millions of concurrent tasks without
 the complexity of reactive streams.
 
+### _"I need lazy streaming with virtual threads"_
+
+You have data arriving from paginated APIs, sensors, or infinite sequences,
+and you want to process it lazily without materialising everything in memory.
+
+**Reach for [`VStreamPath`](path_vstream.md)** for pull-based streaming on virtual
+threads. Elements are produced one at a time, the consumer controls the pace,
+and terminal operations bridge back to `VTaskPath`.
+
 ### _"I need stack-safe recursion"_
 
 Deep recursive algorithms that would blow the stack with direct recursion.
@@ -132,6 +141,7 @@ with a `Monad` instance.
 | [`TryPath<A>`](path_try.md) | `Try<A>` | `Throwable` | Immediate | Exception wrapping |
 | [`IOPath<A>`](path_io.md) | `IO<A>` | `Throwable` | **Deferred** | Side effects |
 | [`VTaskPath<A>`](path_vtask.md) | `VTask<A>` | `Throwable` | **Deferred** | Virtual thread concurrency |
+| [`VStreamPath<A>`](path_vstream.md) | `VStream<A>` | Via VTask | **Lazy pull** | Lazy streaming on virtual threads |
 | [`ValidationPath<E, A>`](path_validation.md) | `Validated<E, A>` | `E` (accumulated) | Immediate | Form validation |
 | [`IdPath<A>`](path_id.md) | `Id<A>` | None (always succeeds) | Immediate | Pure values |
 | [`OptionalPath<A>`](path_optional.md) | `Optional<A>` | None (absence) | Immediate | Java stdlib bridge |
@@ -166,6 +176,7 @@ These types describe computations without executing them:
 
 - **[IOPath](path_io.md)** - Side effects, runs when you call `unsafeRun()`
 - **[VTaskPath](path_vtask.md)** - Virtual thread concurrency, runs when you call `run()`
+- **[VStreamPath](path_vstream.md)** - Lazy pull-based streaming on virtual threads
 - **[TrampolinePath](path_trampoline.md)** - Stack-safe recursion
 
 ### DSL Building
@@ -190,6 +201,7 @@ These types support building domain-specific languages:
 | Wrapping exception-throwing code | `TryPath` | Exception → functional bridge |
 | Side effects to defer | `IOPath` | Lazy, referential transparency |
 | Concurrent operations at scale | `VTaskPath` | Virtual threads, simple blocking code |
+| Lazy streaming with virtual threads | `VStreamPath` | Pull-based, infinite-safe, backpressure |
 | Need ALL validation errors | `ValidationPath` | Error accumulation |
 | Bridging Java's Optional | `OptionalPath` | Stdlib compatibility |
 | Always succeeds, pure value | `IdPath` | Generic/testing contexts |

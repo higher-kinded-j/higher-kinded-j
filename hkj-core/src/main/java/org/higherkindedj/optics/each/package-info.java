@@ -22,6 +22,7 @@
  *   <tr><td>{@code Validated<E,A>}</td><td>{@code validatedEach()}</td><td>No</td><td>-</td></tr>
  *   <tr><td>{@code A[]}</td><td>{@code arrayEach()}</td><td>Yes</td><td>{@code Integer}</td></tr>
  *   <tr><td>{@code Stream<A>}</td><td>{@code streamEach()}</td><td>No</td><td>-</td></tr>
+ *   <tr><td>{@code VStream<A>}</td><td>{@code vstreamEach()}</td><td>No</td><td>-</td></tr>
  *   <tr><td>{@code String}</td><td>{@code stringCharsEach()}</td><td>Yes</td><td>{@code Integer}</td></tr>
  *   <tr><td>{@code Kind<F,A>}</td><td>{@code fromTraverse(Traverse)}</td><td>No</td><td>-</td></tr>
  * </table>

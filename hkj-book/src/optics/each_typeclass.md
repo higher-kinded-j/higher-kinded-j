@@ -8,7 +8,7 @@
 
 ~~~admonish info title="What You'll Learn"
 - How the `Each` type class provides canonical traversals for container types
-- Using `EachInstances` for Java collections (List, Set, Map, Optional, arrays, Stream, String)
+- Using `EachInstances` for Java collections (List, Set, Map, Optional, arrays, Stream, VStream, String)
 - Using `EachExtensions` for HKT types (Maybe, Either, Try, Validated)
 - Indexed traversal support via `eachWithIndex()` for position-aware operations
 - Integration with Focus DSL using `.each(Each)` method
@@ -108,6 +108,7 @@ The interface is simple by design. Implement `each()` to provide a traversal; op
 │  Optional<A>   │   ✓     │       ✗         │     -          │
 │  A[]           │   ✓     │       ✓         │  Integer       │
 │  Stream<A>     │   ✓     │       ✗         │     -          │
+│  VStream<A>    │   ✓     │       ✗         │     -          │
 │  String        │   ✓     │       ✓         │  Integer       │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -132,6 +133,9 @@ Each<Integer[], Integer> arrayEach = EachInstances.arrayEach();
 
 // Stream traversal (consumed during traversal)
 Each<Stream<String>, String> streamEach = EachInstances.streamEach();
+
+// VStream traversal (materialises during traversal; finite streams only)
+Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
 
 // String character traversal with index support
 Each<String, Character> stringEach = EachInstances.stringCharsEach();
@@ -414,7 +418,7 @@ User updated = allTasks.modifyAll(Task::markReviewed, user);
 
 ~~~admonish info title="Key Takeaways"
 * **Each<S, A>** provides a canonical `Traversal<S, A>` for any container type
-* **EachInstances** covers Java collections: List, Set, Map, Optional, arrays, Stream, String
+* **EachInstances** covers Java collections: List, Set, Map, Optional, arrays, Stream, VStream, String
 * **EachExtensions** covers HKT types: Maybe, Either, Try, Validated
 * **eachWithIndex()** returns an `IndexedTraversal` when the container supports meaningful indices
 * **Focus DSL integration** via `.each(Each)` enables fluent navigation through custom containers
