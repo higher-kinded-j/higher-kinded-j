@@ -29,8 +29,32 @@ import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTMonad;
 import org.higherkindedj.hkt.tuple.Tuple3;
+import org.higherkindedj.optics.Lens;
 
+/**
+ * Demonstrates For-comprehensions with various monads.
+ *
+ * <p>Examples include:
+ *
+ * <ul>
+ *   <li>List monad with filtering
+ *   <li>Maybe monad with short-circuiting
+ *   <li>StateT monad transformer for stateful computations
+ *   <li>Extended arities (6-8 step comprehensions)
+ *   <li>Bridging from For to ForState with toState()
+ * </ul>
+ */
 public class ForComprehensionExample {
+
+  // --- Domain model for toState bridge example ---
+
+  record Dashboard(String user, int count, boolean ready) {}
+
+  static final Lens<Dashboard, Boolean> readyLens =
+      Lens.of(Dashboard::ready, (d, v) -> new Dashboard(d.user(), d.count(), v));
+
+  static final Lens<Dashboard, Integer> countLens =
+      Lens.of(Dashboard::count, (d, v) -> new Dashboard(d.user(), v, d.ready()));
 
   public static void main(String[] args) {
     System.out.println("--- For Comprehension with ListMonad ---");
@@ -41,6 +65,8 @@ public class ForComprehensionExample {
     stateTExample();
     System.out.println("\n--- For Comprehension with Extended Arities (6+) ---");
     highArityExample();
+    System.out.println("\n--- For → ForState Bridge with toState() ---");
+    toStateBridgeExample();
   }
 
   private static void listExample() {
@@ -172,5 +198,66 @@ public class ForComprehensionExample {
 
     System.out.println("8-step result: " + IdKindHelper.ID.unwrap(eightStep));
     // 8-step result: result=Bob#300 (len 7)
+  }
+
+  /**
+   * Demonstrates the toState() bridge that transitions from a For comprehension (tuple-based value
+   * accumulation) into a ForState comprehension (named state with lenses).
+   *
+   * <p>This is ideal for workflows that start by gathering values and then need to build and refine
+   * a structured record.
+   */
+  private static void toStateBridgeExample() {
+    final IdMonad idMonad = IdMonad.instance();
+    final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+
+    // 1. Basic bridge: gather values with For, then build a record with ForState
+    Kind<IdKind.Witness, String> basic =
+        For.from(idMonad, Id.of("Alice"))
+            .from(name -> Id.of(name.length()))
+            .toState((name, count) -> new Dashboard(name, count, false))
+            .modify(countLens, c -> c * 10)
+            .update(readyLens, true)
+            .yield(d -> d.user() + ": count=" + d.count() + ", ready=" + d.ready());
+
+    System.out.println("  Basic bridge: " + IdKindHelper.ID.unwrap(basic));
+    // Basic bridge: Alice: count=50, ready=true
+
+    // 2. Bridge with filtering: MonadZero preserves when() across the transition
+    Kind<MaybeKind.Witness, Dashboard> filtered =
+        For.from(maybeMonad, MAYBE.just("Grace"))
+            .from(name -> MAYBE.just(8))
+            .toState((name, count) -> new Dashboard(name, count, false))
+            .when(d -> d.count() > 5) // guard on the state record
+            .update(readyLens, true)
+            .yield();
+
+    System.out.println("  Filtered bridge (passes): " + MAYBE.narrow(filtered));
+    // Filtered bridge (passes): Just(Dashboard[user=Grace, count=8, ready=true])
+
+    // 3. Bridge with pre-filtering: filter before transitioning to ForState
+    Kind<MaybeKind.Witness, Dashboard> preFiltered =
+        For.from(maybeMonad, MAYBE.just("Iris"))
+            .when(name -> name.startsWith("I")) // filter in For phase
+            .from(name -> MAYBE.just(name.length()))
+            .toState((name, len) -> new Dashboard(name, len, false))
+            .update(readyLens, true)
+            .yield();
+
+    System.out.println("  Pre-filtered bridge: " + MAYBE.narrow(preFiltered));
+    // Pre-filtered bridge: Just(Dashboard[user=Iris, count=4, ready=true])
+
+    // 4. Full pipeline: three-step For accumulation into ForState lens pipeline
+    Kind<IdKind.Witness, String> fullPipeline =
+        For.from(idMonad, Id.of("data"))
+            .from(d -> Id.of(d.length()))
+            .let(t -> t._1() + ":" + t._2())
+            .toState((data, len, label) -> new Dashboard(label, len, false))
+            .modify(countLens, c -> c * 10)
+            .update(readyLens, true)
+            .yield(d -> d.user() + "|" + d.count() + "|" + d.ready());
+
+    System.out.println("  Full pipeline: " + IdKindHelper.ID.unwrap(fullPipeline));
+    // Full pipeline: data:4|40|true
   }
 }

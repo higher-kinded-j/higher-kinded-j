@@ -1,10 +1,11 @@
 # Order Workflow: Effect Composition
 
-This page covers the core composition patterns used in the order workflow: typed error hierarchies, `ForPath` comprehensions for flat multi-step composition, sub-comprehensions for encapsulating related steps, and recovery strategies.
+This page covers the core composition patterns used in the order workflow: typed error hierarchies, the `For` → `toState()` → `ForState` pattern for named-field multi-step composition, sub-comprehensions for encapsulating related steps, and recovery strategies.
 
 ~~~admonish info title="What You'll Learn"
 - Modelling domain errors with sealed interfaces for exhaustive handling
-- Composing multi-step workflows with `ForPath` comprehensions (up to 12 steps)
+- Composing multi-step workflows with `For` → `toState()` → `ForState` for named field access
+- Understanding the two-phase gather/enrich workflow pattern
 - Encapsulating sub-workflows as composable building blocks
 - Implementing recovery patterns for non-fatal errors
 ~~~
@@ -91,99 +92,153 @@ Add a new error type, and the compiler tells you everywhere that needs updating.
 
 ---
 
-## Composing the Workflow with ForPath
+## Composing the Workflow with For → toState → ForState
 
-`ForPath` is the primary composition tool for multi-step workflows. It provides a flat, readable syntax where each step chains sequentially, with automatic error propagation and all intermediate values accessible via the accumulated tuple.
+The order workflow uses a two-phase composition pattern. The `For` comprehension gathers initial values (tuple positions are fine at low arity), then `toState()` bridges to `ForState` where lenses provide named field access for the remaining steps.
 
-### The Full Workflow as a Single Comprehension
-
-With arity-12 support, the entire order processing pipeline — all eight steps — composes into one flat `ForPath` comprehension:
+### The Full Workflow
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
+    EitherMonad<OrderError> monad = EitherMonad.instance();
 
-    return ForPath.from(validateShippingAddress(request.shippingAddress()))  // 1. address
-        .from(validAddress -> lookupAndValidateCustomer(customerId))         // 2. customer
-        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))    // 3. order
-        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))       // 4. reservation
-        .from(t -> applyDiscounts(t._3(), t._2()))                           // 5. discount
-        .from(t -> processPayment(t._3(), t._5()))                           // 6. payment
-        .from(t -> createShipment(t._3(), t._1()))                           // 7. shipment
-        .from(t -> sendNotifications(t._3(), t._2(), t._5()))                // 8. notification
-        .yield((validAddress, customer, order, reservation, discount,
-                payment, shipment, notification) ->
-            buildOrderResult(order, discount, payment, shipment, notification));
+    Kind<EitherKind.Witness<OrderError>, OrderResult> result =
+        // Phase 1 (Gather): accumulate address, customer, order via For
+        For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
+            .from(addr -> lift(lookupAndValidateCustomer(customerId)))
+            .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+
+            // Bridge: construct named state from the three gathered values
+            .toState((address, customer, order) ->
+                ProcessingState.initial(address, customer, order))
+
+            // Phase 2 (Enrich): named field access via ForState + lenses
+            .fromThen(s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
+                reservationLens)
+            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())),
+                discountLens)
+            .fromThen(s -> lift(processPayment(s.order(), s.discount())),
+                paymentLens)
+            .fromThen(s -> lift(createShipment(s.order(), s.address())),
+                shipmentLens)
+            .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
+                notificationLens)
+            .yield(OrderWorkflow::toOrderResult);
+
+    return Path.either(EITHER.narrow(result));
 }
 ```
 
-Each step:
-1. Receives the accumulated tuple of all previous results (or just the first value at step 2)
-2. Returns a new `EitherPath`
-3. Automatically propagates errors (if any previous step failed, subsequent steps are skipped)
+### Two-Phase Design
 
-The final `yield` destructures all eight values by name, making the result assembly fully readable.
+The workflow has a natural two-phase shape:
 
-### Tuple Position Reference
+1. **Gather phase** (For comprehension, steps 1-3): Accumulate address, customer, and order. At arity 3, tuple positions `t._1()` and `t._2()` are still clear.
+2. **Enrich phase** (ForState, steps 4-8): The `toState()` bridge constructs a `ProcessingState` record from the gathered values. Each subsequent `fromThen()` reads its inputs by name and stores its output via a lens.
 
-Within each `from` lambda, positions map to earlier steps:
+This split is what makes the pattern powerful. The gather phase uses `For` for concise accumulation. The enrich phase uses `ForState` for self-documenting named access. The bridge connects them seamlessly.
 
-| Position | Value | Type |
-|----------|-------|------|
-| `_1()` | validAddress | `ValidatedShippingAddress` |
-| `_2()` | customer | `Customer` |
-| `_3()` | order | `ValidatedOrder` |
-| `_4()` | reservation | `InventoryReservation` |
-| `_5()` | discount | `DiscountResult` |
-| `_6()` | payment | `PaymentConfirmation` |
-| `_7()` | shipment | `ShipmentInfo` |
+### Named State Replaces Tuple Positions
+
+The `ProcessingState` record gives every intermediate value a name:
+
+```java
+record ProcessingState(
+    ValidatedShippingAddress address,
+    Customer customer,
+    ValidatedOrder order,
+    InventoryReservation reservation,
+    DiscountResult discount,
+    PaymentConfirmation payment,
+    ShipmentInfo shipment,
+    NotificationResult notification) {
+
+    static ProcessingState initial(
+        ValidatedShippingAddress address, Customer customer, ValidatedOrder order) {
+      return new ProcessingState(address, customer, order, null, null, null, null, null);
+    }
+}
+```
+
+After `toState()`, the `fromThen()` steps access earlier results by name — `s.order()`, `s.customer()`, `s.discount()` — instead of by tuple position. This makes the code self-documenting: you can read the workflow without a position reference table.
+
+### Lenses Connect ForState to the State Record
+
+Each `fromThen(function, lens)` call runs a monadic operation and stores the result via a lens:
+
+```java
+// In production: @GenerateLenses on ProcessingState generates these automatically
+static final Lens<ProcessingState, DiscountResult> discountLens =
+    Lens.of(
+        ProcessingState::discount,
+        (s, v) -> new ProcessingState(
+            s.address(), s.customer(), s.order(), s.reservation(),
+            v, s.payment(), s.shipment(), s.notification()));
+```
+
+~~~admonish tip title="Use @GenerateLenses in production"
+Annotate your state record with `@GenerateLenses` and the annotation processor generates all lenses automatically. The manual definitions shown here are for clarity.
+~~~
+
+### Kind Lifting
+
+Service methods return `Either<OrderError, T>`. The `For`/`ForState` comprehension works with `Kind<EitherKind.Witness<OrderError>, T>`. A simple `lift()` helper bridges the two:
+
+```java
+private static <A> Kind<EitherKind.Witness<OrderError>, A> lift(Either<OrderError, A> either) {
+    return EITHER.widen(either);
+}
+```
 
 ### Individual Steps Are Simple
 
 ```java
-private EitherPath<OrderError, InventoryReservation> reserveInventory(
+private Either<OrderError, InventoryReservation> reserveInventory(
     OrderId orderId, List<ValidatedOrderLine> lines) {
-    return Path.either(inventoryService.reserve(orderId, lines));
+    return inventoryService.reserve(orderId, lines);
 }
 
-private EitherPath<OrderError, PaymentConfirmation> processPayment(
+private Either<OrderError, PaymentConfirmation> processPayment(
     ValidatedOrder order, DiscountResult discount) {
-    return Path.either(
-        paymentService.processPayment(
-            order.orderId(),
-            discount.finalTotal(),
-            order.paymentMethod()));
+    return paymentService.processPayment(
+        order.orderId(), discount.finalTotal(), order.paymentMethod());
 }
 ```
 
-The `Path.either()` factory lifts an `Either<E, A>` into an `EitherPath<E, A>`. Your services return `Either`; the workflow composes them within ForPath.
+Service methods return `Either` directly. The `lift()` helper in the comprehension handles the conversion to the Kind type system.
 
 ---
 
 ## Pattern Spotlight: Sub-Comprehensions
 
-Smaller groups of related steps can use their own `ForPath` and be called as a single step from the main comprehension:
+Smaller groups of related steps can use their own `For` comprehension and be called as a single step from the main workflow:
 
 ```java
 private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
-    return ForPath.from(lookupCustomer(customerId))
-        .from(this::validateCustomerEligibility)
-        .yield((found, validated) -> validated);
+    EitherMonad<OrderError> monad = EitherMonad.instance();
+    Kind<EitherKind.Witness<OrderError>, Customer> result =
+        For.from(monad, lift(lookupCustomer(customerId)))
+            .from(found -> lift(validateCustomerEligibility(found)))
+            .yield((found, validated) -> validated);
+    return Path.either(EITHER.narrow(result));
 }
 ```
 
 This keeps the main comprehension readable while encapsulating sub-workflows.
 
-### When to Use ForPath vs via()
+### When to Use Which Pattern
 
 | Pattern | Best For |
 |---------|----------|
-| `ForPath` | Multi-step sequential workflows (up to 12 steps) |
-| `via()` | One-off chaining, conditional branching, or when tuple access would be awkward |
+| `For` → `toState()` → `ForState` | Multi-step workflows (3+ steps) where named access improves clarity |
+| `For` alone | Short workflows (1-3 steps) where tuple access is clear |
+| `ForPath` | Working directly with Path types when you don't need named state |
+| `via()` | One-off chaining, conditional branching |
 
-~~~admonish tip title="ForPath supports up to 12 steps"
-`ForPath` for all Path types — including `EitherPath`, `MaybePath`, `TryPath`, `IOPath`, and `VTaskPath` — supports up to 12 steps. This is sufficient for virtually any real-world workflow.
+~~~admonish tip title="For and ForState support up to 12 steps"
+`For` comprehensions support up to 12 chained bindings. `ForState` has no arity limit — the state record can have any number of fields. The `toState()` bridge works at all arities (1 through 12).
 ~~~
 
 ---
@@ -193,41 +248,44 @@ This keeps the main comprehension readable while encapsulating sub-workflows.
 Not all errors are fatal. Notifications, for instance, should not fail the entire order:
 
 ```java
-private EitherPath<OrderError, NotificationResult> sendNotifications(
+private Either<OrderError, NotificationResult> sendNotifications(
     ValidatedOrder order, Customer customer, DiscountResult discount) {
 
-    return Path.either(
-            notificationService.sendOrderConfirmation(
-                order.orderId(), customer, discount.finalTotal()))
-        .recoverWith(error -> Path.right(NotificationResult.none()));
+    return notificationService
+        .sendOrderConfirmation(order.orderId(), customer, discount.finalTotal())
+        .fold(
+            error -> Either.right(NotificationResult.none()),  // non-fatal: recover
+            Either::right);
 }
 ```
 
-The `recoverWith()` method catches errors and provides a fallback. Here, notification failures are swallowed, and processing continues with a "no notification" result.
+The `fold()` method handles both cases: on error, it recovers with a "no notification" result; on success, it passes through. The `ForState` step that calls this method via `fromThen()` will store the result via `notificationLens` either way.
 
 ### Recovery Options
 
 | Method | Use Case |
 |--------|----------|
-| `recover(f)` | Transform error to success value directly |
-| `recoverWith(f)` | Provide alternative `EitherPath` (may itself fail) |
+| `fold(leftFn, rightFn)` | Pattern-match both cases of an Either |
+| `recover(f)` | Transform error to success value directly (on EitherPath) |
+| `recoverWith(f)` | Provide alternative path (may itself fail) (on EitherPath) |
 | `mapError(f)` | Transform error type (stays on failure track) |
 
 ---
 
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
-* **`ForPath` comprehensions** compose multi-step workflows into flat, readable pipelines (up to 12 steps)
-* **`via()` chains** remain useful for one-off chaining and conditional branching
-* **Recovery patterns** (`recover`, `recoverWith`) handle non-fatal errors gracefully
+* **`For` → `toState()` → `ForState`** composes multi-step workflows with named field access — no tuple positions after the bridge
+* **Two-phase gather/enrich** uses the best tool for each part of the workflow
+* **Recovery patterns** (`fold`, `recover`, `recoverWith`) handle non-fatal errors gracefully
 ~~~
 
 ---
 
 ~~~admonish tip title="See Also"
+- [ForState: Named State Comprehensions](../functional/forstate_comprehension.md) - Full ForState API reference
+- [For Comprehension](../functional/for_comprehension.md) - The `toState()` bridge documentation
 - [Effect Path Overview](../effect/effect_path_overview.md) - The railway model and core operations
 - [EitherPath](../effect/path_either.md) - Complete reference for EitherPath
-- [ForPath Comprehension](../effect/forpath_comprehension.md) - Detailed ForPath documentation
 ~~~
 
 ---

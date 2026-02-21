@@ -234,6 +234,35 @@ public final class For {
     }
 
     /**
+     * Transitions from this for-comprehension step into a {@link ForState} builder by constructing
+     * a state object from the current computation result.
+     *
+     * <p>This bridges the value-accumulation style of {@link For} comprehensions with the
+     * lens-based state threading of {@link ForState}. After calling this method, you can use lens
+     * operations ({@code update}, {@code modify}, {@code fromThen}, etc.) to further transform the
+     * state.
+     *
+     * <h3>Example</h3>
+     *
+     * <pre>{@code
+     * Kind<IdKind.Witness, Dashboard> result =
+     *     For.from(idMonad, fetchUser())
+     *         .toState(user -> new Dashboard(user, false))
+     *         .update(readyLens, true)
+     *         .yield();
+     * }</pre>
+     *
+     * @param constructor A function that constructs the state object from the current value.
+     * @param <S> The type of the state object.
+     * @return A {@link ForState.Steps} builder for chaining lens-based state operations.
+     * @throws NullPointerException if {@code constructor} is null.
+     */
+    public <S> ForState.Steps<M, S> toState(Function<A, S> constructor) {
+      Objects.requireNonNull(constructor, "constructor must not be null");
+      return ForState.withState(monad, monad.map(constructor, computation));
+    }
+
+    /**
      * Completes the for-comprehension by applying a function to the final result.
      *
      * @param f A function to transform the final value of type {@code A} into the result type
@@ -365,6 +394,25 @@ public final class For {
               a -> prism.getOptional(a).map(b -> monad.of(Tuple.of(a, b))).orElseGet(monad::zero),
               this.computation);
       return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Transitions from this for-comprehension step into a {@link ForState} builder by constructing
+     * a state object from the current computation result.
+     *
+     * <p>This bridges the value-accumulation style of {@link For} comprehensions with the
+     * lens-based state threading of {@link ForState}. Since this step uses a {@link MonadZero}, the
+     * returned builder preserves filtering capabilities ({@code when}, {@code matchThen}).
+     *
+     * @param constructor A function that constructs the state object from the current value.
+     * @param <S> The type of the state object.
+     * @return A {@link ForState.FilterableSteps} builder for chaining lens-based state operations
+     *     with filtering support.
+     * @throws NullPointerException if {@code constructor} is null.
+     */
+    public <S> ForState.FilterableSteps<M, S> toState(Function<A, S> constructor) {
+      Objects.requireNonNull(constructor, "constructor must not be null");
+      return ForState.withState(monad, monad.map(constructor, computation));
     }
 
     /**

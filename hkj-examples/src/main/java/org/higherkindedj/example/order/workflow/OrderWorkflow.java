@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -32,16 +34,30 @@ import org.higherkindedj.example.order.service.InventoryService;
 import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.expression.ForPath;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.optics.Lens;
 
 /**
  * The main order processing workflow.
  *
- * <p>This class demonstrates the power of {@link ForPath} for composing complex multi-step
- * workflows in a readable, declarative style. The entire 8-step pipeline is expressed as a single
- * flat ForPath comprehension with automatic error propagation — no nested {@code via()} pyramids.
+ * <p>This class demonstrates the {@code For} → {@code toState()} → {@code ForState} pattern for
+ * composing complex multi-step workflows. The workflow proceeds in two phases:
+ *
+ * <ol>
+ *   <li><b>Gather phase</b> (For comprehension, steps 1-3): Accumulate the initial values —
+ *       validated address, customer, and order — using tuple positions. At arity 3, tuple access is
+ *       still clear.
+ *   <li><b>Enrich phase</b> (ForState, steps 4-8): The {@code toState()} bridge constructs a {@link
+ *       ProcessingState} from the gathered values. Subsequent steps use {@code fromThen()} with
+ *       lenses, accessing earlier results by name ({@code s.order()}, {@code s.customer()}) rather
+ *       than by position ({@code t._3()}, {@code t._2()}).
+ * </ol>
  *
  * <h2>Workflow Steps</h2>
  *
@@ -56,25 +72,27 @@ import org.higherkindedj.hkt.expression.ForPath;
  *   <li>Send confirmation notifications
  * </ol>
  *
- * <h2>ForPath Comprehension</h2>
- *
- * <p>With arity-12 support, all eight steps compose into a single comprehension:
+ * <h2>For → toState → ForState Comprehension</h2>
  *
  * <pre>{@code
- * ForPath.from(validateShippingAddress(...))
- *     .from(validAddress -> lookupAndValidateCustomer(...))
- *     .from(t -> buildValidatedOrder(..., t._2(), t._1()))
- *     .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
- *     .from(t -> applyDiscounts(t._3(), t._2()))
- *     .from(t -> processPayment(t._3(), t._5()))
- *     .from(t -> createShipment(t._3(), t._1()))
- *     .from(t -> sendNotifications(t._3(), t._2(), t._5()))
- *     .yield((address, customer, order, reservation, discount, payment, shipment, notification) ->
- *         buildOrderResult(order, discount, payment, shipment, notification));
+ * For.from(monad, lift(validateShippingAddress(...)))
+ *     .from(addr -> lift(lookupAndValidateCustomer(...)))
+ *     .from(t -> lift(buildValidatedOrder(..., t._2(), t._1())))
+ *     .toState((address, customer, order) ->                   // bridge to ForState
+ *         ProcessingState.initial(address, customer, order))
+ *     .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
+ *     .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
+ *     .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
+ *     .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+ *     .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
+ *         notificationLens)
+ *     .yield(OrderWorkflow::toOrderResult);
  * }</pre>
  *
- * <p>Each step receives the accumulated tuple of all previous results, and the final {@code yield}
- * destructures all eight values by name for maximum readability.
+ * <p>After the bridge, every value is accessed by name — no more counting tuple positions.
+ *
+ * @see org.higherkindedj.hkt.expression.ForState
+ * @see For
  */
 public class OrderWorkflow {
 
@@ -85,6 +103,130 @@ public class OrderWorkflow {
   private final ShippingService shippingService;
   private final NotificationService notificationService;
   private final WorkflowConfig config;
+
+  // -------------------------------------------------------------------------
+  // Processing State — named record that replaces tuple positions
+  // -------------------------------------------------------------------------
+
+  /**
+   * Immutable state record that accumulates workflow results with named fields.
+   *
+   * <p>Unlike tuple-based accumulation where values are accessed by position ({@code t._3()},
+   * {@code t._5()}), this record provides named accessors ({@code state.order()}, {@code
+   * state.discount()}) that are self-documenting and refactoring-safe.
+   *
+   * <p>Fields populated during the gather phase (address, customer, order) are always non-null.
+   * Fields populated during the enrich phase start as null and are set by {@code fromThen()} steps.
+   * The monadic short-circuit guarantees each field is populated before subsequent steps access it.
+   *
+   * @param address the validated shipping address (gather phase)
+   * @param customer the validated customer (gather phase)
+   * @param order the validated order (gather phase)
+   * @param reservation the inventory reservation (enrich phase)
+   * @param discount the discount calculation result (enrich phase)
+   * @param payment the payment confirmation (enrich phase)
+   * @param shipment the shipment info (enrich phase)
+   * @param notification the notification result (enrich phase)
+   */
+  public record ProcessingState(
+      ValidatedShippingAddress address,
+      Customer customer,
+      ValidatedOrder order,
+      InventoryReservation reservation,
+      DiscountResult discount,
+      PaymentConfirmation payment,
+      ShipmentInfo shipment,
+      NotificationResult notification) {
+
+    /**
+     * Creates the initial state from the three values gathered by the For comprehension. Remaining
+     * fields are null until populated by ForState steps.
+     */
+    static ProcessingState initial(
+        ValidatedShippingAddress address, Customer customer, ValidatedOrder order) {
+      return new ProcessingState(address, customer, order, null, null, null, null, null);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Lenses — provide named, type-safe access for ForState operations
+  // -------------------------------------------------------------------------
+  // In production code, annotate ProcessingState with @GenerateLenses
+  // and the annotation processor generates these automatically.
+
+  static final Lens<ProcessingState, InventoryReservation> reservationLens =
+      Lens.of(
+          ProcessingState::reservation,
+          (s, v) ->
+              new ProcessingState(
+                  s.address(),
+                  s.customer(),
+                  s.order(),
+                  v,
+                  s.discount(),
+                  s.payment(),
+                  s.shipment(),
+                  s.notification()));
+
+  static final Lens<ProcessingState, DiscountResult> discountLens =
+      Lens.of(
+          ProcessingState::discount,
+          (s, v) ->
+              new ProcessingState(
+                  s.address(),
+                  s.customer(),
+                  s.order(),
+                  s.reservation(),
+                  v,
+                  s.payment(),
+                  s.shipment(),
+                  s.notification()));
+
+  static final Lens<ProcessingState, PaymentConfirmation> paymentLens =
+      Lens.of(
+          ProcessingState::payment,
+          (s, v) ->
+              new ProcessingState(
+                  s.address(),
+                  s.customer(),
+                  s.order(),
+                  s.reservation(),
+                  s.discount(),
+                  v,
+                  s.shipment(),
+                  s.notification()));
+
+  static final Lens<ProcessingState, ShipmentInfo> shipmentLens =
+      Lens.of(
+          ProcessingState::shipment,
+          (s, v) ->
+              new ProcessingState(
+                  s.address(),
+                  s.customer(),
+                  s.order(),
+                  s.reservation(),
+                  s.discount(),
+                  s.payment(),
+                  v,
+                  s.notification()));
+
+  static final Lens<ProcessingState, NotificationResult> notificationLens =
+      Lens.of(
+          ProcessingState::notification,
+          (s, v) ->
+              new ProcessingState(
+                  s.address(),
+                  s.customer(),
+                  s.order(),
+                  s.reservation(),
+                  s.discount(),
+                  s.payment(),
+                  s.shipment(),
+                  v));
+
+  // -------------------------------------------------------------------------
+  // Constructors
+  // -------------------------------------------------------------------------
 
   /** Creates a new order workflow with the given services and config. */
   public OrderWorkflow(
@@ -122,26 +264,20 @@ public class OrderWorkflow {
         WorkflowConfig.defaults());
   }
 
+  // -------------------------------------------------------------------------
+  // Main Workflow
+  // -------------------------------------------------------------------------
+
   /**
    * Processes an order request through the complete workflow.
    *
-   * <p>Uses a single ForPath comprehension to compose all eight workflow steps into a flat,
-   * readable pipeline. Each step receives the accumulated tuple of previous results; the final
-   * {@code yield} destructures all values by name. Any step failure short-circuits the entire
-   * comprehension and propagates the {@link OrderError}.
+   * <p>The workflow uses {@code For} → {@code toState()} → {@code ForState} to compose all eight
+   * steps. The first three steps (gather phase) use a {@code For} comprehension with tuple access.
+   * The {@code toState()} bridge then constructs a {@link ProcessingState} with named fields, and
+   * the remaining five steps (enrich phase) use {@code fromThen()} with lenses for named access.
    *
-   * <p>Tuple positions within each {@code from} step:
-   *
-   * <table>
-   *   <tr><th>Position</th><th>Value</th><th>Type</th></tr>
-   *   <tr><td>{@code _1()}</td><td>validAddress</td><td>{@link ValidatedShippingAddress}</td></tr>
-   *   <tr><td>{@code _2()}</td><td>customer</td><td>{@link Customer}</td></tr>
-   *   <tr><td>{@code _3()}</td><td>order</td><td>{@link ValidatedOrder}</td></tr>
-   *   <tr><td>{@code _4()}</td><td>reservation</td><td>{@link InventoryReservation}</td></tr>
-   *   <tr><td>{@code _5()}</td><td>discount</td><td>{@link DiscountResult}</td></tr>
-   *   <tr><td>{@code _6()}</td><td>payment</td><td>{@link PaymentConfirmation}</td></tr>
-   *   <tr><td>{@code _7()}</td><td>shipment</td><td>{@link ShipmentInfo}</td></tr>
-   * </table>
+   * <p>Any step producing a {@code Left} (error) short-circuits the entire comprehension and
+   * propagates the {@link OrderError}.
    *
    * @param request the order request to process
    * @return either an error or the successful order result
@@ -149,25 +285,44 @@ public class OrderWorkflow {
   public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
+    EitherMonad<OrderError> monad = EitherMonad.instance();
 
-    return ForPath.from(validateShippingAddress(request.shippingAddress()))
-        .from(validAddress -> lookupAndValidateCustomer(customerId))
-        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))
-        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
-        .from(t -> applyDiscounts(t._3(), t._2()))
-        .from(t -> processPayment(t._3(), t._5()))
-        .from(t -> createShipment(t._3(), t._1()))
-        .from(t -> sendNotifications(t._3(), t._2(), t._5()))
-        .yield(
-            (validAddress,
-                customer,
-                order,
-                reservation,
-                discount,
-                payment,
-                shipment,
-                notification) ->
-                buildOrderResult(order, discount, payment, shipment, notification));
+    // Phase 1 (Gather): use For to accumulate address, customer, and order
+    // Phase 2 (Enrich): use toState() to switch to named ForState access
+    Kind<EitherKind.Witness<OrderError>, OrderResult> result =
+        For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
+            .from(addr -> lift(lookupAndValidateCustomer(customerId)))
+            .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+
+            // Bridge: construct named state from the three gathered values
+            .toState(
+                (address, customer, order) -> ProcessingState.initial(address, customer, order))
+
+            // From here on, every value is accessed by name
+            .fromThen(
+                s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
+                reservationLens)
+            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
+            .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
+            .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+            .fromThen(
+                s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
+                notificationLens)
+            .yield(OrderWorkflow::toOrderResult);
+
+    return Path.either(EITHER.narrow(result));
+  }
+
+  // -------------------------------------------------------------------------
+  // Kind Lifting — bridge between Either/EitherPath and the HKT system
+  // -------------------------------------------------------------------------
+
+  private static <A> Kind<EitherKind.Witness<OrderError>, A> lift(Either<OrderError, A> either) {
+    return EITHER.widen(either);
+  }
+
+  private static <A> Kind<EitherKind.Witness<OrderError>, A> lift(EitherPath<OrderError, A> path) {
+    return EITHER.widen(path.run());
   }
 
   // -------------------------------------------------------------------------
@@ -188,9 +343,12 @@ public class OrderWorkflow {
   }
 
   private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
-    return ForPath.from(lookupCustomer(customerId))
-        .from(this::validateCustomerEligibility)
-        .yield((found, validated) -> validated);
+    EitherMonad<OrderError> monad = EitherMonad.instance();
+    Kind<EitherKind.Witness<OrderError>, Customer> result =
+        For.from(monad, lift(lookupCustomer(customerId)))
+            .from(found -> lift(validateCustomerEligibility(found)))
+            .yield((found, validated) -> validated);
+    return Path.either(EITHER.narrow(result));
   }
 
   private EitherPath<OrderError, ValidatedOrder> buildValidatedOrder(
@@ -198,7 +356,6 @@ public class OrderWorkflow {
       OrderRequest request,
       Customer customer,
       ValidatedShippingAddress validAddress) {
-    // Build validated order lines from request
     var lines =
         request.lines().stream()
             .map(line -> createValidatedLine(line.productId(), line.quantity()))
@@ -206,7 +363,6 @@ public class OrderWorkflow {
 
     var subtotal = ValidatedOrder.calculateSubtotal(lines);
 
-    // Validate promo code if present - fail if invalid
     return validatePromoCodeIfPresent(request.promoCode())
         .map(
             validatedPromoCode ->
@@ -232,7 +388,6 @@ public class OrderWorkflow {
 
   private ValidatedOrderLine createValidatedLine(String productIdStr, int quantity) {
     var productId = new ProductId(productIdStr);
-    // Placeholder product - in real implementation, would fetch from ProductService
     var product =
         new Product(
             productId,
@@ -244,66 +399,62 @@ public class OrderWorkflow {
     return ValidatedOrderLine.of(productId, product, quantity);
   }
 
-  private EitherPath<OrderError, InventoryReservation> reserveInventory(
+  private Either<OrderError, InventoryReservation> reserveInventory(
       OrderId orderId, List<ValidatedOrderLine> lines) {
-    return Path.either(inventoryService.reserve(orderId, lines));
+    return inventoryService.reserve(orderId, lines);
   }
 
-  private EitherPath<OrderError, DiscountResult> applyDiscounts(
+  private Either<OrderError, DiscountResult> applyDiscounts(
       ValidatedOrder order, Customer customer) {
     return order
         .promoCode()
-        .<EitherPath<OrderError, DiscountResult>>map(
-            code -> Path.either(discountService.applyPromoCode(code, order.subtotal())))
+        .<Either<OrderError, DiscountResult>>map(
+            code -> discountService.applyPromoCode(code, order.subtotal()))
         .orElseGet(
             () -> {
               if (config.featureFlags().enableLoyaltyDiscounts()) {
-                return Path.either(
-                    discountService.calculateLoyaltyDiscount(customer, order.subtotal()));
+                return discountService.calculateLoyaltyDiscount(customer, order.subtotal());
               }
-              return Path.right(DiscountResult.noDiscount(order.subtotal()));
+              return Either.right(DiscountResult.noDiscount(order.subtotal()));
             });
   }
 
-  private EitherPath<OrderError, PaymentConfirmation> processPayment(
+  private Either<OrderError, PaymentConfirmation> processPayment(
       ValidatedOrder order, DiscountResult discount) {
-    return Path.either(
-        paymentService.processPayment(
-            order.orderId(), discount.finalTotal(), order.paymentMethod()));
+    return paymentService.processPayment(
+        order.orderId(), discount.finalTotal(), order.paymentMethod());
   }
 
-  private EitherPath<OrderError, ShipmentInfo> createShipment(
+  private Either<OrderError, ShipmentInfo> createShipment(
       ValidatedOrder order, ValidatedShippingAddress address) {
-    return Path.either(shippingService.createShipment(order.orderId(), address, order.lines()));
+    return shippingService.createShipment(order.orderId(), address, order.lines());
   }
 
-  private EitherPath<OrderError, NotificationResult> sendNotifications(
+  private Either<OrderError, NotificationResult> sendNotifications(
       ValidatedOrder order, Customer customer, DiscountResult discount) {
-    return Path.either(
-            notificationService.sendOrderConfirmation(
-                order.orderId(), customer, discount.finalTotal()))
-        .recoverWith(error -> Path.right(NotificationResult.none()));
+    return notificationService
+        .sendOrderConfirmation(order.orderId(), customer, discount.finalTotal())
+        .fold(error -> Either.right(NotificationResult.none()), Either::right);
   }
 
-  private OrderResult buildOrderResult(
-      ValidatedOrder order,
-      DiscountResult discount,
-      PaymentConfirmation payment,
-      ShipmentInfo shipment,
-      NotificationResult notification) {
+  // -------------------------------------------------------------------------
+  // Result Assembly
+  // -------------------------------------------------------------------------
+
+  private static OrderResult toOrderResult(ProcessingState s) {
     var auditLog =
         AuditLog.EMPTY
-            .append(AuditLog.of("ORDER_CREATED", "Order " + order.orderId() + " created"))
-            .append(AuditLog.of("PAYMENT_PROCESSED", "Transaction " + payment.transactionId()))
-            .append(AuditLog.of("SHIPMENT_CREATED", "Tracking " + shipment.trackingNumber()));
+            .append(AuditLog.of("ORDER_CREATED", "Order " + s.order().orderId() + " created"))
+            .append(AuditLog.of("PAYMENT_PROCESSED", "Transaction " + s.payment().transactionId()))
+            .append(AuditLog.of("SHIPMENT_CREATED", "Tracking " + s.shipment().trackingNumber()));
 
     return new OrderResult(
-        order.orderId(),
-        order.customerId(),
-        discount.finalTotal(),
-        payment.transactionId(),
-        shipment.trackingNumber(),
-        shipment.estimatedDelivery(),
+        s.order().orderId(),
+        s.order().customerId(),
+        s.discount().finalTotal(),
+        s.payment().transactionId(),
+        s.shipment().trackingNumber(),
+        s.shipment().estimatedDelivery(),
         auditLog);
   }
 }

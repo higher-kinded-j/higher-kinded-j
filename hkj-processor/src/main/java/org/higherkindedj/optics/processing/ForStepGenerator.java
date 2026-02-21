@@ -165,6 +165,12 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
     }
 
+    // toState with spread function
+    generateToStateSpread(sb, n, "Monad", "ForState.Steps");
+
+    // toState with Function<TupleN, S>
+    generateToStateTuple(sb, n, "Monad", "ForState.Steps");
+
     // yield with spread function
     generateYieldSpread(sb, n);
 
@@ -363,6 +369,12 @@ final class ForStepGenerator {
     sb.append("    return new ").append(className).append("<>(monad, newComputation);\n");
     sb.append("  }\n\n");
 
+    // toState with spread function
+    generateToStateSpread(sb, n, "MonadZero", "ForState.FilterableSteps");
+
+    // toState with Function<TupleN, S>
+    generateToStateTuple(sb, n, "MonadZero", "ForState.FilterableSteps");
+
     // yield with spread function
     generateYieldSpread(sb, n);
 
@@ -374,6 +386,41 @@ final class ForStepGenerator {
     Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();
     writer.write(sb.toString());
     writer.close();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared toState methods
+  // ---------------------------------------------------------------------------
+
+  private static void generateToStateSpread(
+      StringBuilder sb, int n, String monadType, String returnType) {
+    String funcType = spreadFunctionType(n);
+
+    sb.append("  public <S> ").append(returnType).append("<M, S> toState(").append(funcType);
+    sb.append("<");
+    appendTypeParams(sb, n);
+    sb.append(", S> constructor) {\n");
+    sb.append("    Objects.requireNonNull(constructor, \"constructor must not be null\");\n");
+    sb.append("    return ForState.withState(monad, monad.map(\n");
+    sb.append("        t -> constructor.apply(");
+    for (int i = 0; i < n; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append("t._").append(i + 1).append("()");
+    }
+    sb.append("),\n");
+    sb.append("        computation));\n");
+    sb.append("  }\n\n");
+  }
+
+  private static void generateToStateTuple(
+      StringBuilder sb, int n, String monadType, String returnType) {
+    sb.append("  public <S> ").append(returnType).append("<M, S> toState(Function<Tuple");
+    sb.append(n).append("<");
+    appendTypeParams(sb, n);
+    sb.append(">, S> constructor) {\n");
+    sb.append("    Objects.requireNonNull(constructor, \"constructor must not be null\");\n");
+    sb.append("    return ForState.withState(monad, monad.map(constructor, computation));\n");
+    sb.append("  }\n\n");
   }
 
   // ---------------------------------------------------------------------------

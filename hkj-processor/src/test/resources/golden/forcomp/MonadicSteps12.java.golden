@@ -25,6 +25,18 @@ public final class MonadicSteps12<M extends WitnessArity<TypeArity.Unary>, A, B,
     this.computation = computation;
   }
 
+  public <S> ForState.Steps<M, S> toState(Function12<A, B, C, D, E, F, G, H, I, J, K, L, S> constructor) {
+    Objects.requireNonNull(constructor, "constructor must not be null");
+    return ForState.withState(monad, monad.map(
+        t -> constructor.apply(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), t._10(), t._11(), t._12()),
+        computation));
+  }
+
+  public <S> ForState.Steps<M, S> toState(Function<Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>, S> constructor) {
+    Objects.requireNonNull(constructor, "constructor must not be null");
+    return ForState.withState(monad, monad.map(constructor, computation));
+  }
+
   public <R> Kind<M, R> yield(Function12<A, B, C, D, E, F, G, H, I, J, K, L, R> f) {
     return monad.map(
         t -> Objects.requireNonNull(
