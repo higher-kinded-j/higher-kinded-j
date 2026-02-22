@@ -419,7 +419,7 @@ Understanding bifunctors empowers you to write generic, reusable transformation 
 ~~~admonish tip title="Further Reading"
 - **Mark Seemann**: [Bifunctors](https://blog.ploeh.dk/2018/12/24/bifunctors/) - Excellent article explaining bifunctors with Either and Tuple examples
 - **Mojang/DataFixerUpper**: [DFU on GitHub](https://github.com/Mojang/DataFixerUpper) - Minecraft's Java library that uses bifunctors and profunctors for data migration
-- **Baeldung**: [Java Either Type](https://www.baeldung.com/java-either-type) - Practical look at dual-channel types in Java
+- **Baeldung**: [Introduction to Vavr's Either](https://www.baeldung.com/vavr-either) - Practical look at dual-channel types in Java
 ~~~
 
 ---
