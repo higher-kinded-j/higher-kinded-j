@@ -754,5 +754,5 @@ Writer patterns.
 
 ---
 
-**Previous:** [Focus-Effect Integration](focus_integration.md)
+**Previous:** [Capstone: Effects Meet Optics](capstone_focus_effect.md)
 **Next:** [Migration Cookbook](migration_cookbook.md)

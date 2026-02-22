@@ -586,5 +586,5 @@ moving between Path types.
 
 ---
 
-**Previous:** [Path Types](path_types.md)
+**Previous:** [VStreamPath](path_vstream.md)
 **Next:** [ForPath Comprehension](forpath_comprehension.md)

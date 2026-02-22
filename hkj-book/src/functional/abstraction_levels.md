@@ -318,4 +318,4 @@ Full monadic power when needed:
 
 ---
 
-**Previous:** [For Comprehension](for_comprehension.md)
+**Previous:** [ForState Comprehension](forstate_comprehension.md)
