@@ -79,17 +79,17 @@ The true power of `traverse` is that it can turn a structure of effects "inside-
   traverse turns a structure of effects inside-out:
 
   Before: List< Validated<E, A> >
-          ┌──────────┬──────────┬──────────┐
+          ┌───────────┬──────────┬───────────┐
           │ Valid(1)  │ Valid(2) │ Valid(3)  │
-          └──────────┴──────────┴──────────┘
+          └───────────┴──────────┴───────────┘
 
   After:  Validated< E, List<A> >
           Valid( [1, 2, 3] )
 
   With errors:
-          ┌──────────┬────────────┬──────────┐
+          ┌───────────┬────────────┬───────────┐
           │ Valid(1)  │ Invalid(e) │ Valid(3)  │
-          └──────────┴────────────┴──────────┘
+          └───────────┴────────────┴───────────┘
 
           Invalid( e )   <-- errors accumulated
 ```
