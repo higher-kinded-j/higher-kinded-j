@@ -130,4 +130,5 @@ See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for
 
 ---
 
+**Previous:** [Interpreters](interpreters.md)
 **Next:** [Composing Optics](composing_optics.md)

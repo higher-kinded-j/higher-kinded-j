@@ -88,4 +88,5 @@ When position matters:
 
 ---
 
+**Previous:** [List Decomposition](list_decomposition.md)
 **Next:** [Filtered Optics](filtered_optics.md)

@@ -409,4 +409,5 @@ Core Type Integration provides:
 
 ---
 
+**Previous:** [Composing Optics](composing_optics.md)
 **Next:** [Optics Extensions](optics_extensions.md)
