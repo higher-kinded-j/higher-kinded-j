@@ -90,6 +90,20 @@ At higher arities, the tuple-style `yield` is especially convenient for accessin
 .yield(t -> t._6() + " (score: " + t._4() + ")")
 ```
 
+~~~admonish tip title="Consider ForState for complex workflows"
+As the number of bindings grows, tuple positions like `t._3()` and `t._4()` become hard to track. For workflows with more than two or three steps, **[ForState](forstate_comprehension.md)** provides named field access through records and lenses, eliminating positional errors entirely:
+
+```java
+// ForState: every value has a name
+ForState.withState(monad, monad.of(ctx))
+    .fromThen(ctx -> lookupAddress(ctx.user()),   addressLens)
+    .fromThen(ctx -> calculateShipping(ctx.address()), shippingLens)
+    .yield(ctx -> buildReceipt(ctx.user(), ctx.address(), ctx.shippingCents()));
+```
+
+See [ForState: Named State Comprehensions](forstate_comprehension.md) for a full comparison and API reference.
+~~~
+
 ## Core Operations of the `For` Builder
 
 A for-comprehension is built by chaining four types of operations:
@@ -354,55 +368,79 @@ Kind<IdKind.Witness, List<Player>> allPlayers =
 
 ---
 
-## Stateful Updates with ForState
+## Bridging to ForState with `toState()`
 
-`ForState` provides a fluent API for threading state updates through a workflow using lenses. This is particularly useful for building up complex state transformations step by step.
+When a workflow starts with a few monadic steps (fetching data, computing values) and then needs to thread named state through a series of updates, `toState()` lets you transition seamlessly from `For` into `ForState` mid-comprehension. The accumulated values become the constructor arguments for your state record, and from that point on you work with named fields and lenses instead of tuple positions.
 
 ```java
-record WorkflowContext(
-    String orderId,
-    boolean validated,
-    boolean inventoryChecked,
-    String confirmationId
-) {}
+record Dashboard(String user, int count, boolean ready) {}
 
-Lens<WorkflowContext, Boolean> validatedLens = Lens.of(
-    WorkflowContext::validated,
-    (ctx, v) -> new WorkflowContext(ctx.orderId(), v, ctx.inventoryChecked(), ctx.confirmationId())
-);
+Lens<Dashboard, Boolean> readyLens = Lens.of(
+    Dashboard::ready, (d, v) -> new Dashboard(d.user(), d.count(), v));
+Lens<Dashboard, Integer> countLens = Lens.of(
+    Dashboard::count, (d, v) -> new Dashboard(d.user(), v, d.ready()));
 
-Lens<WorkflowContext, Boolean> inventoryLens = Lens.of(
-    WorkflowContext::inventoryChecked,
-    (ctx, c) -> new WorkflowContext(ctx.orderId(), ctx.validated(), c, ctx.confirmationId())
-);
-
-Lens<WorkflowContext, String> confirmationLens = Lens.of(
-    WorkflowContext::confirmationId,
-    (ctx, id) -> new WorkflowContext(ctx.orderId(), ctx.validated(), ctx.inventoryChecked(), id)
-);
-
-var initialContext = new WorkflowContext("ORD-123", false, false, null);
-
-Kind<IdKind.Witness, WorkflowContext> result =
-    ForState.withState(idMonad, Id.of(initialContext))
-        .update(validatedLens, true)
-        .update(inventoryLens, true)
-        .update(confirmationLens, "CONF-456")
+// Start with For (value accumulation), then switch to ForState (named state)
+Kind<IdKind.Witness, Dashboard> result =
+    For.from(idMonad, Id.of("Alice"))               // a = "Alice"
+        .from(name -> Id.of(name.length()))          // b = 5
+        .toState((name, count) ->                    // bridge: construct record
+            new Dashboard(name, count, false))
+        .modify(countLens, c -> c * 10)              // named lens operation
+        .update(readyLens, true)
         .yield();
 
-WorkflowContext finalCtx = IdKindHelper.ID.unwrap(result);
-// finalCtx: validated=true, inventoryChecked=true, confirmationId="CONF-456"
+// Dashboard("Alice", 50, true)
 ```
 
-### Modifying State Based on Current Values
-
-Use `modify()` to update state based on the current value:
+The `toState()` method is available at every arity (1 through 12) in both **spread-style** and **tuple-style**:
 
 ```java
-ForState.withState(idMonad, Id.of(context))
-    .modify(scoreLens, score -> score + bonus)
-    .yield();
+// Spread-style: arguments unpacked
+.toState((name, count) -> new Dashboard(name, count, false))
+
+// Tuple-style: single tuple argument
+.toState(t -> new Dashboard(t._1(), t._2(), false))
 ```
+
+When the comprehension uses a `MonadZero` (like `Maybe` or `List`), the returned builder is a `ForState.FilterableSteps`, preserving access to `when()` and `matchThen()` guards:
+
+```java
+Kind<MaybeKind.Witness, Dashboard> result =
+    For.from(maybeMonad, MAYBE.just("Alice"))
+        .toState(name -> new Dashboard(name, 0, false))
+        .when(d -> d.user().length() > 3)   // guard still available
+        .update(readyLens, true)
+        .yield();
+
+// Just(Dashboard("Alice", 0, true))
+```
+
+~~~admonish tip title="When to use toState()"
+Use `toState()` when your workflow has a natural two-phase shape: **gather** values with `For` (fetching, computing, filtering), then **build and refine** a structured record with `ForState` (lens updates, zooming, traversals). This gives you the best of both worlds: concise tuple-based accumulation for the first few steps, and named field access for the rest.
+~~~
+
+## Stateful Updates with ForState
+
+For workflows with more than a few steps, tuple-based access becomes fragile. `ForState` solves this by threading a **named record** through each step, with [lenses](../optics/lenses.md) providing type-safe field access. Every intermediate value has a name, not a position.
+
+```java
+// ForState: named fields instead of tuple positions
+ForState.withState(monad, monad.of(initialContext))
+    .fromThen(ctx -> validateOrder(ctx.orderId()),   validatedLens)
+    .fromThen(ctx -> processPayment(ctx),            confirmationLens)
+    .when(ctx -> ctx.totalCents() > 0)               // guard (MonadZero)
+    .zoom(addressLens)                                // narrow scope
+        .update(cityLens, "SPRINGFIELD")
+    .endZoom()
+    .yield(ctx -> buildReceipt(ctx.user(), ctx.confirmationId()));
+```
+
+ForState supports the full range of comprehension operations: pure updates (`update`, `modify`), effectful operations (`from`, `fromThen`), guards (`when`), pattern matching (`matchThen`), bulk traversal (`traverse`), and scope narrowing (`zoom`/`endZoom`).
+
+~~~admonish info title="Dedicated Chapter"
+For a complete API reference, side-by-side comparison with `For`, and guidance on when to use each comprehension style, see **[ForState: Named State Comprehensions](forstate_comprehension.md)**.
+~~~
 
 ---
 
@@ -471,7 +509,8 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 ~~~
 
 ~~~admonish tip title="See Also"
-- [ForPath Comprehension](../effect/forpath_comprehension.md) - For-comprehensions that work directly with Effect Path types
+- [ForState: Named State Comprehensions](forstate_comprehension.md) -- The recommended pattern for complex workflows with named field access
+- [ForPath Comprehension](../effect/forpath_comprehension.md) -- For-comprehensions that work directly with Effect Path types
 ~~~
 
 ---
@@ -482,4 +521,4 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 
 ---
 
-**Previous:** [Natural Transformation](natural_transformation.md) | **Next:** [Choosing Your Abstraction Level](abstraction_levels.md)
+**Previous:** [Natural Transformation](natural_transformation.md) | **Next:** [ForState: Named State Comprehensions](forstate_comprehension.md)

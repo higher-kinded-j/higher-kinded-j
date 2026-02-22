@@ -9,7 +9,7 @@ Enterprise software can be like this. Consider order processing. Every step can 
 This walkthrough demonstrates how to build a robust, multi-step order workflow using the Effect Path API and Focus DSL. You will see how typed errors, composable operations, and functional patterns transform the pyramid of doom into a railway of clarity.
 
 ~~~admonish info title="What You'll Learn"
-- Composing multi-step workflows with `ForPath` comprehensions (up to 12 steps)
+- Composing multi-step workflows with `For` → `toState()` → `ForState` for named field access
 - Modelling domain errors with sealed interfaces for exhaustive handling
 - Encapsulating sub-workflows as composable building blocks
 - Implementing resilience patterns: retry policies, timeouts, and recovery
@@ -18,7 +18,7 @@ This walkthrough demonstrates how to build a robust, multi-step order workflow u
 ~~~
 
 ~~~admonish info title="In This Chapter"
-- **Effect Composition** – The core patterns for building workflows: sealed error hierarchies for type-safe error handling, `ForPath` comprehensions for flat multi-step composition (up to 12 steps), sub-comprehensions for encapsulating related steps, and recovery patterns for graceful degradation.
+- **Effect Composition** – The core patterns for building workflows: sealed error hierarchies for type-safe error handling, `For` → `toState()` → `ForState` comprehensions for named-field multi-step composition, sub-comprehensions for encapsulating related steps, and recovery patterns for graceful degradation.
 - **Production Patterns** – Making workflows production-ready: retry policies with exponential backoff, timeouts for external services, Focus DSL for immutable state updates, feature flags for configuration, and code generation to eliminate boilerplate.
 - **Concurrency and Scale** – Patterns for high-throughput systems: context propagation with `ScopedValue` for cross-cutting concerns, structured concurrency with `Scope` for parallel operations, resource management with the bracket pattern, and virtual thread execution for massive scale.
 ~~~
@@ -99,36 +99,46 @@ The problems multiply:
 
 ---
 
-## The Map: Effect Path Tames Complexity
+## The Map: For → toState → ForState Tames Complexity
 
-The Effect Path API provides a unified approach. Here is the same workflow using a `ForPath` comprehension — all eight steps composed into a single flat pipeline:
+The `For` comprehension combined with `toState()` and `ForState` provides a unified approach. The workflow proceeds in two phases: a *gather phase* where initial values are accumulated via `For`, and an *enrich phase* where named state is threaded via `ForState` with lenses:
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
+    EitherMonad<OrderError> monad = EitherMonad.instance();
 
-    return ForPath.from(validateShippingAddress(request.shippingAddress()))
-        .from(validAddress -> lookupAndValidateCustomer(customerId))
-        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))
-        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
-        .from(t -> applyDiscounts(t._3(), t._2()))
-        .from(t -> processPayment(t._3(), t._5()))
-        .from(t -> createShipment(t._3(), t._1()))
-        .from(t -> sendNotifications(t._3(), t._2(), t._5()))
-        .yield((validAddress, customer, order, reservation, discount,
-                payment, shipment, notification) ->
-            buildOrderResult(order, discount, payment, shipment, notification));
+    Kind<EitherKind.Witness<OrderError>, OrderResult> result =
+        // Gather phase: accumulate address, customer, order
+        For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
+            .from(addr -> lift(lookupAndValidateCustomer(customerId)))
+            .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+
+            // Bridge: construct named state from gathered values
+            .toState((address, customer, order) ->
+                ProcessingState.initial(address, customer, order))
+
+            // Enrich phase: named field access via ForState + lenses
+            .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
+            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
+            .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
+            .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+            .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
+                notificationLens)
+            .yield(OrderWorkflow::toOrderResult);
+
+    return Path.either(EITHER.narrow(result));
 }
 ```
 
 The transformation is dramatic:
 
-- **Flat structure**: All eight steps read top-to-bottom in a single `ForPath` comprehension
+- **Named field access**: After `toState()`, every value is `s.order()`, `s.customer()`, `s.discount()` — not `t._3()`, `t._2()`, `t._5()`
 - **Typed errors**: `OrderError` is a sealed interface; the compiler ensures exhaustive handling
 - **Automatic propagation**: Failures short-circuit; no explicit checks required
-- **Named results**: The final `yield` destructures all values by name for readability
-- **Composable**: Each step returns `EitherPath<OrderError, T>`, so they combine naturally
+- **Refactoring-safe**: Adding or removing a step does not shift any other accessor
+- **Two-phase design**: Use `For` for initial gathering, `ForState` for named enrichment
 
 ---
 
@@ -144,20 +154,21 @@ Notice how errors branch off at each decision point, while success flows forward
 
 Step back and consider what this example builds. An order workflow with eight distinct steps, seven potential error types, recovery logic, retry policies, feature flags, immutable state updates, and concurrent execution. In traditional Java, this would likely span hundreds of lines of nested conditionals, try-catch blocks, and defensive null checks.
 
-Instead, the core workflow fits in a single `ForPath` comprehension — eight steps, flat and readable:
+Instead, the core workflow fits in a `For` → `toState()` → `ForState` comprehension — eight steps, flat and readable, with named field access throughout:
 
 ```java
-return ForPath.from(validateShippingAddress(request.shippingAddress()))
-    .from(validAddress -> lookupAndValidateCustomer(customerId))
-    .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))
-    .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))
-    .from(t -> applyDiscounts(t._3(), t._2()))
-    .from(t -> processPayment(t._3(), t._5()))
-    .from(t -> createShipment(t._3(), t._1()))
-    .from(t -> sendNotifications(t._3(), t._2(), t._5()))
-    .yield((validAddress, customer, order, reservation, discount,
-            payment, shipment, notification) ->
-        buildOrderResult(order, discount, payment, shipment, notification));
+For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
+    .from(addr -> lift(lookupAndValidateCustomer(customerId)))
+    .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+    .toState((address, customer, order) ->
+        ProcessingState.initial(address, customer, order))
+    .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
+    .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
+    .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
+    .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+    .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
+        notificationLens)
+    .yield(OrderWorkflow::toOrderResult);
 ```
 
 This is not magic. It is the result of combining a small number of simple, composable building blocks:
@@ -165,16 +176,17 @@ This is not magic. It is the result of combining a small number of simple, compo
 | Building Block | What It Does |
 |----------------|--------------|
 | `Either<E, A>` | Represents success or typed failure |
-| `EitherPath<E, A>` | Wraps `Either` with chainable operations |
-| `ForPath` | Composes up to 12 sequential steps into a flat comprehension |
-| `via(f)` | One-off chaining for simple cases |
+| `For` | Accumulates initial values via tuple positions |
+| `toState()` | Bridges from tuple accumulation to named state |
+| `ForState` | Threads a named record with lens-based updates |
+| `Lens<S, A>` | Type-safe, immutable field access |
 | `map(f)` | Transforms success values |
 | `recoverWith(f)` | Handles failures with fallbacks |
 | Sealed interfaces | Enables exhaustive error handling |
 | Records | Provides immutable data with minimal syntax |
 | Annotations | Generates lenses, prisms, and bridges |
 
-None of these concepts is particularly complex. `Either` is just a container with two cases. `ForPath` is just a for-comprehension that accumulates results in a tuple. Sealed interfaces are just sum types. Records are just product types. Lenses are just pairs of getter and setter functions.
+None of these concepts is particularly complex. `Either` is just a container with two cases. `For` is a comprehension that accumulates results in a tuple. `toState()` constructs a record from those results. `ForState` threads that record through each step. Lenses are just pairs of getter and setter functions. Sealed interfaces are just sum types.
 
 The power comes from *composition*. Each building block does one thing well, and they combine without friction. Error propagation is automatic. State updates are immutable. Pattern matching is exhaustive. Code generation eliminates boilerplate.
 
@@ -195,7 +207,7 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ## Chapter Contents
 
-1. [Effect Composition](order-composition.md) - Sealed errors, ForPath comprehensions, sub-workflows, recovery patterns
+1. [Effect Composition](order-composition.md) - Sealed errors, For → toState → ForState comprehensions, sub-workflows, recovery patterns
 2. [Production Patterns](order-production.md) - Retry, timeout, Focus DSL, feature flags, code generation
 3. [Concurrency and Scale](order-concurrency.md) - Context propagation, Scope, Resource, VTaskPath
 
@@ -203,7 +215,7 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
-* **`ForPath` comprehensions** compose multi-step workflows into flat, readable pipelines (up to 12 steps)
+* **`For` → `toState()` → `ForState`** composes multi-step workflows with named field access — no more tuple positions
 * **Recovery patterns** handle non-fatal errors gracefully
 * **Resilience utilities** add retry and timeout behaviour without cluttering business logic
 * **Focus DSL** complements Effect Path for immutable state updates

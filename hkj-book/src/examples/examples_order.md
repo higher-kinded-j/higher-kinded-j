@@ -46,28 +46,40 @@ public sealed interface OrderError {
 }
 ```
 
-### ForPath Comprehensions
+### For → toState → ForState Comprehension
 
-The entire workflow composes into a single flat `ForPath` comprehension (8 steps, well within the arity-12 limit):
+The workflow uses `For` to gather initial values, then bridges to `ForState` via `toState()` for named field access through the remaining steps:
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
+    EitherMonad<OrderError> monad = EitherMonad.instance();
 
-    return ForPath.from(validateShippingAddress(request.shippingAddress()))  // 1. address
-        .from(validAddress -> lookupAndValidateCustomer(customerId))         // 2. customer
-        .from(t -> buildValidatedOrder(orderId, request, t._2(), t._1()))    // 3. order
-        .from(t -> reserveInventory(t._3().orderId(), t._3().lines()))       // 4. reservation
-        .from(t -> applyDiscounts(t._3(), t._2()))                           // 5. discount
-        .from(t -> processPayment(t._3(), t._5()))                           // 6. payment
-        .from(t -> createShipment(t._3(), t._1()))                           // 7. shipment
-        .from(t -> sendNotifications(t._3(), t._2(), t._5()))                // 8. notification
-        .yield((validAddress, customer, order, reservation, discount,
-                payment, shipment, notification) ->
-            buildOrderResult(order, discount, payment, shipment, notification));
+    Kind<EitherKind.Witness<OrderError>, OrderResult> result =
+        // Phase 1 (Gather): accumulate address, customer, order via For
+        For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
+            .from(addr -> lift(lookupAndValidateCustomer(customerId)))
+            .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+
+            // Bridge: construct named state from gathered values
+            .toState((address, customer, order) ->
+                ProcessingState.initial(address, customer, order))
+
+            // Phase 2 (Enrich): named field access via ForState + lenses
+            .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
+            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
+            .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
+            .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+            .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
+                notificationLens)
+            .yield(OrderWorkflow::toOrderResult);
+
+    return Path.either(EITHER.narrow(result));
 }
 ```
+
+After `toState()`, every value is accessed by name (`s.order()`, `s.customer()`, `s.discount()`) rather than by tuple position (`t._3()`, `t._2()`, `t._5()`).
 
 ### Resilience Patterns
 

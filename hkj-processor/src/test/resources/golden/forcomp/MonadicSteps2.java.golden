@@ -56,6 +56,18 @@ public final class MonadicSteps2<M extends WitnessArity<TypeArity.Unary>, A, B>
     return new MonadicSteps3<>(monad, newComputation);
   }
 
+  public <S> ForState.Steps<M, S> toState(BiFunction<A, B, S> constructor) {
+    Objects.requireNonNull(constructor, "constructor must not be null");
+    return ForState.withState(monad, monad.map(
+        t -> constructor.apply(t._1(), t._2()),
+        computation));
+  }
+
+  public <S> ForState.Steps<M, S> toState(Function<Tuple2<A, B>, S> constructor) {
+    Objects.requireNonNull(constructor, "constructor must not be null");
+    return ForState.withState(monad, monad.map(constructor, computation));
+  }
+
   public <R> Kind<M, R> yield(BiFunction<A, B, R> f) {
     return monad.map(
         t -> Objects.requireNonNull(

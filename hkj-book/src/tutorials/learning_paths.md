@@ -18,6 +18,7 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Intermediate |
 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min | 22 | Advanced |
 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~22 min | 18 | Intermediate |
+| [Expression: ForState](expression/forstate_journey.md) | ~20 min | 8 | Intermediate |
 
 ---
 
@@ -36,8 +37,9 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 | 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
 | 3 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
 | 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
+| 5 | [Expression: ForState](expression/forstate_journey.md) | ~20 min |
 
-**Total**: 4 sessions, ~143 min across sessions
+**Total**: 5 sessions, ~163 min across sessions
 
 **Best for**: New users who want the recommended learning experience.
 
@@ -66,8 +68,9 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 | 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
 | 3 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
 | 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
+| 5 | [Expression: ForState](expression/forstate_journey.md) | ~20 min |
 
-**Total**: 4 sessions, ~143 min across sessions
+**Total**: 5 sessions, ~163 min across sessions
 
 **Best for**: Developers building production applications who want solid foundations.
 
@@ -118,8 +121,9 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 | 7 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
 | 8 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min |
 | 9 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~22 min |
+| 10 | [Expression: ForState](expression/forstate_journey.md) | ~20 min |
 
-**Total**: 9 sessions, ~298 min across sessions
+**Total**: 10 sessions, ~318 min across sessions
 
 **Best for**: Those who want comprehensive mastery of Higher-Kinded-J.
 

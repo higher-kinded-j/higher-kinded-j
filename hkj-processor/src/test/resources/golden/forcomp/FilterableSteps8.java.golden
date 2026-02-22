@@ -81,6 +81,18 @@ public final class FilterableSteps8<M extends WitnessArity<TypeArity.Unary>, A, 
     return new FilterableSteps8<>(monad, newComputation);
   }
 
+  public <S> ForState.FilterableSteps<M, S> toState(Function8<A, B, C, D, E, F, G, H, S> constructor) {
+    Objects.requireNonNull(constructor, "constructor must not be null");
+    return ForState.withState(monad, monad.map(
+        t -> constructor.apply(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8()),
+        computation));
+  }
+
+  public <S> ForState.FilterableSteps<M, S> toState(Function<Tuple8<A, B, C, D, E, F, G, H>, S> constructor) {
+    Objects.requireNonNull(constructor, "constructor must not be null");
+    return ForState.withState(monad, monad.map(constructor, computation));
+  }
+
   public <R> Kind<M, R> yield(Function8<A, B, C, D, E, F, G, H, R> f) {
     return monad.map(
         t -> Objects.requireNonNull(

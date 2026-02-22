@@ -62,6 +62,7 @@
   - [Optics: Traversals & Practice](tutorials/optics/traversals_journey.md)
   - [Optics: Fluent & Free DSL](tutorials/optics/fluent_free_journey.md)
   - [Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)
+  - [Expression: ForState](tutorials/expression/forstate_journey.md)
   - [Learning Paths](tutorials/learning_paths.md)
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
@@ -148,6 +149,7 @@
   - [Bifunctor](functional/bifunctor.md)
   - [Natural Transformation](functional/natural_transformation.md)
   - [For Comprehension](functional/for_comprehension.md)
+  - [ForState Comprehension](functional/forstate_comprehension.md)
   - [Choosing Abstraction Levels](functional/abstraction_levels.md)
 
 - [Foundations: Core Types](monads/ch_intro.md)
