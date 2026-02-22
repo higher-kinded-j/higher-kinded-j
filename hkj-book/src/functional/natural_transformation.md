@@ -10,7 +10,7 @@
 - Converting between types like Maybe, List, and Either
 ~~~
 
-~~~admonish title="Hands On Practice"
+~~~admonish example title="Hands-On Practice"
 [Tutorial08_NaturalTransformation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial08_NaturalTransformation.java)
 ~~~
 
@@ -291,8 +291,7 @@ They are a fundamental building block in functional programming, particularly wh
 
 ~~~admonish tip title="Further Reading"
 - **Bartosz Milewski**: [Natural Transformations](https://bartoszmilewski.com/2015/04/07/natural-transformations/) - Accessible introduction with diagrams
-- **Cats Documentation**: [FunctionK](https://typelevel.org/cats/datatypes/functionk.html) - Scala's equivalent (called `~>` or `FunctionK`)
-- **Functional Programming in Scala**: Chapter 11 covers natural transformations in the context of Free monads
+- **Mojang/DataFixerUpper**: [DFU on GitHub](https://github.com/Mojang/DataFixerUpper) - Minecraft's Java library where natural transformations drive data version migration
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

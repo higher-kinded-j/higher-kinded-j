@@ -1,4 +1,4 @@
-# MonadZero
+# MonadZero: Filtering in Monadic Chains
 
 ~~~admonish info title="What You'll Learn"
 - How MonadZero combines Monad and Alternative capabilities
@@ -8,10 +8,44 @@
 - Writing generic functions for monads with failure semantics
 ~~~
 
-The `MonadZero` is a more advanced type class that extends both `Monad` and `Alternative` to combine the power of monadic bind with choice operations. It includes the concept of a "zero" or "empty" element and is designed for monads that can represent failure, absence, or emptiness, allowing them to be used in filtering operations and alternative chains.
+## The Problem: No Way to Filter Mid-Chain
 
-The interface for MonadZero in hkj-api extends Monad and Alternative:
+You're building a for-comprehension that iterates over combinations of values, but you need to discard certain results mid-chain. With a plain `Monad`, there is no way to say "skip this iteration":
 
+```java
+// Without MonadZero: you must push filtering to the end and wrap in a conditional
+var result = For.from(monad, list1)
+    .from(a -> list2)
+    .yield((a, b) -> {
+        if ((a + b) % 2 != 0) {        // awkward: filtering inside yield
+            return a + " + " + b;
+        }
+        return null;                     // no clean way to discard
+    });
+```
+
+What you really want is a guard clause that eliminates unwanted paths *before* they reach the final projection.
+
+---
+
+## The Solution: `zero()` and `when()`
+
+**`MonadZero`** extends both `Monad` and `Alternative`, adding a `zero()` element that acts as an absorbing value. When a computation produces `zero`, subsequent operations in the chain are skipped, exactly like multiplying by zero.
+
+```
+  For-comprehension with MonadZero:
+
+  list1: [1, 2, 3]  x  list2: [10, 20]
+
+  (1,10)  sum=11 odd? YES --> yield "1 + 10 = Sum: 11"
+  (1,20)  sum=21 odd? YES --> yield "1 + 20 = Sum: 21"
+  (2,10)  sum=12 odd? NO  --> zero() (discarded)
+  (2,20)  sum=22 odd? NO  --> zero() (discarded)
+  (3,10)  sum=13 odd? YES --> yield "3 + 10 = Sum: 13"
+  (3,20)  sum=23 odd? YES --> yield "3 + 20 = Sum: 23"
+```
+
+~~~admonish note title="Interface Signature"
 ```java
 public interface MonadZero<F> extends Monad<F>, Alternative<F> {
     <A> Kind<F, A> zero();
@@ -22,45 +56,18 @@ public interface MonadZero<F> extends Monad<F>, Alternative<F> {
     }
 }
 ```
+~~~
 
-### Why is it useful?
+---
 
-A `Monad` provides a way to sequence computations within a context (`flatMap`, `map`, `of`). An `Alternative` provides choice and failure operations (`empty()`, `orElse()`). A `MonadZero` combines both:
+## Filtering in For-Comprehensions
 
-* `zero()`: Returns the "empty" or "zero" element for the monad (implements `empty()` from Alternative).
-* `orElse()`: Combines two alternatives (inherited from Alternative).
-* `guard()`: Conditional success helper (inherited from Alternative).
+The most powerful application of `MonadZero` is the `.when()` clause in the `For` comprehension builder. The builder has two entry points:
 
-This `zero` element acts as an absorbing element in a monadic sequence, similar to how multiplying by zero results in zero. If a computation results in a `zero`, subsequent operations in the chain are typically skipped.
+* `For.from(monad, ...)` -- For any standard `Monad`.
+* `For.from(monadZero, ...)` -- An overloaded version that unlocks `.when(predicate)`.
 
-`MonadZero` is particularly useful for making for-comprehensions more powerful. When you are working with a monad that has a `MonadZero` instance, you can use a `when()` clause to filter results within the comprehension.
-
-**Key Implementations in this Project:**
-
-* For **List**, `zero()` returns an empty list `[]`.
-* For **Maybe**, `zero()` returns `Nothing`.
-* For **Optional**, `zero()` returns `Optional.empty()`.
-
-### Primary Uses
-
-The main purpose of `MonadZero` is to enable filtering within monadic comprehensions. It allows you to discard results that don't meet a certain criterion.
-
-#### 1. Filtering in For-Comprehensions
-
-As already mentioned the most powerful application in this codebase is within the **`For` comprehension builder**. The builder has two entry points:
-
-* `For.from(monad, ...)`: For any standard `Monad`.
-* `For.from(monadZero, ...)`: An overloaded version specifically for a `MonadZero`.
-
-Only the version that accepts a `MonadZero` provides the `.when(predicate)` filtering step. When the predicate in a `.when()` clause evaluates to `false`, the builder internally calls `monad.zero()` to terminate that specific computational path.
-
-#### 2. Generic Functions
-
-It allows you to write generic functions that can operate over any monad that has a concept of "failure" or "emptiness," such as `List`, `Maybe`, or `Optional`.
-
-### Code Example: `For` Comprehension with `ListMonad`
-
-The following example demonstrates how `MonadZero` enables filtering.
+When the predicate evaluates to `false`, the builder internally calls `monad.zero()` to terminate that specific computational path.
 
 ```java
 import org.higherkindedj.hkt.Kind;
@@ -72,39 +79,61 @@ import java.util.List;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-// 1. Get the MonadZero instance for List
 final ListMonad listMonad = ListMonad.INSTANCE;
 
-// 2. Define the initial data sources
 final Kind<ListKind.Witness, Integer> list1 = LIST.widen(Arrays.asList(1, 2, 3));
 final Kind<ListKind.Witness, Integer> list2 = LIST.widen(Arrays.asList(10, 20));
 
-// 3. Build the comprehension using the filterable 'For'
 final Kind<ListKind.Witness, String> result =
-    For.from(listMonad, list1)                       // Start with a MonadZero
-        .from(a -> list2)                            // Generator (flatMap)
-        .when(t -> (t._1() + t._2()) % 2 != 0)        // Filter: if the sum is odd
-        .let(t -> "Sum: " + (t._1() + t._2()))        // Binding (map)
-        .yield((a, b, c) -> a + " + " + b + " = " + c); // Final projection
+    For.from(listMonad, list1)
+        .from(a -> list2)
+        .when(t -> (t._1() + t._2()) % 2 != 0)        // Guard: keep only odd sums
+        .let(t -> "Sum: " + (t._1() + t._2()))
+        .yield((a, b, c) -> a + " + " + b + " = " + c);
 
-// 4. Unwrap the result
 final List<String> narrow = LIST.narrow(result);
-System.out.println("Result of List comprehension: " + narrow);
+System.out.println("Result: " + narrow);
+// [1 + 10 = Sum: 11, 1 + 20 = Sum: 21, 3 + 10 = Sum: 13, 3 + 20 = Sum: 23]
 ```
 
+---
 
-**Explanation:**
+## Key Implementations
 
-* The comprehension iterates through all pairs of `(a, b)` from `list1` and `list2`.
-* The `.when(...)` clause checks if the sum `a + b` is odd.
-* If the sum is even, the `monad.zero()` method (which returns an empty list) is invoked for that path, effectively discarding it.
-* If the sum is odd, the computation continues to the `.let()` and `.yield()` steps.
+For different types, `zero()` has the natural "empty" semantics:
 
-**Output:**
-
-```Result of List comprehension: [1 + 10 = Sum: 11, 1 + 20 = Sum: 21, 3 + 10 = Sum: 13, 3 + 20 = Sum: 23]```
+| Type | `zero()` returns | Effect of filtering |
+|------|-----------------|---------------------|
+| **List** | `[]` (empty list) | Discards that combination from the result list |
+| **Maybe** | `Nothing` | Short-circuits to `Nothing` |
+| **Optional** | `Optional.empty()` | Short-circuits to empty |
+| **Stream** | Empty stream | Skips that element lazily |
 
 ---
+
+## Writing Generic Functions
+
+`MonadZero` allows you to write generic functions that work over any monad with a concept of "emptiness":
+
+```java
+// A generic "filter" that works with List, Maybe, Optional, or Stream
+public static <F, A> Kind<F, A> filterM(
+    MonadZero<F> mz, Kind<F, A> fa, Predicate<A> predicate) {
+    return mz.flatMap(
+        a -> predicate.test(a) ? mz.of(a) : mz.zero(),
+        fa
+    );
+}
+```
+
+---
+
+~~~admonish info title="Key Takeaways"
+* **`zero()` is the absorbing element** that terminates a computational path, like multiplying by zero
+* **`.when()` in for-comprehensions** is the primary use case, enabling mid-chain filtering
+* **Requires `MonadZero`**, not just `Monad`; use `For.from(monadZero, ...)` to unlock filtering
+* **Works uniformly** across List, Maybe, Optional, and Stream
+~~~
 
 ~~~admonish tip title="See Also"
 - [Alternative](alternative.md) - The type class that MonadZero extends alongside Monad

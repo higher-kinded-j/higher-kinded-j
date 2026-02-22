@@ -516,7 +516,8 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 ---
 
 ~~~admonish tip title="Further Reading"
-- **Scala For-Comprehensions**: [Tour of Scala](https://docs.scala-lang.org/tour/for-comprehensions.html) - The inspiration for this API
+- **Project Reactor**: [Mono and Flux Composition](https://projectreactor.io/docs/core/release/reference/) - Java's reactive library uses similar chaining patterns for composing asynchronous operations
+- **Baeldung**: [Java CompletableFuture](https://www.baeldung.com/java-completablefuture) - Java's built-in approach to chaining dependent asynchronous steps
 ~~~
 
 ---

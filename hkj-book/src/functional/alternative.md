@@ -302,7 +302,8 @@ This example demonstrates:
 ---
 
 ~~~admonish tip title="Further Reading"
-- **Cats Documentation**: [Alternative](https://typelevel.org/cats/typeclasses/alternative.html) - Explains Alternative with practical examples including parsing and partitioning
+- **Baeldung**: [Java Optional orElse Patterns](https://www.baeldung.com/java-optional-or-else-optional) - Java's built-in fallback patterns, conceptually similar to Alternative
+- **Project Reactor**: [Mono and Flux Fallbacks](https://projectreactor.io/docs/core/release/reference/) - Reactive Java's approach to alternative and fallback chains
 ~~~
 
 ---
