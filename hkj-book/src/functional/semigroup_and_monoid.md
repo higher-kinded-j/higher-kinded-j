@@ -128,7 +128,7 @@ Monoid<Boolean> booleanAnd = Monoids.booleanAnd();
 
 A `Monoid` is essential for **folding** (or reducing) a data structure. The `empty` element provides a safe starting value, which means you can correctly fold a collection that might be empty.
 
-This is formalised in the **`Foldable`** typeclass, which has a `foldMap` method. This method maps every element in a structure to a monoidal type and then combines all the results.
+This is formalised in the **`Foldable`** type class, which has a `foldMap` method. This method maps every element in a structure to a monoidal type and then combines all the results.
 
 **Example: Using `foldMap` with different Monoids**
 
@@ -501,16 +501,13 @@ This makes them perfect for aggregation pipelines where you're not certain data 
 
 ---
 
-## **Conclusion**
-
-Semigroups and Monoids are deceptively simple abstractions that unlock powerful patterns for data combination and aggregation. By understanding these type classes, you gain:
-
-- **Composability**: Build complex aggregations from simple, reusable pieces
-- **Type Safety**: Let the compiler ensure your combinations are valid
-- **Flexibility**: Swap monoids to get different behaviours from the same code
-- **Elegance**: Express data aggregation intent clearly and concisely
-
-The new utility methods (`combineAll`, `combineN`, `isEmpty`) and expanded instance library (numeric types, Optional-based aggregations) make these abstractions even more practical for everyday Java development.
+~~~admonish info title="Key Takeaways"
+* **Semigroup provides `combine`** for associatively merging two values of the same type
+* **Monoid adds `empty`** (the identity element), enabling safe folds over potentially empty collections
+* **Swap the Monoid, change the behaviour**: addition, multiplication, concatenation, min/max, all from the same operation
+* **Error accumulation** in `Validated` is powered by Semigroup; it tells the Applicative how to merge errors
+* **Utility methods** (`combineAll`, `combineN`, `isEmpty`) and Optional-based monoids (`firstOptional`, `maximum`, etc.) cover common aggregation patterns
+~~~
 
 ---
 

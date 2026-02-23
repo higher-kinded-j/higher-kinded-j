@@ -774,4 +774,4 @@ The key insight: **Setters make modifications first-class composable operations*
 ---
 
 **Previous:** [Getters: Composable Read-Only Access](getters.md)
-**Next:** [Profunctor Optics: Advanced Data Transformation](profunctor_optics.md)
+**Next:** [Common Data Structures](common_data_structure_traversals.md)

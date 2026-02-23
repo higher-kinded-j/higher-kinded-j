@@ -376,4 +376,5 @@ Consider these opportunities to enhance your Higher-Kinded-J integration:
 
 ---
 
+**Previous:** [Focus DSL](focus_dsl.md)
 **Next:** [Taming JSON with Jackson](optics_spec_interfaces.md)

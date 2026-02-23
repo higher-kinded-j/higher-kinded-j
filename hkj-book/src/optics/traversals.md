@@ -849,5 +849,5 @@ Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/
 
 ---
 
-**Previous:** [Isomorphisms: Data Equivalence](iso.md)
+**Previous:** [Introduction to Collection Optics](ch2_intro.md)
 **Next:** [Folds: Querying Immutable Data](folds.md)

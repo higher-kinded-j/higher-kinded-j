@@ -2288,3 +2288,5 @@ Resource<Lock> lock = Resource.make(
 
 ---
 
+**Previous:** [More Functional Thinking](reading.md)
+**Next:** [Release History](release-history.md)

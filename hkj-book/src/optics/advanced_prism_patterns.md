@@ -977,5 +977,5 @@ Practice advanced prism patterns in [Tutorial 10: Advanced Prism Patterns](https
 
 ---
 
-**Previous:** [Prisms: A Practical Guide](prisms.md)
-**Next:** [Isomorphisms: Data Equivalence](iso.md)
+**Previous:** [Indexed Access](indexed_access.md)
+**Next:** [Profunctor Optics](profunctor_optics.md)

@@ -357,4 +357,4 @@ See [Effect Path Overview](../effect/effect_path_overview.md) for the complete g
 ---
 
 **Previous:** [Try](try_monad.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [VTask](vtask_monad.md)

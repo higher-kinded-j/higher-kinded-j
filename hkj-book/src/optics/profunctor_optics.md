@@ -735,6 +735,6 @@ This profunctor capability makes higher-kinded-j optics incredibly flexible and 
 
 ---
 
-**Previous:** [Setters: Composable Write-Only Modifications](setters.md)
-**Next:** [Capstone Example: Deep Validation](composing_optics.md)
+**Previous:** [Advanced Prism Patterns](advanced_prism_patterns.md)
+**Next:** [Java-Friendly APIs](ch4_intro.md)
 

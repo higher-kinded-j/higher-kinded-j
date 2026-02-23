@@ -213,5 +213,5 @@ Congratulations! You've completed the Core Types track. You now understand:
 
 ---
 
-**Previous**: [Core Types: Error Handling](error_handling_journey.md)
-**Next**: [Effect API Journey](../effect/effect_journey.md)
+**Previous:** [Core Types: Error Handling](error_handling_journey.md)
+**Next:** [Effect API](../effect/effect_journey.md)

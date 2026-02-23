@@ -67,3 +67,8 @@ Master the complete ForState API through progressive exercises, including the `t
 | 9a | Basic `toState()` bridge from For | Intermediate |
 | 9b | Multi-value `toState()` with spread-style | Intermediate |
 | 9c | Filterable `toState()` with MonadZero guards | Advanced |
+
+---
+
+**Previous:** [Optics: Focus DSL](../optics/focus_dsl_journey.md)
+**Next:** [Learning Paths](../learning_paths.md)

@@ -146,5 +146,5 @@ After completing the Effect API journey:
 
 ---
 
-**Previous**: [Learning Paths](../learning_paths.md)
-**Next**: [Core Types: Foundations](../coretypes/foundations_journey.md)
+**Previous:** [Core Types: Advanced](../coretypes/advanced_journey.md)
+**Next:** [Concurrency: VTask](../concurrency/vtask_journey.md)

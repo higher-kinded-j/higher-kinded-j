@@ -410,4 +410,4 @@ StateT<Counter, IOKind.Witness, Integer> transformer = ctx.toStateT();
 ---
 
 **Previous:** [ConfigContext](effect_contexts_config.md)
-**Next:** [Advanced Topics](advanced_topics.md)
+**Next:** [RequestContext](context_request.md)

@@ -167,4 +167,5 @@ Same program, different execution strategies.
 
 ---
 
+**Previous:** [Profunctor Optics](profunctor_optics.md)
 **Next:** [Focus DSL](focus_dsl.md)

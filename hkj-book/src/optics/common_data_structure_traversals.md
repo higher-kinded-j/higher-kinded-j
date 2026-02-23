@@ -557,5 +557,5 @@ By incorporating structure traversals into your optics toolkit, you gain the abi
 
 ---
 
-**Previous:** [String Traversals: Declarative Text Processing](string_traversals.md)
-**Next:** [Indexed Optics: Position-Aware Operations](indexed_optics.md)
+**Previous:** [Setters: Composable Write-Only Modifications](setters.md)
+**Next:** [Limiting Traversals](limiting_traversals.md)

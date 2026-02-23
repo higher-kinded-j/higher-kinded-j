@@ -377,5 +377,5 @@ For deeper exploration of the State monad and its applications:
 
 ---
 
-**Previous:** [Reader](reader_monad.md)
+**Previous:** [Context](context_scoped.md)
 **Next:** [Stream](stream_monad.md)
