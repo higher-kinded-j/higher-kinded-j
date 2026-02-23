@@ -263,4 +263,7 @@ After completing this journey:
 
 ---
 
+**Previous:** [Effect API](../effect/effect_journey.md)
+**Next:** [Scope & Resource](scope_resource_journey.md)
+
 **Related**: [VTask Guide](../../monads/vtask_monad.md) | [VTaskPath Guide](../../effect/path_vtask.md) | [Monad Guide](../../functional/monad.md) | [Effect Path Overview](../../effect/effect_path_overview.md)

@@ -27,3 +27,8 @@ In this post, we will see how Higher Kinded Types can help increase the flexibil
 - [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html)
 
 In this post, we will see how Thunks and Trampolines can help solve problems by converting deep stack-based recursion into heap-based iteration, helping to prevent StackOverflowErrors.
+
+---
+
+**Previous:** [Const](monads/const_type.md)
+**Next:** [Glossary](glossary.md)

@@ -146,5 +146,5 @@ After completing this journey:
 
 ---
 
-**Previous**: [Core Types: Foundations](foundations_journey.md)
-**Next Journey**: [Core Types: Advanced Patterns](advanced_journey.md)
+**Previous:** [Core Types: Foundations](foundations_journey.md)
+**Next:** [Core Types: Advanced Patterns](advanced_journey.md)

@@ -147,4 +147,5 @@ After completing this journey:
 
 ---
 
-**Next Journey**: [Core Types: Error Handling](error_handling_journey.md)
+**Previous:** [Interactive Tutorials](../tutorials_intro.md)
+**Next:** [Core Types: Error Handling](error_handling_journey.md)
