@@ -169,5 +169,5 @@ Focus: Master virtual threads, structured concurrency, and resource management i
 
 ---
 
-**Previous**: [Interactive Tutorials](tutorials_intro.md)
-**Next**: [Solutions Guide](solutions_guide.md)
+**Previous:** [Expression: ForState](expression/forstate_journey.md)
+**Next:** [Solutions Guide](solutions_guide.md)

@@ -383,8 +383,8 @@ Every value is accessed by name. The workflow reads top-to-bottom. Adding or rem
 ---
 
 ~~~admonish tip title="Further Reading"
-- **Scala State Monad**: [Cats State](https://typelevel.org/cats/datatypes/state.html) -- Similar state-threading pattern
-- **Haskell lens library**: [Control.Lens](https://hackage.haskell.org/package/lens) -- The inspiration for optics-based state access
+- **Baeldung**: [Java Record Patterns](https://www.baeldung.com/java-record-keyword) -- Using Java records for immutable state representation
+- **Mojang/DataFixerUpper**: [DFU on GitHub](https://github.com/Mojang/DataFixerUpper) -- Minecraft's Java library using optics for state transformation between game versions
 ~~~
 
 ---

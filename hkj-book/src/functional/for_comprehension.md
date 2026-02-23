@@ -90,18 +90,27 @@ At higher arities, the tuple-style `yield` is especially convenient for accessin
 .yield(t -> t._6() + " (score: " + t._4() + ")")
 ```
 
-~~~admonish tip title="Consider ForState for complex workflows"
-As the number of bindings grows, tuple positions like `t._3()` and `t._4()` become hard to track. For workflows with more than two or three steps, **[ForState](forstate_comprehension.md)** provides named field access through records and lenses, eliminating positional errors entirely:
+~~~admonish tip title="Consider toState() for complex workflows"
+As the number of bindings grows, tuple positions like `t._3()` and `t._4()` become hard to track. The `toState()` bridge lets you gather values with `For`, then transition to named fields for the rest. Here is the same example rewritten:
 
 ```java
-// ForState: every value has a name
-ForState.withState(monad, monad.of(ctx))
-    .fromThen(ctx -> lookupAddress(ctx.user()),   addressLens)
-    .fromThen(ctx -> calculateShipping(ctx.address()), shippingLens)
-    .yield(ctx -> buildReceipt(ctx.user(), ctx.address(), ctx.shippingCents()));
+@GenerateLenses
+record NameInfo(String name, int len, String upper, int score, String exclaimed, String summary) {}
+
+Kind<IdKind.Witness, String> result =
+    For.from(idMonad, Id.of("Alice"))
+        .let(name -> name.length())
+        .toState((name, len) -> new NameInfo(name, len, "", 0, "", ""))
+        .fromThen(ctx -> Id.of(ctx.name().toUpperCase()),               upperLens)
+        .fromThen(ctx -> Id.of(ctx.len() * 10),                        scoreLens)
+        .fromThen(ctx -> Id.of(ctx.upper() + "!"),                     exclaimedLens)
+        .fromThen(ctx -> Id.of(ctx.name() + " has " + ctx.len() + " letters"), summaryLens)
+        .yield(ctx -> ctx.summary() + " (score: " + ctx.score() + ")");
+
+// Same result: "Alice has 5 letters (score: 50)"
 ```
 
-See [ForState: Named State Comprehensions](forstate_comprehension.md) for a full comparison and API reference.
+Every intermediate value now has a name. Inserting a new step won't shift any existing accessor. See [ForState: Named State Comprehensions](forstate_comprehension.md) for the full API.
 ~~~
 
 ## Core Operations of the `For` Builder
@@ -516,7 +525,8 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 ---
 
 ~~~admonish tip title="Further Reading"
-- **Scala For-Comprehensions**: [Tour of Scala](https://docs.scala-lang.org/tour/for-comprehensions.html) - The inspiration for this API
+- **Project Reactor**: [Mono and Flux Composition](https://projectreactor.io/docs/core/release/reference/) - Java's reactive library uses similar chaining patterns for composing asynchronous operations
+- **Baeldung**: [Java CompletableFuture](https://www.baeldung.com/java-completablefuture) - Java's built-in approach to chaining dependent asynchronous steps
 ~~~
 
 ---

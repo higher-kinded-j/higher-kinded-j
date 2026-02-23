@@ -239,5 +239,5 @@ Congratulations! You've completed the Optics track. You now understand:
 
 ---
 
-**Previous**: [Optics: Fluent & Free DSL](fluent_free_journey.md)
-**Next**: [Effect API Journey](../effect/effect_journey.md)
+**Previous:** [Optics: Fluent & Free DSL](fluent_free_journey.md)
+**Next:** [Expression: ForState](../expression/forstate_journey.md)

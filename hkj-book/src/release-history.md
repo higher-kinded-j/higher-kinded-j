@@ -225,3 +225,8 @@ Major release introducing the unified Effect Path API and Focus DSL integration.
 - [GitHub Releases](https://github.com/higher-kinded-j/higher-kinded-j/releases) -- Full changelogs and assets
 - [Contributing](CONTRIBUTING.md) -- How to contribute to Higher-Kinded-J
 ~~~
+
+---
+
+**Previous:** [Glossary](glossary.md)
+**Next:** [Benchmarks & Performance](benchmarks.md)

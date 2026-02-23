@@ -366,3 +366,4 @@ Understanding `Const` empowers you to write efficient, compositional code for da
 ---
 
 **Previous:** [Writer](writer_monad.md)
+**Next:** [More Functional Thinking](../reading.md)

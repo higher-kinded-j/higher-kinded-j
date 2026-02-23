@@ -1491,4 +1491,4 @@ Practice the Focus DSL in [Tutorial 12: Focus DSL](https://github.com/higher-kin
 ---
 
 **Previous:** [Introduction](ch4_intro.md)
-**Next:** [Kind Field Support](kind_field_support.md)
+**Next:** [Optics for External Types](importing_optics.md)

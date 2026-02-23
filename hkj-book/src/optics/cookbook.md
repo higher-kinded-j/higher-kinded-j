@@ -752,5 +752,5 @@ Practice real-world optics patterns in [Tutorial 08: Real World Optics](https://
 
 ---
 
-**Previous:** [Composition Rules](composition_rules.md)
+**Previous:** [Optics Extensions](optics_extensions.md)
 **Next:** [Auditing Complex Data](auditing_complex_data_example.md)

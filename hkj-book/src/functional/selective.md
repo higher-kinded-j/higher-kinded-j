@@ -346,8 +346,8 @@ Higher-Kinded-J provides Selective instances for:
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Selective Applicative Functors**: [Original Paper](https://dl.acm.org/doi/10.1145/3341694) - The academic paper introducing Selective functors
-- **Haskell Selective Library**: [Hackage](https://hackage.haskell.org/package/selective) - Reference implementation with additional examples
+- **Andrey Mokhov et al.**: [Selective Applicative Functors](https://dl.acm.org/doi/10.1145/3341694) - The academic paper introducing Selective functors
+- **Togglz**: [Feature Flags for Java](https://www.togglz.org/) - A Java feature flag library that addresses the same conditional-execution problem Selective solves at the type level
 ~~~
 
 ---

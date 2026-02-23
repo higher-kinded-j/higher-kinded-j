@@ -8,35 +8,33 @@
 - When to choose Functor over direct method calls
 ~~~
 
-~~~admonish title="Hands On Practice"
+~~~admonish example title="Hands-On Practice"
 [Tutorial02_FunctorMapping.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial02_FunctorMapping.java)
 ~~~
 
 At the heart of functional programming is the ability to transform data within a container without having to open it. The **`Functor`** type class provides exactly this capability. It's the simplest and most common abstraction for any data structure that can be "mapped over."
 
-If you've ever used `Optional.map()` or `Stream.map()`, you've already been using the Functor pattern! `higher-kinded-j` simply formalises this concept so you can apply it to any data structure.
+If you've ever used `Optional.map()` or `Stream.map()`, you've already been using the Functor pattern! Higher-Kinded-J simply formalises this concept so you can apply it to any data structure.
 
 ---
 
-## What is it?
+## What Does It Do?
 
 A **`Functor`** is a type class for any data structure `F` that supports a `map` operation. This operation takes a function from `A -> B` and applies it to the value(s) inside a container `F<A>`, producing a new container `F<B>` of the same shape.
 
 Think of a `Functor` as a generic "box" that holds a value. The `map` function lets you transform the contents of the box without ever taking the value out. Whether the box is an `Optional` that might be empty, a `List` with many items, or a `Try` that might hold an error, the mapping logic remains the same.
 
-The interface for `Functor` in `hkj-api` is simple and elegant:
-
-
+~~~admonish note title="Interface Signature"
 ``` java
 public interface Functor<F extends WitnessArity<TypeArity.Unary>> {
   <A, B> @NonNull Kind<F, B> map(final Function<? super A, ? extends B> f, final Kind<F, A> fa);
 }
 ```
 
-The `F extends WitnessArity<TypeArity.Unary>` bound ensures that only valid unary witness types (representing single-parameter type constructors like `List<_>` or `Optional<_>`) can be used with Functor.
-
 * `f`: The function to apply to the value inside the Functor.
 * `fa`: The higher-kinded `Functor` instance (e.g., a `Kind<Optional.Witness, String>`).
+* The `F extends WitnessArity<TypeArity.Unary>` bound ensures that only valid unary witness types can be used with Functor.
+~~~
 
 ---
 
@@ -66,15 +64,9 @@ These laws ensure that `map` is only about transformation and preserves the stru
 
 ---
 
-### Why is it useful?
-
-`Functor` allows you to write generic, reusable code that transforms values inside any "mappable" data structure. This is the first step towards abstracting away the boilerplate of dealing with different container types.
-
-**Example: Mapping over an `Optional` and a `List`**
+### Practical Example: Mapping over `Optional` and `List`
 
 Let's see how we can use the `Functor` instances for `Optional` and `List` to apply the same logic to different data structures.
-
-
 
 ``` java
 import org.higherkindedj.hkt.Kind;
@@ -94,11 +86,9 @@ Function<String, Integer> stringLength = String::length;
 // --- Scenario 1: Mapping over an Optional ---
 Functor<OptionalKind.Witness> optionalFunctor = OptionalFunctor.INSTANCE;
 
-// The data
 Kind<OptionalKind.Witness, String> optionalWithValue = OPTIONAL.widen(Optional.of("Hello"));
 Kind<OptionalKind.Witness, String> optionalEmpty = OPTIONAL.widen(Optional.empty());
 
-// Apply the map
 Kind<OptionalKind.Witness, Integer> lengthWithValue = optionalFunctor.map(stringLength, optionalWithValue);
 Kind<OptionalKind.Witness, Integer> lengthEmpty = optionalFunctor.map(stringLength, optionalEmpty);
 
@@ -111,24 +101,35 @@ System.out.println(OPTIONAL.narrow(lengthEmpty));
 // --- Scenario 2: Mapping over a List ---
 Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
 
-// The data
 Kind<ListKind.Witness, String> listOfStrings = LIST.widen(List.of("one", "two", "three"));
 
-// Apply the map
 Kind<ListKind.Witness, Integer> listOfLengths = listFunctor.map(stringLength, listOfStrings);
 
 // Result: [3, 3, 5]
 System.out.println(LIST.narrow(listOfLengths));
 ```
 
-As you can see, the `Functor` provides a consistent API for transformation, regardless of the underlying data structure. This is the first and most essential step on the path to more powerful abstractions like `Applicative` and `Monad`.
+The `Functor` provides a consistent API for transformation, regardless of the underlying data structure. This is the first and most essential step on the path to more powerful abstractions like `Applicative` and `Monad`.
 
 ---
+
+~~~admonish info title="Key Takeaways"
+* **`map` transforms values inside a container** without changing the container's structure
+* **One interface, many types**: the same `map` operation works with Optional, List, Either, IO, and more
+* **Functor laws** (identity and composition) guarantee predictable, side-effect-free transformations
+* **Functor is the foundation** that Applicative, Monad, and every other type class builds upon
+~~~
+
+~~~admonish tip title="See Also"
+- [Applicative](applicative.md) - The next step up: combining independent computations
+- [Monad](monad.md) - Sequencing dependent computations with `flatMap`
+- [Bifunctor](bifunctor.md) - Mapping over types with two parameters
+~~~
 
 ~~~admonish tip title="Further Reading"
 - **Scott Logic**: [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html) - Practical guide to functors and monads in Java
 - **Bartosz Milewski**: [Functors](https://bartoszmilewski.com/2015/01/20/functors/) - Comprehensive explanation of functors from category theory to code
-- **Cats Documentation**: [Functor](https://typelevel.org/cats/typeclasses/functor.html) - Scala implementation and examples
+- **Mark Seemann**: [Functors](https://blog.ploeh.dk/2018/03/22/functors/) - A practical introduction with examples in Java-adjacent languages
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

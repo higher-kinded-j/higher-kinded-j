@@ -213,4 +213,5 @@ After completing this journey:
 
 ---
 
-**Next Journey**: [Optics: Traversals & Practice](traversals_journey.md)
+**Previous:** [Scope & Resource](../concurrency/scope_resource_journey.md)
+**Next:** [Optics: Traversals & Practice](traversals_journey.md)

@@ -811,5 +811,5 @@ Practice request tracing patterns in [Tutorial 03: Request Tracing Patterns](htt
 
 ---
 
-**Previous:** [Effect Contexts Overview](effect_contexts.md)
+**Previous:** [MutableContext](effect_contexts_mutable.md)
 **Next:** [SecurityContext Patterns](context_security.md)

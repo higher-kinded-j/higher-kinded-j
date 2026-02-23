@@ -741,5 +741,5 @@ systems that handle the full spectrum of real-world complexity.
 
 ---
 
-**Previous:** [MutableContext](effect_contexts_mutable.md)
+**Previous:** [Context vs ConfigContext](context_vs_config.md)
 **Next:** [Production Readiness](production_readiness.md)

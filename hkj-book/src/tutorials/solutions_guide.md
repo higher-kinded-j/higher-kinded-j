@@ -354,5 +354,5 @@ Take your time. Struggle productively. Learn deeply.
 
 ---
 
-**Previous:** [Optics Track](optics_track.md)
+**Previous:** [Learning Paths](learning_paths.md)
 **Next:** [Troubleshooting](troubleshooting.md)

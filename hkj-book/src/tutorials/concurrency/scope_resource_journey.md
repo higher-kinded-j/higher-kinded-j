@@ -327,4 +327,7 @@ After completing this journey:
 
 ---
 
+**Previous:** [Concurrency: VTask](vtask_journey.md)
+**Next:** [Optics: Lens & Prism](../optics/lens_prism_journey.md)
+
 **Related**: [VTask Journey](vtask_journey.md) | [Structured Concurrency](../../monads/vtask_scope.md) | [Resource Management](../../monads/vtask_resource.md) | [VTaskPath](../../effect/path_vtask.md)

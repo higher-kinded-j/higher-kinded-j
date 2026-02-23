@@ -387,4 +387,4 @@ Practice list decomposition patterns in [Tutorial 15: List Prisms](https://githu
 ---
 
 **Previous:** [Limiting Traversals](limiting_traversals.md)
-**Next:** [Filtered Optics](../optics/filtered_optics.md)
+**Next:** [Precision and Filtering](ch3_intro.md)
