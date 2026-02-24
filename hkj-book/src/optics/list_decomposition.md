@@ -34,11 +34,11 @@ Lists can be viewed from either end. This simple observation leads to two comple
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          CONS (head/tail)                               │
 │                                                                         │
-│   List:     [ A  |  B  |  C  |  D  |  E ]                              │
+│   List:     [ A  |  B  |  C  |  D  |  E ]                               │
 │               ↓     └──────────┬────────┘                               │
 │             head            tail                                        │
 │                                                                         │
-│   Pair.of(A, [B, C, D, E])                                             │
+│   Pair.of(A, [B, C, D, E])                                              │
 │                                                                         │
 │   "Begin at the beginning..."                                           │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -46,11 +46,11 @@ Lists can be viewed from either end. This simple observation leads to two comple
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          SNOC (init/last)                               │
 │                                                                         │
-│   List:     [ A  |  B  |  C  |  D  |  E ]                              │
+│   List:     [ A  |  B  |  C  |  D  |  E ]                               │
 │              └──────────┬────────┘    ↓                                 │
 │                       init          last                                │
 │                                                                         │
-│   Pair.of([A, B, C, D], E)                                             │
+│   Pair.of([A, B, C, D], E)                                              │
 │                                                                         │
 │   "...and go on till you come to the end"                               │
 └─────────────────────────────────────────────────────────────────────────┘
