@@ -25,7 +25,6 @@ import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.vtask.Par;
-import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
