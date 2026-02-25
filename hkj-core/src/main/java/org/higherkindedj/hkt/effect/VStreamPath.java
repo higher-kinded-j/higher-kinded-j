@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -324,6 +325,80 @@ public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStre
    * @throws NullPointerException if consumer is null
    */
   VTaskPath<Unit> forEach(Consumer<? super A> consumer);
+
+  // ===== Parallel operations =====
+
+  /**
+   * Applies an effectful function to each element with bounded concurrency, preserving input order.
+   *
+   * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parEvalMap(VStream, int,
+   * java.util.function.Function)}.
+   *
+   * @param concurrency the maximum number of elements to process concurrently; must be positive
+   * @param f the effectful function to apply to each element; must not be null
+   * @param <B> the type of the transformed elements
+   * @return a new VStreamPath with parallel-processed elements in input order
+   * @throws IllegalArgumentException if concurrency is not positive
+   * @throws NullPointerException if f is null
+   */
+  <B> VStreamPath<B> parEvalMap(int concurrency, Function<? super A, VTask<B>> f);
+
+  /**
+   * Applies an effectful function to each element with bounded concurrency, emitting results in
+   * completion order rather than input order.
+   *
+   * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parEvalMapUnordered(VStream,
+   * int, java.util.function.Function)}.
+   *
+   * @param concurrency the maximum number of elements to process concurrently; must be positive
+   * @param f the effectful function to apply to each element; must not be null
+   * @param <B> the type of the transformed elements
+   * @return a new VStreamPath with parallel-processed elements in completion order
+   * @throws IllegalArgumentException if concurrency is not positive
+   * @throws NullPointerException if f is null
+   */
+  <B> VStreamPath<B> parEvalMapUnordered(int concurrency, Function<? super A, VTask<B>> f);
+
+  // ===== Chunking operations =====
+
+  /**
+   * Groups elements into lists of at most {@code size} elements.
+   *
+   * <p>Delegates to {@link VStream#chunk(int)}.
+   *
+   * @param size the maximum number of elements per chunk; must be positive
+   * @return a new VStreamPath of element lists
+   * @throws IllegalArgumentException if size is not positive
+   */
+  VStreamPath<List<A>> chunk(int size);
+
+  /**
+   * Chunks the stream, applies a batch function to each chunk, and flattens the results.
+   *
+   * <p>Delegates to {@link VStream#mapChunked(int, java.util.function.Function)}.
+   *
+   * @param size the maximum number of elements per batch; must be positive
+   * @param f the batch function to apply; must not be null
+   * @param <B> the type of elements in the output
+   * @return a new VStreamPath with transformed elements
+   * @throws IllegalArgumentException if size is not positive
+   * @throws NullPointerException if f is null
+   */
+  <B> VStreamPath<B> mapChunked(int size, Function<List<A>, List<B>> f);
+
+  /**
+   * Collects all elements in parallel batches. This is a terminal operation.
+   *
+   * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parCollect(VStream, int)}.
+   *
+   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)}
+   * first.
+   *
+   * @param batchSize the number of elements to process per batch; must be positive
+   * @return a VTaskPath that produces the list of all elements
+   * @throws IllegalArgumentException if batchSize is not positive
+   */
+  VTaskPath<List<A>> parCollect(int batchSize);
 
   // ===== Optics focus bridge =====
 

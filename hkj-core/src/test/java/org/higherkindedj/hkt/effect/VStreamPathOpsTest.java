@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.test.assertions.VStreamPathAssert.assertThatVStreamPath;
 
 import java.util.List;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -143,6 +144,84 @@ class VStreamPathOpsTest {
       assertThatNullPointerException()
           .isThrownBy(() -> PathOps.flattenVStream(null))
           .withMessageContaining("nested must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("parTraverseVStream")
+  class ParTraverseVStreamTests {
+
+    @Test
+    @DisplayName("applies effectful function with concurrency")
+    void appliesEffectfulFunctionWithConcurrency() {
+      VStreamPath<Integer> stream = Path.vstreamOf(1, 2, 3);
+
+      VStreamPath<Integer> result =
+          PathOps.parTraverseVStream(stream, 2, n -> VTask.succeed(n * 10));
+
+      assertThatVStreamPath(result).producesElements(10, 20, 30);
+    }
+
+    @Test
+    @DisplayName("handles empty stream")
+    void handlesEmptyStream() {
+      VStreamPath<Integer> stream = Path.vstreamEmpty();
+
+      VStreamPath<Integer> result =
+          PathOps.parTraverseVStream(stream, 2, n -> VTask.succeed(n * 10));
+
+      assertThatVStreamPath(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("validates non-null stream")
+    void validatesNonNullStream() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parTraverseVStream(null, 2, n -> VTask.succeed(n)))
+          .withMessageContaining("stream must not be null");
+    }
+
+    @Test
+    @DisplayName("validates non-null function")
+    void validatesNonNullFunction() {
+      VStreamPath<Integer> stream = Path.vstreamOf(1, 2, 3);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parTraverseVStream(stream, 2, null))
+          .withMessageContaining("f must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("parCollectVStream")
+  class ParCollectVStreamTests {
+
+    @Test
+    @DisplayName("collects elements in parallel batches")
+    void collectsElementsInParallelBatches() {
+      VStreamPath<Integer> stream = Path.vstreamOf(1, 2, 3, 4, 5);
+
+      VTaskPath<List<Integer>> result = PathOps.parCollectVStream(stream, 2);
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("collects empty stream")
+    void collectsEmptyStream() {
+      VStreamPath<Integer> stream = Path.vstreamEmpty();
+
+      VTaskPath<List<Integer>> result = PathOps.parCollectVStream(stream, 2);
+
+      assertThat(result.unsafeRun()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("validates non-null stream")
+    void validatesNonNullStream() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parCollectVStream(null, 2))
+          .withMessageContaining("stream must not be null");
     }
   }
 }

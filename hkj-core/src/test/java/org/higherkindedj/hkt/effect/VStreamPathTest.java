@@ -993,4 +993,124 @@ class VStreamPathTest {
       assertThat(result).isEqualTo("item1, item2, item3");
     }
   }
+
+  // ===== Stage 5: Parallel and Chunk Operations =====
+
+  @Nested
+  @DisplayName("Parallel Operations")
+  class ParallelOperations {
+
+    @Test
+    @DisplayName("parEvalMap() processes all elements")
+    void parEvalMapProcessesAllElements() {
+      VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5);
+
+      VStreamPath<Integer> result = path.parEvalMap(2, n -> VTask.succeed(n * 2));
+
+      assertThatVStreamPath(result).producesElements(2, 4, 6, 8, 10);
+    }
+
+    @Test
+    @DisplayName("parEvalMap() preserves order")
+    void parEvalMapPreservesOrder() {
+      VStreamPath<Integer> path = Path.vstreamFromList(List.of(5, 4, 3, 2, 1));
+
+      VStreamPath<Integer> result =
+          path.parEvalMap(
+              3,
+              n ->
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(n * 5L);
+                        return n * 10;
+                      }));
+
+      assertThatVStreamPath(result).producesElements(50, 40, 30, 20, 10);
+    }
+
+    @Test
+    @DisplayName("parEvalMapUnordered() processes all elements")
+    void parEvalMapUnorderedProcessesAllElements() {
+      VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5);
+
+      VStreamPath<Integer> result = path.parEvalMapUnordered(3, n -> VTask.succeed(n * 2));
+
+      assertThatVStreamPath(result)
+          .satisfies(elements -> assertThat(elements).containsExactlyInAnyOrder(2, 4, 6, 8, 10));
+    }
+
+    @Test
+    @DisplayName("parCollect() collects correctly")
+    void parCollectCollectsCorrectly() {
+      VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5);
+
+      VTaskPath<List<Integer>> result = path.parCollect(2);
+
+      assertThat(result.unsafeRun()).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("parEvalMap() on empty stream returns empty")
+    void parEvalMapOnEmptyStreamReturnsEmpty() {
+      VStreamPath<Integer> path = Path.vstreamEmpty();
+
+      VStreamPath<Integer> result = path.parEvalMap(4, n -> VTask.succeed(n));
+
+      assertThatVStreamPath(result).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Chunk Operations")
+  class ChunkOperations {
+
+    @Test
+    @DisplayName("chunk() groups correctly")
+    void chunkGroupsCorrectly() {
+      VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5);
+
+      VStreamPath<List<Integer>> chunked = path.chunk(2);
+
+      List<List<Integer>> result = chunked.toList().unsafeRun();
+      assertThat(result).hasSize(3);
+      assertThat(result.get(0)).containsExactly(1, 2);
+      assertThat(result.get(1)).containsExactly(3, 4);
+      assertThat(result.get(2)).containsExactly(5);
+    }
+
+    @Test
+    @DisplayName("mapChunked() applies batch function")
+    void mapChunkedAppliesBatchFunction() {
+      VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5, 6);
+
+      VStreamPath<Integer> result =
+          path.mapChunked(3, chunk -> chunk.stream().map(n -> n * 10).toList());
+
+      assertThatVStreamPath(result).producesElements(10, 20, 30, 40, 50, 60);
+    }
+
+    @Test
+    @DisplayName("Pipeline: chunk then parEvalMap for batch processing")
+    void pipelineChunkThenParEvalMap() {
+      VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5, 6);
+
+      // Chunk into batches of 3, then process each batch in parallel
+      VStreamPath<List<Integer>> chunked = path.chunk(3);
+      VStreamPath<Integer> result =
+          chunked.parEvalMap(
+              2, batch -> VTask.of(() -> batch.stream().mapToInt(Integer::intValue).sum()));
+
+      assertThatVStreamPath(result).producesElements(6, 15);
+    }
+
+    @Test
+    @DisplayName("chunk() on empty stream returns empty")
+    void chunkOnEmptyReturnsEmpty() {
+      VStreamPath<Integer> path = Path.vstreamEmpty();
+
+      VStreamPath<List<Integer>> result = path.chunk(3);
+
+      assertThatVStreamPath(result).isEmpty();
+    }
+  }
 }

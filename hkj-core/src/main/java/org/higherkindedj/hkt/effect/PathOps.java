@@ -1396,4 +1396,47 @@ public final class PathOps {
     Objects.requireNonNull(nested, "nested must not be null");
     return nested.via(inner -> inner);
   }
+
+  /**
+   * Traverses a VStreamPath with parallel evaluation of the mapping function.
+   *
+   * <p>Applies the effectful function to each element with bounded concurrency, preserving input
+   * order. This is the parallel equivalent of sequential {@code mapTask} operations.
+   *
+   * @param stream the VStreamPath to traverse; must not be null
+   * @param concurrency the maximum number of elements to process concurrently; must be positive
+   * @param f the effectful function to apply; must not be null
+   * @param <A> the input element type
+   * @param <B> the output element type
+   * @return a VStreamPath with parallel-processed elements
+   * @throws NullPointerException if stream or f is null
+   * @throws IllegalArgumentException if concurrency is not positive
+   */
+  public static <A, B> VStreamPath<B> parTraverseVStream(
+      VStreamPath<A> stream, int concurrency, Function<A, VTask<B>> f) {
+    Objects.requireNonNull(stream, "stream must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+    return stream.parEvalMap(concurrency, f);
+  }
+
+  /**
+   * Collects all elements from a VStreamPath in parallel batches.
+   *
+   * <p>This is a terminal operation that produces a VTaskPath containing the collected list.
+   * Elements in the result are in the same order as the source stream.
+   *
+   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link
+   * VStreamPath#take(long)} first.
+   *
+   * @param stream the VStreamPath to collect; must not be null
+   * @param batchSize the number of elements per batch; must be positive
+   * @param <A> the element type
+   * @return a VTaskPath that produces the list of all elements
+   * @throws NullPointerException if stream is null
+   * @throws IllegalArgumentException if batchSize is not positive
+   */
+  public static <A> VTaskPath<List<A>> parCollectVStream(VStreamPath<A> stream, int batchSize) {
+    Objects.requireNonNull(stream, "stream must not be null");
+    return stream.parCollect(batchSize);
+  }
 }

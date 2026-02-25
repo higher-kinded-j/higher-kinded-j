@@ -177,6 +177,8 @@
     - [Resource Management](monads/vtask_resource.md)
   - [VStream](monads/vstream.md)
     - [HKT and Type Classes](monads/vstream_hkt.md)
+    - [Parallel Operations](monads/vstream_parallel.md)
+    - [Performance](monads/vstream_performance.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 

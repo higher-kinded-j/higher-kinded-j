@@ -28,7 +28,7 @@ The suite is designed around three principles:
 
 ## What Is Measured
 
-The `hkj-benchmarks` module contains 18 benchmark classes covering every major type in the library:
+The `hkj-benchmarks` module contains 19 benchmark classes covering every major type in the library:
 
 ### Core Types
 
@@ -45,8 +45,9 @@ The `hkj-benchmarks` module contains 18 benchmark classes covering every major t
 |-----------|------|-------------------|
 | `IOBenchmark` | `IO<A>` | Lazy construction and platform thread execution |
 | `VTaskBenchmark` | `VTask<A>` | Virtual thread execution, map/flatMap chains |
-| `VStreamBenchmark` | `VStream<A>` | Pull-based stream construction, combinator pipelines, Java Stream comparison |
+| `VStreamBenchmark` | `VStream<A>` | Pull-based stream construction, combinator pipelines, parallel ops, chunking, Java Stream comparison |
 | `VTaskParBenchmark` | `Par` combinators | Parallel zip, all, race, traverse via StructuredTaskScope |
+| `ScopeBenchmark` | `Scope`, `Resource` | Scope joiner strategies (allSucceed, anySucceed, accumulating), Resource bracket overhead |
 
 ### Effect Path Wrappers
 
@@ -135,6 +136,8 @@ EitherBenchmark.leftMap                    thrpt   20  89.123 ± 1.234  ops/us
 | VTask ~10-30% slower than IO for simple ops | Expected virtual thread overhead |
 | Deep chain (50+ steps) completes without error | Stack safety is intact |
 | VStream slower than Java Stream | Expected; virtual thread + pull overhead |
+| parEvalMap scales with concurrency for I/O | Parallel pipeline working correctly |
+| Scope joiners similar speed to Par.all | Minimal Scope abstraction cost |
 | Wrapper overhead < 15% | Acceptable Path wrapper cost |
 
 ### Warning Signs

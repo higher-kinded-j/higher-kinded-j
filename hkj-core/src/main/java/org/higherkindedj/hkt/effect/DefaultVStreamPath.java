@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -232,6 +233,42 @@ record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
   public VTaskPath<Unit> forEach(Consumer<? super A> consumer) {
     Objects.requireNonNull(consumer, "consumer must not be null");
     return new DefaultVTaskPath<>(stream.forEach(consumer));
+  }
+
+  // ===== Parallel operations =====
+
+  @Override
+  public <B> VStreamPath<B> parEvalMap(int concurrency, Function<? super A, VTask<B>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    @SuppressWarnings("unchecked")
+    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
+    return new DefaultVStreamPath<>(VStreamPar.parEvalMap(stream, concurrency, typedF));
+  }
+
+  @Override
+  public <B> VStreamPath<B> parEvalMapUnordered(int concurrency, Function<? super A, VTask<B>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    @SuppressWarnings("unchecked")
+    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
+    return new DefaultVStreamPath<>(VStreamPar.parEvalMapUnordered(stream, concurrency, typedF));
+  }
+
+  // ===== Chunking operations =====
+
+  @Override
+  public VStreamPath<List<A>> chunk(int size) {
+    return new DefaultVStreamPath<>(stream.chunk(size));
+  }
+
+  @Override
+  public <B> VStreamPath<B> mapChunked(int size, Function<List<A>, List<B>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVStreamPath<>(stream.mapChunked(size, f));
+  }
+
+  @Override
+  public VTaskPath<List<A>> parCollect(int batchSize) {
+    return new DefaultVTaskPath<>(VStreamPar.parCollect(stream, batchSize));
   }
 
   // ===== Focus bridge =====

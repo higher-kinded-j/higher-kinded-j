@@ -487,6 +487,8 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 
 ~~~admonish tip title="See Also"
 - [HKT and Type Classes](vstream_hkt.md) - VStream's type class instances for generic programming
+- [Parallel Operations](vstream_parallel.md) - parEvalMap, merge, chunking, and concurrency control
+- [Performance](vstream_performance.md) - Benchmarks, overhead characteristics, and optimisation tips
 - [VStreamPath](../effect/path_vstream.md) - Fluent Effect Path wrapper for VStream
 - [VTask](vtask_monad.md) - The single-value effect type that powers VStream pulls
 - [VTaskPath](../effect/path_vtask.md) - Fluent Path API wrapper for VTask
