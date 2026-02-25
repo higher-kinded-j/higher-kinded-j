@@ -404,6 +404,8 @@ Try<List<String>> result = task.runSafe();
 ~~~admonish tip title="See Also"
 - [VStream](../monads/vstream.md) - Core VStream type: Step protocol, factories, combinators
 - [VStream HKT](../monads/vstream_hkt.md) - Type class instances for generic programming
+- [Parallel Operations](../monads/vstream_parallel.md) - parEvalMap, merge, chunking, and concurrency control
+- [Performance](../monads/vstream_performance.md) - Benchmarks, overhead characteristics, and optimisation tips
 - [VTaskPath](path_vtask.md) - Single-value virtual thread path (terminal operations return this)
 - [StreamPath](../monads/stream_monad.md) - Eager list-based streaming path
 - [Effect Path Overview](effect_path_overview.md) - How all path types fit together

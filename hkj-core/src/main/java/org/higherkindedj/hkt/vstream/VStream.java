@@ -603,6 +603,126 @@ public interface VStream<A> extends VStreamKind<A> {
   }
 
   // =====================================================================
+  // Chunking operations
+  // =====================================================================
+
+  /**
+   * Groups elements into lists of at most {@code size} elements. The last chunk may contain fewer
+   * than {@code size} elements if the stream length is not an exact multiple.
+   *
+   * <p>Chunks are produced lazily (on demand), but elements within each chunk are collected
+   * eagerly. This means a chunk is only produced when pulled, but once pulled, all {@code size}
+   * elements for that chunk are consumed from the source stream immediately.
+   *
+   * <p>{@code chunk(1)} is equivalent to {@code map(List::of)}, wrapping each element in a
+   * singleton list.
+   *
+   * <p><b>Warning:</b> For infinite streams, this produces an infinite stream of chunks. Use {@link
+   * #take(long)} to limit before or after chunking.
+   *
+   * @param size The maximum number of elements per chunk. Must be positive.
+   * @return A new {@code VStream} of element lists. Never null.
+   * @throws IllegalArgumentException if size is not positive.
+   */
+  default VStream<List<A>> chunk(int size) {
+    if (size <= 0) {
+      throw new IllegalArgumentException("chunk size must be positive, got: " + size);
+    }
+    VStream<A> self = this;
+    return VStream.defer(
+        () -> {
+          List<A> batch = new ArrayList<>(size);
+          VStream<A> current = self;
+
+          while (batch.size() < size) {
+            Step<A> step = current.pull().run();
+            switch (step) {
+              case Step.Emit<A> e -> {
+                batch.add(e.value());
+                current = e.tail();
+              }
+              case Step.Skip<A> s -> current = s.tail();
+              case Step.Done<A> _ -> {
+                if (batch.isEmpty()) {
+                  return VStream.empty();
+                }
+                return VStream.of(Collections.unmodifiableList(batch));
+              }
+            }
+          }
+
+          VStream<A> remaining = current;
+          return VStream.<List<A>>of(Collections.unmodifiableList(batch))
+              .concat(remaining.chunk(size));
+        });
+  }
+
+  /**
+   * Groups consecutive elements while the predicate holds between adjacent pairs. A new chunk is
+   * started whenever the predicate returns {@code false} for two adjacent elements.
+   *
+   * <p>This is useful for grouping sorted data where consecutive elements with the same key should
+   * be batched together.
+   *
+   * <p>Each chunk contains at least one element. Single-element chunks are produced when the
+   * predicate fails for every pair of adjacent elements.
+   *
+   * @param sameChunk A predicate testing whether two adjacent elements belong in the same chunk.
+   *     Must not be null.
+   * @return A new {@code VStream} of element lists. Never null.
+   * @throws NullPointerException if sameChunk is null.
+   */
+  default VStream<List<A>> chunkWhile(BiPredicate<A, A> sameChunk) {
+    Objects.requireNonNull(sameChunk, "sameChunk must not be null");
+    VStream<A> self = this;
+    return VStream.defer(
+        () -> {
+          // Pull the first element
+          VStream<A> current = self;
+          while (true) {
+            Step<A> step = current.pull().run();
+            switch (step) {
+              case Step.Emit<A> e -> {
+                // Start building a chunk with this first element
+                List<A> chunk = new ArrayList<>();
+                chunk.add(e.value());
+                A prev = e.value();
+                VStream<A> tail = e.tail();
+                return buildChunkWhile(chunk, prev, tail, sameChunk);
+              }
+              case Step.Skip<A> s -> current = s.tail();
+              case Step.Done<A> _ -> {
+                return VStream.empty();
+              }
+            }
+          }
+        });
+  }
+
+  /**
+   * Chunks the stream into batches of {@code size} elements, applies a batch function to each
+   * chunk, and flattens the results back into a single stream.
+   *
+   * <p>This enables efficient batch operations such as bulk database inserts or batch API calls.
+   * The batch function receives a list of up to {@code size} elements and returns a list of
+   * transformed elements. The result lists are concatenated in order.
+   *
+   * <p>The batch function may return a list of a different size than its input, allowing expansion
+   * or contraction of elements.
+   *
+   * @param <B> The type of elements in the output stream.
+   * @param size The maximum number of elements per batch. Must be positive.
+   * @param f The batch function to apply to each chunk. Must not be null.
+   * @return A new {@code VStream} with transformed elements. Never null.
+   * @throws IllegalArgumentException if size is not positive.
+   * @throws NullPointerException if f is null.
+   */
+  default <B> VStream<B> mapChunked(int size, Function<List<A>, List<B>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return chunk(size).flatMap(chunk -> VStream.fromList(f.apply(chunk)));
+  }
+
+  // =====================================================================
   // Combination operations
   // =====================================================================
 
@@ -1090,6 +1210,44 @@ public interface VStream<A> extends VStreamKind<A> {
   // =====================================================================
   // Internal helpers
   // =====================================================================
+
+  /**
+   * Internal helper for chunkWhile: continues building a chunk and recursively creates subsequent
+   * chunks.
+   */
+  private static <A> VStream<List<A>> buildChunkWhile(
+      List<A> chunk, A prev, VStream<A> tail, BiPredicate<A, A> sameChunk) {
+    return VStream.defer(
+        () -> {
+          VStream<A> current = tail;
+          List<A> currentChunk = chunk;
+          A currentPrev = prev;
+
+          while (true) {
+            Step<A> step = current.pull().run();
+            switch (step) {
+              case Step.Emit<A> e -> {
+                if (sameChunk.test(currentPrev, e.value())) {
+                  currentChunk.add(e.value());
+                  currentPrev = e.value();
+                  current = e.tail();
+                } else {
+                  // Current chunk is complete, start a new one
+                  List<A> emitChunk = Collections.unmodifiableList(currentChunk);
+                  List<A> newChunk = new ArrayList<>();
+                  newChunk.add(e.value());
+                  return VStream.<List<A>>of(emitChunk)
+                      .concat(buildChunkWhile(newChunk, e.value(), e.tail(), sameChunk));
+                }
+              }
+              case Step.Skip<A> s -> current = s.tail();
+              case Step.Done<A> _ -> {
+                return VStream.of(Collections.unmodifiableList(currentChunk));
+              }
+            }
+          }
+        });
+  }
 
   /**
    * Creates a stream starting at the given index in a list.

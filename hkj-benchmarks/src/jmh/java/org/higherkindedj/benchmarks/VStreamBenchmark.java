@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamPar;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -283,6 +285,70 @@ public class VStreamBenchmark {
     return VStream.range(0, streamSize / 5)
         .flatMap(x -> VStream.of(x, x * 10, x * 100))
         .filter(x -> x > 0 && x < 500)
+        .toList()
+        .run();
+  }
+
+  // ========== Parallel Operations (Stage 5) ==========
+
+  /** Parallel map with concurrency of 2. */
+  @Benchmark
+  public List<Integer> parEvalMapConcurrency2() {
+    return VStreamPar.parEvalMap(prebuiltStream, 2, x -> VTask.succeed(x * 2)).toList().run();
+  }
+
+  /** Parallel map with concurrency of 4. */
+  @Benchmark
+  public List<Integer> parEvalMapConcurrency4() {
+    return VStreamPar.parEvalMap(prebuiltStream, 4, x -> VTask.succeed(x * 2)).toList().run();
+  }
+
+  /** Parallel map with concurrency matching stream size (unbounded). */
+  @Benchmark
+  public List<Integer> parEvalMapUnbounded() {
+    return VStreamPar.parEvalMap(prebuiltStream, streamSize, x -> VTask.succeed(x * 2))
+        .toList()
+        .run();
+  }
+
+  /** Unordered parallel map with concurrency of 4. */
+  @Benchmark
+  public List<Integer> parEvalMapUnorderedConcurrency4() {
+    return VStreamPar.parEvalMapUnordered(prebuiltStream, 4, x -> VTask.succeed(x * 2))
+        .toList()
+        .run();
+  }
+
+  /** Parallel collect with batch size of 10. */
+  @Benchmark
+  public List<Integer> parCollectBatch10() {
+    return VStreamPar.parCollect(prebuiltStream, 10).run();
+  }
+
+  // ========== Chunking Operations (Stage 5) ==========
+
+  /** Chunk then process: groups of 10. */
+  @Benchmark
+  public List<List<Integer>> chunkExecution() {
+    return prebuiltStream.chunk(10).toList().run();
+  }
+
+  /** mapChunked: batch transformation with chunks of 10. */
+  @Benchmark
+  public List<Integer> mapChunkedExecution() {
+    return prebuiltStream
+        .mapChunked(10, chunk -> chunk.stream().map(x -> x * 2).toList())
+        .toList()
+        .run();
+  }
+
+  /** Real-world: chunk and batch process with parEvalMap. */
+  @Benchmark
+  public List<Integer> realWorldChunkParallel() {
+    return VStreamPar.parEvalMap(
+            prebuiltStream.chunk(5),
+            2,
+            chunk -> VTask.of(() -> chunk.stream().mapToInt(Integer::intValue).sum()))
         .toList()
         .run();
   }

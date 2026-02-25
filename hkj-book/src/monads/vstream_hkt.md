@@ -397,4 +397,4 @@ Practice VStream HKT encoding in [TutorialVStreamHKT](https://github.com/higher-
 ---
 
 **Previous:** [VStream](vstream.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [Parallel Operations](vstream_parallel.md)
