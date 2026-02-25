@@ -120,6 +120,34 @@ repositories {
 
 ---
 
+## Simplify Imports with Module Import
+
+Java 23+ supports module import declarations ([JEP 511](https://openjdk.org/jeps/511)), which let you import all exported types from a module in a single line. Instead of importing individual packages:
+
+```java
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.MaybePath;
+import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.focus.FocusPath;
+// ... and more
+```
+
+You can write:
+
+```java
+import module org.higherkindedj.core;
+```
+
+This gives you access to `Path`, `MaybePath`, `EitherPath`, `ValidationPath`, `VTaskPath`, `FocusPath`, `AffinePath`, `TraversalPath`, and all other exported types from the core module.
+
+~~~admonish note
+Module imports require `--enable-preview` on Java 23–24. On Java 25+, the feature is standard and no flag is needed for module imports themselves (though HKJ still requires `--enable-preview` for other features).
+~~~
+
+---
+
 ## Handle Absence
 
 When a value might not exist, use `MaybePath`:

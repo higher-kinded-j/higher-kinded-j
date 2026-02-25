@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.effect.IdPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
+import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
@@ -757,6 +758,42 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
   }
 
   // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Applies an effectful function to the focused element.
+   *
+   * <p>This method bridges from the optics domain to the concurrent effect domain. The focused
+   * element is extracted and passed to the provided function, which returns a {@link VTaskPath}
+   * that will execute on a virtual thread.
+   *
+   * <p>Since a FocusPath focuses on exactly one element, this is equivalent to extracting the value
+   * and applying the function directly. It exists for API symmetry with {@link
+   * TraversalPath#traverseWith} and {@link AffinePath#traverseWith}.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<Order, String> customerIdPath = OrderFocus.customerId();
+   * Order order = new Order("cust-123", items);
+   *
+   * // Look up the customer asynchronously
+   * VTaskPath<Customer> customer = customerIdPath.traverseWith(
+   *     id -> Path.vtask(() -> customerService.findById(id)),
+   *     order
+   * );
+   *
+   * Customer result = customer.unsafeRun();
+   * }</pre>
+   *
+   * @param f the effectful function to apply to the focused element
+   * @param source the source structure
+   * @param <B> the result type of the effectful function
+   * @return a VTaskPath that produces the result
+   * @see TraversalPath#traverseWith for parallel traversal over multiple elements
+   */
+  default <B> VTaskPath<B> traverseWith(Function<A, VTaskPath<B>> f, S source) {
+    return f.apply(get(source));
+  }
 
   /**
    * Extracts the focused value and wraps it in a {@link MaybePath}.

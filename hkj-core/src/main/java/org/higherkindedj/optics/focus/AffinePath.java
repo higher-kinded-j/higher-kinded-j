@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
+import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
@@ -661,6 +662,42 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
   }
 
   // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Applies an effectful function to the focused element if present.
+   *
+   * <p>This method bridges from the optics domain to the concurrent effect domain. If this affine
+   * path matches, the focused element is passed to the provided function and the resulting {@link
+   * VTaskPath} is returned (wrapped in an Optional). If this path does not match, a VTaskPath
+   * producing {@link Optional#empty()} is returned immediately without executing any task.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<User, String> emailPath = UserFocus.optionalEmail();
+   * User user = new User("Alice", Optional.of("alice@example.com"));
+   *
+   * // Validate the email asynchronously, only if present
+   * VTaskPath<Optional<ValidatedEmail>> validated = emailPath.traverseWith(
+   *     email -> Path.vtask(() -> emailValidator.validate(email)),
+   *     user
+   * );
+   *
+   * Optional<ValidatedEmail> result = validated.unsafeRun();
+   * }</pre>
+   *
+   * @param f the effectful function to apply to the focused element
+   * @param source the source structure
+   * @param <B> the result type of the effectful function
+   * @return a VTaskPath producing Optional.of(result) if matched, or Optional.empty() if not
+   * @see TraversalPath#traverseWith for parallel traversal over multiple elements
+   * @see FocusPath#traverseWith for guaranteed single-element traversal
+   */
+  default <B> VTaskPath<Optional<B>> traverseWith(Function<A, VTaskPath<B>> f, S source) {
+    return getOptional(source)
+        .<VTaskPath<Optional<B>>>map(a -> f.apply(a).map(Optional::of))
+        .orElseGet(() -> Path.vtaskPure(Optional.empty()));
+  }
 
   /**
    * Extracts the optionally focused value and wraps it in a {@link MaybePath}.

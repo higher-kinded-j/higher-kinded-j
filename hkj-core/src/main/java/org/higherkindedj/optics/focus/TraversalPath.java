@@ -23,6 +23,8 @@ import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Fold;
@@ -817,6 +819,43 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
   }
 
   // ===== Effect Path Bridge Methods =====
+
+  /**
+   * Applies an effectful function to each focused element and executes them in parallel.
+   *
+   * <p>This method bridges from the optics domain to the concurrent effect domain. Each focused
+   * element is mapped to a {@link VTaskPath} via the provided function, and all resulting tasks are
+   * executed in parallel using {@link Par#traverse}. The results are collected in order.
+   *
+   * <p>This is the optics equivalent of {@code Traversable.traverse} specialised for {@code
+   * VTaskPath}, providing parallel effectful traversal of focused elements with structured
+   * concurrency.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * TraversalPath<Company, Employee> employeesPath = CompanyFocus.employees();
+   * Company company = new Company(List.of(emp1, emp2, emp3));
+   *
+   * // Enrich each employee in parallel via remote service
+   * VTaskPath<List<EnrichedEmployee>> enriched = employeesPath.traverseWith(
+   *     employee -> Path.vtask(() -> enrichmentService.enrich(employee)),
+   *     company
+   * );
+   *
+   * List<EnrichedEmployee> results = enriched.unsafeRun();
+   * }</pre>
+   *
+   * @param f the effectful function to apply to each focused element
+   * @param source the source structure
+   * @param <B> the result type of the effectful function
+   * @return a VTaskPath that produces a list of all results in order
+   * @see Par#traverse
+   * @see #toVStreamPath for lazy streaming alternative
+   */
+  default <B> VTaskPath<List<B>> traverseWith(Function<A, VTaskPath<B>> f, S source) {
+    return Path.vtaskPath(Par.traverse(getAll(source), a -> f.apply(a).run()));
+  }
 
   /**
    * Extracts all focused values and wraps them in a {@link ListPath}.
