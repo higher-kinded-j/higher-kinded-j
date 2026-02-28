@@ -836,4 +836,4 @@ The `GameLogic` class is completely pure; you can test the entire rules engine b
 
 ---
 
-**Previous:** [Concurrency and Scale](order-concurrency.md)
+**Previous:** [Draughts (Checkers) Game](../examples/examples_draughts.md)

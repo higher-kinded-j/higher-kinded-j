@@ -2,244 +2,263 @@
 ## _Accumulating Output Alongside Computations_
 
 ~~~admonish info title="What You'll Learn"
-- How to accumulate logs or output alongside your main computation
-- Understanding the role of Monoid in combining accumulated values
-- Building detailed audit trails and debugging information
-- Using `tell` for pure logging and `listen` for capturing output
-- Creating calculations that produce both results and comprehensive logs
+- Why threading a mutable log through every function is painful -- and how Writer eliminates it
+- How `Monoid` controls the way accumulated output combines
+- Building a complete audit trail that travels with your computation
+- Using `tell`, `flatMap`, and `map` to construct a step-by-step receipt
+- Extracting the result, the log, or both with `run()`, `exec()`, and `runWriter()`
 ~~~
 
 ~~~ admonish example title="See Example Code:"
 [WriterExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
 ~~~
 
-## Purpose
+## The Problem: Logs That Leak Everywhere
 
-The **Writer monad** is a functional pattern designed for computations that, in addition to producing a primary result value, also need to **accumulate** some secondary output or log along the way. Think of scenarios like:
-
-* Detailed logging of steps within a complex calculation.
-* Collecting metrics or events during a process.
-* Building up a sequence of results or messages.
-
-A `Writer<W, A>` represents a computation that produces a main result of type `A` and simultaneously accumulates an output of type `W`. The key requirement is that the accumulated type `W` must form a **Monoid**.
-
-### The Role of `Monoid<W>`
-
-A `Monoid<W>` is a type class that defines two things for type `W`:
-
-1. `empty()`: Provides an identity element (like `""` for String concatenation, `0` for addition, or an empty list).
-2. `combine(W w1, W w2)`: Provides an **associative** binary operation to combine two values of type `W` (like `+` for strings or numbers, or list concatenation).
-
-The Writer monad uses the `Monoid<W>` to:
-
-* Provide a starting point (the `empty` value) for the accumulation.
-* Combine the accumulated outputs (`W`) from different steps using the `combine` operation when sequencing computations with `flatMap` or `ap`.
-
-Common examples for `W` include `String` (using concatenation), `Integer` (using addition or multiplication), or `List` (using concatenation).
-
-## Structure
-
-The `Writer<W, A>` record directly implements `WriterKind<W, A>`, which in turn extends `Kind<WriterKind.Witness<W>, A>`.
-
-![writer.svg](../images/puml/writer.svg) 
-
-## The `Writer<W, A>` Type
-
-The core type is the `Writer<W, A>` record:
+Imagine a pricing function that computes a final price through several steps -- add tax, apply a discount, add shipping. You need a complete audit log of every step. You cannot use `System.out.println` (not composable, not testable). So you reach for a shared mutable list:
 
 ```java
-// From: org.higherkindedj.hkt.writer.Writer
-public record Writer<W, A>(@NonNull W log, @Nullable A value) implements WriterKind<W, A> {
-  // Static factories
-  public static <W, A> @NonNull Writer<W, A> create(@NonNull W log, @Nullable A value);
-  public static <W, A> @NonNull Writer<W, A> value(@NonNull Monoid<W> monoidW, @Nullable A value); // Creates (monoidW.empty(), value)
-  public static <W> @NonNull Writer<W, Unit> tell(@NonNull W log); // Creates (log, Unit.INSTANCE) 
+// The ugly way: threading a mutable log through every function
+List<String> log = new ArrayList<>();
+double price = addTax(subtotal, log);          // log.add("Tax added: ...")
+double total  = applyDiscount(price, log);     // log.add("Discount applied: ...")
+double finalP = addShipping(total, log);       // log.add("Shipping added: ...")
+// Every function needs a log parameter. Leaky. Messy. Untestable.
+```
 
-  // Instance methods (primarily for direct use, HKT versions via Monad instance)
-  public <B> @NonNull Writer<W, B> map(@NonNull Function<? super A, ? extends B> f);
-  public <B> @NonNull Writer<W, B> flatMap(
-          @NonNull Monoid<W> monoidW, // Monoid needed for combining logs
-          @NonNull Function<? super A, ? extends Writer<W, ? extends B>> f
-  );
-  public @Nullable A run(); // Get the value A, discard log
-  public @NonNull W exec(); // Get the log W, discard value
+Every function must accept *and* mutate that list. The log is invisible in the return type, impossible to compose, and a magnet for bugs. What you actually want is a return value that carries both the result *and* the log -- automatically, invisibly, composably.
+
+That is exactly what `Writer` does.
+
+## The Fix: Writer Carries the Log For You
+
+A `Writer<W, A>` pairs a computed value `A` with an accumulated log `W`. When you sequence steps with `flatMap`, the logs combine automatically through a `Monoid<W>` -- no manual bookkeeping, no mutable state.
+
+The `Writer<W, A>` record is minimal by design:
+
+```java
+public record Writer<W, A>(W log, A value) implements WriterKind<W, A> {
+    // Factory methods
+    static <W, A> Writer<W, A> value(Monoid<W> monoidW, A value); // empty log + value
+    static <W>    Writer<W, Unit> tell(W log);                     // log + Unit value
+
+    // Accessors
+    A run();   // extract value, discard log
+    W exec();  // extract log, discard value
 }
 ```
 
-* It simply holds a pair: the accumulated `log` (of type `W`) and the computed `value` (of type `A`).
-* `create(log, value)`: Basic constructor.
-* `value(monoid, value)`: Creates a Writer with the given value and an *empty* log according to the provided `Monoid`.
-* `tell(log)`: Creates a Writer with the given log, and `Unit.INSTANCE` as it's  value, signifying that the operation's primary purpose is the accumulation of the log. Useful for just adding to the log. (Note: The original `Writer.java` might have `tell(W log)` and infer monoid elsewhere, or `WriterMonad` handles `tell`).
-* `map(...)`: Transforms the computed value `A` to `B` while leaving the log `W` untouched.
-* `flatMap(...)`: Sequences computations. It runs the first Writer, uses its value `A` to create a second Writer, and combines the logs from both using the provided `Monoid`.
-* `run()`: Extracts only the computed value `A`, discarding the log.
-* `exec()`: Extracts only the accumulated log `W`, discarding the value.
+Two fields. Two factory methods. Two accessors. The complexity lives in how steps *compose* -- and that is where `Monoid` and `flatMap` come in.
 
-## Writer Components
+### Monoid Made Tangible
 
-To integrate `Writer` with Higher-Kinded-J:
+The `Monoid<W>` tells Writer *how* to combine logs. Three concrete examples:
 
-* `WriterKind<W, A>`: The HKT interface. `Writer<W, A>` itself implements `WriterKind<W, A>`. `WriterKind<W, A>` extends `Kind<WriterKind.Witness<W>, A>`.
-  * It contains a nested `final class Witness<LOG_W> {}` which serves as the phantom type `F_WITNESS` for `Writer<LOG_W, ?>`.
-* **`WriterKindHelper`**: The utility class with static methods:
-  * `widen(Writer<W, A>)`: Converts a `Writer` to `Kind<WriterKind.Witness<W>, A>`. Since `Writer` directly implements `WriterKind`, this is effectively a checked cast.
-  * `narrow(Kind<WriterKind.Witness<W>, A>)`: Converts `Kind` back to `Writer<W,A>`. This is also effectively a checked cast after an `instanceof Writer` check.
-  * `value(Monoid<W> monoid, A value)`: Factory method for a `Kind` representing a `Writer` with an empty log.
-  * `tell(W log)`: Factory method for a `Kind` representing a `Writer` that only logs.
-  * `runWriter(Kind<WriterKind.Witness<W>, A>)`: Unwraps to `Writer<W,A>` and returns the record itself.
-  * `run(Kind<WriterKind.Witness<W>, A>)`: Executes (unwraps) and returns only the value `A`.
-  * `exec(Kind<WriterKind.Witness<W>, A>)`: Executes (unwraps) and returns only the log `W`.
+```
+String:  ""  + "step1; " + "step2; "   -->  "step1; step2; "
+List:    []  ++ ["step1"] ++ ["step2"]  -->  ["step1", "step2"]
+Sum:      0  +  1         +  1          -->  2  (counting operations)
+```
 
-## Type Class Instances (`WriterFunctor`, `WriterApplicative`, `WriterMonad`)
+A Monoid needs two things: an `empty()` value (the starting point) and a `combine()` operation (how two logs merge). Writer handles the rest.
 
-These classes provide the standard functional operations for `Kind<WriterKind.Witness<W>, A>`, allowing you to treat `Writer` computations generically. **Crucially, `WriterApplicative<W>` and `WriterMonad<W>` require a `Monoid<W>` instance during construction.**
-
-* `WriterFunctor<W>`: Implements `Functor<WriterKind.Witness<W>>`. Provides `map` (operates only on the value `A`).
-* **`WriterApplicative<W>`**: Extends `WriterFunctor<W>`, implements `Applicative<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `of` (lifting a value with an empty log) and `ap` (applying a wrapped function to a wrapped value, combining logs).
-* **`WriterMonad<W>`**: Extends `WriterApplicative<W>`, implements `Monad<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `flatMap` for sequencing computations, automatically combining logs using the `Monoid`.
-
-
-~~~admonish example title="Example: Logging a complex calculation"
-
-- [WriterExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
-
-You typically instantiate `WriterMonad<W>` for the specific log type `W` and its corresponding `Monoid`.
-
-### 1. Choose Your Log Type `W` and `Monoid<W>`
-
-Decide what you want to accumulate (e.g., `String` for logs, `List<String>` for messages, `Integer` for counts) and get its `Monoid`.
+In Java, a String monoid looks like this:
 
 ```java
-
 class StringMonoid implements Monoid<String> {
-  @Override public String empty() { return ""; }
-  @Override public String combine(String x, String y) { return x + y; }
+    @Override public String empty() { return ""; }
+    @Override public String combine(String x, String y) { return x + y; }
 }
-
-Monoid<String> stringMonoid = new StringMonoid(); 
 ```
 
-### 2. Get the `WriterMonad` Instance
+Swap in a different Monoid and Writer accumulates a completely different kind of output -- no other code changes needed.
 
-Instantiate the monad for your chosen log type `W`, providing its `Monoid`.
+## Core Components
 
-```java
-import org.higherkindedj.hkt.writer.WriterMonad;
+![writer.svg](../images/puml/writer.svg)
 
-// Monad instance for computations logging Strings
-// F_WITNESS here is WriterKind.Witness<String>
-WriterMonad<String> writerMonad = new WriterMonad<>(stringMonoid);
+| Component | Role |
+|-----------|------|
+| `Writer<W, A>` | Record holding a `log` of type `W` and a `value` of type `A` |
+| `Monoid<W>` | Defines `empty()` and `combine()` for the log type |
+| `WriterMonad<W>` | Provides `of`, `map`, `flatMap`, `ap` -- all log-aware |
+| `WriterKind<W, A>` | HKT interface; `Writer` implements it via holder pattern |
+| `WriterKindHelper.WRITER` | Enum singleton for `widen`, `narrow`, `tell`, `value`, `run`, `exec`, `runWriter` |
 
+~~~admonish note title="How Log Accumulation Works"
+```
+flatMap step 1          flatMap step 2          flatMap step 3
+┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+│ log: "A"     │        │ log: "B"     │        │ log: "C"     │
+│ value: 10    │───────>│ value: 20    │───────>│ value: 30    │
+└──────────────┘        └──────────────┘        └──────────────┘
+                  combine("A","B")         combine("AB","C")
+                  via Monoid               via Monoid
+
+Final: Writer(log: "ABC", value: 30)
 ```
 
-### 3. Create Writer Computations
+Each `flatMap` step produces a new `(log, value)` pair. The logs from both the input and the step are combined using the `Monoid<W>.combine()` operation, accumulating output across the entire chain.
+~~~
 
-Use `WriterKindHelper` factory methods, providing the `Monoid` where needed. The result is `Kind<WriterKind.Witness<W>, A>`.
+~~~admonish example title="Example: Building a Calculation Receipt"
+
+A pricing calculation that produces both a final price and a step-by-step receipt.
+
+**Step 1 -- Set up the Monoid and Monad**
 
 ```java
+import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 
-// Writer with an initial value and empty log
-Kind<WriterKind.Witness<String>, Integer> initialValue = WRITER.value(stringMonoid, 5); // Log: "", Value: 5
+// Monoid that combines log strings by concatenation
+Monoid<String> logMonoid = new Monoid<>() {
+    public String empty() { return ""; }
+    public String combine(String x, String y) { return x + y; }
+};
 
-// Writer that just logs a message (value is Unit.INSTANCE)
-Kind<WriterKind.Witness<String>, Unit> logStart = WRITER.tell("Starting calculation; "); // Log: "Starting calculation; ", Value: ()
-
-// A function that performs a calculation and logs its step
-Function<Integer, Kind<WriterKind.Witness<String>, Integer>> addAndLog =
-        x -> {
-          int result = x + 10;
-          String logMsg = "Added 10 to " + x + " -> " + result + "; ";
-          // Create a Writer directly then wrap with helper or use helper factory
-          return WRITER.widen(Writer.create(logMsg, result));
-        };
-
-Function<Integer, Kind<WriterKind.Witness<String>, String>> multiplyAndLogToString =
-        x -> {
-          int result = x * 2;
-          String logMsg = "Multiplied " + x + " by 2 -> " + result + "; ";
-          return WRITER.widen(Writer.create(logMsg, "Final:" + result));
-        };
-
+var monad = new WriterMonad<>(logMonoid);
 ```
 
-### 4. Compose Computations using `map` and `flatMap`
+**Step 2 -- Define pricing steps as functions**
 
-Use the methods on the `writerMonad` instance. `flatMap` automatically combines logs using the `Monoid`.
+Each step returns a Writer: the result *and* a log entry. No log parameter needed.
 
 ```java
-// Chain the operations:
-// Start with a pure value 0 in the Writer context (empty log)
-Kind<WriterKind.Witness<String>, Integer> computationStart = writerMonad.of(0);
+// Each function: takes a price, returns Writer(log, newPrice)
+Function<Double, Kind<WriterKind.Witness<String>, Double>> addTax = price -> {
+    var taxed = price * 1.08;
+    return WRITER.widen(new Writer<>(
+        "Tax 8%%: $%.2f -> $%.2f; ".formatted(price, taxed), taxed));
+};
 
-// 1. Log the start
-Kind<WriterKind.Witness<String>, Integer> afterLogStart  = writerMonad.flatMap(ignoredUnit -> initialValue, logStart);
+Function<Double, Kind<WriterKind.Witness<String>, Double>> applyDiscount = price -> {
+    var discounted = price * 0.90;
+    return WRITER.widen(new Writer<>(
+        "Discount 10%%: $%.2f -> $%.2f; ".formatted(price, discounted), discounted));
+};
 
-Kind<WriterKind.Witness<String>, Integer> step1Value = WRITER.value(stringMonoid, 5); // ("", 5)
-Kind<WriterKind.Witness<String>, Unit> step1Log = WRITER.tell("Initial value set to 5; "); // ("Initial value set to 5; ", ())
+Function<Double, Kind<WriterKind.Witness<String>, Double>> addShipping = price -> {
+    var shipped = price + 5.00;
+    return WRITER.widen(new Writer<>(
+        "Shipping: +$5.00 -> $%.2f; ".formatted(shipped), shipped));
+};
+```
 
+**Step 3 -- Compose the pipeline**
 
-// Start -> log -> transform value -> log -> transform value ...
-Kind<WriterKind.Witness<String>, Integer> calcPart1 = writerMonad.flatMap(
-        ignored -> addAndLog.apply(5), // Apply addAndLog to 5, after logging "start"
-        WRITER.tell("Starting with 5; ")
+`flatMap` threads the value forward and accumulates the log at each step.
+
+```java
+// Start with subtotal $100, log the starting point
+var start = monad.flatMap(
+    ignored -> WRITER.value(logMonoid, 100.0),
+    WRITER.tell("Subtotal: $100.00; ")
 );
-// calcPart1: Log: "Starting with 5; Added 10 to 5 -> 15; ", Value: 15
 
-Kind<WriterKind.Witness<String>, String> finalComputation = writerMonad.flatMap(
-        intermediateValue -> multiplyAndLogToString.apply(intermediateValue),
-        calcPart1
-);
-// finalComputation: Log: "Starting with 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30; ", Value: "Final:30"
-
-
-// Using map: Only transforms the value, log remains unchanged from the input Kind
-Kind<WriterKind.Witness<String>, Integer> initialValForMap = value(stringMonoid, 100); // Log: "", Value: 100
-Kind<WriterKind.Witness<String>, String> mappedVal = writerMonad.map(
-        i -> "Value is " + i,
-        initialValForMap
-); // Log: "", Value: "Value is 100"
+// Chain: tax -> discount -> shipping
+var afterTax      = monad.flatMap(addTax, start);
+var afterDiscount = monad.flatMap(applyDiscount, afterTax);
+var finalPrice    = monad.flatMap(addShipping, afterDiscount);
 ```
 
-### 5. Run the Computation and Extract Results
-
-Use `WRITER.runWriter`, `WRITER.run`, or `WRITER.exec` from `WriterKindHelper`.
+**Step 4 -- Extract the results**
 
 ```java
+// Get just the final price
+Double price = WRITER.run(finalPrice);
+// --> 102.06
 
-import org.higherkindedj.hkt.writer.Writer; 
+// Get just the receipt log
+String receipt = WRITER.exec(finalPrice);
+// --> "Subtotal: $100.00; Tax 8%: ... Discount 10%: ... Shipping: ..."
 
-// Get the final Writer record (log and value)
-Writer<String, String> finalResultWriter = runWriter(finalComputation);
-String finalLog = finalResultWriter.log();
-String finalValue = finalResultWriter.value();
+// Get both as a Writer record
+var result = WRITER.runWriter(finalPrice);
+System.out.println("Receipt: " + result.log());
+System.out.println("Total:   $" + result.value());
+```
 
-System.out.println("Final Log: " + finalLog);
-// Output: Final Log: Starting with 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
-System.out.println("Final Value: " + finalValue);
-// Output: Final Value: Final:30
+Every step is a pure function. The log is never passed as a parameter -- Writer carries it invisibly. The receipt and the price arrive together at the end.
+~~~
 
-// Or get only the value or log
-String justValue = WRITER.run(finalComputation); // Extracts value from finalResultWriter
-String justLog = WRITER.exec(finalComputation);  // Extracts log from finalResultWriter
+~~~admonish note title="Before vs After"
 
-System.out.println("Just Value: " + justValue); // Output: Just Value: Final:30
-System.out.println("Just Log: " + justLog);     // Output: Just Log: Starting with 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
+Compare the mutable-log approach from the opening with the Writer version:
 
-Writer<String, String> mappedResult = WRITER.runWriter(mappedVal);
-System.out.println("Mapped Log: " + mappedResult.log());   // Output: Mapped Log
-System.out.println("Mapped Value: " + mappedResult.value()); // Output: Mapped Value: Value is 100
+| | Mutable Log | Writer |
+|---|---|---|
+| **Log location** | Separate `List<String>` parameter | Inside the return value |
+| **Function signature** | `double addTax(double price, List<String> log)` | `Function<Double, Kind<..., Double>>` -- no log param |
+| **Composability** | Must manually pass the log through every call | `flatMap` chains compose automatically |
+| **Testability** | Hard to test without mocking the list | Pure functions -- assert on `run()` and `exec()` |
+| **Thread safety** | Shared mutable list is not thread-safe | Immutable records, no shared state |
+~~~
+
+~~~admonish tip title="tell vs map vs flatMap"
+
+These three operations serve distinct roles. Understanding when to use each is key to working with Writer effectively.
+
+| Operation | What it does | Touches the log? | Touches the value? |
+|-----------|-------------|-------------------|--------------------|
+| `tell(msg)` | Appends to the log; value is `Unit` | Yes -- sets the log | No -- value is `Unit` |
+| `map(f)` | Transforms the value; log passes through unchanged | No | Yes |
+| `flatMap(f)` | Runs a function that returns a new Writer; **combines** both logs via Monoid | Yes -- combines | Yes |
+
+**`tell`** is for inserting a log entry without affecting the computation:
+
+```java
+var logged = WRITER.tell("Checkpoint reached; ");
+// Writer(log: "Checkpoint reached; ", value: Unit)
+```
+
+**`map`** is for transforming the value while leaving the log untouched:
+
+```java
+var doubled = monad.map(x -> x * 2, WRITER.value(logMonoid, 50.0));
+// Writer(log: "", value: 100.0)  -- log unchanged
+```
+
+**`flatMap`** is for chaining steps that each produce their own log:
+
+```java
+var chained = monad.flatMap(addTax, WRITER.value(logMonoid, 100.0));
+// Writer(log: "Tax 8%: $100.00 -> $108.00; ", value: 108.0)  -- logs merged
 ```
 ~~~
 
+## When to Use Writer
 
-~~~admonish important  title="Key Points:"
+| Scenario | Writer? |
+|----------|---------|
+| Accumulating logs, metrics, or audit trails alongside a computation | Yes -- this is Writer's sweet spot |
+| Tracing steps in a calculation for debugging | Yes -- use `tell` for step-by-step entries |
+| Building up a list of results or messages | Yes -- use `Writer<List<T>, A>` with a list-concat Monoid |
+| Side effects that hit the outside world (console, network, DB) | No -- use [IO](./io_monad.md) instead |
+| Combining Writer with other effects (async, errors) | Use [WriterT transformer](../transformers/transformers.md) |
 
-The Writer monad (`Writer<W, A>`, `WriterKind.Witness<W>`, `WriterMonad<W>`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). 
+~~~admonish important title="Key Points"
+- `Writer<W, A>` pairs a computation result (`A`) with accumulated output (`W`).
+- The `Monoid<W>` defines how outputs combine -- concatenation for strings, appending for lists, addition for numbers.
+- `flatMap` automatically combines logs from both steps using the Monoid -- no manual bookkeeping.
+- `tell(log)` creates a Writer that only logs (value is `Unit`) -- useful for inserting log entries into a chain.
+- `map(f)` transforms only the value -- the log passes through unchanged.
+- `run()` extracts just the value; `exec()` extracts just the log; `runWriter()` gives you both as a `Writer` record.
+- `Writer<W, A>` integrates with HKT via `WriterKind`, so `widen`/`narrow` are zero-cost casts.
+~~~
 
-It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. 
+---
 
-The Higher-Kinded-J enables these operations to be performed generically using standard type class interfaces, with `Writer<W,A>` directly implementing `WriterKind<W,A>`.
+~~~admonish example title="Benchmarks"
+Writer has dedicated JMH benchmarks measuring log accumulation overhead, Monoid combination cost, and chain depth. Key expectations:
 
+- **Pure value operations** (`map`, `of`) are fast -- they don't invoke the Monoid
+- **`flatMap` chains** incur Monoid combination cost at each step -- use an efficient Monoid (e.g., `StringBuilder` or list append rather than string concatenation for long logs)
+- **Deep chains** scale linearly with the Monoid's `combine` cost
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*WriterBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~
 
 ---
