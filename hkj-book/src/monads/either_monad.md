@@ -230,6 +230,17 @@ To use `Either` within Higher-Kinded-J framework:
    ```
 ~~~
 
+## When to Use Either
+
+| Scenario | Use |
+|----------|-----|
+| Domain-specific typed errors (validation, business rules) | `Either<MyError, A>` — error type carries context |
+| Sequential operations where any step can fail | `Either` with `flatMap` — short-circuits on `Left` |
+| Combining typed errors with async or other effects | [EitherT](../transformers/eithert_transformer.md) transformer — see the [Order Example](../hkts/order-walkthrough.md) |
+| Exception-based error handling (wrapping `Throwable`) | Prefer [Try](./try_monad.md) — specialised `Either<Throwable, A>` |
+| Accumulating multiple validation errors | Prefer [Validated](./validated_monad.md) with applicative operations |
+| Application-level error pipelines with fluent API | Prefer [EitherPath](../effect/path_either.md) |
+
 ~~~admonish important  title="Key Points:"
 
 - Explicitly modelling and handling domain-specific errors (e.g., validation failures, resource not found, business rule violations).

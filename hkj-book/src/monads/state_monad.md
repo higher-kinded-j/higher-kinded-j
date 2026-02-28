@@ -377,5 +377,21 @@ For deeper exploration of the State monad and its applications:
 
 ---
 
+~~~admonish example title="Benchmarks"
+State has dedicated JMH benchmarks measuring state threading overhead, composition depth, and `get`/`set`/`modify` performance. Key expectations:
+
+- **`get` / `inspect`** are very fast — they read state without transformation
+- **`flatMap` chains** thread state through each step with minimal overhead beyond the step's own computation
+- **Deep chains (50+)** complete without error — composition is stack-safe for typical depths
+- State threading adds constant overhead per step regardless of state size
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*StateBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+~~~
+
+---
+
 **Previous:** [Context](context_scoped.md)
 **Next:** [Stream](stream_monad.md)

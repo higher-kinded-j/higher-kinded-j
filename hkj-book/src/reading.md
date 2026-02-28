@@ -1,32 +1,62 @@
-# A Blog on Types and Functional Patterns
+# More Functional Thinking
 
-This blog series provides excellent background reading whilst you're learning the techniques used in Higher-Kinded-J. Each post builds foundational knowledge that will deepen your understanding of functional programming patterns in Java.
+~~~admonish info title="Two Blog Series, One Journey"
+These companion blog series chart a path from foundational type theory to production-ready optics in Java. Start with the **Foundations** if you're new to functional programming in Java, or jump straight to the **Functional Optics** series to see Higher-Kinded-J in action.
+~~~
 
-This web series explores the foundational ideas that inspired Higher-Kinded-J's development.
+---
 
-- [Algebraic Data Types and Pattern Matching with Java](https://blog.scottlogic.com/2025/01/20/algebraic-data-types-with-java.html)
+## Functional Optics for Modern Java <span style="font-size:0.7em; vertical-align:middle; background:#a6da95; color:#24273a; padding:2px 8px; border-radius:4px; font-weight:bold;">NEW — 6 Part Series</span>
 
-In this post, we explore the power of Algebraic Data Types (ADT) with Pattern Matching in Java. We look at how they help us model complex business domains and how using them together gives improvements on the traditional Visitor Pattern.
+Java records and sealed interfaces make immutable data modelling elegant — but **updating** deeply nested immutable structures still means tedious copy-constructor cascades. This series closes that gap. Across six posts you'll move from the problem, through the theory, and into a fully working production pipeline built with Higher-Kinded-J.
 
-- [Variance in Generics, Phantom and Existential types with Java and Scala](https://blog.scottlogic.com/2025/02/17/variance-in-java-and-scala.html)
+### Part 1 — [The Immutability Gap: Why Java Records Need Optics](https://blog.scottlogic.com/2026/01/09/java-the-immutability-gap.html)
 
-In this post, we look at Variance in Generics and how it is handled in Java and Scala. We consider use-site and declaration-site approaches and the trade-offs of erasure. Finally, we take a look at Phantom and Existential types and how they can enhance the capabilities of the type system when it comes to modelling.
+Pattern matching solves the *read* side beautifully — but what about writes? This opening post reveals how operations that should be one-liners balloon into 25+ lines of manual reconstruction, and introduces optics as the composable answer.
 
-- [Intersection and Union types with Java and Scala](https://blog.scottlogic.com/2025/03/05/intersection-and-union-types-with-java-and-scala.html)
+> *"Pattern matching is half the puzzle; optics complete it."*
 
-In this post, we will see how Intersection types help us better model type constraints, promoting reuse, and how Union types increase code flexibility. We will compare and contrast approaches and how to use them in the latest Java and Scala.
+### Part 2 — [Optics Fundamentals: Lenses, Prisms, and Traversals](https://blog.scottlogic.com/2026/01/16/optics-fundamentals.html)
 
-- [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html)
+Meet the three core optic types: **Lenses** for product-type fields, **Prisms** for sum-type variants, and **Traversals** for collections. Learn the lens laws, see how `@GenerateLenses` and `@GeneratePrisms` eliminate boilerplate, and discover how small, focused optics compose into powerful navigation paths.
 
-Learn about how Functors and Monads provide patterns to write cleaner, more composable, and robust code that helps us deal with operations like handling nulls, managing errors and sequencing asynchronous actions.
+### Part 3 — [Optics in Practice: An Expression Language AST](https://blog.scottlogic.com/2026/01/23/ast-basic-optics.html)
 
-- [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html)
+Theory meets code. Build a complete expression language using sealed interfaces and records, then apply lenses, prisms, and the **Focus DSL** to implement constant folding and identity simplification — all without hand-written recursion.
 
-In this post, we will see how Higher Kinded Types can help increase the flexibility of our code and reduce duplication.
+### Part 4 — [The Focus DSL: Traversals and Pattern Rewrites](https://blog.scottlogic.com/2026/01/30/traversals-rewrites.html)
 
-- [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html)
+Scale up from single nodes to entire trees. `TraversalPath` and bottom-up/top-down strategies handle recursive descent, while `modifyWhen` and `foldMap` enable filtered updates and aggregation. A multi-pass optimisation pipeline brings constant folding, dead-branch elimination, and common-subexpression detection together.
 
-In this post, we will see how Thunks and Trampolines can help solve problems by converting deep stack-based recursion into heap-based iteration, helping to prevent StackOverflowErrors.
+### Part 5 — [The Effect Path API: Railway-Style Error Handling](https://blog.scottlogic.com/2026/02/09/effect-polymorphic-optics.html)
+
+Introduce effects into optics. `MaybePath`, `EitherPath`, `ValidationPath`, and `VTaskPath` let the same traversal code work across different computational contexts — fail-fast for quick feedback, accumulating for comprehensive validation, and concurrent via virtual threads.
+
+### Part 6 — [From Theory to Practice](https://blog.scottlogic.com/2026/02/12/mfj-from-theory-to-practice.html)
+
+The capstone. Wire Focus DSL + Effect Paths into a four-phase expression pipeline, integrate with **Spring Boot** via `hkj-spring-boot-starter`, generate optics for third-party types with `@ImportOptics`, and map out a pragmatic incremental migration path for real teams.
+
+~~~admonish tip title="Companion Code"
+All six parts have runnable examples in the [expression-language-example](https://github.com/higher-kinded-j/expression-language-example) repository. Clone it and follow along.
+~~~
+
+---
+
+## Foundations: Types and Functional Patterns
+
+This earlier series explores the foundational ideas that inspired Higher-Kinded-J's development. Each post builds the theoretical knowledge that underpins the optics series above.
+
+- [Algebraic Data Types and Pattern Matching with Java](https://blog.scottlogic.com/2025/01/20/algebraic-data-types-with-java.html) — How ADTs and pattern matching model complex domains and improve on the traditional Visitor Pattern.
+
+- [Variance in Generics, Phantom and Existential Types with Java and Scala](https://blog.scottlogic.com/2025/02/17/variance-in-java-and-scala.html) — Use-site vs declaration-site variance, erasure trade-offs, and how phantom and existential types extend the type system.
+
+- [Intersection and Union Types with Java and Scala](https://blog.scottlogic.com/2025/03/05/intersection-and-union-types-with-java-and-scala.html) — Modelling tighter constraints with intersection types and increasing flexibility with union types.
+
+- [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html) — Cleaner, more composable code for null handling, error management, and asynchronous sequencing.
+
+- [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) — How higher-kinded types reduce duplication and unlock flexible, generic abstractions.
+
+- [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html) — Converting deep stack-based recursion into safe, heap-based iteration.
 
 ---
 
