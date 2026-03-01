@@ -76,6 +76,18 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   VTask<Step<A>> pull();
 
+  /**
+   * Signals early termination of this stream, allowing any attached finalisers to run.
+   *
+   * <p>The default implementation is a no-op. Streams created by {@link #onFinalize(VTask)}
+   * override this to execute their finaliser, propagating the close signal to the upstream source.
+   *
+   * @return A {@link VTask} that completes after all finalisers have run. Never null.
+   */
+  default VTask<Unit> close() {
+    return VTask.succeed(Unit.INSTANCE);
+  }
+
   // =====================================================================
   // Step sealed type
   // =====================================================================
@@ -550,11 +562,14 @@ public interface VStream<A> extends VStreamKind<A> {
    * @return A new {@code VStream} limited to {@code n} elements. Never null.
    */
   default VStream<A> take(long n) {
-    if (n <= 0) {
-      return empty();
-    }
-    return () ->
-        this.pull()
+    return new VStream<>() {
+      @Override
+      public VTask<Step<A>> pull() {
+        if (n <= 0) {
+          return VStream.this.close().map(unit -> new Step.Done<>());
+        }
+        return VStream.this
+            .pull()
             .map(
                 step ->
                     switch (step) {
@@ -562,6 +577,13 @@ public interface VStream<A> extends VStreamKind<A> {
                       case Step.Skip<A> s -> new Step.Skip<>(s.tail().take(n));
                       case Step.Done<A> _ -> new Step.Done<>();
                     });
+      }
+
+      @Override
+      public VTask<Unit> close() {
+        return VStream.this.close();
+      }
+    };
   }
 
   /**
@@ -1181,6 +1203,156 @@ public interface VStream<A> extends VStreamKind<A> {
                   action.accept(error);
                   return error;
                 });
+  }
+
+  // =====================================================================
+  // Resource management
+  // =====================================================================
+
+  /**
+   * Acquires a resource, uses it to produce a stream, and guarantees release on completion, error,
+   * or partial consumption.
+   *
+   * <p>The resource is acquired lazily on the first pull (not when {@code bracket} is called). The
+   * release function is guaranteed to run exactly once when:
+   *
+   * <ul>
+   *   <li>The stream completes normally ({@link Step.Done})
+   *   <li>An error occurs during pulling
+   *   <li>The stream is partially consumed (via {@link #take}, {@link #headOption}, etc.) and the
+   *       terminal operation runs the finaliser
+   * </ul>
+   *
+   * <p><b>Limitation:</b> If the consumer simply stops pulling without running the stream to
+   * completion and without using a terminal operation that triggers the finaliser, the release
+   * depends on garbage collection. This is a known limitation of pull-based streams.
+   *
+   * <h2>Example: File I/O</h2>
+   *
+   * <pre>{@code
+   * VStream<String> lines = VStream.bracket(
+   *     VTask.of(() -> Files.newBufferedReader(path)),
+   *     reader -> VStream.unfold(reader, r ->
+   *         VTask.of(() -> {
+   *             String line = r.readLine();
+   *             return line == null
+   *                 ? Optional.empty()
+   *                 : Optional.of(new Seed<>(line, r));
+   *         })),
+   *     reader -> VTask.exec(() -> reader.close())
+   * );
+   * }</pre>
+   *
+   * @param acquire a VTask that acquires the resource; must not be null
+   * @param use a function that takes the resource and produces a stream; must not be null
+   * @param release a function that takes the resource and produces a cleanup VTask; must not be
+   *     null
+   * @param <R> the resource type
+   * @param <A> the element type
+   * @return a resource-safe VStream; never null
+   * @throws NullPointerException if any argument is null
+   */
+  static <R, A> VStream<A> bracket(
+      VTask<R> acquire, Function<R, VStream<A>> use, Function<R, VTask<Unit>> release) {
+    Objects.requireNonNull(acquire, "acquire must not be null");
+    Objects.requireNonNull(use, "use must not be null");
+    Objects.requireNonNull(release, "release must not be null");
+
+    return () ->
+        acquire.flatMap(
+            resource -> {
+              VStream<A> inner = use.apply(resource);
+              VStream<A> withRelease = inner.onFinalize(release.apply(resource));
+              return withRelease.pull();
+            });
+  }
+
+  /**
+   * Ensures a finaliser runs when this stream completes or encounters an error.
+   *
+   * <p>The finaliser VTask is executed when:
+   *
+   * <ul>
+   *   <li>The stream completes normally ({@link Step.Done})
+   *   <li>An error occurs during pulling
+   * </ul>
+   *
+   * <p>The finaliser runs exactly once, regardless of how the stream terminates. If the finaliser
+   * itself throws an exception and the stream also failed, the original error is preserved and the
+   * finaliser error is added as a suppressed exception.
+   *
+   * <h2>Example</h2>
+   *
+   * <pre>{@code
+   * VStream<String> stream = VStream.of("a", "b", "c")
+   *     .onFinalize(VTask.exec(() -> System.out.println("Stream completed")));
+   * }</pre>
+   *
+   * @param finalizer the VTask to execute on stream completion or error; must not be null
+   * @return a new VStream with the finaliser attached; never null
+   * @throws NullPointerException if finalizer is null
+   */
+  default VStream<A> onFinalize(VTask<Unit> finalizer) {
+    Objects.requireNonNull(finalizer, "finalizer must not be null");
+    java.util.concurrent.atomic.AtomicBoolean released =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+    return wrapWithFinalizer(this, finalizer, released);
+  }
+
+  /**
+   * Internal helper that wraps a stream with finaliser logic, sharing the AtomicBoolean across the
+   * stream chain to ensure the finaliser runs exactly once.
+   */
+  private static <A> VStream<A> wrapWithFinalizer(
+      VStream<A> source,
+      VTask<Unit> finalizer,
+      java.util.concurrent.atomic.AtomicBoolean released) {
+    return new VStream<>() {
+      @Override
+      public VTask<Step<A>> pull() {
+        VTask<Step<A>> pullTask = source.pull();
+        return pullTask
+            .map(
+                step ->
+                    (Step<A>)
+                        switch (step) {
+                          case Step.Emit<A> e ->
+                              new Step.Emit<>(
+                                  e.value(), wrapWithFinalizer(e.tail(), finalizer, released));
+                          case Step.Skip<A> s ->
+                              new Step.Skip<>(wrapWithFinalizer(s.tail(), finalizer, released));
+                          case Step.Done<A> _ -> {
+                            if (released.compareAndSet(false, true)) {
+                              finalizer.run();
+                            }
+                            yield new Step.Done<>();
+                          }
+                        })
+            .recoverWith(
+                error -> {
+                  if (released.compareAndSet(false, true)) {
+                    try {
+                      finalizer.run();
+                    } catch (Exception finalizerError) {
+                      error.addSuppressed(finalizerError);
+                    }
+                  }
+                  return VTask.<Step<A>>fail(error);
+                });
+      }
+
+      @Override
+      public VTask<Unit> close() {
+        return VTask.of(
+            () -> {
+              if (released.compareAndSet(false, true)) {
+                finalizer.run();
+              }
+              source.close().run();
+              return Unit.INSTANCE;
+            });
+      }
+    };
   }
 
   // =====================================================================

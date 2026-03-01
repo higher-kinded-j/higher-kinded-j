@@ -19,6 +19,7 @@ import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
+import org.higherkindedj.hkt.vstream.VStreamReactive;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -34,9 +35,9 @@ import org.higherkindedj.optics.indexed.Pair;
  * @param stream the underlying VStream; must not be null
  * @param <A> the type of elements in the stream
  */
-record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
+public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
 
-  DefaultVStreamPath {
+  public DefaultVStreamPath {
     Objects.requireNonNull(stream, "stream must not be null");
   }
 
@@ -269,6 +270,21 @@ record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
   @Override
   public VTaskPath<List<A>> parCollect(int batchSize) {
     return new DefaultVTaskPath<>(VStreamPar.parCollect(stream, batchSize));
+  }
+
+  // ===== Resource management =====
+
+  @Override
+  public VStreamPath<A> onFinalize(VTask<Unit> finalizer) {
+    Objects.requireNonNull(finalizer, "finalizer must not be null");
+    return new DefaultVStreamPath<>(stream.onFinalize(finalizer));
+  }
+
+  // ===== Reactive interop =====
+
+  @Override
+  public java.util.concurrent.Flow.Publisher<A> toPublisher() {
+    return VStreamReactive.toPublisher(stream);
   }
 
   // ===== Focus bridge =====

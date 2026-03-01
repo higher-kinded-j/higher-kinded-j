@@ -179,6 +179,8 @@
     - [HKT and Type Classes](monads/vstream_hkt.md)
     - [Parallel Operations](monads/vstream_parallel.md)
     - [Performance](monads/vstream_performance.md)
+    - [Resource-Safe Streaming](monads/vstream_resources.md)
+    - [Advanced Features](monads/vstream_advanced.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 
