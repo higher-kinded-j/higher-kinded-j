@@ -86,6 +86,7 @@ public final class PathRegistry {
       throw new NullPointerException("provider must not be null");
     }
     providers.put(provider.witnessType(), provider);
+    loaded = true;
   }
 
   /**

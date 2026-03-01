@@ -1113,4 +1113,139 @@ class VStreamPathTest {
       assertThatVStreamPath(result).isEmpty();
     }
   }
+
+  @Nested
+  @DisplayName("Resource Management")
+  class ResourceManagementTests {
+
+    @Test
+    @DisplayName("onFinalize() runs finalizer on stream completion")
+    void onFinalizeRunsFinalizerOnCompletion() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      VStreamPath<Integer> path =
+          Path.vstreamOf(1, 2, 3).onFinalize(VTask.exec(() -> finalized.set(true)));
+
+      List<Integer> result = path.toList().run().run();
+
+      assertThat(result).containsExactly(1, 2, 3);
+      assertThat(finalized).isTrue();
+    }
+
+    @Test
+    @DisplayName("onFinalize() runs finalizer on error")
+    void onFinalizeRunsFinalizerOnError() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      VStreamPath<Integer> path =
+          Path.<Integer>vstream(VStream.fail(new RuntimeException("boom")))
+              .onFinalize(VTask.exec(() -> finalized.set(true)));
+
+      assertThatThrownBy(() -> path.toList().run().run()).isInstanceOf(RuntimeException.class);
+      assertThat(finalized).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("Reactive Interop")
+  class ReactiveInteropTests {
+
+    @Test
+    @DisplayName("toPublisher() converts VStreamPath to Flow.Publisher")
+    void toPublisherConverts() throws Exception {
+      VStreamPath<String> path = Path.vstreamOf("a", "b", "c");
+
+      java.util.concurrent.Flow.Publisher<String> publisher = path.toPublisher();
+
+      java.util.List<String> received = new java.util.ArrayList<>();
+      java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
+      publisher.subscribe(
+          new java.util.concurrent.Flow.Subscriber<>() {
+            @Override
+            public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) {
+              subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(String item) {
+              received.add(item);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+              latch.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+              latch.countDown();
+            }
+          });
+
+      assertThat(latch.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      assertThat(received).containsExactly("a", "b", "c");
+    }
+  }
+
+  @Nested
+  @DisplayName("Path Factory Bracket and Publisher")
+  class PathFactoryBracketPublisherTests {
+
+    @Test
+    @DisplayName("vstreamBracket() creates resource-safe VStreamPath")
+    void vstreamBracketCreates() {
+      AtomicBoolean released = new AtomicBoolean(false);
+
+      VStreamPath<Integer> path =
+          Path.vstreamBracket(
+              VTask.succeed("resource"),
+              r -> VStream.of(1, 2, 3),
+              r -> VTask.exec(() -> released.set(true)));
+
+      List<Integer> result = path.toList().run().run();
+
+      assertThat(result).containsExactly(1, 2, 3);
+      assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("vstreamFromPublisher(publisher, bufferSize) creates VStreamPath")
+    void vstreamFromPublisherWithBufferSize() {
+      java.util.concurrent.SubmissionPublisher<String> publisher =
+          new java.util.concurrent.SubmissionPublisher<>();
+
+      VStreamPath<String> path = Path.vstreamFromPublisher(publisher, 16);
+
+      Thread.startVirtualThread(
+          () -> {
+            publisher.submit("x");
+            publisher.submit("y");
+            publisher.close();
+          });
+
+      List<String> result = path.toList().run().run();
+
+      assertThat(result).containsExactly("x", "y");
+    }
+
+    @Test
+    @DisplayName("vstreamFromPublisher(publisher) uses default buffer size")
+    void vstreamFromPublisherDefaultBuffer() {
+      java.util.concurrent.SubmissionPublisher<Integer> publisher =
+          new java.util.concurrent.SubmissionPublisher<>();
+
+      VStreamPath<Integer> path = Path.vstreamFromPublisher(publisher);
+
+      Thread.startVirtualThread(
+          () -> {
+            publisher.submit(10);
+            publisher.close();
+          });
+
+      List<Integer> result = path.toList().run().run();
+
+      assertThat(result).containsExactly(10);
+    }
+  }
 }

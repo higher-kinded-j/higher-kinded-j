@@ -471,6 +471,39 @@ public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStre
    */
   NonDetPath<A> toNonDetPath();
 
+  // ===== Resource management =====
+
+  /**
+   * Ensures a finaliser runs when this stream completes or encounters an error.
+   *
+   * <p>The finaliser VTask is executed exactly once when:
+   *
+   * <ul>
+   *   <li>The stream completes normally
+   *   <li>An error occurs during pulling
+   * </ul>
+   *
+   * <p>Delegates to {@link VStream#onFinalize(VTask)}.
+   *
+   * @param finalizer the VTask to execute on stream completion or error; must not be null
+   * @return a new VStreamPath with the finaliser attached
+   * @throws NullPointerException if finalizer is null
+   */
+  VStreamPath<A> onFinalize(VTask<Unit> finalizer);
+
+  // ===== Reactive interop =====
+
+  /**
+   * Converts this VStreamPath to a {@link java.util.concurrent.Flow.Publisher}.
+   *
+   * <p>Each subscriber receives all elements. Backpressure is respected: elements are only pulled
+   * when the subscriber requests them. Delegates to {@link
+   * org.higherkindedj.hkt.vstream.VStreamReactive#toPublisher(VStream)}.
+   *
+   * @return a Flow.Publisher that publishes this stream's elements; never null
+   */
+  java.util.concurrent.Flow.Publisher<A> toPublisher();
+
   // ===== Static factory methods =====
 
   /**

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.vstream.VStreamAssert.assertThatVStream;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -1294,6 +1295,26 @@ class VStreamTest {
       // Skip steps from filter cause interleave to swap streams,
       // so the unfiltered stream (100, 200) emits first on each swap.
       assertThat(result).containsExactly(100, 2, 200, 4);
+    }
+  }
+
+  @Nested
+  @DisplayName("Close Operations")
+  class CloseOperations {
+
+    @Test
+    @DisplayName("take() close delegates to underlying stream")
+    void takeClosesDelegation() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      VStream<Integer> stream =
+          VStream.of(1, 2, 3, 4, 5).onFinalize(VTask.exec(() -> finalized.set(true)));
+
+      // take() wraps the stream and its close() should delegate
+      VStream<Integer> taken = stream.take(2);
+      taken.close().run();
+
+      assertThat(finalized).isTrue();
     }
   }
 }
