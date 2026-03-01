@@ -11,6 +11,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -441,5 +443,22 @@ public interface VTask<A> extends VTaskKind<A> {
    */
   default VTask<Unit> asUnit() {
     return this.map(_ -> Unit.INSTANCE);
+  }
+
+  // ===== RETRY =====
+
+  /**
+   * Returns a new {@code VTask} that retries this computation according to the given policy.
+   *
+   * <p>The returned task is lazy: nothing executes until it is run. On failure, the policy
+   * determines whether to retry, how long to wait, and when to give up.
+   *
+   * @param policy the retry policy; must not be null
+   * @return a new {@code VTask<A>} that retries according to the policy. Never null.
+   * @throws NullPointerException if {@code policy} is null.
+   * @see Retry#retryTask(VTask, RetryPolicy)
+   */
+  default VTask<A> retry(RetryPolicy policy) {
+    return Retry.retryTask(this, policy);
   }
 }

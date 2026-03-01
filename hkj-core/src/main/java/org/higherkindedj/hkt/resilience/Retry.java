@@ -4,7 +4,11 @@ package org.higherkindedj.hkt.resilience;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.vtask.VTask;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility class for executing operations with retry logic.
@@ -78,8 +82,14 @@ public final class Retry {
           break;
         }
 
-        // Wait before next attempt
+        // Notify retry listener
         Duration delay = policy.delayForAttempt(attempt);
+        @Nullable Consumer<RetryEvent> listener = policy.retryListener();
+        if (listener != null) {
+          listener.accept(RetryEvent.of(attempt, t, delay));
+        }
+
+        // Wait before next attempt
         if (!delay.isZero() && !delay.isNegative()) {
           try {
             Thread.sleep(delay.toMillis());
@@ -148,5 +158,97 @@ public final class Retry {
    */
   public static <A> A withFixedDelay(int maxAttempts, Duration delay, Supplier<A> supplier) {
     return execute(RetryPolicy.fixed(maxAttempts, delay), supplier);
+  }
+
+  // ===== VTask-Native Retry =====
+
+  /**
+   * Returns a lazy {@link VTask} that retries the given task according to the policy.
+   *
+   * <p>The returned task is lazy: nothing executes until {@code run()}, {@code runSafe()}, or
+   * {@code runAsync()} is called. Each execution attempt runs the original task; on failure,
+   * the policy determines whether to retry.
+   *
+   * @param task the task to retry; must not be null
+   * @param policy the retry policy; must not be null
+   * @param <A> the result type
+   * @return a new VTask that retries according to the policy
+   * @throws NullPointerException if task or policy is null
+   */
+  public static <A> VTask<A> retryTask(VTask<A> task, RetryPolicy policy) {
+    Objects.requireNonNull(task, "task must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    return () -> execute(policy, task::run);
+  }
+
+  /**
+   * Returns a lazy {@link VTask} that retries the given task with default exponential backoff
+   * and jitter.
+   *
+   * @param task the task to retry; must not be null
+   * @param maxAttempts the maximum number of attempts
+   * @param <A> the result type
+   * @return a new VTask that retries with exponential backoff
+   * @throws NullPointerException if task is null
+   * @throws IllegalArgumentException if maxAttempts is less than 1
+   */
+  public static <A> VTask<A> retryTask(VTask<A> task, int maxAttempts) {
+    return retryTask(
+        task,
+        RetryPolicy.exponentialBackoffWithJitter(maxAttempts, Duration.ofMillis(100)));
+  }
+
+  /**
+   * Returns a lazy {@link VTask} that retries the given task and falls back to a value on
+   * exhaustion.
+   *
+   * @param task the task to retry; must not be null
+   * @param policy the retry policy; must not be null
+   * @param fallback a function that produces a fallback value from the last exception;
+   *     must not be null
+   * @param <A> the result type
+   * @return a new VTask that retries, then falls back on exhaustion
+   * @throws NullPointerException if any argument is null
+   */
+  public static <A> VTask<A> retryTaskWithFallback(
+      VTask<A> task, RetryPolicy policy, Function<Throwable, A> fallback) {
+    Objects.requireNonNull(task, "task must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    Objects.requireNonNull(fallback, "fallback must not be null");
+    return () -> {
+      try {
+        return execute(policy, task::run);
+      } catch (RetryExhaustedException e) {
+        return fallback.apply(e.getCause());
+      }
+    };
+  }
+
+  /**
+   * Returns a lazy {@link VTask} that retries the given task and runs a recovery task on
+   * exhaustion.
+   *
+   * @param task the task to retry; must not be null
+   * @param policy the retry policy; must not be null
+   * @param recovery a function that produces a recovery task from the last exception;
+   *     must not be null
+   * @param <A> the result type
+   * @return a new VTask that retries, then runs the recovery task on exhaustion
+   * @throws NullPointerException if any argument is null
+   */
+  public static <A> VTask<A> retryTaskWithRecovery(
+      VTask<A> task, RetryPolicy policy, Function<Throwable, VTask<A>> recovery) {
+    Objects.requireNonNull(task, "task must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    return () -> {
+      try {
+        return execute(policy, task::run);
+      } catch (RetryExhaustedException e) {
+        VTask<A> recoveryTask = recovery.apply(e.getCause());
+        Objects.requireNonNull(recoveryTask, "recovery function returned null");
+        return recoveryTask.run();
+      }
+    };
   }
 }

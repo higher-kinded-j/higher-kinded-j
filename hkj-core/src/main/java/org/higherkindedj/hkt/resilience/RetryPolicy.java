@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.resilience;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A configurable policy for retry behavior.
@@ -37,12 +39,22 @@ import java.util.function.Predicate;
  */
 public final class RetryPolicy {
 
+  /** The strategy used to calculate delays between retry attempts. */
+  enum BackoffStrategy {
+    /** Fixed or exponential delay: {@code initialDelay * multiplier^(attempt-1)}. */
+    EXPONENTIAL,
+    /** Linearly increasing delay: {@code initialDelay * attempt}. */
+    LINEAR
+  }
+
   private final int maxAttempts;
   private final Duration initialDelay;
   private final double backoffMultiplier;
   private final Duration maxDelay;
   private final boolean useJitter;
   private final Predicate<Throwable> retryPredicate;
+  private final @Nullable Consumer<RetryEvent> retryListener;
+  private final BackoffStrategy backoffStrategy;
 
   private RetryPolicy(
       int maxAttempts,
@@ -50,13 +62,29 @@ public final class RetryPolicy {
       double backoffMultiplier,
       Duration maxDelay,
       boolean useJitter,
-      Predicate<Throwable> retryPredicate) {
+      Predicate<Throwable> retryPredicate,
+      @Nullable Consumer<RetryEvent> retryListener) {
+    this(maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate,
+        retryListener, BackoffStrategy.EXPONENTIAL);
+  }
+
+  private RetryPolicy(
+      int maxAttempts,
+      Duration initialDelay,
+      double backoffMultiplier,
+      Duration maxDelay,
+      boolean useJitter,
+      Predicate<Throwable> retryPredicate,
+      @Nullable Consumer<RetryEvent> retryListener,
+      BackoffStrategy backoffStrategy) {
     this.maxAttempts = maxAttempts;
     this.initialDelay = initialDelay;
     this.backoffMultiplier = backoffMultiplier;
     this.maxDelay = maxDelay;
     this.useJitter = useJitter;
     this.retryPredicate = retryPredicate;
+    this.retryListener = retryListener;
+    this.backoffStrategy = backoffStrategy;
   }
 
   // ===== Factory Methods =====
@@ -73,7 +101,7 @@ public final class RetryPolicy {
   public static RetryPolicy fixed(int maxAttempts, Duration delay) {
     validateMaxAttempts(maxAttempts);
     Objects.requireNonNull(delay, "delay must not be null");
-    return new RetryPolicy(maxAttempts, delay, 1.0, delay, false, _ -> true);
+    return new RetryPolicy(maxAttempts, delay, 1.0, delay, false, _ -> true, null);
   }
 
   /**
@@ -90,7 +118,8 @@ public final class RetryPolicy {
   public static RetryPolicy exponentialBackoff(int maxAttempts, Duration initialDelay) {
     validateMaxAttempts(maxAttempts);
     Objects.requireNonNull(initialDelay, "initialDelay must not be null");
-    return new RetryPolicy(maxAttempts, initialDelay, 2.0, Duration.ofMinutes(5), false, _ -> true);
+    return new RetryPolicy(
+        maxAttempts, initialDelay, 2.0, Duration.ofMinutes(5), false, _ -> true, null);
   }
 
   /**
@@ -108,7 +137,27 @@ public final class RetryPolicy {
   public static RetryPolicy exponentialBackoffWithJitter(int maxAttempts, Duration initialDelay) {
     validateMaxAttempts(maxAttempts);
     Objects.requireNonNull(initialDelay, "initialDelay must not be null");
-    return new RetryPolicy(maxAttempts, initialDelay, 2.0, Duration.ofMinutes(5), true, _ -> true);
+    return new RetryPolicy(
+        maxAttempts, initialDelay, 2.0, Duration.ofMinutes(5), true, _ -> true, null);
+  }
+
+  /**
+   * Creates a policy with linearly increasing delays.
+   *
+   * <p>Each subsequent delay increases by the initial delay: delay, delay*2, delay*3, etc.
+   *
+   * @param maxAttempts maximum number of attempts (must be at least 1)
+   * @param initialDelay the initial delay; must not be null
+   * @return a RetryPolicy with linear backoff
+   * @throws IllegalArgumentException if maxAttempts is less than 1
+   * @throws NullPointerException if initialDelay is null
+   */
+  public static RetryPolicy linear(int maxAttempts, Duration initialDelay) {
+    validateMaxAttempts(maxAttempts);
+    Objects.requireNonNull(initialDelay, "initialDelay must not be null");
+    return new RetryPolicy(
+        maxAttempts, initialDelay, 1.0, Duration.ofMinutes(5), false, _ -> true, null,
+        BackoffStrategy.LINEAR);
   }
 
   /**
@@ -117,7 +166,7 @@ public final class RetryPolicy {
    * @return a RetryPolicy with no retries
    */
   public static RetryPolicy noRetry() {
-    return new RetryPolicy(1, Duration.ZERO, 1.0, Duration.ZERO, false, _ -> false);
+    return new RetryPolicy(1, Duration.ZERO, 1.0, Duration.ZERO, false, _ -> false, null);
   }
 
   /**
@@ -141,7 +190,8 @@ public final class RetryPolicy {
   public RetryPolicy withMaxAttempts(int maxAttempts) {
     validateMaxAttempts(maxAttempts);
     return new RetryPolicy(
-        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate);
+        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate,
+        retryListener);
   }
 
   /**
@@ -154,7 +204,8 @@ public final class RetryPolicy {
   public RetryPolicy withInitialDelay(Duration initialDelay) {
     Objects.requireNonNull(initialDelay, "initialDelay must not be null");
     return new RetryPolicy(
-        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate);
+        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate,
+        retryListener);
   }
 
   /**
@@ -169,7 +220,7 @@ public final class RetryPolicy {
       throw new IllegalArgumentException("backoffMultiplier must be at least 1.0");
     }
     return new RetryPolicy(
-        maxAttempts, initialDelay, multiplier, maxDelay, useJitter, retryPredicate);
+        maxAttempts, initialDelay, multiplier, maxDelay, useJitter, retryPredicate, retryListener);
   }
 
   /**
@@ -182,7 +233,8 @@ public final class RetryPolicy {
   public RetryPolicy withMaxDelay(Duration maxDelay) {
     Objects.requireNonNull(maxDelay, "maxDelay must not be null");
     return new RetryPolicy(
-        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate);
+        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate,
+        retryListener);
   }
 
   /**
@@ -200,7 +252,8 @@ public final class RetryPolicy {
         backoffMultiplier,
         maxDelay,
         useJitter,
-        ex -> exceptionClass.isInstance(ex));
+        ex -> exceptionClass.isInstance(ex),
+        retryListener);
   }
 
   /**
@@ -213,7 +266,25 @@ public final class RetryPolicy {
   public RetryPolicy retryIf(Predicate<Throwable> predicate) {
     Objects.requireNonNull(predicate, "predicate must not be null");
     return new RetryPolicy(
-        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, predicate);
+        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, predicate,
+        retryListener);
+  }
+
+  /**
+   * Returns a copy of this policy with a retry event listener.
+   *
+   * <p>The listener is called before each retry attempt with a {@link RetryEvent} containing
+   * details about the failed attempt: attempt number, exception, and next delay.
+   *
+   * @param listener the listener to notify on each retry; must not be null
+   * @return a new RetryPolicy with the retry listener
+   * @throws NullPointerException if listener is null
+   */
+  public RetryPolicy onRetry(Consumer<RetryEvent> listener) {
+    Objects.requireNonNull(listener, "listener must not be null");
+    return new RetryPolicy(
+        maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate,
+        listener);
   }
 
   // ===== Accessors =====
@@ -274,6 +345,15 @@ public final class RetryPolicy {
   }
 
   /**
+   * Returns the retry event listener, or {@code null} if none is set.
+   *
+   * @return the retry event listener, or null
+   */
+  public @Nullable Consumer<RetryEvent> retryListener() {
+    return retryListener;
+  }
+
+  /**
    * Calculates the delay for a given attempt number.
    *
    * @param attemptNumber the attempt number (1-based)
@@ -284,9 +364,15 @@ public final class RetryPolicy {
       return initialDelay;
     }
 
-    // Calculate exponential delay
-    double multiplier = Math.pow(backoffMultiplier, attemptNumber - 1);
-    long delayMillis = (long) (initialDelay.toMillis() * multiplier);
+    long delayMillis;
+    if (backoffStrategy == BackoffStrategy.LINEAR) {
+      // Linear: initialDelay * attemptNumber
+      delayMillis = initialDelay.toMillis() * attemptNumber;
+    } else {
+      // Exponential: initialDelay * multiplier^(attemptNumber-1)
+      double multiplier = Math.pow(backoffMultiplier, attemptNumber - 1);
+      delayMillis = (long) (initialDelay.toMillis() * multiplier);
+    }
 
     // Cap at maxDelay
     delayMillis = Math.min(delayMillis, maxDelay.toMillis());
@@ -333,6 +419,8 @@ public final class RetryPolicy {
     private Duration maxDelay = Duration.ofMinutes(5);
     private boolean useJitter = false;
     private Predicate<Throwable> retryPredicate = _ -> true;
+    private @Nullable Consumer<RetryEvent> retryListener = null;
+    private BackoffStrategy backoffStrategy = BackoffStrategy.EXPONENTIAL;
 
     private Builder() {}
 
@@ -425,13 +513,36 @@ public final class RetryPolicy {
     }
 
     /**
+     * Sets a retry event listener.
+     *
+     * @param listener the listener to notify on each retry
+     * @return this builder
+     * @throws NullPointerException if listener is null
+     */
+    public Builder onRetry(Consumer<RetryEvent> listener) {
+      this.retryListener = Objects.requireNonNull(listener, "listener must not be null");
+      return this;
+    }
+
+    /**
+     * Uses linear backoff strategy instead of exponential.
+     *
+     * @return this builder
+     */
+    public Builder linearBackoff() {
+      this.backoffStrategy = BackoffStrategy.LINEAR;
+      return this;
+    }
+
+    /**
      * Builds the RetryPolicy.
      *
      * @return the configured RetryPolicy
      */
     public RetryPolicy build() {
       return new RetryPolicy(
-          maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate);
+          maxAttempts, initialDelay, backoffMultiplier, maxDelay, useJitter, retryPredicate,
+          retryListener, backoffStrategy);
     }
   }
 
