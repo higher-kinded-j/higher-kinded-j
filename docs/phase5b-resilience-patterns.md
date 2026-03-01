@@ -463,35 +463,7 @@ public class BulkheadFullException extends RuntimeException {
 
 ## 5. VStream Resilience Integration
 
-### 5.1 Stream-Level Circuit Breaker
-
-**Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/resilience/Resilience.java`
-
-- [ ] Protect stream element processing with a circuit breaker
-
-```java
-// In Resilience utility class:
-
-// Wraps each element's effectful processing with circuit breaker protection
-public static <A, B> VStream<B> protectStream(
-    VStream<A> stream,
-    Function<A, VTask<B>> f,
-    CircuitBreaker circuitBreaker);
-```
-
-### 5.2 Per-Element Retry for Streams
-
-- [ ] Retry each element's processing independently
-
-```java
-// Retry each element's effectful processing
-public static <A, B> VStream<B> retryMapTask(
-    VStream<A> stream,
-    Function<A, VTask<B>> f,
-    RetryPolicy policy);
-```
-
-### 5.3 Rate Limiting / Throttling
+### 5.1 VStream Rate Limiting / Throttling
 
 **Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/vstream/VStreamThrottle.java`
 
@@ -514,6 +486,54 @@ public final class VStreamThrottle {
 concurrently. `VStreamThrottle` limits how many elements are _emitted per time window_. Both
 can be combined: a stream can have bounded concurrency (VStreamPar) and be rate-limited
 (VStreamThrottle) simultaneously.
+
+### 5.2 Stream-Level Resilience Combinators
+
+**Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/resilience/Resilience.java`
+
+Per-element resilience for streams is achieved naturally through VTask composition (since
+`VTask` will gain `.retry(policy)` in section 1). Dedicated stream-level combinators are
+provided as convenience methods:
+
+- [ ] Per-element retry via mapTask composition
+- [ ] Circuit breaker-protected stream processing
+
+```java
+// In Resilience utility class:
+
+// Retry each element's effectful processing
+public static <A, B> VStream<B> retryMapTask(
+    VStream<A> stream,
+    Function<A, VTask<B>> f,
+    RetryPolicy policy);
+
+// Wraps each element's effectful processing with circuit breaker protection
+public static <A, B> VStream<B> protectStream(
+    VStream<A> stream,
+    Function<A, VTask<B>> f,
+    CircuitBreaker circuitBreaker);
+```
+
+These are convenience wrappers. Users can achieve the same with direct VTask composition:
+```java
+// Equivalent to Resilience.retryMapTask(stream, f, policy):
+stream.mapTask(a -> f.apply(a).retry(policy));
+
+// Equivalent to Resilience.protectStream(stream, f, cb):
+stream.mapTask(a -> cb.protect(f.apply(a)));
+
+// Combining both with bounded concurrency and rate limiting:
+Path.vstreamFromList(urls)
+    .parEvalMap(4, url ->
+        circuitBreaker.protect(
+            VTask.of(() -> httpClient.get(url))
+                .retry(policy)
+                .timeout(Duration.ofSeconds(5))))
+    .throttle(Duration.ofMillis(100))
+    .recover(ex -> Response.empty())
+    .toList()
+    .unsafeRun();
+```
 
 ---
 
@@ -595,30 +615,459 @@ VTask<String> resilient = Resilience.<String>builder(
 
 ## 7. Path API Integration
 
-### 7.1 VTaskPath Retry Integration
+This section addresses the ergonomic gaps across all three API layers:
+- **Layer 0**: Raw VTask / VStream / IO
+- **Layer 1**: Path API (VTaskPath, VStreamPath, IOPath)
+- **Layer 2**: Context API (VTaskContext)
+
+### 7.1 Current Gaps Summary
+
+| Capability | IOPath | VTaskPath | VStreamPath | VTaskContext |
+|---|---|---|---|---|
+| `withRetry(policy)` | Yes | **Missing** | N/A | **Missing** |
+| `retry(max, delay)` | Yes | **Missing** | N/A | **Missing** |
+| `handleError` / `recover` | Yes | Yes | **Missing** | Yes |
+| `handleErrorWith` / `recoverWith` | Yes | Yes | **Missing** | Yes |
+| `mapError` | N/A | **Missing** | **Missing** | **Missing** |
+| `onError` (side-effect) | N/A | N/A | **Missing** | N/A |
+| `timeout` | N/A | Yes | N/A | Yes |
+| `catching` (typed errors) | Yes | **Missing** | N/A | **Missing** |
+| `asMaybe` | Yes | **Missing** | N/A | **Missing** |
+| `asTry` | Yes | **Missing** | N/A | **Missing** |
+| `race` | Yes | **Missing** | N/A | **Missing** |
+| `parZipWith` | Yes | **Missing** (zipWith uses Par) | N/A | **Missing** |
+| `guarantee` (finalizer) | Yes | **Missing** | `onFinalize` | **Missing** |
+| `mapTask` (effectful map) | N/A | N/A | **Missing** | N/A |
+| Rate limiting | N/A | N/A | **Missing** | N/A |
+
+Notes:
+- VTaskPath `zipWith` already uses `Par.map2` internally (parallel by default)
+- VStreamPath has `parEvalMap` but no `mapTask` for sequential effectful mapping
+- IOPath `race`/`parZipWith` use CompletableFuture; VTaskPath equivalents would use Par
+
+### 7.2 VTaskPath Resilience Methods
 
 **Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/effect/VTaskPath.java` (modify existing)
 
-- [ ] Add `withRetry(RetryPolicy)` to match IOPath and CompletableFuturePath
+- [ ] Add retry methods matching IOPath's API
 
 ```java
-// Add to VTaskPath:
+// Add to VTaskPath interface:
+
+// ===== Retry Operations =====
+
+/**
+ * Returns a VTaskPath that retries this computation according to the given policy.
+ */
 VTaskPath<A> withRetry(RetryPolicy policy);
+
+/**
+ * Returns a VTaskPath that retries with exponential backoff and jitter.
+ */
 VTaskPath<A> retry(int maxAttempts, Duration initialDelay);
 ```
 
-This brings VTaskPath to parity with IOPath and CompletableFuturePath, which already have these
-methods. Currently VTaskPath users must simulate retry with chained `handleErrorWith()` calls.
+- [ ] Add circuit breaker and bulkhead protection
 
-### 7.2 VTaskPath Circuit Breaker Integration (Optional)
+```java
+// ===== Resilience Operations =====
+
+/**
+ * Returns a VTaskPath protected by the given circuit breaker.
+ */
+VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker);
+
+/**
+ * Returns a VTaskPath protected by the given bulkhead.
+ */
+VTaskPath<A> withBulkhead(Bulkhead bulkhead);
+```
+
+**DefaultVTaskPath implementations:**
+```java
+@Override
+public VTaskPath<A> withRetry(RetryPolicy policy) {
+    Objects.requireNonNull(policy, "policy must not be null");
+    return new DefaultVTaskPath<>(Retry.retryTask(value, policy));
+}
+
+@Override
+public VTaskPath<A> retry(int maxAttempts, Duration initialDelay) {
+    return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
+}
+
+@Override
+public VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    return new DefaultVTaskPath<>(circuitBreaker.protect(value));
+}
+
+@Override
+public VTaskPath<A> withBulkhead(Bulkhead bulkhead) {
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    return new DefaultVTaskPath<>(bulkhead.protect(value));
+}
+```
+
+### 7.3 VTaskPath Parity with IOPath
 
 **Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/effect/VTaskPath.java` (modify existing)
 
-- [ ] Add `withCircuitBreaker(CircuitBreaker)` to VTaskPath
+These methods bring VTaskPath to feature parity with IOPath. They don't depend on the
+resilience package and could be added independently.
+
+- [ ] Add typed error wrapping methods
 
 ```java
-// Add to VTaskPath:
-VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker);
+// ===== Effect Wrapping Methods =====
+
+/**
+ * Wraps the result in an Either, catching exceptions.
+ */
+<E> VTaskPath<Either<E, A>> catching(
+    Function<? super Throwable, ? extends E> exceptionMapper);
+
+/**
+ * Converts exceptions to Nothing, success to Just.
+ */
+VTaskPath<Maybe<A>> asMaybe();
+
+/**
+ * Wraps the result in a Try.
+ */
+VTaskPath<Try<A>> asTry();
+```
+
+- [ ] Add error mapping
+
+```java
+/**
+ * Transforms the exception without affecting success values.
+ */
+VTaskPath<A> mapError(Function<? super Throwable, ? extends Throwable> f);
+```
+
+- [ ] Add resource safety
+
+```java
+/**
+ * Ensures a finalizer runs whether this task succeeds or fails.
+ */
+VTaskPath<A> guarantee(Runnable finalizer);
+```
+
+- [ ] Add parallel combinators
+
+```java
+/**
+ * Combines this path with another in parallel on virtual threads.
+ * Note: zipWith already uses Par.map2; this is an explicit parallel alias.
+ */
+<B, C> VTaskPath<C> parZipWith(
+    VTaskPath<B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
+
+/**
+ * Races this path against another, returning the first to complete.
+ */
+VTaskPath<A> race(VTaskPath<A> other);
+```
+
+**DefaultVTaskPath implementations:**
+```java
+@Override
+public <E> VTaskPath<Either<E, A>> catching(
+        Function<? super Throwable, ? extends E> exceptionMapper) {
+    Objects.requireNonNull(exceptionMapper, "exceptionMapper must not be null");
+    return new DefaultVTaskPath<>(VTask.delay(() -> {
+        try {
+            return Either.right(this.unsafeRun());
+        } catch (Throwable t) {
+            return Either.left(exceptionMapper.apply(t));
+        }
+    }));
+}
+
+@Override
+public VTaskPath<Maybe<A>> asMaybe() {
+    return new DefaultVTaskPath<>(VTask.delay(() -> {
+        try {
+            return Maybe.just(this.unsafeRun());
+        } catch (Throwable t) {
+            return Maybe.nothing();
+        }
+    }));
+}
+
+@Override
+public VTaskPath<Try<A>> asTry() {
+    return new DefaultVTaskPath<>(VTask.delay(() -> this.runSafe()));
+}
+
+@Override
+public VTaskPath<A> mapError(Function<? super Throwable, ? extends Throwable> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVTaskPath<>(value.mapError(f));
+}
+
+@Override
+public VTaskPath<A> guarantee(Runnable finalizer) {
+    Objects.requireNonNull(finalizer, "finalizer must not be null");
+    return new DefaultVTaskPath<>(VTask.delay(() -> {
+        try {
+            return this.unsafeRun();
+        } finally {
+            finalizer.run();
+        }
+    }));
+}
+
+@Override
+public <B, C> VTaskPath<C> parZipWith(
+        VTaskPath<B> other,
+        BiFunction<? super A, ? super B, ? extends C> combiner) {
+    // VTaskPath.zipWith already uses Par.map2 for parallel execution.
+    // parZipWith is an explicit alias for discoverability / IOPath symmetry.
+    return zipWith(other, combiner);
+}
+
+@Override
+public VTaskPath<A> race(VTaskPath<A> other) {
+    Objects.requireNonNull(other, "other must not be null");
+    return new DefaultVTaskPath<>(
+        Par.race(List.of(this.run(), other.run())));
+}
+```
+
+### 7.4 VStreamPath Error Handling and Resilience
+
+**Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/effect/VStreamPath.java` (modify existing)
+
+VStream already has `recover`, `recoverWith`, `mapError`, `onError`, and `mapTask`.
+VStreamPath currently exposes **none** of these. Users who want stream-level error handling
+must drop down to the raw VStream API, breaking the fluent Path chain.
+
+- [ ] Expose VStream error handling methods on VStreamPath
+
+```java
+// Add to VStreamPath interface:
+
+// ===== Error handling =====
+
+/**
+ * Recovers from stream errors by providing a fallback value.
+ * If pulling an element fails, the recovery function produces a replacement.
+ */
+VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery);
+
+/**
+ * Recovers from stream errors by switching to a fallback stream.
+ */
+VStreamPath<A> recoverWith(
+    Function<? super Throwable, ? extends VStreamPath<A>> recovery);
+
+/**
+ * Transforms errors without affecting successfully produced elements.
+ */
+VStreamPath<A> mapError(Function<? super Throwable, ? extends Throwable> f);
+
+/**
+ * Performs a side effect when an error occurs, then re-raises the error.
+ */
+VStreamPath<A> onError(Consumer<? super Throwable> action);
+```
+
+- [ ] Expose VStream effectful mapping on VStreamPath
+
+```java
+// ===== Effectful mapping =====
+
+/**
+ * Applies an effectful function to each element sequentially.
+ * Unlike parEvalMap, this processes elements one at a time.
+ */
+<B> VStreamPath<B> mapTask(Function<? super A, ? extends VTask<B>> f);
+```
+
+- [ ] Add rate limiting methods on VStreamPath (delegates to VStreamThrottle)
+
+```java
+// ===== Rate limiting =====
+
+/**
+ * Limits throughput to at most maxElements per time window.
+ */
+VStreamPath<A> throttle(int maxElements, Duration window);
+
+/**
+ * Adds a fixed delay between element emissions.
+ */
+VStreamPath<A> metered(Duration interval);
+```
+
+**DefaultVStreamPath implementations:**
+```java
+@Override
+public VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery) {
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    return new DefaultVStreamPath<>(stream.recover(recovery));
+}
+
+@Override
+public VStreamPath<A> recoverWith(
+        Function<? super Throwable, ? extends VStreamPath<A>> recovery) {
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    return new DefaultVStreamPath<>(
+        stream.recoverWith(t -> recovery.apply(t).run()));
+}
+
+@Override
+public VStreamPath<A> mapError(Function<? super Throwable, ? extends Throwable> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVStreamPath<>(stream.mapError(f));
+}
+
+@Override
+public VStreamPath<A> onError(Consumer<? super Throwable> action) {
+    Objects.requireNonNull(action, "action must not be null");
+    return new DefaultVStreamPath<>(stream.onError(action));
+}
+
+@Override
+public <B> VStreamPath<B> mapTask(Function<? super A, ? extends VTask<B>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    @SuppressWarnings("unchecked")
+    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
+    return new DefaultVStreamPath<>(stream.mapTask(typedF));
+}
+
+@Override
+public VStreamPath<A> throttle(int maxElements, Duration window) {
+    return new DefaultVStreamPath<>(VStreamThrottle.throttle(stream, maxElements, window));
+}
+
+@Override
+public VStreamPath<A> metered(Duration interval) {
+    return new DefaultVStreamPath<>(VStreamThrottle.metered(stream, interval));
+}
+```
+
+### 7.5 VTaskContext Resilience Methods
+
+**Location**: `hkj-core/src/main/java/org/higherkindedj/hkt/effect/context/VTaskContext.java` (modify existing)
+
+VTaskContext is the Layer 2 user-friendly API. It should expose resilience methods that
+mirror VTaskPath but use VTaskContext's own chaining pattern (no Chainable/Combinable).
+
+- [ ] Add retry, circuit breaker, and bulkhead to VTaskContext
+
+```java
+// Add to VTaskContext:
+
+/**
+ * Returns a VTaskContext that retries this computation according to the given policy.
+ */
+public VTaskContext<A> withRetry(RetryPolicy policy) {
+    return fromPath(path.withRetry(policy));
+}
+
+/**
+ * Returns a VTaskContext that retries with exponential backoff and jitter.
+ */
+public VTaskContext<A> retry(int maxAttempts, Duration initialDelay) {
+    return fromPath(path.retry(maxAttempts, initialDelay));
+}
+
+/**
+ * Returns a VTaskContext protected by the given circuit breaker.
+ */
+public VTaskContext<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
+    return fromPath(path.withCircuitBreaker(circuitBreaker));
+}
+
+/**
+ * Returns a VTaskContext protected by the given bulkhead.
+ */
+public VTaskContext<A> withBulkhead(Bulkhead bulkhead) {
+    return fromPath(path.withBulkhead(bulkhead));
+}
+```
+
+### 7.6 End-to-End Ergonomic Examples
+
+These examples demonstrate the composability of the complete resilience API across all layers.
+
+**VTaskPath — resilient HTTP client:**
+```java
+CircuitBreaker serviceBreaker = CircuitBreaker.create(
+    CircuitBreakerConfig.builder()
+        .failureThreshold(5)
+        .openDuration(Duration.ofSeconds(30))
+        .build());
+
+RetryPolicy retryPolicy = RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200))
+    .retryOn(IOException.class)
+    .onRetry(e -> log.warn("Retry #{}: {}", e.attemptNumber(), e.lastException().getMessage()));
+
+VTaskPath<Response> resilientCall = Path.vtask(() -> httpClient.get(url))
+    .withCircuitBreaker(serviceBreaker)
+    .withRetry(retryPolicy)
+    .timeout(Duration.ofSeconds(10))
+    .handleError(ex -> Response.fallback());
+
+Response response = resilientCall.unsafeRun();
+```
+
+**VTaskContext — user-friendly Layer 2:**
+```java
+Try<Response> result = VTaskContext.of(() -> httpClient.get(url))
+    .withCircuitBreaker(serviceBreaker)
+    .retry(3, Duration.ofMillis(200))
+    .timeout(Duration.ofSeconds(10))
+    .recover(ex -> Response.fallback())
+    .run();
+```
+
+**VStreamPath — resilient stream processing with rate limiting:**
+```java
+List<UserProfile> profiles = Path.vstreamFromList(userIds)
+    .parEvalMap(4, id ->
+        serviceBreaker.protect(
+            VTask.of(() -> profileService.fetch(id))
+                .retry(retryPolicy)))
+    .metered(Duration.ofMillis(50))
+    .recover(ex -> UserProfile.unknown())
+    .toList()
+    .unsafeRun();
+```
+
+**VStreamPath — API scraping with throttle:**
+```java
+Path.vstreamRange(1, 1000)
+    .map(page -> apiUrl + "?page=" + page)
+    .mapTask(url -> VTask.of(() -> httpClient.get(url)))
+    .throttle(10, Duration.ofSeconds(1))    // max 10 requests/second
+    .map(Response::body)
+    .onError(ex -> log.error("Failed page fetch", ex))
+    .recover(ex -> "")
+    .filter(body -> !body.isEmpty())
+    .toList()
+    .unsafeRun();
+```
+
+**ForPath — resilient for-comprehension:**
+```java
+VTaskPath<OrderConfirmation> order = ForPath.from(
+        Path.vtask(() -> userService.getUser(userId))
+            .withCircuitBreaker(userServiceBreaker)
+            .retry(2, Duration.ofMillis(100)))
+    .from(user ->
+        Path.vtask(() -> inventoryService.reserve(user, itemId))
+            .withCircuitBreaker(inventoryBreaker))
+    .from((user, reservation) ->
+        Path.vtask(() -> paymentService.charge(user, reservation.amount()))
+            .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(500))))
+    .yield((user, reservation, payment) ->
+        new OrderConfirmation(user, reservation, payment));
 ```
 
 ---
@@ -699,13 +1148,38 @@ Following the three-layer testing strategy from TESTING-GUIDE.md:
   - [ ] `ThrottleTests` — Time-based rate limiting
   - [ ] `MeteredTests` — Fixed delay between elements
 
-#### VTaskPathRetryTest.java
+#### VTaskPathResilienceTest.java
 
 - [ ] `@Nested` class structure:
   - [ ] `WithRetryTests` — `VTaskPath.withRetry()` behaviour
   - [ ] `RetryConvenienceTests` — `VTaskPath.retry(maxAttempts, initialDelay)`
   - [ ] `WithCircuitBreakerTests` — `VTaskPath.withCircuitBreaker()` behaviour
-  - [ ] `ChainedPathOperationsTests` — Retry + map + via + handleError composition
+  - [ ] `WithBulkheadTests` — `VTaskPath.withBulkhead()` behaviour
+  - [ ] `CatchingTests` — `catching()`, `asMaybe()`, `asTry()` typed error wrapping
+  - [ ] `MapErrorTests` — `mapError()` exception transformation
+  - [ ] `GuaranteeTests` — `guarantee()` finalizer
+  - [ ] `RaceTests` — `race()` first-to-complete
+  - [ ] `ChainedResilienceTests` — retry + circuitBreaker + timeout + handleError composition
+
+#### VStreamPathErrorHandlingTest.java
+
+- [ ] `@Nested` class structure:
+  - [ ] `RecoverTests` — `recover()` element-level fallback
+  - [ ] `RecoverWithTests` — `recoverWith()` stream switching
+  - [ ] `MapErrorTests` — `mapError()` exception transformation
+  - [ ] `OnErrorTests` — `onError()` side-effect on error
+  - [ ] `MapTaskTests` — `mapTask()` sequential effectful mapping
+  - [ ] `ThrottleTests` — `throttle()` time-based rate limiting
+  - [ ] `MeteredTests` — `metered()` fixed delay between elements
+  - [ ] `CombinedResilienceTests` — parEvalMap + retry + recover + throttle composition
+
+#### VTaskContextResilienceTest.java
+
+- [ ] `@Nested` class structure:
+  - [ ] `WithRetryTests` — `VTaskContext.withRetry()` and `retry()`
+  - [ ] `WithCircuitBreakerTests` — `VTaskContext.withCircuitBreaker()`
+  - [ ] `WithBulkheadTests` — `VTaskContext.withBulkhead()`
+  - [ ] `CombinedResilienceTests` — Layer 2 resilience composition
 
 ### 8.3 Property-Based Tests
 
@@ -843,19 +1317,29 @@ Following the three-layer testing strategy from TESTING-GUIDE.md:
 
 #### Tutorial03_RetryBulkheadResilience.java (~12 minutes)
 
-- [ ] Exercise 1: VTask-native retry with `retryTask()`
+- [ ] Exercise 1: VTask-native retry with `retryTask()` and `VTask.retry(policy)`
 - [ ] Exercise 2: Retry monitoring with `RetryEvent`
 - [ ] Exercise 3: Retry conditions and backoff strategies
 - [ ] Exercise 4: Create bulkhead and protect VTasks
-- [ ] Exercise 5: Rate limiting a VStream with throttle/metered
-- [ ] Exercise 6: Build complete resilience chain with `ResilienceBuilder`
-- [ ] Exercise 7: Use resilience patterns through the Path API
+- [ ] Exercise 5: Build complete resilience chain with `ResilienceBuilder`
+
+#### Tutorial04_PathResilience.java (~12 minutes)
+
+- [ ] Exercise 1: VTaskPath `withRetry()` and `retry()` — parity with IOPath
+- [ ] Exercise 2: VTaskPath `catching()`, `asMaybe()`, `asTry()` — typed error wrapping
+- [ ] Exercise 3: VTaskPath `withCircuitBreaker()` and `withBulkhead()` in a chain
+- [ ] Exercise 4: VStreamPath `recover()` and `onError()` — stream error handling
+- [ ] Exercise 5: VStreamPath `mapTask()` with per-element retry
+- [ ] Exercise 6: VStreamPath `throttle()` and `metered()` — rate limiting
+- [ ] Exercise 7: VTaskContext Layer 2 — `retry()`, `withCircuitBreaker()`, `recover()`
+- [ ] Exercise 8: ForPath — resilient for-comprehension with circuit breaker per step
 
 ### 11.2 Solution Files
 
 - [ ] `solutions/Tutorial01_CircuitBreaker_Solution.java`
 - [ ] `solutions/Tutorial02_Saga_Solution.java`
 - [ ] `solutions/Tutorial03_RetryBulkheadResilience_Solution.java`
+- [ ] `solutions/Tutorial04_PathResilience_Solution.java`
 
 ### 11.3 Tutorial README
 
@@ -898,12 +1382,15 @@ Suggested sequence based on dependencies:
 | 1 | VTask retry methods + RetryEvent + linear backoff | Existing `RetryPolicy`, `Retry` | Low — extends existing code |
 | 2 | Circuit Breaker | VTask.timeout | Medium — new state machine |
 | 3 | Bulkhead | Semaphore | Low — straightforward |
-| 4 | ResilienceBuilder | Circuit Breaker, Bulkhead, RetryPolicy | Low — composition only |
-| 5 | VStream resilience + VStreamThrottle | Circuit Breaker, RetryPolicy, VStream | Medium — new stream operators |
-| 6 | VTaskPath integration | RetryPolicy, Circuit Breaker | Low — follows IOPath pattern |
-| 7 | Saga | VTask, Scope | High — most complex pattern |
+| 4 | VStreamPath error handling + mapTask | VStream (already has these methods) | Low — delegation only |
+| 5 | VTaskPath parity (catching, asMaybe, asTry, mapError, guarantee, race) | VTask, Par, Either, Maybe, Try | Low — follows IOPath pattern |
+| 6 | VTaskPath + VStreamPath + VTaskContext resilience integration | Circuit Breaker, Bulkhead, RetryPolicy | Low — delegation to underlying types |
+| 7 | VStreamThrottle (rate limiting) | VStream, VTask | Medium — new time-based operators |
+| 8 | ResilienceBuilder | Circuit Breaker, Bulkhead, RetryPolicy | Low — composition only |
+| 9 | Saga | VTask, Scope | High — most complex pattern |
 
-Phases 2-3 can run in parallel. Phase 7 (Saga) can run in parallel with phases 4-6.
+Phases 2-3 can run in parallel. Phases 4-5 can run in parallel.
+Phase 9 (Saga) can run in parallel with phases 6-8.
 
 ---
 
@@ -934,8 +1421,12 @@ Phases 2-3 can run in parallel. Phase 7 (Saga) can run in parallel with phases 4
 - [ ] Integration with VTask verified
 - [ ] Integration with VStream verified
 - [ ] Integration with Scope verified
-- [ ] Integration with Path API verified
-- [ ] VTaskPath retry parity with IOPath and CompletableFuturePath
+- [ ] VTaskPath resilience parity with IOPath (withRetry, catching, asMaybe, asTry, race, guarantee)
+- [ ] VStreamPath error handling parity with VStream (recover, recoverWith, mapError, onError)
+- [ ] VStreamPath exposes mapTask for sequential effectful mapping
+- [ ] VStreamPath rate limiting via throttle/metered
+- [ ] VTaskContext Layer 2 resilience methods (withRetry, withCircuitBreaker, withBulkhead)
+- [ ] ForPath works with resilient VTaskPath (retry + circuit breaker in for-comprehensions)
 
 ---
 
@@ -977,7 +1468,9 @@ hkj-core/src/test/java/org/higherkindedj/hkt/resilience/
 └── ResilienceArchitectureRules.java
 
 hkj-core/src/test/java/org/higherkindedj/hkt/effect/
-└── VTaskPathRetryTest.java
+├── VTaskPathResilienceTest.java
+├── VStreamPathErrorHandlingTest.java
+└── VTaskContextResilienceTest.java
 
 hkj-examples/src/main/java/org/higherkindedj/example/resilience/
 ├── CircuitBreakerExample.java
@@ -990,10 +1483,12 @@ hkj-examples/src/test/java/org/higherkindedj/tutorial/resilience/
 ├── Tutorial01_CircuitBreaker.java
 ├── Tutorial02_Saga.java
 ├── Tutorial03_RetryBulkheadResilience.java
+├── Tutorial04_PathResilience.java
 └── solutions/
     ├── Tutorial01_CircuitBreaker_Solution.java
     ├── Tutorial02_Saga_Solution.java
-    └── Tutorial03_RetryBulkheadResilience_Solution.java
+    ├── Tutorial03_RetryBulkheadResilience_Solution.java
+    └── Tutorial04_PathResilience_Solution.java
 
 hkj-book/src/resilience/
 ├── ch_intro.md
@@ -1005,11 +1500,15 @@ hkj-book/src/resilience/
 ### Existing Files to Modify
 
 ```
-hkj-core/src/main/java/org/higherkindedj/hkt/resilience/RetryPolicy.java   (add linear(), onRetry())
-hkj-core/src/main/java/org/higherkindedj/hkt/resilience/Retry.java         (add retryTask() methods)
-hkj-core/src/main/java/org/higherkindedj/hkt/vtask/VTask.java              (add retry() default method)
-hkj-core/src/main/java/org/higherkindedj/hkt/effect/VTaskPath.java         (add withRetry(), retry(), withCircuitBreaker())
-hkj-core/src/main/java/org/higherkindedj/hkt/resilience/package-info.java  (update package docs)
-hkj-book/src/SUMMARY.md                                                     (add resilience chapter)
-hkj-examples/src/test/java/org/higherkindedj/tutorial/README.md             (add resilience tutorials)
+hkj-core/src/main/java/org/higherkindedj/hkt/resilience/RetryPolicy.java        (add linear(), onRetry())
+hkj-core/src/main/java/org/higherkindedj/hkt/resilience/Retry.java              (add retryTask() methods)
+hkj-core/src/main/java/org/higherkindedj/hkt/vtask/VTask.java                   (add retry() default method)
+hkj-core/src/main/java/org/higherkindedj/hkt/effect/VTaskPath.java              (add withRetry, withCircuitBreaker, withBulkhead, catching, asMaybe, asTry, mapError, guarantee, race)
+hkj-core/src/main/java/org/higherkindedj/hkt/effect/DefaultVTaskPath.java       (implement all new VTaskPath methods)
+hkj-core/src/main/java/org/higherkindedj/hkt/effect/VStreamPath.java            (add recover, recoverWith, mapError, onError, mapTask, throttle, metered)
+hkj-core/src/main/java/org/higherkindedj/hkt/effect/DefaultVStreamPath.java     (implement all new VStreamPath methods)
+hkj-core/src/main/java/org/higherkindedj/hkt/effect/context/VTaskContext.java   (add withRetry, retry, withCircuitBreaker, withBulkhead)
+hkj-core/src/main/java/org/higherkindedj/hkt/resilience/package-info.java       (update package docs)
+hkj-book/src/SUMMARY.md                                                          (add resilience chapter)
+hkj-examples/src/test/java/org/higherkindedj/tutorial/README.md                  (add resilience tutorials)
 ```
