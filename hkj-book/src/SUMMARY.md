@@ -41,6 +41,13 @@
   - [Advanced Topics](effect/advanced_topics.md)
   - [Production Readiness](effect/production_readiness.md)
 
+- [Resilience Patterns](resilience/ch_intro.md)
+  - [Retry](resilience/retry.md)
+  - [Circuit Breaker](resilience/circuit_breaker.md)
+  - [Bulkhead](resilience/bulkhead.md)
+  - [Saga](resilience/saga.md)
+  - [Combined Patterns](resilience/combined.md)
+
 - [Advanced Topics](transformers/ch_intro.md)
   - [Stack Archetypes](transformers/archetypes.md)
   - [Monad Transformers](transformers/transformers.md)
