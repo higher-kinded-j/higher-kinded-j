@@ -47,7 +47,7 @@ RetryPolicy none = RetryPolicy.noRetry();
                                        (distributed)
 
     ──X──X──X──     ──X─X──X────X──    ──X─X───X──X────   ──X──X───X────X──
-      │  │  │         │ │  │    │        │ │   │  │          │  │   │    │
+      │  │  │         │ │  │    │        │ │   │  │         │  │   │    │
     100 100 100     100 200 400 800    ~100 ~200 ~400 ~800  200 400 600 800
     ms  ms  ms      ms  ms  ms  ms     ms   ms   ms   ms   ms  ms  ms  ms
 ```

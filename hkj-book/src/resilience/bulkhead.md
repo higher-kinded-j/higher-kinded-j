@@ -23,18 +23,18 @@ A `Bulkhead` prevents this by limiting how many concurrent callers can access a 
          │      │      │      │      │      │
          ▼      ▼      ▼      ▼      ▼      ▼
     ┌─────────────────────────────────────────────┐
-    │              Bulkhead (max=3)                │
+    │              Bulkhead (max=3)               │
     │                                             │
-    │   ┌─────┐  ┌─────┐  ┌─────┐                │
-    │   │ R1  │  │ R2  │  │ R3  │  ← executing   │
-    │   └─────┘  └─────┘  └─────┘                │
+    │   ┌─────┐  ┌─────┐  ┌─────┐                 │
+    │   │ R1  │  │ R2  │  │ R3  │  ← executing    │
+    │   └─────┘  └─────┘  └─────┘                 │
     │                                             │
     │   ┌─────┐  ┌─────┐                          │
     │   │ R4  │  │ R5  │  ← waiting for permit    │
     │   └─────┘  └─────┘                          │
     │                                             │
     │   R6 → BulkheadFullException                │
-    │         (wait queue full or timeout)         │
+    │         (wait queue full or timeout)        │
     └─────────────────────────────────────────────┘
 ```
 

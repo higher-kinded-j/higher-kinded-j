@@ -19,10 +19,10 @@ A circuit breaker solves this by tracking recent failures and, when enough accum
 ```
     Normal operation              Service failing              Probing recovery
     ┌────────────────┐           ┌────────────────┐           ┌────────────────┐
-    │                │  failures │                │  timeout   │                │
-    │     CLOSED     │  reach    │      OPEN      │  expires   │   HALF_OPEN    │
+    │                │  failures │                │  timeout  │                │
+    │     CLOSED     │  reach    │      OPEN      │  expires  │   HALF_OPEN    │
     │                │  threshold│                │           │                │
-    │  All calls     │─────────▶│  All calls     │──────────▶│  One probe     │
+    │  All calls     │──────────▶│  All calls     │──────────▶│  One probe     │
     │  flow through  │           │  rejected with │           │  call allowed  │
     │                │           │  CircuitOpen-  │           │                │
     │  Failures      │           │  Exception     │           │  Success:      │

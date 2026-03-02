@@ -53,29 +53,29 @@ The order in which patterns wrap the underlying call determines their behaviour.
 `ResilienceBuilder` applies patterns in a fixed order, from outermost to innermost:
 
 ```
-    ┌─────────────────────────────────────────────────────────────┐
-    │ 1. Timeout (outermost)                                      │
-    │    Bounds total elapsed time across all retry attempts       │
-    │                                                             │
-    │   ┌─────────────────────────────────────────────────────┐   │
-    │   │ 2. Bulkhead                                         │   │
-    │   │    Limits concurrent access to the protected resource│   │
-    │   │                                                     │   │
-    │   │   ┌─────────────────────────────────────────────┐   │   │
-    │   │   │ 3. Retry                                    │   │   │
-    │   │   │    Re-attempts on transient failure          │   │   │
-    │   │   │                                             │   │   │
-    │   │   │   ┌─────────────────────────────────────┐   │   │   │
-    │   │   │   │ 4. Circuit Breaker (innermost)      │   │   │   │
-    │   │   │   │    Each attempt checks circuit state │   │   │   │
-    │   │   │   │                                     │   │   │   │
-    │   │   │   │         ┌──────────┐                │   │   │   │
-    │   │   │   │         │   Task   │                │   │   │   │
-    │   │   │   │         └──────────┘                │   │   │   │
-    │   │   │   └─────────────────────────────────────┘   │   │   │
-    │   │   └─────────────────────────────────────────────┘   │   │
-    │   └─────────────────────────────────────────────────────┘   │
-    └─────────────────────────────────────────────────────────────┘
+    ┌───────────────────────────────────────────────────────────────┐
+    │ 1. Timeout (outermost)                                        │
+    │    Bounds total elapsed time across all retry attempts        │
+    │                                                               │
+    │   ┌───────────────────────────────────────────────────────┐   │
+    │   │ 2. Bulkhead                                           │   │
+    │   │    Limits concurrent access to the protected resource │   │
+    │   │                                                       │   │
+    │   │   ┌─────────────────────────────────────────────┐     │   │
+    │   │   │ 3. Retry                                    │     │   │
+    │   │   │    Re-attempts on transient failure         │     │   │
+    │   │   │                                             │     │   │
+    │   │   │   ┌───────────────────────────────────────┐ │     │   │
+    │   │   │   │ 4. Circuit Breaker (innermost)        │ │     │   │
+    │   │   │   │    Each attempt checks circuit state  │ │     │   │
+    │   │   │   │                                       │ │     │   │
+    │   │   │   │         ┌──────────┐                  │ │     │   │
+    │   │   │   │         │   Task   │                  │ │     │   │
+    │   │   │   │         └──────────┘                  │ │     │   │
+    │   │   │   └───────────────────────────────────────┘ │     │   │
+    │   │   └─────────────────────────────────────────────┘     │   │
+    │   └───────────────────────────────────────────────────────┘   │
+    └───────────────────────────────────────────────────────────────┘
 ```
 
 This ordering ensures:
