@@ -540,7 +540,6 @@ public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStre
    */
   VStreamPath<A> metered(Duration interval);
 
-
   // ===== Resource management =====
 
   /**

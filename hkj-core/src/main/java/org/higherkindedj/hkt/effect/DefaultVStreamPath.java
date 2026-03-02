@@ -323,7 +323,6 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
     return new DefaultVStreamPath<>(VStreamThrottle.metered(stream, interval));
   }
 
-
   // ===== Resource management =====
 
   @Override
