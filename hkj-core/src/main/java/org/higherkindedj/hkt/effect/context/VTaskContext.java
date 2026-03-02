@@ -11,6 +11,9 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 
@@ -293,6 +296,55 @@ public final class VTaskContext<A> {
   public VTaskContext<A> timeout(Duration duration) {
     Objects.requireNonNull(duration, "duration must not be null");
     return new VTaskContext<>(path.timeout(duration));
+  }
+
+  // ===== Resilience Methods =====
+
+  /**
+   * Returns a VTaskContext that retries this computation according to the given policy.
+   *
+   * @param policy the retry policy; must not be null
+   * @return a VTaskContext with retry behaviour
+   * @throws NullPointerException if policy is null
+   */
+  public VTaskContext<A> withRetry(RetryPolicy policy) {
+    Objects.requireNonNull(policy, "policy must not be null");
+    return new VTaskContext<>(path.withRetry(policy));
+  }
+
+  /**
+   * Returns a VTaskContext that retries with exponential backoff and jitter.
+   *
+   * @param maxAttempts the maximum number of attempts
+   * @param initialDelay the initial delay between retries
+   * @return a VTaskContext with retry behaviour
+   */
+  public VTaskContext<A> retry(int maxAttempts, Duration initialDelay) {
+    return new VTaskContext<>(path.retry(maxAttempts, initialDelay));
+  }
+
+  /**
+   * Returns a VTaskContext protected by the given circuit breaker.
+   *
+   * @param circuitBreaker the circuit breaker; must not be null
+   * @return a VTaskContext with circuit breaker protection
+   * @throws NullPointerException if circuitBreaker is null
+   */
+  public VTaskContext<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    return new VTaskContext<>(path.withCircuitBreaker(circuitBreaker));
+  }
+
+  /**
+   * Returns a VTaskContext protected by the given bulkhead.
+   *
+   * @param bulkhead the bulkhead; must not be null
+   * @return a VTaskContext with bulkhead protection
+   * @throws NullPointerException if bulkhead is null
+   */
+  public VTaskContext<A> withBulkhead(Bulkhead bulkhead) {
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    return new VTaskContext<>(path.withBulkhead(bulkhead));
   }
 
   // ===== Execution Methods =====

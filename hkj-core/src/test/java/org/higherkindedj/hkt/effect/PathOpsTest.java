@@ -14,6 +14,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.awaitility.Awaitility;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.each.EachInstances;
@@ -1763,6 +1764,113 @@ class PathOpsTest {
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(RuntimeException.class)
           .hasCause(checkedException);
+    }
+
+    @Test
+    @DisplayName(
+        "firstCompletedSuccess() handles failure after all others completed - result already done")
+    void firstCompletedSuccessFailureWhenResultAlreadyDone() throws Exception {
+      CompletableFuture<String> f1 = new CompletableFuture<>();
+      CompletableFuture<String> f2 = new CompletableFuture<>();
+
+      List<CompletableFuturePath<String>> paths =
+          List.of(CompletableFuturePath.fromFuture(f1), CompletableFuturePath.fromFuture(f2));
+
+      CompletableFuturePath<String> result = PathOps.firstCompletedSuccess(paths);
+
+      // Complete one successfully first
+      f1.complete("success");
+
+      // Then fail the other - exercises the ex != null branch where result.isDone()
+      // and failures.size() == paths.size() but result.isDone() is true
+      f2.completeExceptionally(new RuntimeException("too late failure"));
+
+      assertThat(result.toCompletableFuture().get(1, TimeUnit.SECONDS)).isEqualTo("success");
+    }
+
+    @Test
+    @DisplayName("raceIO() handles success arriving when result is already done")
+    void raceIOSuccessWhenResultAlreadyDone() {
+      // Two fast-completing IOPaths. Both complete successfully but only the first
+      // result.complete() succeeds - the second hits the ex == null && result.isDone() branch.
+      IOPath<String> fast1 = Path.ioPure("first");
+      IOPath<String> fast2 = Path.ioPure("second");
+
+      List<IOPath<String>> paths = List.of(fast1, fast2);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      String winner = result.unsafeRun();
+      assertThat(winner).isIn("first", "second");
+    }
+
+    @Test
+    @DisplayName("raceIO() handles failure when result is already done (success arrived first)")
+    void raceIOFailureWhenResultAlreadyDone() {
+      // One succeeds immediately, then the other fails. The failure path hits
+      // ex != null, but result.isDone() is true, so completeExceptionally is not called.
+      CountDownLatch successDone = new CountDownLatch(1);
+      IOPath<String> succeeds =
+          Path.io(
+              () -> {
+                String value = "won";
+                successDone.countDown();
+                return value;
+              });
+      IOPath<String> failsLater =
+          Path.io(
+              () -> {
+                Awaitility.await()
+                    .atMost(5, TimeUnit.SECONDS)
+                    .until(() -> successDone.getCount() == 0);
+                throw new RuntimeException("too late");
+              });
+
+      List<IOPath<String>> paths = List.of(succeeds, failsLater);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      assertThat(result.unsafeRun()).isEqualTo("won");
+    }
+
+    @Test
+    @DisplayName(
+        "raceIO() all fail but result completed by late success before last failure count check")
+    void raceIOAllFailButResultDone() {
+      // Three IOPaths: two fail, one succeeds. The two failures increment failure count
+      // but the success completes result first, so failures.size() == paths.size() &&
+      // !result.isDone()
+      // is never true. Instead, some failures happen after result is already done.
+      CountDownLatch successDone = new CountDownLatch(1);
+      IOPath<String> fail1 =
+          Path.io(
+              () -> {
+                Awaitility.await()
+                    .atMost(5, TimeUnit.SECONDS)
+                    .until(() -> successDone.getCount() == 0);
+                throw new RuntimeException("fail1");
+              });
+      IOPath<String> succeed =
+          Path.io(
+              () -> {
+                String value = "success";
+                successDone.countDown();
+                return value;
+              });
+      IOPath<String> fail2 =
+          Path.io(
+              () -> {
+                Awaitility.await()
+                    .atMost(5, TimeUnit.SECONDS)
+                    .until(() -> successDone.getCount() == 0);
+                throw new RuntimeException("fail2");
+              });
+
+      List<IOPath<String>> paths = List.of(fail1, succeed, fail2);
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      assertThat(result.unsafeRun()).isEqualTo("success");
     }
 
     @Test

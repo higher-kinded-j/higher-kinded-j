@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -19,6 +20,8 @@ import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
+import org.higherkindedj.hkt.vstream.VStreamReactive;
+import org.higherkindedj.hkt.vstream.VStreamThrottle;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -34,9 +37,9 @@ import org.higherkindedj.optics.indexed.Pair;
  * @param stream the underlying VStream; must not be null
  * @param <A> the type of elements in the stream
  */
-record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
+public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
 
-  DefaultVStreamPath {
+  public DefaultVStreamPath {
     Objects.requireNonNull(stream, "stream must not be null");
   }
 
@@ -269,6 +272,70 @@ record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A> {
   @Override
   public VTaskPath<List<A>> parCollect(int batchSize) {
     return new DefaultVTaskPath<>(VStreamPar.parCollect(stream, batchSize));
+  }
+
+  // ===== Error handling =====
+
+  @Override
+  public VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery) {
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    return new DefaultVStreamPath<>(stream.recover(recovery));
+  }
+
+  @Override
+  public VStreamPath<A> recoverWith(
+      Function<? super Throwable, ? extends VStreamPath<A>> recovery) {
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    return new DefaultVStreamPath<>(stream.recoverWith(t -> recovery.apply(t).run()));
+  }
+
+  @Override
+  public VStreamPath<A> mapError(Function<? super Throwable, ? extends Throwable> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVStreamPath<>(stream.mapError(f));
+  }
+
+  @Override
+  public VStreamPath<A> onError(Consumer<? super Throwable> action) {
+    Objects.requireNonNull(action, "action must not be null");
+    return new DefaultVStreamPath<>(stream.onError(action));
+  }
+
+  // ===== Effectful mapping =====
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <B> VStreamPath<B> mapTask(Function<? super A, ? extends VTask<B>> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
+    return new DefaultVStreamPath<>(stream.mapTask(typedF));
+  }
+
+  // ===== Rate limiting =====
+
+  @Override
+  public VStreamPath<A> throttle(int maxElements, Duration window) {
+    return new DefaultVStreamPath<>(VStreamThrottle.throttle(stream, maxElements, window));
+  }
+
+  @Override
+  public VStreamPath<A> metered(Duration interval) {
+    return new DefaultVStreamPath<>(VStreamThrottle.metered(stream, interval));
+  }
+
+  // ===== Resource management =====
+
+  @Override
+  public VStreamPath<A> onFinalize(VTask<Unit> finalizer) {
+    Objects.requireNonNull(finalizer, "finalizer must not be null");
+    return new DefaultVStreamPath<>(stream.onFinalize(finalizer));
+  }
+
+  // ===== Reactive interop =====
+
+  @Override
+  public java.util.concurrent.Flow.Publisher<A> toPublisher() {
+    return VStreamReactive.toPublisher(stream);
   }
 
   // ===== Focus bridge =====

@@ -41,6 +41,13 @@
   - [Advanced Topics](effect/advanced_topics.md)
   - [Production Readiness](effect/production_readiness.md)
 
+- [Resilience Patterns](resilience/ch_intro.md)
+  - [Retry](resilience/retry.md)
+  - [Circuit Breaker](resilience/circuit_breaker.md)
+  - [Bulkhead](resilience/bulkhead.md)
+  - [Saga](resilience/saga.md)
+  - [Combined Patterns](resilience/combined.md)
+
 - [Advanced Topics](transformers/ch_intro.md)
   - [Stack Archetypes](transformers/archetypes.md)
   - [Monad Transformers](transformers/transformers.md)
@@ -63,6 +70,7 @@
   - [Optics: Fluent & Free DSL](tutorials/optics/fluent_free_journey.md)
   - [Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)
   - [Expression: ForState](tutorials/expression/forstate_journey.md)
+  - [Resilience Patterns](tutorials/resilience/resilience_journey.md)
   - [Learning Paths](tutorials/learning_paths.md)
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
@@ -179,6 +187,8 @@
     - [HKT and Type Classes](monads/vstream_hkt.md)
     - [Parallel Operations](monads/vstream_parallel.md)
     - [Performance](monads/vstream_performance.md)
+    - [Resource-Safe Streaming](monads/vstream_resources.md)
+    - [Advanced Features](monads/vstream_advanced.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 

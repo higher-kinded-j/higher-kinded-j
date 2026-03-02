@@ -1,57 +1,75 @@
 @startuml supported_types
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
-
 left to right direction
+skinparam packageStyle rectangle
+skinparam nodesep 8
+skinparam ranksep 20
 
-package "Supported Types (Monad Implementations)" {
-    class ListMonad
-    class StreamMonad
-    class OptionalMonad
-    class MaybeMonad
-    class "EitherMonad<L>" as EitherMonad
-    class CompletableFutureMonad
-    class TryMonad
-    class IOMonad
-    class LazyMonad
-    class IdMonad
-    class "ReaderMonad<R>" as ReaderMonad
-    class "StateMonad<S>" as StateMonad
-    class "WriterMonad<W>" as WriterMonad
-    class "ValidatedMonad<E>" as ValidatedMonad
-    class TrampolineMonad
-    class "FreeMonad<F>" as FreeMonad
+title Supported Types — Typeclass Instances
 
-    ListMonad <|.. CoreInterfaces.Monad
-    StreamMonad <|.. CoreInterfaces.MonadZero
-    OptionalMonad <|.. CoreInterfaces.MonadError
-    MaybeMonad <|.. CoreInterfaces.MonadError
-    EitherMonad <|.. CoreInterfaces.MonadError
-    CompletableFutureMonad <|.. CoreInterfaces.MonadError
-    TryMonad <|.. CoreInterfaces.MonadError
-    ValidatedMonad <|.. CoreInterfaces.MonadError
-    IdMonad <|.. CoreInterfaces.Monad
-    IOMonad <|.. CoreInterfaces.Monad
-    LazyMonad <|.. CoreInterfaces.Monad
-    ReaderMonad <|.. CoreInterfaces.Monad
-    StateMonad <|.. CoreInterfaces.Monad
-    WriterMonad <|.. CoreInterfaces.Monad
-    TrampolineMonad <|.. CoreInterfaces.Monad
-    FreeMonad <|.. CoreInterfaces.Monad
-
-    ' Example relation for Optional
-    OptionalMonad ..> "Simulation Plumbing.OptionalKind" : operates on witness
+package "Value & Error Types" as VE {
+    class "IdMonad" as IdM <<Monad>> <<Selective>> <<Traverse>>
+    class "MaybeMonad" as MaybeM <<MonadError>> <<Selective>> <<Traverse>>
+    class "OptionalMonad" as OptM <<MonadError>> <<Selective>> <<Traverse>>
+    class "EitherMonad<L>" as EitherM <<MonadError>> <<Selective>> <<Traverse>>
+    class "TryMonad" as TryM <<MonadError>> <<Traverse>>
+    class "ValidatedMonad<E>" as ValM <<MonadError>> <<Selective>> <<Traverse>>
 }
 
-'package "Bifunctor Implementations" {
-'    class ConstBifunctor
-'
-'    ConstBifunctor <|.. CoreInterfaces.Bifunctor
-'
-'    note right of ConstBifunctor
-'        Const<C, A> holds constant value C
-'        with phantom type parameter A
-'    end note
-'}
+package "Effect & Computation Types" as EC {
+    class "IOMonad" as IOM <<Monad>> <<Selective>>
+    class "LazyMonad" as LazyM <<Monad>>
+    class "CompletableFutureMonad" as CFM <<MonadError>>
+    class "VTaskMonad" as VTM <<MonadError>>
+    class "ReaderMonad<R>" as ReadM <<Monad>> <<Selective>>
+    class "ContextMonad<R>" as CtxM <<Monad>>
+    class "StateMonad<S>" as StateM <<Monad>>
+    class "WriterMonad<W>" as WritM <<Monad>>
+}
+
+package "Collection Types" as CO {
+    class "ListMonad" as ListM <<Monad>> <<Selective>> <<Traverse>>
+    class "StreamMonad" as StrmM <<MonadZero>> <<Traverse>>
+    class "VStreamMonad" as VStrmM <<Monad>> <<Alternative>> <<Traverse>>
+}
+
+package "Recursion & DSL Types" as RD {
+    class "TrampolineMonad" as TramM <<Monad>>
+    class "FreeMonad<F>" as FreeM <<Monad>>
+    class "FreeApApplicative<F>" as FreeApA <<Applicative>>
+    class "CoyonedaFunctor<F>" as CoyoF <<Functor>>
+}
+
+package "Structural Types" as ST {
+    class "ConstApplicative<M>" as ConstA <<Applicative>>
+    class "Tuple2Bifunctor" as Tup2B <<Bifunctor>>
+    class "FunctionProfunctor" as FuncP <<Profunctor>>
+}
+
+package "Monad Transformers" as MT {
+    class "MaybeTMonad<F>" as MaybeTM <<MonadError>>
+    class "EitherTMonad<F,L>" as EitherTM <<MonadError>>
+    class "OptionalTMonad<F>" as OptTM <<MonadError>>
+    class "ReaderTMonad<F,R>" as ReadTM <<Monad>>
+    class "StateTMonad<S,F>" as StateTM <<Monad>>
+}
+
+package "Bifunctor Support" as BF {
+    class "EitherBifunctor" as EitherBF <<Bifunctor>>
+    class "ValidatedBifunctor" as ValBF <<Bifunctor>>
+    class "WriterBifunctor" as WritBF <<Bifunctor>>
+    class "ConstBifunctor" as ConstBF <<Bifunctor>>
+}
+
+note as TypeclassKey
+    **Typeclass Hierarchy**
+    Functor ← Applicative ← Monad ← MonadError
+    Functor ← Traverse (+ Foldable)
+    Functor ← Selective (requires Applicative)
+    MonadZero ← Alternative (Monad + zero)
+    Bifunctor: maps over both type parameters
+    Profunctor: maps input contravariantly, output covariantly
+end note
 
 @enduml

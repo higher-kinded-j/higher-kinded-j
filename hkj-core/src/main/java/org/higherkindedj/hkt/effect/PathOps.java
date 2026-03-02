@@ -919,7 +919,7 @@ public final class PathOps {
                 } else if (ex != null) {
                   synchronized (failures) {
                     failures.add(ex);
-                    if (failures.size() == paths.size() && !result.isDone()) {
+                    if (failures.size() == paths.size()) {
                       result.completeExceptionally(failures.getLast());
                     }
                   }
@@ -1133,7 +1133,7 @@ public final class PathOps {
                       } else if (ex != null) {
                         synchronized (failures) {
                           failures.add(ex);
-                          if (failures.size() == paths.size() && !result.isDone()) {
+                          if (failures.size() == paths.size()) {
                             result.completeExceptionally(failures.getLast());
                           }
                         }

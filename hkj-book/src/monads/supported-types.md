@@ -1,11 +1,10 @@
 # Supported Types
 
 ~~~admonish info title="What You'll Learn"
-- How Higher-Kinded-J simulates higher-kinded types in Java using the Kind pattern
-- The unified pattern used across all types: Kind interfaces, Witness types, and Helper classes
-- The complete catalogue of 17 supported types, from basic types like Id and List to advanced types like Free and monad transformers
-- The difference between external Java types (Optional, List) and library-defined types (Maybe, Either, IO)
-- Where to find detailed documentation and examples for each supported type
+- The complete catalogue of **29 supported types** with HKT simulation, grouped by purpose
+- Which typeclass instances (Functor, Monad, Traverse, etc.) each type provides
+- How to choose the right type for your use case
+- The unified pattern that every type follows: Kind interface, Witness type, Helper class
 ~~~
 
 ~~~admonish title="Hands On Practice"
@@ -14,266 +13,141 @@
 
 ![monads_everywhere.webp](../images/monads_everywhere.webp)
 
-Higher-Kinded-J provides Higher-Kinded Type (HKT) simulation capabilities, allowing various Java types and custom types to be used with generic functional type classes like `Functor`, `Applicative`, `Monad`, and `MonadError`. 
+## Choosing a Type
 
-This is achieved by representing the application of a type constructor `F` to a type `A` as `Kind<F_WITNESS, A>`, where `F_WITNESS` is a special "witness" or phantom type unique to the type constructor `F`.
+Not sure which type you need? Start here:
+
+```text
+What does your computation do?
+  |
+  +-- Might be absent or fail?
+  |     +-- Absent (no error info)       --> Maybe / Optional
+  |     +-- Fail with typed error         --> Either
+  |     +-- Fail with exception           --> Try
+  |     +-- Collect ALL errors at once    --> Validated
+  |     +-- Just a plain value            --> Id
+  |
+  +-- Has a side effect?
+  |     +-- Deferred I/O                  --> IO
+  |     +-- Async / concurrent            --> CompletableFuture / VTask
+  |     +-- Reads shared config           --> Reader / Context
+  |     +-- Threads mutable state         --> State
+  |     +-- Accumulates a log             --> Writer
+  |     +-- Expensive, compute-once       --> Lazy
+  |
+  +-- Produces multiple values?
+  |     +-- Finite, in-memory             --> List
+  |     +-- Lazy / potentially infinite   --> Stream / VStream
+  |
+  +-- Needs stack-safe recursion?         --> Trampoline
+  +-- Building a DSL / interpreter?       --> Free / FreeAp
+  +-- Combining two monadic effects?      --> MaybeT / EitherT / OptionalT / ReaderT / StateT
+```
+
+## All Supported Types at a Glance
+
+The diagram below shows every type grouped by category, with its highest typeclass instance annotated. The typeclass hierarchy is: **Functor &larr; Applicative &larr; Monad &larr; MonadError**, so a type tagged `<<Monad>>` also provides Functor and Applicative. Additional capabilities like Selective, Traverse, Bifunctor, and Alternative are shown where available.
 
 ![supported_types.svg](../images/puml/supported_types.svg)
 
----
+## The Unified Pattern
 
-**Key for Understanding Entries:**
+Every type follows the same HKT simulation structure:
 
-* **Type:** The Java type or custom type being simulated.
-* **`XxxKind<A>` Interface:** The specific `Kind` interface for this type (e.g., `OptionalKind<A>`). It extends `Kind<XxxKind.Witness, A>` and usually contains the nested `final class Witness {}`.
-* **Witness Type `F_WITNESS`:** The phantom type used as the first parameter to `Kind` (e.g., `OptionalKind.Witness`). Each witness implements `WitnessArity<TypeArity.Unary>` or `WitnessArity<TypeArity.Binary>` to declare its arity. This is what parameterizes the type classes (e.g., `Monad<OptionalKind.Witness>`).
-* **`XxxKindHelper` Class:** Provides `widen` and `narrow` methods.
-  * For **external types** (like `java.util.List`, `java.util.Optional`), `widen` typically creates an internal `XxxHolder` record which implements `XxxKind<A>`, and `narrow` extracts the Java type from this holder.
-  * For **library-defined types** (`Id`, `IO`, `Maybe`, `Either`, `Validated`, `Try`, monad transformers), the type itself directly implements `XxxKind<A>`. This means `widen` performs a null check and direct cast (zero overhead), and `narrow` checks `instanceof` the actual type and casts.
-* **Type Class Instances:** Concrete implementations of `Functor<F_WITNESS>`, `Monad<F_WITNESS>`, etc.
+| Piece | Purpose |
+|-------|---------|
+| `XxxKind<A>` | HKT marker interface extending `Kind<XxxKind.Witness, A>` |
+| `XxxKind.Witness` | Phantom type that uniquely identifies the type constructor |
+| `XxxKindHelper` | Bridge utilities: `widen()` (concrete to Kind), `narrow()` (Kind to concrete) |
+| Type class instances | `Functor`, `Applicative`, `Monad`, etc. parameterised by the Witness type |
 
----
-
-### 1. `Id<A>` (Identity)
-
-* **Type Definition**: A custom record ([`Id`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/Id.java)) that directly wraps a value `A`. It's the simplest monad.
-* **`IdKind<A>` Interface**: `Id<A>` itself implements `IdKind<A>`, and `IdKind<A> extends Kind<IdKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `IdKind.Witness`
-* **`IdKindHelper`**: [`IdKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdKindHelper.java) (`wrap` casts `Id` to `Kind`, `unwrap` casts `Kind` to `Id`; `narrow` is a convenience for unwrap).
-* **Type Class Instances**:
-  * [`IdMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdMonad.java) (`Monad<IdKind.Witness>`)
-* **Notes**: `Id.of(a)` creates `Id(a)`. `map` and `flatMap` operate directly. Useful as a base for monad transformers and generic programming with no extra effects. `Id<A>` directly implements `IdKind<A>`.
-* **Usage**: [How to use the Identity Monad](./identity.md)
+**Library-defined types** (Maybe, Either, IO, etc.) directly implement their Kind interface, so `widen`/`narrow` are zero-cost casts. **External Java types** (Optional, List, Stream, CompletableFuture) use an internal holder record.
 
 ---
 
-### 2. `java.util.List<A>`
+## Type Details by Category
 
-* **Type Definition**: Standard Java `java.util.List<A>`.
-* **`ListKind<A>` Interface**: [`ListKind<A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/list/ListKind.java) extends `Kind<ListKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `ListKind.Witness`
-* **`ListKindHelper`**: Uses an internal `ListHolder<A>` record that implements `ListKind<A>` to wrap `java.util.List<A>`.
-* **Type Class Instances**:
-  * `ListFunctor` (`Functor<ListKind.Witness>`)
-  * [`ListMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/list/ListMonad.java) (`Monad<ListKind.Witness>`)
-* **Notes**: Standard list monad behaviour. `of(a)` creates a singleton list `List.of(a)`; `of(null)` results in an empty list.
-* **Usage**: [How to use the List Monad](./list_monad.md)
+### Value & Error Types
 
----
+Six ways to model "this computation might not produce a value."
 
-### 3. `java.util.stream.Stream<A>`
+**[`Id<A>`](./identity.md)** -- The "do nothing" wrapper. No effects, no surprises. Sounds pointless, but it is the neutral element that makes monad transformers and generic code work. When you need a `Monad<F>` but have no effect to model, `Id` is your answer.
 
-* **Type Definition**: Standard Java `java.util.stream.Stream<A>`.
-* **`StreamKind<A>` Interface**: [`StreamKind<A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/stream/StreamKind.java) extends `Kind<StreamKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `StreamKind.Witness`
-* **`StreamKindHelper`**: Uses an internal `StreamHolder<A>` record that implements `StreamKind<A>` to wrap `java.util.stream.Stream<A>`. Provides `widen`, `narrow`.
-* **Type Class Instances**:
-  * `StreamFunctor` (`Functor<StreamKind.Witness>`)
-  * `StreamApplicative` (`Applicative<StreamKind.Witness>`)
-  * [`StreamMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/stream/StreamMonad.java) (`MonadZero<StreamKind.Witness>`)
-  * `StreamTraverse` (`Traverse<StreamKind.Witness>`, `Foldable<StreamKind.Witness>`)
-* **Notes**: Lazy, potentially infinite sequences with **single-use semantics** - each Stream can only be consumed once. Attempting to reuse a consumed stream throws `IllegalStateException`. `of(a)` creates singleton stream; `of(null)` creates empty stream. `zero()` returns empty stream. Use [`StreamOps`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/stream/StreamOps.java) for additional utility operations.
-* **Usage**: [How to use the Stream Monad](./stream_monad.md)
+**[`Maybe<A>`](./maybe_monad.md)** -- `Just(value)` or `Nothing`. The library's own optional type with full typeclass support: Selective, Traverse, Alternative. Pick this over `Optional` when you want richer composition and don't need JDK API interop.
 
----
+**[`Optional<A>`](./optional_monad.md)** -- HKT bridge to `java.util.Optional`. Same semantics as Maybe, but wraps the JDK type directly. Use this when your codebase already passes `Optional` values around and you want to lift them into generic HKT code without conversion.
 
-### 4. `Trampoline<A>`
+**[`Either<L, R>`](./either_monad.md)** -- `Right(value)` or `Left(error)`. Right-biased. Unlike Maybe/Optional which only say "absent", Either carries a typed error `L` that explains *why* the computation failed. Also provides Bifunctor for mapping both sides.
 
-* **Type Definition**: Custom sealed interface ([`Trampoline`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trampoline/Trampoline.java)) implementing stack-safe recursion through trampolining. Provides three constructors: `Done<A>` (completed computation), `More<A>` (deferred computation), and `FlatMap<A, B>` (monadic sequencing).
-* **`TrampolineKind<A>` Interface**: `Trampoline<A>` itself implements `TrampolineKind<A>`, and `TrampolineKind<A> extends Kind<TrampolineKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `TrampolineKind.Witness`
-* **`TrampolineKindHelper`**: `widen` casts `Trampoline` to `Kind`; `narrow` casts `Kind` to `Trampoline`. Provides `done(value)` for completed computations and `defer(supplier)` for deferred evaluation.
-* **Type Class Instances**:
-  * `TrampolineFunctor` (`Functor<TrampolineKind.Witness>`)
-  * [`TrampolineMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trampoline/TrampolineMonad.java) (`Monad<TrampolineKind.Witness>`)
-* **Notes**: Enables stack-safe tail recursion by converting recursive calls into iterative data structure processing, preventing `StackOverflowError` in deeply recursive computations (verified with 100,000+ iterations). `done(value)` creates an already evaluated result; `defer(supplier)` defers computation. The `run()` method executes the trampoline iteratively using an explicit stack. Essential for recursive algorithms (factorial, Fibonacci, tree traversals) and provides [`TrampolineUtils`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trampoline/TrampolineUtils.java) for guaranteed stack-safe applicative operations.
-* **Usage**: [How to use the Trampoline Monad](./trampoline_monad.md)
+**[`Try<A>`](./try_monad.md)** -- `Success(value)` or `Failure(throwable)`. Either specialised for exceptions. Wrap risky code with `Try.tryOf(() -> ...)` and it catches the exception for you. Reach for this when your error is always a `Throwable`.
 
----
+**[`Validated<E, A>`](./validated_monad.md)** -- `Valid(value)` or `Invalid(error)`. Looks like Either, but its killer feature is error *accumulation*: use applicative `ap` with a `Semigroup<E>` to collect ALL errors from independent validations, not just the first one. The go-to for form validation and input checking.
 
-### 5. `Free<F, A>`
+### Effect & Computation Types
 
-* **Type Definition**: Custom sealed interface ([`Free`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/Free.java)) representing programs as data structures that can be interpreted in different ways. Provides three constructors: `Pure<F,A>` (terminal value), `Suspend<F,A>` (suspended computation), and `FlatMapped<F,X,A>` (monadic sequencing).
-* **`FreeKind<F, A>` Interface**: `Free<F,A>` itself implements `FreeKind<F,A>`, and `FreeKind<F,A> extends Kind<FreeKind.Witness<F>, A>`.
-* **Witness Type `F_WITNESS`**: `FreeKind.Witness<F>` (where `F` is the instruction set functor)
-* **`FreeKindHelper`**: `widen` casts `Free` to `Kind`; `narrow` casts `Kind` to `Free`. Provides `pure(value)`, `suspend(computation)`, `liftF(fa, functor)`.
-* **Type Class Instances**:
-  * `FreeFunctor<F>` (`Functor<FreeKind.Witness<F>>`)
-  * [`FreeMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/FreeMonad.java) (`Monad<FreeKind.Witness<F>>`)
-* **Notes**: Enables building domain-specific languages (DSLs) as composable data structures. programs are interpreted via `foldMap` with natural transformations, allowing multiple interpreters (IO, Test, Optimisation, etc.). Stack-safe execution using Higher-Kinded-J's `Trampoline` monad internally, demonstrating library composability (verified with 10,000+ operations). Essential for separating program description from execution, enabling testability and alternative interpretations. Provides `liftF` to lift functor values into Free, `map` and `flatMap` for composition, and `foldMap` for interpretation. Useful for building testable workflows, query languages, and effect systems where the same program needs different execution strategies.
-* **Usage**: [How to use the Free Monad](./free_monad.md)
+Eight ways to model "this computation does something beyond returning a value."
 
----
+**[`IO<A>`](./io_monad.md)** -- Describes a side effect without running it. Nothing happens until you call `unsafeRunSync()`. File reads, API calls, database writes -- anything that touches the outside world belongs in `IO`. Think of it as a recipe for a side effect.
 
-### 6. `java.util.Optional<A>`
+**[`Lazy<A>`](./lazy_monad.md)** -- Describes a *pure* computation without running it. Like `IO`, nothing happens until you call `force()` -- but unlike `IO`, the result is memoized. Second call returns the cached value instantly. Perfect for expensive computations you may never need.
 
-* **Type Definition**: Standard Java `java.util.Optional<A>`.
-* **`OptionalKind<A>` Interface**: [`OptionalKind<A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/optional/OptionalKind.java) extends `Kind<OptionalKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `OptionalKind.Witness`
-* **`OptionalKindHelper`**: Uses an internal `OptionalHolder<A>` record that implements `OptionalKind<A>` to wrap `java.util.Optional<A>`.
-* **Type Class Instances**:
-  * `OptionalFunctor` (`Functor<OptionalKind.Witness>`)
-  * [`OptionalMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/optional/OptionalMonad.java) (`MonadError<OptionalKind.Witness, Unit>`)
-* **Notes**: `Optional.empty()` is the error state. `raiseError(Unit.INSTANCE)` creates `Optional.empty()`. `of(value)` uses `Optional.ofNullable(value)`.
-* **Usage**: [How to use the Optional Monad](./optional_monad.md)
+**[`CompletableFuture<A>`](./cf_monad.md)** -- HKT bridge to `java.util.concurrent.CompletableFuture`. Asynchronous computation that is already running. Provides MonadError so you can `flatMap` over futures and handle failures through the typeclass hierarchy.
 
----
+**[`VTask<A>`](./vtask_monad.md)** -- Lightweight task on virtual threads (JDK 21+). Like CompletableFuture but designed for structured concurrency: `VTaskScope` manages lifecycles, cancellation, and resource cleanup. The modern choice for concurrent Java.
 
-### 7. `Maybe<A>`
+**[`Reader<R, A>`](./reader_monad.md)** -- A function `R -> A` wrapped in a monad. Pass a shared environment (config, database pool, feature flags) to an entire computation graph without threading it through every parameter list. Dependency injection, functional style.
 
-* **Type Definition**: Custom sealed interface ([`Maybe`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)) with `Just<A>` (non-null) and `Nothing<A>` implementations.
-* **`MaybeKind<A>` Interface**: `Just<T>` and `Nothing<T>` directly implement `MaybeKind<T>`, which extends `Kind<MaybeKind.Witness, T>`.
-* **Witness Type `F_WITNESS`**: `MaybeKind.Witness`
-* **`MaybeKindHelper`**: `widen` performs null check and casts `Maybe` to `Kind` (zero overhead); `narrow` checks `instanceof Maybe` and casts. Provides `just(value)`, `nothing()`, `fromNullable(value)`.
-* **Type Class Instances**:
-  * `MaybeFunctor` (`Functor<MaybeKind.Witness>`)
-  * [`MaybeMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) (`MonadError<MaybeKind.Witness, Unit>`)
-* **Notes**: `Nothing` is the error state; `raiseError(Unit.INSTANCE`) creates `Nothing`. `Maybe.just(value)` requires non-null. `MaybeMonad.of(value)` uses `Maybe.fromNullable()`.
-* **Usage**: [How to use the Maybe Monad](./maybe_monad.md)
+**[`Context<R, A>`](./context_scoped.md)** -- Like Reader, but built on JDK 21+ `ScopedValue`. Use when your environment is scoped to a thread or task rather than passed explicitly. Integrates with virtual-thread structured concurrency.
 
----
+**[`State<S, A>`](./state_monad.md)** -- A function `S -> (S, A)`. Threads mutable state through a computation without actual mutation. Each step receives the current state and returns a new state alongside its result. Stateful algorithms, purely.
 
-### 8. `Either<L, R>`
+**[`Writer<W, A>`](./writer_monad.md)** -- Pairs every result with an accumulated log. Each `flatMap` step produces a log entry; the `Monoid<W>` combines them automatically. Extract the final value with `run()`, the complete log with `exec()`, or both with `runWriter()`. Audit trails, calculation receipts, metrics.
 
-* **Type Definition**: Custom sealed interface ([`Either`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/Either.java)) with `Left<L,R>` and `Right<L,R>` records.
-* **`EitherKind<L, R>` Interface**: `Either.Left<L,R>` and `Either.Right<L,R>` directly implement `EitherKind<L,R>` (and `EitherKind2<L,R>` for bifunctor operations), which extends `Kind<EitherKind.Witness<L>, R>`.
-* **Witness Type `F_WITNESS`**: `EitherKind.Witness<L>` (Error type `L` is fixed for the witness).
-* **`EitherKindHelper`**: `widen` performs null check and casts `Either` to `Kind` (zero overhead); `narrow` checks `instanceof Either` and casts. Provides `left(l)`, `right(r)`.
-* **Type Class Instances**:
-  * `EitherFunctor<L>` (`Functor<EitherKind.Witness<L>>`)
-  * [`EitherMonad<L>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/EitherMonad.java) (`MonadError<EitherKind.Witness<L>, L>`)
-* **Notes**: Right-biased. `Left(l)` is the error state. `of(r)` creates `Right(r)`.
-* **Usage**: [How to use the Either Monad](./either_monad.md)
+### Collection Types
 
----
+Three ways to model "this computation produces multiple values."
 
-### 9. `Try<A>`
+**[`List<A>`](./list_monad.md)** -- HKT bridge to `java.util.List`. As a monad, `flatMap` models non-deterministic computation: map over each element, concatenate the results. Supports Selective, Traverse, and Alternative for rich collection operations in generic code.
 
-* **Type Definition**: Custom sealed interface ([`Try`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trymonad/Try.java)) with `Success<A>` and `Failure<A>` (wrapping `Throwable`).
-* **`TryKind<A>` Interface**: `Try<A>` itself implements `TryKind<A>`, and `TryKind<A> extends Kind<TryKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `TryKind.Witness`
-* **`TryKindHelper`**: `wrap` casts `Try` to `Kind`; `unwrap` casts `Kind` to `Try`. Provides `success(value)`, `failure(throwable)`, `tryOf(supplier)`.
-* **Type Class Instances**:
-  * `TryFunctor` (`Functor<TryKind.Witness>`)
-  * `TryApplicative` (`Applicative<TryKind.Witness>`)
-  * [`TryMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trymonad/TryMonad.java) (`MonadError<TryKind.Witness, Throwable>`)
-* **Notes**: `Failure(t)` is the error state. `of(v)` creates `Success(v)`.
-* **Usage**: [How to use the Try Monad](./try_monad.md)
+**[`Stream<A>`](./stream_monad.md)** -- HKT bridge to `java.util.stream.Stream`. Lazy and potentially infinite, but **single-use** -- consuming a stream exhausts it. Use for large or generated sequences where you don't want everything in memory at once.
 
----
+**[`VStream<A>`](./vstream.md)** -- Virtual-thread reactive stream (JDK 21+). Backpressure, parallel operations, structured concurrency. Think of it as a modern, concurrent alternative to `Stream` for data pipelines that need to fan out across virtual threads.
 
-### 10. `java.util.concurrent.CompletableFuture<A>`
+### Recursion & DSL Types
 
-* **Type Definition**: Standard Java `java.util.concurrent.CompletableFuture<A>`.
-* **`CompletableFutureKind<A>` Interface**: [`CompletableFutureKind<A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/future/CompletableFutureKind.java) extends `Kind<CompletableFutureKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `CompletableFutureKind.Witness`
-* **`CompletableFutureKindHelper`**: Uses an internal `CompletableFutureHolder<A>` record. Provides `wrap`, `unwrap`, `join`.
-* **Type Class Instances**:
-  * `CompletableFutureFunctor` (`Functor<CompletableFutureKind.Witness>`)
-  * `CompletableFutureApplicative` (`Applicative<CompletableFutureKind.Witness>`)
-  * `CompletableFutureMonad` (`Monad<CompletableFutureKind.Witness>`)
-  * [`CompletableFutureMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/future/CompletableFutureMonad.java) (`MonadError<CompletableFutureKind.Witness, Throwable>`)
-* **Notes**: Represents asynchronous computations. A failed future is the error state. `of(v)` creates `CompletableFuture.completedFuture(v)`.
-* **Usage**: [How to use the CompletableFuture Monad](./cf_monad.md)
+Four abstractions for when standard monads aren't enough.
 
----
+**[`Trampoline<A>`](./trampoline_monad.md)** -- Turns recursive algorithms into stack-safe iterative ones. Instead of making a recursive call (which grows the stack), you return a data structure describing the call. A flat loop processes it. Handles 1,000,000+ iterations where naive recursion dies at 5,000.
 
-### 11. `IO<A>`
+**[`Free<F, A>`](./free_monad.md)** -- Turns any instruction set into a monad. Build your program as a data structure, then interpret it however you like: real execution, testing, logging, optimisation. One program, many interpreters. The foundation for embedded DSLs.
 
-* **Type Definition**: Custom interface ([`IO`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IO.java)) representing a deferred, potentially side-effecting computation.
-* **`IOKind<A>` Interface**: `IO<A>` directly extends `IOKind<A>`, which extends `Kind<IOKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `IOKind.Witness`
-* **`IOKindHelper`**: `widen` performs null check and returns the `IO` directly as `Kind` (zero overhead); `narrow` checks `instanceof IO` and casts. Provides `delay(supplier)`, `unsafeRunSync(kind)`.
-* **Type Class Instances**:
-  * `IOFunctor` (`Functor<IOKind.Witness>`)
-  * `IOApplicative` (`Applicative<IOKind.Witness>`)
-  * [`IOMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IOMonad.java) (`Monad<IOKind.Witness>`)
-* **Notes**: Evaluation is deferred until `unsafeRunSync`. Exceptions during execution are generally unhandled by `IOMonad` itself unless caught within the IO's definition.
-* **Usage**: [How to use the IO Monad](./io_monad.md)
+**[`FreeAp<F, A>`](./free_applicative.md)** -- Like Free, but for *independent* operations. Because steps don't depend on each other, an interpreter can batch them, run them in parallel, or analyse all operations upfront before executing any.
 
----
+**[`Coyoneda<F, A>`](./coyoneda.md)** -- Gives any type constructor a Functor instance for free, via the Yoneda lemma. Also enables map fusion: consecutive `.map(f).map(g).map(h)` calls collapse into a single `.map(f.andThen(g).andThen(h))` at interpretation time.
 
-### 12. `Lazy<A>`
+### Structural Types
 
-* **Type Definition**: Custom class ([`Lazy`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/lazy/Lazy.java)) for deferred computation with memoization.
-* **`LazyKind<A>` Interface**: `Lazy<A>` itself implements `LazyKind<A>`, and `LazyKind<A> extends Kind<LazyKind.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `LazyKind.Witness`
-* **`LazyKindHelper`**: `wrap` casts `Lazy` to `Kind`; `unwrap` casts `Kind` to `Lazy`. Provides `defer(supplier)`, `now(value)`, `force(kind)`.
-* **Type Class Instances**:
-  * [`LazyMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/lazy/LazyMonad.java) (`Monad<LazyKind.Witness>`)
-* **Notes**: Result or exception is memoized. `of(a)` creates an already evaluated `Lazy.now(a)`.
-* **Usage**: [How to use the Lazy Monad](./lazy_monad.md)
+Three building blocks for generic programming, optics, and categorical abstractions.
 
----
+**[`Const<C, A>`](./const_type.md)** -- Holds a constant value `C` while `A` is a phantom type that exists only in the signature. Sounds abstract, but it powers lens getters and fold operations across the optics library. Provides Applicative when `C` has a `Monoid`.
 
-### 13. `Reader<R_ENV, A>`
+**`Tuple2<A, B>`** -- A simple pair with Bifunctor support. `bimap` transforms both elements; `first` and `second` transform one side. Used internally by State, Writer, and various optics operations.
 
-* **Type Definition**: Custom functional interface ([`Reader`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/reader/Reader.java)) wrapping `Function<R_ENV, A>`.
-* **`ReaderKind<R_ENV, A>` Interface**: `Reader<R_ENV,A>` itself implements `ReaderKind<R_ENV,A>`, and `ReaderKind<R_ENV,A> extends Kind<ReaderKind.Witness<R_ENV>, A>`.
-* **Witness Type `F_WITNESS`**: `ReaderKind.Witness<R_ENV>` (Environment type `R_ENV` is fixed).
-* **`ReaderKindHelper`**: `wrap` casts `Reader` to `Kind`; `unwrap` casts `Kind` to `Reader`. Provides `reader(func)`, `ask()`, `constant(value)`, `runReader(kind, env)`.
-* **Type Class Instances**:
-  * `ReaderFunctor<R_ENV>` (`Functor<ReaderKind.Witness<R_ENV>>`)
-  * `ReaderApplicative<R_ENV>` (`Applicative<ReaderKind.Witness<R_ENV>>`)
-  * [`ReaderMonad<R_ENV>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/reader/ReaderMonad.java) (`Monad<ReaderKind.Witness<R_ENV>>`)
-* **Notes**: `of(a)` creates a `Reader` that ignores the environment and returns `a`.
-* **Usage**: [How to use the Reader Monad](./reader_monad.md)
+**[`Function<A, B>`](../functional/profunctor.md)** -- HKT wrapper around `java.util.function.Function` with Profunctor support. `dimap` transforms both input and output; `lmap` pre-processes the input; `rmap` post-processes the output. The theoretical backbone of optic composition.
 
----
+### Monad Transformers
 
-### 14. `State<S, A>`
+Five transformers that layer one monad's effects on top of another. "I need `IO` *and* `Either`" becomes `EitherT<IOKind.Witness, MyError, A>`.
 
-* **Type Definition**: Custom functional interface ([`State`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)) wrapping `Function<S, StateTuple<S, A>>`.
-* **`StateKind<S,A>` Interface**: `State<S,A>` itself implements `StateKind<S,A>`, and `StateKind<S,A> extends Kind<StateKind.Witness<S>, A>`.
-* **Witness Type `F_WITNESS`**: `StateKind.Witness<S>` (State type `S` is fixed).
-* **`StateKindHelper`**: `wrap` casts `State` to `Kind`; `unwrap` casts `Kind` to `State`. Provides `pure(value)`, `get()`, `set(state)`, `modify(func)`, `inspect(func)`, `runState(kind, initialState)`, etc.
-* **Type Class Instances**:
-  * `StateFunctor<S>` (`Functor<StateKind.Witness<S>>`)
-  * `StateApplicative<S>` (`Applicative<StateKind.Witness<S>>`)
-  * [`StateMonad<S>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/StateMonad.java) (`Monad<StateKind.Witness<S>>`)
-* **Notes**: `of(a)` (`pure`) returns `a` without changing state.
-* **Usage**: [How to use the State Monad](./state_monad.md)
+**[`MaybeT<F, A>`](../transformers/maybet_transformer.md)** -- Adds presence/absence to any monad `F`. The inner computation is `Kind<F, Maybe<A>>`. Use when your `IO` or `CompletableFuture` might legitimately produce "no result."
 
----
+**[`EitherT<F, L, R>`](../transformers/eithert_transformer.md)** -- Adds typed errors to any monad `F`. The inner computation is `Kind<F, Either<L, R>>`. The workhorse transformer: `IO` + error handling, `CompletableFuture` + typed failures, etc.
 
-### 15. `Writer<W, A>`
+**[`OptionalT<F, A>`](../transformers/optionalt_transformer.md)** -- Like MaybeT but wraps `java.util.Optional`. Use when your stack already uses `Optional` and you want JDK interop without conversion.
 
-* **Type Definition**: Custom record ([`Writer`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/writer/Writer.java)) holding `(W log, A value)`. Requires `Monoid<W>`.
-* **`WriterKind<W, A>` Interface**: `Writer<W,A>` itself implements `WriterKind<W,A>`, and `WriterKind<W,A> extends Kind<WriterKind.Witness<W>, A>`.
-* **Witness Type `F_WITNESS`**: `WriterKind.Witness<W>` (Log type `W` and its `Monoid` are fixed).
-* **`WriterKindHelper`**: `wrap` casts `Writer` to `Kind`; `unwrap` casts `Kind` to `Writer`. Provides `value(monoid, val)`, `tell(monoid, log)`, `runWriter(kind)`, etc.
-* **Type Class Instances**: (Requires `Monoid<W>` for Applicative/Monad)
-  * `WriterFunctor<W>` (`Functor<WriterKind.Witness<W>>`)
-  * `WriterApplicative<W>` (`Applicative<WriterKind.Witness<W>>`)
-  * [`WriterMonad<W>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/writer/WriterMonad.java) (`Monad<WriterKind.Witness<W>>`)
-* **Notes**: `of(a)` (`value`) produces `a` with an empty log (from `Monoid.empty()`).
-* **Usage**: [How to use the Writer Monad](./writer_monad.md)
+**[`ReaderT<F, R, A>`](../transformers/readert_transformer.md)** -- Adds environment reading to any monad `F`. The inner computation is `R -> Kind<F, A>`. Thread configuration through an effectful computation without parameter pollution.
 
----
-
-### 16. `Validated<E, A>`
-
-* **Type Definition**: Custom sealed interface ([`Validated`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)) with `Valid<E, A>` (holding `A`) and `Invalid<E, A>` (holding `E`) implementations.
-* **`ValidatedKind<E, A>` Interface**: Defines the HKT structure ([`ValidatedKind`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedKind.java)) for `Validated<E,A>`. It extends `Kind<ValidatedKind.Witness<E>, A>`. Concrete `Valid<E,A>` and `Invalid<E,A>` instances are cast to this kind by `ValidatedKindHelper`.
-* **Witness Type `F_WITNESS`**: `ValidatedKind.Witness<E>` (Error type `E` is fixed for the HKT witness).
-* **`ValidatedKindHelper` Class**: ([`ValidatedKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedKindHelper.java)). `widen` casts `Validated<E,A>` (specifically `Valid` or `Invalid` instances) to `Kind<ValidatedKind.Witness<E>, A>`. `narrow` casts `Kind` back to `Validated<E,A>`. Provides static factory methods `valid(value)` and `invalid(error)` that return the Kind-wrapped type.
-* **Type Class Instances**: (Error type `E` is fixed for the monad instance)
-  * [`ValidatedMonad<E>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedMonad.java) (`MonadError<ValidatedKind.Witness<E>, E>`). This also provides `Monad`, `Functor`, and `Applicative` behaviour.
-* **Notes**: `Validated` is right-biased, meaning operations like `map` and `flatMap` apply to the `Valid` case and propagate `Invalid` untouched. `ValidatedMonad.of(a)` creates a `Valid(a)`. As a `MonadError`, `ValidatedMonad` provides `raiseError(error)` to create an `Invalid(error)` and `handleErrorWith(kind, handler)` for standardised error recovery. The `ap` method is also right-biased and does not accumulate errors from multiple `Invalid`s in the typical applicative sense; it propagates the first `Invalid` encountered or an `Invalid` function.
-* **Usage**: [How to use the Validated Monad](./validated_monad.md)
-
----
-
-### 17. `Const<C, A>`
-
-* **Type Definition**: Custom record ([`Const`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/Const.java)) holding a constant value of type `C` whilst treating `A` as a phantom type parameter (present in the type signature but not stored).
-* **`ConstKind2<C, A>` Interface**: ([`ConstKind2<C, A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstKind2.java)) extends `Kind2<ConstKind2.Witness, C, A>`. This interface allows `Const` to be used with bifunctor operations.
-* **Witness Type `F_WITNESS`**: `ConstKind2.Witness` (used for bifunctor type class instances).
-* **`ConstKindHelper` Class**: ([`ConstKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstKindHelper.java)). Provides `widen2` to cast `Const<C, A>` to `Kind2<ConstKind2.Witness, C, A>` and `narrow2` to cast back. Uses an internal `ConstKind2Holder<C, A>` record that implements `ConstKind2<C, A>`.
-* **Type Class Instances**: (Only bifunctor, no monad instance as mapping the phantom type has no computational effect)
-  * [`ConstBifunctor`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstBifunctor.java) (`Bifunctor<ConstKind2.Witness>`). This instance provides `first` (transforms the constant value), `second` (changes only the phantom type), and `bimap` (combines both, though only `first` affects the constant value).
-* **Notes**: The second type parameter `A` is **phantom**: it exists only in the type signature and has no runtime representation. Calling `mapSecond` or `second` preserves the constant value whilst changing the phantom type in the signature. This makes `Const` particularly useful for fold implementations (accumulating a single value), getter patterns in lens libraries (van Laarhoven lenses), and data extraction from structures without transformation. The mapper function in `second` is applied to `null` for exception propagation, so use null-safe mappers. Similar to `Const` in Scala's Cats and Scalaz libraries.
-* **Usage**: [How to use the Const Type](./const_type.md)
+**[`StateT<S, F, A>`](../transformers/statet_transformer.md)** -- Adds state threading to any monad `F`. The inner computation is `S -> Kind<F, (S, A)>`. Stateful algorithms that also need IO, error handling, or other effects.
 
 ---
 

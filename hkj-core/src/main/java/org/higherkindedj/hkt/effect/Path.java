@@ -1113,6 +1113,64 @@ public final class Path {
     return new DefaultVStreamPath<>(VStream.unfold(seed, f));
   }
 
+  /**
+   * Creates a resource-safe VStreamPath using bracket semantics.
+   *
+   * <p>The resource is acquired lazily on first pull. The release function is guaranteed to run
+   * exactly once on completion, error, or partial consumption. Delegates to {@link
+   * VStream#bracket(VTask, Function, Function)}.
+   *
+   * @param acquire a VTask that acquires the resource; must not be null
+   * @param use a function that takes the resource and produces a stream; must not be null
+   * @param release a function that takes the resource and produces a cleanup VTask; must not be
+   *     null
+   * @param <R> the resource type
+   * @param <A> the element type
+   * @return a resource-safe VStreamPath; never null
+   * @throws NullPointerException if any argument is null
+   */
+  public static <R, A> VStreamPath<A> vstreamBracket(
+      VTask<R> acquire, Function<R, VStream<A>> use, Function<R, VTask<Unit>> release) {
+    return new DefaultVStreamPath<>(VStream.bracket(acquire, use, release));
+  }
+
+  /**
+   * Creates a VStreamPath from a {@link java.util.concurrent.Flow.Publisher} with the specified
+   * buffer size.
+   *
+   * <p>The publisher is subscribed to immediately. Incoming elements are buffered. The VStreamPath
+   * pulls from this buffer. Delegates to {@link
+   * org.higherkindedj.hkt.vstream.VStreamReactive#fromPublisher(java.util.concurrent.Flow.Publisher,
+   * int)}.
+   *
+   * @param publisher the Flow.Publisher to convert; must not be null
+   * @param bufferSize the maximum number of elements to buffer; must be positive
+   * @param <A> the element type
+   * @return a VStreamPath pulling from the publisher; never null
+   * @throws NullPointerException if publisher is null
+   * @throws IllegalArgumentException if bufferSize is not positive
+   */
+  public static <A> VStreamPath<A> vstreamFromPublisher(
+      java.util.concurrent.Flow.Publisher<A> publisher, int bufferSize) {
+    return new DefaultVStreamPath<>(
+        org.higherkindedj.hkt.vstream.VStreamReactive.fromPublisher(publisher, bufferSize));
+  }
+
+  /**
+   * Creates a VStreamPath from a {@link java.util.concurrent.Flow.Publisher} with the default
+   * buffer size of 256.
+   *
+   * @param publisher the Flow.Publisher to convert; must not be null
+   * @param <A> the element type
+   * @return a VStreamPath pulling from the publisher; never null
+   * @throws NullPointerException if publisher is null
+   */
+  public static <A> VStreamPath<A> vstreamFromPublisher(
+      java.util.concurrent.Flow.Publisher<A> publisher) {
+    return new DefaultVStreamPath<>(
+        org.higherkindedj.hkt.vstream.VStreamReactive.fromPublisher(publisher));
+  }
+
   // ===== PathRegistry integration =====
 
   /**

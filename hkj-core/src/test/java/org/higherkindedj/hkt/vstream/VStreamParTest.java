@@ -816,13 +816,32 @@ class VStreamParTest {
     @DisplayName("consumeSource suppresses second error when first already set cancelled")
     void consumeSourceSuppressesSecondError() {
       // Both sources fail — only the first error reaches the consumer.
-      // The second consumeSource finds cancelled=true and skips queue.put.
-      VStream<Integer> fails1 = VStream.fail(new RuntimeException("error-1"));
-      VStream<Integer> fails2 = VStream.fail(new RuntimeException("error-2"));
+      // The second consumeSource finds cancelled=true and skips queue.offer.
+      // Use a latch to ensure both sources are mid-pull() before either throws,
+      // preventing one from setting cancelled before the other enters the while loop.
+      CountDownLatch bothInPull = new CountDownLatch(2);
+
+      VStream<Integer> fails1 =
+          () ->
+              VTask.of(
+                  () -> {
+                    bothInPull.countDown();
+                    bothInPull.await(5, TimeUnit.SECONDS);
+                    throw new RuntimeException("error-1");
+                  });
+
+      VStream<Integer> fails2 =
+          () ->
+              VTask.of(
+                  () -> {
+                    bothInPull.countDown();
+                    bothInPull.await(5, TimeUnit.SECONDS);
+                    throw new RuntimeException("error-2");
+                  });
 
       VStream<Integer> result = VStreamPar.merge(fails1, fails2);
 
-      // Exactly one error propagates (whichever source is consumed first)
+      // Exactly one error propagates (whichever source wins getAndSet first)
       assertThatThrownBy(() -> result.toList().run()).isInstanceOf(RuntimeException.class);
     }
 

@@ -1,156 +1,182 @@
 # Identity Monad (Id)
 
+~~~admonish info title="What You'll Learn"
+- What the Identity Monad is and why it exists
+- How Id serves as the "no-effect" base case for monad transformers
+- Using Id to test and develop generic monadic code
+- How `StateT<S, IdKind.Witness, A>` collapses to plain `State<S, A>`
+~~~
+
 ~~~ admonish example title="See Example Code:"
  [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 ~~~
 
-~~~admonish info title="What You'll Learn"
-- What the Identity Monad is and why it's the simplest monad
-- How Id serves as a base case for monad transformers
-- The key classes and concepts: Id, IdKind, IdKind.Witness, IdKindHelper, and IdMonad
-- How to create and use Id instances with monadic operations
-- How to use Id with monad transformers like StateT
-~~~
+## Why Wrap a Value in a Do-Nothing Wrapper?
 
-The Identity Monad, often referred to as `IdMonad`, is the simplest possible monad. It represents a computation that doesn't add any additional context or effect beyond simply holding a value. It's a direct wrapper around a value.
+A fair question. `Id<A>` holds a value of type `A` and does absolutely nothing else — no deferred execution, no error handling, no optionality. It's a container that contributes zero additional behaviour.
 
-While it might seem trivial on its own, the Identity Monad plays a crucial role in a higher-kinded type library for several reasons:
+But that's exactly the point. Id is to monads what 1 is to multiplication: multiplying by 1 doesn't change the result, but you need 1 to exist for multiplication to be well-defined. Similarly, you need Id when the type system demands a monad but you don't want any effect:
 
-1. **Base Case for Monad Transformers**: Many monad transformers (like `StateT`, `ReaderT`, `MaybeT`, etc.) can be specialised to their simpler, non-transformed monad counterparts by using `Id` as the underlying monad. For example:
+1. **Transformer base case** — Monad transformers like `StateT`, `ReaderT`, and `MaybeT` are parameterised by an inner monad `F`. When you don't need that inner effect, plug in `Id`:
 
-   * `StateT<S, IdKind.Witness, A>` is conceptually equivalent to `State<S, A>`.
-   * `MaybeT<IdKind.Witness, A>` is conceptually equivalent to `Maybe<A>`.
-     This allows for a unified way to define transformers and derive base monads.
-2. **Generic Programming**: When writing functions that are generic over any `Monad<F>` (where `F extends WitnessArity<TypeArity.Unary>`), `Id` can serve as the "no-effect" monad, allowing you to use these generic functions with pure values without introducing unnecessary complexity.
-3. **Understanding Monads**: It provides a clear example of the monadic structure (`of`, `flatMap`, `map`) without any distracting side effects or additional computational context.
+   ```java
+   // StateT with Id as the inner monad = plain State
+   StateT<S, IdKind.Witness, A>  ≡  State<S, A>
+   ```
 
-## What is Id?
+   Without `Id`, you'd need separate implementations for `State` *and* `StateT`, `Reader` *and* `ReaderT`, and so on. `Id` eliminates that duplication.
 
-An `Id<A>` is simply a container that holds a value of type `A`.
+2. **Generic code** — When writing functions generic over any `Monad<F>`, Id serves as the "no-effect" instance for testing and for cases where pure computation suffices:
 
-* `Id.of(value)` creates an `Id` instance holding `value`.
-* `idInstance.value()` retrieves the value from the `Id` instance.
+   ```java
+   // This works with IO, CompletableFuture, Maybe, or... Id
+   <F extends Kind<F, ?>> Kind<F, String> greet(Monad<F> monad, Kind<F, String> name) {
+       return monad.map(n -> "Hello, " + n + "!", name);
+   }
 
-## Key Classes and Concepts
+   // Test with Id — no effects, fully predictable
+   IdMonad idMonad = IdMonad.instance();
+   Kind<IdKind.Witness, String> result = greet(idMonad, idMonad.of("Alice"));
+   // result contains "Hello, Alice!"
+   ```
+
+## Core Components
 
 ![id_monad.svg](../images/puml/id_monad.svg)
 
+| Component | Role |
+|-----------|------|
+| `Id<A>` | A record wrapping a value of type `A`. Directly implements `IdKind<A>`, so no wrapper allocation is needed. |
+| `IdKind<A>` / `IdKindHelper` | HKT bridge: `widen()` and `narrow()` (zero-cost casts), `narrows()` to narrow and extract the value in one step |
+| `IdMonad` | Type class instance (`Monad<IdKind.Witness>`): provides `of`, `map`, `flatMap`, and `ap` |
 
-* **`Id<A>`**: The data type itself. It's a record that wraps a value of type `A`. It implements `IdKind<A>`, which extends `Kind<IdKind.Witness, A>`.
-* **`IdKind<A>`**: The Kind interface marker for the `Id` type. It extends `Kind<IdKind.Witness, A>`, following the standard Higher-Kinded-J pattern used by other types like `TrampolineKind` and `FreeKind`.
-* **`IdKind.Witness`**: A static nested class within `IdKind` used as the phantom type marker (the `F` in `Kind<F, A>`) to represent the `Id` type constructor at the type level. This is part of the HKT emulation pattern.
-* **`IdKindHelper`**: A utility class providing static helper methods:
-  * `narrow(Kind<IdKind.Witness, A> kind)`: Safely casts a `Kind` back to a concrete `Id<A>`.
-  * `widen(Id<A> id)`: widens an `Id<A>` to `Kind<IdKind.Witness, A>`. (Often an identity cast since `Id` implements `Kind`).
-  * `narrows(Kind<IdKind.Witness, A> kind)`: A convenience to narrow and then get the value.
-* **`IdMonad`**: The singleton class that implements `Monad<IdKind.Witness>`, providing the monadic operations for `Id`.
+~~~admonish note title="How the Operations Map"
+Every operation on Id simply applies to the wrapped value — there's no additional behaviour:
 
-## Using `Id` and `IdMonad`
+| Operation | What It Does |
+|-----------|--------------|
+| `Id.of(value)` | Wrap a value |
+| `id.value()` | Unwrap the value |
+| `idMonad.map(f, fa)` | Apply `f` to the value, re-wrap the result |
+| `idMonad.flatMap(f, fa)` | Apply `f` to the value — `f` returns an `Id`, so no extra wrapping |
+| `idMonad.ap(ff, fa)` | Extract the function from `ff`, apply it to the value in `fa` |
+~~~
 
-~~~admonish example title="Example 1: Creating Id Instances"
+## Working with Id
+
+~~~admonish example title="Creating and Using Id Instances"
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
 ```java
-public void createExample(){
-  // Direct creation
-  Id<String> idString = Id.of("Hello, Identity!");
-  Id<Integer> idInt = Id.of(123);
-  Id<String> idNull = Id.of(null); // Id can wrap null
+// Direct creation and access
+Id<String> idString = Id.of("Hello, Identity!");
+String value = idString.value(); // "Hello, Identity!"
 
-  // Accessing the value
-  String value = idString.value(); // "Hello, Identity!"
-  Integer intValue = idInt.value();   // 123
-  String nullValue = idNull.value(); // null
-}
+Id<Integer> idInt = Id.of(123);
+Id<String> idNull = Id.of(null); // Id can wrap null
 ```
 ~~~
 
-~~~admonish example title="Example 2: Using with IdMonad"
+~~~admonish example title="Monadic Operations with IdMonad"
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
-The `IdMonad` provides the standard monadic operations.
-
 ```java
-public void monadExample(){
-  IdMonad idMonad = IdMonad.instance();
+IdMonad idMonad = IdMonad.instance();
 
-  // 1. 'of' (lifting a value)
-  Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
-  Id<Integer> idFromOf = ID.narrow(kindInt);
-  System.out.println("From of: " + idFromOf.value()); // Output: From of: 42
+// of — lift a value into Id
+Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
 
-  // 2. 'map' (applying a function to the wrapped value)
-  Kind<IdKind.Witness, String> kindStringMapped = idMonad.map(
-      i -> "Value is " + i,
-      kindInt
-  );
-  Id<String> idMapped = ID.narrow(kindStringMapped);
-  System.out.println("Mapped: " + idMapped.value()); // Output: Mapped: Value is 42
+// map — transform the wrapped value
+Kind<IdKind.Witness, String> mapped = idMonad.map(i -> "Value is " + i, kindInt);
+ID.narrow(mapped).value(); // "Value is 42"
 
-  // 3. 'flatMap' (applying a function that returns an Id)
-  Kind<IdKind.Witness, String> kindStringFlatMapped = idMonad.flatMap(
-      i -> Id.of("FlatMapped: " + (i * 2)), // Function returns Id<String>
-      kindInt
-  );
-  Id<String> idFlatMapped = ID.narrow(kindStringFlatMapped);
-  System.out.println("FlatMapped: " + idFlatMapped.value()); // Output: FlatMapped: 84
+// flatMap — chain with a function that returns Id
+Kind<IdKind.Witness, String> chained = idMonad.flatMap(
+    i -> Id.of("Doubled: " + (i * 2)),
+    kindInt
+);
+ID.narrow(chained).value(); // "Doubled: 84"
 
-  // flatMap can also be called directly on Id if the function returns Id
-  Id<String> directFlatMap = idFromOf.flatMap(i -> Id.of("Direct FlatMap: " + i));
-  System.out.println(directFlatMap.value()); // Output: Direct FlatMap: 42
+// flatMap directly on Id (no need for the type class)
+Id<String> direct = Id.of(42).flatMap(i -> Id.of("Direct: " + i));
+direct.value(); // "Direct: 42"
 
-  // 4. 'ap' (applicative apply)
-  Kind<IdKind.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
-  Kind<IdKind.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
-  Id<String> idApplied = ID.narrow(kindApplied);
-  System.out.println("Applied: " + idApplied.value()); // Output: Applied: 42
-}
+// ap — apply a wrapped function to a wrapped value
+Kind<IdKind.Witness, Function<Integer, String>> funcKind = idMonad.of(i -> "Applied: " + i);
+Kind<IdKind.Witness, String> applied = idMonad.ap(funcKind, kindInt);
+ID.narrow(applied).value(); // "Applied: 42"
 ```
 ~~~
 
-~~~admonish example title="Example 3: Using Id with Monad Transformers"
+~~~admonish example title="Id as a Transformer Base Case"
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
-As mentioned in the [StateT Monad Transformer](../transformers/statet_transformer.md) documentation, `State<S,A>` can be thought of as `StateT<S, IdKind.Witness, A>`.
-
-Let's illustrate how you might define a `State` monad type alias or use `StateT` with `IdMonad`:
+This is where Id earns its keep. `StateT<S, IdKind.Witness, A>` behaves exactly like a plain `State<S, A>` — the Id inner monad contributes no additional effect.
 
 ```java
-  public void transformerExample(){
-  // Conceptually, State<S, A> is StateT<S, IdKind.Witness, A>
-  // We can create a StateTMonad instance using IdMonad as the underlying monad.
-  StateTMonad<Integer, IdKind.Witness> stateMonadOverId =
-      StateTMonad.instance(IdMonad.instance());
+// Create a StateT monad with Id as the inner monad
+StateTMonad<Integer, IdKind.Witness> stateMonadOverId =
+    StateTMonad.instance(IdMonad.instance());
 
-  // Example: A "State" computation that increments the state and returns the old state
-  Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn =
-      currentState -> Id.of(StateTuple.of(currentState + 1, currentState));
+// A stateful computation: increment the state, return the old value
+Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn =
+    currentState -> Id.of(StateTuple.of(currentState + 1, currentState));
 
-  // Create the StateT (acting as State)
-  Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
-      StateTKindHelper.stateT(runStateFn, IdMonad.instance());
+Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
+    STATE_T.stateT(runStateFn, IdMonad.instance());
 
-  // Run it
-  Integer initialState = 10;
-  Kind<IdKind.Witness, StateTuple<Integer, Integer>> resultIdTuple =
-      StateTKindHelper.runStateT(incrementAndGet, initialState);
+// Run with initial state 10
+Kind<IdKind.Witness, StateTuple<Integer, Integer>> resultIdTuple =
+    STATE_T.runStateT(incrementAndGet, 10);
 
-  // Unwrap the Id and then the StateTuple
-  Id<StateTuple<Integer, Integer>> idTuple = ID.narrow(resultIdTuple);
-  StateTuple<Integer, Integer> tuple = idTuple.value();
-
-  System.out.println("Initial State: " + initialState);       // Output: Initial State: 10
-  System.out.println("Returned Value (Old State): " + tuple.value()); // Output: Returned Value (Old State): 10
-  System.out.println("Final State: " + tuple.state());         // Output: Final State: 11
-}
+StateTuple<Integer, Integer> tuple = ID.narrow(resultIdTuple).value();
+System.out.println("Returned Value: " + tuple.value()); // Output: 10 (old state)
+System.out.println("Final State: " + tuple.state());     // Output: 11 (incremented)
 ```
 
+Because the inner monad is Id, unwrapping the result is straightforward — there's no `Optional` to check, no `Either` to branch on, no `CompletableFuture` to await. The transformer machinery works, but the inner monad simply passes the value through.
+~~~
 
-This example shows that `StateT` with `Id` behaves just like a standard `State` monad, where the "effect" of the underlying monad is simply identity (no additional effect).
 
+## When to Use Id
+
+| Scenario | Use |
+|----------|-----|
+| Transformer base case (StateT, ReaderT, MaybeT without an inner effect) | `Id` / `IdMonad` |
+| Testing generic monadic code with predictable values | `Id` — no effects means no surprises |
+| Application-level pure computation with the Path API | Prefer [IdPath](../effect/path_id.md) |
+| You need error handling, async, or optionality | Use a different monad — Id adds nothing |
+
+~~~admonish important title="Key Points"
+- `Id<A>` is the trivial monad — it wraps a value and does nothing else.
+- Its purpose is structural: it fills the "inner monad" slot in transformers when no effect is needed.
+- `Id<A>` directly implements `IdKind<A>`, so `widen`/`narrow` are zero-cost casts.
+- All monadic operations (`map`, `flatMap`, `ap`) simply apply to the wrapped value with no additional behaviour.
+- If you're not working with transformers or generic monadic code, you probably don't need `Id` directly.
+~~~
+
+---
+
+~~~admonish tip title="Effect Path Alternative"
+For most use cases, prefer **[IdPath](../effect/path_id.md)** which wraps `Id` and provides:
+
+- Fluent composition with `map`, `via`, `zipWith`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+
+```java
+// Instead of manual Id chaining:
+Kind<IdKind.Witness, String> name = idMonad.of("Alice");
+Kind<IdKind.Witness, Integer> len = idMonad.map(String::length, name);
+
+// Use IdPath for cleaner composition:
+IdPath<Integer> len = Path.id("Alice").map(String::length);
+```
+
+See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
 ~~~
 
 ---

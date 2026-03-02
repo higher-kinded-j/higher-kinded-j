@@ -498,7 +498,7 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
             result.complete(value);
           } else {
             lastFailure.set(ex);
-            if (failureCount.incrementAndGet() == 2 && !result.isDone()) {
+            if (failureCount.incrementAndGet() == 2) {
               result.completeExceptionally(lastFailure.get());
             }
           }

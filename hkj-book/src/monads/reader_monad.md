@@ -256,12 +256,64 @@ In this example:
 - When composing, flatMap can be used to sequence such an action. If logApiKey were the last step in a sequence, the overall `flatMap` chain would also result in `Kind<ReaderKind.Witness<AppConfig>, Unit>`.
 ~~~
 
-~~~admonish important  title="Key Points:"
-The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management.
+~~~admonish note title="How Environment Threading Works"
+```
+                        AppConfig
+                           │
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+         getDbUrl     getTimeout    getApiKey
+         (config)     (config)      (config)
+              │            │            │
+              ▼            ▼            ▼
+        "prod-db"       5000       "key-123"
 
-It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using Higher-Kinded-J and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`.
+flatMap chains pass the SAME environment to each step:
 
-This leads to more modular, testable, and less cluttered code when dealing with shared context.
+runReader(program, config)
+    │
+    ├──► getDbUrl(config)        → "prod-db"
+    ├──► buildConn(url, config)  → "prod-db?key=key-123"
+    └──► formatInfo(conn)        → "Connected to prod-db"
+```
+
+Each step in a `flatMap` chain receives the same environment `R`. The environment is provided once at the end via `runReader` — individual steps never need it as an explicit parameter.
+~~~
+
+
+## When to Use Reader
+
+| Scenario | Use |
+|----------|-----|
+| Threading configuration through multiple functions | `Reader` / `ReaderMonad` |
+| Functional dependency injection | `Reader` — dependencies provided at `runReader` time |
+| Testing with different configurations | `Reader` — swap environments without changing code |
+| Modifying the environment for a sub-computation | `Reader` with `local` (modify env for inner Reader) |
+| Combining configuration with error handling or async | Use [ReaderT transformer](../transformers/readert_transformer.md) |
+| Application-level environment-dependent pipelines | Prefer composing with other Path types |
+
+~~~admonish important title="Key Points"
+- `Reader<R, A>` wraps a function `R → A` — it describes a computation that depends on environment `R`.
+- Nothing executes until `runReader(reader, environment)` is called with a concrete environment.
+- `flatMap` chains pass the **same** environment to each step — no manual threading.
+- `ask()` returns the environment itself — useful when a step needs the full config.
+- `constant(value)` ignores the environment — useful for lifting pure values into Reader context.
+- `Reader<R, A>` directly implements `ReaderKind<R, A>`, so `widen`/`narrow` are zero-cost casts.
+~~~
+
+---
+
+~~~admonish example title="Benchmarks"
+Reader has dedicated JMH benchmarks measuring function composition overhead, environment access, and chain depth. Key expectations:
+
+- **`of` / `constant`** are very fast — they wrap a function with no computation
+- **`flatMap` chains** incur minimal overhead — each step is a function call with the shared environment
+- **`ask`** is essentially free — it returns the environment directly
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*ReaderBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~
 
 ~~~ admonish tip title="Further Reading"

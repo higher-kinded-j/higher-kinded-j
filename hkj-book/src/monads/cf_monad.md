@@ -1,4 +1,4 @@
-# The CompletableFutureMonad: 
+# The CompletableFutureMonad:
 ## _Asynchronous Computations with `CompletableFuture`_
 
 ~~~admonish info title="What You'll Learn"
@@ -13,7 +13,26 @@
  [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 ~~~
 
-Java's `java.util.concurrent.CompletableFuture<T>` is a powerful tool for asynchronous programming. The `higher-kinded-j` library provides a way to treat `CompletableFuture` as a monadic context using the HKT simulation. This allows developers to compose asynchronous operations and handle their potential failures (`Throwable`) in a more functional and generic style, leveraging type classes like `Functor`, `Applicative`, `Monad`, and crucially, `MonadError`.
+## The Problem: Async Composition Without Structure
+
+Java's `CompletableFuture` is powerful, but composing multiple async operations quickly becomes unwieldy. Consider a typical microservice scenario — fetching a user, looking up their subscription, then calculating a discount:
+
+```java
+// Traditional CompletableFuture chaining
+CompletableFuture<Discount> result =
+    userService.findUser(userId)
+        .thenCompose(user ->
+            subscriptionService.getSubscription(user.subscriptionId())
+                .thenCompose(sub ->
+                    pricingService.calculateDiscount(user, sub)
+                        .exceptionally(ex -> Discount.none())));
+```
+
+Each level of `thenCompose` indents further. Error handling with `exceptionally` or `handle` dangles awkwardly at the end, applies only to the innermost stage, and loses type information — every error becomes a generic `Throwable`. If you need different recovery strategies for different failures, you end up with nested `try`/`catch` inside your lambdas, and the functional style collapses.
+
+The `CompletableFutureMonad` gives you a structured alternative: standard `map`, `flatMap`, and `handleErrorWith` operations that compose cleanly, and the ability to write generic code that works across *any* monadic type — not just `CompletableFuture`.
+
+## Core Components
 
 **Higher-Kinded Bridge for CompletableFuture**
 
@@ -23,34 +42,35 @@ Java's `java.util.concurrent.CompletableFuture<T>` is a powerful tool for asynch
 
 ![cf_monad.svg](../images/puml/cf_monad.svg)
 
-The simulation for `CompletableFuture` involves these components:
+The simulation for `CompletableFuture` involves these key pieces:
 
-1. **`CompletableFuture<A>`**: The standard Java class representing an asynchronous computation that will eventually result in a value of type `A` or fail with an exception (a `Throwable`).
-2. **`CompletableFutureKind<A>`**: The HKT marker interface (`Kind<CompletableFutureKind.Witness, A>`) for `CompletableFuture`. This allows `CompletableFuture` to be used generically with type classes. The witness type is `CompletableFutureKind.Witness`.
-3. **`CompletableFutureKindHelper`**: The utility class for bridging between `CompletableFuture<A>` and `CompletableFutureKind<A>`. Key methods:
-   * `widen(CompletableFuture<A>)`: Wraps a standard `CompletableFuture` into its `Kind` representation.
-   * `narrow(Kind<CompletableFutureKind.Witness, A>)`: Unwraps the `Kind` back to the concrete `CompletableFuture`. Throws `KindUnwrapException` if the input Kind is invalid.
-   * `join(Kind<CompletableFutureKind.Witness, A>)`: A convenience method to unwrap the `Kind` and then block (`join()`) on the underlying `CompletableFuture` to get its result. It re-throws runtime exceptions and errors directly but wraps checked exceptions in `CompletionException`. *Use primarily for testing or at the very end of an application where blocking is acceptable.*
-4. **`CompletableFutureFunctor`**: Implements `Functor<CompletableFutureKind.Witness>`. Provides `map`, which corresponds to `CompletableFuture.thenApply()`.
-5. **`CompletableFutureApplicative`**: Extends `Functor`, implements `Applicative<CompletableFutureKind.Witness>`.
-   * `of(A value)`: Creates an already successfully completed `CompletableFutureKind` using `CompletableFuture.completedFuture(value)`.
-   * `ap(Kind<F, Function<A,B>>, Kind<F, A>)`: Corresponds to `CompletableFuture.thenCombine()`, applying a function from one future to the value of another when both complete.
-6. **`CompletableFutureMonad`**: Extends `Applicative`, implements `Monad<CompletableFutureKind.Witness>`.
-   * `flatMap(Function<A, Kind<F, B>>, Kind<F, A>)`: Corresponds to `CompletableFuture.thenCompose()`, sequencing asynchronous operations where one depends on the result of the previous one.
-7. **`CompletableFutureMonad`**: Extends `Monad`, implements `MonadError<CompletableFutureKind.Witness, Throwable>`. This is often the most useful instance to work with.
-   * `raiseError(Throwable error)`: Creates an already exceptionally completed `CompletableFutureKind` using `CompletableFuture.failedFuture(error)`.
-   * `handleErrorWith(Kind<F, A>, Function<Throwable, Kind<F, A>>)`: Corresponds to `CompletableFuture.exceptionallyCompose()`, allowing asynchronous recovery from failures.
+| Component | Role |
+|-----------|------|
+| `CompletableFuture<A>` | Standard Java async computation |
+| `CompletableFutureKind<A>` | HKT marker (`Kind<CompletableFutureKind.Witness, A>`) — enables generic type class programming |
+| `CompletableFutureKindHelper` | Bridge utilities: `widen()`, `narrow()`, and `join()` for blocking extraction |
+| `CompletableFutureMonad` | Implements `MonadError<CompletableFutureKind.Witness, Throwable>` — provides `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` |
 
-## Purpose and Usage
+~~~admonish note title="How the Operations Map"
+The type class operations correspond directly to `CompletableFuture` methods you already know:
 
-* **Functional Composition of Async Ops**: Use `map`, `ap`, and `flatMap` (via the type class instances) to build complex asynchronous workflows in a declarative style, similar to how you'd compose synchronous operations with `Optional` or `List`.
-* **Unified Error Handling**: Treat asynchronous failures (`Throwable`) consistently using `MonadError` operations (`raiseError`, `handleErrorWith`). This allows integrating error handling directly into the composition chain.
-* **HKT Integration**: Enables writing generic code that can operate on `CompletableFuture` alongside other simulated monadic types (like `Optional`, `Either`, `IO`) by programming against the `Kind<F, A>` interface and type classes. This is powerfully demonstrated when using `CompletableFutureKind` as the outer monad `F` in the `EitherT` transformer (see [Order Example Walkthrough](../hkts/order-walkthrough.md)).
+| Type Class Operation | CompletableFuture Equivalent |
+|---------------------|------------------------------|
+| `map(f, fa)` | `thenApply(f)` |
+| `flatMap(f, fa)` | `thenCompose(f)` |
+| `ap(ff, fa)` | `thenCombine(ff, (a, f) -> f.apply(a))` |
+| `of(value)` | `completedFuture(value)` |
+| `raiseError(ex)` | `failedFuture(ex)` |
+| `handleErrorWith(fa, handler)` | `exceptionallyCompose(handler)` |
 
-## Examples
+The difference is that these operations work through the `Kind` abstraction, so your code becomes reusable across *any* monadic type — swap `CompletableFuture` for `IO`, `Either`, or `VTask` without changing the logic.
+~~~
 
+## Working with CompletableFutureMonad
 
-~~~admonish example title="Example 1: Creating _CompletableFutureKind_ Instances"
+The following examples build on a running scenario: an async service that fetches user data, validates subscriptions, and handles failures gracefully.
+
+~~~admonish example title="Creating Instances"
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
@@ -59,16 +79,14 @@ public void createExample() {
    // Get the MonadError instance
    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
-   // --- Using of() ---
-   // Creates a Kind wrapping an already completed future
+   // --- Lift a pure value into an already-completed future ---
    Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("Success!");
 
-   // --- Using raiseError() ---
-   // Creates a Kind wrapping an already failed future
+   // --- Create a failed future from an exception ---
    RuntimeException error = new RuntimeException("Something went wrong");
    Kind<CompletableFutureKind.Witness, String> failureKind = futureMonad.raiseError(error);
 
-   // --- Wrapping existing CompletableFutures ---
+   // --- Wrap an existing CompletableFuture ---
    CompletableFuture<Integer> existingFuture = CompletableFuture.supplyAsync(() -> {
       try {
          TimeUnit.MILLISECONDS.sleep(20);
@@ -81,35 +99,32 @@ public void createExample() {
    failedExisting.completeExceptionally(new IllegalArgumentException("Bad input"));
    Kind<CompletableFutureKind.Witness, Integer> wrappedFailed = FUTURE.widen(failedExisting);
 
-   // You typically don't interact with 'unwrap' unless needed at boundaries or for helper methods like 'join'.
+   // Unwrap back to CompletableFuture at system boundaries
    CompletableFuture<String> unwrappedSuccess = FUTURE.narrow(successKind);
    CompletableFuture<String> unwrappedFailure = FUTURE.narrow(failureKind);
 }
 ```
 ~~~
 
-~~~admonish example title="Example 2: Using _map_, _flatMap_, _ap_"
+~~~admonish example title="Composing with map, flatMap, and ap"
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
-These examples show how to use the type class instance (`futureMonad`) to apply operations.
+These examples show how the type class instance composes async operations — the same `map`/`flatMap` vocabulary you use with `Either`, `IO`, or any other monad.
 
 ```java
 public void monadExample() {
-   // Get the MonadError instance
    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
-   // --- map (thenApply) ---
+   // --- map: transform the result when it completes ---
    Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
    Kind<CompletableFutureKind.Witness, String> mappedKind = futureMonad.map(
            value -> "Result: " + value,
            initialValueKind
    );
-   // Join for testing/demonstration
    System.out.println("Map Result: " + FUTURE.join(mappedKind)); // Output: Result: 10
 
-   // --- flatMap (thenCompose) ---
-   // Function A -> Kind<F, B>
+   // --- flatMap: sequence async operations that depend on previous results ---
    Function<String, Kind<CompletableFutureKind.Witness, String>> asyncStep2 =
            input -> FUTURE.widen(
                    CompletableFuture.supplyAsync(() -> input + " -> Step2 Done")
@@ -117,127 +132,125 @@ public void monadExample() {
 
    Kind<CompletableFutureKind.Witness, String> flatMappedKind = futureMonad.flatMap(
            asyncStep2,
-           mappedKind // Result from previous map step ("Result: 10")
+           mappedKind // "Result: 10" feeds into asyncStep2
    );
-   System.out.println("FlatMap Result: " + FUTURE.join(flatMappedKind)); // Output: Result: 10 -> Step2 Done
+   System.out.println("FlatMap Result: " + FUTURE.join(flatMappedKind));
+   // Output: Result: 10 -> Step2 Done
 
-   // --- ap (thenCombine) ---
-   Kind<CompletableFutureKind.Witness, Function<Integer, String>> funcKind = futureMonad.of(i -> "FuncResult:" + i);
+   // --- ap: apply a function from one future to a value from another ---
+   Kind<CompletableFutureKind.Witness, Function<Integer, String>> funcKind =
+           futureMonad.of(i -> "FuncResult:" + i);
    Kind<CompletableFutureKind.Witness, Integer> valKind = futureMonad.of(25);
 
    Kind<CompletableFutureKind.Witness, String> apResult = futureMonad.ap(funcKind, valKind);
    System.out.println("Ap Result: " + FUTURE.join(apResult)); // Output: FuncResult:25
 
-   // --- mapN ---
+   // --- map2: combine two independent futures ---
    Kind<CompletableFutureKind.Witness, Integer> f1 = futureMonad.of(5);
    Kind<CompletableFutureKind.Witness, String> f2 = futureMonad.of("abc");
 
    BiFunction<Integer, String, String> combine = (i, s) -> s + i;
    Kind<CompletableFutureKind.Witness, String> map2Result = futureMonad.map2(f1, f2, combine);
    System.out.println("Map2 Result: " + FUTURE.join(map2Result)); // Output: abc5
-
 }
 ```
 ~~~
 
-~~~admonish example title="Example 3: Handling Errors with _handleErrorWith_"
+~~~admonish example title="Recovering from Failures with handleErrorWith"
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
-This is where `CompletableFutureMonad` shines, providing functional error recovery.
+This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which returns a plain value, `handleErrorWith` returns a *new* `Kind` — so recovery itself can be asynchronous.
 
 ```java
  public void errorHandlingExample(){
-   // Get the MonadError instance
    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
-   RuntimeException runtimeEx = new IllegalStateException("Processing Failed");
-   IOException checkedEx = new IOException("File Not Found");
 
-   Kind<CompletableFutureKind.Witness, String> failedRuntimeKind = futureMonad.raiseError(runtimeEx);
-   Kind<CompletableFutureKind.Witness, String> failedCheckedKind = futureMonad.raiseError(checkedEx);
-   Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("Original Success");
+   Kind<CompletableFutureKind.Witness, String> failedKind =
+           futureMonad.raiseError(new IllegalStateException("Processing Failed"));
 
-   // --- Handler Function ---
-   // Function<Throwable, Kind<CompletableFutureKind.Witness, String>>
+   // Recovery handler — inspect the error and return a new async computation
    Function<Throwable, Kind<CompletableFutureKind.Witness, String>> recoveryHandler =
            error -> {
-              System.out.println("Handling error: " + error.getMessage());
-              if (error instanceof IOException) {
-                 // Recover from specific checked exceptions
-                 return futureMonad.of("Recovered from IO Error");
-              } else if (error instanceof IllegalStateException) {
-                 // Recover from specific runtime exceptions
-                 return FUTURE.widen(CompletableFuture.supplyAsync(()->{
-                    System.out.println("Async recovery..."); // Recovery can be async too!
-                    return "Recovered from State Error (async)";
-                 }));
-              } else if (error instanceof ArithmeticException) { 
-                 // Recover from ArithmeticException
-                 return futureMonad.of("Recovered from Arithmetic Error: " + error.getMessage());
+              if (error instanceof IllegalStateException) {
+                 // Recovery can itself be async
+                 return FUTURE.widen(CompletableFuture.supplyAsync(() ->
+                         "Recovered from: " + error.getMessage()));
               }
-              else {
-                 // Re-raise unhandled errors
-                 System.out.println("Unhandled error type: " + error.getClass().getSimpleName());
-                 return futureMonad.raiseError(new RuntimeException("Recovery failed", error));
-              }
+              // Re-raise anything we can't handle
+              return futureMonad.raiseError(
+                      new RuntimeException("Recovery failed", error));
            };
 
-   // --- Applying Handler ---
+   // Apply the handler — transforms the failed future into a recovered one
+   Kind<CompletableFutureKind.Witness, String> recovered =
+           futureMonad.handleErrorWith(failedKind, recoveryHandler);
+   System.out.println(FUTURE.join(recovered));
+   // Output: Recovered from: Processing Failed
 
-   // Handle RuntimeException
-   Kind<CompletableFutureKind.Witness, String> recoveredRuntime = futureMonad.handleErrorWith(
-           failedRuntimeKind,
-           recoveryHandler
-   );
-   System.out.println("Recovered (Runtime): " + FUTURE.join(recoveredRuntime));
-   // Output:
-   // Handling error: Processing Failed
-   // Async recovery...
-   // Recovered (Runtime): Recovered from State Error (async)
-
-
-   // Handle CheckedException
-   Kind<CompletableFutureKind.Witness, String> recoveredChecked = futureMonad.handleErrorWith(
-           failedCheckedKind,
-           recoveryHandler
-   );
-   System.out.println("Recovered (Checked): " + FUTURE.join(recoveredChecked));
-   // Output:
-   // Handling error: File Not Found
-   // Recovered (Checked): Recovered from IO Error
-
-
-   // Handler is ignored for success
-   Kind<CompletableFutureKind.Witness, String> handledSuccess = futureMonad.handleErrorWith(
-           successKind,
-           recoveryHandler // This handler is never called
-   );
-   System.out.println("Handled (Success): " + FUTURE.join(handledSuccess));
-   // Output: Handled (Success): Original Success
-
-
-   // Example of re-raising an unhandled error
-   ArithmeticException unhandledEx = new ArithmeticException("Bad Maths");
-   Kind<CompletableFutureKind.Witness, String> failedUnhandledKind = futureMonad.raiseError(unhandledEx);
-   Kind<CompletableFutureKind.Witness, String> failedRecovery = futureMonad.handleErrorWith(
-           failedUnhandledKind,
-           recoveryHandler
-   );
-
-   try {
-      FUTURE.join(failedRecovery);
-   } catch (CompletionException e) { // join wraps the "Recovery failed" exception
-      System.err.println("Caught re-raised error: " + e.getCause());
-      System.err.println("  Original cause: " + e.getCause().getCause());
-   }
-   // Output:
-   // Handling error: Bad Maths
+   // Success values pass through untouched — the handler is never called
+   Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("All Good");
+   Kind<CompletableFutureKind.Witness, String> handledSuccess =
+           futureMonad.handleErrorWith(successKind, recoveryHandler);
+   System.out.println(FUTURE.join(handledSuccess));
+   // Output: All Good
 }
 ```
 
+The handler receives the *cause* of the failure, unwrapped from `CompletionException` when necessary. This lets you pattern-match on specific exception types and choose recovery strategies — retry, fallback, or re-raise — all within the same compositional pipeline.
+~~~
 
-* `handleErrorWith` allows you to inspect the `Throwable` and return a *new*`CompletableFutureKind`, potentially recovering the flow.
-* The handler receives the *cause* of the failure (unwrapped from `CompletionException` if necessary).
+
+## When to Use CompletableFutureMonad
+
+| Scenario | Use |
+|----------|-----|
+| Writing generic code that works across monads | `CompletableFutureMonad` — your logic programs against `Kind<F, A>` |
+| Composing async workflows with typed error propagation | Combine with [EitherT](../transformers/eithert_transformer.md) — see the [Order Workflow](../hkts/order-walkthrough.md) |
+| Straightforward async pipelines in application code | Prefer [CompletableFuturePath](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) for fluent API |
+| Virtual-thread concurrency | Consider [VTaskPath](../monads/vtask_monad.md) instead |
+
+~~~admonish important title="Key Points"
+- `CompletableFutureMonad` implements `MonadError<CompletableFutureKind.Witness, Throwable>`, giving you `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` over async computations.
+- `handleErrorWith` is the key differentiator — recovery can itself be asynchronous, unlike `exceptionally` which forces synchronous fallback.
+- Use `CompletableFutureKindHelper.join()` to block and extract results at system boundaries (tests, `main` methods). Avoid calling it mid-pipeline.
+- For the HKT bridge: `widen()` wraps a `CompletableFuture` into `Kind`, `narrow()` unwraps it back. Both are low-cost cast operations.
+~~~
+
+---
+
+~~~admonish tip title="Effect Path Alternative"
+For most application-level use cases, prefer **CompletableFuturePath** which wraps `CompletableFuture` and provides:
+
+- Fluent composition with `map`, `via`, `recover`
+- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
+- A consistent API shared across all effect types
+
+```java
+// Instead of manual Kind chaining:
+Kind<CompletableFutureKind.Witness, User> user = FUTURE.widen(findUser(id));
+Kind<CompletableFutureKind.Witness, Order> order = futureMonad.flatMap(
+    u -> FUTURE.widen(createOrder(u)), user);
+
+// Use CompletableFuturePath for cleaner composition:
+CompletableFuturePath<Order> order = CompletableFuturePath.fromFuture(findUser(id))
+    .via(u -> CompletableFuturePath.fromFuture(createOrder(u)));
+```
+
+See [Migration Cookbook: Recipe 4](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) for a complete before/after walkthrough, and [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
+~~~
+
+~~~admonish example title="Benchmarks"
+CompletableFuture has dedicated JMH benchmarks measuring async composition overhead, error recovery, and chain depth. Key expectations:
+
+- **`of` / `raiseError`** are very fast — they wrap already-completed futures with no thread scheduling
+- **`flatMap` chains** add minimal overhead beyond the underlying `thenCompose` cost
+- **`handleErrorWith`** matches `exceptionallyCompose` performance while providing stronger composition guarantees
+
+```bash
+./gradlew :hkj-benchmarks:jmh --includes=".*CompletableFutureBenchmark.*"
+```
+See [Benchmarks & Performance](../benchmarks.md) for full details, expected ratios, and how to interpret results.
 ~~~
 
 ---

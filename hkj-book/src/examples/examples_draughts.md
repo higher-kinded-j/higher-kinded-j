@@ -236,3 +236,4 @@ hkj-examples/src/main/java/org/higherkindedj/example/draughts/
 ---
 
 **Previous:** [Order Processing Workflow](examples_order.md)
+**Next:** [Building the Game](../hkts/draughts.md)

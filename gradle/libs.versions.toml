@@ -8,6 +8,7 @@ palantir-java-format = "2.69.0"
 # Testing
 junit = "6.0.2"
 assertj = "3.27.6"
+awaitility = "4.3.0"
 jqwik = "1.9.3"
 archunit = "1.4.1"
 compile-testing = "0.21.0"
@@ -52,6 +53,7 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 jqwik-engine = { module = "net.jqwik:jqwik-engine", version.ref = "jqwik" }
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 compile-testing = { module = "com.google.testing.compile:compile-testing", version.ref = "compile-testing" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }

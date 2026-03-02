@@ -327,6 +327,16 @@ public static <A, B> Kind<MaybeKind.Witness, B> processData(
 This example highlights how `MaybeMonad` facilitates working with optional values in a functional, type-safe manner, especially when dealing with the HKT abstractions and requiring non-null guarantees for present values.
 ~~~
 
+## When to Use Maybe
+
+| Scenario | Use |
+|----------|-----|
+| Green-field code representing optional values | `Maybe` — strict non-null guarantee in `Just` |
+| JDK interop (APIs returning `java.util.Optional`) | Prefer [Optional](./optional_monad.md) to avoid conversion overhead |
+| Optional values with typed error context | Convert with `maybeUser.toEither("not found")` → use [Either](./either_monad.md) |
+| Generic monadic code that works across any `Kind<F, A>` | `MaybeMonad` — implements `MonadError<MaybeKind.Witness, Unit>` |
+| Application-level pipelines with fluent API | Prefer [MaybePath](../effect/path_maybe.md) |
+
 ---
 
 ~~~admonish tip title="Effect Path Alternative"
