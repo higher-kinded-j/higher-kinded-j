@@ -838,6 +838,67 @@ class VStreamTest {
           VStream.<Integer>fail(new RuntimeException("fail")).map(n -> n * 2).map(String::valueOf);
       assertThatVStream(stream).failsWithExceptionType(RuntimeException.class);
     }
+
+    @Test
+    @DisplayName("recover() handles Skip steps by propagating recovery through tail")
+    void recoverHandlesSkipSteps() {
+      // filter() produces Skip steps; recover should handle them
+      VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5).filter(n -> n % 2 == 0).recover(e -> -1);
+
+      List<Integer> result = stream.toList().run();
+
+      assertThat(result).containsExactly(2, 4);
+    }
+
+    @Test
+    @DisplayName("recover() on mapTask failure continues with remaining elements")
+    void recoverOnMapTaskFailureContinuesWithRemaining() {
+      // mapTask attaches a StreamTailMarker as suppressed exception
+      VStream<String> stream =
+          VStream.of(1, 2, 3)
+              .mapTask(
+                  n -> {
+                    if (n == 2) {
+                      return VTask.fail(new RuntimeException("fail on 2"));
+                    }
+                    return VTask.succeed("val-" + n);
+                  })
+              .recover(e -> "recovered");
+
+      List<String> result = stream.toList().run();
+
+      // Element 1 succeeds, element 2 fails and is recovered, element 3 continues
+      assertThat(result).containsExactly("val-1", "recovered", "val-3");
+    }
+
+    @Test
+    @DisplayName("recover() handles error without StreamTailMarker suppressed exception")
+    void recoverHandlesErrorWithoutStreamTailMarker() {
+      // VStream.fail does not attach a StreamTailMarker, so the false branch
+      // of the instanceof check is exercised
+      VStream<String> stream =
+          VStream.<String>fail(new RuntimeException("no marker")).recover(e -> "recovered");
+
+      List<String> result = stream.toList().run();
+
+      // Should recover and produce the recovery value, then the stream ends (empty tail)
+      assertThat(result).containsExactly("recovered");
+    }
+
+    @Test
+    @DisplayName("recover() handles error with non-StreamTailMarker suppressed exception")
+    void recoverHandlesErrorWithNonStreamTailMarkerSuppressed() {
+      // Create an error with a suppressed exception that is NOT a StreamTailMarker
+      RuntimeException error = new RuntimeException("main error");
+      error.addSuppressed(new RuntimeException("other suppressed"));
+
+      VStream<String> stream = VStream.<String>fail(error).recover(e -> "recovered");
+
+      List<String> result = stream.toList().run();
+
+      // Should recover but have empty tail since no StreamTailMarker was found
+      assertThat(result).containsExactly("recovered");
+    }
   }
 
   // ===== Laziness Verification =====

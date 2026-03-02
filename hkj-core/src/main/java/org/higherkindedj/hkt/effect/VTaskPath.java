@@ -12,7 +12,13 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Effectful;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -236,6 +242,112 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
       AffinePath<A, B> path, Supplier<? extends RuntimeException> exceptionIfAbsent);
 
   // ===== Conversion Methods =====
+
+  // ===== Retry Operations =====
+
+  /**
+   * Returns a VTaskPath that retries this computation according to the given policy.
+   *
+   * @param policy the retry policy; must not be null
+   * @return a new VTaskPath with retry behaviour
+   */
+  VTaskPath<A> withRetry(RetryPolicy policy);
+
+  /**
+   * Returns a VTaskPath that retries with exponential backoff and jitter.
+   *
+   * @param maxAttempts the maximum number of attempts
+   * @param initialDelay the initial delay between retries
+   * @return a new VTaskPath with retry behaviour
+   */
+  VTaskPath<A> retry(int maxAttempts, Duration initialDelay);
+
+  // ===== Resilience Operations =====
+
+  /**
+   * Returns a VTaskPath protected by the given circuit breaker.
+   *
+   * @param circuitBreaker the circuit breaker; must not be null
+   * @return a new VTaskPath with circuit breaker protection
+   */
+  VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker);
+
+  /**
+   * Returns a VTaskPath protected by the given bulkhead.
+   *
+   * @param bulkhead the bulkhead; must not be null
+   * @return a new VTaskPath with bulkhead protection
+   */
+  VTaskPath<A> withBulkhead(Bulkhead bulkhead);
+
+  // ===== Effect Wrapping Methods =====
+
+  /**
+   * Wraps the result in an Either, catching exceptions.
+   *
+   * <p>Success produces {@code Either.right(value)}; failure produces {@code Either.left(mapped)}.
+   *
+   * @param exceptionMapper function to map exceptions to the left type
+   * @param <E> the left (error) type
+   * @return a new VTaskPath that always succeeds with an Either
+   */
+  <E> VTaskPath<Either<E, A>> catching(Function<? super Throwable, ? extends E> exceptionMapper);
+
+  /**
+   * Converts exceptions to Nothing, success to Just.
+   *
+   * @return a new VTaskPath that always succeeds with a Maybe
+   */
+  VTaskPath<Maybe<A>> asMaybe();
+
+  /**
+   * Wraps the result in a Try.
+   *
+   * @return a new VTaskPath that always succeeds with a Try
+   */
+  VTaskPath<Try<A>> asTry();
+
+  // ===== Error Transformation =====
+
+  /**
+   * Transforms the exception without affecting success values.
+   *
+   * @param f the exception mapping function; must not be null
+   * @return a new VTaskPath with mapped errors
+   */
+  VTaskPath<A> mapError(Function<? super Throwable, ? extends Throwable> f);
+
+  // ===== Resource Safety =====
+
+  /**
+   * Ensures a finalizer runs whether this task succeeds or fails.
+   *
+   * @param finalizer the finalizer to run; must not be null
+   * @return a new VTaskPath with guaranteed finalization
+   */
+  VTaskPath<A> guarantee(Runnable finalizer);
+
+  // ===== Parallel Combinators =====
+
+  /**
+   * Combines this path with another in parallel on virtual threads.
+   *
+   * @param other the other VTaskPath; must not be null
+   * @param combiner function to combine results; must not be null
+   * @param <B> the other result type
+   * @param <C> the combined result type
+   * @return a new VTaskPath combining both results
+   */
+  <B, C> VTaskPath<C> parZipWith(
+      VTaskPath<B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
+
+  /**
+   * Races this path against another, returning the first to complete.
+   *
+   * @param other the other VTaskPath; must not be null
+   * @return a new VTaskPath that returns the first result
+   */
+  VTaskPath<A> race(VTaskPath<A> other);
 
   /**
    * Converts this VTaskPath to a TryPath by executing it safely.

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -470,6 +471,74 @@ public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStre
    * @return a NonDetPath containing the materialised elements
    */
   NonDetPath<A> toNonDetPath();
+
+  // ===== Error handling =====
+
+  /**
+   * Recovers from stream errors by providing a fallback value.
+   *
+   * <p>If pulling an element fails, the recovery function produces a replacement.
+   *
+   * @param recovery the recovery function; must not be null
+   * @return a new VStreamPath with error recovery
+   */
+  VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery);
+
+  /**
+   * Recovers from stream errors by switching to a fallback stream.
+   *
+   * @param recovery a function producing a fallback VStreamPath; must not be null
+   * @return a new VStreamPath with error recovery
+   */
+  VStreamPath<A> recoverWith(Function<? super Throwable, ? extends VStreamPath<A>> recovery);
+
+  /**
+   * Transforms errors without affecting successfully produced elements.
+   *
+   * @param f the error mapping function; must not be null
+   * @return a new VStreamPath with mapped errors
+   */
+  VStreamPath<A> mapError(Function<? super Throwable, ? extends Throwable> f);
+
+  /**
+   * Performs a side effect when an error occurs, then re-raises the error.
+   *
+   * @param action the side-effect action; must not be null
+   * @return a new VStreamPath with error observation
+   */
+  VStreamPath<A> onError(Consumer<? super Throwable> action);
+
+  // ===== Effectful mapping =====
+
+  /**
+   * Applies an effectful function to each element sequentially.
+   *
+   * <p>Unlike {@link #parEvalMap(int, Function)}, this processes elements one at a time.
+   *
+   * @param f the effectful function; must not be null
+   * @param <B> the result element type
+   * @return a new VStreamPath with the mapped elements
+   */
+  <B> VStreamPath<B> mapTask(Function<? super A, ? extends VTask<B>> f);
+
+  // ===== Rate limiting =====
+
+  /**
+   * Limits throughput to at most {@code maxElements} per time window.
+   *
+   * @param maxElements the maximum number of elements per window; must be at least 1
+   * @param window the time window duration; must not be null
+   * @return a rate-limited VStreamPath
+   */
+  VStreamPath<A> throttle(int maxElements, Duration window);
+
+  /**
+   * Adds a fixed delay between element emissions.
+   *
+   * @param interval the delay between elements; must not be null
+   * @return a metered VStreamPath
+   */
+  VStreamPath<A> metered(Duration interval);
 
   // ===== Resource management =====
 

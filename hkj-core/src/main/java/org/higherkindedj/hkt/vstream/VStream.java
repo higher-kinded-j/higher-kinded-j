@@ -472,9 +472,16 @@ public interface VStream<A> extends VStreamKind<A> {
             .flatMap(
                 step ->
                     switch (step) {
-                      case Step.Emit<A> e ->
-                          f.apply(e.value())
-                              .map(b -> (Step<B>) new Step.Emit<>(b, e.tail().mapTask(f)));
+                      case Step.Emit<A> e -> {
+                        VStream<B> tail = e.tail().mapTask(f);
+                        yield f.apply(e.value())
+                            .map(b -> (Step<B>) new Step.Emit<>(b, tail))
+                            .recoverWith(
+                                error -> {
+                                  error.addSuppressed(new StreamTailMarker(tail));
+                                  return VTask.fail(error);
+                                });
+                      }
                       case Step.Skip<A> s ->
                           VTask.succeed((Step<B>) new Step.Skip<>(s.tail().mapTask(f)));
                       case Step.Done<A> _ -> VTask.succeed(new Step.Done<>());
@@ -1157,7 +1164,28 @@ public interface VStream<A> extends VStreamKind<A> {
     Objects.requireNonNull(recoveryFunction, "recoveryFunction must not be null");
     return () ->
         this.pull()
-            .recover(error -> new Step.Emit<>(recoveryFunction.apply(error), VStream.<A>empty()));
+            .map(
+                step ->
+                    switch (step) {
+                      case Step.Emit<A> e ->
+                          (Step<A>) new Step.Emit<>(e.value(), e.tail().recover(recoveryFunction));
+                      case Step.Skip<A> s ->
+                          (Step<A>) new Step.Skip<>(s.tail().recover(recoveryFunction));
+                      case Step.Done<A> d -> d;
+                    })
+            .recover(
+                error -> {
+                  VStream<A> tail = VStream.<A>empty();
+                  for (Throwable suppressed : error.getSuppressed()) {
+                    if (suppressed instanceof StreamTailMarker marker) {
+                      @SuppressWarnings("unchecked")
+                      VStream<A> remaining = (VStream<A>) marker.remainingTail();
+                      tail = remaining.recover(recoveryFunction);
+                      break;
+                    }
+                  }
+                  return new Step.Emit<>(recoveryFunction.apply(error), tail);
+                });
   }
 
   /**

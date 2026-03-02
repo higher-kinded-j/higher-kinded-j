@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -12,8 +13,15 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -213,6 +221,109 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
                             () -> {
                               throw exceptionIfAbsent.get();
                             })));
+  }
+
+  // ===== Retry Operations =====
+
+  @Override
+  public VTaskPath<A> withRetry(RetryPolicy policy) {
+    Objects.requireNonNull(policy, "policy must not be null");
+    return new DefaultVTaskPath<>(Retry.retryTask(value, policy));
+  }
+
+  @Override
+  public VTaskPath<A> retry(int maxAttempts, Duration initialDelay) {
+    return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
+  }
+
+  // ===== Resilience Operations =====
+
+  @Override
+  public VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    return new DefaultVTaskPath<>(circuitBreaker.protect(value));
+  }
+
+  @Override
+  public VTaskPath<A> withBulkhead(Bulkhead bulkhead) {
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    return new DefaultVTaskPath<>(bulkhead.protect(value));
+  }
+
+  // ===== Effect Wrapping Methods =====
+
+  @Override
+  public <E> VTaskPath<Either<E, A>> catching(
+      Function<? super Throwable, ? extends E> exceptionMapper) {
+    Objects.requireNonNull(exceptionMapper, "exceptionMapper must not be null");
+    return new DefaultVTaskPath<>(
+        VTask.delay(
+            () -> {
+              try {
+                return Either.right(this.unsafeRun());
+              } catch (Throwable t) {
+                return Either.left(exceptionMapper.apply(t));
+              }
+            }));
+  }
+
+  @Override
+  public VTaskPath<Maybe<A>> asMaybe() {
+    return new DefaultVTaskPath<>(
+        VTask.delay(
+            () -> {
+              try {
+                return Maybe.just(this.unsafeRun());
+              } catch (Throwable t) {
+                return Maybe.nothing();
+              }
+            }));
+  }
+
+  @Override
+  public VTaskPath<Try<A>> asTry() {
+    return new DefaultVTaskPath<>(VTask.delay(() -> this.runSafe()));
+  }
+
+  // ===== Error Transformation =====
+
+  @Override
+  public VTaskPath<A> mapError(Function<? super Throwable, ? extends Throwable> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    return new DefaultVTaskPath<>(value.mapError(f));
+  }
+
+  // ===== Resource Safety =====
+
+  @Override
+  public VTaskPath<A> guarantee(Runnable finalizer) {
+    Objects.requireNonNull(finalizer, "finalizer must not be null");
+    return new DefaultVTaskPath<>(
+        VTask.delay(
+            () -> {
+              try {
+                return this.unsafeRun();
+              } finally {
+                finalizer.run();
+              }
+            }));
+  }
+
+  // ===== Parallel Combinators =====
+
+  @Override
+  public <B, C> VTaskPath<C> parZipWith(
+      VTaskPath<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+    Objects.requireNonNull(other, "other must not be null");
+    Objects.requireNonNull(combiner, "combiner must not be null");
+    // VTaskPath.zipWith already uses Par.map2 for parallel execution.
+    return zipWith(other, combiner);
+  }
+
+  @Override
+  public VTaskPath<A> race(VTaskPath<A> other) {
+    Objects.requireNonNull(other, "other must not be null");
+    return new DefaultVTaskPath<>(Par.race(List.of(this.run(), other.run())));
   }
 
   // ===== Conversion Methods =====

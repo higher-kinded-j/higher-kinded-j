@@ -361,6 +361,54 @@ class RetryPolicyTest {
       assertThat(policy.shouldRetry(new RuntimeException("transient error"))).isTrue();
       assertThat(policy.shouldRetry(new RuntimeException("permanent error"))).isFalse();
     }
+
+    @Test
+    @DisplayName("builder onRetry() sets retry listener")
+    void builderOnRetrySetsListener() {
+      java.util.List<RetryEvent> events = new java.util.ArrayList<>();
+
+      RetryPolicy policy =
+          RetryPolicy.builder()
+              .maxAttempts(3)
+              .initialDelay(Duration.ofMillis(1))
+              .onRetry(events::add)
+              .build();
+
+      assertThat(policy.retryListener()).isNotNull();
+
+      // Use it with Retry.execute to verify the listener is invoked
+      java.util.concurrent.atomic.AtomicInteger counter =
+          new java.util.concurrent.atomic.AtomicInteger(0);
+      Retry.execute(
+          policy,
+          () -> {
+            if (counter.incrementAndGet() < 3) {
+              throw new RuntimeException("transient");
+            }
+            return "ok";
+          });
+
+      assertThat(events).hasSize(2);
+      assertThat(events.get(0).attemptNumber()).isEqualTo(1);
+      assertThat(events.get(1).attemptNumber()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("builder linearBackoff() uses linear backoff strategy")
+    void builderLinearBackoffUsesLinearStrategy() {
+      RetryPolicy policy =
+          RetryPolicy.builder()
+              .maxAttempts(5)
+              .initialDelay(Duration.ofMillis(10))
+              .linearBackoff()
+              .build();
+
+      // Linear backoff: delay = initialDelay * attempt
+      // Attempt 1: 10ms, Attempt 2: 20ms, Attempt 3: 30ms
+      assertThat(policy.delayForAttempt(1)).isEqualTo(Duration.ofMillis(10));
+      assertThat(policy.delayForAttempt(2)).isEqualTo(Duration.ofMillis(20));
+      assertThat(policy.delayForAttempt(3)).isEqualTo(Duration.ofMillis(30));
+    }
   }
 
   @Nested
