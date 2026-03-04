@@ -10,6 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.vtask.VTask;
 
@@ -32,8 +33,7 @@ class SagaPropertyTest {
    */
   @Property
   @Label("Compensation always runs for every completed step on failure")
-  void compensationAlwaysRunsOnFailure(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 8) int completedSteps) {
+  void compensationAlwaysRunsOnFailure(@ForAll @IntRange(min = 1, max = 8) int completedSteps) {
 
     AtomicInteger compensationCount = new AtomicInteger(0);
 
@@ -75,8 +75,7 @@ class SagaPropertyTest {
    */
   @Property
   @Label("Compensation order is reverse of execution order")
-  void compensationOrderIsReverse(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 2, max = 8) int completedSteps) {
+  void compensationOrderIsReverse(@ForAll @IntRange(min = 2, max = 8) int completedSteps) {
 
     CopyOnWriteArrayList<Integer> compensationOrder = new CopyOnWriteArrayList<>();
 
@@ -126,8 +125,7 @@ class SagaPropertyTest {
    */
   @Property
   @Label("Only steps completed before failure are compensated")
-  void onlyCompletedStepsAreCompensated(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 2, max = 8) int totalSteps) {
+  void onlyCompletedStepsAreCompensated(@ForAll @IntRange(min = 2, max = 8) int totalSteps) {
 
     // Fail at a random position (second step or later)
     int failAt = Arbitraries.integers().between(2, totalSteps).sample();
@@ -190,8 +188,8 @@ class SagaPropertyTest {
   @Property
   @Label("Successful saga produces right value in runSafe()")
   void successfulSagaProducesRightValue(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 8) int stepCount,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = -100, max = 100) int baseValue) {
+      @ForAll @IntRange(min = 1, max = 8) int stepCount,
+      @ForAll @IntRange(min = -100, max = 100) int baseValue) {
 
     // Build a saga that passes values through successive steps
     Saga<Integer> saga = Saga.of(VTask.succeed(baseValue), (Consumer<Integer>) v -> {});

@@ -137,6 +137,23 @@ An interactive command-line game demonstrating:
 
 **[Draughts Game Deep Dive →](examples_draughts.md)**
 
+### Market Data Pipeline
+
+A virtual threads capstone demonstrating a complete concurrent data pipeline:
+
+- **VStream.unfold** for stateful stream generation
+- **VStreamPar.merge** for concurrent multi-exchange feed merging
+- **Par.map2** and **VStreamPar.parEvalMap** for bounded parallel enrichment
+- **VStream.chunk** and **flatMap** for windowed aggregation and anomaly detection
+- **Scope.allSucceed** for multi-channel alert dispatch
+- **CircuitBreaker** and **VStream.recoverWith** for resilient feed failover
+
+~~~admonish example title="See the Code"
+[org.higherkindedj.example.market](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/market)
+~~~
+
+**[Market Data Pipeline Deep Dive →](examples_market_data.md)**
+
 ---
 
 ## Complete Examples Reference
@@ -149,6 +166,7 @@ For a comprehensive listing of all examples with run commands, see the [Examples
 
 1. [Order Processing Workflow](examples_order.md) – Building production-ready business workflows
 2. [Draughts Game](examples_draughts.md) – Pure functional game development
+3. [Market Data Pipeline](examples_market_data.md) – Virtual threads capstone with concurrent streaming
 
 ---
 

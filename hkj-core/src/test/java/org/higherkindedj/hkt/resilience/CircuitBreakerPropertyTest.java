@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
 import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -48,8 +49,8 @@ class CircuitBreakerPropertyTest {
   @Label("Status is always one of CLOSED, OPEN, or HALF_OPEN")
   void statusIsAlwaysValid(
       @ForAll("configs") CircuitBreakerConfig config,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 20) int successCount,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 20) int failureCount) {
+      @ForAll @IntRange(min = 0, max = 20) int successCount,
+      @ForAll @IntRange(min = 0, max = 20) int failureCount) {
 
     CircuitBreaker breaker = CircuitBreaker.create(config);
 
@@ -89,8 +90,8 @@ class CircuitBreakerPropertyTest {
   @Label("Metrics consistency: totalCalls >= successfulCalls + failedCalls + rejectedCalls")
   void metricsAreConsistent(
       @ForAll("configs") CircuitBreakerConfig config,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 15) int successCount,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 15) int failureCount) {
+      @ForAll @IntRange(min = 0, max = 15) int successCount,
+      @ForAll @IntRange(min = 0, max = 15) int failureCount) {
 
     CircuitBreaker breaker = CircuitBreaker.create(config);
 
@@ -129,7 +130,7 @@ class CircuitBreakerPropertyTest {
   @Label("After reset(), status is always CLOSED")
   void resetAlwaysYieldsClosed(
       @ForAll("configs") CircuitBreakerConfig config,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 30) int failureCount) {
+      @ForAll @IntRange(min = 0, max = 30) int failureCount) {
 
     CircuitBreaker breaker = CircuitBreaker.create(config);
 
@@ -158,7 +159,7 @@ class CircuitBreakerPropertyTest {
   @Label("After tripOpen(), status is always OPEN")
   void tripOpenAlwaysYieldsOpen(
       @ForAll("configs") CircuitBreakerConfig config,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 15) int successCount) {
+      @ForAll @IntRange(min = 0, max = 15) int successCount) {
 
     CircuitBreaker breaker = CircuitBreaker.create(config);
 
@@ -187,7 +188,7 @@ class CircuitBreakerPropertyTest {
   @Property
   @Label("N failures below threshold keeps circuit CLOSED")
   void failuresBelowThresholdKeepCircuitClosed(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 2, max = 10) int failureThreshold) {
+      @ForAll @IntRange(min = 2, max = 10) int failureThreshold) {
 
     CircuitBreakerConfig config =
         CircuitBreakerConfig.builder()

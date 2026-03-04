@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.*;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
@@ -1322,8 +1323,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VStream<A> onFinalize(VTask<Unit> finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
-    java.util.concurrent.atomic.AtomicBoolean released =
-        new java.util.concurrent.atomic.AtomicBoolean(false);
+    AtomicBoolean released = new AtomicBoolean(false);
     return wrapWithFinalizer(this, finalizer, released);
   }
 
@@ -1332,9 +1332,7 @@ public interface VStream<A> extends VStreamKind<A> {
    * stream chain to ensure the finaliser runs exactly once.
    */
   private static <A> VStream<A> wrapWithFinalizer(
-      VStream<A> source,
-      VTask<Unit> finalizer,
-      java.util.concurrent.atomic.AtomicBoolean released) {
+      VStream<A> source, VTask<Unit> finalizer, AtomicBoolean released) {
     return new VStream<>() {
       @Override
       public VTask<Step<A>> pull() {

@@ -21,6 +21,7 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.assertj.core)
+    testImplementation(libs.awaitility)
 }
 
 tasks.named("javadoc") {

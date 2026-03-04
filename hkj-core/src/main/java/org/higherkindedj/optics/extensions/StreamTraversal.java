@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.extensions;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -15,6 +16,7 @@ import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.IndexedTraversals;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A traversal-like optic that preserves laziness when streaming focused elements.
@@ -193,7 +195,7 @@ public interface StreamTraversal<S, A> {
         Kind<G, List<A>> sequenced = IndexedTraversals.sequenceList(effects, applicative);
         return applicative.map(
             list -> {
-              java.util.Iterator<A> iter = list.iterator();
+              Iterator<A> iter = list.iterator();
               return self.modify(_ -> iter.next(), source);
             },
             sequenced);
@@ -218,18 +220,18 @@ public interface StreamTraversal<S, A> {
     return new StreamTraversal<>() {
       @Override
       public VStream<A> stream(S source) {
-        List<A> elements = org.higherkindedj.optics.util.Traversals.getAll(traversal, source);
+        List<A> elements = Traversals.getAll(traversal, source);
         return VStream.fromList(elements);
       }
 
       @Override
       public S modify(Function<A, A> f, S source) {
-        return org.higherkindedj.optics.util.Traversals.modify(traversal, f, source);
+        return Traversals.modify(traversal, f, source);
       }
 
       @Override
       public VTask<S> modifyVTask(Function<A, VTask<A>> f, S source) {
-        List<A> elements = org.higherkindedj.optics.util.Traversals.getAll(traversal, source);
+        List<A> elements = Traversals.getAll(traversal, source);
         List<VTask<A>> tasks = new ArrayList<>(elements.size());
         for (A a : elements) {
           tasks.add(f.apply(a));
@@ -241,9 +243,8 @@ public interface StreamTraversal<S, A> {
                 results.add(task.run());
               }
               // Reconstruct the structure with modified elements
-              java.util.Iterator<A> iter = results.iterator();
-              return org.higherkindedj.optics.util.Traversals.modify(
-                  traversal, _ -> iter.next(), source);
+              Iterator<A> iter = results.iterator();
+              return Traversals.modify(traversal, _ -> iter.next(), source);
             });
       }
     };

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -227,7 +228,7 @@ class CircuitBreakerTest {
               .successThreshold(1)
               .openDuration(SHORT_OPEN_DURATION)
               .callTimeout(GENEROUS_TIMEOUT)
-              .recordFailure(ex -> ex instanceof java.io.IOException)
+              .recordFailure(ex -> ex instanceof IOException)
               .build();
       CircuitBreaker breaker = CircuitBreaker.create(config);
 
@@ -245,7 +246,7 @@ class CircuitBreakerTest {
 
       // IOExceptions SHOULD count as failures
       for (int i = 0; i < 2; i++) {
-        VTask<String> task = breaker.protect(VTask.fail(new java.io.IOException("real failure")));
+        VTask<String> task = breaker.protect(VTask.fail(new IOException("real failure")));
         try {
           task.run();
         } catch (Exception ignored) {

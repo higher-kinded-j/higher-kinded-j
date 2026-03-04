@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -1204,11 +1205,11 @@ class VStreamReactiveTest {
       VStream<String> stream = VStreamReactive.fromPublisher(publisher, 16);
 
       Thread.startVirtualThread(
-          () -> publisher.closeExceptionally(new java.io.IOException("checked error")));
+          () -> publisher.closeExceptionally(new IOException("checked error")));
 
       assertThatThrownBy(() -> stream.toList().run())
           .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(java.io.IOException.class);
+          .hasCauseInstanceOf(IOException.class);
     }
   }
 

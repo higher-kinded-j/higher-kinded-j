@@ -5,9 +5,14 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.test.assertions.VStreamPathAssert.assertThatVStreamPath;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Flow;
+import java.util.concurrent.SubmissionPublisher;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Monoid;
@@ -1155,15 +1160,15 @@ class VStreamPathTest {
     void toPublisherConverts() throws Exception {
       VStreamPath<String> path = Path.vstreamOf("a", "b", "c");
 
-      java.util.concurrent.Flow.Publisher<String> publisher = path.toPublisher();
+      Flow.Publisher<String> publisher = path.toPublisher();
 
-      java.util.List<String> received = new java.util.ArrayList<>();
-      java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+      List<String> received = new ArrayList<>();
+      CountDownLatch latch = new CountDownLatch(1);
 
       publisher.subscribe(
-          new java.util.concurrent.Flow.Subscriber<>() {
+          new Flow.Subscriber<>() {
             @Override
-            public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) {
+            public void onSubscribe(Flow.Subscription subscription) {
               subscription.request(Long.MAX_VALUE);
             }
 
@@ -1183,7 +1188,7 @@ class VStreamPathTest {
             }
           });
 
-      assertThat(latch.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
       assertThat(received).containsExactly("a", "b", "c");
     }
   }
@@ -1212,8 +1217,7 @@ class VStreamPathTest {
     @Test
     @DisplayName("vstreamFromPublisher(publisher, bufferSize) creates VStreamPath")
     void vstreamFromPublisherWithBufferSize() {
-      java.util.concurrent.SubmissionPublisher<String> publisher =
-          new java.util.concurrent.SubmissionPublisher<>();
+      SubmissionPublisher<String> publisher = new SubmissionPublisher<>();
 
       VStreamPath<String> path = Path.vstreamFromPublisher(publisher, 16);
 
@@ -1232,8 +1236,7 @@ class VStreamPathTest {
     @Test
     @DisplayName("vstreamFromPublisher(publisher) uses default buffer size")
     void vstreamFromPublisherDefaultBuffer() {
-      java.util.concurrent.SubmissionPublisher<Integer> publisher =
-          new java.util.concurrent.SubmissionPublisher<>();
+      SubmissionPublisher<Integer> publisher = new SubmissionPublisher<>();
 
       VStreamPath<Integer> path = Path.vstreamFromPublisher(publisher);
 

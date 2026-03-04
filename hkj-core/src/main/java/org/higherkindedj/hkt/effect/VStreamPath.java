@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Flow;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -571,7 +572,7 @@ public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStre
    *
    * @return a Flow.Publisher that publishes this stream's elements; never null
    */
-  java.util.concurrent.Flow.Publisher<A> toPublisher();
+  Flow.Publisher<A> toPublisher();
 
   // ===== Static factory methods =====
 
