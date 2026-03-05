@@ -44,7 +44,7 @@ tasks.test {
 }
 
 jmh {
-  (project.findProperty("includes") as String?)?.let {
+  (project.findProperty("includes") as? String)?.let {
     includes.set(listOf(it))
   }
 
