@@ -29,7 +29,7 @@ import org.openjdk.jmh.annotations.Threads;
  *   <li>Thread-local state isolation should be maintained
  * </ul>
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*ConcurrencyScalingBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*ConcurrencyScalingBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

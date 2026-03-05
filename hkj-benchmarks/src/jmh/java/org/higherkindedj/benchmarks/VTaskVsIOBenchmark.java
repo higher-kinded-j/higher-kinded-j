@@ -29,7 +29,7 @@ import org.openjdk.jmh.annotations.State;
  * <p>This helps quantify the overhead of virtual thread execution compared to direct platform
  * thread execution.
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VTaskVsIOBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VTaskVsIOBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

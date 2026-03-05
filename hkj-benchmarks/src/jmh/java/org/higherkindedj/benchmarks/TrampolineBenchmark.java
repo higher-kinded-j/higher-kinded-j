@@ -33,7 +33,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>Run with: {@code ./gradlew jmh} or {@code ./gradlew :hkj-benchmarks:jmh}
  *
- * <p>Run specific benchmark: {@code ./gradlew jmh --includes=".*TrampolineBenchmark.*"}
+ * <p>Run specific benchmark: {@code ./gradlew jmh -Pincludes=".*TrampolineBenchmark.*"}
  *
  * <p>Run with different depths: {@code ./gradlew jmh
  * -Pjmh.benchmarkParameters.recursionDepth=10000}

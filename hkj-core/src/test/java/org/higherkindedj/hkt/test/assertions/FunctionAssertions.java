@@ -134,22 +134,6 @@ public final class FunctionAssertions {
         () -> Validation.function().requireMonoid(null, monoidName, operation.toString()));
   }
 
-  /**
-   * Asserts generic function validation using production Validation.functionValidator().
-   *
-   * @param executable The code that should throw
-   * @param functionName The name of the function parameter
-   * @param operation The operation name
-   * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behaviour
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Operation operation) {
-    return assertWithProductionValidator(
-        executable,
-        () -> Validation.function().requireFunction(null, functionName, operation.toString()));
-  }
-
   // =============================================================================
   // Class-Based Context Validation
   // =============================================================================

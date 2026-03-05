@@ -30,7 +30,7 @@ import org.openjdk.jmh.annotations.State;
  *   <li>Comparison with direct Par combinators
  * </ul>
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*ScopeBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*ScopeBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

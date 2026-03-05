@@ -32,7 +32,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>IOPath wraps IO with a fluent API. This benchmark suite validates that the wrapper overhead is
  * acceptable (expected: 5-15% overhead).
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*IOPathBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*IOPathBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

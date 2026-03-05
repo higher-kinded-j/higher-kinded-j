@@ -40,7 +40,7 @@ import org.openjdk.jmh.annotations.State;
  *   <li>Both should have similar composition overhead
  * </ul>
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VTaskPathVsIOPathBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VTaskPathVsIOPathBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

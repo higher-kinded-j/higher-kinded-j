@@ -32,7 +32,7 @@ import org.openjdk.jmh.annotations.State;
  * suite validates that the abstraction overhead is acceptable while providing compositional
  * benefits.
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*ForPathVTaskBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*ForPathVTaskBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

@@ -28,7 +28,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>Run with: {@code ./gradlew jmh} or {@code ./gradlew :hkj-benchmarks:jmh}
  *
- * <p>Run specific benchmark: {@code ./gradlew jmh --includes=".*EitherBenchmark.*"}
+ * <p>Run specific benchmark: {@code ./gradlew jmh -Pincludes=".*EitherBenchmark.*"}
  *
  * <p>Run with GC profiling: {@code ./gradlew jmh -Pjmh.profilers=gc}
  */

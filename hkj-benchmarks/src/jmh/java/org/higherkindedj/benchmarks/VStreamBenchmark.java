@@ -34,7 +34,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Note: VStream is lazy and pull-based, executing on virtual threads. Most combinators build up
  * a description; only terminal operations (toList, foldLeft, etc.) materialise the stream.
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VStreamBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VStreamBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
