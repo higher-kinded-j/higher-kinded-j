@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Flow;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -334,7 +335,7 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   // ===== Reactive interop =====
 
   @Override
-  public java.util.concurrent.Flow.Publisher<A> toPublisher() {
+  public Flow.Publisher<A> toPublisher() {
     return VStreamReactive.toPublisher(stream);
   }
 

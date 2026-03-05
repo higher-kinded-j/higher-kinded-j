@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.vstream;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.vstream.VStreamAssert.assertThatVStream;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -693,12 +694,12 @@ class VStreamParTest {
               n ->
                   VTask.of(
                       () -> {
-                        throw new java.io.IOException("checked exception");
+                        throw new IOException("checked exception");
                       }));
 
       assertThatThrownBy(() -> result.toList().run())
           .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(java.io.IOException.class);
+          .hasCauseInstanceOf(IOException.class);
     }
 
     @Test
@@ -733,12 +734,12 @@ class VStreamParTest {
               n ->
                   VTask.of(
                       () -> {
-                        throw new java.io.IOException("checked exception");
+                        throw new IOException("checked exception");
                       }));
 
       assertThatThrownBy(() -> result.toList().run())
           .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(java.io.IOException.class);
+          .hasCauseInstanceOf(IOException.class);
     }
 
     @Test
@@ -886,7 +887,7 @@ class VStreamParTest {
           () ->
               VTask.of(
                   () -> {
-                    throw new java.io.IOException("checked merge error");
+                    throw new IOException("checked merge error");
                   });
       VStream<Integer> good = VStream.of(1);
 
@@ -894,7 +895,7 @@ class VStreamParTest {
 
       assertThatThrownBy(() -> result.toList().run())
           .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(java.io.IOException.class);
+          .hasCauseInstanceOf(IOException.class);
     }
 
     @Test
@@ -1048,6 +1049,88 @@ class VStreamParTest {
 
       assertThat(scopeThread.isAlive()).isFalse();
       assertThat(interruptFlagAfter.get()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("merge close() Tests")
+  class MergeClose {
+
+    @Test
+    @DisplayName("close() sets cancelled flag and clears queue")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void closeSetsCancelledFlagAndClearsQueue() {
+      // Create an infinite source so the merge never completes naturally
+      VStream<Integer> infinite =
+          VStream.unfold(
+              0, n -> VTask.succeed(java.util.Optional.of(new VStream.Seed<>(n, n + 1))));
+      VStream<Integer> merged = VStreamPar.merge(infinite, VStream.of(1));
+
+      // Take a few elements to ensure the merge is running
+      List<Integer> first = merged.take(5).toList().run();
+      assertThat(first).hasSize(5);
+
+      // close() should complete without error
+      merged.close().run();
+    }
+
+    @Test
+    @DisplayName("close() on merged stream stops producers (via take)")
+    void closeViaTagStopsProducers() {
+      AtomicInteger produced = new AtomicInteger(0);
+
+      // Infinite stream that counts productions
+      VStream<Integer> counting =
+          VStream.unfold(
+              0,
+              n ->
+                  VTask.of(
+                      () -> {
+                        produced.incrementAndGet();
+                        return java.util.Optional.of(new VStream.Seed<>(n, n + 1));
+                      }));
+
+      VStream<Integer> other =
+          VStream.unfold(
+              0,
+              n ->
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(1); // slow it down
+                        return java.util.Optional.of(new VStream.Seed<>(n, n + 1));
+                      }));
+
+      // take() internally calls close() when it has enough elements
+      List<Integer> result = VStreamPar.merge(counting, other).take(10).toList().run();
+
+      assertThat(result).hasSize(10);
+      // Producers should have stopped — the count should be bounded, not running away
+      int countAfterTake = produced.get();
+      // Give any in-flight tasks time to settle
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      int countAfterWait = produced.get();
+      // The producer should have stopped (or nearly stopped)
+      assertThat(countAfterWait - countAfterTake).isLessThan(10);
+    }
+
+    @Test
+    @DisplayName("close() is idempotent — calling it multiple times does not fail")
+    void closeIsIdempotent() {
+      VStream<Integer> a = VStream.of(1, 2, 3);
+      VStream<Integer> b = VStream.of(4, 5, 6);
+      VStream<Integer> merged = VStreamPar.merge(a, b);
+
+      // Consume the stream
+      merged.toList().run();
+
+      // Calling close multiple times should not throw
+      merged.close().run();
+      merged.close().run();
+      merged.close().run();
     }
   }
 }

@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -365,7 +368,7 @@ class RetryPolicyTest {
     @Test
     @DisplayName("builder onRetry() sets retry listener")
     void builderOnRetrySetsListener() {
-      java.util.List<RetryEvent> events = new java.util.ArrayList<>();
+      List<RetryEvent> events = new ArrayList<>();
 
       RetryPolicy policy =
           RetryPolicy.builder()
@@ -377,8 +380,7 @@ class RetryPolicyTest {
       assertThat(policy.retryListener()).isNotNull();
 
       // Use it with Retry.execute to verify the listener is invoked
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
       Retry.execute(
           policy,
           () -> {

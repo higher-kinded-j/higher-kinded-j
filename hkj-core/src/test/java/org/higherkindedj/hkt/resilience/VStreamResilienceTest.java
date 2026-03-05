@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamThrottle;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -238,13 +239,13 @@ class VStreamResilienceTest {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
       assertThat(
-              org.assertj.core.api.Assertions.catchThrowable(
+              Assertions.catchThrowable(
                   () -> VStreamThrottle.throttle(stream, 0, Duration.ofMillis(50))))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("maxElements must be at least 1");
 
       assertThat(
-              org.assertj.core.api.Assertions.catchThrowable(
+              Assertions.catchThrowable(
                   () -> VStreamThrottle.throttle(stream, -1, Duration.ofMillis(50))))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("maxElements must be at least 1");

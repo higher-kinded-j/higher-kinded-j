@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.function.BiFunction;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
@@ -141,7 +142,7 @@ class ForToStateBridgeTest {
               () ->
                   For.from(idMonad, Id.of("x"))
                       .from(x -> Id.of(1))
-                      .toState((java.util.function.BiFunction<String, Integer, Dashboard>) null))
+                      .toState((BiFunction<String, Integer, Dashboard>) null))
           .withMessageContaining("constructor must not be null");
     }
   }

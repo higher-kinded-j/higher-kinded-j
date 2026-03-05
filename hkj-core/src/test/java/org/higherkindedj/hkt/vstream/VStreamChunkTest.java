@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.vstream;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.vstream.VStreamAssert.assertThatVStream;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
@@ -298,7 +299,7 @@ class VStreamChunkTest {
           stream.mapChunked(
               2,
               chunk -> {
-                List<Integer> expanded = new java.util.ArrayList<>();
+                List<Integer> expanded = new ArrayList<>();
                 for (int n : chunk) {
                   expanded.add(n);
                   expanded.add(n * 100);

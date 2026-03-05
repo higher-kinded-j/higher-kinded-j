@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -34,6 +35,7 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamReactive;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.writer.Writer;
 import org.jspecify.annotations.Nullable;
@@ -1151,9 +1153,8 @@ public final class Path {
    * @throws IllegalArgumentException if bufferSize is not positive
    */
   public static <A> VStreamPath<A> vstreamFromPublisher(
-      java.util.concurrent.Flow.Publisher<A> publisher, int bufferSize) {
-    return new DefaultVStreamPath<>(
-        org.higherkindedj.hkt.vstream.VStreamReactive.fromPublisher(publisher, bufferSize));
+      Flow.Publisher<A> publisher, int bufferSize) {
+    return new DefaultVStreamPath<>(VStreamReactive.fromPublisher(publisher, bufferSize));
   }
 
   /**
@@ -1165,10 +1166,8 @@ public final class Path {
    * @return a VStreamPath pulling from the publisher; never null
    * @throws NullPointerException if publisher is null
    */
-  public static <A> VStreamPath<A> vstreamFromPublisher(
-      java.util.concurrent.Flow.Publisher<A> publisher) {
-    return new DefaultVStreamPath<>(
-        org.higherkindedj.hkt.vstream.VStreamReactive.fromPublisher(publisher));
+  public static <A> VStreamPath<A> vstreamFromPublisher(Flow.Publisher<A> publisher) {
+    return new DefaultVStreamPath<>(VStreamReactive.fromPublisher(publisher));
   }
 
   // ===== PathRegistry integration =====

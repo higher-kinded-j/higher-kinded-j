@@ -7,6 +7,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
@@ -273,7 +274,7 @@ public final class VStreamPar {
           // Each subtask pulls elements and pushes them to the shared queue.
           Thread.ofVirtual().start(() -> runMergeScope(streams, queue, cancelled));
 
-          return mergeFromQueue(queue, sourceCount);
+          return mergeFromQueue(queue, sourceCount, cancelled);
         });
   }
 
@@ -346,28 +347,36 @@ public final class VStreamPar {
    * Builds a {@code VStream} that pulls elements from the merge queue. Each pull blocks on {@link
    * LinkedBlockingQueue#take()} until a signal arrives.
    *
+   * <p>The returned stream overrides {@link VStream#close()} to set the {@code cancelled} flag,
+   * which signals the producer threads to stop. This is essential for preventing memory leaks when
+   * the consumer terminates early (e.g. via {@link VStream#take}).
+   *
    * @param queue the shared queue populated by source-consuming subtasks.
    * @param remainingSources the number of source streams that have not yet sent {@link
    *     MergeSignal.SourceDone}.
+   * @param cancelled shared cancellation flag; set to {@code true} to stop producers.
    */
   private static <A> VStream<A> mergeFromQueue(
-      LinkedBlockingQueue<MergeSignal<A>> queue, int remainingSources) {
+      LinkedBlockingQueue<MergeSignal<A>> queue, int remainingSources, AtomicBoolean cancelled) {
     // No guard needed: merge() guarantees remainingSources >= 2 on the initial call,
     // and recursive calls pass newRemaining >= 1 (the newRemaining <= 0 branch yields Done).
-    return () ->
-        VTask.of(
+    return new VStream<>() {
+      @Override
+      public VTask<VStream.Step<A>> pull() {
+        return VTask.of(
             () -> {
               try {
                 MergeSignal<A> signal = queue.take();
                 return switch (signal) {
                   case MergeSignal.Element<A> e ->
-                      new VStream.Step.Emit<>(e.value(), mergeFromQueue(queue, remainingSources));
+                      new VStream.Step.Emit<>(
+                          e.value(), mergeFromQueue(queue, remainingSources, cancelled));
                   case MergeSignal.SourceDone<A> _ -> {
                     int newRemaining = remainingSources - 1;
                     if (newRemaining <= 0) {
                       yield new VStream.Step.Done<>();
                     }
-                    yield new VStream.Step.Skip<>(mergeFromQueue(queue, newRemaining));
+                    yield new VStream.Step.Skip<>(mergeFromQueue(queue, newRemaining, cancelled));
                   }
                   case MergeSignal.SourceError<A> err -> throw handleFailedCause(err.cause());
                 };
@@ -376,6 +385,15 @@ public final class VStreamPar {
                 throw new RuntimeException("Merge interrupted", e);
               }
             });
+      }
+
+      @Override
+      public VTask<Unit> close() {
+        cancelled.set(true);
+        queue.clear();
+        return VTask.succeed(Unit.INSTANCE);
+      }
+    };
   }
 
   /**

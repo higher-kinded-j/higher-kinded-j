@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -27,8 +28,7 @@ class RetryTaskPropertyTest {
    */
   @Property
   @Label("retryTask never exceeds max attempts")
-  void retryTaskNeverExceedsMaxAttempts(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 10) int maxAttempts) {
+  void retryTaskNeverExceedsMaxAttempts(@ForAll @IntRange(min = 1, max = 10) int maxAttempts) {
 
     AtomicInteger attempts = new AtomicInteger(0);
     RetryPolicy policy = RetryPolicy.fixed(maxAttempts, Duration.ZERO);
@@ -62,8 +62,7 @@ class RetryTaskPropertyTest {
    */
   @Property
   @Label("Only retries matching exceptions (retryOn filter)")
-  void onlyRetriesMatchingExceptions(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 2, max = 10) int maxAttempts) {
+  void onlyRetriesMatchingExceptions(@ForAll @IntRange(min = 2, max = 10) int maxAttempts) {
 
     AtomicInteger attempts = new AtomicInteger(0);
 
@@ -98,8 +97,8 @@ class RetryTaskPropertyTest {
   @Property
   @Label("Delays follow linear backoff strategy")
   void delaysFollowLinearBackoff(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 10) int attemptNumber,
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 200) int delayMillis) {
+      @ForAll @IntRange(min = 1, max = 10) int attemptNumber,
+      @ForAll @IntRange(min = 1, max = 200) int delayMillis) {
 
     RetryPolicy policy = RetryPolicy.linear(10, Duration.ofMillis(delayMillis));
 
@@ -130,8 +129,7 @@ class RetryTaskPropertyTest {
    */
   @Property
   @Label("onRetry called exactly (attempts - 1) times on exhaustion")
-  void onRetryCalledCorrectNumberOfTimes(
-      @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 10) int maxAttempts) {
+  void onRetryCalledCorrectNumberOfTimes(@ForAll @IntRange(min = 1, max = 10) int maxAttempts) {
 
     AtomicInteger retryListenerCalls = new AtomicInteger(0);
 

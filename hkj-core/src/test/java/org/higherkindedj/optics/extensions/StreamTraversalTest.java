@@ -10,6 +10,8 @@ import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.VStreamTraversals;
+import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -251,8 +253,7 @@ class StreamTraversalTest {
       Traversal<List<Integer>, Integer> traversal = st.toTraversal();
 
       List<Integer> source = List.of(1, 2, 3);
-      List<Integer> result =
-          org.higherkindedj.optics.util.Traversals.modify(traversal, x -> x * 10, source);
+      List<Integer> result = Traversals.modify(traversal, x -> x * 10, source);
 
       assertThat(result).containsExactly(10, 20, 30);
     }
@@ -264,7 +265,7 @@ class StreamTraversalTest {
       Traversal<List<Integer>, Integer> traversal = st.toTraversal();
 
       List<Integer> source = List.of(10, 20, 30);
-      List<Integer> result = org.higherkindedj.optics.util.Traversals.getAll(traversal, source);
+      List<Integer> result = Traversals.getAll(traversal, source);
 
       assertThat(result).containsExactly(10, 20, 30);
     }
@@ -272,8 +273,7 @@ class StreamTraversalTest {
     @Test
     @DisplayName("fromTraversal() creates StreamTraversal from existing Traversal")
     void fromTraversalCreatesStreamTraversal() {
-      Traversal<VStream<String>, String> vstreamTraversal =
-          org.higherkindedj.optics.each.VStreamTraversals.forVStream();
+      Traversal<VStream<String>, String> vstreamTraversal = VStreamTraversals.forVStream();
 
       StreamTraversal<VStream<String>, String> st = StreamTraversal.fromTraversal(vstreamTraversal);
 
@@ -286,8 +286,7 @@ class StreamTraversalTest {
     @Test
     @DisplayName("fromTraversal() modify works correctly")
     void fromTraversalModifyWorks() {
-      Traversal<VStream<Integer>, Integer> vstreamTraversal =
-          org.higherkindedj.optics.each.VStreamTraversals.forVStream();
+      Traversal<VStream<Integer>, Integer> vstreamTraversal = VStreamTraversals.forVStream();
 
       StreamTraversal<VStream<Integer>, Integer> st =
           StreamTraversal.fromTraversal(vstreamTraversal);
@@ -301,8 +300,7 @@ class StreamTraversalTest {
     @Test
     @DisplayName("fromTraversal() modifyVTask applies effectful function via traversal")
     void fromTraversalModifyVTaskWorks() {
-      Traversal<VStream<String>, String> vstreamTraversal =
-          org.higherkindedj.optics.each.VStreamTraversals.forVStream();
+      Traversal<VStream<String>, String> vstreamTraversal = VStreamTraversals.forVStream();
 
       StreamTraversal<VStream<String>, String> st = StreamTraversal.fromTraversal(vstreamTraversal);
 

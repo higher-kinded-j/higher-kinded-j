@@ -83,6 +83,10 @@
     - [Concurrency and Scale](hkts/order-concurrency.md)
   - [Draughts Game](examples/examples_draughts.md)
     - [Building the Game](hkts/draughts.md)
+  - [Market Data Pipeline](examples/examples_market_data.md)
+    - [Building the Pipeline](examples/market_building.md)
+    - [Alerts and Resilience](examples/market_alerts.md)
+    - [Quick Reference](examples/market_reference.md)
 
 - [Optics I: Fundamentals](optics/ch1_intro.md)
   - [What Are Optics?](optics/optics_intro.md)
