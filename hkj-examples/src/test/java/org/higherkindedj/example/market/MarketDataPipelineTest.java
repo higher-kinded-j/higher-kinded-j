@@ -129,9 +129,7 @@ class MarketDataPipelineTest {
 
                 assertThat(merged).hasSize(100);
                 Set<String> exchanges =
-                    merged.stream()
-                        .map(t -> t.exchange().name())
-                        .collect(Collectors.toSet());
+                    merged.stream().map(t -> t.exchange().name()).collect(Collectors.toSet());
                 assertThat(exchanges).contains("NYSE", "LSE");
               });
     }
@@ -158,9 +156,7 @@ class MarketDataPipelineTest {
 
                 assertThat(merged).hasSize(300);
                 Set<String> exchanges =
-                    merged.stream()
-                        .map(t -> t.exchange().name())
-                        .collect(Collectors.toSet());
+                    merged.stream().map(t -> t.exchange().name()).collect(Collectors.toSet());
                 assertThat(exchanges).contains("NYSE", "LSE", "TSE");
               });
     }
