@@ -196,11 +196,11 @@ public enum FunctionValidator {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    Supplier<String> message = () -> {
+    if (function == null) {
       var fullOperation = contextClass.getSimpleName() + "." + operation;
-      return new FunctionContext(functionName, fullOperation).nullParameterMessage();
-    };
-    return Objects.requireNonNull(function, message);
+      throw new NullPointerException(new FunctionContext(functionName, fullOperation).nullParameterMessage());
+    }
+    return function;
   }
 
   /**
