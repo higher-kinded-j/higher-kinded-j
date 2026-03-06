@@ -242,8 +242,7 @@ class StateTKindHelperTest {
 
       ValidationTestBuilder.create()
           .assertTransformerOuterMonadNull(() -> STATE_T.liftF(null, fa), StateT.class, LIFT_F)
-          .assertKindNull(
-              () -> STATE_T.liftF(outerMonad, null), StateT.class, LIFT_F, "source Kind")
+          .assertKindNull(() -> STATE_T.liftF(outerMonad, null), LIFT_F, "source Kind")
           .execute();
     }
   }

@@ -81,7 +81,7 @@ public class ContextMonad<R> extends ContextApplicative<R>
       Function<? super A, ? extends Kind<ContextKind.Witness<R>, B>> f,
       Kind<ContextKind.Witness<R>, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, CONTEXT_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Context<R, A> contextA = CONTEXT.narrow(ma);
 

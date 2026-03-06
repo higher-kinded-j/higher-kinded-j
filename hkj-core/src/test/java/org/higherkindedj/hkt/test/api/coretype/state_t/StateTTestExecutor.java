@@ -133,10 +133,7 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
 
     // Test create() null runStateTFn validation - uses FunctionValidator
     builder.assertFunctionNull(
-        () -> StateT.create(null, outerMonad),
-        "runStateTFn",
-        validationContext,
-        Operation.CONSTRUCTION);
+        () -> StateT.create(null, outerMonad), "runStateTFn", Operation.CONSTRUCTION);
 
     // Test create() null monad validation - uses DomainValidator.requireOuterMonad
     builder.assertTransformerOuterMonadNull(

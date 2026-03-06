@@ -89,8 +89,8 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
       Function<? super A, ? extends Kind<TrampolineKind.Witness, B>> f,
       Kind<TrampolineKind.Witness, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", TRAMPOLINE_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, TRAMPOLINE_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     Trampoline<A> trampolineA = TRAMPOLINE.narrow(ma);
 
@@ -129,8 +129,8 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
       Kind<TrampolineKind.Witness, ? extends Function<A, B>> ff,
       Kind<TrampolineKind.Witness, A> fa) {
 
-    Validation.kind().requireNonNull(ff, TRAMPOLINE_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, TRAMPOLINE_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     Trampoline<? extends Function<A, B>> trampolineF = TRAMPOLINE.narrow(ff);
     Trampoline<A> trampolineA = TRAMPOLINE.narrow(fa);

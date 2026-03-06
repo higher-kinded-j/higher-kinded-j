@@ -125,7 +125,7 @@ public record MaybeT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Maybe<A
   public static <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> liftF(
       Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, LIFT_F);
-    Validation.kind().requireNonNull(fa, MAYBE_T_CLASS, LIFT_F, "source Kind");
+    Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
     Kind<F, Maybe<A>> mapped = outerMonad.map(Maybe::fromNullable, fa);
     return new MaybeT<>(mapped);
   }

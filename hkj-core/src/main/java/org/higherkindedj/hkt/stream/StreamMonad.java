@@ -122,7 +122,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   public <A, B> Kind<StreamKind.Witness, B> ap(
       Kind<StreamKind.Witness, ? extends Function<A, B>> ff, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, StreamMonad.class);
+    Validation.kind().validateAp(ff, fa);
 
     Stream<? extends Function<A, B>> functions = STREAM.narrow(ff);
     Stream<A> values = STREAM.narrow(fa);
@@ -158,8 +158,8 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   public <A, B> Kind<StreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", StreamMonad.class, MAP);
-    Validation.kind().requireNonNull(fa, StreamMonad.class, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return StreamFunctor.INSTANCE.map(f, fa);
   }
@@ -204,7 +204,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
       Function<? super A, ? extends Kind<StreamKind.Witness, B>> f,
       Kind<StreamKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, StreamMonad.class);
+    Validation.function().validateFlatMap(f, ma);
 
     Stream<A> inputStream = STREAM.narrow(ma);
 
@@ -271,8 +271,8 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   public <A> Kind<StreamKind.Witness, A> orElse(
       Kind<StreamKind.Witness, A> sa, Supplier<Kind<StreamKind.Witness, A>> sb) {
 
-    Validation.kind().requireNonNull(sa, StreamMonad.class, OR_ELSE, "first stream");
-    Validation.function().requireFunction(sb, "sb", StreamMonad.class, OR_ELSE);
+    Validation.kind().requireNonNull(sa, OR_ELSE, "first stream");
+    Validation.function().require(sb, "sb", OR_ELSE);
 
     Stream<A> streamA = STREAM.narrow(sa);
 

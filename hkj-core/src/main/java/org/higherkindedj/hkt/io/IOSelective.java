@@ -80,8 +80,8 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
   public <A, B> Kind<IOKind.Witness, B> select(
       Kind<IOKind.Witness, Choice<A, B>> fab, Kind<IOKind.Witness, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, IO_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, IO_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     IO<Choice<A, B>> ioChoice = IO_OP.narrow(fab);
     IO<Function<A, B>> ioFunction = IO_OP.narrow(ff);
@@ -127,9 +127,9 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
       Kind<IOKind.Witness, Function<A, C>> fl,
       Kind<IOKind.Witness, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, IO_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, IO_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, IO_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     IO<Choice<A, B>> ioChoice = IO_OP.narrow(fab);
     IO<Function<A, C>> leftHandler = IO_OP.narrow(fl);
@@ -166,8 +166,8 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
   public Kind<IOKind.Witness, Unit> whenS(
       Kind<IOKind.Witness, Boolean> fcond, Kind<IOKind.Witness, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, IO_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, IO_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     IO<Boolean> condIO = IO_OP.narrow(fcond);
     IO<Unit> effectIO = IO_OP.narrow(fa);
@@ -206,9 +206,9 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
       Kind<IOKind.Witness, A> fthen,
       Kind<IOKind.Witness, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, IO_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, IO_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, IO_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     IO<Boolean> condIO = IO_OP.narrow(fcond);
     IO<A> thenIO = IO_OP.narrow(fthen);

@@ -44,8 +44,8 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", TRY_TRAVERSE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, TRY_TRAVERSE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return TRY.widen(TRY.narrow(fa).map(f));
   }
@@ -79,7 +79,7 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<TryKind.Witness, A> ta) {
 
-    Validation.function().validateTraverse(applicative, f, ta, TRY_TRAVERSE_CLASS);
+    Validation.function().validateTraverse(applicative, f, ta);
 
     return TRY.narrow(ta)
         .fold(
@@ -118,7 +118,7 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<TryKind.Witness, A> fa) {
 
-    Validation.function().validateFoldMap(monoid, f, fa, TRY_TRAVERSE_CLASS);
+    Validation.function().validateFoldMap(monoid, f, fa);
 
     // If the Try is a Success, apply the function `f` to the value.
     // If it's a Failure, return the identity element of the Monoid.

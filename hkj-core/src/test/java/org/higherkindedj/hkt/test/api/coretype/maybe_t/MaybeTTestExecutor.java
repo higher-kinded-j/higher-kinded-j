@@ -156,8 +156,7 @@ final class MaybeTTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, B> {
         () -> MaybeT.liftF(null, outerMonad.of("test")), validationContext, Operation.LIFT_F);
 
     // Test liftF() null Kind validation
-    builder.assertKindNull(
-        () -> MaybeT.liftF(outerMonad, null), validationContext, Operation.LIFT_F, "source Kind");
+    builder.assertKindNull(() -> MaybeT.liftF(outerMonad, null), Operation.LIFT_F, "source Kind");
 
     builder.execute();
   }

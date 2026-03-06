@@ -183,8 +183,8 @@ class ForComprehensionGeneratorTest {
       String source = getGeneratedSource(compilation, "org.higherkindedj.hkt.tuple.Tuple6");
 
       // The map() method should validate each mapper
-      assertThat(source).contains("Validation.function().requireMapper(firstMapper,");
-      assertThat(source).contains("Validation.function().requireMapper(sixthMapper,");
+      assertThat(source).contains("Validation.function().require(firstMapper,");
+      assertThat(source).contains("Validation.function().require(sixthMapper,");
     }
 
     @Test

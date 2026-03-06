@@ -78,8 +78,8 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", OPTIONAL_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, OPTIONAL_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()

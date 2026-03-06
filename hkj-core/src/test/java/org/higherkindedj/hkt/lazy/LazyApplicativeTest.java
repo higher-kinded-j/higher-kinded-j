@@ -310,7 +310,7 @@ class LazyApplicativeTest extends LazyTestBase {
     void apShouldThrowNPEForNullFunctionKind() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.ap(null, validKind))
-          .withMessageContaining("Kind for LazyMonad.ap")
+          .withMessageContaining("Kind for ap")
           .withMessageContaining("function");
     }
 
@@ -319,7 +319,7 @@ class LazyApplicativeTest extends LazyTestBase {
     void apShouldThrowNPEForNullArgumentKind() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.ap(validFunctionKind, null))
-          .withMessageContaining("Kind for LazyMonad.ap (argument) cannot be null");
+          .withMessageContaining("Kind for ap (argument) cannot be null");
     }
 
     @Test

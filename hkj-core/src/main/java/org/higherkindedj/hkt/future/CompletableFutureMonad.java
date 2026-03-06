@@ -83,8 +83,8 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
       Function<? super @Nullable A, ? extends Kind<CompletableFutureKind.Witness, B>> f,
       Kind<CompletableFutureKind.Witness, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
     CompletableFuture<B> futureB =
@@ -142,10 +142,8 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
       Function<? super Throwable, ? extends Kind<CompletableFutureKind.Witness, A>> handler) {
 
     // Enhanced validation with descriptive parameter
-    Validation.kind()
-        .requireNonNull(ma, COMPLETABLE_FUTURE_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Validation.function()
-        .requireFunction(handler, "handler", COMPLETABLE_FUTURE_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, HANDLE_ERROR_WITH, "source");
+    Validation.function().require(handler, "handler", HANDLE_ERROR_WITH);
 
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
 

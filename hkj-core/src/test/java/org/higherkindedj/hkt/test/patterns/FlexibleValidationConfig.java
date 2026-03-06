@@ -176,15 +176,13 @@ public final class FlexibleValidationConfig {
 
     private void testMapValidation() {
       if (mapHasClassContext && mapContextClass != null) {
-        String className = mapContextClass.getSimpleName();
         assertThatThrownBy(() -> applicative.map(null, validKind))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(
-                "Function " + mapFunctionName + " for " + className + ".map cannot be null");
+            .hasMessageContaining("Function " + mapFunctionName + " for map cannot be null");
 
         assertThatThrownBy(() -> applicative.map(validMapper, null))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Kind for " + className + ".map cannot be null");
+            .hasMessageContaining("Kind for map cannot be null");
       } else {
         assertThatThrownBy(() -> applicative.map(null, validKind))
             .isInstanceOf(NullPointerException.class)
@@ -198,15 +196,14 @@ public final class FlexibleValidationConfig {
 
     private void testApValidation() {
       if (apHasClassContext && apContextClass != null) {
-        String className = apContextClass.getSimpleName();
         assertThatThrownBy(() -> applicative.ap(null, validKind))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Kind for " + className + ".ap")
+            .hasMessageContaining("Kind for ap")
             .hasMessageContaining("function");
 
         assertThatThrownBy(() -> applicative.ap(validFunctionKind, null))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Kind for " + className + ".ap")
+            .hasMessageContaining("Kind for ap")
             .hasMessageContaining("argument");
       } else {
         assertThatThrownBy(() -> applicative.ap(null, validKind))
@@ -245,18 +242,18 @@ public final class FlexibleValidationConfig {
           // Regular class implementation with full class context
           assertThatThrownBy(() -> applicative.map2(null, validKind2, validCombiningFunction))
               .isInstanceOf(NullPointerException.class)
-              .hasMessageContaining("Kind for " + className + ".map2")
+              .hasMessageContaining("Kind for map2")
               .hasMessageContaining("first");
 
           assertThatThrownBy(() -> applicative.map2(validKind, null, validCombiningFunction))
               .isInstanceOf(NullPointerException.class)
-              .hasMessageContaining("Kind for " + className + ".map2")
+              .hasMessageContaining("Kind for map2")
               .hasMessageContaining("second");
 
           assertThatThrownBy(() -> applicative.map2(validKind, validKind2, nullBiFunction))
               .isInstanceOf(NullPointerException.class)
               .hasMessageContaining("combining function")
-              .hasMessageContaining(className + ".map2");
+              .hasMessageContaining("map2");
         }
       } else {
         // No class context - generic validation
@@ -354,19 +351,14 @@ public final class FlexibleValidationConfig {
 
     private void testFlatMapValidation() {
       if (flatMapHasClassContext && flatMapContextClass != null) {
-        String className = flatMapContextClass.getSimpleName();
         assertThatThrownBy(() -> monad.flatMap(null, validKind))
             .isInstanceOf(NullPointerException.class)
             .hasMessageContaining(
-                "Function "
-                    + flatMapFunctionName
-                    + " for "
-                    + className
-                    + ".flatMap cannot be null");
+                "Function " + flatMapFunctionName + " for flatMap cannot be null");
 
         assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Kind for " + className + ".flatMap cannot be null");
+            .hasMessageContaining("Kind for flatMap cannot be null");
       } else {
         assertThatThrownBy(() -> monad.flatMap(null, validKind))
             .isInstanceOf(NullPointerException.class)
@@ -470,15 +462,12 @@ public final class FlexibleValidationConfig {
 
     private void testHandleErrorWithValidation() {
       if (handleErrorWithHasClassContext && handleErrorWithContextClass != null) {
-        String className = handleErrorWithContextClass.getSimpleName();
         assertThatThrownBy(() -> monadError.handleErrorWith(null, validHandler))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(className)
             .hasMessageContaining("handleErrorWith");
 
         assertThatThrownBy(() -> monadError.handleErrorWith(validKind, null))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(className)
             .hasMessageContaining("handleErrorWith");
       } else {
         assertThatThrownBy(() -> monadError.handleErrorWith(null, validHandler))
@@ -493,11 +482,8 @@ public final class FlexibleValidationConfig {
 
     private void testRecoverWithValidation() {
       if (handleErrorWithHasClassContext && handleErrorWithContextClass != null) {
-        String className = handleErrorWithContextClass.getSimpleName();
-
         assertThatThrownBy(() -> monadError.recoverWith(null, validFallback))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(className)
             .satisfies(
                 t -> {
                   String msg = t.getMessage();
@@ -509,7 +495,6 @@ public final class FlexibleValidationConfig {
 
         assertThatThrownBy(() -> monadError.recoverWith(validKind, null))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(className)
             .satisfies(
                 t -> {
                   String msg = t.getMessage();

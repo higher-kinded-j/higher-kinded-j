@@ -75,7 +75,7 @@ class Tuple3Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(null, age -> age + 1, active -> !active))
           .withMessageContaining("firstMapper")
-          .withMessageContaining("Tuple3.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -86,7 +86,7 @@ class Tuple3Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(String::length, null, active -> !active))
           .withMessageContaining("secondMapper")
-          .withMessageContaining("Tuple3.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -97,7 +97,7 @@ class Tuple3Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(String::length, age -> age + 1, null))
           .withMessageContaining("thirdMapper")
-          .withMessageContaining("Tuple3.map");
+          .withMessageContaining("map");
     }
   }
 
@@ -135,7 +135,7 @@ class Tuple3Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapFirst(null))
           .withMessageContaining("firstMapper")
-          .withMessageContaining("Tuple3.mapFirst");
+          .withMessageContaining("mapFirst");
     }
   }
 
@@ -173,7 +173,7 @@ class Tuple3Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapSecond(null))
           .withMessageContaining("secondMapper")
-          .withMessageContaining("Tuple3.mapSecond");
+          .withMessageContaining("mapSecond");
     }
   }
 
@@ -211,7 +211,7 @@ class Tuple3Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapThird(null))
           .withMessageContaining("thirdMapper")
-          .withMessageContaining("Tuple3.map");
+          .withMessageContaining("map");
     }
   }
 

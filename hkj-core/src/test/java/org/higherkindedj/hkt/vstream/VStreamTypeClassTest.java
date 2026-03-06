@@ -300,7 +300,6 @@ class VStreamTypeClassTest {
       assertThatThrownBy(() -> traverse.map(null, stream))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
-          .hasMessageContaining("VStreamTraverse")
           .hasMessageContaining("map");
     }
 
@@ -310,7 +309,6 @@ class VStreamTypeClassTest {
       assertThatThrownBy(() -> traverse.map(Object::toString, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
-          .hasMessageContaining("VStreamTraverse")
           .hasMessageContaining("map");
     }
 

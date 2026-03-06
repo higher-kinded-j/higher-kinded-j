@@ -77,8 +77,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> stateT(
       Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
-    Validation.function()
-        .requireFunction(runStateTFn, "runStateTFn", STATE_T_CLASS, Operation.STATE_T);
+    Validation.function().require(runStateTFn, "runStateTFn", Operation.STATE_T);
     Validation.transformer().requireOuterMonad(monadF, STATE_T_CLASS, Operation.STATE_T);
     return StateT.create(runStateTFn, monadF);
   }
@@ -98,7 +97,7 @@ public enum StateTKindHelper implements StateTConverterOps {
   public <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> liftF(
       Monad<F> monadF, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(monadF, STATE_T_CLASS, LIFT_F);
-    Validation.kind().requireNonNull(fa, STATE_T_CLASS, LIFT_F, "source Kind");
+    Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
 
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.map(a -> StateTuple.of(s, a), fa);
     return stateT(runFn, monadF);
@@ -121,7 +120,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, StateTuple<S, A>> runStateT(
       Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    Validation.kind().requireNonNull(kind, STATE_T_CLASS, RUN_STATE_T);
+    Validation.kind().requireNonNull(kind, RUN_STATE_T);
     return this.narrow(kind).runStateT(initialState);
   }
 
@@ -140,7 +139,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, A> evalStateT(
       Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    Validation.kind().requireNonNull(kind, STATE_T_CLASS, EVAL_STATE_T);
+    Validation.kind().requireNonNull(kind, EVAL_STATE_T);
     return this.narrow(kind).evalStateT(initialState);
   }
 
@@ -159,7 +158,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> execStateT(
       Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    Validation.kind().requireNonNull(kind, STATE_T_CLASS, EXEC_STATE_T);
+    Validation.kind().requireNonNull(kind, EXEC_STATE_T);
     return this.narrow(kind).execStateT(initialState);
   }
 }

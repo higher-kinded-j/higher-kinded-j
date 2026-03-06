@@ -55,11 +55,11 @@ public record Tuple5<A, B, C, D, E>(A _1, B _2, C _3, D _4, E _5) implements Tup
       Function<? super C, ? extends C2> thirdMapper,
       Function<? super D, ? extends D2> fourthMapper,
       Function<? super E, ? extends E2> fifthMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE5_CLASS, MAP);
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE5_CLASS, MAP);
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE5_CLASS, MAP);
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE5_CLASS, MAP);
-    Validation.function().requireMapper(fifthMapper, "fifthMapper", TUPLE5_CLASS, MAP);
+    Validation.function().require(firstMapper, "firstMapper", MAP);
+    Validation.function().require(secondMapper, "secondMapper", MAP);
+    Validation.function().require(thirdMapper, "thirdMapper", MAP);
+    Validation.function().require(fourthMapper, "fourthMapper", MAP);
+    Validation.function().require(fifthMapper, "fifthMapper", MAP);
 
     return new Tuple5<>(
         firstMapper.apply(_1),
@@ -78,7 +78,7 @@ public record Tuple5<A, B, C, D, E>(A _1, B _2, C _3, D _4, E _5) implements Tup
    * @throws NullPointerException if {@code firstMapper} is null.
    */
   public <A2> Tuple5<A2, B, C, D, E> mapFirst(Function<? super A, ? extends A2> firstMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE5_CLASS, MAP_FIRST);
+    Validation.function().require(firstMapper, "firstMapper", MAP_FIRST);
     return new Tuple5<>(firstMapper.apply(_1), _2, _3, _4, _5);
   }
 
@@ -91,7 +91,7 @@ public record Tuple5<A, B, C, D, E>(A _1, B _2, C _3, D _4, E _5) implements Tup
    * @throws NullPointerException if {@code secondMapper} is null.
    */
   public <B2> Tuple5<A, B2, C, D, E> mapSecond(Function<? super B, ? extends B2> secondMapper) {
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE5_CLASS, MAP_SECOND);
+    Validation.function().require(secondMapper, "secondMapper", MAP_SECOND);
     return new Tuple5<>(_1, secondMapper.apply(_2), _3, _4, _5);
   }
 
@@ -104,7 +104,7 @@ public record Tuple5<A, B, C, D, E>(A _1, B _2, C _3, D _4, E _5) implements Tup
    * @throws NullPointerException if {@code thirdMapper} is null.
    */
   public <C2> Tuple5<A, B, C2, D, E> mapThird(Function<? super C, ? extends C2> thirdMapper) {
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE5_CLASS, MAP_THIRD);
+    Validation.function().require(thirdMapper, "thirdMapper", MAP_THIRD);
     return new Tuple5<>(_1, _2, thirdMapper.apply(_3), _4, _5);
   }
 
@@ -117,7 +117,7 @@ public record Tuple5<A, B, C, D, E>(A _1, B _2, C _3, D _4, E _5) implements Tup
    * @throws NullPointerException if {@code fourthMapper} is null.
    */
   public <D2> Tuple5<A, B, C, D2, E> mapFourth(Function<? super D, ? extends D2> fourthMapper) {
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE5_CLASS, MAP_FOURTH);
+    Validation.function().require(fourthMapper, "fourthMapper", MAP_FOURTH);
     return new Tuple5<>(_1, _2, _3, fourthMapper.apply(_4), _5);
   }
 
@@ -130,7 +130,7 @@ public record Tuple5<A, B, C, D, E>(A _1, B _2, C _3, D _4, E _5) implements Tup
    * @throws NullPointerException if {@code fifthMapper} is null.
    */
   public <E2> Tuple5<A, B, C, D, E2> mapFifth(Function<? super E, ? extends E2> fifthMapper) {
-    Validation.function().requireMapper(fifthMapper, "fifthMapper", TUPLE5_CLASS, MAP_FIFTH);
+    Validation.function().require(fifthMapper, "fifthMapper", MAP_FIFTH);
     return new Tuple5<>(_1, _2, _3, _4, fifthMapper.apply(_5));
   }
 

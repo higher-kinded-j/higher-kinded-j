@@ -100,32 +100,27 @@ final class WriterTestExecutor<W, A, B>
     if (validationStage != null && validationStage.getMapContext() != null) {
       WriterFunctor<W> functor = new WriterFunctor<>();
       Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> writerInstance.map(null), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> writerInstance.map(null), "f", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       WriterMonad<W> monad = new WriterMonad<>(monoid);
       Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
       builder.assertFlatMapperNull(
-          () -> writerInstance.flatMap(monoid, null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+          () -> writerInstance.flatMap(monoid, null), "f", Operation.FLAT_MAP);
     }
 
     // FlatMap monoid validation
     builder.assertMonoidNull(
-        () -> writerInstance.flatMap(null, a -> writerInstance),
-        "monoidW",
-        contextClass,
-        Operation.FLAT_MAP);
+        () -> writerInstance.flatMap(null, a -> writerInstance), "monoidW", Operation.FLAT_MAP);
 
     // Value monoid validation
-    builder.assertMonoidNull(
-        () -> Writer.value(null, "test"), "monoidW", contextClass, Operation.VALUE);
+    builder.assertMonoidNull(() -> Writer.value(null, "test"), "monoidW", Operation.VALUE);
 
     builder.execute();
 

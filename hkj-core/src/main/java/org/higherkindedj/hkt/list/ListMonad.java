@@ -65,7 +65,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> ap(
       Kind<ListKind.Witness, ? extends Function<A, B>> ff, Kind<ListKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, ListMonad.class);
+    Validation.kind().validateAp(ff, fa);
 
     List<? extends Function<A, B>> functions = LIST.narrow(ff);
     List<A> values = LIST.narrow(fa);
@@ -100,8 +100,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", ListMonad.class, MAP);
-    Validation.kind().requireNonNull(fa, ListMonad.class, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return ListFunctor.INSTANCE.map(f, fa);
   }
@@ -126,7 +126,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, ListMonad.class);
+    Validation.function().validateFlatMap(f, ma);
 
     List<A> inputList = LIST.narrow(ma);
     List<B> resultList = new ArrayList<>();
@@ -184,8 +184,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A> Kind<ListKind.Witness, A> orElse(
       Kind<ListKind.Witness, A> la, Supplier<Kind<ListKind.Witness, A>> lb) {
 
-    Validation.kind().requireNonNull(la, ListMonad.class, OR_ELSE, "first list");
-    Validation.function().requireFunction(lb, "lb", ListMonad.class, OR_ELSE);
+    Validation.kind().requireNonNull(la, OR_ELSE, "first list");
+    Validation.function().require(lb, "lb", OR_ELSE);
 
     List<A> listA = LIST.narrow(la);
     Kind<ListKind.Witness, A> kindB = lb.get();

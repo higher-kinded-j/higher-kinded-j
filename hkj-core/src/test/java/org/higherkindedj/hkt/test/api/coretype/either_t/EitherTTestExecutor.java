@@ -127,7 +127,7 @@ final class EitherTTestExecutor<F extends WitnessArity<TypeArity.Unary>, L, R, S
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
     // Test fromKind() null validation - uses KindValidator
-    builder.assertKindNull(() -> EitherT.fromKind(null), validationContext, Operation.CONSTRUCTION);
+    builder.assertKindNull(() -> EitherT.fromKind(null), Operation.CONSTRUCTION);
 
     // Test right() null monad validation - uses DomainValidator.requireOuterMonad
     builder.assertTransformerOuterMonadNull(
@@ -155,8 +155,7 @@ final class EitherTTestExecutor<F extends WitnessArity<TypeArity.Unary>, L, R, S
         () -> EitherT.liftF(null, outerMonad.of(null)), validationContext, Operation.LIFT_F);
 
     // Test liftF() null Kind validation
-    builder.assertKindNull(
-        () -> EitherT.liftF(outerMonad, null), validationContext, Operation.LIFT_F, "source Kind");
+    builder.assertKindNull(() -> EitherT.liftF(outerMonad, null), Operation.LIFT_F, "source Kind");
 
     builder.execute();
   }

@@ -63,8 +63,8 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
   public <A, B> Kind<StateKind.Witness<S>, B> map(
       Function<? super A, ? extends B> f, Kind<StateKind.Witness<S>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", STATE_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, STATE_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     State<S, A> stateA = STATE.narrow(fa);
     State<S, B> stateB = stateA.map(f);

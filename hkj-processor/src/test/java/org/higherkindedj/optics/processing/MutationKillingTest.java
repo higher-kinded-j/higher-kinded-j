@@ -4784,9 +4784,9 @@ class MutationKillingTest {
       String code = file.get().getCharContent(true).toString();
 
       // map() method should validate each mapper parameter
-      assertThat(code).contains("Validation.function().requireMapper(firstMapper,");
-      assertThat(code).contains("Validation.function().requireMapper(secondMapper,");
-      assertThat(code).contains("Validation.function().requireMapper(thirdMapper,");
+      assertThat(code).contains("Validation.function().require(firstMapper,");
+      assertThat(code).contains("Validation.function().require(secondMapper,");
+      assertThat(code).contains("Validation.function().require(thirdMapper,");
 
       // map() should apply all mappers to create new tuple
       assertThat(code).contains("firstMapper.apply(_1)");

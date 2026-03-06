@@ -63,7 +63,7 @@ public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
   public <A, B> Kind<FreeKind.Witness<F>, B> flatMap(
       Function<? super A, ? extends Kind<FreeKind.Witness<F>, B>> f,
       Kind<FreeKind.Witness<F>, A> ma) {
-    Validation.function().validateFlatMap(f, ma, FREE_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Free<F, A> freeA = FREE.narrow(ma);
 
@@ -95,7 +95,7 @@ public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
   @Override
   public <A, B> Kind<FreeKind.Witness<F>, B> ap(
       Kind<FreeKind.Witness<F>, ? extends Function<A, B>> ff, Kind<FreeKind.Witness<F>, A> fa) {
-    Validation.kind().validateAp(ff, fa, FREE_MONAD_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Free<F, ? extends Function<A, B>> freeF = FREE.narrow(ff);
     Free<F, A> freeA = FREE.narrow(fa);

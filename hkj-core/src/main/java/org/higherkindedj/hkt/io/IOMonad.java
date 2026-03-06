@@ -64,7 +64,7 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
   public <A, B> Kind<IOKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<IOKind.Witness, B>> f, Kind<IOKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, IO_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     IO<A> ioA = IO_OP.narrow(ma);
     // Adapt f: A -> Kind<IO.Witness, B> to A -> IO<B> for IO's flatMap

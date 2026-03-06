@@ -143,34 +143,11 @@ public enum KindValidator {
    * @throws NullPointerException if input is null
    */
   public <T> T requireForWiden(T input, Class<T> inputType) {
-    var context = new KindContext(inputType, "widen");
-    return Objects.requireNonNull(input, context.nullInputMessage());
-  }
-
-  /**
-   * Validates Kind parameter for operations with class-based context.
-   *
-   * @param kind The Kind to validate
-   * @param contextClass The class providing context (e.g., StateTMonad.class, OptionalT.class)
-   * @param operation The operation name for context
-   * @param <F> The witness type
-   * @param <A> The value type
-   * @return The validated Kind
-   * @throws NullPointerException if kind is null
-   *     <p>Example usage:
-   *     <pre>
-   * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, "map");
-   * // Error: "Kind for StateTMonad.map cannot be null"
-   * </pre>
-   */
-  public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
-      Kind<F, A> kind, Class<?> contextClass, Operation operation) {
-
-    Objects.requireNonNull(contextClass, "contextClass cannot be null");
-    Objects.requireNonNull(operation, "operation cannot be null");
-
-    String fullOperation = contextClass.getSimpleName() + "." + operation;
-    return Objects.requireNonNull(kind, "Kind for " + fullOperation + " cannot be null");
+    if (input == null) {
+      var context = new KindContext(inputType, "widen");
+      throw new NullPointerException(context.nullInputMessage());
+    }
+    return input;
   }
 
   /**
@@ -185,45 +162,7 @@ public enum KindValidator {
    */
   public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Operation operation) {
-    return Objects.requireNonNull(kind, "Kind for " + operation + " cannot be null");
-  }
-
-  /**
-   * Validates Kind parameter with class-based context and optional descriptor.
-   *
-   * <p>Use descriptors to distinguish between multiple Kind parameters in the same operation. For
-   * example, in an {@code ap} operation with both a function Kind and an argument Kind, use
-   * descriptors like "function" and "argument" to make error messages clearer.
-   *
-   * @param kind The Kind to validate
-   * @param contextClass The class providing context
-   * @param operation The operation name for context
-   * @param descriptor Optional descriptor for the parameter (e.g., "function", "argument",
-   *     "source")
-   * @param <F> The witness type
-   * @param <A> The value type
-   * @return The validated Kind
-   * @throws NullPointerException if kind is null
-   *     <p>Example usage:
-   *     <pre>
-   * Validation.kindValidator().requireNonNull(ff, StateTMonad.class, "ap", "function");
-   * // Error: "Kind for StateTMonad.ap (function) cannot be null"
-   *
-   * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, "ap", "argument");
-   * // Error: "Kind for StateTMonad.ap (argument) cannot be null"
-   * </pre>
-   */
-  public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
-      Kind<F, A> kind, Class<?> contextClass, Operation operation, @Nullable String descriptor) {
-
-    Objects.requireNonNull(contextClass, "contextClass cannot be null");
-    Objects.requireNonNull(operation, "operation cannot be null");
-
-    String fullOperation = contextClass.getSimpleName() + "." + operation;
-    String contextMessage =
-        descriptor != null ? fullOperation + " (" + descriptor + ")" : fullOperation;
-
-    return Objects.requireNonNull(kind, "Kind for " + contextMessage + " cannot be null");
+    return requireNonNull(kind, operation, null);
   }
 
   /**
@@ -240,10 +179,12 @@ public enum KindValidator {
   public <F extends WitnessArity<?>, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Operation operation, @Nullable String descriptor) {
 
-    String contextMessage =
-        descriptor != null ? operation + " (" + descriptor + ")" : operation.toString();
-
-    return Objects.requireNonNull(kind, "Kind for " + contextMessage + " cannot be null");
+    if (kind == null) {
+      String contextMessage =
+          descriptor != null ? operation + " (" + descriptor + ")" : operation.toString();
+      throw new NullPointerException("Kind for " + contextMessage + " cannot be null");
+    }
+    return kind;
   }
 
   // ==================== Bulk Validation Helpers ====================
@@ -257,16 +198,15 @@ public enum KindValidator {
    *
    * @param ff the function Kind (must be non-null)
    * @param fa the argument Kind (must be non-null)
-   * @param contextClass the class performing the operation (for error messages)
    * @param <F> the functor type constructor
    * @param <A> input type
    * @param <B> output type
    * @throws NullPointerException if ff or fa is null
    */
   public <F extends WitnessArity<?>, A, B> void validateAp(
-      Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa, Class<?> contextClass) {
-    requireNonNull(ff, contextClass, AP, "function");
-    requireNonNull(fa, contextClass, AP, "argument");
+      Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa) {
+    requireNonNull(ff, AP, "function");
+    requireNonNull(fa, AP, "argument");
   }
 
   /**
@@ -285,10 +225,6 @@ public enum KindValidator {
 
     public String nullInputMessage() {
       return "Input %s cannot be null for %s".formatted(targetType.getSimpleName(), operation);
-    }
-
-    public String invalidTypeMessage() {
-      return "Kind instance cannot be narrowed to " + targetType.getSimpleName();
     }
 
     /** Enhanced error message that includes the actual type received. */

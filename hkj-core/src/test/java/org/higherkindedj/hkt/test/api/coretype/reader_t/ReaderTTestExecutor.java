@@ -127,16 +127,14 @@ final class ReaderTTestExecutor<F extends WitnessArity<TypeArity.Unary>, R, A, B
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
     // Test of() null validation - uses FunctionValidator
-    builder.assertFunctionNull(
-        () -> ReaderT.of(null), "run", validationContext, Operation.CONSTRUCTION);
+    builder.assertFunctionNull(() -> ReaderT.of(null), "run", Operation.CONSTRUCTION);
 
     // Test liftF() null monad validation - uses DomainValidator.requireOuterMonad
     builder.assertTransformerOuterMonadNull(
         () -> ReaderT.liftF(null, outerMonad.of(null)), validationContext, Operation.LIFT_F);
 
     // Test liftF() null Kind validation - uses KindValidator
-    builder.assertKindNull(
-        () -> ReaderT.liftF(outerMonad, null), validationContext, Operation.LIFT_F, "source Kind");
+    builder.assertKindNull(() -> ReaderT.liftF(outerMonad, null), Operation.LIFT_F, "source Kind");
 
     // Test reader() null monad validation - uses DomainValidator.requireOuterMonad
     Function<R, A> validFunction = r -> null;
@@ -145,10 +143,7 @@ final class ReaderTTestExecutor<F extends WitnessArity<TypeArity.Unary>, R, A, B
 
     // Test reader() null function validation - uses FunctionValidator
     builder.assertFunctionNull(
-        () -> ReaderT.reader(outerMonad, null),
-        "environment function",
-        validationContext,
-        Operation.READER);
+        () -> ReaderT.reader(outerMonad, null), "environment function", Operation.READER);
 
     // Test ask() null monad validation - uses DomainValidator.requireOuterMonad
     builder.assertTransformerOuterMonadNull(

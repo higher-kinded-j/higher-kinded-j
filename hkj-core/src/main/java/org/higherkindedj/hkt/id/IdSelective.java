@@ -86,14 +86,14 @@ public final class IdSelective extends IdMonad implements Selective<IdKind.Witne
   public <A, B> Kind<IdKind.Witness, B> select(
       Kind<IdKind.Witness, Choice<A, B>> fab, Kind<IdKind.Witness, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, ID_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, ID_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     Choice<A, B> choice = ID.narrow(fab).value();
     Function<A, B> function = ID.narrow(ff).value();
 
-    Validation.function().requireFunction(choice, "choice", ID_SELECTIVE_CLASS, SELECT);
-    Validation.function().requireFunction(function, "function", ID_SELECTIVE_CLASS, SELECT);
+    Validation.function().require(choice, "choice", SELECT);
+    Validation.function().require(function, "function", SELECT);
 
     // If choice is Right(b), we already have our value
     if (choice.isRight()) {
@@ -130,25 +130,23 @@ public final class IdSelective extends IdMonad implements Selective<IdKind.Witne
       Kind<IdKind.Witness, Function<A, C>> fl,
       Kind<IdKind.Witness, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, ID_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, ID_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, ID_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     Choice<A, B> choice = ID.narrow(fab).value();
-    Validation.function().requireFunction(choice, "choice", ID_SELECTIVE_CLASS, BRANCH);
+    Validation.function().require(choice, "choice", BRANCH);
 
     if (choice.isLeft()) {
       // Use left handler
       Function<A, C> leftFunction = ID.narrow(fl).value();
-      Validation.function()
-          .requireFunction(leftFunction, "leftHandler", ID_SELECTIVE_CLASS, BRANCH);
+      Validation.function().require(leftFunction, "leftHandler", BRANCH);
       C result = leftFunction.apply(choice.getLeft());
       return ID.widen(Id.of(result));
     } else {
       // Use right handler
       Function<B, C> rightFunction = ID.narrow(fr).value();
-      Validation.function()
-          .requireFunction(rightFunction, "rightHandler", ID_SELECTIVE_CLASS, BRANCH);
+      Validation.function().require(rightFunction, "rightHandler", BRANCH);
       C result = rightFunction.apply(choice.getRight());
       return ID.widen(Id.of(result));
     }
@@ -178,16 +176,16 @@ public final class IdSelective extends IdMonad implements Selective<IdKind.Witne
   public Kind<IdKind.Witness, Unit> whenS(
       Kind<IdKind.Witness, Boolean> fcond, Kind<IdKind.Witness, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, ID_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, ID_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     Boolean condition = ID.narrow(fcond).value();
-    Validation.function().requireFunction(condition, "condition", ID_SELECTIVE_CLASS, WHEN_S);
+    Validation.function().require(condition, "condition", WHEN_S);
 
     if (condition) {
       // Execute and return the effect - but validate its Unit value first
       Unit unit = ID.narrow(fa).value();
-      Validation.function().requireFunction(unit, "effect", ID_SELECTIVE_CLASS, WHEN_S);
+      Validation.function().require(unit, "effect", WHEN_S);
       return fa;
     } else {
       // Condition is false, return Unit wrapped in Id (not null!)
@@ -215,12 +213,12 @@ public final class IdSelective extends IdMonad implements Selective<IdKind.Witne
       Kind<IdKind.Witness, A> fthen,
       Kind<IdKind.Witness, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, ID_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, ID_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, ID_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     Boolean condition = ID.narrow(fcond).value();
-    Validation.function().requireFunction(condition, "condition", ID_SELECTIVE_CLASS, IF_S);
+    Validation.function().require(condition, "condition", IF_S);
 
     // Return the appropriate branch
     // Note: We don't evaluate both branches - this is key for selective functors

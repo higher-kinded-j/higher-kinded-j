@@ -79,8 +79,8 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
   public <A, B> Kind<MaybeTKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeTKind.Witness<F>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", MAYBE_T_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, MAYBE_T_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(fa);
     Kind<F, Maybe<B>> newValue = outerMonad.map(maybe -> maybe.map(f), maybeT.value());
@@ -104,8 +104,8 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
   public <A, B> Kind<MaybeTKind.Witness<F>, B> ap(
       Kind<MaybeTKind.Witness<F>, ? extends Function<A, B>> ff, Kind<MaybeTKind.Witness<F>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, MAYBE_T_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, MAYBE_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     MaybeT<F, ? extends Function<A, B>> funcT = MAYBE_T.narrow(ff);
     MaybeT<F, A> valT = MAYBE_T.narrow(fa);
@@ -135,8 +135,8 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
       Function<? super A, ? extends Kind<MaybeTKind.Witness<F>, B>> f,
       Kind<MaybeTKind.Witness<F>, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, MAYBE_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
 
@@ -201,9 +201,8 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
       Kind<MaybeTKind.Witness<F>, A> ma,
       Function<? super Unit, ? extends Kind<MaybeTKind.Witness<F>, A>> handler) {
 
-    Validation.kind().requireNonNull(ma, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Validation.function()
-        .requireFunction(handler, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, HANDLE_ERROR_WITH, "source");
+    Validation.function().require(handler, "handler", HANDLE_ERROR_WITH);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
 

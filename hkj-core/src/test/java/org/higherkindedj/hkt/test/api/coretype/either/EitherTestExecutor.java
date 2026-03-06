@@ -117,36 +117,31 @@ final class EitherTestExecutor<L, R, S>
 
     // Fold validations
     builder.assertFunctionNull(
-        () -> leftInstance.fold(null, rightMapper), "leftMapper", contextClass, Operation.FOLD);
+        () -> leftInstance.fold(null, rightMapper), "leftMapper", Operation.FOLD);
     builder.assertFunctionNull(
-        () -> leftInstance.fold(leftMapper, null), "rightMapper", contextClass, Operation.FOLD);
+        () -> leftInstance.fold(leftMapper, null), "rightMapper", Operation.FOLD);
 
     // Map validations - test through the Functor interface if custom context provided
     if (validationStage != null && validationStage.getMapContext() != null) {
       EitherFunctor<L> functor = EitherFunctor.instance();
       Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(
-          () -> rightInstance.map(null), "mapper", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> rightInstance.map(null), "mapper", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       EitherMonad<L> monad = EitherMonad.instance();
       Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> rightInstance.flatMap(null), "mapper", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> rightInstance.flatMap(null), "mapper", Operation.FLAT_MAP);
     }
 
     // Side effect validations
-    builder.assertFunctionNull(
-        () -> leftInstance.ifLeft(null), "action", contextClass, Operation.IF_LEFT);
-    builder.assertFunctionNull(
-        () -> rightInstance.ifRight(null), "action", contextClass, Operation.IF_RIGHT);
+    builder.assertFunctionNull(() -> leftInstance.ifLeft(null), "action", Operation.IF_LEFT);
+    builder.assertFunctionNull(() -> rightInstance.ifRight(null), "action", Operation.IF_RIGHT);
 
     builder.execute();
   }

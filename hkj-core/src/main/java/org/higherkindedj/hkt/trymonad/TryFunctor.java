@@ -37,8 +37,8 @@ public class TryFunctor implements Functor<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", TRY_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, TRY_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);

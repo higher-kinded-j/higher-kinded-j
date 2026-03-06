@@ -153,7 +153,7 @@ public sealed interface Trampoline<A> permits Trampoline.Done, Trampoline.More, 
      */
     public FlatMap {
       Validation.coreType().requireValue(sub, TRAMPOLINE_CLASS, CONSTRUCTION);
-      Validation.function().requireFunction(f, "f", TRAMPOLINE_CLASS, CONSTRUCTION);
+      Validation.function().require(f, "f", CONSTRUCTION);
     }
   }
 
@@ -183,7 +183,7 @@ public sealed interface Trampoline<A> permits Trampoline.Done, Trampoline.More, 
    * @throws NullPointerException if {@code next} is {@code null}.
    */
   static <A> Trampoline<A> defer(Supplier<Trampoline<A>> next) {
-    Validation.function().requireFunction(next, "next", TRAMPOLINE_CLASS, DEFER);
+    Validation.function().require(next, "next", DEFER);
     return new More<>(next);
   }
 
@@ -201,7 +201,7 @@ public sealed interface Trampoline<A> permits Trampoline.Done, Trampoline.More, 
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   default <B> Trampoline<B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", TRAMPOLINE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
     return flatMap(a -> done(f.apply(a)));
   }
 
@@ -220,7 +220,7 @@ public sealed interface Trampoline<A> permits Trampoline.Done, Trampoline.More, 
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   default <B> Trampoline<B> flatMap(Function<? super A, ? extends Trampoline<? extends B>> f) {
-    Validation.function().requireFlatMapper(f, "f", TRAMPOLINE_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
     @SuppressWarnings("unchecked")
     Function<A, Trampoline<B>> castedF =
         a -> {

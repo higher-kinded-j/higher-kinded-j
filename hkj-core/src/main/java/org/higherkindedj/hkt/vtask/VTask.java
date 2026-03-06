@@ -130,7 +130,7 @@ public interface VTask<A> extends VTaskKind<A> {
    * @throws NullPointerException if {@code thunk} is null.
    */
   static <A> VTask<A> delay(Supplier<A> thunk) {
-    Validation.function().requireFunction(thunk, "thunk", VTask.class, DELAY);
+    Validation.function().require(thunk, "thunk", DELAY);
     return thunk::get;
   }
 
@@ -273,7 +273,7 @@ public interface VTask<A> extends VTaskKind<A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> VTask<B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", VTask.class, MAP);
+    Validation.function().require(f, "f", MAP);
     return () -> f.apply(this.execute());
   }
 
@@ -290,7 +290,7 @@ public interface VTask<A> extends VTaskKind<A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> VTask<B> flatMap(Function<? super A, ? extends VTask<B>> f) {
-    Validation.function().requireFlatMapper(f, "f", VTask.class, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
     return () -> {
       A a = this.execute();
       VTask<B> next = f.apply(a);
@@ -380,8 +380,7 @@ public interface VTask<A> extends VTaskKind<A> {
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
   default VTask<A> recover(Function<? super Throwable, ? extends A> recoveryFunction) {
-    Validation.function()
-        .requireFunction(recoveryFunction, "recoveryFunction", VTask.class, RECOVER);
+    Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER);
     return () -> {
       try {
         return this.execute();
@@ -400,8 +399,7 @@ public interface VTask<A> extends VTaskKind<A> {
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
   default VTask<A> recoverWith(Function<? super Throwable, ? extends VTask<A>> recoveryFunction) {
-    Validation.function()
-        .requireFunction(recoveryFunction, "recoveryFunction", VTask.class, RECOVER_WITH);
+    Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER_WITH);
     return () -> {
       try {
         return this.execute();
@@ -423,7 +421,7 @@ public interface VTask<A> extends VTaskKind<A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default VTask<A> mapError(Function<? super Throwable, ? extends Throwable> f) {
-    Validation.function().requireMapper(f, "f", VTask.class, MAP_ERROR);
+    Validation.function().require(f, "f", MAP_ERROR);
     return () -> {
       try {
         return this.execute();

@@ -314,8 +314,7 @@ class MaybeMonadTest extends MaybeTestBase {
         Function<Integer, Kind<MaybeKind.Witness, String>> function) {
       assertThatThrownBy(() -> monad.flatMap(function, kind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(expectedMessagePart)
-          .hasMessageContaining("MaybeMonad.flatMap");
+          .hasMessageContaining(expectedMessagePart);
     }
   }
 }

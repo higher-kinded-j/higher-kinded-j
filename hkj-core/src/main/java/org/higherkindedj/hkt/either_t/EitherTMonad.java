@@ -82,8 +82,8 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> map(
       Function<? super R_IN, ? extends R_OUT> f, Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
 
-    Validation.function().requireMapper(f, "f", EITHER_T_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, EITHER_T_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     EitherT<F, L, R_IN> eitherT = EITHER_T.narrow(fa);
     Kind<F, Either<L, R_OUT>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
@@ -110,8 +110,8 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
       Kind<EitherTKind.Witness<F, L>, ? extends Function<R_IN, R_OUT>> ff,
       Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
 
-    Validation.kind().requireNonNull(ff, EITHER_T_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, EITHER_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     EitherT<F, L, ? extends Function<R_IN, R_OUT>> funcT = EITHER_T.narrow(ff);
     EitherT<F, L, R_IN> valT = EITHER_T.narrow(fa);
@@ -148,8 +148,8 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
       Function<? super R_IN, ? extends Kind<EitherTKind.Witness<F, L>, R_OUT>> f,
       Kind<EitherTKind.Witness<F, L>, R_IN> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", EITHER_T_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, EITHER_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     EitherT<F, L, R_IN> eitherT_ma = EITHER_T.narrow(ma);
 
@@ -214,9 +214,8 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
       Kind<EitherTKind.Witness<F, L>, R> ma,
       Function<? super L, ? extends Kind<EitherTKind.Witness<F, L>, R>> handler) {
 
-    Validation.kind().requireNonNull(ma, EITHER_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Validation.function()
-        .requireFunction(handler, "handler", EITHER_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, HANDLE_ERROR_WITH, "source");
+    Validation.function().require(handler, "handler", HANDLE_ERROR_WITH);
 
     EitherT<F, L, R> eitherT_ma = EITHER_T.narrow(ma);
 

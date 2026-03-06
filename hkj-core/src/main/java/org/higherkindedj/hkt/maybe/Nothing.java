@@ -52,19 +52,19 @@ final class Nothing<T> implements Maybe<T>, MaybeKind<T> {
 
   @Override
   public T orElseGet(Supplier<? extends T> other) {
-    Validation.function().requireFunction(other, "otherSupplier", MAYBE_CLASS, OR_ELSE_GET);
+    Validation.function().require(other, "otherSupplier", OR_ELSE_GET);
     return other.get(); // Supplier must return NonNull T
   }
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    Validation.function().requireMapper(mapper, "mapper", MAYBE_CLASS, MAP);
+    Validation.function().require(mapper, "mapper", MAP);
     return instance(); // Mapping Nothing always results in Nothing
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    Validation.function().requireFlatMapper(mapper, "mapper", MAYBE_CLASS, FLAT_MAP);
+    Validation.function().require(mapper, "mapper", FLAT_MAP);
     return instance(); // FlatMapping Nothing always results in Nothing
   }
 

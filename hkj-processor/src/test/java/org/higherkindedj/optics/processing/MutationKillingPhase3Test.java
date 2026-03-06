@@ -1143,8 +1143,8 @@ class MutationKillingPhase3Test {
               .getCharContent(true)
               .toString();
 
-      // Should validate each mapper with requireMapper
-      assertThat(code).contains("requireMapper");
+      // Should validate each mapper with require
+      assertThat(code).contains("require");
       // Should have all three mappers
       assertThat(code).contains("firstMapper");
       assertThat(code).contains("secondMapper");

@@ -48,7 +48,7 @@ public final class Lazy<A> {
    * @throws NullPointerException if computation is null.
    */
   public static <A> Lazy<A> defer(ThrowableSupplier<? extends A> computation) {
-    Validation.function().requireFunction(computation, "computation", LAZY_CLASS, DEFER);
+    Validation.function().require(computation, "computation", DEFER);
     return new Lazy<>(computation);
   }
 
@@ -113,7 +113,7 @@ public final class Lazy<A> {
    * @throws NullPointerException if f is null.
    */
   public <B> Lazy<B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", LAZY_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
     return Lazy.defer(() -> f.apply(this.force()));
   }
 
@@ -129,7 +129,7 @@ public final class Lazy<A> {
    * @throws NullPointerException if f is null or f returns null.
    */
   public <B> Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>> f) {
-    Validation.function().requireFlatMapper(f, "f", LAZY_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
     return Lazy.defer(
         () -> {
           Lazy<? extends B> nextLazy = f.apply(this.force());

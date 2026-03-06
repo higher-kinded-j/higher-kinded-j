@@ -98,8 +98,8 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   public <A, B> Kind<MaybeKind.Witness, B> select(
       Kind<MaybeKind.Witness, Choice<A, B>> fab, Kind<MaybeKind.Witness, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, MAYBE_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, MAYBE_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     Maybe<Choice<A, B>> maybeChoice = MAYBE.narrow(fab);
 
@@ -150,9 +150,9 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
       Kind<MaybeKind.Witness, Function<A, C>> fl,
       Kind<MaybeKind.Witness, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, MAYBE_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, MAYBE_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, MAYBE_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     Maybe<Choice<A, B>> maybeChoice = MAYBE.narrow(fab);
 
@@ -245,8 +245,8 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   public Kind<MaybeKind.Witness, Unit> whenS(
       Kind<MaybeKind.Witness, Boolean> fcond, Kind<MaybeKind.Witness, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, MAYBE_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, MAYBE_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     Maybe<Boolean> condMaybe = MAYBE.narrow(fcond);
 
@@ -285,9 +285,9 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
       Kind<MaybeKind.Witness, A> fthen,
       Kind<MaybeKind.Witness, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, MAYBE_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, MAYBE_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, MAYBE_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     Maybe<Boolean> condMaybe = MAYBE.narrow(fcond);
 

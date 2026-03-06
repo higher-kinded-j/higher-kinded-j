@@ -55,8 +55,8 @@ public class VTaskFunctor implements Functor<VTaskKind.Witness> {
   public <A, B> Kind<VTaskKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<VTaskKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", VTASK_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, VTASK_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     VTask<A> vtaskA = VTASK.narrow(fa);
     VTask<B> vtaskB = vtaskA.map(f);

@@ -110,7 +110,7 @@ public interface IO<A> extends IOKind<A> {
    * @throws NullPointerException if {@code thunk} is null.
    */
   static <A> IO<A> delay(Supplier<A> thunk) {
-    Validation.function().requireFunction(thunk, "thunk", IO.class, DELAY);
+    Validation.function().require(thunk, "thunk", DELAY);
     return thunk::get;
   }
 
@@ -134,7 +134,7 @@ public interface IO<A> extends IOKind<A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> IO<B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", IO.class, MAP);
+    Validation.function().require(f, "f", MAP);
     return IO.delay(() -> f.apply(this.unsafeRunSync()));
   }
 
@@ -161,7 +161,7 @@ public interface IO<A> extends IOKind<A> {
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
    */
   default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
-    Validation.function().requireFlatMapper(f, "f", IO.class, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
     return IO.delay(
         () -> {
           A a = this.unsafeRunSync();

@@ -47,8 +47,8 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
   public <A, B> Kind<WriterKind.Witness<W>, B> map(
       Function<? super A, ? extends B> f, Kind<WriterKind.Witness<W>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", WRITER_FUNCTER_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, WRITER_FUNCTER_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Writer<W, A> writerA = WRITER.narrow(fa);
     Writer<W, B> writerB = writerA.map(f);

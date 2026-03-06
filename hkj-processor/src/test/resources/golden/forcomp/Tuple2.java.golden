@@ -42,8 +42,8 @@ public record Tuple2<A, B>(A _1, B _2) implements Tuple {
    */
   public <C, D> Tuple2<C, D> bimap(
       Function<? super A, ? extends C> firstMapper, Function<? super B, ? extends D> secondMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE2_CLASS, BIMAP);
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE2_CLASS, BIMAP);
+    Validation.function().require(firstMapper, "firstMapper", BIMAP);
+    Validation.function().require(secondMapper, "secondMapper", BIMAP);
 
     return new Tuple2<>(firstMapper.apply(_1), secondMapper.apply(_2));
   }
@@ -61,8 +61,8 @@ public record Tuple2<A, B>(A _1, B _2) implements Tuple {
   public <A2, B2> Tuple2<A2, B2> map(
       Function<? super A, ? extends A2> firstMapper,
       Function<? super B, ? extends B2> secondMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE2_CLASS, MAP);
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE2_CLASS, MAP);
+    Validation.function().require(firstMapper, "firstMapper", MAP);
+    Validation.function().require(secondMapper, "secondMapper", MAP);
 
     return new Tuple2<>(
         firstMapper.apply(_1),
@@ -78,7 +78,7 @@ public record Tuple2<A, B>(A _1, B _2) implements Tuple {
    * @throws NullPointerException if {@code firstMapper} is null.
    */
   public <A2> Tuple2<A2, B> mapFirst(Function<? super A, ? extends A2> firstMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE2_CLASS, MAP_FIRST);
+    Validation.function().require(firstMapper, "firstMapper", MAP_FIRST);
     return new Tuple2<>(firstMapper.apply(_1), _2);
   }
 
@@ -91,7 +91,7 @@ public record Tuple2<A, B>(A _1, B _2) implements Tuple {
    * @throws NullPointerException if {@code secondMapper} is null.
    */
   public <B2> Tuple2<A, B2> mapSecond(Function<? super B, ? extends B2> secondMapper) {
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE2_CLASS, MAP_SECOND);
+    Validation.function().require(secondMapper, "secondMapper", MAP_SECOND);
     return new Tuple2<>(_1, secondMapper.apply(_2));
   }
 

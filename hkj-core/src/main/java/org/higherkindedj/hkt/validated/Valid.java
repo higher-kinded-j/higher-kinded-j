@@ -70,32 +70,31 @@ public record Valid<E, A>(A value)
 
   @Override
   public A orElseGet(Supplier<? extends A> otherSupplier) {
-    Validation.function().requireFunction(otherSupplier, "otherSupplier", VALID_CLASS, OR_ELSE_GET);
+    Validation.function().require(otherSupplier, "otherSupplier", OR_ELSE_GET);
     return value;
   }
 
   @Override
   public <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-    Validation.function()
-        .requireFunction(exceptionSupplier, "exceptionSupplier", VALID_CLASS, OR_ELSE_THROW);
+    Validation.function().require(exceptionSupplier, "exceptionSupplier", OR_ELSE_THROW);
     return value;
   }
 
   @Override
   public void ifValid(Consumer<? super A> consumer) {
-    Validation.function().requireFunction(consumer, "consumer", VALID_CLASS, IF_VALID);
+    Validation.function().require(consumer, "consumer", IF_VALID);
     consumer.accept(value);
   }
 
   @Override
   public void ifInvalid(Consumer<? super E> consumer) {
-    Validation.function().requireFunction(consumer, "consumer", VALID_CLASS, IF_INVALID);
+    Validation.function().require(consumer, "consumer", IF_INVALID);
     // No action for Valid
   }
 
   @Override
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    Validation.function().requireMapper(fn, "fn", VALID_CLASS, MAP);
+    Validation.function().require(fn, "fn", MAP);
     B newValue = fn.apply(value);
     Validation.function().requireNonNullResult(newValue, "fn", VALID_CLASS, MAP);
     return new Valid<>(newValue);
@@ -103,7 +102,7 @@ public record Valid<E, A>(A value)
 
   @Override
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
-    Validation.function().requireFlatMapper(fn, "fn", VALID_CLASS, FLAT_MAP);
+    Validation.function().require(fn, "fn", FLAT_MAP);
     Validated<E, ? extends B> result = fn.apply(value);
     Validation.function()
         .requireNonNullResult(result, "fn", VALID_CLASS, FLAT_MAP, Validated.class);
@@ -116,7 +115,7 @@ public record Valid<E, A>(A value)
   @Override
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
-    Validation.function().requireFunction(fnValidated, "fnValidated", VALID_CLASS, AP);
+    Validation.function().require(fnValidated, "fnValidated", AP);
     Validation.coreType().requireValue(semigroup, "semigroup", VALID_CLASS, AP);
 
     return switch (fnValidated) {

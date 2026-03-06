@@ -64,9 +64,9 @@ public class ConstBifunctor implements Bifunctor<ConstKind2.Witness> {
       Function<? super B, ? extends D> g,
       Kind2<ConstKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", ConstBifunctor.class, BIMAP);
-    Validation.function().requireMapper(g, "g", ConstBifunctor.class, BIMAP);
-    Objects.requireNonNull(fab, "Kind for ConstBifunctor.bimap cannot be null");
+    Validation.function().require(f, "f", BIMAP);
+    Validation.function().require(g, "g", BIMAP);
+    Objects.requireNonNull(fab, "Kind for bimap cannot be null");
 
     Const<A, B> const_ = CONST.narrow2(fab);
     Const<C, D> result = const_.bimap(f, g);
@@ -77,8 +77,8 @@ public class ConstBifunctor implements Bifunctor<ConstKind2.Witness> {
   public <A, B, C> Kind2<ConstKind2.Witness, C, B> first(
       Function<? super A, ? extends C> f, Kind2<ConstKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", ConstBifunctor.class, FIRST);
-    Objects.requireNonNull(fab, "Kind for ConstBifunctor.first cannot be null");
+    Validation.function().require(f, "f", FIRST);
+    Objects.requireNonNull(fab, "Kind for first cannot be null");
 
     Const<A, B> const_ = CONST.narrow2(fab);
     Const<C, B> result = const_.mapFirst(f);
@@ -89,8 +89,8 @@ public class ConstBifunctor implements Bifunctor<ConstKind2.Witness> {
   public <A, B, D> Kind2<ConstKind2.Witness, A, D> second(
       Function<? super B, ? extends D> g, Kind2<ConstKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(g, "g", ConstBifunctor.class, SECOND);
-    Objects.requireNonNull(fab, "Kind for ConstBifunctor.second cannot be null");
+    Validation.function().require(g, "g", SECOND);
+    Objects.requireNonNull(fab, "Kind for second cannot be null");
 
     Const<A, B> const_ = CONST.narrow2(fab);
     Const<A, D> result = const_.mapSecond(g);

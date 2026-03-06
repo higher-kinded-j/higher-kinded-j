@@ -90,8 +90,8 @@ public class IdMonad implements Monad<IdKind.Witness> {
   public <A, B> Kind<IdKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<IdKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", ID_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, ID_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return ID.narrow(fa).map(f);
   }
@@ -121,12 +121,12 @@ public class IdMonad implements Monad<IdKind.Witness> {
   public <A, B> Kind<IdKind.Witness, B> ap(
       Kind<IdKind.Witness, ? extends Function<A, B>> ff, Kind<IdKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, ID_MONAD_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Function<A, B> function = ID.narrow(ff).value();
     A value = ID.narrow(fa).value();
 
-    Validation.function().requireFunction(function, "function", ID_MONAD_CLASS, AP);
+    Validation.function().require(function, "function", AP);
     return Id.of(function.apply(value));
   }
 
@@ -157,7 +157,7 @@ public class IdMonad implements Monad<IdKind.Witness> {
   public <A, B> Kind<IdKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<IdKind.Witness, B>> f, Kind<IdKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, ID_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     A valueInA = ID.narrow(ma).value();
     Kind<IdKind.Witness, B> resultKind = f.apply(valueInA);

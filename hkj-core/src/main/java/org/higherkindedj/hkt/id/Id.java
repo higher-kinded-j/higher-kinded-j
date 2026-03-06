@@ -46,7 +46,7 @@ public record Id<A>(@Nullable A value) implements IdKind<A> {
    * @throws NullPointerException if {@code fn} is null.
    */
   public <B> Id<B> map(Function<? super A, ? extends B> fn) {
-    Validation.function().requireMapper(fn, "fn", ID_CLASS, MAP);
+    Validation.function().require(fn, "fn", MAP);
     return new Id<>(fn.apply(value()));
   }
 
@@ -60,7 +60,7 @@ public record Id<A>(@Nullable A value) implements IdKind<A> {
    * @throws NullPointerException if fn is null or if fn returns a null Id.
    */
   public <B> Id<B> flatMap(Function<? super A, ? extends Id<? extends B>> fn) {
-    Validation.function().requireFlatMapper(fn, "fn", ID_CLASS, FLAT_MAP);
+    Validation.function().require(fn, "fn", FLAT_MAP);
 
     Id<? extends B> result = fn.apply(value());
     Validation.function().requireNonNullResult(result, "fn", ID_CLASS, FLAT_MAP, ID_CLASS);

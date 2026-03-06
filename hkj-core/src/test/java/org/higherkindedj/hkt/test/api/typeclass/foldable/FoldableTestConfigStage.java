@@ -52,8 +52,7 @@ public final class FoldableTestConfigStage<F extends WitnessArity<TypeArity.Unar
 
   /** Executes only validation tests. */
   public void testValidations() {
-    TestMethodRegistry.testFoldableValidations(
-        foldable, contextClass, validKind, monoid, foldMapFunction);
+    TestMethodRegistry.testFoldableValidations(foldable, validKind, monoid, foldMapFunction);
   }
 
   /** Executes only exception tests. */

@@ -202,7 +202,7 @@ class StateMonadTest extends StateTestBase<Integer> {
     void flatMapShouldValidateMapperIsNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> monad.flatMap(null, validKind))
-          .withMessageContaining("Function f for StateMonad.flatMap cannot be null");
+          .withMessageContaining("Function f for flatMap cannot be null");
     }
 
     @Test
@@ -210,7 +210,7 @@ class StateMonadTest extends StateTestBase<Integer> {
     void flatMapShouldValidateKindIsNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> monad.flatMap(validFlatMapper, null))
-          .withMessageContaining("Kind for StateMonad.flatMap cannot be null");
+          .withMessageContaining("Kind for flatMap cannot be null");
     }
 
     @Test

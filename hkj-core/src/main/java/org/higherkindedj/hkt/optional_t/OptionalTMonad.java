@@ -81,8 +81,8 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
   public <A, B> Kind<OptionalTKind.Witness<F>, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalTKind.Witness<F>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", OPTIONAL_T_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
     Kind<F, Optional<B>> newValue = outerMonad.map(opt -> opt.map(f), optionalT.value());
@@ -117,8 +117,8 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
       Kind<OptionalTKind.Witness<F>, ? extends Function<A, @Nullable B>> ff,
       Kind<OptionalTKind.Witness<F>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, OPTIONAL_T_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     OptionalT<F, ? extends Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
     OptionalT<F, A> valT = OPTIONAL_T.narrow(fa);
@@ -152,8 +152,8 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
       Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
       Kind<OptionalTKind.Witness<F>, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
@@ -215,9 +215,8 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
       Kind<OptionalTKind.Witness<F>, A> ma,
       Function<? super Unit, ? extends Kind<OptionalTKind.Witness<F>, A>> handler) {
 
-    Validation.kind().requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Validation.function()
-        .requireFunction(handler, "handler", OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, HANDLE_ERROR_WITH, "source");
+    Validation.function().require(handler, "handler", HANDLE_ERROR_WITH);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 

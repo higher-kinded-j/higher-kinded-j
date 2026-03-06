@@ -92,8 +92,8 @@ public final class EitherSelective<L> extends EitherMonad<L>
       Kind<EitherKind.Witness<L>, Choice<A, B>> fab,
       Kind<EitherKind.Witness<L>, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, EITHER_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, EITHER_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     Either<L, Choice<A, B>> eitherChoice = EITHER.narrow(fab);
     Either<L, Function<A, B>> eitherFunction = EITHER.narrow(ff);
@@ -148,9 +148,9 @@ public final class EitherSelective<L> extends EitherMonad<L>
       Kind<EitherKind.Witness<L>, Function<A, C>> fl,
       Kind<EitherKind.Witness<L>, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, EITHER_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, EITHER_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, EITHER_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     Either<L, Choice<A, B>> eitherChoice = EITHER.narrow(fab);
 
@@ -194,8 +194,8 @@ public final class EitherSelective<L> extends EitherMonad<L>
   public Kind<EitherKind.Witness<L>, Unit> whenS(
       Kind<EitherKind.Witness<L>, Boolean> fcond, Kind<EitherKind.Witness<L>, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, EITHER_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, EITHER_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     Either<L, Boolean> condEither = EITHER.narrow(fcond);
 
@@ -233,9 +233,9 @@ public final class EitherSelective<L> extends EitherMonad<L>
       Kind<EitherKind.Witness<L>, A> fthen,
       Kind<EitherKind.Witness<L>, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, EITHER_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, EITHER_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, EITHER_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     Either<L, Boolean> condEither = EITHER.narrow(fcond);
 

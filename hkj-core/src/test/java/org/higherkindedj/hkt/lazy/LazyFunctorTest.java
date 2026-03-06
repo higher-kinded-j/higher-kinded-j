@@ -144,7 +144,7 @@ class LazyFunctorTest extends LazyTestBase {
     void mapShouldThrowNPEForNullMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(null, validKind))
-          .withMessageContaining("Function f for LazyMonad.map cannot be null");
+          .withMessageContaining("Function f for map cannot be null");
     }
 
     @Test
@@ -152,7 +152,7 @@ class LazyFunctorTest extends LazyTestBase {
     void mapShouldThrowNPEForNullKind() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(validMapper, null))
-          .withMessageContaining("Kind for LazyMonad.map cannot be null");
+          .withMessageContaining("Kind for map cannot be null");
     }
   }
 

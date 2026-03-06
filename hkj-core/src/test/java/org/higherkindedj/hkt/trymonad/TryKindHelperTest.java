@@ -268,7 +268,7 @@ class TryKindHelperTest extends TryTestBase {
     void tryOf_shouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> TRY.tryOf(null))
-          .withMessageContaining("Function supplier for Try.of cannot be null");
+          .withMessageContaining("Function supplier for of cannot be null");
     }
   }
 

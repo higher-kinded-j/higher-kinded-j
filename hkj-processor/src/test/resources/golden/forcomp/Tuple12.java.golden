@@ -90,18 +90,18 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
       Function<? super J, ? extends J2> tenthMapper,
       Function<? super K, ? extends K2> eleventhMapper,
       Function<? super L, ? extends L2> twelfthMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(fifthMapper, "fifthMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(sixthMapper, "sixthMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(seventhMapper, "seventhMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(eighthMapper, "eighthMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(ninthMapper, "ninthMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(tenthMapper, "tenthMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(eleventhMapper, "eleventhMapper", TUPLE12_CLASS, MAP);
-    Validation.function().requireMapper(twelfthMapper, "twelfthMapper", TUPLE12_CLASS, MAP);
+    Validation.function().require(firstMapper, "firstMapper", MAP);
+    Validation.function().require(secondMapper, "secondMapper", MAP);
+    Validation.function().require(thirdMapper, "thirdMapper", MAP);
+    Validation.function().require(fourthMapper, "fourthMapper", MAP);
+    Validation.function().require(fifthMapper, "fifthMapper", MAP);
+    Validation.function().require(sixthMapper, "sixthMapper", MAP);
+    Validation.function().require(seventhMapper, "seventhMapper", MAP);
+    Validation.function().require(eighthMapper, "eighthMapper", MAP);
+    Validation.function().require(ninthMapper, "ninthMapper", MAP);
+    Validation.function().require(tenthMapper, "tenthMapper", MAP);
+    Validation.function().require(eleventhMapper, "eleventhMapper", MAP);
+    Validation.function().require(twelfthMapper, "twelfthMapper", MAP);
 
     return new Tuple12<>(
         firstMapper.apply(_1),
@@ -127,7 +127,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code firstMapper} is null.
    */
   public <A2> Tuple12<A2, B, C, D, E, F, G, H, I, J, K, L> mapFirst(Function<? super A, ? extends A2> firstMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE12_CLASS, MAP_FIRST);
+    Validation.function().require(firstMapper, "firstMapper", MAP_FIRST);
     return new Tuple12<>(firstMapper.apply(_1), _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12);
   }
 
@@ -140,7 +140,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code secondMapper} is null.
    */
   public <B2> Tuple12<A, B2, C, D, E, F, G, H, I, J, K, L> mapSecond(Function<? super B, ? extends B2> secondMapper) {
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE12_CLASS, MAP_SECOND);
+    Validation.function().require(secondMapper, "secondMapper", MAP_SECOND);
     return new Tuple12<>(_1, secondMapper.apply(_2), _3, _4, _5, _6, _7, _8, _9, _10, _11, _12);
   }
 
@@ -153,7 +153,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code thirdMapper} is null.
    */
   public <C2> Tuple12<A, B, C2, D, E, F, G, H, I, J, K, L> mapThird(Function<? super C, ? extends C2> thirdMapper) {
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE12_CLASS, MAP_THIRD);
+    Validation.function().require(thirdMapper, "thirdMapper", MAP_THIRD);
     return new Tuple12<>(_1, _2, thirdMapper.apply(_3), _4, _5, _6, _7, _8, _9, _10, _11, _12);
   }
 
@@ -166,7 +166,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code fourthMapper} is null.
    */
   public <D2> Tuple12<A, B, C, D2, E, F, G, H, I, J, K, L> mapFourth(Function<? super D, ? extends D2> fourthMapper) {
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE12_CLASS, MAP_FOURTH);
+    Validation.function().require(fourthMapper, "fourthMapper", MAP_FOURTH);
     return new Tuple12<>(_1, _2, _3, fourthMapper.apply(_4), _5, _6, _7, _8, _9, _10, _11, _12);
   }
 
@@ -179,7 +179,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code fifthMapper} is null.
    */
   public <E2> Tuple12<A, B, C, D, E2, F, G, H, I, J, K, L> mapFifth(Function<? super E, ? extends E2> fifthMapper) {
-    Validation.function().requireMapper(fifthMapper, "fifthMapper", TUPLE12_CLASS, MAP_FIFTH);
+    Validation.function().require(fifthMapper, "fifthMapper", MAP_FIFTH);
     return new Tuple12<>(_1, _2, _3, _4, fifthMapper.apply(_5), _6, _7, _8, _9, _10, _11, _12);
   }
 
@@ -192,7 +192,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code sixthMapper} is null.
    */
   public <F2> Tuple12<A, B, C, D, E, F2, G, H, I, J, K, L> mapSixth(Function<? super F, ? extends F2> sixthMapper) {
-    Validation.function().requireMapper(sixthMapper, "sixthMapper", TUPLE12_CLASS, MAP_SIXTH);
+    Validation.function().require(sixthMapper, "sixthMapper", MAP_SIXTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, sixthMapper.apply(_6), _7, _8, _9, _10, _11, _12);
   }
 
@@ -205,7 +205,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code seventhMapper} is null.
    */
   public <G2> Tuple12<A, B, C, D, E, F, G2, H, I, J, K, L> mapSeventh(Function<? super G, ? extends G2> seventhMapper) {
-    Validation.function().requireMapper(seventhMapper, "seventhMapper", TUPLE12_CLASS, MAP_SEVENTH);
+    Validation.function().require(seventhMapper, "seventhMapper", MAP_SEVENTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, _6, seventhMapper.apply(_7), _8, _9, _10, _11, _12);
   }
 
@@ -218,7 +218,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code eighthMapper} is null.
    */
   public <H2> Tuple12<A, B, C, D, E, F, G, H2, I, J, K, L> mapEighth(Function<? super H, ? extends H2> eighthMapper) {
-    Validation.function().requireMapper(eighthMapper, "eighthMapper", TUPLE12_CLASS, MAP_EIGHTH);
+    Validation.function().require(eighthMapper, "eighthMapper", MAP_EIGHTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, _6, _7, eighthMapper.apply(_8), _9, _10, _11, _12);
   }
 
@@ -231,7 +231,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code ninthMapper} is null.
    */
   public <I2> Tuple12<A, B, C, D, E, F, G, H, I2, J, K, L> mapNinth(Function<? super I, ? extends I2> ninthMapper) {
-    Validation.function().requireMapper(ninthMapper, "ninthMapper", TUPLE12_CLASS, MAP_NINTH);
+    Validation.function().require(ninthMapper, "ninthMapper", MAP_NINTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, _6, _7, _8, ninthMapper.apply(_9), _10, _11, _12);
   }
 
@@ -244,7 +244,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code tenthMapper} is null.
    */
   public <J2> Tuple12<A, B, C, D, E, F, G, H, I, J2, K, L> mapTenth(Function<? super J, ? extends J2> tenthMapper) {
-    Validation.function().requireMapper(tenthMapper, "tenthMapper", TUPLE12_CLASS, MAP_TENTH);
+    Validation.function().require(tenthMapper, "tenthMapper", MAP_TENTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, _6, _7, _8, _9, tenthMapper.apply(_10), _11, _12);
   }
 
@@ -257,7 +257,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code eleventhMapper} is null.
    */
   public <K2> Tuple12<A, B, C, D, E, F, G, H, I, J, K2, L> mapEleventh(Function<? super K, ? extends K2> eleventhMapper) {
-    Validation.function().requireMapper(eleventhMapper, "eleventhMapper", TUPLE12_CLASS, MAP_ELEVENTH);
+    Validation.function().require(eleventhMapper, "eleventhMapper", MAP_ELEVENTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, eleventhMapper.apply(_11), _12);
   }
 
@@ -270,7 +270,7 @@ public record Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>(A _1, B _2, C _3, D _4
    * @throws NullPointerException if {@code twelfthMapper} is null.
    */
   public <L2> Tuple12<A, B, C, D, E, F, G, H, I, J, K, L2> mapTwelfth(Function<? super L, ? extends L2> twelfthMapper) {
-    Validation.function().requireMapper(twelfthMapper, "twelfthMapper", TUPLE12_CLASS, MAP_TWELFTH);
+    Validation.function().require(twelfthMapper, "twelfthMapper", MAP_TWELFTH);
     return new Tuple12<>(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, twelfthMapper.apply(_12));
   }
 

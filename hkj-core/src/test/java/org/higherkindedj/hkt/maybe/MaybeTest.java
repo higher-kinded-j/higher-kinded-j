@@ -473,8 +473,7 @@ class MaybeTest extends MaybeTestBase {
     @DisplayName("orElseGet() validates null supplier using ValidationTestBuilder")
     void orElseGetValidatesNullSupplier() {
       ValidationTestBuilder.create()
-          .assertFunctionNull(
-              () -> nothingInstance.orElseGet(null), "otherSupplier", Maybe.class, OR_ELSE_GET)
+          .assertFunctionNull(() -> nothingInstance.orElseGet(null), "otherSupplier", OR_ELSE_GET)
           .execute();
     }
 
@@ -520,8 +519,8 @@ class MaybeTest extends MaybeTestBase {
     @DisplayName("map() validates null mapper using ValidationTestBuilder")
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> justInstance.map(null), "mapper", Just.class, Operation.MAP)
-          .assertMapperNull(() -> nothingInstance.map(null), "mapper", Maybe.class, Operation.MAP)
+          .assertMapperNull(() -> justInstance.map(null), "mapper", Operation.MAP)
+          .assertMapperNull(() -> nothingInstance.map(null), "mapper", Operation.MAP)
           .execute();
     }
 
@@ -584,9 +583,8 @@ class MaybeTest extends MaybeTestBase {
     @DisplayName("flatMap() validates parameters using ValidationTestBuilder")
     void flatMapValidatesParameters() {
       ValidationTestBuilder.create()
-          .assertFlatMapperNull(() -> justInstance.flatMap(null), "mapper", Just.class, FLAT_MAP)
-          .assertFlatMapperNull(
-              () -> nothingInstance.flatMap(null), "mapper", Maybe.class, FLAT_MAP)
+          .assertFlatMapperNull(() -> justInstance.flatMap(null), "mapper", FLAT_MAP)
+          .assertFlatMapperNull(() -> nothingInstance.flatMap(null), "mapper", FLAT_MAP)
           .execute();
     }
 

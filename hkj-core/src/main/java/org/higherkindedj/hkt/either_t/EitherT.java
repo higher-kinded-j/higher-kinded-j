@@ -42,7 +42,7 @@ public record EitherT<F extends WitnessArity<TypeArity.Unary>, L, R>(Kind<F, Eit
    * @throws NullPointerException if {@code value} is null.
    */
   public EitherT {
-    Validation.kind().requireNonNull(value, EITHER_T_CLASS, CONSTRUCTION);
+    Validation.kind().requireNonNull(value, CONSTRUCTION);
   }
 
   /**
@@ -134,7 +134,7 @@ public record EitherT<F extends WitnessArity<TypeArity.Unary>, L, R>(Kind<F, Eit
   public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> liftF(
       Monad<F> outerMonad, Kind<F, R> fr) {
     Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, LIFT_F);
-    Validation.kind().requireNonNull(fr, EITHER_T_CLASS, LIFT_F, "source Kind");
+    Validation.kind().requireNonNull(fr, LIFT_F, "source Kind");
     Kind<F, Either<L, R>> mapped = outerMonad.map(Either::right, fr);
     return new EitherT<>(mapped);
   }

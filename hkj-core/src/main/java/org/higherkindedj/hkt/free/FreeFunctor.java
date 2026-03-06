@@ -49,8 +49,8 @@ public class FreeFunctor<F extends WitnessArity<?>> implements Functor<FreeKind.
   @Override
   public <A, B> Kind<FreeKind.Witness<F>, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<FreeKind.Witness<F>, A> fa) {
-    Validation.function().requireMapper(f, "f", FREE_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, FREE_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Free<F, A> freeA = FREE.narrow(fa);
     Free<F, B> resultFree = freeA.map(f);

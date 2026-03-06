@@ -103,7 +103,7 @@ class Tuple5Test {
                       d -> d + 1.0,
                       c -> Character.toLowerCase(c)))
           .withMessageContaining("firstMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -122,7 +122,7 @@ class Tuple5Test {
                       d -> d + 1.0,
                       c -> Character.toLowerCase(c)))
           .withMessageContaining("secondMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -141,7 +141,7 @@ class Tuple5Test {
                       d -> d + 1.0,
                       c -> Character.toLowerCase(c)))
           .withMessageContaining("thirdMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -160,7 +160,7 @@ class Tuple5Test {
                       null,
                       c -> Character.toLowerCase(c)))
           .withMessageContaining("fourthMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -174,7 +174,7 @@ class Tuple5Test {
               () ->
                   tuple.map(String::length, age -> age + 1, active -> !active, d -> d + 1.0, null))
           .withMessageContaining("fifthMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
   }
 
@@ -218,7 +218,7 @@ class Tuple5Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapFirst(null))
           .withMessageContaining("firstMapper")
-          .withMessageContaining("Tuple5.mapFirst");
+          .withMessageContaining("mapFirst");
     }
   }
 
@@ -263,7 +263,7 @@ class Tuple5Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapSecond(null))
           .withMessageContaining("secondMapper")
-          .withMessageContaining("Tuple5.mapSecond");
+          .withMessageContaining("mapSecond");
     }
   }
 
@@ -308,7 +308,7 @@ class Tuple5Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapThird(null))
           .withMessageContaining("thirdMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
   }
 
@@ -353,7 +353,7 @@ class Tuple5Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapFourth(null))
           .withMessageContaining("fourthMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
   }
 
@@ -397,7 +397,7 @@ class Tuple5Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapFifth(null))
           .withMessageContaining("fifthMapper")
-          .withMessageContaining("Tuple5.map");
+          .withMessageContaining("map");
     }
   }
 

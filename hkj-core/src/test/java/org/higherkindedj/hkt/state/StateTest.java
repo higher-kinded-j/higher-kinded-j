@@ -172,7 +172,7 @@ class StateTest extends StateTestBase<Integer> {
     void ofThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.of(null))
-          .withMessageContaining("runFunction for State.of cannot be null");
+          .withMessageContaining("runFunction for of cannot be null");
     }
 
     @Test
@@ -264,7 +264,7 @@ class StateTest extends StateTestBase<Integer> {
     void modifyThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.modify(null))
-          .withMessageContaining("Function f for State.modify cannot be null");
+          .withMessageContaining("Function f for modify cannot be null");
     }
 
     @Test
@@ -294,7 +294,7 @@ class StateTest extends StateTestBase<Integer> {
     void inspectThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.inspect(null))
-          .withMessageContaining("Function f for State.inspect cannot be null");
+          .withMessageContaining("Function f for inspect cannot be null");
     }
   }
 
@@ -367,7 +367,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("map() throws NullPointerException for null mapper")
     void mapThrowsForNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> incrementState.map(null), "f", State.class, Operation.MAP)
+          .assertMapperNull(() -> incrementState.map(null), "f", Operation.MAP)
           .execute();
     }
 
@@ -429,8 +429,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("flatMap() throws NullPointerException for null mapper")
     void flatMapThrowsForNullMapper() {
       ValidationTestBuilder.create()
-          .assertFlatMapperNull(
-              () -> incrementState.flatMap(null), "f", State.class, Operation.FLAT_MAP)
+          .assertFlatMapperNull(() -> incrementState.flatMap(null), "f", Operation.FLAT_MAP)
           .execute();
     }
 

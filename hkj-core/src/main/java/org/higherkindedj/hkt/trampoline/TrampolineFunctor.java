@@ -63,8 +63,8 @@ public class TrampolineFunctor implements Functor<TrampolineKind.Witness> {
   public <A, B> Kind<TrampolineKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TrampolineKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", TRAMPOLINE_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, TRAMPOLINE_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Trampoline<A> trampolineA = TRAMPOLINE.narrow(fa);
     Trampoline<B> resultTrampoline = trampolineA.map(f);

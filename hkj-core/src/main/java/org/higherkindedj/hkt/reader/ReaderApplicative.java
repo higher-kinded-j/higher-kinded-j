@@ -75,7 +75,7 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
   public <A, B> Kind<ReaderKind.Witness<R>, B> ap(
       Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, READER_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Reader<R, ? extends Function<A, B>> readerF = READER.narrow(ff);
     Reader<R, A> readerA = READER.narrow(fa);

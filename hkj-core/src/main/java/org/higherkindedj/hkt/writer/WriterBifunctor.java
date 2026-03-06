@@ -44,9 +44,9 @@ public class WriterBifunctor implements Bifunctor<WriterKind2.Witness> {
       Function<? super B, ? extends D> g,
       Kind2<WriterKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", WriterBifunctor.class, BIMAP);
-    Validation.function().requireMapper(g, "g", WriterBifunctor.class, BIMAP);
-    Objects.requireNonNull(fab, "Kind for WriterBifunctor.bimap cannot be null");
+    Validation.function().require(f, "f", BIMAP);
+    Validation.function().require(g, "g", BIMAP);
+    Objects.requireNonNull(fab, "Kind for bimap cannot be null");
 
     Writer<A, B> writer = WRITER.narrow2(fab);
     Writer<C, D> result = writer.bimap(f, g);
@@ -57,8 +57,8 @@ public class WriterBifunctor implements Bifunctor<WriterKind2.Witness> {
   public <A, B, C> Kind2<WriterKind2.Witness, C, B> first(
       Function<? super A, ? extends C> f, Kind2<WriterKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", WriterBifunctor.class, FIRST);
-    Objects.requireNonNull(fab, "Kind for WriterBifunctor.first cannot be null");
+    Validation.function().require(f, "f", FIRST);
+    Objects.requireNonNull(fab, "Kind for first cannot be null");
 
     Writer<A, B> writer = WRITER.narrow2(fab);
     Writer<C, B> result = writer.mapWritten(f);
@@ -69,8 +69,8 @@ public class WriterBifunctor implements Bifunctor<WriterKind2.Witness> {
   public <A, B, D> Kind2<WriterKind2.Witness, A, D> second(
       Function<? super B, ? extends D> g, Kind2<WriterKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(g, "g", WriterBifunctor.class, SECOND);
-    Objects.requireNonNull(fab, "Kind for WriterBifunctor.second cannot be null");
+    Validation.function().require(g, "g", SECOND);
+    Objects.requireNonNull(fab, "Kind for second cannot be null");
 
     Writer<A, B> writer = WRITER.narrow2(fab);
     Writer<A, D> result = writer.map(g);

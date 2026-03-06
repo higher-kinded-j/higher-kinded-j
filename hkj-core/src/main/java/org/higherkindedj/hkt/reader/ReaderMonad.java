@@ -83,7 +83,7 @@ public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<Reader
       Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
       Kind<ReaderKind.Witness<R>, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, READER_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Reader<R, A> readerA = READER.narrow(ma);
 

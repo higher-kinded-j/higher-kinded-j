@@ -89,7 +89,7 @@ public class ContextApplicative<R> extends ContextFunctor<R>
       Kind<ContextKind.Witness<R>, ? extends Function<A, B>> ff,
       Kind<ContextKind.Witness<R>, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, CONTEXT_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Context<R, ? extends Function<A, B>> contextF = CONTEXT.narrow(ff);
     Context<R, A> contextA = CONTEXT.narrow(fa);

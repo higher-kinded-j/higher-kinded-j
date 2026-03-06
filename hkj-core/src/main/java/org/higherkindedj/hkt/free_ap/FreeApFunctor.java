@@ -64,8 +64,8 @@ public class FreeApFunctor<F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A, B> Kind<FreeApKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<FreeApKind.Witness<F>, A> fa) {
-    Validation.function().requireMapper(f, "f", FREE_AP_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, FREE_AP_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     FreeAp<F, A> freeAp = FREE_AP.narrow(fa);
     FreeAp<F, B> mapped = freeAp.map(f);

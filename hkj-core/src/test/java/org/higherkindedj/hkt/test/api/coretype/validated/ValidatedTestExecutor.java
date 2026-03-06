@@ -111,12 +111,9 @@ final class ValidatedTestExecutor<E, A, B>
 
     // Fold validations (uses Validated interface, so always use contextClass)
     builder.assertFunctionNull(
-        () -> invalidInstance.fold(null, valueMapper),
-        "invalidMapper",
-        contextClass,
-        Operation.FOLD);
+        () -> invalidInstance.fold(null, valueMapper), "invalidMapper", Operation.FOLD);
     builder.assertFunctionNull(
-        () -> invalidInstance.fold(errorMapper, null), "validMapper", contextClass, Operation.FOLD);
+        () -> invalidInstance.fold(errorMapper, null), "validMapper", Operation.FOLD);
 
     // Determine contexts for concrete implementations
     Class<?> validMapContext =
@@ -144,10 +141,9 @@ final class ValidatedTestExecutor<E, A, B>
       @SuppressWarnings("unchecked")
       ValidatedMonad<E> monad = ValidatedMonad.instance((Semigroup<E>) Semigroups.string(","));
       Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(invalidInstance);
-      builder.assertMapperNull(() -> monad.map(null, kind), "f", validMapContext, Operation.MAP);
+      builder.assertMapperNull(() -> monad.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(
-          () -> invalidInstance.map(null), "fn", validMapContext, Operation.MAP);
+      builder.assertMapperNull(() -> invalidInstance.map(null), "fn", Operation.MAP);
     }
 
     // FlatMap validations - test through monad if ValidatedMonad context, otherwise test directly
@@ -155,11 +151,9 @@ final class ValidatedTestExecutor<E, A, B>
 
       ValidatedMonad<E> monad = ValidatedMonad.instance((Semigroup<E>) Semigroups.string(","));
       Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(invalidInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", validFlatMapContext, Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> invalidInstance.flatMap(null), "fn", validFlatMapContext, Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> invalidInstance.flatMap(null), "fn", Operation.FLAT_MAP);
     }
 
     // Side effect validations
@@ -176,16 +170,9 @@ final class ValidatedTestExecutor<E, A, B>
     }
 
     builder.assertFunctionNull(
-        () -> invalidInstance.ifInvalid(null),
-        "consumer",
-        effectiveIfInvalidContext,
-        Operation.IF_INVALID);
+        () -> invalidInstance.ifInvalid(null), "consumer", Operation.IF_INVALID);
 
-    builder.assertFunctionNull(
-        () -> invalidInstance.ifValid(null),
-        "consumer",
-        effectiveIfValidContext,
-        Operation.IF_VALID);
+    builder.assertFunctionNull(() -> invalidInstance.ifValid(null), "consumer", Operation.IF_VALID);
 
     builder.execute();
   }

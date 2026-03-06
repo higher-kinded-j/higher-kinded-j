@@ -73,7 +73,7 @@ final class FunctorTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, B> {
   }
 
   void executeValidations() {
-    TestMethodRegistry.testFunctorValidations(functor, contextClass, validKind, mapper);
+    TestMethodRegistry.testFunctorValidations(functor, validKind, mapper);
   }
 
   void executeExceptions() {

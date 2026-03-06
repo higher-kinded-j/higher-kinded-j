@@ -119,8 +119,8 @@ public class OptionalMonad extends OptionalFunctor
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", OPTIONAL_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, OPTIONAL_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()
@@ -151,7 +151,7 @@ public class OptionalMonad extends OptionalFunctor
       Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
       Kind<OptionalKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, OPTIONAL_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Optional<A> optA = OPTIONAL.narrow(ma);
     Optional<B> resultOpt =
@@ -186,7 +186,7 @@ public class OptionalMonad extends OptionalFunctor
   public <A, B> Kind<OptionalKind.Witness, B> ap(
       Kind<OptionalKind.Witness, ? extends Function<A, B>> ff, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, OPTIONAL_MONAD_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Optional<? extends Function<A, B>> optF = OPTIONAL.narrow(ff);
     Optional<A> optA = OPTIONAL.narrow(fa);
@@ -229,7 +229,7 @@ public class OptionalMonad extends OptionalFunctor
       Kind<OptionalKind.Witness, A> ma,
       Function<? super Unit, ? extends Kind<OptionalKind.Witness, A>> handler) {
 
-    Validation.function().validateHandleErrorWith(ma, handler, OPTIONAL_MONAD_CLASS);
+    Validation.function().validateHandleErrorWith(ma, handler);
 
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
@@ -289,8 +289,8 @@ public class OptionalMonad extends OptionalFunctor
   public <A> Kind<OptionalKind.Witness, A> orElse(
       Kind<OptionalKind.Witness, A> oa, Supplier<Kind<OptionalKind.Witness, A>> ob) {
 
-    Validation.kind().requireNonNull(oa, OPTIONAL_MONAD_CLASS, OR_ELSE, "first alternative");
-    Validation.function().requireFunction(ob, "ob", OPTIONAL_MONAD_CLASS, OR_ELSE);
+    Validation.kind().requireNonNull(oa, OR_ELSE, "first alternative");
+    Validation.function().require(ob, "ob", OR_ELSE);
 
     Optional<A> optionalA = OPTIONAL.narrow(oa);
 

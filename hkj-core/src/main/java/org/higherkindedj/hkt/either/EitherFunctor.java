@@ -56,8 +56,8 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
   @Override
   public <A, B> Kind<EitherKind.Witness<L>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> fa) {
-    Validation.function().requireMapper(f, "f", EITHER_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, EITHER_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Either<L, A> eitherA = EITHER.narrow(fa);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map

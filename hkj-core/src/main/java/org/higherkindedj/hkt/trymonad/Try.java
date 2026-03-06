@@ -82,7 +82,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code supplier} is null.
    */
   static <T> Try<T> of(Supplier<? extends T> supplier) {
-    Validation.function().requireFunction(supplier, "supplier", TRY_CLASS, OF);
+    Validation.function().require(supplier, "supplier", OF);
     try {
       return new Success<>(supplier.get());
     } catch (Throwable t) {
@@ -184,8 +184,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       Function<? super T, ? extends U> successMapper,
       Function<? super Throwable, ? extends U> failureMapper) {
 
-    Validation.function().requireFunction(successMapper, "successMapper", TRY_CLASS, FOLD);
-    Validation.function().requireFunction(failureMapper, "failureMapper", TRY_CLASS, FOLD);
+    Validation.function().require(successMapper, "successMapper", FOLD);
+    Validation.function().require(failureMapper, "failureMapper", FOLD);
 
     return switch (this) {
       case Success<T>(var value) -> successMapper.apply(value);
@@ -206,8 +206,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code failureToLeftMapper} is null.
    */
   default <L> Either<L, T> toEither(Function<? super Throwable, ? extends L> failureToLeftMapper) {
-    Validation.function()
-        .requireFunction(failureToLeftMapper, "failureToLeftMapper", TRY_CLASS, TO_EITHER);
+    Validation.function().require(failureToLeftMapper, "failureToLeftMapper", TO_EITHER);
     return switch (this) {
       case Success<T>(var value) -> Either.right(value);
       case Failure<T>(var cause) -> {
@@ -290,8 +289,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if either {@code successAction} or {@code failureAction} is null.
    */
   default void match(Consumer<? super T> successAction, Consumer<? super Throwable> failureAction) {
-    Validation.function().requireFunction(successAction, "successAction", TRY_CLASS, MATCH);
-    Validation.function().requireFunction(failureAction, "failureAction", TRY_CLASS, MATCH);
+    Validation.function().require(successAction, "successAction", MATCH);
+    Validation.function().require(failureAction, "failureAction", MATCH);
 
     try {
       switch (this) {
@@ -335,13 +334,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(Supplier<? extends T> supplier) {
-      Validation.function().requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
+      Validation.function().require(supplier, "supplier", OR_ELSE_GET);
       return value;
     }
 
     @Override
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
-      Validation.function().requireMapper(mapper, "mapper", Try.class, MAP);
+      Validation.function().require(mapper, "mapper", MAP);
       try {
         return new Success<>(mapper.apply(value));
       } catch (Throwable t) {
@@ -351,7 +350,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
-      Validation.function().requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
+      Validation.function().require(mapper, "mapper", FLAT_MAP);
       Try<? extends U> result;
       try {
         result = mapper.apply(value);
@@ -367,16 +366,14 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
-      Validation.function()
-          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER_FUNCTION);
+      Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER_FUNCTION);
       return this;
     }
 
     @Override
     public Try<T> recoverWith(
         Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
-      Validation.function()
-          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
+      Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER_WITH);
       return this;
     }
 
@@ -417,13 +414,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(Supplier<? extends T> supplier) {
-      Validation.function().requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
+      Validation.function().require(supplier, "supplier", OR_ELSE_GET);
       return supplier.get();
     }
 
     @Override
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
-      Validation.function().requireMapper(mapper, "mapper", Try.class, MAP);
+      Validation.function().require(mapper, "mapper", MAP);
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
       return self;
@@ -431,7 +428,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
-      Validation.function().requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
+      Validation.function().require(mapper, "mapper", FLAT_MAP);
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
       return self;
@@ -439,8 +436,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
-      Validation.function()
-          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER);
+      Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER);
       try {
         return new Success<>(recoveryFunction.apply(cause));
       } catch (Throwable t) {
@@ -451,8 +447,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     @Override
     public Try<T> recoverWith(
         Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
-      Validation.function()
-          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
+      Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER_WITH);
       Try<? extends T> result;
       try {
         result = recoveryFunction.apply(cause);

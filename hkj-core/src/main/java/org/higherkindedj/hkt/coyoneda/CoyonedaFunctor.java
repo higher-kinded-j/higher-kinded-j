@@ -90,8 +90,8 @@ public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A, B> Kind<CoyonedaKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<CoyonedaKind.Witness<F>, A> fa) {
-    Validation.function().requireMapper(f, "f", COYONEDA_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, COYONEDA_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Coyoneda<F, A> coyoneda = COYONEDA.narrow(fa);
     Coyoneda<F, B> mapped = coyoneda.map(f);

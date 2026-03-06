@@ -92,24 +92,22 @@ final class IOTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IOValida
     if (validationStage != null && validationStage.getMapContext() != null) {
       IOFunctor functor = IOFunctor.INSTANCE;
       Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> ioInstance.map(null), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> ioInstance.map(null), "f", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       IOMonad monad = IOMonad.INSTANCE;
       Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> ioInstance.flatMap(null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> ioInstance.flatMap(null), "f", Operation.FLAT_MAP);
     }
 
     // Delay validation
-    builder.assertFunctionNull(() -> IO.delay(null), "thunk", contextClass, Operation.DELAY);
+    builder.assertFunctionNull(() -> IO.delay(null), "thunk", Operation.DELAY);
 
     builder.execute();
   }

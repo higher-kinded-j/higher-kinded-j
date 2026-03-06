@@ -87,7 +87,7 @@ public class VStreamApplicative extends VStreamFunctor implements Applicative<VS
   public <A, B> Kind<VStreamKind.Witness, B> ap(
       Kind<VStreamKind.Witness, ? extends Function<A, B>> ff, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, VSTREAM_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     VStream<? extends Function<A, B>> fStream = VSTREAM.narrow(ff);
     VStream<A> aStream = VSTREAM.narrow(fa);

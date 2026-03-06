@@ -25,7 +25,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should return non-null mapper")
     void shouldReturnNonNullMapper() {
-      var result = Validation.function().requireMapper(TEST_MAPPER, "f", TestClass.class, MAP);
+      var result = Validation.function().require(TEST_MAPPER, "f", Operation.MAP);
 
       assertThat(result).isEqualTo(TEST_MAPPER);
     }
@@ -33,21 +33,13 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should throw NullPointerException when mapper is null")
     void shouldThrowWhenMapperIsNull() {
-      assertMapperNull(
-          () -> Validation.function().requireMapper(null, "f", TestClass.class, MAP),
-          "f",
-          TestClass.class,
-          MAP);
+      assertMapperNull(() -> Validation.function().require(null, "f", MAP), "f", MAP);
     }
 
     @Test
     @DisplayName("should include function name in error message")
     void shouldIncludeFunctionNameInErrorMessage() {
-      assertMapperNull(
-          () -> Validation.function().requireMapper(null, "myMapper", TestClass.class, MAP),
-          "myMapper",
-          TestClass.class,
-          MAP);
+      assertMapperNull(() -> Validation.function().require(null, "myMapper", MAP), "myMapper", MAP);
     }
   }
 
@@ -57,8 +49,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should return non-null flat mapper")
     void shouldReturnNonNullFlatMapper() {
-      var result =
-          Validation.function().requireFlatMapper(TEST_MAPPER, "f", TestClass.class, FLAT_MAP);
+      var result = Validation.function().require(TEST_MAPPER, "f", Operation.FLAT_MAP);
 
       assertThat(result).isEqualTo(TEST_MAPPER);
     }
@@ -66,11 +57,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should throw NullPointerException when flat mapper is null")
     void shouldThrowWhenFlatMapperIsNull() {
-      assertFlatMapperNull(
-          () -> Validation.function().requireFlatMapper(null, "f", TestClass.class, FLAT_MAP),
-          "f",
-          TestClass.class,
-          FLAT_MAP);
+      assertFlatMapperNull(() -> Validation.function().require(null, "f", FLAT_MAP), "f", FLAT_MAP);
     }
   }
 
@@ -83,8 +70,7 @@ class FunctionValidatorTest {
     @DisplayName("should return non-null applicative")
     void shouldReturnNonNullApplicative() {
       var result =
-          Validation.function()
-              .requireApplicative(TEST_APPLICATIVE, "applicative", TestClass.class, TRAVERSE);
+          Validation.function().require(TEST_APPLICATIVE, "applicative", Operation.TRAVERSE);
 
       assertThat(result).isEqualTo(TEST_APPLICATIVE);
     }
@@ -93,11 +79,8 @@ class FunctionValidatorTest {
     @DisplayName("should throw NullPointerException when applicative is null")
     void shouldThrowWhenApplicativeIsNull() {
       assertApplicativeNull(
-          () ->
-              Validation.function()
-                  .requireApplicative(null, "applicative", TestClass.class, TRAVERSE),
+          () -> Validation.function().require(null, "applicative", TRAVERSE),
           "applicative",
-          TestClass.class,
           TRAVERSE);
     }
   }
@@ -110,8 +93,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should return non-null monoid")
     void shouldReturnNonNullMonoid() {
-      var result =
-          Validation.function().requireMonoid(TEST_MONOID, "monoid", TestClass.class, FOLD_MAP);
+      var result = Validation.function().require(TEST_MONOID, "monoid", Operation.FOLD_MAP);
 
       assertThat(result).isEqualTo(TEST_MONOID);
     }
@@ -120,10 +102,7 @@ class FunctionValidatorTest {
     @DisplayName("should throw NullPointerException when monoid is null")
     void shouldThrowWhenMonoidIsNull() {
       assertMonoidNull(
-          () -> Validation.function().requireMonoid(null, "monoid", TestClass.class, FOLD_MAP),
-          "monoid",
-          TestClass.class,
-          FOLD_MAP);
+          () -> Validation.function().require(null, "monoid", FOLD_MAP), "monoid", FOLD_MAP);
     }
   }
 
@@ -133,9 +112,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should return non-null function")
     void shouldReturnNonNullFunction() {
-      var result =
-          Validation.function()
-              .requireFunction(TEST_MAPPER, "runStateTFn", TestClass.class, CONSTRUCTION);
+      var result = Validation.function().require(TEST_MAPPER, "runStateTFn", CONSTRUCTION);
 
       assertThat(result).isEqualTo(TEST_MAPPER);
     }
@@ -144,11 +121,8 @@ class FunctionValidatorTest {
     @DisplayName("should throw NullPointerException when function is null")
     void shouldThrowWhenFunctionIsNull() {
       assertFunctionNull(
-          () ->
-              Validation.function()
-                  .requireFunction(null, "runStateTFn", TestClass.class, CONSTRUCTION),
+          () -> Validation.function().require(null, "runStateTFn", CONSTRUCTION),
           "runStateTFn",
-          TestClass.class,
           CONSTRUCTION);
     }
   }
@@ -198,8 +172,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should return non-null handler")
     void shouldReturnNonNullHandler() {
-      var result =
-          Validation.function().requireHandler(TEST_HANDLER, TestClass.class, HANDLE_ERROR_WITH);
+      var result = Validation.function().requireHandler(TEST_HANDLER, HANDLE_ERROR_WITH);
 
       assertThat(result).isEqualTo(TEST_HANDLER);
     }
@@ -208,9 +181,7 @@ class FunctionValidatorTest {
     @DisplayName("should throw NullPointerException when handler is null")
     void shouldThrowWhenHandlerIsNull() {
       assertHandlerNull(
-          () -> Validation.function().requireHandler(null, TestClass.class, HANDLE_ERROR_WITH),
-          TestClass.class,
-          HANDLE_ERROR_WITH);
+          () -> Validation.function().requireHandler(null, HANDLE_ERROR_WITH), HANDLE_ERROR_WITH);
     }
   }
 }

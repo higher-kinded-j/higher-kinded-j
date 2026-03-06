@@ -107,8 +107,8 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   public <A, B> Kind<ConstKind.Witness<M>, B> map(
       Function<? super A, ? extends B> f, Kind<ConstKind.Witness<M>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", CONST_APPLICATIVE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     // Since A is phantom in Const<M, A>, we can safely change the type parameter
     // The actual value (type M) remains unchanged
@@ -135,8 +135,8 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   public <A, B> Kind<ConstKind.Witness<M>, B> ap(
       Kind<ConstKind.Witness<M>, ? extends Function<A, B>> ff, Kind<ConstKind.Witness<M>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, CONST_APPLICATIVE_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     // Extract the monoidal values from both Const instances
     Const<M, ? extends Function<A, B>> constF = CONST.narrow(ff);
@@ -172,9 +172,9 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
       Kind<ConstKind.Witness<M>, B> fb,
       BiFunction<? super A, ? super B, ? extends C> f) {
 
-    Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, MAP_2, "first");
-    Validation.kind().requireNonNull(fb, CONST_APPLICATIVE_CLASS, MAP_2, "second");
-    Validation.function().requireFunction(f, "combining function", CONST_APPLICATIVE_CLASS, MAP_2);
+    Validation.kind().requireNonNull(fa, MAP_2, "first");
+    Validation.kind().requireNonNull(fb, MAP_2, "second");
+    Validation.function().require(f, "combining function", MAP_2);
 
     Const<M, A> constA = CONST.narrow(fa);
     Const<M, B> constB = CONST.narrow(fb);

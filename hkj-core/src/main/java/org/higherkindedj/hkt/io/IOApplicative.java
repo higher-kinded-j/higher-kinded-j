@@ -75,7 +75,7 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
   public <A, B> Kind<IOKind.Witness, B> ap(
       Kind<IOKind.Witness, ? extends Function<A, B>> ff, Kind<IOKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, IO_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     IO<? extends Function<A, B>> ioF = IO_OP.narrow(ff);
     IO<A> ioA = IO_OP.narrow(fa);

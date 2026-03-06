@@ -103,7 +103,7 @@ final class MonadErrorTestExecutor<F extends WitnessArity<TypeArity.Unary>, E, A
     } else {
       // Use standard validation
       TestMethodRegistry.testMonadErrorValidations(
-          monadError, contextClass, validKind, mapper, flatMapper, functionKind, handler, fallback);
+          monadError, validKind, mapper, flatMapper, functionKind, handler, fallback);
     }
   }
 

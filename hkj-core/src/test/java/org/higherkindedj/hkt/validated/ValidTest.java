@@ -166,7 +166,6 @@ class ValidTest extends ValidatedTestBase {
       assertThatThrownBy(() -> validInstance.orElseGet(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("otherSupplier")
-          .hasMessageContaining("Valid")
           .hasMessageContaining("orElseGet");
     }
 
@@ -193,7 +192,6 @@ class ValidTest extends ValidatedTestBase {
       assertThatThrownBy(() -> validInstance.orElseThrow(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("exceptionSupplier")
-          .hasMessageContaining("Valid")
           .hasMessageContaining("orElseThrow");
     }
   }
@@ -242,7 +240,6 @@ class ValidTest extends ValidatedTestBase {
       assertThatThrownBy(() -> validInstance.ifInvalid(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("consumer")
-          .hasMessageContaining("Valid")
           .hasMessageContaining("ifInvalid");
     }
   }
@@ -264,7 +261,7 @@ class ValidTest extends ValidatedTestBase {
     void mapValidatesMapperIsNonNull() {
       assertThatThrownBy(() -> validInstance.map(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function fn for Valid.map cannot be null");
+          .hasMessageContaining("Function fn for map cannot be null");
     }
 
     @Test
@@ -300,7 +297,6 @@ class ValidTest extends ValidatedTestBase {
       assertThatThrownBy(() -> validInstance.flatMap(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("fn")
-          .hasMessageContaining("Valid")
           .hasMessageContaining("flatMap");
     }
 
@@ -385,7 +381,6 @@ class ValidTest extends ValidatedTestBase {
       assertThatThrownBy(() -> validInstance.fold(null, v -> "valid"))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("invalidMapper")
-          .hasMessageContaining("Validated")
           .hasMessageContaining("fold");
     }
 
@@ -395,7 +390,6 @@ class ValidTest extends ValidatedTestBase {
       assertThatThrownBy(() -> validInstance.fold(e -> "invalid", null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("validMapper")
-          .hasMessageContaining("Validated")
           .hasMessageContaining("fold");
     }
   }

@@ -47,7 +47,7 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
       Function<? super A, ? extends Kind<StateKind.Witness<S>, B>> f,
       Kind<StateKind.Witness<S>, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, STATE_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     State<S, A> stateA = STATE.narrow(ma);
 

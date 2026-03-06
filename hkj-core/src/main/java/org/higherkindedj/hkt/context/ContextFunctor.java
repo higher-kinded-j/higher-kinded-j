@@ -69,8 +69,8 @@ public class ContextFunctor<R> implements Functor<ContextKind.Witness<R>> {
   public <A, B> Kind<ContextKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ContextKind.Witness<R>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", CONTEXT_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, CONTEXT_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Context<R, A> contextA = CONTEXT.narrow(fa);
     Context<R, B> contextB = contextA.map(f);

@@ -74,7 +74,7 @@ public class VStreamMonad extends VStreamApplicative implements Monad<VStreamKin
       Function<? super A, ? extends Kind<VStreamKind.Witness, B>> f,
       Kind<VStreamKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, VSTREAM_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     VStream<A> stream = VSTREAM.narrow(ma);
     VStream<B> result =

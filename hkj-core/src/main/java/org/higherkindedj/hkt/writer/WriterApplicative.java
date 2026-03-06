@@ -45,7 +45,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_APPLICATIVE_CLASS, CONSTRUCTION);
+    Validation.function().require(monoidW, "monoidW", CONSTRUCTION);
     this.monoidW = monoidW;
   }
 
@@ -88,7 +88,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
   public <A, B> Kind<WriterKind.Witness<W>, B> ap(
       Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, WRITER_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);
@@ -98,7 +98,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    Validation.function().requireFunction(func, "function", WRITER_APPLICATIVE_CLASS, AP);
+    Validation.function().require(func, "function", AP);
     B resultValue = func.apply(val);
 
     return WRITER.widen(new Writer<>(combinedLog, resultValue));

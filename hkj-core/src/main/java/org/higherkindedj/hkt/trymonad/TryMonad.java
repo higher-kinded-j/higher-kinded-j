@@ -70,7 +70,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
   public <A, B> Kind<TryKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, TRY_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -124,7 +124,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
       Kind<TryKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
 
-    Validation.function().validateHandleErrorWith(ma, handler, TRY_MONAD_CLASS);
+    Validation.function().validateHandleErrorWith(ma, handler);
 
     Try<A> tryA = TRY.narrow(ma);
 

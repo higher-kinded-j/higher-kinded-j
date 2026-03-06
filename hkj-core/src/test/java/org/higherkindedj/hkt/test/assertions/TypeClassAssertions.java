@@ -86,32 +86,17 @@ public final class TypeClassAssertions {
    * Asserts Functor map function validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Functor implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctorMapFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
-    return FunctionAssertions.assertMapperNull(
-        executable, functionName, contextClass, Operation.MAP);
-  }
-
-  /**
-   * Asserts Functor map Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The Functor implementation class
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctorMapKindNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, Operation.MAP);
+      ThrowableAssert.ThrowingCallable executable, String functionName) {
+    return FunctionAssertions.assertMapperNull(executable, functionName, Operation.MAP);
   }
 
   /**
    * Asserts all Functor operations for null parameters.
    *
    * @param functor The Functor instance to test
-   * @param contextClass The Functor implementation class
    * @param validKind A valid Kind for testing
    * @param validMapper A valid mapping function
    * @param <F> The Functor witness type
@@ -119,10 +104,10 @@ public final class TypeClassAssertions {
    * @param <B> The output type
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A, B> void assertAllFunctorOperations(
-      Functor<F> functor, Class<?> contextClass, Kind<F, A> validKind, Function<A, B> validMapper) {
+      Functor<F> functor, Kind<F, A> validKind, Function<A, B> validMapper) {
 
-    assertFunctorMapFunctionNull(() -> functor.map(null, validKind), "f", contextClass);
-    assertFunctorMapKindNull(() -> functor.map(validMapper, null), "f", contextClass);
+    assertFunctorMapFunctionNull(() -> functor.map(null, validKind), "f");
+    KindAssertions.assertKindNull(() -> functor.map(validMapper, null), MAP);
   }
 
   // =============================================================================
@@ -133,68 +118,61 @@ public final class TypeClassAssertions {
    * Asserts Applicative ap function Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Applicative implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeApFunctionKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertApFunctionKindNull(executable, contextClass);
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, AP, "function");
   }
 
   /**
    * Asserts Applicative ap argument Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Applicative implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeApArgumentKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertApArgumentKindNull(executable, contextClass);
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, AP, "argument");
   }
 
   /**
    * Asserts Applicative map2 first Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Applicative implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeMap2FirstKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertMap2FirstKindNull(executable, contextClass);
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, MAP_2, "first");
   }
 
   /**
    * Asserts Applicative map2 second Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Applicative implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeMap2SecondKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertMap2SecondKindNull(executable, contextClass);
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, MAP_2, "second");
   }
 
   /**
    * Asserts Applicative map2 function validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Applicative implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeMap2FunctionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertFunctionNull(
-        executable, "combining function", contextClass, MAP_2);
+      ThrowableAssert.ThrowingCallable executable) {
+    return FunctionAssertions.assertFunctionNull(executable, "combining function", MAP_2);
   }
 
   /**
    * Asserts all Applicative operations for null parameters.
    *
    * @param applicative The Applicative instance to test
-   * @param contextClass The Applicative implementation class
    * @param validKind A valid Kind for testing
    * @param validKind2 A second valid Kind for map2 testing
    * @param validMapper A valid mapping function
@@ -206,7 +184,6 @@ public final class TypeClassAssertions {
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A, B> void assertAllApplicativeOperations(
       Applicative<F> applicative,
-      Class<?> contextClass,
       Kind<F, A> validKind,
       Kind<F, A> validKind2,
       Function<A, B> validMapper,
@@ -214,20 +191,19 @@ public final class TypeClassAssertions {
       BiFunction<A, A, B> validCombiningFunction) {
 
     // Functor operations (inherited)
-    assertAllFunctorOperations(applicative, contextClass, validKind, validMapper);
+    assertAllFunctorOperations(applicative, validKind, validMapper);
 
     // Ap operations
-    assertApplicativeApFunctionKindNull(() -> applicative.ap(null, validKind), contextClass);
-    assertApplicativeApArgumentKindNull(
-        () -> applicative.ap(validFunctionKind, null), contextClass);
+    assertApplicativeApFunctionKindNull(() -> applicative.ap(null, validKind));
+    assertApplicativeApArgumentKindNull(() -> applicative.ap(validFunctionKind, null));
 
     // Map2 operations - cast null to BiFunction to resolve ambiguity
     assertApplicativeMap2FirstKindNull(
-        () -> applicative.map2(null, validKind2, validCombiningFunction), contextClass);
+        () -> applicative.map2(null, validKind2, validCombiningFunction));
     assertApplicativeMap2SecondKindNull(
-        () -> applicative.map2(validKind, null, validCombiningFunction), contextClass);
+        () -> applicative.map2(validKind, null, validCombiningFunction));
     assertApplicativeMap2FunctionNull(
-        () -> applicative.map2(validKind, validKind2, (BiFunction<A, A, B>) null), contextClass);
+        () -> applicative.map2(validKind, validKind2, (BiFunction<A, A, B>) null));
   }
 
   // =============================================================================
@@ -238,32 +214,17 @@ public final class TypeClassAssertions {
    * Asserts Monad flatMap function validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Monad implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadFlatMapFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
-    return FunctionAssertions.assertFlatMapperNull(
-        executable, functionName, contextClass, FLAT_MAP);
-  }
-
-  /**
-   * Asserts Monad flatMap Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The Monad implementation class
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadFlatMapKindNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, FLAT_MAP);
+      ThrowableAssert.ThrowingCallable executable, String functionName) {
+    return FunctionAssertions.assertFlatMapperNull(executable, functionName, FLAT_MAP);
   }
 
   /**
    * Asserts all Monad operations for null parameters.
    *
    * @param monad The Monad instance to test
-   * @param contextClass The Monad implementation class
    * @param validKind A valid Kind for testing
    * @param validMapper A valid mapping function
    * @param validFlatMapper A valid flatMap function
@@ -274,7 +235,6 @@ public final class TypeClassAssertions {
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A, B> void assertAllMonadOperations(
       Monad<F> monad,
-      Class<?> contextClass,
       Kind<F, A> validKind,
       Function<A, B> validMapper,
       Function<A, Kind<F, B>> validFlatMapper,
@@ -283,17 +243,11 @@ public final class TypeClassAssertions {
     // Applicative operations (inherited) - using BiFunction for map2
     BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
     assertAllApplicativeOperations(
-        monad,
-        contextClass,
-        validKind,
-        validKind,
-        validMapper,
-        validFunctionKind,
-        validCombiningFunction);
+        monad, validKind, validKind, validMapper, validFunctionKind, validCombiningFunction);
 
     // FlatMap operations
-    assertMonadFlatMapFunctionNull(() -> monad.flatMap(null, validKind), "f", contextClass);
-    assertMonadFlatMapKindNull(() -> monad.flatMap(validFlatMapper, null), "f", contextClass);
+    assertMonadFlatMapFunctionNull(() -> monad.flatMap(null, validKind), "f");
+    KindAssertions.assertKindNull(() -> monad.flatMap(validFlatMapper, null), FLAT_MAP);
   }
 
   // =============================================================================
@@ -304,70 +258,50 @@ public final class TypeClassAssertions {
    * Asserts MonadError handleErrorWith Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The MonadError implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable>
-      assertMonadErrorHandleErrorWithKindNull(
-          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, HANDLE_ERROR_WITH, "source");
+      assertMonadErrorHandleErrorWithKindNull(ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, HANDLE_ERROR_WITH, "source");
   }
 
   /**
    * Asserts MonadError handleErrorWith handler validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The MonadError implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable>
-      assertMonadErrorHandleErrorWithHandlerNull(
-          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertHandlerNull(executable, contextClass, HANDLE_ERROR_WITH);
-  }
-
-  /**
-   * Asserts MonadError recover Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The MonadError implementation class
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadErrorRecoverKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, RECOVER, "source");
+      assertMonadErrorHandleErrorWithHandlerNull(ThrowableAssert.ThrowingCallable executable) {
+    return FunctionAssertions.assertHandlerNull(executable, HANDLE_ERROR_WITH);
   }
 
   /**
    * Asserts MonadError recoverWith Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The MonadError implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadErrorRecoverWithKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, RECOVER_WITH, "source");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, RECOVER_WITH, "source");
   }
 
   /**
    * Asserts MonadError recoverWith fallback validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The MonadError implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable>
-      assertMonadErrorRecoverWithFallbackNull(
-          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, RECOVER_WITH, "fallback");
+      assertMonadErrorRecoverWithFallbackNull(ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, RECOVER_WITH, "fallback");
   }
 
   /**
    * Asserts all MonadError operations for null parameters.
    *
    * @param monadError The MonadError instance to test
-   * @param contextClass The MonadError implementation class
    * @param validKind A valid Kind for testing
    * @param validMapper A valid mapping function
    * @param validFlatMapper A valid flatMap function
@@ -382,7 +316,6 @@ public final class TypeClassAssertions {
   public static <F extends WitnessArity<TypeArity.Unary>, E, A, B>
       void assertAllMonadErrorOperations(
           MonadError<F, E> monadError,
-          Class<?> contextClass,
           Kind<F, A> validKind,
           Function<A, B> validMapper,
           Function<A, Kind<F, B>> validFlatMapper,
@@ -392,17 +325,13 @@ public final class TypeClassAssertions {
 
     // Monad operations (inherited)
     assertAllMonadOperations(
-        monadError, contextClass, validKind, validMapper, validFlatMapper, validFunctionKind);
+        monadError, validKind, validMapper, validFlatMapper, validFunctionKind);
 
     // MonadError operations
-    assertMonadErrorHandleErrorWithKindNull(
-        () -> monadError.handleErrorWith(null, validHandler), contextClass);
-    assertMonadErrorHandleErrorWithHandlerNull(
-        () -> monadError.handleErrorWith(validKind, null), contextClass);
-    assertMonadErrorRecoverWithKindNull(
-        () -> monadError.recoverWith(null, validFallback), contextClass);
-    assertMonadErrorRecoverWithFallbackNull(
-        () -> monadError.recoverWith(validKind, null), contextClass);
+    assertMonadErrorHandleErrorWithKindNull(() -> monadError.handleErrorWith(null, validHandler));
+    assertMonadErrorHandleErrorWithHandlerNull(() -> monadError.handleErrorWith(validKind, null));
+    assertMonadErrorRecoverWithKindNull(() -> monadError.recoverWith(null, validFallback));
+    assertMonadErrorRecoverWithFallbackNull(() -> monadError.recoverWith(validKind, null));
   }
 
   // =============================================================================
@@ -413,43 +342,39 @@ public final class TypeClassAssertions {
    * Asserts Foldable foldMap monoid validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Foldable implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldableFoldMapMonoidNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertMonoidNull(executable, "monoid", contextClass, FOLD_MAP);
+      ThrowableAssert.ThrowingCallable executable) {
+    return FunctionAssertions.assertMonoidNull(executable, "monoid", FOLD_MAP);
   }
 
   /**
    * Asserts Foldable foldMap function validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Foldable implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldableFoldMapFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
-    return FunctionAssertions.assertMapperNull(executable, functionName, contextClass, FOLD_MAP);
+      ThrowableAssert.ThrowingCallable executable, String functionName) {
+    return FunctionAssertions.assertMapperNull(executable, functionName, FOLD_MAP);
   }
 
   /**
    * Asserts Foldable foldMap Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Foldable implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldableFoldMapKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertFoldMapKindNull(executable, contextClass);
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, FOLD_MAP);
   }
 
   /**
    * Asserts all Foldable operations for null parameters.
    *
    * @param foldable The Foldable instance to test
-   * @param contextClass The Foldable implementation class
    * @param validKind A valid Kind for testing
    * @param validMonoid A valid Monoid instance
    * @param validFoldMapFunction A valid foldMap function
@@ -459,17 +384,13 @@ public final class TypeClassAssertions {
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A, M> void assertAllFoldableOperations(
       Foldable<F> foldable,
-      Class<?> contextClass,
       Kind<F, A> validKind,
       Monoid<M> validMonoid,
       Function<A, M> validFoldMapFunction) {
 
-    assertFoldableFoldMapMonoidNull(
-        () -> foldable.foldMap(null, validFoldMapFunction, validKind), contextClass);
-    assertFoldableFoldMapFunctionNull(
-        () -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass);
-    assertFoldableFoldMapKindNull(
-        () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass);
+    assertFoldableFoldMapMonoidNull(() -> foldable.foldMap(null, validFoldMapFunction, validKind));
+    assertFoldableFoldMapFunctionNull(() -> foldable.foldMap(validMonoid, null, validKind), "f");
+    assertFoldableFoldMapKindNull(() -> foldable.foldMap(validMonoid, validFoldMapFunction, null));
   }
 
   // =============================================================================
@@ -480,129 +401,116 @@ public final class TypeClassAssertions {
    * Asserts Selective select choice Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveSelectChoiceNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, SELECT, "choice");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, SELECT, "choice");
   }
 
   /**
    * Asserts Selective select function Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveSelectFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, SELECT, "function");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, SELECT, "function");
   }
 
   /**
    * Asserts Selective branch choice Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveBranchChoiceNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, BRANCH, "choice");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, BRANCH, "choice");
   }
 
   /**
    * Asserts Selective branch left handler validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable>
-      assertSelectiveBranchLeftHandlerNull(
-          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, BRANCH, "leftHandler");
+      assertSelectiveBranchLeftHandlerNull(ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, BRANCH, "leftHandler");
   }
 
   /**
    * Asserts Selective branch right handler validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable>
-      assertSelectiveBranchRightHandlerNull(
-          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, BRANCH, "rightHandler");
+      assertSelectiveBranchRightHandlerNull(ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, BRANCH, "rightHandler");
   }
 
   /**
    * Asserts Selective whenS condition validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveWhenSConditionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, WHEN_S, "condition");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, WHEN_S, "condition");
   }
 
   /**
    * Asserts Selective whenS effect validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveWhenSEffectNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, WHEN_S, "effect");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, WHEN_S, "effect");
   }
 
   /**
    * Asserts Selective ifS condition validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveIfSConditionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, IF_S, "condition");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, IF_S, "condition");
   }
 
   /**
    * Asserts Selective ifS then branch validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveIfSThenNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, IF_S, "thenBranch");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, IF_S, "thenBranch");
   }
 
   /**
    * Asserts Selective ifS else branch validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Selective implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveIfSElseNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, IF_S, "elseBranch");
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, IF_S, "elseBranch");
   }
 
   /**
    * Asserts all Selective operations for null parameters.
    *
    * @param selective The Selective instance to test
-   * @param contextClass The Selective implementation class
    * @param validChoiceKind A valid Kind containing a Choice
    * @param validFunctionKind A valid Kind containing a function
    * @param validLeftHandler A valid Kind for left handler
@@ -619,7 +527,6 @@ public final class TypeClassAssertions {
   public static <F extends WitnessArity<TypeArity.Unary>, A, B, C>
       void assertAllSelectiveOperations(
           Selective<F> selective,
-          Class<?> contextClass,
           Kind<F, Choice<A, B>> validChoiceKind,
           Kind<F, Function<A, B>> validFunctionKind,
           Kind<F, Function<A, C>> validLeftHandler,
@@ -640,38 +547,28 @@ public final class TypeClassAssertions {
     BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
 
     assertAllApplicativeOperations(
-        selective,
-        contextClass,
-        validKind,
-        validKind2,
-        validMapper,
-        validFunctionKind,
-        validCombiningFunction);
+        selective, validKind, validKind2, validMapper, validFunctionKind, validCombiningFunction);
 
     // Select operations
-    assertSelectiveSelectChoiceNull(() -> selective.select(null, validFunctionKind), contextClass);
-    assertSelectiveSelectFunctionNull(() -> selective.select(validChoiceKind, null), contextClass);
+    assertSelectiveSelectChoiceNull(() -> selective.select(null, validFunctionKind));
+    assertSelectiveSelectFunctionNull(() -> selective.select(validChoiceKind, null));
 
     // Branch operations
     assertSelectiveBranchChoiceNull(
-        () -> selective.branch(null, validLeftHandler, validRightHandler), contextClass);
+        () -> selective.branch(null, validLeftHandler, validRightHandler));
     assertSelectiveBranchLeftHandlerNull(
-        () -> selective.branch(validChoiceKind, null, validRightHandler), contextClass);
+        () -> selective.branch(validChoiceKind, null, validRightHandler));
     assertSelectiveBranchRightHandlerNull(
-        () -> selective.branch(validChoiceKind, validLeftHandler, null), contextClass);
+        () -> selective.branch(validChoiceKind, validLeftHandler, null));
 
     // WhenS operations - now using validUnitEffect
-    assertSelectiveWhenSConditionNull(
-        () -> selective.whenS(null, validUnitEffect), contextClass); // ✓ Fixed
-    assertSelectiveWhenSEffectNull(() -> selective.whenS(validCondition, null), contextClass);
+    assertSelectiveWhenSConditionNull(() -> selective.whenS(null, validUnitEffect)); // ✓ Fixed
+    assertSelectiveWhenSEffectNull(() -> selective.whenS(validCondition, null));
 
     // IfS operations
-    assertSelectiveIfSConditionNull(
-        () -> selective.ifS(null, validThenBranch, validElseBranch), contextClass);
-    assertSelectiveIfSThenNull(
-        () -> selective.ifS(validCondition, null, validElseBranch), contextClass);
-    assertSelectiveIfSElseNull(
-        () -> selective.ifS(validCondition, validThenBranch, null), contextClass);
+    assertSelectiveIfSConditionNull(() -> selective.ifS(null, validThenBranch, validElseBranch));
+    assertSelectiveIfSThenNull(() -> selective.ifS(validCondition, null, validElseBranch));
+    assertSelectiveIfSElseNull(() -> selective.ifS(validCondition, validThenBranch, null));
   }
 
   // =============================================================================
@@ -682,69 +579,39 @@ public final class TypeClassAssertions {
    * Asserts Traverse traverse applicative validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Traverse implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass) {
-    return FunctionAssertions.assertApplicativeNull(
-        executable, applicativeName, contextClass, TRAVERSE);
+      ThrowableAssert.ThrowingCallable executable, String applicativeName) {
+    return FunctionAssertions.assertApplicativeNull(executable, applicativeName, TRAVERSE);
   }
 
   /**
    * Asserts Traverse traverse function validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Traverse implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass) {
-    return FunctionAssertions.assertMapperNull(executable, applicativeName, contextClass, TRAVERSE);
+      ThrowableAssert.ThrowingCallable executable, String applicativeName) {
+    return FunctionAssertions.assertMapperNull(executable, applicativeName, TRAVERSE);
   }
 
   /**
    * Asserts Traverse traverse Kind validation.
    *
    * @param executable The code that should throw
-   * @param contextClass The Traverse implementation class
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertTraverseKindNull(executable, contextClass);
-  }
-
-  /**
-   * Asserts Traverse sequenceA applicative validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The Traverse implementation class
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertSequenceAApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass) {
-    return FunctionAssertions.assertApplicativeNull(
-        executable, applicativeName, contextClass, SEQUENCE_A);
-  }
-
-  /**
-   * Asserts Traverse sequenceA Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The Traverse implementation class
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertSequenceAKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, SEQUENCE_A);
+      ThrowableAssert.ThrowingCallable executable) {
+    return KindAssertions.assertKindNull(executable, TRAVERSE);
   }
 
   /**
    * Asserts all Traverse operations for null parameters.
    *
    * @param traverse The Traverse instance to test
-   * @param contextClass The Traverse implementation class
    * @param validKind A valid Kind for testing
    * @param validMapper A valid mapping function
    * @param validApplicative A valid Applicative instance
@@ -761,7 +628,6 @@ public final class TypeClassAssertions {
           F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
       void assertAllTraverseOperations(
           Traverse<F> traverse,
-          Class<?> contextClass,
           Kind<F, A> validKind,
           Function<A, B> validMapper,
           Applicative<G> validApplicative,
@@ -770,21 +636,16 @@ public final class TypeClassAssertions {
           Function<A, M> validFoldMapFunction) {
 
     // Functor operations (inherited)
-    assertAllFunctorOperations(traverse, contextClass, validKind, validMapper);
+    assertAllFunctorOperations(traverse, validKind, validMapper);
 
     // Foldable operations (inherited)
-    assertAllFoldableOperations(
-        traverse, contextClass, validKind, validMonoid, validFoldMapFunction);
+    assertAllFoldableOperations(traverse, validKind, validMonoid, validFoldMapFunction);
 
     // Traverse operations
     assertTraverseApplicativeNull(
-        () -> traverse.traverse(null, validTraverseFunction, validKind),
-        "applicative",
-        contextClass);
-    assertTraverseFunctionNull(
-        () -> traverse.traverse(validApplicative, null, validKind), "f", contextClass);
-    assertTraverseKindNull(
-        () -> traverse.traverse(validApplicative, validTraverseFunction, null), contextClass);
+        () -> traverse.traverse(null, validTraverseFunction, validKind), "applicative");
+    assertTraverseFunctionNull(() -> traverse.traverse(validApplicative, null, validKind), "f");
+    assertTraverseKindNull(() -> traverse.traverse(validApplicative, validTraverseFunction, null));
   }
 
   // =============================================================================
@@ -795,7 +656,6 @@ public final class TypeClassAssertions {
    * Asserts all Bifunctor operations throw appropriate exceptions for null parameters.
    *
    * @param bifunctor The Bifunctor instance to test
-   * @param contextClass The context class for error messages
    * @param validKind A valid Kind2 instance
    * @param firstMapper A valid function for the first parameter
    * @param secondMapper A valid function for the second parameter
@@ -808,56 +668,40 @@ public final class TypeClassAssertions {
   public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D>
       void assertAllBifunctorOperations(
           Bifunctor<F> bifunctor,
-          Class<?> contextClass,
           Kind2<F, A, B> validKind,
           Function<A, C> firstMapper,
           Function<B, D> secondMapper) {
 
     // bimap validations
-    assertBimapFirstMapperNull(
-        () -> bifunctor.bimap(null, secondMapper, validKind), "f", contextClass);
-    assertBimapSecondMapperNull(
-        () -> bifunctor.bimap(firstMapper, null, validKind), "g", contextClass);
-    assertBimapKindNull(() -> bifunctor.bimap(firstMapper, secondMapper, null), contextClass);
+    assertBimapFirstMapperNull(() -> bifunctor.bimap(null, secondMapper, validKind), "f");
+    assertBimapSecondMapperNull(() -> bifunctor.bimap(firstMapper, null, validKind), "g");
+    KindAssertions.assertKindNull(
+        ((Runnable) () -> bifunctor.bimap(firstMapper, secondMapper, null))::run, BIMAP);
 
     // first validations
-    assertFirstMapperNull(() -> bifunctor.first(null, validKind), "f", contextClass);
-    assertFirstKindNull(() -> bifunctor.first(firstMapper, null), contextClass);
+    assertFirstMapperNull(() -> bifunctor.first(null, validKind), "f");
+    KindAssertions.assertKindNull(
+        ((Runnable) () -> bifunctor.first(firstMapper, null))::run, FIRST);
 
     // second validations
-    assertSecondMapperNull(() -> bifunctor.second(null, validKind), "g", contextClass);
-    assertSecondKindNull(() -> bifunctor.second(secondMapper, null), contextClass);
+    assertSecondMapperNull(() -> bifunctor.second(null, validKind), "g");
+    KindAssertions.assertKindNull(
+        ((Runnable) () -> bifunctor.second(secondMapper, null))::run, SECOND);
   }
 
-  private static void assertBimapFirstMapperNull(
-      Runnable operation, String paramName, Class<?> contextClass) {
-    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, BIMAP);
+  private static void assertBimapFirstMapperNull(Runnable operation, String paramName) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, BIMAP);
   }
 
-  private static void assertBimapSecondMapperNull(
-      Runnable operation, String paramName, Class<?> contextClass) {
-    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, BIMAP);
+  private static void assertBimapSecondMapperNull(Runnable operation, String paramName) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, BIMAP);
   }
 
-  private static void assertBimapKindNull(Runnable operation, Class<?> contextClass) {
-    KindAssertions.assertKindNull(operation::run, contextClass, BIMAP);
+  private static void assertFirstMapperNull(Runnable operation, String paramName) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, FIRST);
   }
 
-  private static void assertFirstMapperNull(
-      Runnable operation, String paramName, Class<?> contextClass) {
-    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, FIRST);
-  }
-
-  private static void assertFirstKindNull(Runnable operation, Class<?> contextClass) {
-    KindAssertions.assertKindNull(operation::run, contextClass, FIRST);
-  }
-
-  private static void assertSecondMapperNull(
-      Runnable operation, String paramName, Class<?> contextClass) {
-    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, SECOND);
-  }
-
-  private static void assertSecondKindNull(Runnable operation, Class<?> contextClass) {
-    KindAssertions.assertKindNull(operation::run, contextClass, SECOND);
+  private static void assertSecondMapperNull(Runnable operation, String paramName) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, SECOND);
   }
 }

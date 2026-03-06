@@ -76,7 +76,7 @@ public class VTaskApplicative extends VTaskFunctor implements Applicative<VTaskK
   public <A, B> Kind<VTaskKind.Witness, B> ap(
       Kind<VTaskKind.Witness, ? extends Function<A, B>> ff, Kind<VTaskKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, VTASK_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     VTask<? extends Function<A, B>> vtaskF = VTASK.narrow(ff);
     VTask<A> vtaskA = VTASK.narrow(fa);
