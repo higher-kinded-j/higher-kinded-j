@@ -10,8 +10,6 @@ import static org.higherkindedj.hkt.util.validation.Operation.TRAVERSE;
 
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.function.Supplier;
-
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -198,7 +196,8 @@ public enum FunctionValidator {
 
     if (function == null) {
       var fullOperation = contextClass.getSimpleName() + "." + operation;
-      throw new NullPointerException(new FunctionContext(functionName, fullOperation).nullParameterMessage());
+      throw new NullPointerException(
+          new FunctionContext(functionName, fullOperation).nullParameterMessage());
     }
     return function;
   }
