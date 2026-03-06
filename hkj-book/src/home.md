@@ -61,10 +61,12 @@ What makes Higher-Kinded-J unique is the seamless integration between **Effect P
   EFFECTS DOMAIN                           OPTICS DOMAIN
   ══════════════                           ═════════════
 
-  EitherPath<E, User>  ────┐         ┌──── FocusPath<User, Address>
-  TryPath<Config>      ────┤         ├──── AffinePath<User, Email>
-  IOPath<Data>         ────┤         ├──── TraversalPath<Team, Player>
-  VTaskPath<A>         ────┤         └────
+  MaybePath<User>      ────┐         ┌──── FocusPath<User, Address>
+  EitherPath<E, User>  ────┤         ├──── AffinePath<User, Email>
+  TryPath<Config>      ────┤         ├──── TraversalPath<Team, Player>
+  IOPath<Data>         ────┤         └────
+  VTaskPath<A>         ────┤
+  VStreamPath<A>       ────┤
   ValidationPath<E, A> ────┘
                             │       │
                             ▼       ▼
@@ -180,6 +182,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `OptionalPath<A>` | Bridge for Java's standard `Optional` |
 | `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
+| `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
 Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
 
@@ -187,15 +190,18 @@ Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover
 
 ## Learn by Doing
 
-The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Nine journeys guide you through hands-on exercises with immediate test feedback.
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Twelve journeys guide you through hands-on exercises with immediate test feedback.
 
 | Journey | Focus | Duration | Exercises |
 |---------|-------|----------|-----------|
 | **[Core: Foundations](tutorials/coretypes/foundations_journey.md)** | HKT simulation, Functor, Applicative, Monad | ~38 min | 24 |
 | **[Core: Error Handling](tutorials/coretypes/error_handling_journey.md)** | MonadError, concrete types, real-world patterns | ~30 min | 20 |
-| **[Core: Advanced](tutorials/coretypes/advanced_journey.md)** | Natural Transformations, Coyoneda, Free Applicative | ~26 min | 16 |
+| **[Core: Advanced](tutorials/coretypes/advanced_journey.md)** | Natural Transformations, Coyoneda, Free Applicative | ~38 min | 26 |
 | **[Effect API](tutorials/effect/effect_journey.md)** | Effect paths, ForPath, Effect Contexts | ~65 min | 15 |
+| **[Expression: ForState](tutorials/expression/forstate_journey.md)** | Named fields, guards, pattern matching, zoom | ~25 min | 11 |
 | **[Concurrency: VTask](tutorials/concurrency/vtask_journey.md)** | Virtual threads, VTaskPath, Par combinators | ~45 min | 16 |
+| **[Concurrency: Scope & Resource](tutorials/concurrency/scope_resource_journey.md)** | Structured concurrency, resource management | ~30 min | 12 |
+| **[Resilience Patterns](tutorials/resilience/resilience_journey.md)** | Circuit breaker, saga, retry, bulkhead | ~46 min | 22 |
 | **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | ~40 min | 30 |
 | **[Optics: Traversals](tutorials/optics/traversals_journey.md)** | Traversals, composition, practical applications | ~40 min | 27 |
 | **[Optics: Fluent & Free](tutorials/optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | ~37 min | 22 |
