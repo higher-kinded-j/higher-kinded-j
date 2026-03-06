@@ -80,10 +80,12 @@ What makes Higher-Kinded-J unique is the seamless integration between **Effect P
   EFFECTS DOMAIN                           OPTICS DOMAIN
   ══════════════                           ═════════════
 
-  EitherPath<E, User>  ────┐         ┌──── FocusPath<User, Address>
-  TryPath<Config>      ────┤         ├──── AffinePath<User, Email>
-  IOPath<Data>         ────┤         ├──── TraversalPath<Team, Player>
-  VTaskPath<A>         ────┤         └────
+  MaybePath<User>      ────┐         ┌──── FocusPath<User, Address>
+  EitherPath<E, User>  ────┤         ├──── AffinePath<User, Email>
+  TryPath<Config>      ────┤         ├──── TraversalPath<Team, Player>
+  IOPath<Data>         ────┤         └────
+  VTaskPath<A>         ────┤
+  VStreamPath<A>       ────┤
   ValidationPath<E, A> ────┘
                             │       │
                             ▼       ▼
@@ -194,6 +196,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `OptionalPath<A>` | Bridge for Java's standard `Optional` |
 | `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
+| `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
 Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
 
@@ -335,7 +338,7 @@ For complete documentation, see:
 
 ## Learn by Doing
 
-Nine interactive tutorial journeys with hands-on exercises:
+Twelve interactive tutorial journeys with hands-on exercises:
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
@@ -357,6 +360,12 @@ graph TD;
     root --> hkj_core["hkj-core"];
     root --> hkj_processor["hkj-processor"];
     hkj_processor --> hkj_processor_plugins["hkj-processor-plugins"];
+    root --> hkj_spring["hkj-spring"];
+    hkj_spring --> hkj_spring_autoconfigure["autoconfigure"];
+    hkj_spring --> hkj_spring_starter["starter"];
+    hkj_spring --> hkj_spring_example["example"];
+    root --> hkj_openrewrite["hkj-openrewrite"];
+    root --> hkj_benchmarks["hkj-benchmarks"];
     root --> hkj_examples["hkj-examples"];
     root --> hkj_book["hkj-book"];
 ```
@@ -366,6 +375,9 @@ graph TD;
 * **hkj-core**: Core implementation of HKT simulation, Effect Path API, and Optics
 * **hkj-processor**: Annotation processor for generating boilerplate
 * **hkj-processor-plugins**: Extensible plugins for code generation
+* **hkj-spring**: Spring Boot integration (autoconfigure, starter, example)
+* **hkj-openrewrite**: OpenRewrite recipes for automated migrations
+* **hkj-benchmarks**: JMH benchmarks for performance testing
 * **hkj-examples**: Examples demonstrating all features
 * **hkj-book**: Documentation built with mdbook
 

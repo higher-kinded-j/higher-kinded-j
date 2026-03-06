@@ -12,6 +12,32 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
+### [v0.3.6](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.6) -- 6 March 2026
+
+**VStream Lazy Streaming, Resilience Patterns, and ForState Comprehensions**
+
+This release introduces `VStream`, a lazy pull-based streaming type built on virtual threads with full HKT integration, adds four core resilience patterns (Circuit Breaker, Bulkhead, Retry, Saga) with Effect Path integration, extends `ForState` with filtering and pattern matching, and delivers a Market Data Pipeline capstone example.
+
+- [VStream](monads/vstream.md) -- Lazy pull-based streaming on virtual threads with `Step` protocol (Emit/Done/Skip), factory methods (`of`, `range`, `iterate`, `generate`, `unfold`), transformation combinators, and error recovery
+- [VStream HKT Integration](monads/vstream_hkt.md) -- `VStreamKind` witness type with Functor, Applicative, Monad, Foldable, Traverse, and Alternative type class instances
+- [VStream Parallel Operations](monads/vstream_parallel.md) -- `VStreamPar` with `parEvalMap`, `parEvalMapUnordered`, `parEvalFlatMap`, `merge`, `parCollect`, and chunking combinators
+- [VStream Resources](monads/vstream_resources.md) -- `bracket`/`onFinalize` resource lifecycle management and `VStreamReactive` bidirectional `Flow.Publisher` bridge with backpressure
+- [VStreamPath](effect/path_vstream.md) -- Effect Path bridge with factory methods, `PathOps` operations, terminal operations bridging to `VTaskPath`, and optics focus bridge
+- [Circuit Breaker](resilience/circuit_breaker.md) -- State machine (Closed/Open/HalfOpen) with configurable failure thresholds and recovery timeouts
+- [Bulkhead](resilience/bulkhead.md) -- Concurrency limiting for isolating resource access
+- [Retry](resilience/retry.md) -- Configurable retry policies with fixed delay, exponential backoff, and jitter
+- [Saga](resilience/saga.md) -- Distributed transaction compensation with ordered rollback
+- [Combined Resilience](resilience/combined.md) -- Composing multiple resilience patterns and Path API ergonomic methods: `retry()`, `circuitBreaker()`, `bulkhead()`, `timeout()`
+- [ForState](functional/forstate_comprehension.md) -- Filtering (`when`), pattern matching (`matchThen`), traversals, zoom, and `toState()` bridge from For comprehensions at all arities (1–12)
+- [traverseWith()](optics/focus_dsl.md) -- Parallel effectful optics traversal for `FocusPath`, `AffinePath`, and `TraversalPath` via `VTaskPath` and `StructuredTaskScope`
+- [Market Data Pipeline](examples/examples_market_data.md) -- 14-feature capstone example demonstrating concurrent feed merging, parallel enrichment, risk assessment, windowed aggregation, anomaly detection, and circuit breaker failover
+- Refreshed [Monads chapter](monads/ch_intro.md) with problem-first structure, real-world analogies, and consistent formatting
+- `FunctionValidator` optimisation: deferred error-message construction avoids `String` allocation on the happy path; fixed Gradle benchmark commands (`-Pincludes`)
+- Javadoc generation fix to include annotation-processor-generated sources (`Tuple2`–`Tuple12`, `MonadicSteps`, etc.)
+- [JMH benchmarks](benchmarks.md) for VStream construction, combinators, terminals, and parallel operations
+
+---
+
 ### [v0.3.5](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.5) -- 15 February 2026
 
 **Extended For-Comprehensions, VTask API Refinement, and Documentation Restructure**

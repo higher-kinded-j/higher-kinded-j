@@ -12,7 +12,7 @@ Rather than passive reading, you'll:
 
 Think of these as a guided laboratory for functional programming patterns in Java.
 
-## Nine Focused Journeys
+## Twelve Focused Journeys
 
 Each journey is designed for a single sitting (20-65 minutes). Short enough to stay focused. Long enough to build real understanding.
 
@@ -26,11 +26,24 @@ After completing Core: Foundations, the **Effect API journey** is the recommende
 |---------|----------|-----------|-------|
 | [Effect API](effect/effect_journey.md) | ~65 min | 15 | Effect paths, ForPath, Contexts |
 
-### Concurrency Journey
+### Expression Journey
+
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Expression: ForState](expression/forstate_journey.md) | ~25 min | 11 | Named fields, guards, pattern matching, zoom |
+
+### Concurrency Journeys
 
 | Journey | Duration | Exercises | Focus |
 |---------|----------|-----------|-------|
 | [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min | 16 | Virtual threads, VTask, VTaskPath, Par combinators |
+| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | ~30 min | 12 | Structured concurrency, resource management |
+
+### Resilience Journey
+
+| Journey | Duration | Exercises | Focus |
+|---------|----------|-----------|-------|
+| [Resilience Patterns](resilience/resilience_journey.md) | ~46 min | 22 | Circuit breaker, saga, retry, bulkhead |
 
 ### Core Types Journeys (Foundation)
 
@@ -155,7 +168,7 @@ See the full [Learning Paths](learning_paths.md) guide for detailed sequences. H
 ### Optics Specialist (4 sessions)
 [Lens & Prism](optics/lens_prism_journey.md) → [Traversals](optics/traversals_journey.md) → [Fluent & Free](optics/fluent_free_journey.md) → [Focus DSL](optics/focus_dsl_journey.md)
 
-### Full Curriculum (8 sessions)
+### Full Curriculum (12 sessions)
 All journeys in recommended order. See [Learning Paths](learning_paths.md).
 
 ## What You'll Build
@@ -209,6 +222,14 @@ Choose your starting point:
 - [Foundations Journey](coretypes/foundations_journey.md) - Start here for HKT basics
 - [Error Handling Journey](coretypes/error_handling_journey.md) - Continue with error handling
 - [Advanced Journey](coretypes/advanced_journey.md) - Master advanced patterns
+
+**Expression Track:**
+- [ForState Journey](expression/forstate_journey.md) - Named fields, guards, pattern matching, zoom
+
+**Concurrency & Resilience Track:**
+- [VTask Journey](concurrency/vtask_journey.md) - Virtual threads and Par combinators
+- [Scope & Resource Journey](concurrency/scope_resource_journey.md) - Structured concurrency
+- [Resilience Patterns Journey](resilience/resilience_journey.md) - Circuit breaker, saga, retry, bulkhead
 
 **Optics Track:**
 - [Lens & Prism Journey](optics/lens_prism_journey.md) - Start here for optics
