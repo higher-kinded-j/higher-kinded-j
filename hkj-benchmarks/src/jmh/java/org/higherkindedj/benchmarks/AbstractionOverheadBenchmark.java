@@ -35,7 +35,7 @@ import org.openjdk.jmh.annotations.State;
  *   <li>VTaskPath: 5-15% slower than VTask (wrapper overhead)
  * </ul>
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*AbstractionOverheadBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*AbstractionOverheadBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

@@ -44,6 +44,10 @@ tasks.test {
 }
 
 jmh {
+  (project.findProperty("includes") as? String)?.let {
+    includes.set(listOf(it))
+  }
+
   // Optimized for fast feedback (~1 minute total)
   // For rigorous benchmarking, use: ./gradlew jmh -Pjmh.iterations=5 -Pjmh.warmupIterations=3
   iterations = 1

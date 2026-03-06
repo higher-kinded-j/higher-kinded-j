@@ -30,7 +30,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Note: VTask is lazy and executes on virtual threads, so benchmarks measure both construction
  * and execution costs separately.
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VTaskBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VTaskBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

@@ -41,7 +41,7 @@ import org.openjdk.jmh.annotations.TearDown;
  *   <li>Simple programming model is desired (no callback complexity)
  * </ul>
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VTaskVsPlatformThreadsBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VTaskVsPlatformThreadsBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)

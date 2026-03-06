@@ -41,7 +41,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>Run with: {@code ./gradlew jmh} or {@code ./gradlew :hkj-benchmarks:jmh}
  *
- * <p>Run specific benchmark: {@code ./gradlew jmh --includes=".*FreeBenchmark.*"}
+ * <p>Run specific benchmark: {@code ./gradlew jmh -Pincludes=".*FreeBenchmark.*"}
  *
  * <p>Run with different depths: {@code ./gradlew jmh -Pjmh.benchmarkParameters.chainDepth=1000}
  *

@@ -253,21 +253,6 @@ public final class ValidationTestBuilder {
   }
 
   /**
-   * Adds custom function validation to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param functionName The name of the function parameter
-   * @param operation The operation name
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, String functionName, Operation operation) {
-    assertions.add(
-        () -> FunctionAssertions.assertFunctionNull(executable, functionName, operation));
-    return this;
-  }
-
-  /**
    * Adds custom function validation with class context to the test suite.
    *
    * @param executable The code that should throw

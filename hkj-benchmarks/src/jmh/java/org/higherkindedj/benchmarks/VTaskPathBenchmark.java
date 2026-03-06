@@ -35,7 +35,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * This benchmark suite validates that the wrapper overhead is acceptable while demonstrating the
  * advantages of the fluent composition API.
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VTaskPathBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VTaskPathBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

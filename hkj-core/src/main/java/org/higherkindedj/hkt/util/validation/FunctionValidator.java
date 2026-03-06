@@ -194,23 +194,12 @@ public enum FunctionValidator {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    String fullOperation = contextClass.getSimpleName() + "." + operation;
-    return requireFunction(function, functionName, fullOperation);
-  }
-
-  /**
-   * Generic function validation with custom name and operation context.
-   *
-   * @param function The function to validate
-   * @param functionName The name of the function parameter
-   * @param operation The operation name
-   * @param <T> The function type
-   * @return The validated function
-   * @throws NullPointerException with context-specific message if function is null
-   */
-  public <T> T requireFunction(T function, String functionName, String operation) {
-    var context = new FunctionContext(functionName, operation);
-    return Objects.requireNonNull(function, context.nullParameterMessage());
+    if (function == null) {
+      var fullOperation = contextClass.getSimpleName() + "." + operation;
+      throw new NullPointerException(
+          new FunctionContext(functionName, fullOperation).nullParameterMessage());
+    }
+    return function;
   }
 
   /**

@@ -30,7 +30,7 @@ import org.openjdk.jmh.annotations.State;
  *   <li>High concurrency scenarios
  * </ul>
  *
- * <p>Run with: {@code ./gradlew jmh --includes=".*VTaskParBenchmark.*"}
+ * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VTaskParBenchmark.*"}
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

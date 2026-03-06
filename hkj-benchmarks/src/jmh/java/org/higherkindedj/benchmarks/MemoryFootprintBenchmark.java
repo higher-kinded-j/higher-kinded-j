@@ -36,7 +36,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>CompletableFuture comparison for context
  * </ul>
  *
- * <p>Run with GC profiling: {@code ./gradlew jmh --includes=".*MemoryFootprintBenchmark.*"
+ * <p>Run with GC profiling: {@code ./gradlew jmh -Pincludes=".*MemoryFootprintBenchmark.*"
  * -Pjmh.profilers=gc}
  */
 @BenchmarkMode(Mode.Throughput)
