@@ -32,7 +32,10 @@ public final class DiagnosticMessages {
     Optional<String> conversion =
         PathTypeRegistry.suggestedConversion(actualType, expectedType);
     if (conversion.isPresent()) {
-      return base + " Use " + conversion.get() + " to convert.";
+      return base
+          + " Use conversion methods like "
+          + conversion.get()
+          + " to convert.";
     }
     return base + " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.";
   }
