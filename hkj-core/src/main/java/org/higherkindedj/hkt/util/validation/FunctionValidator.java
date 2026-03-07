@@ -27,28 +27,28 @@ public enum FunctionValidator {
   FUNCTION_VALIDATOR;
 
   /**
-   * Generic object validation with class-based context.
+   * Generic function validation with class-based context.
    *
-   * @param object The object to validate
-   * @param name The name of the object parameter
+   * @param function The function to validate
+   * @param functionName The name of the function parameter
    * @param operation The operation name
-   * @param <T> The object type
-   * @return The validated object
-   * @throws NullPointerException with context-specific message if object is null Example usage:
+   * @param <T> The function type
+   * @return The validated function
+   * @throws NullPointerException with context-specific message if function is null Example usage:
    *     <pre>
-   * Validation.functionValidator().requireFunction(fn, "runStateTFn", StateT.class, "construction");
-   * // Error: "runStateTFn for StateT construction cannot be null"
+   * Validation.functionValidator().require(fn, "runStateTFn", CONSTRUCTION);
+   * // Error: "function runStateTFn for construction cannot be null"
    *  </pre>
    */
-  public <T> T require(T object, String name, Operation operation) {
-    Objects.requireNonNull(name, "name cannot be null");
+  public <T> T require(T function, String functionName, Operation operation) {
+    Objects.requireNonNull(functionName, "functionName cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    if (object == null) {
+    if (function == null) {
       throw new NullPointerException(
-          new FunctionContext(name, operation.toString()).nullParameterMessage());
+          new FunctionContext(functionName, operation.toString()).nullParameterMessage());
     }
-    return object;
+    return function;
   }
 
   /**
