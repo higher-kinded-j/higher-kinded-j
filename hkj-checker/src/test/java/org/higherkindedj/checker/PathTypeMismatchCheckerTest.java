@@ -22,7 +22,9 @@ class PathTypeMismatchCheckerTest {
    * activate our checker.
    */
   private Compilation compileWithChecker(JavaFileObject... sources) {
-    return javac().withOptions("-Xplugin:HKJChecker").compile(sources);
+    return javac()
+        .withOptions("-Xplugin:HKJChecker", "--enable-preview", "--release", "25")
+        .compile(sources);
   }
 
   @Nested
@@ -47,7 +49,7 @@ class PathTypeMismatchCheckerTest {
               """);
 
       Compilation compilation = compileWithChecker(source);
-      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).succeeded();
     }
 
     @Test
@@ -71,7 +73,229 @@ class PathTypeMismatchCheckerTest {
               """);
 
       Compilation compilation = compileWithChecker(source);
-      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).succeeded();
+    }
+  }
+
+  @Nested
+  @DisplayName("correct usage with real Path types")
+  class CorrectPathUsageTests {
+
+    @Test
+    @DisplayName("compiles without errors when same Path type is used throughout via chain")
+    void correctUsage_sameTypeVia_compiles() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.SameTypeVia",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class SameTypeVia {
+                  public void sameTypeChaining() {
+                      Path.just(1).via(_ -> Path.just(2));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("compiles without errors when same Path type is used in zipWith")
+    void correctUsage_sameTypeZipWith_compiles() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.SameTypeZipWith",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class SameTypeZipWith {
+                  public void sameTypeZipWith() {
+                      Path.just(1).zipWith(Path.just(2), Integer::sum);
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("compiles without errors when same Path type is used in then")
+    void correctUsage_sameTypeThen_compiles() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.SameTypeThen",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class SameTypeThen {
+                  public void sameTypeThen() {
+                      Path.just(1).then(() -> Path.just(2));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).succeeded();
+    }
+  }
+
+  @Nested
+  @DisplayName("mismatch detection")
+  class MismatchDetectionTests {
+
+    @Test
+    @DisplayName("reports error when via lambda returns a different Path type")
+    void mismatch_inVia_reportsError() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.MismatchVia",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class MismatchVia {
+                  public void mismatchedVia() {
+                      Path.just(1).via(_ -> Path.io(() -> 2));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Path type mismatch in via()");
+      assertThat(compilation).hadErrorContaining("expected MaybePath but received IOPath");
+    }
+
+    @Test
+    @DisplayName("reports error when zipWith argument is a different Path type")
+    void mismatch_inZipWith_reportsError() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.MismatchZipWith",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class MismatchZipWith {
+                  public void mismatchedZipWith() {
+                      Path.just(1).zipWith(Path.right("x"), (a, b) -> a + b.length());
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Path type mismatch in zipWith()");
+      assertThat(compilation).hadErrorContaining("expected MaybePath but received EitherPath");
+    }
+
+    @Test
+    @DisplayName("reports error when then supplier returns a different Path type")
+    void mismatch_inThen_reportsError() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.MismatchThen",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class MismatchThen {
+                  public void mismatchedThen() {
+                      Path.right("a").then(() -> Path.just(1));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Path type mismatch in then()");
+      assertThat(compilation).hadErrorContaining("expected EitherPath but received MaybePath");
+    }
+
+    @Test
+    @DisplayName("reports error when recoverWith lambda returns a different Path type")
+    void mismatch_inRecoverWith_reportsError() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.MismatchRecoverWith",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class MismatchRecoverWith {
+                  public void mismatchedRecoverWith() {
+                      Path.just(1).recoverWith(_ -> Path.success(42));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Path type mismatch in recoverWith()");
+    }
+
+    @Test
+    @DisplayName("reports error when orElse supplier returns a different Path type")
+    void mismatch_inOrElse_reportsError() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.MismatchOrElse",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class MismatchOrElse {
+                  public void mismatchedOrElse() {
+                      Path.just(1).orElse(() -> Path.success(2));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Path type mismatch in orElse()");
+    }
+  }
+
+  @Nested
+  @DisplayName("no false positives")
+  class NoFalsePositiveTests {
+
+    @Test
+    @DisplayName("does not report error for generic Chainable receiver")
+    void noFalsePositive_genericReceiver_compiles() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.GenericReceiver",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+              import org.higherkindedj.hkt.effect.capability.Chainable;
+
+              public class GenericReceiver {
+                  public <A> void genericReceiver(Chainable<A> path) {
+                      path.via(_ -> Path.just(1));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).succeeded();
     }
   }
 
@@ -91,7 +315,7 @@ class PathTypeMismatchCheckerTest {
               """);
 
       Compilation compilation = compileWithChecker(source);
-      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).succeeded();
     }
   }
 }

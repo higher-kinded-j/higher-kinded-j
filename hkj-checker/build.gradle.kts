@@ -7,6 +7,7 @@ dependencies {
     // No external runtime dependencies; uses only JDK-provided com.sun.source.* APIs
 
     // Test dependencies
+    testImplementation(project(":hkj-core"))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
