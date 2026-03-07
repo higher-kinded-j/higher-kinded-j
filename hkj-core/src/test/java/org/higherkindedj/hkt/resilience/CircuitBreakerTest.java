@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -28,6 +29,11 @@ class CircuitBreakerTest {
 
   private static final Duration SHORT_OPEN_DURATION = Duration.ofMillis(50);
   private static final Duration GENEROUS_TIMEOUT = Duration.ofSeconds(5);
+
+  /** Shared Awaitility configuration used across all async polling in this test suite. */
+  private static org.awaitility.core.ConditionFactory awaitDefault() {
+    return await().atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(10));
+  }
 
   private static CircuitBreakerConfig configWithThresholds(
       int failureThreshold, int successThreshold) {
@@ -83,26 +89,28 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("transitions from OPEN to HALF_OPEN after open duration elapses")
-    void openToHalfOpenAfterDuration() throws InterruptedException {
+    void openToHalfOpenAfterDuration() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
 
       causeFailures(breaker, 2);
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
 
-      Thread.sleep(80);
-
-      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN);
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
     }
 
     @Test
     @DisplayName("transitions from HALF_OPEN to CLOSED after success threshold met")
-    void halfOpenToClosedAfterSuccesses() throws InterruptedException {
+    void halfOpenToClosedAfterSuccesses() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 2));
 
       causeFailures(breaker, 2);
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
 
-      Thread.sleep(80);
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // Now in HALF_OPEN; two successes should close the circuit
       causeSuccesses(breaker, 2);
@@ -112,13 +120,14 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("transitions from HALF_OPEN back to OPEN on failure")
-    void halfOpenToOpenOnFailure() throws InterruptedException {
+    void halfOpenToOpenOnFailure() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 2));
 
       causeFailures(breaker, 2);
-      Thread.sleep(80);
 
-      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN);
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // A failure in HALF_OPEN should re-open the circuit
       causeFailures(breaker, 1);
@@ -128,7 +137,7 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("full cycle: CLOSED -> OPEN -> HALF_OPEN -> CLOSED")
-    void fullCycleTransition() throws InterruptedException {
+    void fullCycleTransition() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
 
       // CLOSED -> OPEN
@@ -136,8 +145,9 @@ class CircuitBreakerTest {
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
 
       // OPEN -> HALF_OPEN
-      Thread.sleep(80);
-      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN);
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // HALF_OPEN -> CLOSED
       causeSuccesses(breaker, 1);
@@ -264,11 +274,14 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("circuit closes after reaching success threshold in HALF_OPEN")
-    void closesAfterSuccessThreshold() throws InterruptedException {
+    void closesAfterSuccessThreshold() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 3));
 
       causeFailures(breaker, 2);
-      Thread.sleep(80);
+
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // Need 3 successes to close
       causeSuccesses(breaker, 2);
@@ -280,11 +293,14 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("single success closes circuit when success threshold is 1")
-    void singleSuccessClosesWithThresholdOne() throws InterruptedException {
+    void singleSuccessClosesWithThresholdOne() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
 
       causeFailures(breaker, 2);
-      Thread.sleep(80);
+
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       causeSuccesses(breaker, 1);
 
@@ -293,11 +309,14 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("failure in HALF_OPEN resets success count and re-opens")
-    void failureInHalfOpenResetsAndReopens() throws InterruptedException {
+    void failureInHalfOpenResetsAndReopens() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 3));
 
       causeFailures(breaker, 2);
-      Thread.sleep(80);
+
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // Partial successes then a failure
       causeSuccesses(breaker, 2);
@@ -331,7 +350,7 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("circuit transitions to HALF_OPEN after open duration elapses")
-    void transitionsAfterDuration() throws InterruptedException {
+    void transitionsAfterDuration() {
       CircuitBreakerConfig config =
           CircuitBreakerConfig.builder()
               .failureThreshold(1)
@@ -344,9 +363,9 @@ class CircuitBreakerTest {
       causeFailures(breaker, 1);
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
 
-      Thread.sleep(80);
-
-      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN);
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
     }
 
     @Test
@@ -378,11 +397,14 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("allows probe call through after open duration in HALF_OPEN")
-    void allowsProbeAfterDuration() throws InterruptedException {
+    void allowsProbeAfterDuration() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
 
       causeFailures(breaker, 1);
-      Thread.sleep(80);
+
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       AtomicInteger callCount = new AtomicInteger(0);
       VTask<String> probe =
@@ -470,7 +492,7 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("state transitions are counted in metrics")
-    void stateTransitionsTracked() throws InterruptedException {
+    void stateTransitionsTracked() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
 
       long initialTransitions = breaker.metrics().stateTransitions();
@@ -479,7 +501,9 @@ class CircuitBreakerTest {
       causeFailures(breaker, 1);
 
       // Wait for OPEN -> HALF_OPEN transition eligibility
-      Thread.sleep(80);
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // HALF_OPEN -> CLOSED via successful probe (OPEN->HALF_OPEN + HALF_OPEN->CLOSED)
       causeSuccesses(breaker, 1);
@@ -896,7 +920,10 @@ class CircuitBreakerTest {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
 
       causeFailures(breaker, 1);
-      Thread.sleep(80);
+
+      awaitDefault()
+          .untilAsserted(
+              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
 
       // Multiple threads trying to transition from OPEN to HALF_OPEN simultaneously
       int threadCount = 10;

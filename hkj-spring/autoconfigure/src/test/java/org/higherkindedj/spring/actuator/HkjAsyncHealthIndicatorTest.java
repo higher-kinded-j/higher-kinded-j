@@ -3,7 +3,9 @@
 package org.higherkindedj.spring.actuator;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 
+import java.time.Duration;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -185,7 +187,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should return DOWN when queue is full")
-    void shouldReturnDownWhenQueueIsFull() throws InterruptedException {
+    void shouldReturnDownWhenQueueIsFull() {
       // Create executor with very small pool and queue
       ThreadPoolTaskExecutor executor = createExecutor(1, 1, 2);
       executor.initialize();
@@ -206,15 +208,16 @@ class HkjAsyncHealthIndicatorTest {
               });
         }
 
-        // Give tasks time to fill the queue
-        Thread.sleep(100);
-
-        Health health = indicator.health();
-
-        // When queue is full, should be DOWN
-        if ((int) health.getDetails().get("queueRemainingCapacity") == 0) {
-          assertThat(health.getStatus()).isEqualTo(Status.DOWN);
-        }
+        // Wait until the queue is full
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  assertThat((int) health.getDetails().get("queueRemainingCapacity")).isZero();
+                  assertThat(health.getStatus()).isEqualTo(Status.DOWN);
+                });
       } finally {
         executor.shutdown();
       }
@@ -222,7 +225,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should return UP when queue has capacity")
-    void shouldReturnUpWhenQueueHasCapacity() throws InterruptedException {
+    void shouldReturnUpWhenQueueHasCapacity() {
       ThreadPoolTaskExecutor executor = createExecutor(2, 4, 10);
       executor.initialize();
 
@@ -234,22 +237,24 @@ class HkjAsyncHealthIndicatorTest {
           executor.submit(
               () -> {
                 try {
-                  Thread.sleep(100);
+                  Thread.sleep(500);
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                 }
               });
         }
 
-        // Give tasks time to start
-        Thread.sleep(50);
-
-        Health health = indicator.health();
-
-        // Queue still has capacity, should be UP
-        if ((int) health.getDetails().get("queueRemainingCapacity") > 0) {
-          assertThat(health.getStatus()).isEqualTo(Status.UP);
-        }
+        // Wait until tasks are picked up, then verify queue still has capacity
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  assertThat((int) health.getDetails().get("queueRemainingCapacity"))
+                      .isGreaterThan(0);
+                  assertThat(health.getStatus()).isEqualTo(Status.UP);
+                });
       } finally {
         executor.shutdown();
       }
@@ -288,7 +293,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should track active threads")
-    void shouldTrackActiveThreads() throws InterruptedException {
+    void shouldTrackActiveThreads() {
       ThreadPoolTaskExecutor executor = createExecutor(5, 10, 100);
       executor.initialize();
 
@@ -307,14 +312,15 @@ class HkjAsyncHealthIndicatorTest {
               });
         }
 
-        // Give tasks time to start
-        Thread.sleep(100);
-
-        Health health = indicator.health();
-
-        // Should have some active threads
-        int activeCount = (int) health.getDetails().get("activeCount");
-        assertThat(activeCount).isGreaterThan(0);
+        // Wait until active threads are reported
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  assertThat((int) health.getDetails().get("activeCount")).isGreaterThan(0);
+                });
       } finally {
         executor.shutdown();
       }
@@ -322,7 +328,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should track pool size growth")
-    void shouldTrackPoolSizeGrowth() throws InterruptedException {
+    void shouldTrackPoolSizeGrowth() {
       ThreadPoolTaskExecutor executor = createExecutor(2, 8, 100);
       executor.initialize();
 
@@ -334,21 +340,22 @@ class HkjAsyncHealthIndicatorTest {
           executor.submit(
               () -> {
                 try {
-                  Thread.sleep(200);
+                  Thread.sleep(500);
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                 }
               });
         }
 
-        // Give tasks time to start
-        Thread.sleep(100);
-
-        Health health = indicator.health();
-
-        int poolSize = (int) health.getDetails().get("poolSize");
-        // Pool size should be at least the core size
-        assertThat(poolSize).isGreaterThanOrEqualTo(2);
+        // Wait until pool has grown to at least core size
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  assertThat((int) health.getDetails().get("poolSize")).isGreaterThanOrEqualTo(2);
+                });
       } finally {
         executor.shutdown();
       }
@@ -356,7 +363,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should track queue size")
-    void shouldTrackQueueSize() throws InterruptedException {
+    void shouldTrackQueueSize() {
       ThreadPoolTaskExecutor executor = createExecutor(1, 2, 10);
       executor.initialize();
 
@@ -375,14 +382,15 @@ class HkjAsyncHealthIndicatorTest {
               });
         }
 
-        // Give tasks time to queue up
-        Thread.sleep(100);
-
-        Health health = indicator.health();
-
-        int queueSize = (int) health.getDetails().get("queueSize");
-        // Some tasks should be queued
-        assertThat(queueSize).isGreaterThan(0);
+        // Wait until some tasks are queued
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  assertThat((int) health.getDetails().get("queueSize")).isGreaterThan(0);
+                });
       } finally {
         executor.shutdown();
       }
@@ -390,7 +398,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should calculate queue remaining capacity correctly")
-    void shouldCalculateQueueRemainingCapacityCorrectly() throws InterruptedException {
+    void shouldCalculateQueueRemainingCapacityCorrectly() {
       ThreadPoolTaskExecutor executor = createExecutor(1, 2, 10);
       executor.initialize();
 
@@ -409,16 +417,20 @@ class HkjAsyncHealthIndicatorTest {
               });
         }
 
-        Thread.sleep(100);
-
-        Health health = indicator.health();
-
-        int queueSize = (int) health.getDetails().get("queueSize");
-        int queueCapacity = (int) health.getDetails().get("queueCapacity");
-        int queueRemainingCapacity = (int) health.getDetails().get("queueRemainingCapacity");
-
-        // queueSize + queueRemainingCapacity should equal queueCapacity
-        assertThat(queueSize + queueRemainingCapacity).isEqualTo(queueCapacity);
+        // Wait until tasks are queued, then verify capacity invariant
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  int queueSize = (int) health.getDetails().get("queueSize");
+                  int queueCapacity = (int) health.getDetails().get("queueCapacity");
+                  int queueRemainingCapacity =
+                      (int) health.getDetails().get("queueRemainingCapacity");
+                  assertThat(queueSize).isGreaterThan(0);
+                  assertThat(queueSize + queueRemainingCapacity).isEqualTo(queueCapacity);
+                });
       } finally {
         executor.shutdown();
       }
@@ -614,7 +626,7 @@ class HkjAsyncHealthIndicatorTest {
 
     @Test
     @DisplayName("Should provide complete health snapshot")
-    void shouldProvideCompleteHealthSnapshot() throws InterruptedException {
+    void shouldProvideCompleteHealthSnapshot() {
       ThreadPoolTaskExecutor executor = createExecutor(3, 8, 50);
       executor.initialize();
 
@@ -626,30 +638,32 @@ class HkjAsyncHealthIndicatorTest {
           executor.submit(
               () -> {
                 try {
-                  Thread.sleep(200);
+                  Thread.sleep(500);
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                 }
               });
         }
 
-        Thread.sleep(100);
-
-        Health health = indicator.health();
-
-        // Verify complete snapshot
-        assertThat(health.getStatus()).isIn(Status.UP, Status.DOWN);
-        assertThat(health.getDetails()).hasSize(7);
-
-        // Verify all metrics are non-negative
-        assertThat((int) health.getDetails().get("activeCount")).isGreaterThanOrEqualTo(0);
-        assertThat((int) health.getDetails().get("poolSize")).isGreaterThanOrEqualTo(0);
-        assertThat((int) health.getDetails().get("corePoolSize")).isEqualTo(3);
-        assertThat((int) health.getDetails().get("maxPoolSize")).isEqualTo(8);
-        assertThat((int) health.getDetails().get("queueSize")).isGreaterThanOrEqualTo(0);
-        assertThat((int) health.getDetails().get("queueCapacity")).isEqualTo(50);
-        assertThat((int) health.getDetails().get("queueRemainingCapacity"))
-            .isGreaterThanOrEqualTo(0);
+        // Wait until tasks are running, then verify complete snapshot
+        await()
+            .atMost(Duration.ofSeconds(2))
+            .pollInterval(Duration.ofMillis(10))
+            .untilAsserted(
+                () -> {
+                  Health health = indicator.health();
+                  assertThat(health.getStatus()).isIn(Status.UP, Status.DOWN);
+                  assertThat(health.getDetails()).hasSize(7);
+                  assertThat((int) health.getDetails().get("activeCount"))
+                      .isGreaterThanOrEqualTo(0);
+                  assertThat((int) health.getDetails().get("poolSize")).isGreaterThanOrEqualTo(0);
+                  assertThat((int) health.getDetails().get("corePoolSize")).isEqualTo(3);
+                  assertThat((int) health.getDetails().get("maxPoolSize")).isEqualTo(8);
+                  assertThat((int) health.getDetails().get("queueSize")).isGreaterThanOrEqualTo(0);
+                  assertThat((int) health.getDetails().get("queueCapacity")).isEqualTo(50);
+                  assertThat((int) health.getDetails().get("queueRemainingCapacity"))
+                      .isGreaterThanOrEqualTo(0);
+                });
       } finally {
         executor.shutdown();
       }
