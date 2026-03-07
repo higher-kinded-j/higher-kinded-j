@@ -32,8 +32,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public class FreeApFunctor<F extends WitnessArity<TypeArity.Unary>>
     implements Functor<FreeApKind.Witness<F>> {
 
-  private static final Class<FreeApFunctor> FREE_AP_FUNCTOR_CLASS = FreeApFunctor.class;
-
   private static final FreeApFunctor<?> INSTANCE = new FreeApFunctor<>();
 
   /** Creates a new FreeApFunctor instance. */

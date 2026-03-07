@@ -24,8 +24,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
 
-  private static Class<WriterFunctor> WRITER_FUNCTER_CLASS = WriterFunctor.class;
-
   /**
    * Maps a function {@code f} over the value {@code A} contained within a {@code
    * Kind<WriterKind.Witness<W>, A>}.

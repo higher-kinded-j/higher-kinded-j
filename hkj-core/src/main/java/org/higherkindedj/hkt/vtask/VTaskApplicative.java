@@ -26,8 +26,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class VTaskApplicative extends VTaskFunctor implements Applicative<VTaskKind.Witness> {
 
-  private static final Class<VTaskApplicative> VTASK_APPLICATIVE_CLASS = VTaskApplicative.class;
-
   /** Singleton instance of {@code VTaskApplicative}. */
   public static final VTaskApplicative INSTANCE = new VTaskApplicative();
 

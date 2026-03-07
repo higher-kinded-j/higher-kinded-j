@@ -43,9 +43,6 @@ import org.jspecify.annotations.Nullable;
 public class CompletableFutureApplicative extends CompletableFutureFunctor
     implements Applicative<CompletableFutureKind.Witness> {
 
-  private static final Class<CompletableFutureApplicative> COMPLETABLE_FUTURE_APPLICATIVE_CLASS =
-      CompletableFutureApplicative.class;
-
   /** Constructs a new {@code CompletableFutureApplicative} instance. */
   public CompletableFutureApplicative() {
     // Default constructor

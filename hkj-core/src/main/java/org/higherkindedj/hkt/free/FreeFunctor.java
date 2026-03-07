@@ -25,8 +25,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class FreeFunctor<F extends WitnessArity<?>> implements Functor<FreeKind.Witness<F>> {
 
-  private static final Class<FreeFunctor> FREE_FUNCTOR_CLASS = FreeFunctor.class;
-
   /**
    * Creates a new FreeFunctor instance. Note: Unlike some other functors in this codebase, Free
    * requires a type parameter F, so we cannot use a singleton instance.

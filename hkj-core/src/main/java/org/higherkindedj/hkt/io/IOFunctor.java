@@ -24,8 +24,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class IOFunctor implements Functor<IOKind.Witness> {
 
-  private static final Class<IOFunctor> IO_FUNCTOR_CLASS = IOFunctor.class;
-
   public static final IOFunctor INSTANCE = new IOFunctor();
 
   protected IOFunctor() {}

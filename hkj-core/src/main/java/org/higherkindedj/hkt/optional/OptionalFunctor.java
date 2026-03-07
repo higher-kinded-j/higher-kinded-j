@@ -29,8 +29,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class OptionalFunctor implements Functor<OptionalKind.Witness> {
 
-  private static final Class<OptionalFunctor> OPTIONAL_FUNCTOR_CLASS = OptionalFunctor.class;
-
   /**
    * Constructs a new {@code OptionalFunctor} instance. This constructor is public to allow
    * instantiation where needed, although typically functor operations are accessed via a {@link

@@ -25,8 +25,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witness> {
 
-  private static final Class<IOApplicative> IO_APPLICATIVE_CLASS = IOApplicative.class;
-
   /** Singleton instance of {@code IOMonad}. */
   public static final IOApplicative INSTANCE = new IOApplicative();
 

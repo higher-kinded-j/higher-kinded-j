@@ -62,8 +62,6 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   /** Singleton instance of {@code MaybeSelective}. */
   public static final MaybeSelective INSTANCE = new MaybeSelective();
 
-  private static final Class<MaybeSelective> MAYBE_SELECTIVE_CLASS = MaybeSelective.class;
-
   /** Private constructor to enforce the singleton pattern. */
   private MaybeSelective() {
     super();

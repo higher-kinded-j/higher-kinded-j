@@ -26,8 +26,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class VTaskFunctor implements Functor<VTaskKind.Witness> {
 
-  private static final Class<VTaskFunctor> VTASK_FUNCTOR_CLASS = VTaskFunctor.class;
-
   /** Singleton instance of {@code VTaskFunctor}. */
   public static final VTaskFunctor INSTANCE = new VTaskFunctor();
 

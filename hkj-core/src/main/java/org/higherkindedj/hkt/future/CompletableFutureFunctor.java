@@ -33,9 +33,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class CompletableFutureFunctor implements Functor<CompletableFutureKind.Witness> {
 
-  private static final Class<CompletableFutureFunctor> COMPLETABLE_FUTURE_FUNCTOR_CLASS =
-      CompletableFutureFunctor.class;
-
   /**
    * Constructs a new {@code CompletableFutureFunctor} instance. This constructor is public to allow
    * instantiation where needed, although typically functor operations are accessed via a {@link

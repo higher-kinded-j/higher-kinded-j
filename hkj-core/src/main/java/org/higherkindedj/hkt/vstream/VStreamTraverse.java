@@ -48,8 +48,6 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
   /** Singleton instance of {@code VStreamTraverse}. */
   INSTANCE;
 
-  private static final Class<VStreamTraverse> VSTREAM_TRAVERSE_CLASS = VStreamTraverse.class;
-
   /**
    * Maps a function over a VStream in a higher-kinded context.
    *

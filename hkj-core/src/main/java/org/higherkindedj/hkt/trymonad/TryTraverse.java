@@ -23,8 +23,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public enum TryTraverse implements Traverse<TryKind.Witness> {
   INSTANCE;
 
-  private static Class<TryTraverse> TRY_TRAVERSE_CLASS = TryTraverse.class;
-
   /**
    * Maps a function over the value contained within a {@code TryKind} context, if a value is
    * present (i.e., if it's a {@link Try.Success}).

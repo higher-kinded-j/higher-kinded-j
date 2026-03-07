@@ -55,8 +55,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
     implements Functor<CoyonedaKind.Witness<F>> {
 
-  private static final Class<CoyonedaFunctor> COYONEDA_FUNCTOR_CLASS = CoyonedaFunctor.class;
-
   private static final CoyonedaFunctor<?> INSTANCE = new CoyonedaFunctor<>();
 
   /** Creates a new CoyonedaFunctor instance. */

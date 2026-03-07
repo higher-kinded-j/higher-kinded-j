@@ -45,7 +45,6 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
     implements Selective<ReaderKind.Witness<R>> {
 
   private static final ReaderSelective<?> INSTANCE = new ReaderSelective<>();
-  private static final Class<ReaderSelective> READER_SELECTIVE_CLASS = ReaderSelective.class;
 
   private ReaderSelective() {
     super();

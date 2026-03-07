@@ -25,8 +25,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class MaybeFunctor implements Functor<MaybeKind.Witness> {
 
-  private static final Class<MaybeFunctor> MAYBE_FUNCTOR_CLASS = MaybeFunctor.class;
-
   public static final MaybeFunctor INSTANCE = new MaybeFunctor();
 
   protected MaybeFunctor() {}

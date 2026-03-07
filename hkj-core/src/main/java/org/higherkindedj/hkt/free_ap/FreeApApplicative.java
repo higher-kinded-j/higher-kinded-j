@@ -49,8 +49,6 @@ import org.jspecify.annotations.Nullable;
 public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends FreeApFunctor<F>
     implements Applicative<FreeApKind.Witness<F>> {
 
-  private static final Class<FreeApApplicative> FREE_AP_APPLICATIVE_CLASS = FreeApApplicative.class;
-
   private static final FreeApApplicative<?> INSTANCE = new FreeApApplicative<>();
 
   /** Creates a new FreeApApplicative instance. */

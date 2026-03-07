@@ -63,8 +63,6 @@ public final class OptionalSelective extends OptionalMonad
   /** Singleton instance of {@code OptionalSelective}. */
   public static final OptionalSelective INSTANCE = new OptionalSelective();
 
-  private static final Class<OptionalSelective> OPTIONAL_SELECTIVE_CLASS = OptionalSelective.class;
-
   /** Private constructor to enforce the singleton pattern. */
   private OptionalSelective() {
     super();

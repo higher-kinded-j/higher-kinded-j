@@ -54,8 +54,6 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   /** Singleton instance of {@code ListSelective}. */
   public static final ListSelective INSTANCE = new ListSelective();
 
-  private static final Class<ListSelective> LIST_SELECTIVE_CLASS = ListSelective.class;
-
   /** Private constructor to enforce singleton pattern. */
   private ListSelective() {
     super();

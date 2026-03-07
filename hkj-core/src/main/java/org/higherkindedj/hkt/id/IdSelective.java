@@ -40,7 +40,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public final class IdSelective extends IdMonad implements Selective<IdKind.Witness> {
 
   private static final IdSelective INSTANCE = new IdSelective();
-  private static final Class<IdSelective> ID_SELECTIVE_CLASS = IdSelective.class;
 
   /** Private constructor to enforce singleton pattern. */
   private IdSelective() {

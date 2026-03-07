@@ -20,8 +20,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class TryApplicative extends TryFunctor implements Applicative<TryKind.Witness> {
 
-  private static final Class<TryApplicative> TRY_APPLICATIVE_CLASS = TryApplicative.class;
-
   /**
    * Lifts a value into a successful {@code Try} context, represented as {@code
    * Kind<TryKind.Witness, A>}.

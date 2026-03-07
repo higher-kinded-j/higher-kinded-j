@@ -27,8 +27,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class TrampolineFunctor implements Functor<TrampolineKind.Witness> {
 
-  private static final Class<TrampolineFunctor> TRAMPOLINE_FUNCTOR_CLASS = TrampolineFunctor.class;
-
   /** Singleton instance of {@code TrampolineFunctor}. */
   public static final TrampolineFunctor INSTANCE = new TrampolineFunctor();
 

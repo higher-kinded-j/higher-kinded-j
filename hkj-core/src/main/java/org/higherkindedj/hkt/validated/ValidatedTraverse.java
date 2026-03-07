@@ -26,7 +26,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witness<E>> {
 
   private static final ValidatedTraverse<?> INSTANCE = new ValidatedTraverse<>();
-  private static final Class<ValidatedTraverse> VALIDATED_TRAVERSE_CLASS = ValidatedTraverse.class;
 
   private ValidatedTraverse() {}
 

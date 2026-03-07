@@ -23,8 +23,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   INSTANCE;
 
-  private static final Class<MaybeTraverse> MAYBE_TRAVERSE_CLASS = MaybeTraverse.class;
-
   @Override
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {

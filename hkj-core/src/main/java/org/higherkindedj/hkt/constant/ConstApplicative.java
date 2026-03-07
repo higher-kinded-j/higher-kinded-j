@@ -57,8 +57,6 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<M>> {
 
-  private static final Class<ConstApplicative> CONST_APPLICATIVE_CLASS = ConstApplicative.class;
-
   private final Monoid<M> monoid;
 
   /**

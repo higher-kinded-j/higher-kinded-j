@@ -22,8 +22,6 @@ import org.jspecify.annotations.Nullable;
 public class StateApplicative<S> extends StateFunctor<S>
     implements Applicative<StateKind.Witness<S>> {
 
-  private static final Class<StateApplicative> STATE_APPLICATIVE_CLASS = StateApplicative.class;
-
   /**
    * Lifts a value into a {@code State} context, represented as {@code Kind<StateKind.Witness<S>,
    * A>}. The state remains unchanged.

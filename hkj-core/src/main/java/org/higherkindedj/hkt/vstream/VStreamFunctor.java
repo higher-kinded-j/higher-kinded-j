@@ -33,8 +33,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class VStreamFunctor implements Functor<VStreamKind.Witness> {
 
-  private static final Class<VStreamFunctor> VSTREAM_FUNCTOR_CLASS = VStreamFunctor.class;
-
   /** Singleton instance of {@code VStreamFunctor}. */
   public static final VStreamFunctor INSTANCE = new VStreamFunctor();
 

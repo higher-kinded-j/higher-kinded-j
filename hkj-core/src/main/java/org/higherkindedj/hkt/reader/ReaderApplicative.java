@@ -31,8 +31,6 @@ import org.jspecify.annotations.Nullable;
 public class ReaderApplicative<R> extends ReaderFunctor<R>
     implements Applicative<ReaderKind.Witness<R>> {
 
-  private static final Class<ReaderApplicative> READER_APPLICATIVE_CLASS = ReaderApplicative.class;
-
   /**
    * Lifts a pure value {@code value} into the {@link Reader} context. The resulting {@code
    * Reader<R, A>} will produce the given {@code value} regardless of the environment {@code R} it

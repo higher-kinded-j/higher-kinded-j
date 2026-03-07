@@ -31,9 +31,6 @@ import org.jspecify.annotations.Nullable;
 public class ContextApplicative<R> extends ContextFunctor<R>
     implements Applicative<ContextKind.Witness<R>> {
 
-  private static final Class<ContextApplicative> CONTEXT_APPLICATIVE_CLASS =
-      ContextApplicative.class;
-
   private static final ContextApplicative<?> INSTANCE = new ContextApplicative<>();
 
   /** Protected constructor to allow subclassing while enforcing singleton-per-type pattern. */

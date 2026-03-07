@@ -29,8 +29,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
 
-  private static Class<StateFunctor> STATE_FUNCTOR_CLASS = StateFunctor.class;
-
   /**
    * Applies a function {@code f} to the computed value of a {@link State}{@code <S, A>}
    * computation, transforming it into a {@link State}{@code <S, B>} computation.

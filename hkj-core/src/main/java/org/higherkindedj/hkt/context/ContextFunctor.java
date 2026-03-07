@@ -28,8 +28,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class ContextFunctor<R> implements Functor<ContextKind.Witness<R>> {
 
-  private static final Class<ContextFunctor> CONTEXT_FUNCTOR_CLASS = ContextFunctor.class;
-
   private static final ContextFunctor<?> INSTANCE = new ContextFunctor<>();
 
   /** Protected constructor to allow subclassing while enforcing singleton-per-type pattern. */

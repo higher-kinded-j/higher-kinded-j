@@ -148,8 +148,6 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
    */
   INSTANCE;
 
-  private static final Class<StreamTraverse> STREAM_TRAVERSE_CLASS = StreamTraverse.class;
-
   /**
    * Maps a function over a stream in a higher-kinded context. This operation is inherited from
    * {@link Functor} via {@link Traverse}.

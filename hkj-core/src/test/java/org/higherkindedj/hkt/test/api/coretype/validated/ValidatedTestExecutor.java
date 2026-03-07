@@ -156,19 +156,6 @@ final class ValidatedTestExecutor<E, A, B>
       builder.assertFlatMapperNull(() -> invalidInstance.flatMap(null), "fn", Operation.FLAT_MAP);
     }
 
-    // Side effect validations
-    // If context is Validated.class (the interface), we need to use the concrete class
-    // because the actual error comes from Invalid/Valid implementation
-    Class<?> effectiveIfInvalidContext = validIfInvalidContext;
-    if (validIfInvalidContext == contextClass && contextClass == Validated.class) {
-      effectiveIfInvalidContext = invalidInstance.getClass();
-    }
-
-    Class<?> effectiveIfValidContext = validIfValidContext;
-    if (validIfValidContext == contextClass && contextClass == Validated.class) {
-      effectiveIfValidContext = invalidInstance.getClass();
-    }
-
     builder.assertFunctionNull(
         () -> invalidInstance.ifInvalid(null), "consumer", Operation.IF_INVALID);
 

@@ -33,8 +33,6 @@ import org.jspecify.annotations.Nullable;
 public class WriterApplicative<W> extends WriterFunctor<W>
     implements Applicative<WriterKind.Witness<W>> {
 
-  private static Class<WriterApplicative> WRITER_APPLICATIVE_CLASS = WriterApplicative.class;
-
   protected final Monoid<W> monoidW;
 
   /**

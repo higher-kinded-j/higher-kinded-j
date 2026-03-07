@@ -31,8 +31,6 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    */
   INSTANCE;
 
-  private static Class<ListTraverse> LIST_TRAVERSE_CLASS = ListTraverse.class;
-
   /**
    * Maps a function over a list in a higher-kinded context. This operation is inherited from {@link
    * Functor} via {@link Traverse}.

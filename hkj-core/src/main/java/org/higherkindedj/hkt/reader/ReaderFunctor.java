@@ -28,8 +28,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
 
-  private static final Class<ReaderFunctor> READER_FUNCTOR_CLASS = ReaderFunctor.class;
-
   /**
    * Maps a function {@code f} over the value {@code A} contained within a {@code
    * Kind<ReaderKind.Witness<R>, A>}.

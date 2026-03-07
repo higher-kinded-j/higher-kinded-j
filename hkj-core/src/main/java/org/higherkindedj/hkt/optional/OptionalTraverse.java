@@ -47,8 +47,6 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   /** Singleton instance of {@code OptionalTraverse}. */
   INSTANCE;
 
-  private static final Class<OptionalTraverse> OPTIONAL_TRAVERSE_CLASS = OptionalTraverse.class;
-
   /**
    * Maps a function over the value contained within an {@code OptionalKind} context, if a value is
    * present. This provides the Functor behaviour required by the Traverse type class.

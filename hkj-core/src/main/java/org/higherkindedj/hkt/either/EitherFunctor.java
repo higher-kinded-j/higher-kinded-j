@@ -25,8 +25,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
 
-  private static final Class<EitherFunctor> EITHER_FUNCTOR_CLASS = EitherFunctor.class;
-
   private static final EitherFunctor<?> INSTANCE = new EitherFunctor<>();
 
   protected EitherFunctor() {}

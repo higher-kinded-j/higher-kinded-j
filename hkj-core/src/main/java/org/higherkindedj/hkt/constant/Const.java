@@ -47,8 +47,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public record Const<C, A>(C value) {
 
-  private static final Class<?> CONST_CLASS = Const.class;
-
   /**
    * Transforms both the constant value and the phantom type parameter.
    *

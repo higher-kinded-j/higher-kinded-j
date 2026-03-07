@@ -28,8 +28,6 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
 
   private static final EitherTraverse<?> INSTANCE = new EitherTraverse<>();
 
-  private static final Class<EitherTraverse> EITHER_TRAVERSE_CLASS = EitherTraverse.class;
-
   private EitherTraverse() {
     // Private constructor to prevent external instantiation
   }

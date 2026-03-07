@@ -51,9 +51,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public final class ValidatedSelective<E> extends ValidatedMonad<E>
     implements Selective<ValidatedKind.Witness<E>> {
 
-  private static final Class<ValidatedSelective> VALIDATED_SELECTIVE_CLASS =
-      ValidatedSelective.class;
-
   private final Semigroup<E> semigroup;
 
   /**

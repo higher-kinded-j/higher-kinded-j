@@ -18,8 +18,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class TryFunctor implements Functor<TryKind.Witness> {
 
-  private static final Class<TryFunctor> TRY_FUNCTOR_CLASS = TryFunctor.class;
-
   /**
    * Maps a function over a {@code Kind<TryKind.Witness, A>}.
    *

@@ -44,8 +44,6 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
   /** Singleton instance of {@code IOSelective}. */
   public static final IOSelective INSTANCE = new IOSelective();
 
-  private static final Class<IOSelective> IO_SELECTIVE_CLASS = IOSelective.class;
-
   /** Private constructor to enforce singleton pattern. */
   private IOSelective() {
     super();

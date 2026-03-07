@@ -48,8 +48,6 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
    */
   INSTANCE;
 
-  private static final Class<IdTraverse> ID_TRAVERSE_CLASS = IdTraverse.class;
-
   /**
    * Maps a function over the value inside an Id.
    *

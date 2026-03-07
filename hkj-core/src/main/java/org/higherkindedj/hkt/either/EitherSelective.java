@@ -45,7 +45,6 @@ public final class EitherSelective<L> extends EitherMonad<L>
     implements Selective<EitherKind.Witness<L>> {
 
   private static final EitherSelective<?> INSTANCE = new EitherSelective<>();
-  private static final Class<EitherSelective> EITHER_SELECTIVE_CLASS = EitherSelective.class;
 
   private EitherSelective() {
     super();
