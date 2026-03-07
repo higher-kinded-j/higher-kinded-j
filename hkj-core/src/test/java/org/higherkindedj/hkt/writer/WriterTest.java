@@ -266,7 +266,7 @@ class WriterTest extends WriterTestBase {
     @DisplayName("map() validates null mapper using standardised validation")
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> defaultWriter().map(null), "f", Writer.class, Operation.MAP)
+          .assertMapperNull(() -> defaultWriter().map(null), "f", Operation.MAP)
           .execute();
     }
 
@@ -354,15 +354,9 @@ class WriterTest extends WriterTestBase {
 
       ValidationTestBuilder.create()
           .assertMonoidNull(
-              () -> defaultWriter().flatMap(null, validMapper),
-              "monoidW",
-              Writer.class,
-              Operation.FLAT_MAP)
+              () -> defaultWriter().flatMap(null, validMapper), "monoidW", Operation.FLAT_MAP)
           .assertFlatMapperNull(
-              () -> defaultWriter().flatMap(STRING_MONOID, null),
-              "f",
-              Writer.class,
-              Operation.FLAT_MAP)
+              () -> defaultWriter().flatMap(STRING_MONOID, null), "f", Operation.FLAT_MAP)
           .execute();
     }
 
@@ -373,9 +367,7 @@ class WriterTest extends WriterTestBase {
 
       assertThatThrownBy(() -> defaultWriter().flatMap(STRING_MONOID, nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in Writer.flatMap returned null when Writer expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
 
     @Test

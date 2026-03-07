@@ -48,8 +48,6 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
   /** Singleton instance of {@code VStreamTraverse}. */
   INSTANCE;
 
-  private static final Class<VStreamTraverse> VSTREAM_TRAVERSE_CLASS = VStreamTraverse.class;
-
   /**
    * Maps a function over a VStream in a higher-kinded context.
    *
@@ -68,8 +66,8 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
   public <A, B> Kind<VStreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", VSTREAM_TRAVERSE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, VSTREAM_TRAVERSE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return VStreamFunctor.INSTANCE.map(f, fa);
   }
@@ -110,7 +108,7 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
           Function<? super A, ? extends Kind<G, ? extends B>> f,
           Kind<VStreamKind.Witness, A> ta) {
 
-    Validation.function().validateTraverse(applicative, f, ta, VSTREAM_TRAVERSE_CLASS);
+    Validation.function().validateTraverse(applicative, f, ta);
 
     VStream<A> stream = VSTREAM.narrow(ta);
 
@@ -160,7 +158,7 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.function().validateFoldMap(monoid, f, fa, VSTREAM_TRAVERSE_CLASS);
+    Validation.function().validateFoldMap(monoid, f, fa);
 
     VStream<A> stream = VSTREAM.narrow(fa);
 

@@ -97,8 +97,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   public <R, A> Kind<ReaderKind.Witness<R>, A> reader(Function<R, A> runFunction) {
-    Validation.function()
-        .requireFunction(runFunction, "runFunction", READER_CLASS, Operation.READER);
+    Validation.function().require(runFunction, "runFunction", Operation.READER);
     return this.widen(Reader.of(runFunction));
   }
 
@@ -143,7 +142,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code environment} is {@code null}.
    */
   public <R, A> @Nullable A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
-    Validation.kind().requireNonNull(kind, READER_CLASS, RUN_READER);
+    Validation.kind().requireNonNull(kind, RUN_READER);
     // Note: We don't validate environment as null here since Reader interface allows @NonNull R
     // but the specific nullability contract depends on the design of the environment type R
     return this.narrow(kind).run(environment);

@@ -23,8 +23,6 @@ import org.jspecify.annotations.Nullable;
 public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
     implements Monad<FreeKind.Witness<F>> {
 
-  private static final Class<FreeMonad> FREE_MONAD_CLASS = FreeMonad.class;
-
   /**
    * Creates a new FreeMonad instance. Note: Unlike some other monads in this codebase, Free
    * requires a type parameter F, so we cannot use a singleton instance.
@@ -63,7 +61,7 @@ public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
   public <A, B> Kind<FreeKind.Witness<F>, B> flatMap(
       Function<? super A, ? extends Kind<FreeKind.Witness<F>, B>> f,
       Kind<FreeKind.Witness<F>, A> ma) {
-    Validation.function().validateFlatMap(f, ma, FREE_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Free<F, A> freeA = FREE.narrow(ma);
 
@@ -71,8 +69,7 @@ public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
         freeA.flatMap(
             a -> {
               Kind<FreeKind.Witness<F>, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", FREE_MONAD_CLASS, FLAT_MAP, Free.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return FREE.narrow(kindB);
             });
 
@@ -95,7 +92,7 @@ public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
   @Override
   public <A, B> Kind<FreeKind.Witness<F>, B> ap(
       Kind<FreeKind.Witness<F>, ? extends Function<A, B>> ff, Kind<FreeKind.Witness<F>, A> fa) {
-    Validation.kind().validateAp(ff, fa, FREE_MONAD_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Free<F, ? extends Function<A, B>> freeF = FREE.narrow(ff);
     Free<F, A> freeA = FREE.narrow(fa);

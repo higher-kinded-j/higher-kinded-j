@@ -26,7 +26,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witness<E>> {
 
   private static final ValidatedTraverse<?> INSTANCE = new ValidatedTraverse<>();
-  private static final Class<ValidatedTraverse> VALIDATED_TRAVERSE_CLASS = ValidatedTraverse.class;
 
   private ValidatedTraverse() {}
 
@@ -39,8 +38,8 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, VALIDATED_TRAVERSE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
   }
@@ -52,7 +51,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
           Function<? super A, ? extends Kind<G, ? extends B>> f,
           Kind<ValidatedKind.Witness<E>, A> ta) {
 
-    Validation.function().validateTraverse(applicative, f, ta, VALIDATED_TRAVERSE_CLASS);
+    Validation.function().validateTraverse(applicative, f, ta);
 
     return VALIDATED
         .narrow(ta)
@@ -68,7 +67,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    Validation.function().validateFoldMap(monoid, f, fa, VALIDATED_TRAVERSE_CLASS);
+    Validation.function().validateFoldMap(monoid, f, fa);
 
     // If Valid, map the value. If Invalid, return the monoid's empty value.
     return VALIDATED.narrow(fa).fold(error -> monoid.empty(), f);

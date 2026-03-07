@@ -31,9 +31,6 @@ import org.jspecify.annotations.Nullable;
 public class ContextApplicative<R> extends ContextFunctor<R>
     implements Applicative<ContextKind.Witness<R>> {
 
-  private static final Class<ContextApplicative> CONTEXT_APPLICATIVE_CLASS =
-      ContextApplicative.class;
-
   private static final ContextApplicative<?> INSTANCE = new ContextApplicative<>();
 
   /** Protected constructor to allow subclassing while enforcing singleton-per-type pattern. */
@@ -89,7 +86,7 @@ public class ContextApplicative<R> extends ContextFunctor<R>
       Kind<ContextKind.Witness<R>, ? extends Function<A, B>> ff,
       Kind<ContextKind.Witness<R>, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, CONTEXT_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     Context<R, ? extends Function<A, B>> contextF = CONTEXT.narrow(ff);
     Context<R, A> contextA = CONTEXT.narrow(fa);

@@ -82,29 +82,23 @@ final class MaybeTestExecutor<T, S>
     if (validationStage != null && validationStage.getMapContext() != null) {
       MaybeFunctor functor = MaybeFunctor.INSTANCE;
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(
-          () -> justInstance.map(null), "mapper", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> justInstance.map(null), "mapper", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       MaybeMonad monad = MaybeMonad.INSTANCE;
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> justInstance.flatMap(null), "mapper", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> justInstance.flatMap(null), "mapper", Operation.FLAT_MAP);
     }
 
     // OrElseGet validation (only on Nothing, as Just doesn't call supplier)
     builder.assertFunctionNull(
-        () -> nothingInstance.orElseGet(null),
-        "otherSupplier",
-        contextClass,
-        Operation.OR_ELSE_GET);
+        () -> nothingInstance.orElseGet(null), "otherSupplier", Operation.OR_ELSE_GET);
 
     builder.execute();
   }

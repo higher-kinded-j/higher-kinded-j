@@ -44,8 +44,6 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
   /** Singleton instance of {@code TrampolineMonad}. */
   public static final TrampolineMonad INSTANCE = new TrampolineMonad();
 
-  private static final Class<TrampolineMonad> TRAMPOLINE_MONAD_CLASS = TrampolineMonad.class;
-
   /** Private constructor to enforce the singleton pattern. */
   protected TrampolineMonad() {
     super();
@@ -89,8 +87,8 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
       Function<? super A, ? extends Kind<TrampolineKind.Witness, B>> f,
       Kind<TrampolineKind.Witness, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", TRAMPOLINE_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, TRAMPOLINE_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     Trampoline<A> trampolineA = TRAMPOLINE.narrow(ma);
 
@@ -98,9 +96,7 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
         trampolineA.flatMap(
             a -> {
               Kind<TrampolineKind.Witness, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(
-                      kindB, "f", TRAMPOLINE_MONAD_CLASS, FLAT_MAP, Trampoline.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return TRAMPOLINE.narrow(kindB);
             });
 
@@ -129,8 +125,8 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
       Kind<TrampolineKind.Witness, ? extends Function<A, B>> ff,
       Kind<TrampolineKind.Witness, A> fa) {
 
-    Validation.kind().requireNonNull(ff, TRAMPOLINE_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, TRAMPOLINE_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     Trampoline<? extends Function<A, B>> trampolineF = TRAMPOLINE.narrow(ff);
     Trampoline<A> trampolineA = TRAMPOLINE.narrow(fa);

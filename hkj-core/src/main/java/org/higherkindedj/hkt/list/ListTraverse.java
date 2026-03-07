@@ -31,8 +31,6 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    */
   INSTANCE;
 
-  private static Class<ListTraverse> LIST_TRAVERSE_CLASS = ListTraverse.class;
-
   /**
    * Maps a function over a list in a higher-kinded context. This operation is inherited from {@link
    * Functor} via {@link Traverse}.
@@ -50,8 +48,8 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", LIST_TRAVERSE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, LIST_TRAVERSE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return ListFunctor.INSTANCE.map(f, fa);
   }
@@ -102,7 +100,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
           Function<? super A, ? extends Kind<G, ? extends B>> f,
           Kind<ListKind.Witness, A> ta) {
 
-    Validation.function().validateTraverse(applicative, f, ta, LIST_TRAVERSE_CLASS);
+    Validation.function().validateTraverse(applicative, f, ta);
 
     List<A> listA = LIST.narrow(ta);
     Kind<G, LinkedList<B>> result = applicative.of(new LinkedList<>());
@@ -142,7 +140,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
 
-    Validation.function().validateFoldMap(monoid, f, fa, LIST_TRAVERSE_CLASS);
+    Validation.function().validateFoldMap(monoid, f, fa);
 
     M accumulator = monoid.empty();
     for (A a : LIST.narrow(fa)) {

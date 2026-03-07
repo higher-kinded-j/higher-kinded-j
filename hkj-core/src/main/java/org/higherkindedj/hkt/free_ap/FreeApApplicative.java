@@ -49,8 +49,6 @@ import org.jspecify.annotations.Nullable;
 public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends FreeApFunctor<F>
     implements Applicative<FreeApKind.Witness<F>> {
 
-  private static final Class<FreeApApplicative> FREE_AP_APPLICATIVE_CLASS = FreeApApplicative.class;
-
   private static final FreeApApplicative<?> INSTANCE = new FreeApApplicative<>();
 
   /** Creates a new FreeApApplicative instance. */
@@ -83,8 +81,8 @@ public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends 
   @Override
   public <A, B> Kind<FreeApKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<FreeApKind.Witness<F>, A> fa) {
-    Validation.function().requireMapper(f, "f", FREE_AP_APPLICATIVE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, FREE_AP_APPLICATIVE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     FreeAp<F, A> freeAp = FREE_AP.narrow(fa);
     FreeAp<F, B> mapped = freeAp.map(f);
@@ -121,7 +119,7 @@ public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends 
   @Override
   public <A, B> Kind<FreeApKind.Witness<F>, B> ap(
       Kind<FreeApKind.Witness<F>, ? extends Function<A, B>> ff, Kind<FreeApKind.Witness<F>, A> fa) {
-    Validation.kind().validateAp(ff, fa, FREE_AP_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     FreeAp<F, ? extends Function<A, B>> freeApF = FREE_AP.narrow(ff);
     FreeAp<F, A> freeApA = FREE_AP.narrow(fa);
@@ -150,10 +148,9 @@ public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends 
       Kind<FreeApKind.Witness<F>, A> fa,
       Kind<FreeApKind.Witness<F>, B> fb,
       BiFunction<? super A, ? super B, ? extends C> f) {
-    Validation.kind().requireNonNull(fa, FREE_AP_APPLICATIVE_CLASS, MAP_2, "first");
-    Validation.kind().requireNonNull(fb, FREE_AP_APPLICATIVE_CLASS, MAP_2, "second");
-    Validation.function()
-        .requireFunction(f, "combining function", FREE_AP_APPLICATIVE_CLASS, MAP_2);
+    Validation.kind().requireNonNull(fa, MAP_2, "first");
+    Validation.kind().requireNonNull(fb, MAP_2, "second");
+    Validation.function().require(f, "combining function", MAP_2);
 
     return ap(map(a -> b -> f.apply(a, b), fa), fb);
   }

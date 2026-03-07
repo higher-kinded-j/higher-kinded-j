@@ -94,8 +94,8 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
       Kind<ReaderTKind.Witness<F, R_ENV>, ? extends Function<A, B>> ff,
       Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, READER_T_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, READER_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     ReaderT<F, R_ENV, ? extends Function<A, B>> ffT = READER_T.narrow(ff);
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
@@ -134,8 +134,8 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
   public <A, B> Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", READER_T_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, READER_T_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 
@@ -177,8 +177,8 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
       Function<? super A, ? extends Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
       Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", READER_T_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, READER_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(ma, FLAT_MAP);
 
     ReaderT<F, R_ENV, A> maT = READER_T.narrow(ma);
 
@@ -189,8 +189,7 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
           Function<A, Kind<F, B>> functionForOuterFlatMap =
               a -> {
                 Kind<ReaderTKind.Witness<F, R_ENV>, B> resultReaderTKind = f.apply(a);
-                Validation.function()
-                    .requireNonNullResult(resultReaderTKind, "f", READER_T_MONAD_CLASS, FLAT_MAP);
+                Validation.function().requireNonNullResult(resultReaderTKind, "f", FLAT_MAP);
                 ReaderT<F, R_ENV, B> nextReaderT = READER_T.narrow(resultReaderTKind);
                 return nextReaderT.run().apply(r);
               };

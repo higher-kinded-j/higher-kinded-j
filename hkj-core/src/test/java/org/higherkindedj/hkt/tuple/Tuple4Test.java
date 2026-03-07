@@ -83,7 +83,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(null, age -> age + 1, active -> !active, d -> d + 1.0))
           .withMessageContaining("firstMapper")
-          .withMessageContaining("Tuple4.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -94,7 +94,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(String::length, null, active -> !active, d -> d + 1.0))
           .withMessageContaining("secondMapper")
-          .withMessageContaining("Tuple4.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -105,7 +105,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(String::length, age -> age + 1, null, d -> d + 1.0))
           .withMessageContaining("thirdMapper")
-          .withMessageContaining("Tuple4.map");
+          .withMessageContaining("map");
     }
 
     @Test
@@ -116,7 +116,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.map(String::length, age -> age + 1, active -> !active, null))
           .withMessageContaining("fourthMapper")
-          .withMessageContaining("Tuple4.map");
+          .withMessageContaining("map");
     }
   }
 
@@ -155,7 +155,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapFirst(null))
           .withMessageContaining("firstMapper")
-          .withMessageContaining("Tuple4.mapFirst");
+          .withMessageContaining("mapFirst");
     }
   }
 
@@ -194,7 +194,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapSecond(null))
           .withMessageContaining("secondMapper")
-          .withMessageContaining("Tuple4.mapSecond");
+          .withMessageContaining("mapSecond");
     }
   }
 
@@ -234,7 +234,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapThird(null))
           .withMessageContaining("thirdMapper")
-          .withMessageContaining("Tuple4.map");
+          .withMessageContaining("map");
     }
   }
 
@@ -273,7 +273,7 @@ class Tuple4Test {
       assertThatNullPointerException()
           .isThrownBy(() -> tuple.mapFourth(null))
           .withMessageContaining("fourthMapper")
-          .withMessageContaining("Tuple4.map");
+          .withMessageContaining("map");
     }
   }
 

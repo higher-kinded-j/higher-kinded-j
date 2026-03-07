@@ -42,7 +42,7 @@ public record StateT<S, F extends WitnessArity<TypeArity.Unary>, A>(
    * @throws NullPointerException if runStateTFn or monadF is null.
    */
   public StateT {
-    Validation.function().requireFunction(runStateTFn, "runStateTFn", STATE_T_CLASS, CONSTRUCTION);
+    Validation.function().require(runStateTFn, "runStateTFn", CONSTRUCTION);
     Validation.transformer().requireOuterMonad(monadF, STATE_T_CLASS, CONSTRUCTION);
   }
 

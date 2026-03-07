@@ -453,8 +453,7 @@ class IOTest {
 
       assertThatThrownBy(() -> flatMapped.unsafeRunSync())
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in IO.flatMap returned null when IO expected, which is not allowed");
+          .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
   }
 

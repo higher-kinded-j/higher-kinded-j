@@ -25,8 +25,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class MaybeFunctor implements Functor<MaybeKind.Witness> {
 
-  private static final Class<MaybeFunctor> MAYBE_FUNCTOR_CLASS = MaybeFunctor.class;
-
   public static final MaybeFunctor INSTANCE = new MaybeFunctor();
 
   protected MaybeFunctor() {}
@@ -61,8 +59,8 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", MAYBE_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, MAYBE_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Maybe<A> maybeA = MAYBE.narrow(fa);
     Maybe<B> resultMaybe = maybeA.map(f);

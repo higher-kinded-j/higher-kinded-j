@@ -282,8 +282,7 @@ class LazyTest extends LazyTestBase {
 
       assertThatThrownBy(flatMapped::force)
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
+          .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
   }
 
@@ -389,7 +388,7 @@ class LazyTest extends LazyTestBase {
 
       assertThatNullPointerException()
           .isThrownBy(() -> lazy.flatMap(null))
-          .withMessageContaining("Function f for Lazy.flatMap cannot be null");
+          .withMessageContaining("Function f for flatMap cannot be null");
     }
 
     @Test
@@ -400,8 +399,7 @@ class LazyTest extends LazyTestBase {
 
       assertThatThrownBy(flatMapped::force)
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
+          .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
   }
 

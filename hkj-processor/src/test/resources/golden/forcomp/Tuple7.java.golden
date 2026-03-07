@@ -65,13 +65,13 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
       Function<? super E, ? extends E2> fifthMapper,
       Function<? super F, ? extends F2> sixthMapper,
       Function<? super G, ? extends G2> seventhMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE7_CLASS, MAP);
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE7_CLASS, MAP);
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE7_CLASS, MAP);
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE7_CLASS, MAP);
-    Validation.function().requireMapper(fifthMapper, "fifthMapper", TUPLE7_CLASS, MAP);
-    Validation.function().requireMapper(sixthMapper, "sixthMapper", TUPLE7_CLASS, MAP);
-    Validation.function().requireMapper(seventhMapper, "seventhMapper", TUPLE7_CLASS, MAP);
+    Validation.function().require(firstMapper, "firstMapper", MAP);
+    Validation.function().require(secondMapper, "secondMapper", MAP);
+    Validation.function().require(thirdMapper, "thirdMapper", MAP);
+    Validation.function().require(fourthMapper, "fourthMapper", MAP);
+    Validation.function().require(fifthMapper, "fifthMapper", MAP);
+    Validation.function().require(sixthMapper, "sixthMapper", MAP);
+    Validation.function().require(seventhMapper, "seventhMapper", MAP);
 
     return new Tuple7<>(
         firstMapper.apply(_1),
@@ -92,7 +92,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code firstMapper} is null.
    */
   public <A2> Tuple7<A2, B, C, D, E, F, G> mapFirst(Function<? super A, ? extends A2> firstMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE7_CLASS, MAP_FIRST);
+    Validation.function().require(firstMapper, "firstMapper", MAP_FIRST);
     return new Tuple7<>(firstMapper.apply(_1), _2, _3, _4, _5, _6, _7);
   }
 
@@ -105,7 +105,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code secondMapper} is null.
    */
   public <B2> Tuple7<A, B2, C, D, E, F, G> mapSecond(Function<? super B, ? extends B2> secondMapper) {
-    Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE7_CLASS, MAP_SECOND);
+    Validation.function().require(secondMapper, "secondMapper", MAP_SECOND);
     return new Tuple7<>(_1, secondMapper.apply(_2), _3, _4, _5, _6, _7);
   }
 
@@ -118,7 +118,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code thirdMapper} is null.
    */
   public <C2> Tuple7<A, B, C2, D, E, F, G> mapThird(Function<? super C, ? extends C2> thirdMapper) {
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE7_CLASS, MAP_THIRD);
+    Validation.function().require(thirdMapper, "thirdMapper", MAP_THIRD);
     return new Tuple7<>(_1, _2, thirdMapper.apply(_3), _4, _5, _6, _7);
   }
 
@@ -131,7 +131,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code fourthMapper} is null.
    */
   public <D2> Tuple7<A, B, C, D2, E, F, G> mapFourth(Function<? super D, ? extends D2> fourthMapper) {
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE7_CLASS, MAP_FOURTH);
+    Validation.function().require(fourthMapper, "fourthMapper", MAP_FOURTH);
     return new Tuple7<>(_1, _2, _3, fourthMapper.apply(_4), _5, _6, _7);
   }
 
@@ -144,7 +144,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code fifthMapper} is null.
    */
   public <E2> Tuple7<A, B, C, D, E2, F, G> mapFifth(Function<? super E, ? extends E2> fifthMapper) {
-    Validation.function().requireMapper(fifthMapper, "fifthMapper", TUPLE7_CLASS, MAP_FIFTH);
+    Validation.function().require(fifthMapper, "fifthMapper", MAP_FIFTH);
     return new Tuple7<>(_1, _2, _3, _4, fifthMapper.apply(_5), _6, _7);
   }
 
@@ -157,7 +157,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code sixthMapper} is null.
    */
   public <F2> Tuple7<A, B, C, D, E, F2, G> mapSixth(Function<? super F, ? extends F2> sixthMapper) {
-    Validation.function().requireMapper(sixthMapper, "sixthMapper", TUPLE7_CLASS, MAP_SIXTH);
+    Validation.function().require(sixthMapper, "sixthMapper", MAP_SIXTH);
     return new Tuple7<>(_1, _2, _3, _4, _5, sixthMapper.apply(_6), _7);
   }
 
@@ -170,7 +170,7 @@ public record Tuple7<A, B, C, D, E, F, G>(A _1, B _2, C _3, D _4, E _5, F _6, G 
    * @throws NullPointerException if {@code seventhMapper} is null.
    */
   public <G2> Tuple7<A, B, C, D, E, F, G2> mapSeventh(Function<? super G, ? extends G2> seventhMapper) {
-    Validation.function().requireMapper(seventhMapper, "seventhMapper", TUPLE7_CLASS, MAP_SEVENTH);
+    Validation.function().require(seventhMapper, "seventhMapper", MAP_SEVENTH);
     return new Tuple7<>(_1, _2, _3, _4, _5, _6, seventhMapper.apply(_7));
   }
 

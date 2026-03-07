@@ -147,7 +147,7 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     void apShouldValidateFunctionKindIsNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.ap(null, validKind))
-          .withMessageContaining("Kind for StateApplicative.ap")
+          .withMessageContaining("Kind for ap")
           .withMessageContaining("function");
     }
 
@@ -156,7 +156,7 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     void apShouldValidateArgumentKindIsNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.ap(validFunctionKind, null))
-          .withMessageContaining("Kind for StateApplicative.ap")
+          .withMessageContaining("Kind for ap")
           .withMessageContaining("argument");
     }
 

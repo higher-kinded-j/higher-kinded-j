@@ -76,8 +76,6 @@ import org.jspecify.annotations.Nullable;
 @FunctionalInterface
 public interface Reader<R, A> {
 
-  Class<Reader> READER_CLASS = Reader.class;
-
   /**
    * Executes the computation encapsulated by this {@code Reader} using the provided environment.
    * This is the method that "runs" the reader, supplying the necessary context or dependencies.
@@ -106,7 +104,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   static <R, A> Reader<R, A> of(Function<R, A> runFunction) {
-    Validation.function().requireFunction(runFunction, "runFunction", READER_CLASS, OF);
+    Validation.function().require(runFunction, "runFunction", OF);
     return runFunction::apply;
   }
 
@@ -129,7 +127,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> Reader<R, B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", READER_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
     return (R r) -> f.apply(this.run(r));
   }
 
@@ -155,12 +153,11 @@ public interface Reader<R, A> {
    *     Reader}.
    */
   default <B> Reader<R, B> flatMap(Function<? super A, ? extends Reader<R, ? extends B>> f) {
-    Validation.function().requireFlatMapper(f, "f", READER_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
     return (R r) -> {
       A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);
-      Validation.function()
-          .requireNonNullResult(readerB, "f", READER_CLASS, FLAT_MAP, READER_CLASS);
+      Validation.function().requireNonNullResult(readerB, "f", FLAT_MAP);
       return readerB.run(r);
     };
   }

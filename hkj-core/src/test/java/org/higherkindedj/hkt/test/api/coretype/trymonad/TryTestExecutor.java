@@ -120,56 +120,42 @@ final class TryTestExecutor<T, S> extends BaseCoreTypeTestExecutor<T, S, TryVali
 
     // Fold validations
     builder.assertFunctionNull(
-        () -> successInstance.fold(null, failureMapper),
-        "successMapper",
-        contextClass,
-        Operation.FOLD);
+        () -> successInstance.fold(null, failureMapper), "successMapper", Operation.FOLD);
     builder.assertFunctionNull(
-        () -> successInstance.fold(successMapper, null),
-        "failureMapper",
-        contextClass,
-        Operation.FOLD);
+        () -> successInstance.fold(successMapper, null), "failureMapper", Operation.FOLD);
 
     // Map validations - test through the Functor interface if custom context provided
     if (validationStage != null && validationStage.getMapContext() != null) {
       TryFunctor functor = new TryFunctor();
       Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(
-          () -> successInstance.map(null), "mapper", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> successInstance.map(null), "mapper", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       TryMonad monad = TryMonad.INSTANCE;
       Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
       builder.assertFlatMapperNull(
-          () -> successInstance.flatMap(null), "mapper", getFlatMapContext(), Operation.FLAT_MAP);
+          () -> successInstance.flatMap(null), "mapper", Operation.FLAT_MAP);
     }
 
     // Recover validations
     builder.assertFunctionNull(
-        () -> failureInstance.recover(null), "recoveryFunction", contextClass, Operation.RECOVER);
+        () -> failureInstance.recover(null), "recoveryFunction", Operation.RECOVER);
     builder.assertFunctionNull(
-        () -> failureInstance.recoverWith(null),
-        "recoveryFunction",
-        contextClass,
-        Operation.RECOVER_WITH);
+        () -> failureInstance.recoverWith(null), "recoveryFunction", Operation.RECOVER_WITH);
 
     // OrElseGet validations
     builder.assertFunctionNull(
-        () -> failureInstance.orElseGet(null), "supplier", contextClass, Operation.OR_ELSE_GET);
+        () -> failureInstance.orElseGet(null), "supplier", Operation.OR_ELSE_GET);
 
     // ToEither validations
     builder.assertFunctionNull(
-        () -> successInstance.toEither(null),
-        "failureToLeftMapper",
-        contextClass,
-        Operation.TO_EITHER);
+        () -> successInstance.toEither(null), "failureToLeftMapper", Operation.TO_EITHER);
 
     builder.execute();
   }

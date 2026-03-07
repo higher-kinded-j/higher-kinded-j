@@ -55,8 +55,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
     implements Functor<CoyonedaKind.Witness<F>> {
 
-  private static final Class<CoyonedaFunctor> COYONEDA_FUNCTOR_CLASS = CoyonedaFunctor.class;
-
   private static final CoyonedaFunctor<?> INSTANCE = new CoyonedaFunctor<>();
 
   /** Creates a new CoyonedaFunctor instance. */
@@ -90,8 +88,8 @@ public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A, B> Kind<CoyonedaKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<CoyonedaKind.Witness<F>, A> fa) {
-    Validation.function().requireMapper(f, "f", COYONEDA_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, COYONEDA_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Coyoneda<F, A> coyoneda = COYONEDA.narrow(fa);
     Coyoneda<F, B> mapped = coyoneda.map(f);

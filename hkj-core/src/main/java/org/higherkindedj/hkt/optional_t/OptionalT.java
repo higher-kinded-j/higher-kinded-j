@@ -42,7 +42,7 @@ public record OptionalT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Opti
    * @throws NullPointerException if {@code value} is null.
    */
   public OptionalT {
-    Validation.kind().requireNonNull(value, OPTIONAL_T_CLASS, CONSTRUCTION);
+    Validation.kind().requireNonNull(value, CONSTRUCTION);
   }
 
   /**
@@ -130,7 +130,7 @@ public record OptionalT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Opti
   public static <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> liftF(
       Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, LIFT_F);
-    Validation.kind().requireNonNull(fa, OPTIONAL_T_CLASS, LIFT_F, "source Kind");
+    Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
     return new OptionalT<>(mapped);
   }

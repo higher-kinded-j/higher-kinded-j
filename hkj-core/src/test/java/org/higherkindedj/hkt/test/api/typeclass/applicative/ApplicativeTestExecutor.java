@@ -90,13 +90,7 @@ final class ApplicativeTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, 
       createFlexibleValidationConfig().test();
     } else {
       TestMethodRegistry.testApplicativeValidations(
-          applicative,
-          contextClass,
-          validKind,
-          validKind2,
-          mapper,
-          functionKind,
-          combiningFunction);
+          applicative, validKind, validKind2, mapper, functionKind, combiningFunction);
     }
   }
 

@@ -44,9 +44,9 @@ public class Tuple2Bifunctor implements Bifunctor<Tuple2Kind2.Witness> {
       Function<? super B, ? extends D> g,
       Kind2<Tuple2Kind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", Tuple2Bifunctor.class, BIMAP);
-    Validation.function().requireMapper(g, "g", Tuple2Bifunctor.class, BIMAP);
-    Objects.requireNonNull(fab, "Kind for Tuple2Bifunctor.bimap cannot be null");
+    Validation.function().require(f, "f", BIMAP);
+    Validation.function().require(g, "g", BIMAP);
+    Objects.requireNonNull(fab, "Kind for bimap cannot be null");
 
     Tuple2<A, B> tuple = TUPLE2.narrow2(fab);
     Tuple2<C, D> result = tuple.bimap(f, g);
@@ -57,8 +57,8 @@ public class Tuple2Bifunctor implements Bifunctor<Tuple2Kind2.Witness> {
   public <A, B, C> Kind2<Tuple2Kind2.Witness, C, B> first(
       Function<? super A, ? extends C> f, Kind2<Tuple2Kind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", Tuple2Bifunctor.class, FIRST);
-    Objects.requireNonNull(fab, "Kind for Tuple2Bifunctor.first cannot be null");
+    Validation.function().require(f, "f", FIRST);
+    Objects.requireNonNull(fab, "Kind for first cannot be null");
 
     Tuple2<A, B> tuple = TUPLE2.narrow2(fab);
     Tuple2<C, B> result = tuple.mapFirst(f);
@@ -69,8 +69,8 @@ public class Tuple2Bifunctor implements Bifunctor<Tuple2Kind2.Witness> {
   public <A, B, D> Kind2<Tuple2Kind2.Witness, A, D> second(
       Function<? super B, ? extends D> g, Kind2<Tuple2Kind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(g, "g", Tuple2Bifunctor.class, SECOND);
-    Objects.requireNonNull(fab, "Kind for Tuple2Bifunctor.second cannot be null");
+    Validation.function().require(g, "g", SECOND);
+    Objects.requireNonNull(fab, "Kind for second cannot be null");
 
     Tuple2<A, B> tuple = TUPLE2.narrow2(fab);
     Tuple2<A, D> result = tuple.mapSecond(g);

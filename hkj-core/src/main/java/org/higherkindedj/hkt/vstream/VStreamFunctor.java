@@ -33,8 +33,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class VStreamFunctor implements Functor<VStreamKind.Witness> {
 
-  private static final Class<VStreamFunctor> VSTREAM_FUNCTOR_CLASS = VStreamFunctor.class;
-
   /** Singleton instance of {@code VStreamFunctor}. */
   public static final VStreamFunctor INSTANCE = new VStreamFunctor();
 
@@ -61,8 +59,8 @@ public class VStreamFunctor implements Functor<VStreamKind.Witness> {
   public <A, B> Kind<VStreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", VSTREAM_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, VSTREAM_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     VStream<A> stream = VSTREAM.narrow(fa);
     VStream<B> mapped = stream.map(f);

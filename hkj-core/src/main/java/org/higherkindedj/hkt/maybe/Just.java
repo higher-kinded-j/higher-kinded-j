@@ -47,17 +47,17 @@ record Just<T>(T value) implements Maybe<T>, MaybeKind<T> {
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    Validation.function().requireMapper(mapper, "mapper", Just.class, MAP);
+    Validation.function().require(mapper, "mapper", MAP);
     // Use fromNullable to handle cases where the mapper might return null
     return Maybe.fromNullable(mapper.apply(value)); // Result of apply is Nullable
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    Validation.function().requireFlatMapper(mapper, "mapper", Just.class, FLAT_MAP);
+    Validation.function().require(mapper, "mapper", FLAT_MAP);
 
     Maybe<? extends U> result = mapper.apply(value);
-    Validation.function().requireNonNullResult(result, "mapper", Just.class, FLAT_MAP, Maybe.class);
+    Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
 
     // Cast needed because of <? extends U> - unavoidable Java type system limitation
     @SuppressWarnings("unchecked")

@@ -176,7 +176,7 @@ class TryFunctorTest extends TryTestBase {
     void map_shouldThrowNPEIfMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(null, validKind))
-          .withMessageContaining("Function f for TryFunctor.map cannot be null");
+          .withMessageContaining("Function f for map cannot be null");
     }
 
     @Test
@@ -184,7 +184,7 @@ class TryFunctorTest extends TryTestBase {
     void map_shouldThrowNPEIfKindIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(validMapper, null))
-          .withMessageContaining("Kind for TryFunctor.map cannot be null");
+          .withMessageContaining("Kind for map cannot be null");
     }
   }
 

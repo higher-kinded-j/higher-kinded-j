@@ -235,7 +235,7 @@ class TryApplicativeTest extends TryTestBase {
     void ap_shouldThrowNPEIfFunctionKindIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.ap(null, validKind))
-          .withMessageContaining("Kind for TryApplicative.ap (function) cannot be null");
+          .withMessageContaining("Kind for ap (function) cannot be null");
     }
 
     @Test
@@ -243,7 +243,7 @@ class TryApplicativeTest extends TryTestBase {
     void ap_shouldThrowNPEIfArgumentKindIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.ap(validFunctionKind, null))
-          .withMessageContaining("Kind for TryApplicative.ap (argument) cannot be null");
+          .withMessageContaining("Kind for ap (argument) cannot be null");
     }
   }
 

@@ -540,7 +540,6 @@ class ValidatedTest extends ValidatedTestBase {
       assertThatThrownBy(() -> valid.fold(null, v -> "valid"))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("invalidMapper")
-          .hasMessageContaining("Validated")
           .hasMessageContaining("fold");
     }
 
@@ -552,7 +551,6 @@ class ValidatedTest extends ValidatedTestBase {
       assertThatThrownBy(() -> valid.fold(e -> "invalid", null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("validMapper")
-          .hasMessageContaining("Validated")
           .hasMessageContaining("fold");
     }
   }

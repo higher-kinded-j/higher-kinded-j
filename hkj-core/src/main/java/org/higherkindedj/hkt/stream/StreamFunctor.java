@@ -112,8 +112,8 @@ class StreamFunctor implements Functor<StreamKind.Witness> {
   public <A, B> Kind<StreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", StreamFunctor.class, MAP);
-    Validation.kind().requireNonNull(fa, StreamFunctor.class, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Stream<A> streamA = STREAM.narrow(fa);
     Stream<B> streamB = streamA.map(f);

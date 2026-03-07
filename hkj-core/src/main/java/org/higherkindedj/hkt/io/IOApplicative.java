@@ -25,8 +25,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witness> {
 
-  private static final Class<IOApplicative> IO_APPLICATIVE_CLASS = IOApplicative.class;
-
   /** Singleton instance of {@code IOMonad}. */
   public static final IOApplicative INSTANCE = new IOApplicative();
 
@@ -75,7 +73,7 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
   public <A, B> Kind<IOKind.Witness, B> ap(
       Kind<IOKind.Witness, ? extends Function<A, B>> ff, Kind<IOKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, IO_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     IO<? extends Function<A, B>> ioF = IO_OP.narrow(ff);
     IO<A> ioA = IO_OP.narrow(fa);

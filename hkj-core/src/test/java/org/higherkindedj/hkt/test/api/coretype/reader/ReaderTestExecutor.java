@@ -98,24 +98,22 @@ final class ReaderTestExecutor<R, A, B>
     if (validationStage != null && validationStage.getMapContext() != null) {
       ReaderFunctor<R> functor = new ReaderFunctor<>();
       Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> readerInstance.map(null), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> readerInstance.map(null), "f", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       ReaderMonad<R> monad = ReaderMonad.instance();
       Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> readerInstance.flatMap(null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> readerInstance.flatMap(null), "f", Operation.FLAT_MAP);
     }
 
     // Of validation
-    builder.assertFunctionNull(() -> Reader.of(null), "runFunction", contextClass, Operation.OF);
+    builder.assertFunctionNull(() -> Reader.of(null), "runFunction", Operation.OF);
 
     builder.execute();
   }
@@ -215,8 +213,6 @@ final class ReaderTestExecutor<R, A, B>
     Reader<R, B> nullReader = readerInstance.flatMap(nullReturningMapper);
     assertThatThrownBy(() -> nullReader.run(environment))
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining(
-            "Function f in Reader.flatMap returned null when Reader expected, which is not"
-                + " allowed");
+        .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
   }
 }

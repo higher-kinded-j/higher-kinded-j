@@ -48,8 +48,6 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
    */
   INSTANCE;
 
-  private static final Class<IdTraverse> ID_TRAVERSE_CLASS = IdTraverse.class;
-
   /**
    * Maps a function over the value inside an Id.
    *
@@ -69,8 +67,8 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
   public <A, B> Kind<IdKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<IdKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", ID_TRAVERSE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, ID_TRAVERSE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     return ID.narrow(fa).map(f);
   }
@@ -103,7 +101,7 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<IdKind.Witness, A> ta) {
 
-    Validation.function().validateTraverse(applicative, f, ta, ID_TRAVERSE_CLASS);
+    Validation.function().validateTraverse(applicative, f, ta);
 
     Id<A> id = ID.narrow(ta);
     A value = id.value();
@@ -134,7 +132,7 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<IdKind.Witness, A> fa) {
 
-    Validation.function().validateFoldMap(monoid, f, fa, ID_TRAVERSE_CLASS);
+    Validation.function().validateFoldMap(monoid, f, fa);
 
     Id<A> id = ID.narrow(fa);
     return f.apply(id.value());

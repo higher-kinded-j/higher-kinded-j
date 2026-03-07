@@ -70,7 +70,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
   public <A, B> Kind<TryKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, TRY_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -79,8 +79,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             a -> {
               try {
                 Kind<TryKind.Witness, B> kindB = f.apply(a);
-                Validation.function()
-                    .requireNonNullResult(kindB, "f", TRY_MONAD_CLASS, FLAT_MAP, Kind.class);
+                Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
                 return TRY.narrow(kindB);
               } catch (Throwable t) {
                 return Try.failure(t);
@@ -124,7 +123,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
       Kind<TryKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
 
-    Validation.function().validateHandleErrorWith(ma, handler, TRY_MONAD_CLASS);
+    Validation.function().validateHandleErrorWith(ma, handler);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -134,8 +133,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
               try {
                 Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
                 Validation.function()
-                    .requireNonNullResult(
-                        recoveryKind, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+                    .requireNonNullResult(recoveryKind, "handler", HANDLE_ERROR_WITH);
                 return TRY.narrow(recoveryKind);
               } catch (Throwable t) {
                 return Try.failure(t);

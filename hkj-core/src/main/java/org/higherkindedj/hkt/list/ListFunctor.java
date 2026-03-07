@@ -72,8 +72,8 @@ class ListFunctor implements Functor<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", ListFunctor.class, MAP);
-    Validation.kind().requireNonNull(fa, ListFunctor.class, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     List<A> listA = LIST.narrow(fa);
     List<B> listB = new ArrayList<>(listA.size());

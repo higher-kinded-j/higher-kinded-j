@@ -38,9 +38,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class VStreamApplicative extends VStreamFunctor implements Applicative<VStreamKind.Witness> {
 
-  private static final Class<VStreamApplicative> VSTREAM_APPLICATIVE_CLASS =
-      VStreamApplicative.class;
-
   /** Singleton instance of {@code VStreamApplicative}. */
   public static final VStreamApplicative INSTANCE = new VStreamApplicative();
 
@@ -87,7 +84,7 @@ public class VStreamApplicative extends VStreamFunctor implements Applicative<VS
   public <A, B> Kind<VStreamKind.Witness, B> ap(
       Kind<VStreamKind.Witness, ? extends Function<A, B>> ff, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.kind().validateAp(ff, fa, VSTREAM_APPLICATIVE_CLASS);
+    Validation.kind().validateAp(ff, fa);
 
     VStream<? extends Function<A, B>> fStream = VSTREAM.narrow(ff);
     VStream<A> aStream = VSTREAM.narrow(fa);

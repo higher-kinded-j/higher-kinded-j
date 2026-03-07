@@ -28,8 +28,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
 
-  private static final Class<ReaderFunctor> READER_FUNCTOR_CLASS = ReaderFunctor.class;
-
   /**
    * Maps a function {@code f} over the value {@code A} contained within a {@code
    * Kind<ReaderKind.Witness<R>, A>}.
@@ -52,8 +50,8 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
   public <A, B> Kind<ReaderKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    Validation.function().requireMapper(f, "f", READER_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, READER_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Reader<R, A> readerA = READER.narrow(fa);
     Reader<R, B> readerB = readerA.map(f);

@@ -47,8 +47,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public record Const<C, A>(C value) {
 
-  private static final Class<?> CONST_CLASS = Const.class;
-
   /**
    * Transforms both the constant value and the phantom type parameter.
    *
@@ -81,8 +79,8 @@ public record Const<C, A>(C value) {
    */
   public <D, B> Const<D, B> bimap(
       Function<? super C, ? extends D> firstMapper, Function<? super A, ? extends B> secondMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", CONST_CLASS, BIMAP);
-    Validation.function().requireMapper(secondMapper, "secondMapper", CONST_CLASS, BIMAP);
+    Validation.function().require(firstMapper, "firstMapper", BIMAP);
+    Validation.function().require(secondMapper, "secondMapper", BIMAP);
 
     // Apply secondMapper to ensure exception propagation, even though we ignore the result
     // since A is phantom. We use null as the input since we don't have a value of type A.
@@ -114,7 +112,7 @@ public record Const<C, A>(C value) {
    * @throws NullPointerException if {@code firstMapper} is null.
    */
   public <D> Const<D, A> mapFirst(Function<? super C, ? extends D> firstMapper) {
-    Validation.function().requireMapper(firstMapper, "firstMapper", CONST_CLASS, MAP_FIRST);
+    Validation.function().require(firstMapper, "firstMapper", MAP_FIRST);
 
     return new Const<>(firstMapper.apply(value));
   }
@@ -147,7 +145,7 @@ public record Const<C, A>(C value) {
    */
   @SuppressWarnings("unchecked")
   public <B> Const<C, B> mapSecond(Function<? super A, ? extends B> secondMapper) {
-    Validation.function().requireMapper(secondMapper, "secondMapper", CONST_CLASS, MAP_SECOND);
+    Validation.function().require(secondMapper, "secondMapper", MAP_SECOND);
 
     // Apply secondMapper to ensure exception propagation, even though we ignore the result
     // since A is phantom. We use null as the input since we don't have a value of type A.

@@ -100,27 +100,25 @@ final class StateTestExecutor<S, A, B>
     if (validationStage != null && validationStage.getMapContext() != null) {
       StateFunctor<S> functor = new StateFunctor<>();
       Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> stateInstance.map(null), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> stateInstance.map(null), "f", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       StateMonad<S> monad = new StateMonad<>();
       Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> stateInstance.flatMap(null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> stateInstance.flatMap(null), "f", Operation.FLAT_MAP);
     }
 
     // Factory method validations
-    builder.assertFunctionNull(() -> State.of(null), "runFunction", contextClass, Operation.OF);
+    builder.assertFunctionNull(() -> State.of(null), "runFunction", Operation.OF);
     builder.assertValueNull(() -> State.set(null), "newState", contextClass, Operation.SET);
-    builder.assertFunctionNull(() -> State.modify(null), "f", contextClass, Operation.MODIFY);
-    builder.assertFunctionNull(() -> State.inspect(null), "f", contextClass, Operation.INSPECT);
+    builder.assertFunctionNull(() -> State.modify(null), "f", Operation.MODIFY);
+    builder.assertFunctionNull(() -> State.inspect(null), "f", Operation.INSPECT);
 
     builder.execute();
   }

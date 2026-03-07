@@ -164,12 +164,8 @@ final class TupleGenerator {
     sb.append(
         "      Function<? super A, ? extends C> firstMapper,"
             + " Function<? super B, ? extends D> secondMapper) {\n");
-    sb.append("    Validation.function().requireMapper(firstMapper, \"firstMapper\", ")
-        .append(constName)
-        .append(", BIMAP);\n");
-    sb.append("    Validation.function().requireMapper(secondMapper, \"secondMapper\", ")
-        .append(constName)
-        .append(", BIMAP);\n");
+    sb.append("    Validation.function().require(firstMapper, \"firstMapper\", BIMAP);\n");
+    sb.append("    Validation.function().require(secondMapper, \"secondMapper\", BIMAP);\n");
     sb.append("\n");
     sb.append("    return new Tuple2<>(firstMapper.apply(_1), secondMapper.apply(_2));\n");
     sb.append("  }\n\n");
@@ -228,13 +224,11 @@ final class TupleGenerator {
 
     // Validation
     for (int i = 0; i < n; i++) {
-      sb.append("    Validation.function().requireMapper(")
+      sb.append("    Validation.function().require(")
           .append(ORDINAL_LOWER[i])
           .append("Mapper, \"")
           .append(ORDINAL_LOWER[i])
-          .append("Mapper\", ")
-          .append(constName)
-          .append(", MAP);\n");
+          .append("Mapper\", MAP);\n");
     }
     sb.append("\n");
 
@@ -304,13 +298,11 @@ final class TupleGenerator {
         .append("Mapper) {\n");
 
     // Validation
-    sb.append("    Validation.function().requireMapper(")
+    sb.append("    Validation.function().require(")
         .append(ordinalLower)
         .append("Mapper, \"")
         .append(ordinalLower)
         .append("Mapper\", ")
-        .append(constName)
-        .append(", ")
         .append(mapOp)
         .append(");\n");
 

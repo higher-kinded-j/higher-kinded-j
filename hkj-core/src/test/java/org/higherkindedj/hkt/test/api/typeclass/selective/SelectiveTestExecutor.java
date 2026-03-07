@@ -175,49 +175,38 @@ final class SelectiveTestExecutor<F extends WitnessArity<TypeArity.Unary>, A, B,
     Kind<F, Function<A, B>> dummyFuncKind = validFunctionKind;
 
     // Test Functor operations (map) with map context
-    builder.assertMapperNull(() -> selective.map(null, dummyKind), "f", mapCtx, Operation.MAP);
-    builder.assertKindNull(() -> selective.map(dummyMapper, null), mapCtx, Operation.MAP);
+    builder.assertMapperNull(() -> selective.map(null, dummyKind), "f", Operation.MAP);
+    builder.assertKindNull(() -> selective.map(dummyMapper, null), Operation.MAP);
 
     // Test Applicative operations (ap) with ap context
-    builder.assertKindNull(() -> selective.ap(null, dummyKind), apCtx, Operation.AP, "function");
-    builder.assertKindNull(
-        () -> selective.ap(dummyFuncKind, null), apCtx, Operation.AP, "argument");
+    builder.assertKindNull(() -> selective.ap(null, dummyKind), Operation.AP, "function");
+    builder.assertKindNull(() -> selective.ap(dummyFuncKind, null), Operation.AP, "argument");
 
     // Test Selective-specific operations with their contexts
     builder.assertKindNull(
-        () -> selective.select(null, validFunctionKind), selectCtx, Operation.SELECT, "choice");
+        () -> selective.select(null, validFunctionKind), Operation.SELECT, "choice");
     builder.assertKindNull(
-        () -> selective.select(validChoiceKind, null), selectCtx, Operation.SELECT, "function");
+        () -> selective.select(validChoiceKind, null), Operation.SELECT, "function");
 
     builder.assertKindNull(
-        () -> selective.branch(null, validLeftHandler, validRightHandler),
-        branchCtx,
-        BRANCH,
-        "choice");
+        () -> selective.branch(null, validLeftHandler, validRightHandler), BRANCH, "choice");
     builder.assertKindNull(
-        () -> selective.branch(validChoiceKind, null, validRightHandler),
-        branchCtx,
-        BRANCH,
-        "leftHandler");
+        () -> selective.branch(validChoiceKind, null, validRightHandler), BRANCH, "leftHandler");
     builder.assertKindNull(
-        () -> selective.branch(validChoiceKind, validLeftHandler, null),
-        branchCtx,
-        BRANCH,
-        "rightHandler");
+        () -> selective.branch(validChoiceKind, validLeftHandler, null), BRANCH, "rightHandler");
 
     // WhenS validations - now using validUnitEffect (Kind<F, Unit>)
     builder.assertKindNull(
-        () -> selective.whenS(null, validUnitEffect), whenSCtx, Operation.WHEN_S, "condition");
-    builder.assertKindNull(
-        () -> selective.whenS(validCondition, null), whenSCtx, Operation.WHEN_S, "effect");
+        () -> selective.whenS(null, validUnitEffect), Operation.WHEN_S, "condition");
+    builder.assertKindNull(() -> selective.whenS(validCondition, null), Operation.WHEN_S, "effect");
 
     // IfS validations - these still use Kind<F, A>
     builder.assertKindNull(
-        () -> selective.ifS(null, validThenBranch, validElseBranch), ifSCtx, IF_S, "condition");
+        () -> selective.ifS(null, validThenBranch, validElseBranch), IF_S, "condition");
     builder.assertKindNull(
-        () -> selective.ifS(validCondition, null, validElseBranch), ifSCtx, IF_S, "thenBranch");
+        () -> selective.ifS(validCondition, null, validElseBranch), IF_S, "thenBranch");
     builder.assertKindNull(
-        () -> selective.ifS(validCondition, validThenBranch, null), ifSCtx, IF_S, "elseBranch");
+        () -> selective.ifS(validCondition, validThenBranch, null), IF_S, "elseBranch");
 
     builder.execute();
   }

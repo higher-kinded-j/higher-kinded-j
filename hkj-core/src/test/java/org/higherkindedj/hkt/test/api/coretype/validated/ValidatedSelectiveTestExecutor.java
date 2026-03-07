@@ -153,45 +153,39 @@ final class ValidatedSelectiveTestExecutor<E, A, B>
 
     // Select validations
     Class<?> selectCtx = getSelectContext();
-    builder.assertKindNull(
-        () -> selective.select(null, funcKind), selectCtx, Operation.SELECT, "choice");
-    builder.assertKindNull(
-        () -> selective.select(choiceKind, null), selectCtx, Operation.SELECT, "function");
+    builder.assertKindNull(() -> selective.select(null, funcKind), Operation.SELECT, "choice");
+    builder.assertKindNull(() -> selective.select(choiceKind, null), Operation.SELECT, "function");
 
     // Branch validations
     Class<?> branchCtx = getBranchContext();
     builder.assertKindNull(
         () -> selective.branch(null, leftHandlerKind, rightHandlerKind),
-        branchCtx,
         Operation.BRANCH,
         "choice");
     builder.assertKindNull(
         () -> selective.branch(choiceKind, null, rightHandlerKind),
-        branchCtx,
         Operation.BRANCH,
         "leftHandler");
     builder.assertKindNull(
         () -> selective.branch(choiceKind, leftHandlerKind, null),
-        branchCtx,
         Operation.BRANCH,
         "rightHandler");
 
     // WhenS validations - now using Unit effect
     Class<?> whenSCtx = getWhenSContext();
     builder.assertKindNull(
-        () -> selective.whenS(null, unitEffectKind), whenSCtx, Operation.WHEN_S, "condition");
-    builder.assertKindNull(
-        () -> selective.whenS(condKind, null), whenSCtx, Operation.WHEN_S, "effect");
+        () -> selective.whenS(null, unitEffectKind), Operation.WHEN_S, "condition");
+    builder.assertKindNull(() -> selective.whenS(condKind, null), Operation.WHEN_S, "effect");
 
     // IfS validations
     Kind<ValidatedKind.Witness<E>, A> effectKind = VALIDATED.widen(validInstance);
     Class<?> ifSCtx = getIfSContext();
     builder.assertKindNull(
-        () -> selective.ifS(null, effectKind, effectKind), ifSCtx, Operation.IF_S, "condition");
+        () -> selective.ifS(null, effectKind, effectKind), Operation.IF_S, "condition");
     builder.assertKindNull(
-        () -> selective.ifS(condKind, null, effectKind), ifSCtx, Operation.IF_S, "thenBranch");
+        () -> selective.ifS(condKind, null, effectKind), Operation.IF_S, "thenBranch");
     builder.assertKindNull(
-        () -> selective.ifS(condKind, effectKind, null), ifSCtx, Operation.IF_S, "elseBranch");
+        () -> selective.ifS(condKind, effectKind, null), Operation.IF_S, "elseBranch");
 
     builder.execute();
   }

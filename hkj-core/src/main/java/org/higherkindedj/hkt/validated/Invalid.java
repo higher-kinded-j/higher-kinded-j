@@ -67,8 +67,7 @@ public record Invalid<E, A>(E error)
 
   @Override
   public A orElseGet(Supplier<? extends A> otherSupplier) {
-    Validation.function()
-        .requireFunction(otherSupplier, "otherSupplier", Invalid.class, OR_ELSE_GET);
+    Validation.function().require(otherSupplier, "otherSupplier", OR_ELSE_GET);
     A suppliedValue = otherSupplier.get();
     Objects.requireNonNull(suppliedValue, "orElseGet supplier returned null for Invalid.");
     return suppliedValue;
@@ -76,8 +75,7 @@ public record Invalid<E, A>(E error)
 
   @Override
   public <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-    Validation.function()
-        .requireFunction(exceptionSupplier, "exceptionSupplier", Invalid.class, OR_ELSE_THROW);
+    Validation.function().require(exceptionSupplier, "exceptionSupplier", OR_ELSE_THROW);
     X throwable = exceptionSupplier.get();
     Objects.requireNonNull(
         throwable,
@@ -87,27 +85,27 @@ public record Invalid<E, A>(E error)
 
   @Override
   public void ifValid(Consumer<? super A> consumer) {
-    Validation.function().requireFunction(consumer, "consumer", Invalid.class, IF_VALID);
+    Validation.function().require(consumer, "consumer", IF_VALID);
     // No action for Invalid
   }
 
   @Override
   public void ifInvalid(Consumer<? super E> consumer) {
-    Validation.function().requireFunction(consumer, "consumer", Invalid.class, IF_INVALID);
+    Validation.function().require(consumer, "consumer", IF_INVALID);
     consumer.accept(error);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    Validation.function().requireMapper(fn, "fn", Invalid.class, MAP);
+    Validation.function().require(fn, "fn", MAP);
     return (Validated<E, B>) this;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
-    Validation.function().requireFlatMapper(fn, "fn", Invalid.class, FLAT_MAP);
+    Validation.function().require(fn, "fn", FLAT_MAP);
     return (Validated<E, B>) this;
   }
 
@@ -115,7 +113,7 @@ public record Invalid<E, A>(E error)
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
-    Validation.function().requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
+    Validation.function().requireNonNullResult(fnValidated, "fnValidated", AP);
     Validation.coreType().requireValue(semigroup, "semigroup", Invalid.class, AP);
 
     return switch (fnValidated) {

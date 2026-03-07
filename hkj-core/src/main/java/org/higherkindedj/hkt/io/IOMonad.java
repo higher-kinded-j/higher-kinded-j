@@ -27,8 +27,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
 
-  private static final Class<IOMonad> IO_MONAD_CLASS = IOMonad.class;
-
   /** Singleton instance of {@code IOMonad}. */
   public static final IOMonad INSTANCE = new IOMonad();
 
@@ -64,7 +62,7 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
   public <A, B> Kind<IOKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<IOKind.Witness, B>> f, Kind<IOKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, IO_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     IO<A> ioA = IO_OP.narrow(ma);
     // Adapt f: A -> Kind<IO.Witness, B> to A -> IO<B> for IO's flatMap
@@ -72,8 +70,7 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
         ioA.flatMap(
             a -> {
               var kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", IO_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return IO_OP.narrow(kindB);
             });
     return IO_OP.widen(ioB);

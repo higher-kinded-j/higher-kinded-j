@@ -85,7 +85,7 @@ class OptionalTTest {
     void fromKind_throwsOnNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> OptionalT.fromKind(null))
-          .withMessageContaining("Kind for OptionalT.construction cannot be null");
+          .withMessageContaining("Kind for construction cannot be null");
     }
 
     @Test

@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.test.assertions;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert;
@@ -112,44 +111,6 @@ public final class KindAssertions {
   // Class-Based Context Validation
   // =============================================================================
 
-  /**
-   * Asserts Kind null validation with class context using production KindValidator.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context (e.g., EitherMonad.class)
-   * @param operation The operation name
-   * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behaviour
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
-    return assertWithProductionValidator(
-        executable,
-        () -> Validation.kind().requireNonNull((Kind<?, ?>) null, contextClass, operation));
-  }
-
-  /**
-   * Asserts Kind null validation with class context and descriptor using production KindValidator.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @param descriptor Optional descriptor for the parameter
-   * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behaviour
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
-      ThrowableAssert.ThrowingCallable executable,
-      Class<?> contextClass,
-      Operation operation,
-      String descriptor) {
-    return assertWithProductionValidator(
-        executable,
-        () ->
-            Validation.kind()
-                .requireNonNull((Kind<?, ?>) null, contextClass, operation, descriptor));
-  }
-
   // =============================================================================
   // Narrow/Widen Validation
   // =============================================================================
@@ -183,12 +144,11 @@ public final class KindAssertions {
    *
    * @param executable The code that should throw
    * @param targetType The target type class for narrowing
-   * @param invalidKind The invalid Kind for error context
    * @return Throwable assertion for further chaining
    * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertInvalidKindType(
-      ThrowableAssert.ThrowingCallable executable, Class<?> targetType, Kind<?, ?> invalidKind) {
+      ThrowableAssert.ThrowingCallable executable, Class<?> targetType) {
 
     // We expect the actual code to throw KindUnwrapException when narrowing an invalid Kind
     return assertThatThrownBy(executable)
@@ -213,78 +173,6 @@ public final class KindAssertions {
   // =============================================================================
   // Specialized Assertions for Common Patterns
   // =============================================================================
-
-  /**
-   * Asserts ap function Kind validation (commonly used in applicative operations).
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertApFunctionKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return assertKindNull(executable, contextClass, AP, "function");
-  }
-
-  /**
-   * Asserts ap argument Kind validation (commonly used in applicative operations).
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertApArgumentKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return assertKindNull(executable, contextClass, AP, "argument");
-  }
-
-  /**
-   * Asserts map2 first Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertMap2FirstKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return assertKindNull(executable, contextClass, MAP_2, "first");
-  }
-
-  /**
-   * Asserts map2 second Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertMap2SecondKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return assertKindNull(executable, contextClass, MAP_2, "second");
-  }
-
-  /**
-   * Asserts traverse Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return assertKindNull(executable, contextClass, TRAVERSE);
-  }
-
-  /**
-   * Asserts foldMap Kind validation.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldMapKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return assertKindNull(executable, contextClass, FOLD_MAP);
-  }
 
   // =============================================================================
   // Core Production Validator Integration

@@ -177,7 +177,7 @@ class TryTest extends TryTestBase {
     void of_shouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> Try.of(null))
-          .withMessageContaining("Function supplier for Try.of cannot be null");
+          .withMessageContaining("Function supplier for of cannot be null");
     }
   }
 
@@ -309,11 +309,11 @@ class TryTest extends TryTestBase {
     void orElseGet_shouldThrowIfSupplierIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.orElseGet(null))
-          .withMessageContaining("Function supplier for Try.orElseGet cannot be null");
+          .withMessageContaining("Function supplier for orElseGet cannot be null");
 
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.orElseGet(null))
-          .withMessageContaining("Function supplier for Try.orElseGet cannot be null");
+          .withMessageContaining("Function supplier for orElseGet cannot be null");
     }
   }
 
@@ -363,7 +363,7 @@ class TryTest extends TryTestBase {
     void fold_shouldThrowIfSuccessMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.fold(null, failureMapper))
-          .withMessageContaining("Function successMapper for Try.fold cannot be null");
+          .withMessageContaining("Function successMapper for fold cannot be null");
     }
 
     @Test
@@ -371,7 +371,7 @@ class TryTest extends TryTestBase {
     void fold_shouldThrowIfFailureMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.fold(successMapper, null))
-          .withMessageContaining("Function failureMapper for Try.fold cannot be null");
+          .withMessageContaining("Function failureMapper for fold cannot be null");
     }
 
     @Test
@@ -443,11 +443,11 @@ class TryTest extends TryTestBase {
     void toEither_shouldThrowNPEIfMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.toEither(null))
-          .withMessageContaining("Function failureToLeftMapper for Try.toEither cannot be null");
+          .withMessageContaining("Function failureToLeftMapper for toEither cannot be null");
 
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.toEither(null))
-          .withMessageContaining("Function failureToLeftMapper for Try.toEither cannot be null");
+          .withMessageContaining("Function failureToLeftMapper for toEither cannot be null");
     }
 
     @Test
@@ -457,8 +457,7 @@ class TryTest extends TryTestBase {
       assertThatThrownBy(() -> failureInstance.toEither(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              "Function failureToLeftMapper in Try.toEither returned null when Either expected,"
-                  + " which is not allowed");
+              "Function failureToLeftMapper in toEither returned null, which is not allowed");
     }
 
     @Test
@@ -521,11 +520,11 @@ class TryTest extends TryTestBase {
     void map_shouldThrowIfMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.map(null))
-          .withMessageContaining("Function mapper for Try.map cannot be null");
+          .withMessageContaining("Function mapper for map cannot be null");
 
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.map(null))
-          .withMessageContaining("Function mapper for Try.map cannot be null");
+          .withMessageContaining("Function mapper for map cannot be null");
     }
   }
 
@@ -582,11 +581,11 @@ class TryTest extends TryTestBase {
     void flatMap_shouldThrowIfMapperIsNull() {
       assertThatException()
           .isThrownBy(() -> successInstance.flatMap(null))
-          .withMessageContaining("Function mapper for Try.flatMap cannot be null");
+          .withMessageContaining("Function mapper for flatMap cannot be null");
 
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.flatMap(null))
-          .withMessageContaining("Function mapper for Try.flatMap cannot be null");
+          .withMessageContaining("Function mapper for flatMap cannot be null");
     }
 
     @Test
@@ -595,9 +594,7 @@ class TryTest extends TryTestBase {
       Function<String, Try<Integer>> mapperNull = s -> null;
       assertThatThrownBy(() -> successInstance.flatMap(mapperNull))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function mapper in Try.flatMap returned null when Try expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function mapper in flatMap returned null, which is not allowed");
     }
   }
 
@@ -657,12 +654,11 @@ class TryTest extends TryTestBase {
     void recover_shouldThrowIfRecoveryFuncIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.recover(null))
-          .withMessageContaining("Function recoveryFunction for Try.recover cannot be null");
+          .withMessageContaining("Function recoveryFunction for recover cannot be null");
 
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.recover(null))
-          .withMessageContaining(
-              "Function recoveryFunction for Try.recoverFunction cannot be null");
+          .withMessageContaining("Function recoveryFunction for recoverFunction cannot be null");
     }
   }
 
@@ -723,8 +719,7 @@ class TryTest extends TryTestBase {
       assertThatThrownBy(() -> failureInstance.recoverWith(nullReturningRecoveryFunc))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              "Function recoveryFunction in Try.recoverWith returned null when Try expected, which"
-                  + " is not allowed");
+              "Function recoveryFunction in recoverWith returned null, which is not allowed");
     }
 
     @Test
@@ -732,11 +727,11 @@ class TryTest extends TryTestBase {
     void recoverWith_shouldThrowIfRecoveryFuncIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.recoverWith(null))
-          .withMessageContaining("Function recoveryFunction for Try.recoverWith cannot be null");
+          .withMessageContaining("Function recoveryFunction for recoverWith cannot be null");
 
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.recoverWith(null))
-          .withMessageContaining("Function recoveryFunction for Try.recoverWith cannot be null");
+          .withMessageContaining("Function recoveryFunction for recoverWith cannot be null");
     }
   }
 
@@ -807,7 +802,7 @@ class TryTest extends TryTestBase {
     void match_shouldThrowIfSuccessActionIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.match(null, failureAction))
-          .withMessageContaining("Function successAction for Try.match cannot be null");
+          .withMessageContaining("Function successAction for match cannot be null");
     }
 
     @Test
@@ -815,7 +810,7 @@ class TryTest extends TryTestBase {
     void match_shouldThrowIfFailureActionIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.match(successAction, null))
-          .withMessageContaining("Function failureAction for Try.match cannot be null");
+          .withMessageContaining("Function failureAction for match cannot be null");
     }
   }
 

@@ -45,7 +45,6 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
     implements Selective<ReaderKind.Witness<R>> {
 
   private static final ReaderSelective<?> INSTANCE = new ReaderSelective<>();
-  private static final Class<ReaderSelective> READER_SELECTIVE_CLASS = ReaderSelective.class;
 
   private ReaderSelective() {
     super();
@@ -92,8 +91,8 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
       Kind<ReaderKind.Witness<R>, Choice<A, B>> fab,
       Kind<ReaderKind.Witness<R>, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, READER_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, READER_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     Reader<R, Choice<A, B>> readerChoice = READER.narrow(fab);
     Reader<R, Function<A, B>> readerFunction = READER.narrow(ff);
@@ -136,9 +135,9 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
       Kind<ReaderKind.Witness<R>, Function<A, C>> fl,
       Kind<ReaderKind.Witness<R>, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, READER_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, READER_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, READER_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     Reader<R, Choice<A, B>> readerChoice = READER.narrow(fab);
     Reader<R, Function<A, C>> leftHandler = READER.narrow(fl);
@@ -174,8 +173,8 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
   public Kind<ReaderKind.Witness<R>, Unit> whenS(
       Kind<ReaderKind.Witness<R>, Boolean> fcond, Kind<ReaderKind.Witness<R>, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, READER_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, READER_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     Reader<R, Boolean> condReader = READER.narrow(fcond);
     Reader<R, Unit> effectReader = READER.narrow(fa);
@@ -213,9 +212,9 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
       Kind<ReaderKind.Witness<R>, A> fthen,
       Kind<ReaderKind.Witness<R>, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, READER_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, READER_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, READER_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     Reader<R, Boolean> condReader = READER.narrow(fcond);
     Reader<R, A> thenReader = READER.narrow(fthen);

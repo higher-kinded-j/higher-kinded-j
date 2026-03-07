@@ -247,7 +247,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
     return switch (this) {
       case Just<T>(var value) -> Either.right(value);
       case Nothing<T> n -> {
-        Validation.function().requireFunction(leftSupplier, "leftSupplier", MAYBE_CLASS, TO_EITHER);
+        Validation.function().require(leftSupplier, "leftSupplier", TO_EITHER);
         yield Either.left(leftSupplier.get());
       }
     };

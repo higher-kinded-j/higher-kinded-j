@@ -114,7 +114,7 @@ public enum ContextKindHelper implements ContextConverterOps {
    */
   public <R, A> Kind<ContextKind.Witness<R>, A> asks(
       ScopedValue<R> key, Function<? super R, ? extends A> f) {
-    Validation.function().requireFunction(f, "f", CONTEXT_CLASS, Operation.ASKS);
+    Validation.function().require(f, "f", Operation.ASKS);
     return widen(Context.asks(key, f));
   }
 
@@ -153,7 +153,7 @@ public enum ContextKindHelper implements ContextConverterOps {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is invalid.
    */
   public <R, A> @Nullable A runContext(Kind<ContextKind.Witness<R>, A> kind) {
-    Validation.kind().requireNonNull(kind, CONTEXT_CLASS, Operation.RUN);
+    Validation.kind().requireNonNull(kind, Operation.RUN);
     return narrow(kind).run();
   }
 }

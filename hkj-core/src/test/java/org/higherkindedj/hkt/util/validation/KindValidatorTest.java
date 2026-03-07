@@ -90,8 +90,7 @@ class KindValidatorTest {
                         (Class<Either<String, String>>) (Class<?>) Either.class,
                         k -> EITHER.<String, String>narrow(k));
           },
-          Either.class,
-          kind);
+          Either.class);
     }
 
     @Test
@@ -204,8 +203,7 @@ class KindValidatorTest {
                         (Class<Either<String, String>>) (Class<?>) Either.class,
                         k -> EITHER.<String, String>narrow(k));
           },
-          Either.class,
-          kind);
+          Either.class);
     }
   }
 
@@ -298,7 +296,7 @@ class KindValidatorTest {
     @DisplayName("should return non-null Kind")
     void shouldReturnNonNullKind() {
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, MAP);
+      var result = Validation.kind().requireNonNull(kind, MAP);
 
       assertThat(result).isEqualTo(kind);
     }
@@ -306,8 +304,7 @@ class KindValidatorTest {
     @Test
     @DisplayName("should throw NullPointerException when Kind is null")
     void shouldThrowWhenKindIsNull() {
-      assertKindNull(
-          () -> Validation.kind().requireNonNull(null, TestType.class, MAP), TestType.class, MAP);
+      assertKindNull(() -> Validation.kind().requireNonNull(null, MAP), MAP);
     }
 
     @Test
@@ -315,10 +312,10 @@ class KindValidatorTest {
     void shouldWorkWithDifferentContextClasses() {
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
 
-      var result1 = Validation.kind().requireNonNull(kind, TestType.class, MAP);
+      var result1 = Validation.kind().requireNonNull(kind, MAP);
       assertThat(result1).isEqualTo(kind);
 
-      var result2 = Validation.kind().requireNonNull(kind, AnotherTestType.class, MAP);
+      var result2 = Validation.kind().requireNonNull(kind, MAP);
       assertThat(result2).isEqualTo(kind);
     }
   }
@@ -331,7 +328,7 @@ class KindValidatorTest {
     @DisplayName("should return non-null Kind with descriptor")
     void shouldReturnNonNullKindWithDescriptor() {
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, AP, "function");
+      var result = Validation.kind().requireNonNull(kind, AP, "function");
 
       assertThat(result).isEqualTo(kind);
     }
@@ -339,27 +336,15 @@ class KindValidatorTest {
     @Test
     @DisplayName("should include descriptor in error message")
     void shouldIncludeDescriptorInErrorMessage() {
-      assertKindNull(
-          () -> Validation.kind().requireNonNull(null, TestType.class, AP, "function"),
-          TestType.class,
-          AP,
-          "function");
+      assertKindNull(() -> Validation.kind().requireNonNull(null, AP, "function"), AP, "function");
     }
 
     @Test
     @DisplayName("should distinguish between multiple parameters using descriptors")
     void shouldDistinguishBetweenParametersUsingDescriptors() {
-      assertKindNull(
-          () -> Validation.kind().requireNonNull(null, TestType.class, AP, "argument"),
-          TestType.class,
-          AP,
-          "argument");
+      assertKindNull(() -> Validation.kind().requireNonNull(null, AP, "argument"), AP, "argument");
 
-      assertKindNull(
-          () -> Validation.kind().requireNonNull(null, TestType.class, AP, "function"),
-          TestType.class,
-          AP,
-          "function");
+      assertKindNull(() -> Validation.kind().requireNonNull(null, AP, "function"), AP, "function");
     }
 
     @ParameterizedTest
@@ -367,7 +352,7 @@ class KindValidatorTest {
     @DisplayName("should handle various descriptor names")
     void shouldHandleVariousDescriptorNames(String descriptor) {
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, MAP_2, descriptor);
+      var result = Validation.kind().requireNonNull(kind, MAP_2, descriptor);
       assertThat(result).isEqualTo(kind);
     }
 
@@ -375,7 +360,7 @@ class KindValidatorTest {
     @DisplayName("should work with null descriptor gracefully")
     void shouldWorkWithNullDescriptor() {
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, AP, null);
+      var result = Validation.kind().requireNonNull(kind, AP, null);
       assertThat(result).isEqualTo(kind);
     }
   }
@@ -733,15 +718,6 @@ class KindValidatorTest {
     }
 
     @Test
-    @DisplayName("should generate correct invalid type message")
-    void shouldGenerateCorrectInvalidTypeMessage() {
-      var context = new KindValidator.KindContext(Either.class, "narrow");
-
-      assertThat(context.invalidTypeMessage())
-          .isEqualTo("Kind instance cannot be narrowed to Either");
-    }
-
-    @Test
     @DisplayName("should handle different target types")
     void shouldHandleDifferentTargetTypes() {
       var contextMaybe = new KindValidator.KindContext(Maybe.class, "narrow");
@@ -834,7 +810,7 @@ class KindValidatorTest {
     @DisplayName("requireNonNull should have consistent message format")
     void requireNonNullShouldHaveConsistentMessageFormat() {
       assertThatExceptionOfType(NullPointerException.class)
-          .isThrownBy(() -> Validation.kind().requireNonNull(null, TestType.class, MAP))
+          .isThrownBy(() -> Validation.kind().requireNonNull(null, MAP))
           .withMessageMatching("Kind for .* cannot be null");
     }
 
@@ -842,7 +818,7 @@ class KindValidatorTest {
     @DisplayName("requireNonNull with descriptor should include descriptor")
     void requireNonNullWithDescriptorShouldIncludeDescriptor() {
       assertThatExceptionOfType(NullPointerException.class)
-          .isThrownBy(() -> Validation.kind().requireNonNull(null, TestType.class, AP, "function"))
+          .isThrownBy(() -> Validation.kind().requireNonNull(null, AP, "function"))
           .withMessageMatching("Kind for .*\\(function\\) cannot be null");
     }
   }
@@ -865,7 +841,7 @@ class KindValidatorTest {
       var widened = EITHER.widen(validated);
 
       // Validate non-null Kind
-      var validatedKind = Validation.kind().requireNonNull(widened, TestType.class, MAP);
+      var validatedKind = Validation.kind().requireNonNull(widened, MAP);
       assertThat(validatedKind).isEqualTo(widened);
 
       // Narrow
@@ -893,13 +869,13 @@ class KindValidatorTest {
       var kind = EITHER.widen(step1);
 
       // Validate for map
-      var step2 = Validation.kind().requireNonNull(kind, TestType.class, MAP);
+      var step2 = Validation.kind().requireNonNull(kind, MAP);
 
       // Validate for flatMap
-      var step3 = Validation.kind().requireNonNull(step2, TestType.class, FLAT_MAP);
+      var step3 = Validation.kind().requireNonNull(step2, FLAT_MAP);
 
       // Validate for ap
-      var step4 = Validation.kind().requireNonNull(step3, TestType.class, AP, "argument");
+      var step4 = Validation.kind().requireNonNull(step3, AP, "argument");
 
       assertThat(step4).isEqualTo(kind);
     }
@@ -943,8 +919,7 @@ class KindValidatorTest {
                           var either = Either.<String, Integer>right(i);
                           var validated = Validation.kind().requireForWiden(either, Either.class);
                           var kind = EITHER.widen(validated);
-                          var validatedKind =
-                              Validation.kind().requireNonNull(kind, TestType.class, MAP);
+                          var validatedKind = Validation.kind().requireNonNull(kind, MAP);
 
                           assertThat(validatedKind).isNotNull();
 
@@ -995,7 +970,7 @@ class KindValidatorTest {
     @DisplayName("should handle empty descriptor string")
     void shouldHandleEmptyDescriptorString() {
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, AP, "");
+      var result = Validation.kind().requireNonNull(kind, AP, "");
       assertThat(result).isEqualTo(kind);
     }
 
@@ -1004,7 +979,7 @@ class KindValidatorTest {
     void shouldHandleVeryLongDescriptorString() {
       var longDescriptor = "a".repeat(1000);
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, AP, longDescriptor);
+      var result = Validation.kind().requireNonNull(kind, AP, longDescriptor);
       assertThat(result).isEqualTo(kind);
     }
 
@@ -1013,7 +988,7 @@ class KindValidatorTest {
     void shouldHandleDescriptorWithSpecialCharacters() {
       var specialDescriptor = "func-tion_123!@#";
       Kind<EitherKind.Witness<String>, String> kind = EITHER.widen(Either.right("test"));
-      var result = Validation.kind().requireNonNull(kind, TestType.class, AP, specialDescriptor);
+      var result = Validation.kind().requireNonNull(kind, AP, specialDescriptor);
       assertThat(result).isEqualTo(kind);
     }
 
@@ -1050,11 +1025,11 @@ class KindValidatorTest {
       var kind = EITHER.widen(either);
 
       // Validate for map
-      var forMap = Validation.kind().requireNonNull(kind, TestType.class, MAP);
+      var forMap = Validation.kind().requireNonNull(kind, MAP);
       assertThat(forMap).isEqualTo(kind);
 
       // Validate for flatMap
-      var forFlatMap = Validation.kind().requireNonNull(kind, TestType.class, FLAT_MAP);
+      var forFlatMap = Validation.kind().requireNonNull(kind, FLAT_MAP);
       assertThat(forFlatMap).isEqualTo(kind);
     }
 
@@ -1064,11 +1039,11 @@ class KindValidatorTest {
       var kind = EITHER.widen(Either.<String, Integer>right(42));
 
       // Validate function Kind for ap
-      var functionKind = Validation.kind().requireNonNull(kind, TestType.class, AP, "function");
+      var functionKind = Validation.kind().requireNonNull(kind, AP, "function");
       assertThat(functionKind).isEqualTo(kind);
 
       // Validate argument Kind for ap
-      var argumentKind = Validation.kind().requireNonNull(kind, TestType.class, AP, "argument");
+      var argumentKind = Validation.kind().requireNonNull(kind, AP, "argument");
       assertThat(argumentKind).isEqualTo(kind);
     }
 
@@ -1078,11 +1053,11 @@ class KindValidatorTest {
       var kind = EITHER.widen(Either.<String, Integer>right(42));
 
       // Validate first Kind for map2
-      var firstKind = Validation.kind().requireNonNull(kind, TestType.class, MAP_2, "first");
+      var firstKind = Validation.kind().requireNonNull(kind, MAP_2, "first");
       assertThat(firstKind).isEqualTo(kind);
 
       // Validate second Kind for map2
-      var secondKind = Validation.kind().requireNonNull(kind, TestType.class, MAP_2, "second");
+      var secondKind = Validation.kind().requireNonNull(kind, MAP_2, "second");
       assertThat(secondKind).isEqualTo(kind);
     }
 
@@ -1091,7 +1066,7 @@ class KindValidatorTest {
     void shouldValidateTraverseOperations() {
       var kind = EITHER.widen(Either.<String, Integer>right(42));
 
-      var validated = Validation.kind().requireNonNull(kind, TestType.class, TRAVERSE);
+      var validated = Validation.kind().requireNonNull(kind, TRAVERSE);
       assertThat(validated).isEqualTo(kind);
     }
   }

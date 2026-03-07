@@ -484,7 +484,7 @@ class IOMonadTest extends IOTestBase {
     void flatMapValidatesNullFunction() {
       assertThatThrownBy(() -> monad.flatMap(null, validKind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function f for IOMonad.flatMap cannot be null");
+          .hasMessageContaining("Function f for flatMap cannot be null");
     }
 
     @Test

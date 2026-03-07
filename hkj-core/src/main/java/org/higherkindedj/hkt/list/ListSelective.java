@@ -54,8 +54,6 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   /** Singleton instance of {@code ListSelective}. */
   public static final ListSelective INSTANCE = new ListSelective();
 
-  private static final Class<ListSelective> LIST_SELECTIVE_CLASS = ListSelective.class;
-
   /** Private constructor to enforce singleton pattern. */
   private ListSelective() {
     super();
@@ -89,8 +87,8 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   public <A, B> Kind<ListKind.Witness, B> select(
       Kind<ListKind.Witness, Choice<A, B>> fab, Kind<ListKind.Witness, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, LIST_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, LIST_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     List<Choice<A, B>> choices = LIST.narrow(fab);
     List<Function<A, B>> functions = LIST.narrow(ff);
@@ -141,9 +139,9 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
       Kind<ListKind.Witness, Function<A, C>> fl,
       Kind<ListKind.Witness, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, LIST_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, LIST_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, LIST_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     List<Choice<A, B>> choices = LIST.narrow(fab);
     List<Function<A, C>> leftFunctions = LIST.narrow(fl);
@@ -217,8 +215,8 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   public Kind<ListKind.Witness, Unit> whenS(
       Kind<ListKind.Witness, Boolean> fcond, Kind<ListKind.Witness, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, LIST_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, LIST_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     List<Boolean> conditions = LIST.narrow(fcond);
     List<Unit> effects = LIST.narrow(fa);
@@ -268,9 +266,9 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
       Kind<ListKind.Witness, A> fthen,
       Kind<ListKind.Witness, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, LIST_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, LIST_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, LIST_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     List<Boolean> conditions = LIST.narrow(fcond);
     List<A> thenValues = LIST.narrow(fthen);

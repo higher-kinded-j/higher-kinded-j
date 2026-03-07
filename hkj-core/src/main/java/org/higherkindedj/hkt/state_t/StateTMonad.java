@@ -90,8 +90,8 @@ public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
       Function<? super A, ? extends B> f, Kind<StateTKind.Witness<S, F>, A> fa) {
-    Validation.function().requireMapper(f, "f", STATE_T_MONAD_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
@@ -143,8 +143,8 @@ public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
       Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    Validation.kind().requireNonNull(ff, STATE_T_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     StateT<S, F, ? extends Function<A, B>> stateTf = StateTKind.narrow(ff);
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
@@ -156,8 +156,7 @@ public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
                   Function<A, B> function = tupleF.value();
                   S s1 = tupleF.state();
 
-                  Validation.function()
-                      .requireFunction(function, "wrapped function", STATE_T_MONAD_CLASS, AP);
+                  Validation.function().require(function, "wrapped function", AP);
 
                   Kind<F, StateTuple<S, A>> resultA = stateTa.runStateT(s1);
 
@@ -214,8 +213,8 @@ public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
   public <A, B> Kind<StateTKind.Witness<S, F>, B> flatMap(
       Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    Validation.function().requireFlatMapper(f, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
+    Validation.kind().requireNonNull(fa, FLAT_MAP);
 
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
@@ -224,8 +223,7 @@ public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
             monadF.<StateTuple<S, A>, StateTuple<S, B>>flatMap(
                 tupleA -> {
                   Kind<StateTKind.Witness<S, F>, B> kindB = f.apply(tupleA.value());
-                  Validation.function()
-                      .requireNonNullResult(kindB, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
+                  Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
                   StateT<S, F, B> stateTb = StateTKind.narrow(kindB);
                   return stateTb.runStateT(tupleA.state());
                 },

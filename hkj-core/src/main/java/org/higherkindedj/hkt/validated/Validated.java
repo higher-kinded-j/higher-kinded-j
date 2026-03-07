@@ -151,8 +151,8 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    */
   default <E2, B> Validated<E2, B> bimap(
       Function<? super E, ? extends E2> errorMapper, Function<? super A, ? extends B> valueMapper) {
-    Validation.function().requireMapper(errorMapper, "errorMapper", VALIDATED_CLASS, BIMAP);
-    Validation.function().requireMapper(valueMapper, "valueMapper", VALIDATED_CLASS, BIMAP);
+    Validation.function().require(errorMapper, "errorMapper", BIMAP);
+    Validation.function().require(valueMapper, "valueMapper", BIMAP);
 
     return switch (this) {
       case Invalid<E, A>(var error) -> Validated.invalid(errorMapper.apply(error));
@@ -189,7 +189,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    */
   @SuppressWarnings("unchecked")
   default <E2> Validated<E2, A> mapError(Function<? super E, ? extends E2> errorMapper) {
-    Validation.function().requireMapper(errorMapper, "errorMapper", VALIDATED_CLASS, MAP_ERROR);
+    Validation.function().require(errorMapper, "errorMapper", MAP_ERROR);
 
     return switch (this) {
       case Invalid<E, A>(var error) -> Validated.invalid(errorMapper.apply(error));
@@ -241,8 +241,8 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
   default <T> T fold(
       Function<? super E, ? extends T> invalidMapper,
       Function<? super A, ? extends T> validMapper) {
-    Validation.function().requireFunction(invalidMapper, "invalidMapper", VALIDATED_CLASS, FOLD);
-    Validation.function().requireFunction(validMapper, "validMapper", VALIDATED_CLASS, FOLD);
+    Validation.function().require(invalidMapper, "invalidMapper", FOLD);
+    Validation.function().require(validMapper, "validMapper", FOLD);
 
     return switch (this) {
       case Invalid<E, A>(var error) -> invalidMapper.apply(error);

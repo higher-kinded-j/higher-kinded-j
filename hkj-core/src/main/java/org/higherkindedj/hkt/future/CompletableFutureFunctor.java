@@ -33,9 +33,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class CompletableFutureFunctor implements Functor<CompletableFutureKind.Witness> {
 
-  private static final Class<CompletableFutureFunctor> COMPLETABLE_FUTURE_FUNCTOR_CLASS =
-      CompletableFutureFunctor.class;
-
   /**
    * Constructs a new {@code CompletableFutureFunctor} instance. This constructor is public to allow
    * instantiation where needed, although typically functor operations are accessed via a {@link
@@ -75,8 +72,8 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
   public <A, B> Kind<CompletableFutureKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<CompletableFutureKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);

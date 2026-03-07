@@ -78,15 +78,14 @@ public class VTaskMonad extends VTaskApplicative
   public <A, B> Kind<VTaskKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<VTaskKind.Witness, B>> f, Kind<VTaskKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, VTASK_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     VTask<A> vtaskA = VTASK.narrow(ma);
     VTask<B> vtaskB =
         vtaskA.flatMap(
             a -> {
               var kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", VTASK_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return VTASK.narrow(kindB);
             });
     return VTASK.widen(vtaskB);
@@ -127,17 +126,15 @@ public class VTaskMonad extends VTaskApplicative
       Kind<VTaskKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<VTaskKind.Witness, A>> handler) {
 
-    Validation.kind().requireNonNull(ma, VTASK_MONAD_CLASS, HANDLE_ERROR_WITH);
-    Validation.function().requireFunction(handler, "handler", VTASK_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, HANDLE_ERROR_WITH);
+    Validation.function().require(handler, "handler", HANDLE_ERROR_WITH);
 
     VTask<A> vtaskA = VTASK.narrow(ma);
     VTask<A> recovered =
         vtaskA.recoverWith(
             error -> {
               var kindB = handler.apply(error);
-              Validation.function()
-                  .requireNonNullResult(
-                      kindB, "handler", VTASK_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "handler", HANDLE_ERROR_WITH);
               return VTASK.narrow(kindB);
             });
     return VTASK.widen(recovered);

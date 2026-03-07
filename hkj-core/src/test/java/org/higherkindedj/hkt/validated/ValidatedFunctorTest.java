@@ -166,7 +166,7 @@ class ValidatedFunctorTest extends ValidatedTestBase {
       // Valid.map validates that the function doesn't return null
       assertThatThrownBy(() -> functor.map(n -> null, kind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function fn in Valid.map returned null");
+          .hasMessageContaining("Function fn in map returned null");
     }
 
     @Test

@@ -44,9 +44,9 @@ public class ValidatedBifunctor implements Bifunctor<ValidatedKind2.Witness> {
       Function<? super B, ? extends D> g,
       Kind2<ValidatedKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", ValidatedBifunctor.class, BIMAP);
-    Validation.function().requireMapper(g, "g", ValidatedBifunctor.class, BIMAP);
-    Objects.requireNonNull(fab, "Kind for ValidatedBifunctor.bimap cannot be null");
+    Validation.function().require(f, "f", BIMAP);
+    Validation.function().require(g, "g", BIMAP);
+    Objects.requireNonNull(fab, "Kind for bimap cannot be null");
 
     Validated<A, B> validated = VALIDATED.narrow2(fab);
     Validated<C, D> result = validated.bimap(f, g);
@@ -57,8 +57,8 @@ public class ValidatedBifunctor implements Bifunctor<ValidatedKind2.Witness> {
   public <A, B, C> Kind2<ValidatedKind2.Witness, C, B> first(
       Function<? super A, ? extends C> f, Kind2<ValidatedKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(f, "f", ValidatedBifunctor.class, FIRST);
-    Objects.requireNonNull(fab, "Kind for ValidatedBifunctor.first cannot be null");
+    Validation.function().require(f, "f", FIRST);
+    Objects.requireNonNull(fab, "Kind for first cannot be null");
 
     Validated<A, B> validated = VALIDATED.narrow2(fab);
     Validated<C, B> result = validated.mapError(f);
@@ -69,8 +69,8 @@ public class ValidatedBifunctor implements Bifunctor<ValidatedKind2.Witness> {
   public <A, B, D> Kind2<ValidatedKind2.Witness, A, D> second(
       Function<? super B, ? extends D> g, Kind2<ValidatedKind2.Witness, A, B> fab) {
 
-    Validation.function().requireMapper(g, "g", ValidatedBifunctor.class, SECOND);
-    Objects.requireNonNull(fab, "Kind for ValidatedBifunctor.second cannot be null");
+    Validation.function().require(g, "g", SECOND);
+    Objects.requireNonNull(fab, "Kind for second cannot be null");
 
     Validated<A, B> validated = VALIDATED.narrow2(fab);
     Validated<A, D> result = validated.map(g);

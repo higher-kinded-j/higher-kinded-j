@@ -84,7 +84,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.map(null, validKind))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("map");
     }
 
@@ -94,7 +93,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.map(validMapper, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("map");
     }
   }
@@ -127,7 +125,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.foldMap(null, Object::toString, validKind))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("monoid")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("foldMap");
     }
 
@@ -137,7 +134,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.foldMap(monoid, null, validKind))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("foldMap");
     }
 
@@ -147,7 +143,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.foldMap(monoid, Object::toString, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("foldMap");
     }
   }
@@ -211,7 +206,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.traverse(null, f, validKind))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("applicative")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("traverse");
     }
 
@@ -221,7 +215,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.traverse(applicative, null, validKind))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("traverse");
     }
 
@@ -234,7 +227,6 @@ class ValidatedTraverseTest extends ValidatedTestBase {
       assertThatThrownBy(() -> traverse.traverse(applicative, f, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
-          .hasMessageContaining("ValidatedTraverse")
           .hasMessageContaining("traverse");
     }
   }

@@ -50,7 +50,7 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
    * @throws NullPointerException if {@code run} is null.
    */
   public ReaderT {
-    Validation.function().requireFunction(run, "run", READER_T_CLASS, CONSTRUCTION);
+    Validation.function().require(run, "run", CONSTRUCTION);
   }
 
   /**
@@ -85,7 +85,7 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
   public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> liftF(
       Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);
-    Validation.kind().requireNonNull(fa, READER_T_CLASS, LIFT_F, "source Kind");
+    Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
     return new ReaderT<>(r -> fa);
   }
 
@@ -105,7 +105,7 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
   public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> reader(
       Monad<F> outerMonad, Function<R_ENV, A> f) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, READER);
-    Validation.function().requireFunction(f, "environment function", READER_T_CLASS, READER);
+    Validation.function().require(f, "environment function", READER);
     return new ReaderT<>(r -> outerMonad.of(f.apply(r)));
   }
 

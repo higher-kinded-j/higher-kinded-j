@@ -38,8 +38,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class VStreamMonad extends VStreamApplicative implements Monad<VStreamKind.Witness> {
 
-  private static final Class<VStreamMonad> VSTREAM_MONAD_CLASS = VStreamMonad.class;
-
   /** Singleton instance of {@code VStreamMonad}. */
   public static final VStreamMonad INSTANCE = new VStreamMonad();
 
@@ -74,15 +72,14 @@ public class VStreamMonad extends VStreamApplicative implements Monad<VStreamKin
       Function<? super A, ? extends Kind<VStreamKind.Witness, B>> f,
       Kind<VStreamKind.Witness, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, VSTREAM_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     VStream<A> stream = VSTREAM.narrow(ma);
     VStream<B> result =
         stream.flatMap(
             a -> {
               var kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", VSTREAM_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return VSTREAM.narrow(kindB);
             });
     return VSTREAM.widen(result);

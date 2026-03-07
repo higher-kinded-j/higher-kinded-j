@@ -63,8 +63,6 @@ public final class OptionalSelective extends OptionalMonad
   /** Singleton instance of {@code OptionalSelective}. */
   public static final OptionalSelective INSTANCE = new OptionalSelective();
 
-  private static final Class<OptionalSelective> OPTIONAL_SELECTIVE_CLASS = OptionalSelective.class;
-
   /** Private constructor to enforce the singleton pattern. */
   private OptionalSelective() {
     super();
@@ -100,8 +98,8 @@ public final class OptionalSelective extends OptionalMonad
   public <A, B> Kind<OptionalKind.Witness, B> select(
       Kind<OptionalKind.Witness, Choice<A, B>> fab, Kind<OptionalKind.Witness, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, OPTIONAL_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, OPTIONAL_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     Optional<Choice<A, B>> optionalChoice = OPTIONAL.narrow(fab);
 
@@ -152,9 +150,9 @@ public final class OptionalSelective extends OptionalMonad
       Kind<OptionalKind.Witness, Function<A, C>> fl,
       Kind<OptionalKind.Witness, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, OPTIONAL_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, OPTIONAL_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, OPTIONAL_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     Optional<Choice<A, B>> optionalChoice = OPTIONAL.narrow(fab);
 
@@ -244,8 +242,8 @@ public final class OptionalSelective extends OptionalMonad
   public Kind<OptionalKind.Witness, Unit> whenS(
       Kind<OptionalKind.Witness, Boolean> fcond, Kind<OptionalKind.Witness, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, OPTIONAL_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, OPTIONAL_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     Optional<Boolean> condOptional = OPTIONAL.narrow(fcond);
 
@@ -284,9 +282,9 @@ public final class OptionalSelective extends OptionalMonad
       Kind<OptionalKind.Witness, A> fthen,
       Kind<OptionalKind.Witness, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, OPTIONAL_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, OPTIONAL_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, OPTIONAL_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     Optional<Boolean> condOptional = OPTIONAL.narrow(fcond);
 

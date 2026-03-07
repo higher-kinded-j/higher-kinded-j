@@ -211,10 +211,7 @@ class TryMonadTest extends TryTestBase {
       assertThatTry(tryResult)
           .isFailure()
           .hasExceptionSatisfying(
-              ex ->
-                  assertThat(ex)
-                      .hasMessageContaining(
-                          "Function f in TryMonad.flatMap returned null when Kind expected"));
+              ex -> assertThat(ex).hasMessageContaining("Function f in flatMap returned null"));
     }
   }
 
@@ -324,9 +321,7 @@ class TryMonadTest extends TryTestBase {
           .hasExceptionSatisfying(
               ex ->
                   assertThat(ex)
-                      .hasMessageContaining(
-                          "Function handler in TryMonad.handleErrorWith returned null when Kind"
-                              + " expected"));
+                      .hasMessageContaining("Function handler in handleErrorWith returned null"));
     }
   }
 
@@ -353,8 +348,7 @@ class TryMonadTest extends TryTestBase {
         Function<String, Kind<TryKind.Witness, Integer>> function) {
       assertThatNullPointerException()
           .isThrownBy(() -> monad.flatMap(function, kind))
-          .withMessageContaining(expectedMessagePart)
-          .withMessageContaining("TryMonad.flatMap");
+          .withMessageContaining(expectedMessagePart);
     }
 
     // Parameterized test data for handleErrorWith null validation
@@ -376,8 +370,7 @@ class TryMonadTest extends TryTestBase {
         Function<Throwable, Kind<TryKind.Witness, String>> handler) {
       assertThatNullPointerException()
           .isThrownBy(() -> monad.handleErrorWith(kind, handler))
-          .withMessageContaining(expectedMessagePart)
-          .withMessageContaining("TryMonad.handleErrorWith");
+          .withMessageContaining(expectedMessagePart);
     }
   }
 

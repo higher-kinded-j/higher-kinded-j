@@ -29,8 +29,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class OptionalFunctor implements Functor<OptionalKind.Witness> {
 
-  private static final Class<OptionalFunctor> OPTIONAL_FUNCTOR_CLASS = OptionalFunctor.class;
-
   /**
    * Constructs a new {@code OptionalFunctor} instance. This constructor is public to allow
    * instantiation where needed, although typically functor operations are accessed via a {@link
@@ -78,8 +76,8 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.function().requireMapper(f, "f", OPTIONAL_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, OPTIONAL_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()

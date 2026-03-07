@@ -79,7 +79,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
   public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
-    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_CLASS, VALUE);
+    Validation.function().require(monoidW, "monoidW", VALUE);
     return new Writer<>(monoidW.empty(), value);
   }
 
@@ -111,7 +111,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", WRITER_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
     return new Writer<>(this.log, f.apply(this.value));
   }
 
@@ -143,8 +143,8 @@ public record Writer<W, A>(W log, @Nullable A value) {
    */
   public <W2, B> Writer<W2, B> bimap(
       Function<? super W, ? extends W2> logMapper, Function<? super A, ? extends B> valueMapper) {
-    Validation.function().requireMapper(logMapper, "logMapper", WRITER_CLASS, BIMAP);
-    Validation.function().requireMapper(valueMapper, "valueMapper", WRITER_CLASS, BIMAP);
+    Validation.function().require(logMapper, "logMapper", BIMAP);
+    Validation.function().require(valueMapper, "valueMapper", BIMAP);
 
     return new Writer<>(logMapper.apply(this.log), valueMapper.apply(this.value));
   }
@@ -173,7 +173,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code logMapper} is null.
    */
   public <W2> Writer<W2, A> mapWritten(Function<? super W, ? extends W2> logMapper) {
-    Validation.function().requireMapper(logMapper, "logMapper", WRITER_CLASS, MAP_WRITTEN);
+    Validation.function().require(logMapper, "logMapper", MAP_WRITTEN);
 
     return new Writer<>(logMapper.apply(this.log), this.value);
   }
@@ -202,12 +202,11 @@ public record Writer<W, A>(W log, @Nullable A value) {
   public <B> Writer<W, B> flatMap(
       Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
 
-    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_CLASS, FLAT_MAP);
-    Validation.function().requireFlatMapper(f, "f", WRITER_CLASS, FLAT_MAP);
+    Validation.function().require(monoidW, "monoidW", FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    Validation.function()
-        .requireNonNullResult(nextWriter, "f", WRITER_CLASS, FLAT_MAP, WRITER_CLASS);
+    Validation.function().requireNonNullResult(nextWriter, "f", FLAT_MAP);
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
     // The cast to B is safe due to the ? extends B in the function's return type.

@@ -3,15 +3,10 @@
 package org.higherkindedj.hkt.test.builders;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import org.assertj.core.api.ThrowableAssert;
-import org.higherkindedj.hkt.*;
-import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.test.assertions.FunctionAssertions;
 import org.higherkindedj.hkt.test.assertions.KindAssertions;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
@@ -134,24 +129,6 @@ public final class ValidationTestBuilder {
   }
 
   /**
-   * Adds mapper function validation with class context to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertMapperNull(
-      ThrowableAssert.ThrowingCallable executable,
-      String mapperName,
-      Class<?> contextClass,
-      Operation operation) {
-    assertions.add(
-        () -> FunctionAssertions.assertMapperNull(executable, mapperName, contextClass, operation));
-    return this;
-  }
-
-  /**
    * Adds flatMapper function validation to the test suite.
    *
    * @param executable The code that should throw
@@ -162,26 +139,6 @@ public final class ValidationTestBuilder {
       ThrowableAssert.ThrowingCallable executable, String flatMapperName, Operation operation) {
     assertions.add(
         () -> FunctionAssertions.assertFlatMapperNull(executable, flatMapperName, operation));
-    return this;
-  }
-
-  /**
-   * Adds flatMapper function validation with class context to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertFlatMapperNull(
-      ThrowableAssert.ThrowingCallable executable,
-      String flatMapperName,
-      Class<?> contextClass,
-      Operation operation) {
-    assertions.add(
-        () ->
-            FunctionAssertions.assertFlatMapperNull(
-                executable, flatMapperName, contextClass, operation));
     return this;
   }
 
@@ -200,27 +157,7 @@ public final class ValidationTestBuilder {
   }
 
   /**
-   * Adds applicative validation with class context to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable,
-      String applicativeName,
-      Class<?> contextClass,
-      Operation operation) {
-    assertions.add(
-        () ->
-            FunctionAssertions.assertApplicativeNull(
-                executable, applicativeName, contextClass, operation));
-    return this;
-  }
-
-  /**
-   * Adds monoid validation to the test suite.
+   * Adds monoid validation with class context to the test suite.
    *
    * @param executable The code that should throw
    * @param monoidName The name of the monoid parameter
@@ -234,42 +171,17 @@ public final class ValidationTestBuilder {
   }
 
   /**
-   * Adds monoid validation with class context to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param monoidName The name of the monoid parameter
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertMonoidNull(
-      ThrowableAssert.ThrowingCallable executable,
-      String monoidName,
-      Class<?> contextClass,
-      Operation operation) {
-    assertions.add(
-        () -> FunctionAssertions.assertMonoidNull(executable, monoidName, contextClass, operation));
-    return this;
-  }
-
-  /**
    * Adds custom function validation with class context to the test suite.
    *
    * @param executable The code that should throw
    * @param functionName The name of the function parameter
-   * @param contextClass The class providing context
    * @param operation The operation name
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertFunctionNull(
-      ThrowableAssert.ThrowingCallable executable,
-      String functionName,
-      Class<?> contextClass,
-      Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String functionName, Operation operation) {
     assertions.add(
-        () ->
-            FunctionAssertions.assertFunctionNull(
-                executable, functionName, contextClass, operation));
+        () -> FunctionAssertions.assertFunctionNull(executable, functionName, operation));
     return this;
   }
 
@@ -291,20 +203,6 @@ public final class ValidationTestBuilder {
   }
 
   /**
-   * Adds Kind null validation with class context to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
-    assertions.add(() -> KindAssertions.assertKindNull(executable, contextClass, operation));
-    return this;
-  }
-
-  /**
    * Adds Kind null validation with descriptor to the test suite.
    *
    * @param executable The code that should throw
@@ -315,25 +213,6 @@ public final class ValidationTestBuilder {
   public ValidationTestBuilder assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Operation operation, String descriptor) {
     assertions.add(() -> KindAssertions.assertKindNull(executable, operation, descriptor));
-    return this;
-  }
-
-  /**
-   * Adds Kind null validation with class context and descriptor to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @param descriptor Optional descriptor for the parameter
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertKindNull(
-      ThrowableAssert.ThrowingCallable executable,
-      Class<?> contextClass,
-      Operation operation,
-      String descriptor) {
-    assertions.add(
-        () -> KindAssertions.assertKindNull(executable, contextClass, operation, descriptor));
     return this;
   }
 
@@ -363,277 +242,9 @@ public final class ValidationTestBuilder {
     return this;
   }
 
-  /**
-   * Adds invalid Kind type validation to the test suite.
-   *
-   * @param executable The code that should throw
-   * @param targetType The target type class
-   * @param invalidKind The invalid Kind for error context
-   * @return This builder for chaining
-   */
-  public ValidationTestBuilder assertInvalidKindType(
-      ThrowableAssert.ThrowingCallable executable, Class<?> targetType, Kind<?, ?> invalidKind) {
-    assertions.add(() -> KindAssertions.assertInvalidKindType(executable, targetType, invalidKind));
-    return this;
-  }
-
   // =============================================================================
   // Complete Type Class Validation Methods
   // =============================================================================
-
-  /**
-   * Adds all Functor operation validations to the test suite.
-   *
-   * @param functor The Functor instance to test
-   * @param contextClass The Functor implementation class
-   * @param validKind A valid Kind for testing
-   * @param validMapper A valid mapping function
-   * @param <F> The Functor witness type
-   * @param <A> The input type
-   * @param <B> The output type
-   * @return This builder for chaining
-   */
-  public <F extends WitnessArity<TypeArity.Unary>, A, B>
-      ValidationTestBuilder assertAllFunctorOperations(
-          Functor<F> functor,
-          Class<?> contextClass,
-          Kind<F, A> validKind,
-          Function<A, B> validMapper) {
-
-    assertMapperNull(() -> functor.map(null, validKind), "f", contextClass, Operation.MAP);
-    assertKindNull(() -> functor.map(validMapper, null), contextClass, Operation.MAP);
-    return this;
-  }
-
-  /**
-   * Adds all Applicative operation validations to the test suite.
-   *
-   * @param applicative The Applicative instance to test
-   * @param contextClass The Applicative implementation class
-   * @param validKind A valid Kind for testing
-   * @param validKind2 A second valid Kind for map2 testing
-   * @param validMapper A valid mapping function
-   * @param validFunctionKind A valid function Kind for ap testing
-   * @param validCombiningFunction A valid combining function for map2 testing
-   * @param <F> The Applicative witness type
-   * @param <A> The input type
-   * @param <B> The output type
-   * @return This builder for chaining
-   */
-  public <F extends WitnessArity<TypeArity.Unary>, A, B>
-      ValidationTestBuilder assertAllApplicativeOperations(
-          Applicative<F> applicative,
-          Class<?> contextClass,
-          Kind<F, A> validKind,
-          Kind<F, A> validKind2,
-          Function<A, B> validMapper,
-          Kind<F, Function<A, B>> validFunctionKind,
-          BiFunction<A, A, B> validCombiningFunction) {
-
-    // Functor operations (inherited)
-    assertAllFunctorOperations(applicative, contextClass, validKind, validMapper);
-
-    // Ap operations
-    assertKindNull(() -> applicative.ap(null, validKind), contextClass, AP, "function");
-    assertKindNull(() -> applicative.ap(validFunctionKind, null), contextClass, AP, "argument");
-
-    // Map2 operations
-    assertKindNull(
-        () -> applicative.map2(null, validKind2, validCombiningFunction),
-        contextClass,
-        MAP_2,
-        "first");
-    assertKindNull(
-        () -> applicative.map2(validKind, null, validCombiningFunction),
-        contextClass,
-        MAP_2,
-        "second");
-    assertFunctionNull(
-        () -> applicative.map2(validKind, validKind2, (BiFunction<A, A, B>) null),
-        "combining function",
-        contextClass,
-        MAP_2);
-
-    return this;
-  }
-
-  /**
-   * Adds all Monad operation validations to the test suite.
-   *
-   * @param monad The Monad instance to test
-   * @param contextClass The Monad implementation class
-   * @param validKind A valid Kind for testing
-   * @param validMapper A valid mapping function
-   * @param validFlatMapper A valid flatMap function
-   * @param validFunctionKind A valid function Kind for ap testing
-   * @param <F> The Monad witness type
-   * @param <A> The input type
-   * @param <B> The output type
-   * @return This builder for chaining
-   */
-  public <F extends WitnessArity<TypeArity.Unary>, A, B>
-      ValidationTestBuilder assertAllMonadOperations(
-          Monad<F> monad,
-          Class<?> contextClass,
-          Kind<F, A> validKind,
-          Function<A, B> validMapper,
-          Function<A, Kind<F, B>> validFlatMapper,
-          Kind<F, Function<A, B>> validFunctionKind) {
-
-    // Applicative operations (inherited) - using BiFunction for map2
-    BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
-    assertAllApplicativeOperations(
-        monad,
-        contextClass,
-        validKind,
-        validKind,
-        validMapper,
-        validFunctionKind,
-        validCombiningFunction);
-
-    // FlatMap operations
-    assertFlatMapperNull(() -> monad.flatMap(null, validKind), "f", contextClass, FLAT_MAP);
-    assertKindNull(() -> monad.flatMap(validFlatMapper, null), contextClass, FLAT_MAP);
-
-    return this;
-  }
-
-  /**
-   * Adds all MonadError operation validations to the test suite.
-   *
-   * @param monadError The MonadError instance to test
-   * @param contextClass The MonadError implementation class
-   * @param validKind A valid Kind for testing
-   * @param validMapper A valid mapping function
-   * @param validFlatMapper A valid flatMap function
-   * @param validFunctionKind A valid function Kind for ap testing
-   * @param validHandler A valid error handler function
-   * @param validFallback A valid fallback Kind
-   * @param <F> The MonadError witness type
-   * @param <E> The error type
-   * @param <A> The input type
-   * @param <B> The output type
-   * @return This builder for chaining
-   */
-  public <F extends WitnessArity<TypeArity.Unary>, E, A, B>
-      ValidationTestBuilder assertAllMonadErrorOperations(
-          MonadError<F, E> monadError,
-          Class<?> contextClass,
-          Kind<F, A> validKind,
-          Function<A, B> validMapper,
-          Function<A, Kind<F, B>> validFlatMapper,
-          Kind<F, Function<A, B>> validFunctionKind,
-          Function<E, Kind<F, A>> validHandler,
-          Kind<F, A> validFallback) {
-
-    // Monad operations (inherited)
-    assertAllMonadOperations(
-        monadError, contextClass, validKind, validMapper, validFlatMapper, validFunctionKind);
-
-    // MonadError operations
-    assertKindNull(
-        () -> monadError.handleErrorWith(null, validHandler),
-        contextClass,
-        HANDLE_ERROR_WITH,
-        "source");
-    assertFunctionNull(
-        () -> monadError.handleErrorWith(validKind, null),
-        "handler",
-        contextClass,
-        HANDLE_ERROR_WITH);
-    assertKindNull(
-        () -> monadError.recoverWith(null, validFallback), contextClass, RECOVER_WITH, "source");
-    assertKindNull(
-        () -> monadError.recoverWith(validKind, null), contextClass, RECOVER_WITH, "fallback");
-
-    return this;
-  }
-
-  /**
-   * Adds all Foldable operation validations to the test suite.
-   *
-   * @param foldable The Foldable instance to test
-   * @param contextClass The Foldable implementation class
-   * @param validKind A valid Kind for testing
-   * @param validMonoid A valid Monoid instance
-   * @param validFoldMapFunction A valid foldMap function
-   * @param <F> The Foldable witness type
-   * @param <A> The element type
-   * @param <M> The Monoid type
-   * @return This builder for chaining
-   */
-  public <F extends WitnessArity<TypeArity.Unary>, A, M>
-      ValidationTestBuilder assertAllFoldableOperations(
-          Foldable<F> foldable,
-          Class<?> contextClass,
-          Kind<F, A> validKind,
-          Monoid<M> validMonoid,
-          Function<A, M> validFoldMapFunction) {
-
-    assertMonoidNull(
-        () -> foldable.foldMap(null, validFoldMapFunction, validKind),
-        "monoid",
-        contextClass,
-        FOLD_MAP);
-    assertMapperNull(
-        () -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass, FOLD_MAP);
-    assertKindNull(
-        () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass, FOLD_MAP);
-
-    return this;
-  }
-
-  /**
-   * Adds all Traverse operation validations to the test suite.
-   *
-   * @param traverse The Traverse instance to test
-   * @param contextClass The Traverse implementation class
-   * @param validKind A valid Kind for testing
-   * @param validMapper A valid mapping function
-   * @param validApplicative A valid Applicative instance
-   * @param validTraverseFunction A valid traverse function
-   * @param validMonoid A valid Monoid instance
-   * @param validFoldMapFunction A valid foldMap function
-   * @param <F> The Traverse witness type
-   * @param <G> The Applicative witness type
-   * @param <A> The source element type
-   * @param <B> The target element type
-   * @param <M> The Monoid type
-   * @return This builder for chaining
-   */
-  public <F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B, M>
-      ValidationTestBuilder assertAllTraverseOperations(
-          Traverse<F> traverse,
-          Class<?> contextClass,
-          Kind<F, A> validKind,
-          Function<A, B> validMapper,
-          Applicative<G> validApplicative,
-          Function<A, Kind<G, B>> validTraverseFunction,
-          Monoid<M> validMonoid,
-          Function<A, M> validFoldMapFunction) {
-
-    // Functor operations (inherited)
-    assertAllFunctorOperations(traverse, contextClass, validKind, validMapper);
-
-    // Foldable operations (inherited)
-    assertAllFoldableOperations(
-        traverse, contextClass, validKind, validMonoid, validFoldMapFunction);
-
-    // Traverse operations
-    assertApplicativeNull(
-        () -> traverse.traverse(null, validTraverseFunction, validKind),
-        "applicative",
-        contextClass,
-        TRAVERSE);
-    assertMapperNull(
-        () -> traverse.traverse(validApplicative, null, validKind), "f", contextClass, TRAVERSE);
-    assertKindNull(
-        () -> traverse.traverse(validApplicative, validTraverseFunction, null),
-        contextClass,
-        TRAVERSE);
-
-    return this;
-  }
 
   /**
    * Adds transformer outer monad validation to the test suite.

@@ -43,9 +43,6 @@ import org.jspecify.annotations.Nullable;
 public class CompletableFutureApplicative extends CompletableFutureFunctor
     implements Applicative<CompletableFutureKind.Witness> {
 
-  private static final Class<CompletableFutureApplicative> COMPLETABLE_FUTURE_APPLICATIVE_CLASS =
-      CompletableFutureApplicative.class;
-
   /** Constructs a new {@code CompletableFutureApplicative} instance. */
   public CompletableFutureApplicative() {
     // Default constructor
@@ -105,8 +102,8 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
       Kind<CompletableFutureKind.Witness, A> fa) {
 
     // Enhanced validation with descriptive parameters
-    Validation.kind().requireNonNull(ff, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, AP, "function");
+    Validation.kind().requireNonNull(fa, AP, "argument");
 
     CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);

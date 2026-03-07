@@ -89,20 +89,18 @@ final class IdTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IdValida
     if (validationStage != null && validationStage.getMapContext() != null) {
       IdMonad monad = IdMonad.instance();
       Kind<IdKind.Witness, A> kind = IdKindHelper.ID.widen(instance);
-      builder.assertMapperNull(() -> monad.map(null, kind), "f", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> monad.map(null, kind), "f", Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> instance.map(null), "fn", getMapContext(), Operation.MAP);
+      builder.assertMapperNull(() -> instance.map(null), "fn", Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
       IdMonad monad = IdMonad.instance();
       Kind<IdKind.Witness, A> kind = IdKindHelper.ID.widen(instance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {
-      builder.assertFlatMapperNull(
-          () -> instance.flatMap(null), "fn", getFlatMapContext(), Operation.FLAT_MAP);
+      builder.assertFlatMapperNull(() -> instance.flatMap(null), "fn", Operation.FLAT_MAP);
     }
 
     builder.execute();

@@ -42,7 +42,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   static <S, A> State<S, A> of(Function<S, StateTuple<S, A>> runFunction) {
-    Validation.function().requireFunction(runFunction, "runFunction", STATE_CLASS, OF);
+    Validation.function().require(runFunction, "runFunction", OF);
     return runFunction::apply;
   }
 
@@ -66,7 +66,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
-    Validation.function().requireMapper(f, "f", STATE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
     return State.of(
         initialState -> {
           StateTuple<S, A> result = this.run(initialState);
@@ -98,7 +98,7 @@ public interface State<S, A> {
    *     is null.
    */
   default <B> State<S, B> flatMap(Function<? super A, ? extends State<S, ? extends B>> f) {
-    Validation.function().requireFlatMapper(f, "f", STATE_CLASS, FLAT_MAP);
+    Validation.function().require(f, "f", FLAT_MAP);
     return State.of(
         initialState -> {
           StateTuple<S, A> result1 = this.run(initialState);
@@ -106,8 +106,7 @@ public interface State<S, A> {
           S stateS1 = result1.state();
 
           State<S, ? extends B> nextState = f.apply(valueA);
-          Validation.function()
-              .requireNonNullResult(nextState, "f", STATE_CLASS, FLAT_MAP, STATE_CLASS);
+          Validation.function().requireNonNullResult(nextState, "f", FLAT_MAP);
 
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 
@@ -180,7 +179,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   static <S> State<S, Unit> modify(Function<S, S> f) {
-    Validation.function().requireFunction(f, "f", STATE_CLASS, MODIFY);
+    Validation.function().require(f, "f", MODIFY);
     return State.of(s -> new StateTuple<>(Unit.INSTANCE, f.apply(s)));
   }
 
@@ -198,7 +197,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   static <S, A> State<S, A> inspect(Function<S, @Nullable A> f) {
-    Validation.function().requireFunction(f, "f", STATE_CLASS, INSPECT);
+    Validation.function().require(f, "f", INSPECT);
     return State.of(s -> new StateTuple<>(f.apply(s), s));
   }
 }

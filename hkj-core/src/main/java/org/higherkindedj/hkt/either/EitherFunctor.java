@@ -25,8 +25,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
 
-  private static final Class<EitherFunctor> EITHER_FUNCTOR_CLASS = EitherFunctor.class;
-
   private static final EitherFunctor<?> INSTANCE = new EitherFunctor<>();
 
   protected EitherFunctor() {}
@@ -56,8 +54,8 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
   @Override
   public <A, B> Kind<EitherKind.Witness<L>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> fa) {
-    Validation.function().requireMapper(f, "f", EITHER_FUNCTOR_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, EITHER_FUNCTOR_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Either<L, A> eitherA = EITHER.narrow(fa);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map

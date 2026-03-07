@@ -130,7 +130,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code f} is null.
    */
   public <S> Kind<StateKind.Witness<S>, Unit> modify(Function<S, S> f) {
-    Validation.function().requireFunction(f, "f", STATE_CLASS, MODIFY);
+    Validation.function().require(f, "f", MODIFY);
     return this.widen(State.modify(f));
   }
 
@@ -145,7 +145,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code f} is null.
    */
   public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, @Nullable A> f) {
-    Validation.function().requireFunction(f, "f", STATE_CLASS, INSPECT);
+    Validation.function().require(f, "f", INSPECT);
     return this.widen(State.inspect(f));
   }
 
@@ -162,7 +162,7 @@ public enum StateKindHelper implements StateConverterOps {
    */
   public <S, A> StateTuple<S, A> runState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
-    Validation.kind().requireNonNull(kind, STATE_CLASS, RUN_STATE);
+    Validation.kind().requireNonNull(kind, RUN_STATE);
     // Note: initialState validation is handled by StateTuple constructor
     return this.narrow(kind).run(initialState);
   }

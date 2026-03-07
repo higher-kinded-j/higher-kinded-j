@@ -28,8 +28,6 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
 
   private static final EitherTraverse<?> INSTANCE = new EitherTraverse<>();
 
-  private static final Class<EitherTraverse> EITHER_TRAVERSE_CLASS = EitherTraverse.class;
-
   private EitherTraverse() {
     // Private constructor to prevent external instantiation
   }
@@ -67,8 +65,8 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, B> Kind<EitherKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<E>, A> fa) {
-    Validation.function().requireMapper(f, "f", EITHER_TRAVERSE_CLASS, MAP);
-    Validation.kind().requireNonNull(fa, EITHER_TRAVERSE_CLASS, MAP);
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     Either<E, A> either = EITHER.narrow(fa);
     Either<E, B> resultEither = either.map(f);
@@ -108,7 +106,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
           Function<? super A, ? extends Kind<G, ? extends B>> f,
           Kind<EitherKind.Witness<E>, A> ta) {
 
-    Validation.function().validateTraverse(applicative, f, ta, EITHER_TRAVERSE_CLASS);
+    Validation.function().validateTraverse(applicative, f, ta);
 
     Either<E, A> either = EITHER.narrow(ta);
 
@@ -145,7 +143,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<EitherKind.Witness<E>, A> fa) {
-    Validation.function().validateFoldMap(monoid, f, fa, EITHER_TRAVERSE_CLASS);
+    Validation.function().validateFoldMap(monoid, f, fa);
 
     Either<E, A> either = EITHER.narrow(fa);
     return either.fold(left -> monoid.empty(), f);

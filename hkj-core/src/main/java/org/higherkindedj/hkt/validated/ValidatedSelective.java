@@ -51,9 +51,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public final class ValidatedSelective<E> extends ValidatedMonad<E>
     implements Selective<ValidatedKind.Witness<E>> {
 
-  private static final Class<ValidatedSelective> VALIDATED_SELECTIVE_CLASS =
-      ValidatedSelective.class;
-
   private final Semigroup<E> semigroup;
 
   /**
@@ -110,8 +107,8 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
       Kind<ValidatedKind.Witness<E>, Choice<A, B>> fab,
       Kind<ValidatedKind.Witness<E>, Function<A, B>> ff) {
 
-    Validation.kind().requireNonNull(fab, VALIDATED_SELECTIVE_CLASS, SELECT, "choice");
-    Validation.kind().requireNonNull(ff, VALIDATED_SELECTIVE_CLASS, SELECT, "function");
+    Validation.kind().requireNonNull(fab, SELECT, "choice");
+    Validation.kind().requireNonNull(ff, SELECT, "function");
 
     Validated<E, Choice<A, B>> validatedChoice = VALIDATED.narrow(fab);
     Validated<E, Function<A, B>> validatedFunction = VALIDATED.narrow(ff);
@@ -176,9 +173,9 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
       Kind<ValidatedKind.Witness<E>, Function<A, C>> fl,
       Kind<ValidatedKind.Witness<E>, Function<B, C>> fr) {
 
-    Validation.kind().requireNonNull(fab, VALIDATED_SELECTIVE_CLASS, BRANCH, "choice");
-    Validation.kind().requireNonNull(fl, VALIDATED_SELECTIVE_CLASS, BRANCH, "leftHandler");
-    Validation.kind().requireNonNull(fr, VALIDATED_SELECTIVE_CLASS, BRANCH, "rightHandler");
+    Validation.kind().requireNonNull(fab, BRANCH, "choice");
+    Validation.kind().requireNonNull(fl, BRANCH, "leftHandler");
+    Validation.kind().requireNonNull(fr, BRANCH, "rightHandler");
 
     Validated<E, Choice<A, B>> validatedChoice = VALIDATED.narrow(fab);
     Validated<E, Function<A, C>> leftFunction = VALIDATED.narrow(fl);
@@ -251,8 +248,8 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
   public Kind<ValidatedKind.Witness<E>, Unit> whenS(
       Kind<ValidatedKind.Witness<E>, Boolean> fcond, Kind<ValidatedKind.Witness<E>, Unit> fa) {
 
-    Validation.kind().requireNonNull(fcond, VALIDATED_SELECTIVE_CLASS, WHEN_S, "condition");
-    Validation.kind().requireNonNull(fa, VALIDATED_SELECTIVE_CLASS, WHEN_S, "effect");
+    Validation.kind().requireNonNull(fcond, WHEN_S, "condition");
+    Validation.kind().requireNonNull(fa, WHEN_S, "effect");
 
     Validated<E, Boolean> condValidated = VALIDATED.narrow(fcond);
     Validated<E, Unit> effectValidated = VALIDATED.narrow(fa);
@@ -313,9 +310,9 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
       Kind<ValidatedKind.Witness<E>, A> fthen,
       Kind<ValidatedKind.Witness<E>, A> felse) {
 
-    Validation.kind().requireNonNull(fcond, VALIDATED_SELECTIVE_CLASS, IF_S, "condition");
-    Validation.kind().requireNonNull(fthen, VALIDATED_SELECTIVE_CLASS, IF_S, "thenBranch");
-    Validation.kind().requireNonNull(felse, VALIDATED_SELECTIVE_CLASS, IF_S, "elseBranch");
+    Validation.kind().requireNonNull(fcond, IF_S, "condition");
+    Validation.kind().requireNonNull(fthen, IF_S, "thenBranch");
+    Validation.kind().requireNonNull(felse, IF_S, "elseBranch");
 
     Validated<E, Boolean> condValidated = VALIDATED.narrow(fcond);
     Validated<E, A> thenValidated = VALIDATED.narrow(fthen);

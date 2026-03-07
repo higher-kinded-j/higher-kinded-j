@@ -36,8 +36,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
 public class ContextMonad<R> extends ContextApplicative<R>
     implements Monad<ContextKind.Witness<R>> {
 
-  private static final Class<ContextMonad> CONTEXT_MONAD_CLASS = ContextMonad.class;
-
   private static final ContextMonad<?> INSTANCE = new ContextMonad<>();
 
   /** Protected constructor to enforce singleton-per-type pattern. */
@@ -81,7 +79,7 @@ public class ContextMonad<R> extends ContextApplicative<R>
       Function<? super A, ? extends Kind<ContextKind.Witness<R>, B>> f,
       Kind<ContextKind.Witness<R>, A> ma) {
 
-    Validation.function().validateFlatMap(f, ma, CONTEXT_MONAD_CLASS);
+    Validation.function().validateFlatMap(f, ma);
 
     Context<R, A> contextA = CONTEXT.narrow(ma);
 
@@ -89,8 +87,7 @@ public class ContextMonad<R> extends ContextApplicative<R>
         contextA.flatMap(
             a -> {
               Kind<ContextKind.Witness<R>, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", CONTEXT_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return CONTEXT.narrow(kindB);
             });
 

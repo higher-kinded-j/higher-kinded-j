@@ -363,15 +363,12 @@ class EitherTest extends EitherTestBase {
           .assertFunctionNull(
               () -> leftInstance.fold(null, r -> "Right mapped: " + r),
               "leftMapper",
-              Either.class,
               Operation.FOLD)
           .assertFunctionNull(
               () -> rightInstance.fold(l -> "Left mapped: " + l, null),
               "rightMapper",
-              Either.class,
               Operation.FOLD)
-          .assertFunctionNull(
-              () -> leftInstance.fold(null, null), "leftMapper", Either.class, Operation.FOLD)
+          .assertFunctionNull(() -> leftInstance.fold(null, null), "leftMapper", Operation.FOLD)
           .execute();
     }
 
@@ -475,8 +472,8 @@ class EitherTest extends EitherTestBase {
     @DisplayName("map() validates null mapper using standardised validation")
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> rightInstance.map(null), "mapper", Either.class, Operation.MAP)
-          .assertMapperNull(() -> leftInstance.map(null), "mapper", Either.class, Operation.MAP)
+          .assertMapperNull(() -> rightInstance.map(null), "mapper", Operation.MAP)
+          .assertMapperNull(() -> leftInstance.map(null), "mapper", Operation.MAP)
           .execute();
     }
 
@@ -612,14 +609,10 @@ class EitherTest extends EitherTestBase {
     @DisplayName("Side effect methods validate null actions")
     void sideEffectMethodsValidateNullActions() {
       ValidationTestBuilder.create()
-          .assertFunctionNull(
-              () -> leftInstance.ifLeft(null), "action", Either.class, Operation.IF_LEFT)
-          .assertFunctionNull(
-              () -> rightInstance.ifLeft(null), "action", Either.class, Operation.IF_LEFT)
-          .assertFunctionNull(
-              () -> rightInstance.ifRight(null), "action", Either.class, Operation.IF_RIGHT)
-          .assertFunctionNull(
-              () -> leftInstance.ifRight(null), "action", Either.class, Operation.IF_RIGHT)
+          .assertFunctionNull(() -> leftInstance.ifLeft(null), "action", Operation.IF_LEFT)
+          .assertFunctionNull(() -> rightInstance.ifLeft(null), "action", Operation.IF_LEFT)
+          .assertFunctionNull(() -> rightInstance.ifRight(null), "action", Operation.IF_RIGHT)
+          .assertFunctionNull(() -> leftInstance.ifRight(null), "action", Operation.IF_RIGHT)
           .execute();
     }
 
@@ -692,10 +685,8 @@ class EitherTest extends EitherTestBase {
     @DisplayName("flatMap() validates parameters using standardised validation")
     void flatMapValidatesParameters() {
       ValidationTestBuilder.create()
-          .assertFlatMapperNull(
-              () -> rightInstance.flatMap(null), "mapper", Either.class, Operation.FLAT_MAP)
-          .assertFlatMapperNull(
-              () -> leftInstance.flatMap(null), "mapper", Either.class, Operation.FLAT_MAP)
+          .assertFlatMapperNull(() -> rightInstance.flatMap(null), "mapper", Operation.FLAT_MAP)
+          .assertFlatMapperNull(() -> leftInstance.flatMap(null), "mapper", Operation.FLAT_MAP)
           .execute();
     }
 
@@ -704,9 +695,7 @@ class EitherTest extends EitherTestBase {
     void flatMapValidatesNonNullResults() {
       assertThatThrownBy(() -> rightInstance.flatMap(i -> null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function mapper in Either.flatMap returned null when Either expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function mapper in flatMap returned null, which is not allowed");
     }
 
     @Test
