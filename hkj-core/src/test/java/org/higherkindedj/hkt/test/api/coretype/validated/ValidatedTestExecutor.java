@@ -126,16 +126,6 @@ final class ValidatedTestExecutor<E, A, B>
             ? validationStage.getFlatMapContext()
             : contextClass;
 
-    Class<?> validIfValidContext =
-        (validationStage != null && validationStage.getIfValidContext() != null)
-            ? validationStage.getIfValidContext()
-            : contextClass;
-
-    Class<?> validIfInvalidContext =
-        (validationStage != null && validationStage.getIfInvalidContext() != null)
-            ? validationStage.getIfInvalidContext()
-            : contextClass;
-
     // Map validations - test through monad if ValidatedMonad context, otherwise test directly
     if (validMapContext == ValidatedMonad.class) {
       @SuppressWarnings("unchecked")
