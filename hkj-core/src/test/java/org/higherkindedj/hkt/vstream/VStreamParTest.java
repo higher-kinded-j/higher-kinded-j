@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.vstream.VStreamAssert.assertThatVStream;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -1062,8 +1063,7 @@ class VStreamParTest {
     void closeSetsCancelledFlagAndClearsQueue() {
       // Create an infinite source so the merge never completes naturally
       VStream<Integer> infinite =
-          VStream.unfold(
-              0, n -> VTask.succeed(java.util.Optional.of(new VStream.Seed<>(n, n + 1))));
+          VStream.unfold(0, n -> VTask.succeed(Optional.of(new VStream.Seed<>(n, n + 1))));
       VStream<Integer> merged = VStreamPar.merge(infinite, VStream.of(1));
 
       // Take a few elements to ensure the merge is running
@@ -1087,7 +1087,7 @@ class VStreamParTest {
                   VTask.of(
                       () -> {
                         produced.incrementAndGet();
-                        return java.util.Optional.of(new VStream.Seed<>(n, n + 1));
+                        return Optional.of(new VStream.Seed<>(n, n + 1));
                       }));
 
       VStream<Integer> other =
@@ -1097,7 +1097,7 @@ class VStreamParTest {
                   VTask.of(
                       () -> {
                         Thread.sleep(1); // slow it down
-                        return java.util.Optional.of(new VStream.Seed<>(n, n + 1));
+                        return Optional.of(new VStream.Seed<>(n, n + 1));
                       }));
 
       // take() internally calls close() when it has enough elements
