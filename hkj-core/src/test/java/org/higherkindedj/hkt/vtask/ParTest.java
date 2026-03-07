@@ -3,8 +3,10 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 import static org.higherkindedj.hkt.vtask.VTaskAssert.assertThatVTask;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -574,7 +576,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() cancels remaining task on failure")
-    void zipCancelsRemainingTaskOnFailure() throws InterruptedException {
+    void zipCancelsRemainingTaskOnFailure() {
       AtomicBoolean taskBCompleted = new AtomicBoolean(false);
 
       VTask<Integer> taskA =
@@ -600,11 +602,12 @@ class ParTest {
         // Expected
       }
 
-      // Give some time for potential completion
-      Thread.sleep(150);
-
-      // Task B should have been cancelled and not completed
-      assertThat(taskBCompleted.get()).isFalse();
+      // Task B should have been cancelled and not completed — verify it stays false over time
+      await()
+          .pollInterval(Duration.ofMillis(10))
+          .atMost(Duration.ofMillis(200))
+          .during(Duration.ofMillis(150))
+          .untilAsserted(() -> assertThat(taskBCompleted.get()).isFalse());
     }
   }
 }

@@ -48,6 +48,7 @@ dependencies {
   testImplementation(libs.bundles.spring.actuator)
   testImplementation(libs.bundles.spring.security)
   testImplementation(libs.archunit.junit5)
+  testImplementation(libs.awaitility)
 }
 
 tasks.test {

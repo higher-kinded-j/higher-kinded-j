@@ -3,8 +3,10 @@
 package org.higherkindedj.spring.web.returnvalue;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.effect.CompletableFuturePath;
 import org.higherkindedj.hkt.effect.Path;
@@ -131,18 +133,20 @@ class CompletableFuturePathReturnValueHandlerTest {
       TestUser user = new TestUser("1", "alice@example.com");
       CompletableFuturePath<TestUser> path = Path.futureCompleted(user);
 
-      // We need to verify the response is written after completion
       handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      // Give async processing time to complete
-      Thread.sleep(100);
-
-      assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.OK.value());
-      assertThat(mockResponse.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-
-      String json = mockResponse.getContentAsString();
-      assertThat(json).contains("\"id\":\"1\"");
-      assertThat(json).contains("\"email\":\"alice@example.com\"");
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> {
+                assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.OK.value());
+                assertThat(mockResponse.getContentType())
+                    .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+                String json = mockResponse.getContentAsString();
+                assertThat(json).contains("\"id\":\"1\"");
+                assertThat(json).contains("\"email\":\"alice@example.com\"");
+              });
     }
 
     @Test
@@ -152,11 +156,14 @@ class CompletableFuturePathReturnValueHandlerTest {
 
       handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      // Give async processing time to complete
-      Thread.sleep(200);
-
-      assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.OK.value());
-      assertThat(mockResponse.getContentAsString()).isEqualTo("42");
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> {
+                assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.OK.value());
+                assertThat(mockResponse.getContentAsString()).isEqualTo("42");
+              });
     }
   }
 
@@ -172,16 +179,20 @@ class CompletableFuturePathReturnValueHandlerTest {
 
       handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      // Give async processing time to complete
-      Thread.sleep(100);
-
-      assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
-      assertThat(mockResponse.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-
-      String json = mockResponse.getContentAsString();
-      assertThat(json).contains("\"success\":false");
-      assertThat(json).contains("\"error\":\"An error occurred during async execution\"");
-      assertThat(json).doesNotContain("Async operation failed");
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> {
+                assertThat(mockResponse.getStatus())
+                    .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+                assertThat(mockResponse.getContentType())
+                    .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+                String json = mockResponse.getContentAsString();
+                assertThat(json).contains("\"success\":false");
+                assertThat(json).contains("\"error\":\"An error occurred during async execution\"");
+                assertThat(json).doesNotContain("Async operation failed");
+              });
     }
 
     @Test
@@ -194,13 +205,16 @@ class CompletableFuturePathReturnValueHandlerTest {
 
       detailedHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      // Give async processing time to complete
-      Thread.sleep(100);
-
-      String json = mockResponse.getContentAsString();
-      assertThat(json).contains("\"success\":false");
-      assertThat(json).contains("\"type\":\"IllegalArgumentException\"");
-      assertThat(json).contains("\"message\":\"Invalid async input\"");
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> {
+                String json = mockResponse.getContentAsString();
+                assertThat(json).contains("\"success\":false");
+                assertThat(json).contains("\"type\":\"IllegalArgumentException\"");
+                assertThat(json).contains("\"message\":\"Invalid async input\"");
+              });
     }
 
     @Test
@@ -214,10 +228,11 @@ class CompletableFuturePathReturnValueHandlerTest {
 
       customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      // Give async processing time to complete
-      Thread.sleep(100);
-
-      assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value()));
     }
   }
 
