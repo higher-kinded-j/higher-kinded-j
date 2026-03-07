@@ -133,7 +133,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
 
     for (A a : inputList) {
       Kind<ListKind.Witness, B> kindB = f.apply(a);
-      Validation.function().requireNonNullResult(kindB, "f", ListMonad.class, FLAT_MAP, Kind.class);
+      Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
       resultList.addAll(LIST.narrow(kindB));
     }
     return LIST.widen(resultList);
@@ -190,7 +190,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
     List<A> listA = LIST.narrow(la);
     Kind<ListKind.Witness, A> kindB = lb.get();
 
-    Validation.function().requireNonNullResult(kindB, "lb", ListMonad.class, OR_ELSE, List.class);
+    Validation.function().requireNonNullResult(kindB, "lb", OR_ELSE);
 
     List<A> listB = LIST.narrow(kindB);
 

@@ -22,8 +22,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness<S>> {
 
-  private static final Class<StateMonad> STATE_MONAD_CLASS = StateMonad.class;
-
   /**
    * Sequentially composes two {@code State} actions, passing the result of the first into a
    * function that produces the second {@code State} action (represented as a {@code Kind}), and
@@ -55,8 +53,7 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
         stateA.flatMap(
             a -> {
               Kind<StateKind.Witness<S>, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", STATE_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return STATE.narrow(kindB);
             });
 

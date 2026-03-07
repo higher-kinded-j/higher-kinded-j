@@ -147,9 +147,7 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
                     .map(
                         a -> {
                           Kind<MaybeTKind.Witness<F>, B> resultKind = f.apply(a);
-                          Validation.function()
-                              .requireNonNullResult(
-                                  resultKind, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP, Kind.class);
+                          Validation.function().requireNonNullResult(resultKind, "f", FLAT_MAP);
                           MaybeT<F, B> resultT = MAYBE_T.narrow(resultKind);
                           return resultT.value();
                         })
@@ -214,8 +212,7 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
               } else { // If Nothing
                 Kind<MaybeTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
                 Validation.function()
-                    .requireNonNullResult(
-                        resultKind, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+                    .requireNonNullResult(resultKind, "handler", HANDLE_ERROR_WITH);
                 MaybeT<F, A> resultT = MAYBE_T.narrow(resultKind);
                 return resultT.value(); // This is Kind<F, Maybe<A>>
               }

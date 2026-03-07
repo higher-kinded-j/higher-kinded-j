@@ -132,9 +132,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(
-                      kindResult, "f", VALIDATED_MONAD_CLASS, FLAT_MAP, Validated.class);
+              Validation.function().requireNonNullResult(kindResult, "f", FLAT_MAP);
               return VALIDATED.narrow(kindResult);
             });
     return VALIDATED.widen(result);
@@ -187,9 +185,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
     if (validated.isInvalid()) {
       E errorValue = validated.getError();
       Kind<ValidatedKind.Witness<E>, A> resultFromHandler = handler.apply(errorValue);
-      Validation.function()
-          .requireNonNullResult(
-              resultFromHandler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+      Validation.function().requireNonNullResult(resultFromHandler, "handler", HANDLE_ERROR_WITH);
       return resultFromHandler;
     } else {
       return ma;
@@ -222,8 +218,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // Both valid - apply the function
     C result = f.apply(va.get(), vb.get());
-    Validation.function()
-        .requireNonNullResult(result, "combining function", ValidatedMonad.class, MAP_2);
+    Validation.function().requireNonNullResult(result, "combining function", MAP_2);
     return VALIDATED.valid(result);
   }
 
@@ -257,7 +252,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // All valid - apply the function
     D result = f.apply(va.get(), vb.get(), vc.get());
-    Validation.function().requireNonNullResult(result, "f", ValidatedMonad.class, MAP_3);
+    Validation.function().requireNonNullResult(result, "f", MAP_3);
     return VALIDATED.valid(result);
   }
 
@@ -295,7 +290,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // All valid - apply the function
     R result = f.apply(va.get(), vb.get(), vc.get(), vd.get());
-    Validation.function().requireNonNullResult(result, "f", ValidatedMonad.class, MAP_4);
+    Validation.function().requireNonNullResult(result, "f", MAP_4);
     return VALIDATED.valid(result);
   }
 
@@ -337,7 +332,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // All valid - apply the function
     R result = f.apply(va.get(), vb.get(), vc.get(), vd.get(), ve.get());
-    Validation.function().requireNonNullResult(result, "f", ValidatedMonad.class, MAP_5);
+    Validation.function().requireNonNullResult(result, "f", MAP_5);
     return VALIDATED.valid(result);
   }
 

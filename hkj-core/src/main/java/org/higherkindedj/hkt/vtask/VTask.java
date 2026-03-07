@@ -294,7 +294,7 @@ public interface VTask<A> extends VTaskKind<A> {
     return () -> {
       A a = this.execute();
       VTask<B> next = f.apply(a);
-      Validation.function().requireNonNullResult(next, "f", VTask.class, FLAT_MAP, VTask.class);
+      Validation.function().requireNonNullResult(next, "f", FLAT_MAP);
       return next.execute();
     };
   }
@@ -405,9 +405,7 @@ public interface VTask<A> extends VTaskKind<A> {
         return this.execute();
       } catch (Throwable t) {
         VTask<A> recovery = recoveryFunction.apply(t);
-        Validation.function()
-            .requireNonNullResult(
-                recovery, "recoveryFunction", VTask.class, RECOVER_WITH, VTask.class);
+        Validation.function().requireNonNullResult(recovery, "recoveryFunction", RECOVER_WITH);
         return recovery.execute();
       }
     };

@@ -29,8 +29,6 @@ import org.jspecify.annotations.Nullable;
 public class LazyMonad
     implements Monad<LazyKind.Witness>, Applicative<LazyKind.Witness>, Functor<LazyKind.Witness> {
 
-  private static final Class<LazyMonad> LAZY_MONAD_CLASS = LazyMonad.class;
-
   /** Singleton instance of {@code LazyMonad}. */
   public static final LazyMonad INSTANCE = new LazyMonad();
 
@@ -142,8 +140,7 @@ public class LazyMonad
         lazyA.flatMap(
             a -> {
               Kind<LazyKind.Witness, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", LAZY_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return LAZY.narrow(kindB);
             });
     return LAZY.widen(lazyB);

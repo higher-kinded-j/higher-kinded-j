@@ -223,8 +223,7 @@ public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
             monadF.<StateTuple<S, A>, StateTuple<S, B>>flatMap(
                 tupleA -> {
                   Kind<StateTKind.Witness<S, F>, B> kindB = f.apply(tupleA.value());
-                  Validation.function()
-                      .requireNonNullResult(kindB, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
+                  Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
                   StateT<S, F, B> stateTb = StateTKind.narrow(kindB);
                   return stateTb.runStateT(tupleA.state());
                 },

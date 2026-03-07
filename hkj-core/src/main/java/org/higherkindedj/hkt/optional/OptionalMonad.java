@@ -58,8 +58,6 @@ import org.jspecify.annotations.Nullable;
 public class OptionalMonad extends OptionalFunctor
     implements MonadError<OptionalKind.Witness, Unit>, MonadZero<OptionalKind.Witness> {
 
-  private static final Class<OptionalMonad> OPTIONAL_MONAD_CLASS = OptionalMonad.class;
-
   /** Singleton instance of {@code OptionalMonad}. */
   public static final OptionalMonad INSTANCE = new OptionalMonad();
 
@@ -158,8 +156,7 @@ public class OptionalMonad extends OptionalFunctor
         optA.flatMap(
             a -> {
               Kind<OptionalKind.Witness, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", OPTIONAL_MONAD_CLASS, FLAT_MAP, Optional.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return OPTIONAL.narrow(kindB);
             });
     return OPTIONAL.widen(resultOpt);
@@ -234,9 +231,7 @@ public class OptionalMonad extends OptionalFunctor
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
       Kind<OptionalKind.Witness, A> recoveryKind = handler.apply(Unit.INSTANCE);
-      Validation.function()
-          .requireNonNullResult(
-              recoveryKind, "handler", OPTIONAL_MONAD_CLASS, HANDLE_ERROR_WITH, Optional.class);
+      Validation.function().requireNonNullResult(recoveryKind, "handler", HANDLE_ERROR_WITH);
       return recoveryKind;
     } else {
       return ma;
@@ -299,8 +294,7 @@ public class OptionalMonad extends OptionalFunctor
     }
 
     Kind<OptionalKind.Witness, A> result = ob.get();
-    Validation.function()
-        .requireNonNullResult(result, "ob", OPTIONAL_MONAD_CLASS, OR_ELSE, Optional.class);
+    Validation.function().requireNonNullResult(result, "ob", OR_ELSE);
 
     return result;
   }

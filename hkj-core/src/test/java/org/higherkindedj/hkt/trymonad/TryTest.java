@@ -457,8 +457,7 @@ class TryTest extends TryTestBase {
       assertThatThrownBy(() -> failureInstance.toEither(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              "Function failureToLeftMapper in Try.toEither returned null when Either expected,"
-                  + " which is not allowed");
+              "Function failureToLeftMapper in toEither returned null, which is not allowed");
     }
 
     @Test
@@ -595,9 +594,7 @@ class TryTest extends TryTestBase {
       Function<String, Try<Integer>> mapperNull = s -> null;
       assertThatThrownBy(() -> successInstance.flatMap(mapperNull))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function mapper in Try.flatMap returned null when Try expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function mapper in flatMap returned null, which is not allowed");
     }
   }
 
@@ -722,8 +719,7 @@ class TryTest extends TryTestBase {
       assertThatThrownBy(() -> failureInstance.recoverWith(nullReturningRecoveryFunc))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              "Function recoveryFunction in Try.recoverWith returned null when Try expected, which"
-                  + " is not allowed");
+              "Function recoveryFunction in recoverWith returned null, which is not allowed");
     }
 
     @Test

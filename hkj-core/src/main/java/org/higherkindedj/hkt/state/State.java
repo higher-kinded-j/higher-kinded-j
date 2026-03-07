@@ -106,8 +106,7 @@ public interface State<S, A> {
           S stateS1 = result1.state();
 
           State<S, ? extends B> nextState = f.apply(valueA);
-          Validation.function()
-              .requireNonNullResult(nextState, "f", STATE_CLASS, FLAT_MAP, STATE_CLASS);
+          Validation.function().requireNonNullResult(nextState, "f", FLAT_MAP);
 
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 

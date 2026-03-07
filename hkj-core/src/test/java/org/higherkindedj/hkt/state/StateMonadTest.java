@@ -221,7 +221,7 @@ class StateMonadTest extends StateTestBase<Integer> {
           monad.flatMap(nullReturningMapper, validKind);
 
       assertThatThrownBy(() -> runState(result, getInitialState()))
-          .hasMessageContaining("Function f in StateMonad.flatMap returned null");
+          .hasMessageContaining("Function f in flatMap returned null");
     }
   }
 

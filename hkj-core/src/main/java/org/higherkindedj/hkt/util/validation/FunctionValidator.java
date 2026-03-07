@@ -16,7 +16,6 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Handles function parameter validations in monad operations.
@@ -53,53 +52,22 @@ public enum FunctionValidator {
   }
 
   /**
-   * Validates that a function result is not null (for flatMap scenarios) with class-based context.
-   *
-   * @param result The result returned by a function
-   * @param contextClass The class providing context
-   * @param operation The operation that produced this result
-   * @param <T> The result type
-   * @return The validated result
-   * @throws KindUnwrapException if result is null
-   *     <p>Example usage:
-   *     <pre>
-   * Validation.functionValidator().requireNonNullResult(kindB, StateTMonad.class, "flatMap");
-   * // Error: "Function in StateTMonad.flatMap returned null, which is not allowed"
-   * </pre>
-   */
-  public <T> T requireNonNullResult(
-      T result, String functionName, Class<?> contextClass, Operation operation) {
-    return requireNonNullResult(result, functionName, contextClass, operation, null);
-  }
-
-  /**
    * Validates that a function result is not null (for flatMap scenarios).
    *
    * @param result The result returned by a function
    * @param operation The operation that produced this result
-   * @param targetType The expected type for error messaging
    * @param <T> The result type
    * @return The validated result
    * @throws KindUnwrapException if result is null
    */
-  public <T> T requireNonNullResult(
-      T result,
-      String functionName,
-      Class<?> contextClass,
-      Operation operation,
-      @Nullable Class<?> targetType) {
-    Objects.requireNonNull(contextClass, "contextClass cannot be null");
+  public <T> T requireNonNullResult(T result, String functionName, Operation operation) {
     Objects.requireNonNull(operation, "operation cannot be null");
     Objects.requireNonNull(functionName, "functionName cannot be null");
 
     if (isNull(result)) {
-      String fullOperation = contextClass.getSimpleName() + "." + operation;
       String msg =
-          (targetType == null)
-              ? "Function %s in %s returned null, which is not allowed"
-                  .formatted(functionName, fullOperation)
-              : "Function %s in %s returned null when %s expected, which is not allowed"
-                  .formatted(functionName, fullOperation, targetType.getSimpleName());
+          "Function %s in %s returned null, which is not allowed"
+              .formatted(functionName, operation);
 
       throw new KindUnwrapException(msg);
     }

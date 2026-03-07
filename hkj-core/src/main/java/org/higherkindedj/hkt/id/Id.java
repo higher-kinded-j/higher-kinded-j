@@ -22,8 +22,6 @@ import org.jspecify.annotations.Nullable;
  */
 public record Id<A>(@Nullable A value) implements IdKind<A> {
 
-  private static final Class<Id> ID_CLASS = Id.class;
-
   /**
    * Static factory method to create an {@link Id} instance. This is idiomatic in functional
    * libraries and provides a consistent way to lift values into the Id context.
@@ -63,7 +61,7 @@ public record Id<A>(@Nullable A value) implements IdKind<A> {
     Validation.function().require(fn, "fn", FLAT_MAP);
 
     Id<? extends B> result = fn.apply(value());
-    Validation.function().requireNonNullResult(result, "fn", ID_CLASS, FLAT_MAP, ID_CLASS);
+    Validation.function().requireNonNullResult(result, "fn", FLAT_MAP);
 
     // The cast is safe because fn returns Id<? extends B> which is covariant
     @SuppressWarnings("unchecked")

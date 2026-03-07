@@ -159,8 +159,7 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
               if (innerEither.isRight()) {
                 R_IN r_in = innerEither.getRight();
                 Kind<EitherTKind.Witness<F, L>, R_OUT> resultKindT = f.apply(r_in);
-                Validation.function()
-                    .requireNonNullResult(resultKindT, "f", EITHER_T_MONAD_CLASS, FLAT_MAP);
+                Validation.function().requireNonNullResult(resultKindT, "f", FLAT_MAP);
                 EitherT<F, L, R_OUT> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R_OUT>>
               } else {
@@ -228,8 +227,7 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
                 L leftVal = innerEither.getLeft();
                 Kind<EitherTKind.Witness<F, L>, R> resultKindT = handler.apply(leftVal);
                 Validation.function()
-                    .requireNonNullResult(
-                        resultKindT, "handler", EitherT.class, HANDLE_ERROR_WITH, Kind.class);
+                    .requireNonNullResult(resultKindT, "handler", HANDLE_ERROR_WITH);
                 EitherT<F, L, R> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R>>
               }

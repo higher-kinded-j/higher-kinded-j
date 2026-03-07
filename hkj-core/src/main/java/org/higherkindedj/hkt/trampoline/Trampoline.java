@@ -225,8 +225,7 @@ public sealed interface Trampoline<A> permits Trampoline.Done, Trampoline.More, 
     Function<A, Trampoline<B>> castedF =
         a -> {
           Trampoline<? extends B> result = f.apply(a);
-          Validation.function()
-              .requireNonNullResult(result, "f", TRAMPOLINE_CLASS, FLAT_MAP, TRAMPOLINE_CLASS);
+          Validation.function().requireNonNullResult(result, "f", FLAT_MAP);
           @SuppressWarnings("unchecked")
           Trampoline<B> casted = (Trampoline<B>) result;
           return casted;

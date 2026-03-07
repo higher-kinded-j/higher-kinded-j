@@ -441,9 +441,7 @@ class StateTest extends StateTestBase<Integer> {
 
       assertThatThrownBy(() -> state.run(getInitialState()))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in State.flatMap returned null when State expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
 
     @Test

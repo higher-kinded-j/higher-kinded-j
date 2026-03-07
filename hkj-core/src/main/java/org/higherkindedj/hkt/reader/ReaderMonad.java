@@ -35,8 +35,6 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
 
-  private static final Class<ReaderMonad> READER_MONAD_CLASS = ReaderMonad.class;
-
   private static final ReaderMonad<?> INSTANCE = new ReaderMonad<>();
 
   protected ReaderMonad() {
@@ -91,8 +89,7 @@ public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<Reader
         readerA.flatMap(
             a -> {
               Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", READER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return READER.narrow(kindB);
             });
 

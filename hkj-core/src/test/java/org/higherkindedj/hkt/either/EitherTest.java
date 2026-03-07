@@ -695,9 +695,7 @@ class EitherTest extends EitherTestBase {
     void flatMapValidatesNonNullResults() {
       assertThatThrownBy(() -> rightInstance.flatMap(i -> null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function mapper in Either.flatMap returned null when Either expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function mapper in flatMap returned null, which is not allowed");
     }
 
     @Test

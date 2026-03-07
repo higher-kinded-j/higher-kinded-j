@@ -76,8 +76,6 @@ import org.jspecify.annotations.Nullable;
 @FunctionalInterface
 public interface Reader<R, A> {
 
-  Class<Reader> READER_CLASS = Reader.class;
-
   /**
    * Executes the computation encapsulated by this {@code Reader} using the provided environment.
    * This is the method that "runs" the reader, supplying the necessary context or dependencies.
@@ -159,8 +157,7 @@ public interface Reader<R, A> {
     return (R r) -> {
       A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);
-      Validation.function()
-          .requireNonNullResult(readerB, "f", READER_CLASS, FLAT_MAP, READER_CLASS);
+      Validation.function().requireNonNullResult(readerB, "f", FLAT_MAP);
       return readerB.run(r);
     };
   }

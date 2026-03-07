@@ -57,7 +57,7 @@ record Just<T>(T value) implements Maybe<T>, MaybeKind<T> {
     Validation.function().require(mapper, "mapper", FLAT_MAP);
 
     Maybe<? extends U> result = mapper.apply(value);
-    Validation.function().requireNonNullResult(result, "mapper", Just.class, FLAT_MAP, Maybe.class);
+    Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
 
     // Cast needed because of <? extends U> - unavoidable Java type system limitation
     @SuppressWarnings("unchecked")

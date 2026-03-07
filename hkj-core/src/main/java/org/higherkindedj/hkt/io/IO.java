@@ -166,7 +166,7 @@ public interface IO<A> extends IOKind<A> {
         () -> {
           A a = this.unsafeRunSync();
           IO<B> nextIO = f.apply(a);
-          Validation.function().requireNonNullResult(nextIO, "f", IO.class, FLAT_MAP, IO.class);
+          Validation.function().requireNonNullResult(nextIO, "f", FLAT_MAP);
           return nextIO.unsafeRunSync();
         });
   }

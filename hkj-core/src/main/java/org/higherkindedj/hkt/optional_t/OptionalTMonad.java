@@ -163,9 +163,7 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
                 optA.map(
                         a -> {
                           Kind<OptionalTKind.Witness<F>, B> resultKind = f.apply(a);
-                          Validation.function()
-                              .requireNonNullResult(
-                                  resultKind, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+                          Validation.function().requireNonNullResult(resultKind, "f", FLAT_MAP);
                           OptionalT<F, B> resultT = OPTIONAL_T.narrow(resultKind);
                           return resultT.value();
                         })
@@ -228,12 +226,7 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
               } else {
                 Kind<OptionalTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
                 Validation.function()
-                    .requireNonNullResult(
-                        resultKind,
-                        "handler",
-                        OPTIONAL_T_MONAD_CLASS,
-                        HANDLE_ERROR_WITH,
-                        Kind.class);
+                    .requireNonNullResult(resultKind, "handler", HANDLE_ERROR_WITH);
                 OptionalT<F, A> resultT = OPTIONAL_T.narrow(resultKind);
                 return resultT.value();
               }

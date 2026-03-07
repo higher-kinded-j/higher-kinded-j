@@ -206,8 +206,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
     Validation.function().require(f, "f", FLAT_MAP);
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    Validation.function()
-        .requireNonNullResult(nextWriter, "f", WRITER_CLASS, FLAT_MAP, WRITER_CLASS);
+    Validation.function().requireNonNullResult(nextWriter, "f", FLAT_MAP);
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
     // The cast to B is safe due to the ? extends B in the function's return type.

@@ -36,8 +36,6 @@ public class IdMonad implements Monad<IdKind.Witness> {
 
   private static final IdMonad INSTANCE = new IdMonad();
 
-  public static Class<IdMonad> ID_MONAD_CLASS = IdMonad.class;
-
   /** Private constructor to enforce singleton pattern. */
   protected IdMonad() {}
 
@@ -161,8 +159,7 @@ public class IdMonad implements Monad<IdKind.Witness> {
 
     A valueInA = ID.narrow(ma).value();
     Kind<IdKind.Witness, B> resultKind = f.apply(valueInA);
-    Validation.function()
-        .requireNonNullResult(resultKind, "f", ID_MONAD_CLASS, FLAT_MAP, Kind.class);
+    Validation.function().requireNonNullResult(resultKind, "f", FLAT_MAP);
     return resultKind;
   }
 }

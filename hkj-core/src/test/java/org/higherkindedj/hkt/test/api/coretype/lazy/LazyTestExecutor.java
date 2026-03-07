@@ -199,8 +199,7 @@ final class LazyTestExecutor<A, B>
     Lazy<B> nullLazy = deferredInstance.flatMap(nullReturningMapper);
     assertThatThrownBy(() -> nullLazy.force())
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining(
-            "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
+        .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
   }
 
   private void testMemoisation() {

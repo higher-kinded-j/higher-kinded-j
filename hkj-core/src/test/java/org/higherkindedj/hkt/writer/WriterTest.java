@@ -367,9 +367,7 @@ class WriterTest extends WriterTestBase {
 
       assertThatThrownBy(() -> defaultWriter().flatMap(STRING_MONOID, nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in Writer.flatMap returned null when Writer expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
 
     @Test

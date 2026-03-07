@@ -32,8 +32,6 @@ public class EitherMonad<L> extends EitherFunctor<L>
 
   private static final EitherMonad<?> INSTANCE = new EitherMonad<>();
 
-  private static final Class<EitherMonad> EITHER_MONAD_CLASS = EitherMonad.class;
-
   protected EitherMonad() {
     super();
   }
@@ -83,8 +81,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
         eitherA.flatMap(
             a -> {
               Kind<EitherKind.Witness<L>, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return EITHER.narrow(kindB);
             });
     return EITHER.widen(resultEither);

@@ -211,9 +211,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       case Success<T>(var value) -> Either.right(value);
       case Failure<T>(var cause) -> {
         L leftValue = failureToLeftMapper.apply(cause);
-        Validation.function()
-            .requireNonNullResult(
-                leftValue, "failureToLeftMapper", TRY_CLASS, TO_EITHER, Either.class);
+        Validation.function().requireNonNullResult(leftValue, "failureToLeftMapper", TO_EITHER);
         yield Either.left(leftValue);
       }
     };
@@ -358,7 +356,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
         return new Failure<>(t);
       }
 
-      Validation.function().requireNonNullResult(result, "mapper", Try.class, FLAT_MAP, TRY_CLASS);
+      Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
       @SuppressWarnings("unchecked")
       Try<U> typedResult = (Try<U>) result;
       return typedResult;
@@ -454,8 +452,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       } catch (Throwable t) {
         return new Failure<>(t);
       }
-      Validation.function()
-          .requireNonNullResult(result, "recoveryFunction", Try.class, RECOVER_WITH, Try.class);
+      Validation.function().requireNonNullResult(result, "recoveryFunction", RECOVER_WITH);
       @SuppressWarnings("unchecked")
       Try<T> typedResult = (Try<T>) result;
       return typedResult;

@@ -309,8 +309,7 @@ class InvalidTest {
     void apValidatesFunctionIsNonNull() {
       assertThatThrownBy(() -> invalidInstance.ap(null, semigroup))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function fnValidated in Validated.ap returned null, which is not allowed");
+          .hasMessageContaining("Function fnValidated in ap returned null, which is not allowed");
     }
 
     @Test

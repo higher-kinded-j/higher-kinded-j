@@ -49,8 +49,6 @@ import org.jspecify.annotations.Nullable;
  */
 public sealed interface Either<L, R> permits Either.Left, Either.Right {
 
-  Class<Either> EITHER_CLASS = Either.class;
-
   /**
    * Checks if this {@code Either} instance is a {@link Left}.
    *
@@ -499,8 +497,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
       Validation.function().require(mapper, "mapper", FLAT_MAP);
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
-      Validation.function()
-          .requireNonNullResult(result, "mapper", EITHER_CLASS, FLAT_MAP, EITHER_CLASS);
+      Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
       // Cast is safe because ? extends R2 is compatible with R2
       return (Either<L, R2>) result;
     }

@@ -211,10 +211,7 @@ class TryMonadTest extends TryTestBase {
       assertThatTry(tryResult)
           .isFailure()
           .hasExceptionSatisfying(
-              ex ->
-                  assertThat(ex)
-                      .hasMessageContaining(
-                          "Function f in TryMonad.flatMap returned null when Kind expected"));
+              ex -> assertThat(ex).hasMessageContaining("Function f in flatMap returned null"));
     }
   }
 
@@ -324,9 +321,7 @@ class TryMonadTest extends TryTestBase {
           .hasExceptionSatisfying(
               ex ->
                   assertThat(ex)
-                      .hasMessageContaining(
-                          "Function handler in TryMonad.handleErrorWith returned null when Kind"
-                              + " expected"));
+                      .hasMessageContaining("Function handler in handleErrorWith returned null"));
     }
   }
 

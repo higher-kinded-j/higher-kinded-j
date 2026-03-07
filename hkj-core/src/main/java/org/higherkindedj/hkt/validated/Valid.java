@@ -96,7 +96,7 @@ public record Valid<E, A>(A value)
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
     Validation.function().require(fn, "fn", MAP);
     B newValue = fn.apply(value);
-    Validation.function().requireNonNullResult(newValue, "fn", VALID_CLASS, MAP);
+    Validation.function().requireNonNullResult(newValue, "fn", MAP);
     return new Valid<>(newValue);
   }
 
@@ -104,8 +104,7 @@ public record Valid<E, A>(A value)
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
     Validation.function().require(fn, "fn", FLAT_MAP);
     Validated<E, ? extends B> result = fn.apply(value);
-    Validation.function()
-        .requireNonNullResult(result, "fn", VALID_CLASS, FLAT_MAP, Validated.class);
+    Validation.function().requireNonNullResult(result, "fn", FLAT_MAP);
 
     @SuppressWarnings("unchecked")
     Validated<E, B> typedResult = (Validated<E, B>) result;

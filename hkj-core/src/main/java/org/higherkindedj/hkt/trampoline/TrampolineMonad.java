@@ -44,8 +44,6 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
   /** Singleton instance of {@code TrampolineMonad}. */
   public static final TrampolineMonad INSTANCE = new TrampolineMonad();
 
-  private static final Class<TrampolineMonad> TRAMPOLINE_MONAD_CLASS = TrampolineMonad.class;
-
   /** Private constructor to enforce the singleton pattern. */
   protected TrampolineMonad() {
     super();
@@ -98,9 +96,7 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
         trampolineA.flatMap(
             a -> {
               Kind<TrampolineKind.Witness, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(
-                      kindB, "f", TRAMPOLINE_MONAD_CLASS, FLAT_MAP, Trampoline.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return TRAMPOLINE.narrow(kindB);
             });
 

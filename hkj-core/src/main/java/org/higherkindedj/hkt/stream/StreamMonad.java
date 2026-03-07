@@ -213,8 +213,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
         inputStream.flatMap(
             a -> {
               Kind<StreamKind.Witness, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", StreamMonad.class, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return STREAM.narrow(kindB);
             });
 
@@ -284,9 +283,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
                 .flatMap(
                     ignored -> {
                       Kind<StreamKind.Witness, A> kindB = sb.get();
-                      Validation.function()
-                          .requireNonNullResult(
-                              kindB, "sb", StreamMonad.class, OR_ELSE, Stream.class);
+                      Validation.function().requireNonNullResult(kindB, "sb", OR_ELSE);
                       return STREAM.narrow(kindB);
                     }));
 

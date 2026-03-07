@@ -85,8 +85,7 @@ public class VTaskMonad extends VTaskApplicative
         vtaskA.flatMap(
             a -> {
               var kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", VTASK_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return VTASK.narrow(kindB);
             });
     return VTASK.widen(vtaskB);
@@ -135,9 +134,7 @@ public class VTaskMonad extends VTaskApplicative
         vtaskA.recoverWith(
             error -> {
               var kindB = handler.apply(error);
-              Validation.function()
-                  .requireNonNullResult(
-                      kindB, "handler", VTASK_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+              Validation.function().requireNonNullResult(kindB, "handler", HANDLE_ERROR_WITH);
               return VTASK.narrow(kindB);
             });
     return VTASK.widen(recovered);

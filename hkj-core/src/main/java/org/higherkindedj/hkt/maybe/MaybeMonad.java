@@ -25,8 +25,6 @@ public class MaybeMonad extends MaybeFunctor
   /** Singleton instance of {@code MaybeMonad}. */
   public static final MaybeMonad INSTANCE = new MaybeMonad();
 
-  private static final Class<MaybeMonad> MAYBE_MONAD_CLASS = MaybeMonad.class;
-
   /** Private constructor to enforce the singleton pattern. */
   protected MaybeMonad() {
     super();
@@ -69,8 +67,7 @@ public class MaybeMonad extends MaybeFunctor
         maybeA.flatMap(
             a -> {
               Kind<MaybeKind.Witness, B> kindB = f.apply(a);
-              Validation.function()
-                  .requireNonNullResult(kindB, "f", MAYBE_MONAD_CLASS, FLAT_MAP, Maybe.class);
+              Validation.function().requireNonNullResult(kindB, "f", FLAT_MAP);
               return MAYBE.narrow(kindB);
             });
 
@@ -140,9 +137,7 @@ public class MaybeMonad extends MaybeFunctor
 
     if (maybe.isNothing()) {
       Kind<MaybeKind.Witness, A> result = handler.apply(Unit.INSTANCE);
-      Validation.function()
-          .requireNonNullResult(
-              result, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, Maybe.class);
+      Validation.function().requireNonNullResult(result, "handler", HANDLE_ERROR_WITH);
       return result;
     }
 
@@ -215,8 +210,7 @@ public class MaybeMonad extends MaybeFunctor
     }
 
     Kind<MaybeKind.Witness, A> result = mb.get();
-    Validation.function()
-        .requireNonNullResult(result, "mb", MAYBE_MONAD_CLASS, OR_ELSE, Maybe.class);
+    Validation.function().requireNonNullResult(result, "mb", OR_ELSE);
 
     return result;
   }

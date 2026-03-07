@@ -189,8 +189,7 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
           Function<A, Kind<F, B>> functionForOuterFlatMap =
               a -> {
                 Kind<ReaderTKind.Witness<F, R_ENV>, B> resultReaderTKind = f.apply(a);
-                Validation.function()
-                    .requireNonNullResult(resultReaderTKind, "f", READER_T_MONAD_CLASS, FLAT_MAP);
+                Validation.function().requireNonNullResult(resultReaderTKind, "f", FLAT_MAP);
                 ReaderT<F, R_ENV, B> nextReaderT = READER_T.narrow(resultReaderTKind);
                 return nextReaderT.run().apply(r);
               };

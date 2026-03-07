@@ -271,7 +271,7 @@ class ValidTest extends ValidatedTestBase {
 
       assertThatThrownBy(() -> validInstance.map(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function fn in Valid.map returned null, which is not allowed");
+          .hasMessageContaining("Function fn in map returned null, which is not allowed");
     }
 
     @Test
@@ -307,9 +307,7 @@ class ValidTest extends ValidatedTestBase {
 
       assertThatThrownBy(() -> validInstance.flatMap(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function fn in Valid.flatMap returned null when Validated expected, which is not"
-                  + " allowed");
+          .hasMessageContaining("Function fn in flatMap returned null, which is not allowed");
     }
   }
 

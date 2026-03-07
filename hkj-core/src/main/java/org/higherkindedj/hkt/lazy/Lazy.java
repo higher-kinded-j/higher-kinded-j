@@ -133,8 +133,7 @@ public final class Lazy<A> {
     return Lazy.defer(
         () -> {
           Lazy<? extends B> nextLazy = f.apply(this.force());
-          Validation.function()
-              .requireNonNullResult(nextLazy, "f", LAZY_CLASS, FLAT_MAP, LAZY_CLASS);
+          Validation.function().requireNonNullResult(nextLazy, "f", FLAT_MAP);
           return nextLazy.force();
         });
   }

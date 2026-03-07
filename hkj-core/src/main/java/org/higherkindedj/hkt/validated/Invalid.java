@@ -113,7 +113,7 @@ public record Invalid<E, A>(E error)
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
-    Validation.function().requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
+    Validation.function().requireNonNullResult(fnValidated, "fnValidated", AP);
     Validation.coreType().requireValue(semigroup, "semigroup", Invalid.class, AP);
 
     return switch (fnValidated) {

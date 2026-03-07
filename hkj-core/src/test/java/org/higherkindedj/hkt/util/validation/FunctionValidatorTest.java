@@ -134,8 +134,7 @@ class FunctionValidatorTest {
     @DisplayName("should return non-null result")
     void shouldReturnNonNullResult() {
       var result = "test-result";
-      var validated =
-          Validation.function().requireNonNullResult(result, "f", TestClass.class, FLAT_MAP);
+      var validated = Validation.function().requireNonNullResult(result, "f", FLAT_MAP);
 
       assertThat(validated).isEqualTo(result);
     }
@@ -144,23 +143,16 @@ class FunctionValidatorTest {
     @DisplayName("should throw KindUnwrapException when result is null")
     void shouldThrowWhenResultIsNull() {
       Assertions.assertThatExceptionOfType(KindUnwrapException.class)
-          .isThrownBy(
-              () ->
-                  Validation.function().requireNonNullResult(null, "f", TestClass.class, FLAT_MAP))
-          .withMessage("Function f in TestClass.flatMap returned null, which is not allowed");
+          .isThrownBy(() -> Validation.function().requireNonNullResult(null, "f", FLAT_MAP))
+          .withMessage("Function f in flatMap returned null, which is not allowed");
     }
 
     @Test
     @DisplayName("should include target type in error message when provided")
     void shouldIncludeTargetTypeInErrorMessage() {
       Assertions.assertThatExceptionOfType(KindUnwrapException.class)
-          .isThrownBy(
-              () ->
-                  Validation.function()
-                      .requireNonNullResult(null, "f", TestClass.class, FLAT_MAP, String.class))
-          .withMessage(
-              "Function f in TestClass.flatMap returned null when String expected, which is not"
-                  + " allowed");
+          .isThrownBy(() -> Validation.function().requireNonNullResult(null, "f", FLAT_MAP))
+          .withMessage("Function f in flatMap returned null, which is not allowed");
     }
   }
 
