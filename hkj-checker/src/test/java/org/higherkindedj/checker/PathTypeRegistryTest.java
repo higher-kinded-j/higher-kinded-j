@@ -42,8 +42,7 @@ class PathTypeRegistryTest {
         Arguments.of("org.higherkindedj.hkt.effect.WithStatePath", "WithStatePath"),
         Arguments.of("org.higherkindedj.hkt.effect.WriterPath", "WriterPath"),
         Arguments.of("org.higherkindedj.hkt.effect.LazyPath", "LazyPath"),
-        Arguments.of(
-            "org.higherkindedj.hkt.effect.CompletableFuturePath", "CompletableFuturePath"),
+        Arguments.of("org.higherkindedj.hkt.effect.CompletableFuturePath", "CompletableFuturePath"),
         Arguments.of("org.higherkindedj.hkt.expression.ForPath", "ForPath"),
         Arguments.of("org.higherkindedj.optics.focus.FocusPath", "FocusPath"),
         Arguments.of("org.higherkindedj.optics.focus.AffinePath", "AffinePath"),
@@ -115,9 +114,7 @@ class PathTypeRegistryTest {
     @MethodSource("org.higherkindedj.checker.PathTypeRegistryTest#allPathTypes")
     @DisplayName("returns simple name for registered types")
     void getPathCategory_registered_returnsSimpleName(String qualifiedName, String simpleName) {
-      assertThat(PathTypeRegistry.getPathCategory(qualifiedName))
-          .isPresent()
-          .hasValue(simpleName);
+      assertThat(PathTypeRegistry.getPathCategory(qualifiedName)).isPresent().hasValue(simpleName);
     }
 
     @Test
@@ -145,8 +142,7 @@ class PathTypeRegistryTest {
     void areSamePathFamily_differentTypes_returnsFalse() {
       assertThat(
               PathTypeRegistry.areSamePathFamily(
-                  "org.higherkindedj.hkt.effect.MaybePath",
-                  "org.higherkindedj.hkt.effect.IOPath"))
+                  "org.higherkindedj.hkt.effect.MaybePath", "org.higherkindedj.hkt.effect.IOPath"))
           .isFalse();
     }
 
@@ -188,16 +184,14 @@ class PathTypeRegistryTest {
     @Test
     @DisplayName("suggests toEitherPath() when target is EitherPath")
     void suggestedConversion_toEitherPath_returnsSuggestion() {
-      Optional<String> conversion =
-          PathTypeRegistry.suggestedConversion("MaybePath", "EitherPath");
+      Optional<String> conversion = PathTypeRegistry.suggestedConversion("MaybePath", "EitherPath");
       assertThat(conversion).isPresent().hasValue("toEitherPath()");
     }
 
     @Test
     @DisplayName("suggests toMaybePath() when target is MaybePath")
     void suggestedConversion_toMaybePath_returnsSuggestion() {
-      Optional<String> conversion =
-          PathTypeRegistry.suggestedConversion("EitherPath", "MaybePath");
+      Optional<String> conversion = PathTypeRegistry.suggestedConversion("EitherPath", "MaybePath");
       assertThat(conversion).isPresent().hasValue("toMaybePath()");
     }
 

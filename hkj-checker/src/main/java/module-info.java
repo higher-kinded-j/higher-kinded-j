@@ -2,6 +2,6 @@
 module org.higherkindedj.checker {
   requires jdk.compiler;
 
-  provides com.sun.source.util.Plugin
-      with org.higherkindedj.checker.HKJCheckerPlugin;
+  provides com.sun.source.util.Plugin with
+      org.higherkindedj.checker.HKJCheckerPlugin;
 }

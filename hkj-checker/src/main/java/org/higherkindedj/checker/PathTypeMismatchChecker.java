@@ -101,10 +101,7 @@ public class PathTypeMismatchChecker extends TreeScanner<Void, Void> {
   }
 
   private void checkArgumentType(
-      MethodInvocationTree node,
-      ExpressionTree arg,
-      String methodName,
-      String receiverCategory) {
+      MethodInvocationTree node, ExpressionTree arg, String methodName, String receiverCategory) {
     Optional<String> argType = resolveExpressionPathType(arg);
     if (argType.isEmpty()) {
       return;

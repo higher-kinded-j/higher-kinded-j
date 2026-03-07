@@ -22,20 +22,15 @@ public final class DiagnosticMessages {
    * @param actualType the simple name of the actual Path type (e.g., "IOPath")
    * @return a formatted error message
    */
-  public static String pathTypeMismatch(
-      String methodName, String expectedType, String actualType) {
+  public static String pathTypeMismatch(String methodName, String expectedType, String actualType) {
     String base =
         "Path type mismatch in %s(): expected %s but received %s. "
-            .formatted(methodName, expectedType, actualType)
+                .formatted(methodName, expectedType, actualType)
             + "Each Path type can only chain with the same type.";
 
-    Optional<String> conversion =
-        PathTypeRegistry.suggestedConversion(actualType, expectedType);
+    Optional<String> conversion = PathTypeRegistry.suggestedConversion(actualType, expectedType);
     if (conversion.isPresent()) {
-      return base
-          + " Use conversion methods like "
-          + conversion.get()
-          + " to convert.";
+      return base + " Use conversion methods like " + conversion.get() + " to convert.";
     }
     return base + " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.";
   }

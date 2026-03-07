@@ -22,9 +22,7 @@ class PathTypeMismatchCheckerTest {
    * activate our checker.
    */
   private Compilation compileWithChecker(JavaFileObject... sources) {
-    return javac()
-        .withOptions("-Xplugin:HKJChecker")
-        .compile(sources);
+    return javac().withOptions("-Xplugin:HKJChecker").compile(sources);
   }
 
   @Nested

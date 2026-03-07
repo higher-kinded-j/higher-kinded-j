@@ -5,11 +5,11 @@ package org.higherkindedj.checker;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
-import net.jqwik.api.Arbitrary;
-import net.jqwik.api.Arbitraries;
 
 /**
  * Property-based tests for {@link PathTypeRegistry} and {@link DiagnosticMessages}.
@@ -28,8 +28,7 @@ class PathTypeRegistryPropertyTest {
 
   @Provide
   Arbitrary<String> methodNames() {
-    return Arbitraries.of("via", "flatMap", "then", "zipWith", "zipWith3", "recoverWith",
-        "orElse");
+    return Arbitraries.of("via", "flatMap", "then", "zipWith", "zipWith3", "recoverWith", "orElse");
   }
 
   @Property
@@ -51,9 +50,7 @@ class PathTypeRegistryPropertyTest {
     String qualified2 = findQualifiedName(name2);
     if (qualified1 != null && qualified2 != null) {
       assertThat(PathTypeRegistry.areSamePathFamily(qualified1, qualified2))
-          .as(
-              "areSamePathFamily should be symmetric for %s and %s",
-              name1, name2)
+          .as("areSamePathFamily should be symmetric for %s and %s", name1, name2)
           .isEqualTo(PathTypeRegistry.areSamePathFamily(qualified2, qualified1));
     }
   }
@@ -64,9 +61,7 @@ class PathTypeRegistryPropertyTest {
       @ForAll("pathSimpleNames") String expected,
       @ForAll("pathSimpleNames") String actual) {
     String message = DiagnosticMessages.pathTypeMismatch(method, expected, actual);
-    assertThat(message)
-        .as("Message should never be empty")
-        .isNotEmpty();
+    assertThat(message).as("Message should never be empty").isNotEmpty();
   }
 
   @Property
@@ -97,9 +92,7 @@ class PathTypeRegistryPropertyTest {
     }
   }
 
-  /**
-   * Finds the qualified name for a given simple name by searching the registry.
-   */
+  /** Finds the qualified name for a given simple name by searching the registry. */
   private String findQualifiedName(String simpleName) {
     // Build a reverse lookup
     String[] packages = {

@@ -55,8 +55,8 @@ class DiagnosticMessagesTest {
     @Test
     @DisplayName("works for all checked methods")
     void pathTypeMismatch_allMethods() {
-      for (String method : new String[] {"via", "then", "zipWith", "zipWith3", "recoverWith",
-          "orElse"}) {
+      for (String method :
+          new String[] {"via", "then", "zipWith", "zipWith3", "recoverWith", "orElse"}) {
         String message = DiagnosticMessages.pathTypeMismatch(method, "MaybePath", "IOPath");
         assertThat(message)
             .as("Message for method %s should be non-empty", method)
