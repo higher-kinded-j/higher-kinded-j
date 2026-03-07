@@ -233,11 +233,14 @@ class PathTypeMismatchCheckerTest {
               """
               package test;
 
+              import org.higherkindedj.hkt.Semigroup;
               import org.higherkindedj.hkt.effect.Path;
 
               public class MismatchRecoverWith {
+                  private static final Semigroup<String> CONCAT = (a, b) -> a + b;
+
                   public void mismatchedRecoverWith() {
-                      Path.just(1).recoverWith(_ -> Path.success(42));
+                      Path.right(1).recoverWith(_ -> Path.valid(42, CONCAT));
                   }
               }
               """);
@@ -245,6 +248,7 @@ class PathTypeMismatchCheckerTest {
       Compilation compilation = compileWithChecker(source);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("Path type mismatch in recoverWith()");
+      assertThat(compilation).hadErrorContaining("expected EitherPath but received ValidationPath");
     }
 
     @Test
@@ -256,11 +260,14 @@ class PathTypeMismatchCheckerTest {
               """
               package test;
 
+              import org.higherkindedj.hkt.Semigroup;
               import org.higherkindedj.hkt.effect.Path;
 
               public class MismatchOrElse {
+                  private static final Semigroup<String> CONCAT = (a, b) -> a + b;
+
                   public void mismatchedOrElse() {
-                      Path.just(1).orElse(() -> Path.success(2));
+                      Path.right(1).orElse(() -> Path.valid(2, CONCAT));
                   }
               }
               """);
@@ -268,6 +275,7 @@ class PathTypeMismatchCheckerTest {
       Compilation compilation = compileWithChecker(source);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("Path type mismatch in orElse()");
+      assertThat(compilation).hadErrorContaining("expected EitherPath but received ValidationPath");
     }
   }
 
