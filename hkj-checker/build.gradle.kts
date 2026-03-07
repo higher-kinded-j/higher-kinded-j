@@ -38,6 +38,7 @@ tasks.named<JavaCompile>("compileTestJava") {
 }
 
 tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
     jvmArgs(
         "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
         "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
