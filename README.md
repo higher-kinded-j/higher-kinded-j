@@ -258,31 +258,47 @@ The hkj-spring-boot-starter requires Spring Boot 4.0.1 or later with Jackson 3.x
 
 ## How to Use This Library
 
-Add the following dependencies to your `build.gradle.kts`:
+### Gradle -- With HKJ Plugin (Recommended)
 
 ```gradle
-dependencies {
-    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
-}
-
-// Required: enable Java preview features
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.add("--enable-preview")
-}
-
-tasks.withType<Test>().configureEach {
-    jvmArgs("--enable-preview")
-}
-
-tasks.withType<JavaExec>().configureEach {
-    jvmArgs("--enable-preview")
+// build.gradle.kts
+plugins {
+    id("io.github.higher-kinded-j.hkj") version "LATEST_VERSION"
 }
 ```
 
-The annotation processor generates Focus paths and Effect paths for your records, enabling seamless integration between effects and data navigation.
+This single line configures dependencies, preview features, annotation processors, and compile-time Path type checking automatically.
 
-See the **[Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html)** for full setup including Maven configuration.
+### Maven -- With HKJ Plugin (Recommended)
+
+```xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>io.github.higher-kinded-j</groupId>
+            <artifactId>hkj-maven-plugin</artifactId>
+            <version>LATEST_VERSION</version>
+            <extensions>true</extensions>
+        </plugin>
+    </plugins>
+</build>
+```
+
+The Maven plugin hooks into the build lifecycle to add `hkj-core`, annotation processors, compile-time checks, and `--enable-preview` flags automatically. Configure options in a `<configuration>` block:
+
+```xml
+<configuration>
+    <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
+    <spring>false</spring>               <!-- add hkj-spring-boot-starter (default: false) -->
+    <pathTypeMismatch>true</pathTypeMismatch>  <!-- enable compile-time checks (default: true) -->
+</configuration>
+```
+
+Run `mvn hkj:diagnostics` to inspect your current HKJ configuration.
+
+### Manual Setup
+
+See the **[Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html)** for manual Gradle and Maven configuration including preview flags and annotation processors.
 
 **For SNAPSHOTS:**
 
@@ -360,6 +376,10 @@ graph TD;
     root --> hkj_core["hkj-core"];
     root --> hkj_processor["hkj-processor"];
     hkj_processor --> hkj_processor_plugins["hkj-processor-plugins"];
+    root --> hkj_checker["hkj-checker"];
+    root --> plugins["plugins"];
+    plugins --> hkj_gradle_plugin["hkj-gradle-plugin"];
+    plugins --> hkj_maven_plugin["hkj-maven-plugin"];
     root --> hkj_spring["hkj-spring"];
     hkj_spring --> hkj_spring_autoconfigure["autoconfigure"];
     hkj_spring --> hkj_spring_starter["starter"];
@@ -375,6 +395,9 @@ graph TD;
 * **hkj-core**: Core implementation of HKT simulation, Effect Path API, and Optics
 * **hkj-processor**: Annotation processor for generating boilerplate
 * **hkj-processor-plugins**: Extensible plugins for code generation
+* **hkj-checker**: Javac compiler plugin for compile-time Path type mismatch detection
+* **hkj-gradle-plugin**: Gradle plugin for one-line project setup
+* **hkj-maven-plugin**: Maven plugin for automated build configuration
 * **hkj-spring**: Spring Boot integration (autoconfigure, starter, example)
 * **hkj-openrewrite**: OpenRewrite recipes for automated migrations
 * **hkj-benchmarks**: JMH benchmarks for performance testing

@@ -29,6 +29,11 @@ jackson = "3.0.0"
 # JOOQ - Database access library (for spec interface examples)
 jooq = "3.19.18"
 
+# Maven Plugin API (for hkj-maven-plugin)
+maven-plugin-api = "3.9.9"
+maven-core = "3.9.9"
+maven-plugin-annotations = "3.13.1"
+
 # Code quality
 google-java-format = "1.32.0"
 
@@ -99,6 +104,12 @@ jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations
 
 # Micrometer
 micrometer-core = { module = "io.micrometer:micrometer-core" }
+
+# Maven Plugin API
+maven-plugin-api = { module = "org.apache.maven:maven-plugin-api", version.ref = "maven-plugin-api" }
+maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven-core" }
+maven-plugin-annotations = { module = "org.apache.maven.plugin-tools:maven-plugin-annotations", version.ref = "maven-plugin-annotations" }
+javax-inject = { module = "javax.inject:javax.inject", version = "1" }
 
 # JOOQ
 jooq = { module = "org.jooq:jooq", version.ref = "jooq" }

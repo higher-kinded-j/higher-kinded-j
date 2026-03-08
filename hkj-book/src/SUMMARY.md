@@ -133,6 +133,11 @@
   - [Cookbook](optics/cookbook.md)
   - [Auditing Complex Data](optics/auditing_complex_data_example.md)
 
+- [Tooling](tooling/ch_intro.md)
+  - [Build Plugins](tooling/gradle_plugin.md)
+  - [Compile-Time Checks](tooling/compile_checks.md)
+  - [Diagnostics](tooling/diagnostics.md)
+
 - [Integration Guides](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)

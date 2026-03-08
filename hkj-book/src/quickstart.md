@@ -18,6 +18,21 @@ The library uses Java preview features including stable values and flexible cons
 
 ## Gradle Setup
 
+### With HKJ Gradle Plugin (Recommended)
+
+```gradle
+// build.gradle.kts
+plugins {
+    id("io.github.higher-kinded-j.hkj") version "LATEST_VERSION"
+}
+```
+
+This single line configures dependencies, preview features, annotation processors, and compile-time Path type checking automatically. See the [Gradle Plugin](tooling/gradle_plugin.md) documentation for the full DSL reference.
+
+### Manual Setup
+
+If you prefer to configure dependencies yourself:
+
 ```gradle
 // build.gradle.kts
 plugins { java }
@@ -63,6 +78,27 @@ repositories {
 ---
 
 ## Maven Setup
+
+### With HKJ Maven Plugin (Recommended)
+
+```xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>io.github.higher-kinded-j</groupId>
+            <artifactId>hkj-maven-plugin</artifactId>
+            <version>LATEST_VERSION</version>
+            <extensions>true</extensions>
+        </plugin>
+    </plugins>
+</build>
+```
+
+The plugin automatically adds `hkj-core`, annotation processors, compile-time checks, and `--enable-preview` flags. See the [Build Plugins](tooling/gradle_plugin.md) documentation for the full configuration reference.
+
+### Manual Setup
+
+If you prefer to configure dependencies yourself:
 
 ```xml
 <properties>
