@@ -253,6 +253,18 @@ Option 1 is preferred for new code. Option 2 is useful when integrating with exi
 
 ---
 
+## Compile-Time Path Type Mismatch Detection
+
+~~~admonish tip title="Automated Detection"
+The HKJ Gradle plugin includes a compile-time checker that catches
+Path type mismatches before runtime. Rather than debugging an
+`IllegalArgumentException` in production, the checker reports the
+error during compilation. See [Compile-Time Checks](../tooling/compile_checks.md)
+for setup and details.
+~~~
+
+---
+
 ## Quick Diagnostic Table
 
 | Symptom | Likely Cause | Fix |

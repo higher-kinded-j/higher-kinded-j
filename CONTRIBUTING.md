@@ -48,6 +48,23 @@ Unsure where to begin contributing? You can start by looking through `good first
     * Run tests: `./gradlew test`
     * Generate JaCoCo coverage reports: `./gradlew test jacocoTestReport` (HTML report at `build/reports/jacoco/test/html/index.html`)
 
+## Project Modules
+
+The project is organised into several modules:
+
+* **hkj-core** -- Core library with HKT simulation, Effect Path API, and Optics
+* **hkj-api** -- Public API interfaces
+* **hkj-annotations** -- Annotations for code generation
+* **hkj-processor / hkj-processor-plugins** -- Annotation processor and extensible plugins
+* **hkj-checker** -- Javac compiler plugin for compile-time Path type mismatch detection
+* **plugins/hkj-gradle-plugin** -- Gradle plugin for one-line project setup
+* **plugins/hkj-maven-plugin** -- Maven plugin for automated build configuration
+* **hkj-spring** -- Spring Boot integration (autoconfigure, starter, example)
+* **hkj-openrewrite** -- OpenRewrite recipes for automated migrations
+* **hkj-examples** -- Example projects
+* **hkj-benchmarks** -- JMH performance benchmarks
+* **hkj-book** -- Documentation (mdbook)
+
 ## Coding Style
 
 Please follow the [**Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html). Keep code simple, readable, and well-tested. Consistent formatting is encouraged.

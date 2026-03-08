@@ -32,19 +32,26 @@ rewrite {
 }
 
 
+// Modules that use java-platform instead of java-library
+val platformModules = setOf("hkj-bom")
+
 // Configure all submodules
 subprojects {
-    // Apply necessary plugins to each submodule
-    plugins.apply("java-library")
-    plugins.apply("com.diffplug.spotless")
-
     group = rootProject.group
     version = rootProject.version
 
-    // Set Java version for all submodules
-    java {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(25))
+    // Apply necessary plugins to each submodule (skip java-library for platform modules)
+    if (project.name !in platformModules) {
+        plugins.apply("java-library")
+    }
+    plugins.apply("com.diffplug.spotless")
+
+    // Set Java version for all submodules with Java sources
+    if (project.name !in platformModules) {
+        java {
+            toolchain {
+                languageVersion.set(JavaLanguageVersion.of(25))
+            }
         }
     }
 

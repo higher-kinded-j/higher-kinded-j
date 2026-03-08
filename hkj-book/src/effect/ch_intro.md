@@ -38,13 +38,19 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 
 - **[Migration Cookbook](migration_cookbook.md)** – Pattern-by-pattern translations from imperative Java to Effect Path. Six recipes covering try/catch, Optional chains, null checks, CompletableFuture, validation, and nested record updates.
 
-- **[Common Compiler Errors](compiler_errors.md)** – The five most common compiler errors when using the Effect Path API, with full error messages, minimal triggers, and fixes.
+- **[Common Compiler Errors](compiler_errors.md)** -- The five most common compiler errors when using the Effect Path API, with full error messages, minimal triggers, and fixes.
 
 - **[Advanced Effects](advanced_effects.md)** – Reader, State, and Writer paths for environment access, stateful computation, and logging accumulation.
 
 - **[Advanced Topics](advanced_topics.md)** – Stack-safe recursion, DSL building with Free structures, resource management, parallel execution, and resilience patterns.
 
 - **[Production Readiness](production_readiness.md)** – Stack traces, allocation overhead, and stack safety. The honest answers to the questions senior engineers ask before adopting a library.
+~~~
+
+~~~admonish note title="Compile-Time Safety"
+The HKJ Gradle plugin can detect Path type mismatches at compile time,
+catching errors that would otherwise surface as runtime exceptions.
+See [Compile-Time Checks](../tooling/compile_checks.md) for setup.
 ~~~
 
 ~~~admonish example title="See Example Code"

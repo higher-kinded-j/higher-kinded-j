@@ -1,0 +1,199 @@
+// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.gradle;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.gradle.api.Plugin;
+import org.gradle.api.Project;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.compile.JavaCompile;
+import org.gradle.api.tasks.javadoc.Javadoc;
+import org.gradle.api.tasks.testing.Test;
+import org.gradle.external.javadoc.StandardJavadocDocletOptions;
+
+/**
+ * Gradle plugin for Higher-Kinded-J projects.
+ *
+ * <p>This plugin configures HKJ dependencies, Java preview features, and compile-time Path type
+ * mismatch checking. Apply it with:
+ *
+ * <pre>{@code
+ * plugins {
+ *     id("io.github.higher-kinded-j.hkj")
+ * }
+ * }</pre>
+ *
+ * <p>Configuration is available through the {@code hkj} extension block. See {@link HKJExtension}
+ * for available options.
+ */
+public class HKJPlugin implements Plugin<Project> {
+
+  private static final String GROUP_ID = "io.github.higher-kinded-j";
+  private static final String EXTENSION_NAME = "hkj";
+
+  @Override
+  public void apply(Project project) {
+    project.getPluginManager().apply("java");
+
+    HKJExtension extension = project.getExtensions().create(EXTENSION_NAME, HKJExtension.class);
+
+    // Set defaults
+    extension.getVersion().convention(project.provider(() -> project.getVersion().toString()));
+    extension.getPreview().convention(true);
+    extension.getSpring().convention(false);
+    extension.getChecks().getPathTypeMismatch().convention(true);
+
+    project.afterEvaluate(p -> configure(p, extension));
+
+    registerDiagnosticsTask(project, extension);
+  }
+
+  private void configure(Project project, HKJExtension extension) {
+    String version = extension.getVersion().get();
+    DependencyHandler deps = project.getDependencies();
+
+    // Always add hkj-core and hkj-processor-plugins
+    deps.add("implementation", GROUP_ID + ":hkj-core:" + version);
+    deps.add("annotationProcessor", GROUP_ID + ":hkj-processor-plugins:" + version);
+
+    // Preview features
+    if (Boolean.TRUE.equals(extension.getPreview().get())) {
+      configurePreviewFeatures(project);
+    }
+
+    // Compile-time checks
+    if (Boolean.TRUE.equals(extension.getChecks().getPathTypeMismatch().get())) {
+      deps.add("annotationProcessor", GROUP_ID + ":hkj-checker:" + version);
+      project
+          .getTasks()
+          .withType(JavaCompile.class)
+          .configureEach(
+              task -> {
+                if (!task.getOptions().getCompilerArgs().contains("-Xplugin:HKJChecker")) {
+                  task.getOptions().getCompilerArgs().add("-Xplugin:HKJChecker");
+                }
+              });
+    }
+
+    // Spring integration
+    if (Boolean.TRUE.equals(extension.getSpring().get())) {
+      deps.add("implementation", GROUP_ID + ":hkj-spring-boot-starter:" + version);
+    }
+  }
+
+  private void configurePreviewFeatures(Project project) {
+    project
+        .getTasks()
+        .withType(JavaCompile.class)
+        .configureEach(
+            task -> {
+              if (!task.getOptions().getCompilerArgs().contains("--enable-preview")) {
+                task.getOptions().getCompilerArgs().add("--enable-preview");
+              }
+            });
+
+    project
+        .getTasks()
+        .withType(Test.class)
+        .configureEach(
+            task -> {
+              if (task.getJvmArgs() == null || !task.getJvmArgs().contains("--enable-preview")) {
+                task.jvmArgs("--enable-preview");
+              }
+            });
+
+    project
+        .getTasks()
+        .withType(JavaExec.class)
+        .configureEach(
+            task -> {
+              if (task.getJvmArgs() == null || !task.getJvmArgs().contains("--enable-preview")) {
+                task.jvmArgs("--enable-preview");
+              }
+            });
+
+    project
+        .getTasks()
+        .withType(Javadoc.class)
+        .configureEach(
+            task -> {
+              StandardJavadocDocletOptions options =
+                  (StandardJavadocDocletOptions) task.getOptions();
+              options.addBooleanOption("-enable-preview", true);
+            });
+  }
+
+  private void registerDiagnosticsTask(Project project, HKJExtension extension) {
+    project
+        .getTasks()
+        .register(
+            "hkjDiagnostics",
+            task -> {
+              task.setGroup("help");
+              task.setDescription("Prints the current HKJ plugin configuration");
+              task.doLast(
+                  t -> {
+                    String version = extension.getVersion().get();
+                    boolean preview = Boolean.TRUE.equals(extension.getPreview().get());
+                    boolean spring = Boolean.TRUE.equals(extension.getSpring().get());
+                    boolean checks =
+                        Boolean.TRUE.equals(extension.getChecks().getPathTypeMismatch().get());
+
+                    List<String> depsAdded = new ArrayList<>();
+                    depsAdded.add("implementation:          " + GROUP_ID + ":hkj-core:" + version);
+                    depsAdded.add(
+                        "annotationProcessor:     "
+                            + GROUP_ID
+                            + ":hkj-processor-plugins:"
+                            + version);
+                    if (checks) {
+                      depsAdded.add(
+                          "annotationProcessor:     " + GROUP_ID + ":hkj-checker:" + version);
+                    }
+                    if (spring) {
+                      depsAdded.add(
+                          "implementation:          "
+                              + GROUP_ID
+                              + ":hkj-spring-boot-starter:"
+                              + version);
+                    }
+
+                    List<String> compilerArgs = new ArrayList<>();
+                    if (preview) {
+                      compilerArgs.add("--enable-preview");
+                    }
+                    if (checks) {
+                      compilerArgs.add("-Xplugin:HKJChecker");
+                    }
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("HKJ Configuration:\n");
+                    sb.append("  Version:            ").append(version).append("\n");
+                    sb.append("  Preview features:   ")
+                        .append(preview ? "enabled" : "disabled")
+                        .append("\n");
+                    sb.append("  Spring integration: ")
+                        .append(spring ? "enabled" : "disabled")
+                        .append("\n");
+                    sb.append("  Compile-time checks:\n");
+                    sb.append("    Path type mismatch: ")
+                        .append(checks ? "enabled" : "disabled")
+                        .append("\n");
+                    sb.append("  Dependencies added:\n");
+                    for (String dep : depsAdded) {
+                      sb.append("    ").append(dep).append("\n");
+                    }
+                    if (!compilerArgs.isEmpty()) {
+                      sb.append("  Compiler args added:\n");
+                      for (String arg : compilerArgs) {
+                        sb.append("    ").append(arg).append("\n");
+                      }
+                    }
+
+                    project.getLogger().lifecycle(sb.toString().stripTrailing());
+                  });
+            });
+  }
+}
