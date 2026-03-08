@@ -80,3 +80,13 @@ jobs:
           echo "Publishing version ${{ steps.versioner.outputs.version }} to Central Portal"
           ./gradlew publishToMavenCentral -PprojectVersion=${{ steps.versioner.outputs.version }}
         shell: bash
+
+      - name: Publish Gradle Plugin to Plugin Portal
+        if: steps.versioner.outputs.is_snapshot == 'false'
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: |
+          echo "Publishing plugin version ${{ steps.versioner.outputs.version }} to Gradle Plugin Portal"
+          ./gradlew :hkj-gradle-plugin:publishPlugins -PprojectVersion=${{ steps.versioner.outputs.version }}
+        shell: bash

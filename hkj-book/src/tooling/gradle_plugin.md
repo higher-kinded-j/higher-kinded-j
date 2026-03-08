@@ -55,6 +55,39 @@ plugins {
 
 That is it. The plugin handles dependencies, preview flags, compile-time checks, and Javadoc configuration automatically.
 
+### Using SNAPSHOT Versions
+
+SNAPSHOT versions of the plugin are published to the Sonatype snapshots repository. Add it to `pluginManagement` in your `settings.gradle.kts`:
+
+```gradle
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        maven {
+            url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+```
+
+You also need the same repository in your project's `repositories` block so the plugin can resolve HKJ library dependencies:
+
+```gradle
+// build.gradle.kts
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+    }
+}
+```
+
+~~~admonish note
+Release versions are published to both Maven Central and the [Gradle Plugin Portal](https://plugins.gradle.org), so no extra repository configuration is needed for releases.
+~~~
+
 ---
 
 ## Extension DSL Reference
@@ -63,7 +96,7 @@ The plugin creates an `hkj` extension block with these options:
 
 ```gradle
 hkj {
-    version = "0.3.7-SNAPSHOT"       // HKJ library version (default: project version)
+    version = "0.3.7-SNAPSHOT"       // HKJ library version (default: plugin version)
     preview = true           // add --enable-preview flags (default: true)
     spring = false           // add hkj-spring-boot-starter (default: false)
     checks {
@@ -76,7 +109,7 @@ hkj {
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `version` | Project version | Version of HKJ libraries to use |
+| `version` | Plugin version | Version of HKJ libraries to use |
 | `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks |
 | `spring` | `false` | Adds `hkj-spring-boot-starter` to implementation dependencies |
 | `checks.pathTypeMismatch` | `true` | Enables compile-time Path type mismatch detection |
@@ -111,7 +144,7 @@ This adds `hkj-spring-boot-starter` to the `implementation` configuration, which
 
 ## Version Management
 
-By default, the plugin uses your project's version for HKJ dependencies. Override this to pin a specific version:
+By default, the plugin uses its own published version for HKJ dependencies. Override this to pin a different version:
 
 ```gradle
 hkj {
@@ -190,7 +223,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
 
 ```xml
 <configuration>
-    <version>0.3.7-SNAPSHOT</version>   <!-- HKJ library version (default: project version) -->
+    <version>0.3.7-SNAPSHOT</version>   <!-- HKJ library version (default: plugin version) -->
     <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
     <spring>false</spring>               <!-- add hkj-spring-boot-starter (default: false) -->
     <pathTypeMismatch>true</pathTypeMismatch>  <!-- enable compile-time checks (default: true) -->

@@ -127,6 +127,23 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("enables forked compilation with --add-exports for checker")
+    void plugin_addsForkOptionsForChecker_whenChecksEnabled() {
+      applyPlugin();
+      evaluateProject();
+
+      project
+          .getTasks()
+          .withType(JavaCompile.class)
+          .configureEach(
+              task -> {
+                assertThat(task.getOptions().isFork()).isTrue();
+                assertThat(task.getOptions().getForkOptions().getJvmArgs())
+                    .contains("--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED");
+              });
+    }
+
+    @Test
     @DisplayName("registers hkjDiagnostics task in help group")
     void plugin_registersHKJDiagnosticsTask() {
       applyPlugin();

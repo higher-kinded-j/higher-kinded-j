@@ -1,15 +1,19 @@
 plugins {
     `java-gradle-plugin`
     id("com.vanniktech.maven.publish")
+    alias(libs.plugins.plugin.publish)
 }
 
 gradlePlugin {
+    website.set("https://github.com/higher-kinded-j/higher-kinded-j")
+    vcsUrl.set("https://github.com/higher-kinded-j/higher-kinded-j")
     plugins {
         create("hkj") {
             id = "io.github.higher-kinded-j.hkj"
             implementationClass = "org.higherkindedj.gradle.HKJPlugin"
             displayName = "Higher-Kinded-J Plugin"
             description = "Configures HKJ dependencies, preview features, and compile-time checks"
+            tags.set(listOf("higher-kinded-types", "functional-programming", "java"))
         }
     }
 }
@@ -24,6 +28,23 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+// Generate version.properties so the plugin knows its own version at runtime
+val generateVersionProperties = tasks.register("generateVersionProperties") {
+    val outputDir = layout.buildDirectory.dir("generated/resources/hkj")
+    val versionValue = project.version.toString()
+    inputs.property("version", versionValue)
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        dir.resolve("hkj-version.properties").writeText("version=$versionValue\n")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(generateVersionProperties)
 }
 
 // Central configuration for publishing

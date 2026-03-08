@@ -269,6 +269,27 @@ plugins {
 
 This single line configures dependencies, preview features, annotation processors, and compile-time Path type checking automatically.
 
+For **SNAPSHOT** versions, add the Sonatype snapshots repository to both `pluginManagement` (in `settings.gradle.kts`) and `repositories` (in `build.gradle.kts`):
+
+```gradle
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+```
+
+```gradle
+// build.gradle.kts
+repositories {
+    mavenCentral()
+    maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
+}
+```
+
 ### Maven -- With HKJ Plugin (Recommended)
 
 ```xml
@@ -306,7 +327,7 @@ See the **[Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     }
 }
 ```

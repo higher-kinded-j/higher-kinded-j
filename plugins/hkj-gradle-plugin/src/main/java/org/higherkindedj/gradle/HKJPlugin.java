@@ -2,8 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.gradle;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
@@ -30,6 +33,9 @@ import org.gradle.external.javadoc.StandardJavadocDocletOptions;
  */
 public class HKJPlugin implements Plugin<Project> {
 
+  /** Creates a new HKJ plugin instance. */
+  public HKJPlugin() {}
+
   private static final String GROUP_ID = "io.github.higher-kinded-j";
   private static final String EXTENSION_NAME = "hkj";
 
@@ -39,8 +45,8 @@ public class HKJPlugin implements Plugin<Project> {
 
     HKJExtension extension = project.getExtensions().create(EXTENSION_NAME, HKJExtension.class);
 
-    // Set defaults
-    extension.getVersion().convention(project.provider(() -> project.getVersion().toString()));
+    // Set defaults - use the plugin's own published version, not the consuming project's version
+    extension.getVersion().convention(readPluginVersion());
     extension.getPreview().convention(true);
     extension.getSpring().convention(false);
     extension.getChecks().getPathTypeMismatch().convention(true);
@@ -71,9 +77,25 @@ public class HKJPlugin implements Plugin<Project> {
           .withType(JavaCompile.class)
           .configureEach(
               task -> {
-                if (!task.getOptions().getCompilerArgs().contains("-Xplugin:HKJChecker")) {
-                  task.getOptions().getCompilerArgs().add("-Xplugin:HKJChecker");
+                List<String> args = task.getOptions().getCompilerArgs();
+                if (!args.contains("-Xplugin:HKJChecker")) {
+                  args.add("-Xplugin:HKJChecker");
                 }
+                // The checker accesses jdk.compiler internals at compile time
+                task.getOptions().setFork(true);
+                task.getOptions()
+                    .getForkOptions()
+                    .getJvmArgs()
+                    .addAll(
+                        List.of(
+                            "--add-exports",
+                            "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                            "--add-exports",
+                            "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                            "--add-exports",
+                            "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                            "--add-exports",
+                            "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"));
               });
     }
 
@@ -123,6 +145,24 @@ public class HKJPlugin implements Plugin<Project> {
                   (StandardJavadocDocletOptions) task.getOptions();
               options.addBooleanOption("-enable-preview", true);
             });
+  }
+
+  private static String readPluginVersion() {
+    Properties props = new Properties();
+    try (InputStream in = HKJPlugin.class.getResourceAsStream("/hkj-version.properties")) {
+      if (in != null) {
+        props.load(in);
+        String version = props.getProperty("version");
+        if (version != null && !version.trim().isEmpty()) {
+          return version.trim();
+        }
+      }
+    } catch (IOException e) {
+      // fall through
+    }
+    throw new IllegalStateException(
+        "Could not determine HKJ plugin version. "
+            + "Please set hkj.version explicitly in your build script.");
   }
 
   private void registerDiagnosticsTask(Project project, HKJExtension extension) {
