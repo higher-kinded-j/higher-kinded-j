@@ -7,6 +7,13 @@ import org.gradle.api.provider.Property;
 /** Configuration for HKJ compile-time checks. */
 public abstract class HKJChecksExtension {
 
-  /** Enable Path type mismatch detection. Defaults to true. */
+  /** Creates a new checks extension instance. */
+  public HKJChecksExtension() {}
+
+  /**
+   * Enable Path type mismatch detection. Defaults to true.
+   *
+   * @return the path type mismatch check property
+   */
   public abstract Property<Boolean> getPathTypeMismatch();
 }

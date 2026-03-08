@@ -25,26 +25,51 @@ public abstract class HKJExtension {
 
   private final HKJChecksExtension checks;
 
+  /**
+   * Creates the extension.
+   *
+   * @param objects the Gradle object factory for creating nested extensions
+   */
   @Inject
   public HKJExtension(ObjectFactory objects) {
     this.checks = objects.newInstance(HKJChecksExtension.class);
   }
 
-  /** HKJ library version. Defaults to the plugin version. */
+  /**
+   * HKJ library version. Defaults to the plugin version.
+   *
+   * @return the version property
+   */
   public abstract Property<String> getVersion();
 
-  /** Whether to add --enable-preview flags. Defaults to true. */
+  /**
+   * Whether to add --enable-preview flags. Defaults to true.
+   *
+   * @return the preview property
+   */
   public abstract Property<Boolean> getPreview();
 
-  /** Whether to add hkj-spring-boot-starter. Defaults to false. */
+  /**
+   * Whether to add hkj-spring-boot-starter. Defaults to false.
+   *
+   * @return the spring integration property
+   */
   public abstract Property<Boolean> getSpring();
 
-  /** Compile-time check configuration. */
+  /**
+   * Compile-time check configuration.
+   *
+   * @return the checks extension
+   */
   public HKJChecksExtension getChecks() {
     return checks;
   }
 
-  /** Configures compile-time checks. */
+  /**
+   * Configures compile-time checks.
+   *
+   * @param action the configuration action
+   */
   public void checks(Action<? super HKJChecksExtension> action) {
     action.execute(checks);
   }

@@ -29,6 +29,33 @@ plugins {
 
 This single line configures dependencies, preview features, annotation processors, and compile-time Path type checking automatically. See the [Gradle Plugin](tooling/gradle_plugin.md) documentation for the full DSL reference.
 
+For **SNAPSHOT** versions of the plugin, add the Sonatype snapshots repository to your `settings.gradle.kts`:
+
+```gradle
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        maven {
+            url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+```
+
+You also need the snapshots repository in your project's `repositories` block so the plugin can resolve HKJ library dependencies:
+
+```gradle
+// build.gradle.kts
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+    }
+}
+```
+
 ### Manual Setup
 
 If you prefer to configure dependencies yourself:
@@ -70,7 +97,7 @@ For SNAPSHOTS, add the Sonatype snapshots repository:
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     }
 }
 ```
