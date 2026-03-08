@@ -39,6 +39,16 @@ tasks.named<JavaCompile>("compileTestJava") {
     )
 }
 
+tasks.withType<Javadoc>().configureEach {
+    options {
+        this as org.gradle.external.javadoc.StandardJavadocDocletOptions
+        addBooleanOption("-add-exports=jdk.compiler/com.sun.tools.javac.api=org.higherkindedj.checker", true)
+        addBooleanOption("-add-exports=jdk.compiler/com.sun.tools.javac.code=org.higherkindedj.checker", true)
+        addBooleanOption("-add-exports=jdk.compiler/com.sun.tools.javac.tree=org.higherkindedj.checker", true)
+        addBooleanOption("-add-exports=jdk.compiler/com.sun.tools.javac.util=org.higherkindedj.checker", true)
+    }
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     jvmArgs(
