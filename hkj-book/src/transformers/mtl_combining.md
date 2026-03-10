@@ -61,16 +61,16 @@ Each MTL interface has a standard implementation that bridges to its correspondi
     │  ──────────────────────     ─────────────────────────────    │
     │                                                              │
     │  MonadReader<F', R>     ←   ReaderTMonadReader<F, R>         │
-    │                              where F' = ReaderTKind.Witness   │
+    │                              where F' = ReaderTKind.Witness  │
     │                              extends ReaderTMonad<F, R>      │
     │                                                              │
     │  MonadState<F', S>      ←   StateTMonadState<S, F>           │
-    │                              where F' = StateTKind.Witness    │
+    │                              where F' = StateTKind.Witness   │
     │                              extends StateTMonad<S, F>       │
     │                                                              │
     │  MonadWriter<F', W>     ←   WriterTMonad<F, W>               │
-    │                              where F' = WriterTKind.Witness   │
-    │                              implements MonadWriter directly  │
+    │                              where F' = WriterTKind.Witness  │
+    │                              implements MonadWriter directly │
     └──────────────────────────────────────────────────────────────┘
 ```
 
