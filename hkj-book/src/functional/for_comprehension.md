@@ -221,6 +221,57 @@ In this example, Using the `For` comprehension really helps hide the complexity 
 
 For a more extensive example of using the full power of the For comprehension head over to the [Order Workflow](../hkts/order-walkthrough.md)
 
+## MTL Integration
+
+The `For` builder composes naturally with [MTL capability interfaces](../transformers/mtl_capabilities.md). Because `MonadReader`, `MonadState`, and `MonadWriter` all extend `Monad<F>`, you can pass any MTL instance directly to `For.from()` and use capability operations as generators.
+
+### Reading Configuration with MonadReader
+
+```java
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
+    buildConnectionString(MonadReader<F, AppConfig> env) {
+  return For.from(env, env.ask())
+      .yield(config -> config.dbUrl() + "?retries=" + config.maxRetries());
+}
+```
+
+The function declares a capability (`MonadReader`) rather than a concrete type. It works with `ReaderT<CompletableFuture, ...>` in production and `ReaderT<Id, ...>` in tests without any change.
+
+### Threading State with MonadState
+
+```java
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer>
+    addTwoValues(MonadState<F, Counter> state) {
+  return For.from(state, state.modify(c -> new Counter(c.count() + 1, c.total() + 10)))
+      .from(_ -> state.modify(c -> new Counter(c.count() + 1, c.total() + 20)))
+      .from(_ -> state.gets(Counter::total))
+      .yield((_, _, total) -> total);
+}
+```
+
+Each `from()` step sees the state left by the previous step. The `For` comprehension handles the threading automatically.
+
+### Accumulating Output with MonadWriter
+
+```java
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
+    auditedProcess(MonadWriter<F, List<String>> audit, String item) {
+  return For.from(audit, audit.tell(List.of("Processing " + item)))
+      .from(_ -> audit.tell(List.of("Completed " + item)))
+      .yield((_, _) -> "processed-" + item);
+}
+```
+
+Each `tell()` appends to the accumulated output. The entries combine via the `Monoid` for the output type.
+
+~~~admonish tip title="See Also"
+- [MTL Capabilities](../transformers/mtl_capabilities.md) for the full overview
+- [MonadReader](../transformers/mtl_reader.md), [MonadState](../transformers/mtl_state.md), [MonadWriter](../transformers/mtl_writer.md) for detailed API guides
+- [Combining Capabilities](../transformers/mtl_combining.md) for multi-capability patterns
+~~~
+
+---
+
 ## Similarities to Scala
 
 If you're familiar with Scala, you'll recognise the pattern. In Scala, a for-comprehension looks like this:

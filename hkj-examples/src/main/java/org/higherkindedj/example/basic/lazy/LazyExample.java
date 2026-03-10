@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.lazy.LazyKind;
 import org.higherkindedj.hkt.lazy.LazyMonad;
@@ -129,16 +130,11 @@ public class LazyExample {
       /* ... */
     }
 
-    // --- Chaining ---
+    // --- Chaining (using For comprehension) ---
     Kind<LazyKind.Witness, String> chainedLazy =
-        lazyMonad.flatMap(
-            value1 ->
-                lazyMonad.map(
-                    value2 -> "Combined: " + value1 + " & " + value2, // Combine results
-                    LAZY.defer(() -> value1 * 2) // Second lazy step, depends on result of first
-                    ),
-            LAZY.defer(() -> 5) // First lazy step
-            );
+        For.from(lazyMonad, LAZY.defer(() -> 5))
+            .from(value1 -> LAZY.defer(() -> value1 * 2))
+            .yield((value1, value2) -> "Combined: " + value1 + " & " + value2);
 
     try {
       System.out.println("Chained Result: " + LAZY.force(chainedLazy)); // Output: Combined: 5 & 10

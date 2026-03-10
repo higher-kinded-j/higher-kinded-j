@@ -11,6 +11,9 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadReader;
+import org.higherkindedj.hkt.MonadState;
+import org.higherkindedj.hkt.MonadWriter;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Traverse;
 import org.junit.jupiter.api.BeforeAll;
@@ -85,6 +88,12 @@ class NamingConventionRules {
         .doNotImplement(Selective.class) // Selective implementations use Selective suffix
         .and()
         .doNotImplement(Alternative.class) // Alternative implementations use Alternative suffix
+        .and()
+        .doNotImplement(MonadReader.class) // MTL implementations use MonadReader suffix
+        .and()
+        .doNotImplement(MonadState.class) // MTL implementations use MonadState suffix
+        .and()
+        .doNotImplement(MonadWriter.class) // MTL implementations use MonadWriter suffix
         .should()
         .haveSimpleNameEndingWith("Monad")
         .allowEmptyShould(true)

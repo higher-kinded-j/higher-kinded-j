@@ -8,6 +8,7 @@ import java.util.Scanner;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOMonad;
 
@@ -137,20 +138,18 @@ public class IOExample {
     // Effect: Printing greeting for Alice
     // Welcome, Alice!
 
-    // --- Full Program Example ---
+    // --- Full Program Example (using For comprehension) ---
+    // Replaces deeply nested ioMonad.flatMap(... flatMap(... map(...))) with readable sequential
+    // steps
     Kind<IOKind.Witness, Unit> program =
-        ioMonad.flatMap(
-            ignored ->
-                ioMonad.flatMap(
-                    name ->
-                        ioMonad.map(
-                            ignored2 -> {
-                              System.out.println("Program finished.");
-                              return Unit.INSTANCE;
-                            },
-                            printGreeting.apply(name)),
-                    readLine),
-            printHello);
+        For.from(ioMonad, printHello)
+            .from(_ -> readLine)
+            .from(t -> printGreeting.apply(t._2()))
+            .yield(
+                t -> {
+                  System.out.println("Program finished.");
+                  return Unit.INSTANCE;
+                });
 
     System.out.println("\nComplete IO Program defined. Executing...");
     IO_OP.unsafeRunSync(program);

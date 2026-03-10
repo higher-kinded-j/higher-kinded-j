@@ -60,6 +60,7 @@ Combining multiple effects into unified stacks.
 | **MaybeT** | [MaybeTExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe_t/MaybeTExample.java) | Optional values in effectful contexts |
 | **ReaderT** | [ReaderTExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTExample.java) | Dependency injection with effects |
 | **StateT** | [StateTExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state_t/StateTExample.java) | Stateful computation within effects |
+| **WriterT** | [WriterTExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/writer_t/WriterTExample.java) | Logging and audit trails with effects |
 
 ### Effect Path API
 

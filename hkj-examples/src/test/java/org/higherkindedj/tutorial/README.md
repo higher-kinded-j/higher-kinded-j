@@ -4,9 +4,10 @@ Welcome to the Higher-Kinded-J tutorial series! These hands-on tutorials will te
 
 ## Overview
 
-This tutorial series consists of two tracks:
+This tutorial series consists of three tracks:
 1. **Core Types** (10 tutorials, ~80 minutes) - Learn about Functors, Applicatives, Monads, and more
 2. **Optics** (15 tutorials, ~150 minutes) - Learn about Lenses, Prisms, Traversals, Focus DSL, and advanced patterns
+3. **MTL** (1 tutorial, ~35 minutes) - Learn about MonadReader, MonadState, MonadWriter, and polymorphic functions
 
 Each tutorial contains exercises where you need to replace `___` placeholders with working code. The tests will fail until you complete the exercises correctly.
 
@@ -197,11 +198,22 @@ Functional list decomposition:
 - Stack-safe trampoline operations
 - Composing with other optics
 
+## MTL Tutorial Series
+
+### Tutorial 02: MTL Basics (~35 minutes)
+Learn to write stack-independent effectful code:
+- MonadReader: `ask()`, `reader()`, `local()` for environment access
+- MonadState: `get()`, `modify()`, `gets()` for state threading
+- MonadWriter: `tell()`, `censor()` for output accumulation
+- Writing polymorphic functions that accept capability interfaces
+- Composing MTL operations with For comprehensions
+
 ## Solutions
 
 Complete solutions for all exercises are available in:
 - `solutions/coretypes/` - Core types solutions
 - `solutions/optics/` - Optics solutions
+- `solutions/mtl/` - MTL solutions
 
 Try to solve the exercises yourself before looking at the solutions!
 

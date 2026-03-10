@@ -14,6 +14,7 @@ import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.expression.ForPath;
 
 /**
  * Workflow for processing orders with partial fulfilment support. Ships available items immediately
@@ -50,53 +51,38 @@ public class PartialFulfilmentWorkflow {
    * Processes an order with partial fulfilment support. Ships available items and creates
    * back-orders for unavailable ones.
    *
-   * <p>Uses via() chains for composing workflow steps where intermediate values require
-   * partitioning logic between steps.
+   * <p>Uses ForPath comprehension for composing workflow steps, with a helper method for
+   * intermediate partitioning logic.
    *
    * @param order the validated order to process
    * @return either an error or the partial fulfilment result
    */
   public EitherPath<OrderError, PartialFulfilmentResult> process(ValidatedOrder order) {
     return getDetailedAvailability(order.lines())
-        .via(
-            availability -> {
-              var partitioned = partitionByAvailability(availability);
-              var availableItems = partitioned.get(true);
-              var unavailableItems = partitioned.get(false);
-              var partialTotal = calculateAvailableTotal(order, availableItems);
-              var backOrderTotal = calculateBackOrderTotal(order, unavailableItems);
+        .via(availability -> processWithAvailability(order, availability));
+  }
 
-              return validateAvailability(partitioned, order)
-                  .via(
-                      validated ->
-                          reserveAvailableItems(order, availableItems)
-                              .via(
-                                  reservationId ->
-                                      processPartialPayment(order, partialTotal)
-                                          .via(
-                                              payment ->
-                                                  createShipmentForAvailable(order, availableItems)
-                                                      .via(
-                                                          shipment ->
-                                                              createBackOrders(
-                                                                      order, unavailableItems)
-                                                                  .via(
-                                                                      backOrders ->
-                                                                          sendPartialFulfilmentNotification(
-                                                                                  order,
-                                                                                  shipment,
-                                                                                  backOrders,
-                                                                                  partialTotal)
-                                                                              .map(
-                                                                                  notified ->
-                                                                                      buildResult(
-                                                                                          order,
-                                                                                          payment,
-                                                                                          shipment,
-                                                                                          backOrders,
-                                                                                          partialTotal,
-                                                                                          backOrderTotal)))))));
-            });
+  /**
+   * Processes an order after availability information has been retrieved. Partitions items by
+   * availability and uses ForPath to compose the remaining workflow steps.
+   */
+  private EitherPath<OrderError, PartialFulfilmentResult> processWithAvailability(
+      ValidatedOrder order, List<ProductAvailability> availability) {
+    var partitioned = partitionByAvailability(availability);
+    var availableItems = partitioned.get(true);
+    var unavailableItems = partitioned.get(false);
+    var partialTotal = calculateAvailableTotal(order, availableItems);
+    var backOrderTotal = calculateBackOrderTotal(order, unavailableItems);
+
+    return ForPath.from(validateAvailability(partitioned, order))
+        .from(validated -> reserveAvailableItems(order, availableItems))
+        .from(t -> processPartialPayment(order, partialTotal))
+        .from(t -> createShipmentForAvailable(order, availableItems))
+        .from(t -> createBackOrders(order, unavailableItems))
+        .from(t -> sendPartialFulfilmentNotification(order, t._4(), t._5(), partialTotal))
+        .yield(
+            (validated, reservationId, payment, shipment, backOrders, notified) ->
+                buildResult(order, payment, shipment, backOrders, partialTotal, backOrderTotal));
   }
 
   private EitherPath<OrderError, List<ProductAvailability>> getDetailedAvailability(

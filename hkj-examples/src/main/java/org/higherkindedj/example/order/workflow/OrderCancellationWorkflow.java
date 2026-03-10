@@ -18,6 +18,7 @@ import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.expression.ForPath;
 
 /**
  * Workflow for cancelling orders with compensating transactions.
@@ -78,8 +79,8 @@ public class OrderCancellationWorkflow {
   /**
    * Cancels an order, performing compensating transactions as needed.
    *
-   * <p>Uses via() chains for composing the cancellation steps. Each step checks whether the
-   * previous action occurred and performs the appropriate compensation.
+   * <p>Uses ForPath comprehension for composing the cancellation steps. Each step checks whether
+   * the previous action occurred and performs the appropriate compensation.
    *
    * @param order the order to cancel
    * @param reason the cancellation reason
@@ -87,28 +88,20 @@ public class OrderCancellationWorkflow {
    */
   public EitherPath<OrderError, CancellationResult> cancel(
       ProcessedOrder order, CancellationReason reason) {
-    return validateCancellable(order)
-        .via(
-            validOrder ->
-                releaseInventory(validOrder)
-                    .via(
-                        inventoryReleased ->
-                            refundPayment(validOrder)
-                                .via(
-                                    refundResult ->
-                                        cancelShipment(validOrder)
-                                            .via(
-                                                shipmentCancelled ->
-                                                    sendCancellationNotification(validOrder, reason)
-                                                        .map(
-                                                            notified ->
-                                                                buildResult(
-                                                                    validOrder,
-                                                                    reason,
-                                                                    inventoryReleased,
-                                                                    refundResult,
-                                                                    shipmentCancelled,
-                                                                    notified))))));
+    return ForPath.from(validateCancellable(order))
+        .from(validOrder -> releaseInventory(validOrder))
+        .from(t -> refundPayment(t._1()))
+        .from(t -> cancelShipment(t._1()))
+        .from(t -> sendCancellationNotification(t._1(), reason))
+        .yield(
+            (validOrder, inventoryReleased, refundResult, shipmentCancelled, notified) ->
+                buildResult(
+                    validOrder,
+                    reason,
+                    inventoryReleased,
+                    refundResult,
+                    shipmentCancelled,
+                    notified));
   }
 
   // -------------------------------------------------------------------------

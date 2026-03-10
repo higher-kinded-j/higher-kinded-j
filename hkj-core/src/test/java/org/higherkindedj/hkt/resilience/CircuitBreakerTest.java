@@ -13,6 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.awaitility.core.ConditionFactory;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +32,7 @@ class CircuitBreakerTest {
   private static final Duration GENEROUS_TIMEOUT = Duration.ofSeconds(5);
 
   /** Shared Awaitility configuration used across all async polling in this test suite. */
-  private static org.awaitility.core.ConditionFactory awaitDefault() {
+  private static ConditionFactory awaitDefault() {
     return await().atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(10));
   }
 
@@ -917,16 +918,27 @@ class CircuitBreakerTest {
     @Test
     @DisplayName("concurrent CAS contention during OPEN->HALF_OPEN transition")
     void concurrentCasContentionDuringTransition() throws InterruptedException {
-      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      // Use a very short open duration so the circuit becomes eligible for HALF_OPEN quickly
+      CircuitBreakerConfig config =
+          CircuitBreakerConfig.builder()
+              .failureThreshold(1)
+              .successThreshold(1)
+              .openDuration(Duration.ofMillis(20))
+              .callTimeout(GENEROUS_TIMEOUT)
+              .build();
+      CircuitBreaker breaker = CircuitBreaker.create(config);
 
       causeFailures(breaker, 1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
 
-      awaitDefault()
-          .untilAsserted(
-              () -> assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN));
+      // Wait for the open duration to elapse, but do NOT call currentStatus() or protect()
+      // so the AtomicReference still holds OPEN state — the transition hasn't been applied yet
+      Thread.sleep(50);
 
-      // Multiple threads trying to transition from OPEN to HALF_OPEN simultaneously
-      int threadCount = 10;
+      // Now launch many threads simultaneously — they will all read OPEN from stateRef,
+      // see that the open duration has elapsed, and race to compareAndSet to HALF_OPEN.
+      // Only one thread wins the CAS; the losers hit the else branch (line 139).
+      int threadCount = 20;
       CountDownLatch startLatch = new CountDownLatch(1);
       CountDownLatch doneLatch = new CountDownLatch(threadCount);
       AtomicInteger successCount = new AtomicInteger(0);
@@ -954,8 +966,10 @@ class CircuitBreakerTest {
       startLatch.countDown();
       assertThat(doneLatch.await(10, TimeUnit.SECONDS)).isTrue();
 
-      // At least one should have succeeded (the one that won the CAS)
+      // At least one thread should have succeeded (the CAS winner or subsequent HALF_OPEN calls)
       assertThat(successCount.get()).isGreaterThanOrEqualTo(1);
+      // Total should account for all threads
+      assertThat(successCount.get() + rejectedCount.get()).isEqualTo(threadCount);
     }
 
     @Test

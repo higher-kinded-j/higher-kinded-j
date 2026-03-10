@@ -56,6 +56,12 @@
   - [MaybeT](transformers/maybet_transformer.md)
   - [ReaderT](transformers/readert_transformer.md)
   - [StateT](transformers/statet_transformer.md)
+  - [WriterT](transformers/writert_transformer.md)
+  - [MTL Capabilities](transformers/mtl_capabilities.md)
+    - [MonadReader](transformers/mtl_reader.md)
+    - [MonadState](transformers/mtl_state.md)
+    - [MonadWriter](transformers/mtl_writer.md)
+    - [Combining Capabilities](transformers/mtl_combining.md)
 
 - [Hands-On Learning](tutorials/ch_intro.md)
   - [Interactive Tutorials](tutorials/tutorials_intro.md)

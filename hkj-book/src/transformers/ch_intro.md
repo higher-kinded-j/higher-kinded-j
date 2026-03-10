@@ -20,7 +20,7 @@ Most users do not need to read this chapter. The [Effect Path API](../effect/ch_
 See [Stack Archetypes](archetypes.md) for named patterns that cover the most common use cases without requiring raw transformer manipulation.
 ~~~
 
-Higher-Kinded-J provides five transformers, each adding a specific capability to any outer monad:
+Higher-Kinded-J provides six transformers, each adding a specific capability to any outer monad. It also provides MTL-style capability interfaces that let you write code against abstract capabilities rather than concrete transformer stacks.
 
 ---
 
@@ -74,6 +74,12 @@ Same semantics. Vastly different ergonomics.
     │  "My operation needs to track changing state"            │
     │    └──▶  StateT                                          │
     │                                                          │
+    │  "My operation needs to accumulate output or logs"       │
+    │    └──▶  WriterT                                         │
+    │                                                          │
+    │  "I want stack-independent capability abstractions"      │
+    │    └──▶  MTL Capabilities (MonadReader, MonadState, ...) │
+    │                                                          │
     └──────────────────────────────────────────────────────────┘
 ```
 
@@ -88,6 +94,7 @@ Same semantics. Vastly different ergonomics.
 | `OptionalT<F, A>` | Java Optional (`Optional<A>`) | Same as MaybeT, for java.util.Optional |
 | `ReaderT<F, R, A>` | Environment (`Reader<R, A>`) | Dependency injection in effectful contexts |
 | `StateT<S, F, A>` | State (`State<S, A>`) | Stateful computation within other effects |
+| `WriterT<F, W, A>` | Output (`Pair<A, W>`) | Logging, audit trails, diagnostic accumulation |
 
 ---
 
@@ -99,6 +106,8 @@ Same semantics. Vastly different ergonomics.
 - **MaybeT** – The same capability as OptionalT but for the library's `Maybe` type. Choose based on whether you're using Optional or Maybe elsewhere.
 - **ReaderT** – Threads environment dependencies through effectful computations. Combine dependency injection with async operations or error handling.
 - **StateT** – Manages state within effectful computations. Track state changes across async boundaries or error-handling paths.
+- **WriterT** – Accumulates output (logs, audit trails, diagnostics) alongside computation. Each step appends to the output via a `Monoid`, and `flatMap` combines outputs automatically.
+- **MTL Capabilities** – `MonadReader`, `MonadState`, and `MonadWriter` abstract effect capabilities independently of the concrete transformer stack. Write polymorphic functions that declare *what they need* without specifying *how* it is assembled.
 
 See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for a complete example combining effect paths with optics in a single pipeline.
 ~~~
@@ -114,6 +123,12 @@ See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for
 5. [MaybeT](maybet_transformer.md) - Maybe lifting
 6. [ReaderT](readert_transformer.md) - Environment threading
 7. [StateT](statet_transformer.md) - State management in effectful computation
+8. [WriterT](writert_transformer.md) - Output accumulation and audit trails
+9. [MTL Capabilities](mtl_capabilities.md) - Stack-independent capability abstractions
+   - [MonadReader](mtl_reader.md) - Environment access and scoped modification
+   - [MonadState](mtl_state.md) - State threading and mutation
+   - [MonadWriter](mtl_writer.md) - Output accumulation and log inspection
+   - [Combining Capabilities](mtl_combining.md) - Multi-capability functions and concrete instances
 
 ---
 

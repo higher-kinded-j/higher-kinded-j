@@ -162,14 +162,11 @@ System.out.println("Counter after map: " + counter.get()); // 0
 System.out.println(LAZY.force(mapped)); // "Value: 10"
 System.out.println("Counter: " + counter.get()); // 1
 
-// flatMap: sequence two lazy computations
-Kind<LazyKind.Witness, String> chained = lazyMonad.flatMap(
-    v1 -> lazyMonad.map(
-        v2 -> "Combined: " + v1 + " & " + v2,
-        LAZY.defer(() -> v1 * 2)  // second step depends on first
-    ),
-    LAZY.defer(() -> 5)           // first step
-);
+// flatMap: sequence two lazy computations using For comprehension
+Kind<LazyKind.Witness, String> chained =
+    For.from(lazyMonad, LAZY.defer(() -> 5))
+        .from(value1 -> LAZY.defer(() -> value1 * 2))
+        .yield((value1, value2) -> "Combined: " + value1 + " & " + value2);
 
 System.out.println(LAZY.force(chained)); // "Combined: 5 & 10"
 ```
