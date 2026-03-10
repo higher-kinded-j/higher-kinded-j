@@ -1,13 +1,12 @@
 # Higher-Kinded-J
 
-> Unifying Composable Effects and Advanced Optics for Java
+> Unifying Composable Effects and Advanced Optics for Java 25+
 
-Higher-Kinded-J is the most comprehensive functional programming library for Java, providing composable error handling through the Effect Path API and type-safe immutable data navigation through the Focus DSL.
+Higher-Kinded-J is a comprehensive functional programming library for Java providing composable error handling through the Effect Path API, type-safe immutable data navigation through the Focus DSL, for-comprehensions for monadic sequencing, MTL-style capabilities, virtual-thread concurrency, resilience patterns, and compile-time safety tooling.
 
-## Core Concepts
+## Effect Path API
 
-### Effect Path API
-A railway model for computation where success travels one track and failure travels another. Operations like `map`, `via`, and `recover` work identically across all effect types.
+A railway model for computation where success travels one track and failure travels another. Operations like `map`, `via`, `recover`, and `focus` work identically across all effect types.
 
 **Path Types:**
 - `MaybePath<A>` - Optional values where absence is normal
@@ -15,34 +14,133 @@ A railway model for computation where success travels one track and failure trav
 - `TryPath<A>` - Wrapping code that throws exceptions
 - `ValidationPath<E, A>` - Accumulating ALL errors, not just the first
 - `IOPath<A>` - Deferred side effects
+- `VTaskPath<A>` - Virtual-thread concurrency (Project Loom)
+- `VStreamPath<A>` - Reactive-style virtual-thread streams
+- `NonDetPath<A>` - Non-deterministic computation (list monad)
+- `IdPath<A>` - Identity wrapper for generic programming
+- `OptionalPath<A>` - Java Optional integration
+- `LazyPath<A>` - Lazy evaluation
+- `ListPath<A>` - List monad
+- `StreamPath<A>` - Java Stream integration
+- `ReaderPath<R, A>` - Dependency injection
+- `WriterPath<W, A>` - Accumulated output
+- `WithStatePath<S, A>` - Stateful computation
 - `TrampolinePath<A>` - Stack-safe recursion
 - `CompletableFuturePath<A>` - Async operations
 - `FreePath<F, A>` / `FreeApPath<F, A>` - DSL building
+- `GenericPath<M, A>` - Wraps any Kind type as a Path
 
-### Advanced Optics
-The most comprehensive optics implementation in Java:
+## For-Comprehensions
+
+Monadic sequencing without deeply nested flatMap/via chains. Three styles:
+
+- **`For`** - Works with any `Monad<M>` and `Kind<M, A>` values. Uses `Tuple2`-based accumulation with up to 12 chained bindings.
+- **`ForPath`** - Path-native comprehensions returning Path types directly. Spread-parameter `yield` for readable results. Supports all Path types.
+- **`ForState`** - Named-field state comprehensions via `For.toState()` bridge. Eliminates positional tuple access in favour of record field names.
+
+```java
+// ForPath example: flat sequential steps instead of nested via() chains
+ForPath.from(validateOrder(request))
+    .from(order -> reserveInventory(order))
+    .from(t -> processPayment(t._1()))
+    .yield((order, reservation, payment) -> buildResult(order, payment));
+
+// For -> toState -> ForState: named access for multi-step workflows
+For.from(eitherMonad, lookupAddress(request))
+    .from(addr -> lookupCustomer(addr))
+    .from(t -> buildOrder(t._1(), t._2()))
+    .toState(ProcessingState::from)
+    .fromThen(s -> enrichOrder(s.order()), ProcessingState::withEnrichedOrder)
+    .yield(ProcessingState::toResult);
+```
+
+## Advanced Optics
+
+Comprehensive optics implementation for type-safe immutable data access and update:
 - **Lens** - Focus on a field in a product type
-- **Prism** - Focus on a case in a sum type
+- **Prism** - Focus on a case in a sum type (sealed interfaces)
 - **Iso** - Bidirectional transformation
 - **Affine** - Optional focus (zero or one)
 - **Traversal** - Multiple focuses in a collection
-- **Filtered Traversals** - Predicate-based focusing
-- **Indexed Optics** - Position-aware transformations
+- **Fold** - Read-only traversal
+- **Getter** / **Setter** - Read-only or write-only access
+- **At** / **Ixed** - Key-based and index-based access
+- **Each** - Access each element in a container
+- **IndexedLens** / **IndexedTraversal** / **IndexedFold** - Position-aware optics
 
-### Focus DSL
-Type-safe structural navigation that integrates with Effect Paths:
+## Focus DSL
+
+Type-safe structural navigation integrated with Effect Paths:
 - `FocusPath<S, A>` - Exactly one focus
 - `AffinePath<S, A>` - Zero or one focus
 - `TraversalPath<S, A>` - Zero or more focuses
 
-### Effect-Optics Bridge
-Navigate data structures within effect pipelines using `.focus()`:
 ```java
 userService.findById(userId)           // EitherPath<Error, User>
     .focus(UserFocus.address())        // EitherPath<Error, Address>
     .focus(AddressFocus.postcode())    // EitherPath<Error, String>
     .via(code -> validatePostcode(code));
 ```
+
+## Type Classes
+
+Core abstractions in `hkj-api`:
+- **Functor** / **Bifunctor** / **Profunctor** - Mapping
+- **Applicative** / **Alternative** / **Selective** - Combining
+- **Monad** / **MonadError** / **MonadZero** - Sequencing and error handling
+- **Foldable** / **Traverse** - Aggregation and traversal
+- **Semigroup** / **Monoid** - Combining values
+- **Natural** - Natural transformations between functors
+- **Choice** - Choice profunctor for optics
+
+## MTL (Monad Transformer Library)
+
+Capability-based interfaces decoupling effects from concrete transformer stacks:
+- **MonadReader<M, R>** - Read-only environment access (`ask`, `local`)
+- **MonadState<M, S>** - Stateful computation (`get`, `put`, `modify`)
+- **MonadWriter<M, W>** - Accumulated log output (`tell`, `listen`, `pass`)
+
+## Monad Transformers
+
+Stack multiple effects:
+- **EitherT<M, E, A>** - Errors over any monad
+- **MaybeT<M, A>** - Optionality over any monad
+- **OptionalT<M, A>** - Java Optional over any monad
+- **ReaderT<M, R, A>** - Environment over any monad (implements MonadReader)
+- **StateT<M, S, A>** - State over any monad (implements MonadState)
+- **WriterT<M, W, A>** - Logging over any monad (implements MonadWriter)
+
+## Concurrency (Virtual Threads)
+
+Built on Project Loom:
+- **VTask** - Lightweight virtual-thread tasks with structured concurrency
+- **VStream** - Reactive-style streams on virtual threads with backpressure, throttling, parallel fan-out, and reactive interop
+- **Scope** - Structured concurrency scopes with resource management
+- **Par** - Parallel combinators for VTask
+- **Resource** - Bracket-style resource management
+
+## Resilience Patterns
+
+Production-grade fault tolerance:
+- **CircuitBreaker** - Fail-fast with configurable thresholds, metrics, and state transitions
+- **Saga** - Distributed transaction compensation with automatic rollback
+- **Retry** - Configurable retry with exponential backoff
+- **Bulkhead** - Concurrency limiting
+
+## Code Generation
+
+Annotation-driven boilerplate elimination:
+- `@GenerateLenses` - Generates Lens optics for record fields
+- `@GeneratePrisms` - Generates Prism optics for sealed interface variants
+- `@GenerateFocus` - Generates FocusPath accessors
+- `@GenerateTraversals` - Generates TraversalPath for collections
+- **ForPath step classes** - Steps 2-12 auto-generated for all 10 Path types
+- **Processor plugins** for Array, Either, List, Map, Maybe, Optional, Set, Try, Validated
+
+## Compile-Time Safety
+
+- **hkj-checker** - Compiler plugin that detects Path type mismatches at compile time (e.g. using `EitherPath` where `MaybePath` expected)
+- **hkj-openrewrite** - Automated code migration recipes
 
 ## Installation
 
@@ -53,15 +151,25 @@ dependencies {
 }
 ```
 
-The annotation processor generates Focus paths and Effect paths for Java records and sealed interfaces.
+**Modules:**
+- `hkj-api` - Type class interfaces (Functor, Monad, etc.)
+- `hkj-core` - All implementations (324+ source files)
+- `hkj-annotations` - Annotation definitions
+- `hkj-processor` - Annotation processor
+- `hkj-processor-plugins` - Optics generator plugins
+- `hkj-checker` - Compile-time checker plugin
+- `hkj-openrewrite` - Code migration recipes
+- `hkj-spring:starter` - Spring Boot integration
+- `hkj-gradle-plugin` / `hkj-maven-plugin` - Build plugins
+- `hkj-bom` - Bill of Materials for version alignment
 
-## Key Features
+## Spring Boot Integration
 
-- **Java 25+** - Built for modern Java with records and sealed interfaces
-- **Code Generation** - Automatic optics generation via annotation processor
-- **Spring Boot Integration** - `hkj-spring-boot-starter` for REST APIs
-- **Type Classes** - Functor, Applicative, Monad, MonadError
-- **Monad Transformers** - EitherT, StateT, ReaderT for effect composition
+`hkj-spring-boot-starter` provides:
+- Return Path types directly from `@RestController` methods
+- Jackson serialization for all Path types
+- Security context integration
+- Actuator health and metrics endpoints
 
 ## Documentation
 
@@ -69,19 +177,26 @@ The annotation processor generates Focus paths and Effect paths for Java records
 - Effect Path API: https://higher-kinded-j.github.io/latest/effect/ch_intro.html
 - Optics Guide: https://higher-kinded-j.github.io/latest/optics/optics_intro.html
 - Focus DSL: https://higher-kinded-j.github.io/latest/optics/focus_dsl.html
+- Resilience: https://higher-kinded-j.github.io/latest/resilience/resilience_intro.html
 - Tutorials: https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html
 - Spring Boot: https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html
+- Examples: https://higher-kinded-j.github.io/latest/examples/ch_intro.html
 
 ## Source Code
 
 - Repository: https://github.com/higher-kinded-j/higher-kinded-j
-- License: Apache 2.0
+- License: MIT
 
 ## When to Use Higher-Kinded-J
 
 Use this library when you need:
 - Composable error handling without exception pyramids
+- For-comprehensions to flatten nested monadic chains
 - Type-safe immutable data updates with optics
 - Integration between effect handling and data navigation
-- Code generation for lenses/prisms on Java records
+- Virtual-thread concurrency with structured scopes
+- Resilience patterns (circuit breakers, sagas, retry)
+- MTL-style capability abstraction over transformer stacks
+- Code generation for lenses/prisms on Java records and sealed interfaces
+- Compile-time checking for Path type correctness
 - Functional patterns in Spring Boot applications

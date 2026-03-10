@@ -30,14 +30,19 @@ import org.jspecify.annotations.Nullable;
  * @see StateT
  * @see Monad
  */
-public final class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
+public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
     implements Monad<StateTKind.Witness<S, F>> {
 
   private static final Class<StateTMonad> STATE_T_MONAD_CLASS = StateTMonad.class;
-  private final Monad<F> monadF;
+  protected final Monad<F> monadF;
 
-  // Private constructor, use factory method
-  private StateTMonad(Monad<F> monadF) {
+  /**
+   * Constructs a {@link StateTMonad} instance.
+   *
+   * @param monadF The {@link Monad} instance for the underlying monad {@code F}. Must not be null.
+   * @throws NullPointerException if {@code monadF} is null.
+   */
+  protected StateTMonad(Monad<F> monadF) {
     this.monadF =
         Validation.transformer().requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);
   }

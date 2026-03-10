@@ -37,6 +37,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.trymonad;
   exports org.higherkindedj.hkt.validated;
   exports org.higherkindedj.hkt.writer;
+  exports org.higherkindedj.hkt.writer_t;
   exports org.higherkindedj.optics.util;
   exports org.higherkindedj.optics.extensions;
   exports org.higherkindedj.optics.each;

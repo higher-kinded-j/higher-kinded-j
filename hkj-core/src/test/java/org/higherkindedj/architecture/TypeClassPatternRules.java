@@ -35,7 +35,14 @@ import org.junit.jupiter.api.Test;
 class TypeClassPatternRules {
 
   private static final Set<String> PARAMETERIZED_MONADS =
-      Set.of("StateMonad", "WriterMonad", "ReaderMonad", "FreeMonad", "EitherMonad");
+      Set.of(
+          "StateMonad",
+          "WriterMonad",
+          "ReaderMonad",
+          "FreeMonad",
+          "EitherMonad",
+          "ReaderTMonadReader",
+          "StateTMonadState");
 
   private static final Set<String> PARAMETERIZED_FUNCTORS_APPLICATIVES =
       Set.of(
@@ -81,7 +88,9 @@ class TypeClassPatternRules {
           "ValidatedMonad",
           "ValidatedSelective", // Has Semigroup field for error accumulation
           "ConstFunctor",
-          "ConstApplicative");
+          "ConstApplicative",
+          "ReaderTMonadReader",
+          "StateTMonadState");
 
   private static JavaClasses productionClasses;
 

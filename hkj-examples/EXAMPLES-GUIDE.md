@@ -75,6 +75,9 @@ Examples demonstrating fundamental monadic types and their operations.
 | [CompletableFutureExample.java](src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java) | Shows asynchronous operations with CompletableFuture | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.future.CompletableFutureExample` | [CompletableFuture Monad](https://higher-kinded-j.github.io/latest/monads/cf_monad.html) |
 | [TrampolineExample.java](src/main/java/org/higherkindedj/example/basic/trampoline/TrampolineExample.java) | Demonstrates stack-safe recursion | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.trampoline.TrampolineExample` | [Trampoline Monad](https://higher-kinded-j.github.io/latest/monads/trampoline_monad.html) |
 | [ConstExample.java](src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java) | Shows the Const type for phantom type patterns | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.constant.ConstExample` | [Const Type](https://higher-kinded-j.github.io/latest/monads/const_type.html) |
+| [VStreamBasicExample.java](src/main/java/org/higherkindedj/example/basic/vstream/VStreamBasicExample.java) | Basic VStream operations: create, transform, consume | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.vstream.VStreamBasicExample` | [VStream](https://higher-kinded-j.github.io/latest/monads/vstream.html) |
+| [VStreamAdvancedExample.java](src/main/java/org/higherkindedj/example/basic/vstream/VStreamAdvancedExample.java) | Advanced VStream: windowing, merging, backpressure | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.vstream.VStreamAdvancedExample` | [VStream](https://higher-kinded-j.github.io/latest/monads/vstream.html) |
+| [VStreamHKTExample.java](src/main/java/org/higherkindedj/example/basic/vstream/VStreamHKTExample.java) | VStream integration with HKT type classes | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.vstream.VStreamHKTExample` | [VStream](https://higher-kinded-j.github.io/latest/monads/vstream.html) |
 
 ### Monad Transformers
 
@@ -90,6 +93,7 @@ Examples demonstrating monad transformer stacks for combining effects.
 | [ReaderTAsyncUnitExample.java](src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncUnitExample.java) | Shows ReaderT with Unit return type | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.reader_t.ReaderTAsyncUnitExample` | [ReaderT Transformer](https://higher-kinded-j.github.io/latest/transformers/readert_transformer.html) |
 | [StateTExample.java](src/main/java/org/higherkindedj/example/basic/state_t/StateTExample.java) | Demonstrates StateT for stateful effect combinations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.state_t.StateTExample` | [StateT Transformer](https://higher-kinded-j.github.io/latest/transformers/statet_transformer.html) |
 | [StateTStackExample.java](src/main/java/org/higherkindedj/example/basic/state_t/StateTStackExample.java) | Shows complex StateT stacks | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.state_t.StateTStackExample` | [StateT Transformer](https://higher-kinded-j.github.io/latest/transformers/statet_transformer.html) |
+| [WriterTExample.java](src/main/java/org/higherkindedj/example/basic/writer_t/WriterTExample.java) | Demonstrates WriterT for logging with effects | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.writer_t.WriterTExample` | [WriterT Transformer](https://higher-kinded-j.github.io/latest/transformers/writert_transformer.html) |
 
 ### Type Classes
 
@@ -102,6 +106,8 @@ Examples demonstrating type class abstractions.
 | [ProfunctorExample.java](src/main/java/org/higherkindedj/example/basic/profunctor/ProfunctorExample.java) | Shows Profunctor operations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.profunctor.ProfunctorExample` | [Profunctor](https://higher-kinded-j.github.io/latest/functional/profunctor.html) |
 | [FoldableExample.java](src/main/java/org/higherkindedj/example/basic/foldable/FoldableExample.java) | Demonstrates Foldable and Traverse | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.foldable.FoldableExample` | [Foldable and Traverse](https://higher-kinded-j.github.io/latest/functional/foldable_and_traverse.html) |
 | [ForComprehensionExample.java](src/main/java/org/higherkindedj/example/basic/expression/ForComprehensionExample.java) | Shows For comprehension syntax | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.expression.ForComprehensionExample` | [For Comprehension](https://higher-kinded-j.github.io/latest/functional/for_comprehension.html) |
+| [ForStateExample.java](src/main/java/org/higherkindedj/example/basic/expression/ForStateExample.java) | Shows ForState comprehension with lens-based state updates | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.expression.ForStateExample` | [ForState Comprehension](https://higher-kinded-j.github.io/latest/functional/forstate_comprehension.html) |
+| [MTLCapabilitiesExample.java](src/main/java/org/higherkindedj/example/basic/expression/MTLCapabilitiesExample.java) | Demonstrates MTL capability interfaces (MonadReader, MonadState, MonadWriter) | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.expression.MTLCapabilitiesExample` | [MTL Capabilities](https://higher-kinded-j.github.io/latest/transformers/mtl_capabilities.html) |
 | [AlternativeConfigExample.java](src/main/java/org/higherkindedj/example/basic/alternative/AlternativeConfigExample.java) | Demonstrates Alternative type class | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.alternative.AlternativeConfigExample` | [Alternative](https://higher-kinded-j.github.io/latest/functional/alternative.html) |
 | [OptionalMonoidExample.java](src/main/java/org/higherkindedj/example/basic/monoid/OptionalMonoidExample.java) | Shows Monoid operations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.monoid.OptionalMonoidExample` | [Semigroup and Monoid](https://higher-kinded-j.github.io/latest/functional/semigroup_and_monoid.html) |
 
@@ -166,6 +172,8 @@ The Effect Path API provides a fluent, type-safe approach to composing effect ty
 | [ScopeExample.java](src/main/java/org/higherkindedj/example/effect/ScopeExample.java) | Structured concurrency with Scope: allSucceed, anySucceed, firstComplete, accumulating joiners | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ScopeExample` | [Structured Concurrency](https://higher-kinded-j.github.io/latest/monads/vtask_scope.html) |
 | [VTaskResourceExample.java](src/main/java/org/higherkindedj/example/effect/VTaskResourceExample.java) | Resource management with bracket pattern: fromAutoCloseable, make, and, withFinalizer | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.VTaskResourceExample` | [Resource Management](https://higher-kinded-j.github.io/latest/monads/vtask_resource.html) |
 | [CollectionPathsExample.java](src/main/java/org/higherkindedj/example/effect/CollectionPathsExample.java) | ListPath and StreamPath for collection effects | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CollectionPathsExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [VStreamPathExample.java](src/main/java/org/higherkindedj/example/effect/VStreamPathExample.java) | VStream integration with Effect Path API | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.VStreamPathExample` | [VStream](https://higher-kinded-j.github.io/latest/monads/vstream.html) |
+| [VStreamParallelExample.java](src/main/java/org/higherkindedj/example/effect/VStreamParallelExample.java) | Parallel VStream operations with VStreamPar | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.VStreamParallelExample` | [VStream](https://higher-kinded-j.github.io/latest/monads/vstream.html) |
 
 ### Stack-Safety, Resources, Parallelism & Resilience
 
@@ -345,6 +353,15 @@ Examples demonstrating how to bridge Focus DSL navigation into external library 
 | [SelectivePerformanceExample.java](src/main/java/org/higherkindedj/example/optics/SelectivePerformanceExample.java) | Performance optimisation with selective | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.SelectivePerformanceExample` | [Selective](https://higher-kinded-j.github.io/latest/functional/selective.html) |
 | [StateMachineExample.java](src/main/java/org/higherkindedj/example/optics/StateMachineExample.java) | State machines with optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.StateMachineExample` | [Optics Examples](https://higher-kinded-j.github.io/latest/optics/optics_examples.html) |
 | [TimeSeriesWindowingExample.java](src/main/java/org/higherkindedj/example/optics/TimeSeriesWindowingExample.java) | Time series windowing with optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.TimeSeriesWindowingExample` | [Optics Examples](https://higher-kinded-j.github.io/latest/optics/optics_examples.html) |
+| [VStreamOpticsExample.java](src/main/java/org/higherkindedj/example/optics/VStreamOpticsExample.java) | VStream integration with optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.VStreamOpticsExample` | [Optics Examples](https://higher-kinded-j.github.io/latest/optics/optics_examples.html) |
+
+### Resilience
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [CircuitBreakerExample.java](src/main/java/org/higherkindedj/example/resilience/CircuitBreakerExample.java) | Circuit breaker pattern for fault tolerance | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.resilience.CircuitBreakerExample` | [Resilience](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+| [ResilientServiceExample.java](src/main/java/org/higherkindedj/example/resilience/ResilientServiceExample.java) | Resilient service patterns with retry and fallback | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.resilience.ResilientServiceExample` | [Resilience](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+| [SagaOrderExample.java](src/main/java/org/higherkindedj/example/resilience/SagaOrderExample.java) | Saga pattern for distributed transaction compensation | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.resilience.SagaOrderExample` | [Resilience](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
 
 ---
 
@@ -374,6 +391,14 @@ An interactive draughts game demonstrating IO monad, State monad, and For compre
 |---------|-------------|-------------|---------------|
 | [Draughts.java](src/main/java/org/higherkindedj/example/draughts/Draughts.java) | Interactive draughts game | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.draughts.Draughts` | [Draughts Example](https://higher-kinded-j.github.io/latest/hkts/draughts.html) |
 
+### Market Data Pipeline
+
+A virtual threads capstone demonstrating a complete concurrent data pipeline with VStream.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [MarketDataDemo.java](src/main/java/org/higherkindedj/example/market/runner/MarketDataDemo.java) | Complete market data pipeline with VStream, Par, and CircuitBreaker | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.market.runner.MarketDataDemo` | [Market Data Pipeline](https://higher-kinded-j.github.io/latest/examples/examples_market_data.html) |
+
 ### Configuration Audit
 
 Demonstrates optics for auditing and transforming complex configuration structures.
@@ -394,6 +419,8 @@ Interactive tutorial examples for learning Higher-Kinded-J concepts.
 | [ApplicativeValidation.java](src/main/java/org/higherkindedj/example/tutorials/ApplicativeValidation.java) | Applicative validation tutorial | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.tutorials.ApplicativeValidation` | [Applicative](https://higher-kinded-j.github.io/latest/functional/applicative.html) |
 | [LensDeepUpdate.java](src/main/java/org/higherkindedj/example/tutorials/LensDeepUpdate.java) | Deep update with lenses tutorial | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.tutorials.LensDeepUpdate` | [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.html) |
 | [Tutorial16_OpticsSpecInterfaces.java](src/test/java/org/higherkindedj/tutorial/optics/Tutorial16_OpticsSpecInterfaces.java) | Spec interfaces for external types (Jackson, JOOQ, Immutables) | Run via test runner | [Optics Spec Interfaces](https://higher-kinded-j.github.io/latest/optics/optics_spec_interfaces.html) |
+| [Tutorial01_ForStateBasics.java](src/test/java/org/higherkindedj/tutorial/expression/Tutorial01_ForStateBasics.java) | ForState comprehension basics with lens-based state | Run via test runner | [ForState Comprehension](https://higher-kinded-j.github.io/latest/functional/forstate_comprehension.html) |
+| [Tutorial02_MTLBasics.java](src/test/java/org/higherkindedj/tutorial/mtl/Tutorial02_MTLBasics.java) | MTL pattern basics: MonadReader, MonadState, MonadWriter | Run via test runner | [MTL Capabilities](https://higher-kinded-j.github.io/latest/transformers/mtl_capabilities.html) |
 
 ---
 

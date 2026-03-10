@@ -39,7 +39,7 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
     implements Monad<ReaderTKind.Witness<F, R_ENV>> {
 
   private static final Class<ReaderTMonad> READER_T_MONAD_CLASS = ReaderTMonad.class;
-  private final Monad<F> outerMonad;
+  protected final Monad<F> outerMonad;
 
   /**
    * Constructs a {@link ReaderTMonad} instance.
