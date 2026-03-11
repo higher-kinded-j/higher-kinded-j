@@ -286,6 +286,9 @@ final class ForPathStepGenerator {
       appendMatchMethod(sb, desc, n);
     }
 
+    // par() methods
+    appendParMethods(sb, desc, n, terminal);
+
     // yield spread function
     appendYieldSpread(sb, desc, n);
 
@@ -345,11 +348,11 @@ final class ForPathStepGenerator {
       sb.append("import org.higherkindedj.hkt.function.Function").append(n).append(";\n");
     }
 
-    // Tuple imports
+    // Tuple imports - include up to TupleN+4 for par() methods
     sb.append("import org.higherkindedj.hkt.tuple.Tuple;\n");
-    sb.append("import org.higherkindedj.hkt.tuple.Tuple").append(n).append(";\n");
-    if (!terminal) {
-      sb.append("import org.higherkindedj.hkt.tuple.Tuple").append(n + 1).append(";\n");
+    int maxTuple = Math.min(n + 4, 12); // par() can target up to n+4, max 12
+    for (int i = n; i <= maxTuple; i++) {
+      sb.append("import org.higherkindedj.hkt.tuple.Tuple").append(i).append(";\n");
     }
 
     sb.append("import org.higherkindedj.optics.annotations.Generated;\n");
@@ -702,6 +705,129 @@ final class ForPathStepGenerator {
       sb.append("monad, ");
     }
     sb.append("newComp);\n");
+    sb.append("  }\n\n");
+  }
+
+  // =========================================================================
+  // par() methods
+  // =========================================================================
+
+  /**
+   * Generates par() methods on a path step class. For step N, generates par() with K parallel
+   * bindings where N + K <= 12 (the maximum arity). K ranges from 2 to 4.
+   */
+  private static void appendParMethods(
+      StringBuilder sb, PathTypeDescriptor desc, int n, boolean terminal) {
+    // par() requires at least N+2 target arity, so skip if we'd exceed 12
+    for (int k = 2; k <= 4; k++) {
+      int targetArity = n + k;
+      if (targetArity > 12) break;
+      appendParMethod(sb, desc, n, k, targetArity);
+    }
+  }
+
+  /**
+   * Generates a single par() method that adds k parallel bindings to step n, producing step
+   * targetArity.
+   */
+  private static void appendParMethod(
+      StringBuilder sb, PathTypeDescriptor desc, int n, int k, int targetArity) {
+    String[] vp = valueParams(desc);
+    String targetClassName = desc.stepsPrefix + targetArity;
+
+    // New type parameters for the parallel bindings
+    String[] newTypes = new String[k];
+    for (int i = 0; i < k; i++) {
+      newTypes[i] = vp[n + i];
+    }
+
+    // Method signature
+    sb.append("  public <");
+    for (int i = 0; i < k; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append(newTypes[i]);
+    }
+    sb.append("> ").append(targetClassName).append("<");
+    // Type args for target class
+    if (desc.isGeneric) {
+      sb.append("F");
+      for (int i = 0; i < targetArity; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+    } else if (desc.hasExtraTypeParam) {
+      sb.append(desc.extraTypeParamName);
+      for (int i = 0; i < targetArity; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+    } else {
+      for (int i = 0; i < targetArity; i++) {
+        if (i > 0) sb.append(", ");
+        sb.append(vp[i]);
+      }
+    }
+    sb.append("> par(\n");
+
+    // Parameters: Function<TupleN<...>, PathType<NewTypeI>> fI
+    for (int i = 0; i < k; i++) {
+      sb.append("      Function<Tuple").append(n).append("<");
+      appendValueTypeParams(sb, desc, n);
+      sb.append(">, ");
+      sb.append(fromReturnPathType(desc, newTypes[i]));
+      sb.append("> f").append(i + 1);
+      if (i < k - 1) sb.append(",\n");
+    }
+    sb.append(") {\n");
+
+    // Body: flatMap over current computation, then mapK to combine parallel results
+    String m = monadRef(desc);
+    if (needsLocalMonad(desc)) {
+      sb.append("    EitherMonad<E> m = monad();\n");
+    }
+
+    sb.append("    Kind<")
+        .append(desc.witnessType)
+        .append(", Tuple")
+        .append(targetArity)
+        .append("<");
+    appendValueTypeParams(sb, desc, targetArity);
+    sb.append(">> next =\n");
+    sb.append("        ").append(m).append(".flatMap(\n");
+    sb.append("            t -> ").append(m).append(".map").append(k).append("(\n");
+
+    // map arguments: widen(fI.apply(t).run())
+    for (int i = 0; i < k; i++) {
+      sb.append("                ");
+      if (desc.isGeneric) {
+        sb.append("f").append(i + 1).append(".apply(t).runKind()");
+      } else {
+        sb.append(desc.kindHelperField).append(".widen(f").append(i + 1).append(".apply(t).run())");
+      }
+      sb.append(",\n");
+    }
+
+    // combiner: (r1, r2, ...) -> Tuple.of(t._1(), ..., t._N(), r1, r2, ...)
+    sb.append("                (");
+    for (int i = 0; i < k; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append("r").append(i + 1);
+    }
+    sb.append(") -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    for (int i = 0; i < k; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append("r").append(i + 1);
+    }
+    sb.append(")),\n");
+    sb.append("            this.computation);\n");
+
+    // Return
+    sb.append("    return new ").append(targetClassName).append("<>(");
+    if (desc.isGeneric) {
+      sb.append("monad, ");
+    }
+    sb.append("next);\n");
     sb.append("  }\n\n");
   }
 

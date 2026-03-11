@@ -5,10 +5,13 @@ package org.higherkindedj.example.effect;
 import java.util.Optional;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IOPath;
+import org.higherkindedj.hkt.effect.IdPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.expression.ForPath;
+import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -28,6 +31,7 @@ import org.higherkindedj.optics.focus.FocusPath;
  *   <li>IOPath comprehensions for deferred side-effectful operations
  *   <li>NonDetPath comprehensions for generating combinations
  *   <li>Optics integration with focus() and match()
+ *   <li>Parallel composition with par() for independent computations
  * </ul>
  *
  * <p>Run with: {@code ./gradlew :hkj-examples:run
@@ -78,6 +82,7 @@ public class ForPathExample {
     nonDetPathCombinations();
     opticsIntegration();
     highArityExample();
+    parallelComposition();
   }
 
   private static void maybePathBasics() {
@@ -328,6 +333,83 @@ public class ForPathExample {
 
     System.out.println("8-step MaybePath: " + eightStep.getOrElse("nothing"));
     // result=Bob#300 (len 7)
+
+    System.out.println();
+  }
+
+  private static void parallelComposition() {
+    System.out.println("--- Parallel Composition with par() ---");
+
+    // par() expresses that bindings are independent of each other.
+    // For VTaskPath, this enables true concurrent execution on virtual threads.
+    // For other types, it documents the independence even if execution is sequential.
+
+    // 1. Static par() — combine two independent MaybePaths
+    MaybePath<String> maybePar =
+        ForPath.par(Path.just("Alice"), Path.just(42)).yield((name, age) -> name + " is " + age);
+
+    System.out.println("MaybePath par(2): " + maybePar.getOrElse("nothing"));
+    // Alice is 42
+
+    // 2. Static par() — short-circuits on Nothing
+    MaybePath<String> maybeParShort =
+        ForPath.par(Path.just("Bob"), Path.<Integer>nothing())
+            .yield((name, age) -> name + " is " + age);
+
+    System.out.println("MaybePath par(2) with Nothing: " + maybeParShort.getOrElse("nothing"));
+    // nothing
+
+    // 3. Static par(3) — combine three independent EitherPaths
+    EitherPath<String, String> eitherPar =
+        ForPath.par(
+                Path.<String, String>right("Alice"),
+                Path.<String, Integer>right(42),
+                Path.<String, String>right("admin"))
+            .yield((name, age, role) -> name + " (" + age + ") [" + role + "]");
+
+    System.out.println("EitherPath par(3): " + eitherPar.run().getRight());
+    // Alice (42) [admin]
+
+    // 4. Static par() with IdPath — pure value combination
+    IdPath<Integer> idPar =
+        ForPath.par(Path.idPath(Id.of(10)), Path.idPath(Id.of(20)), Path.idPath(Id.of(30)))
+            .yield((a, b, c) -> a + b + c);
+
+    System.out.println("IdPath par(3): " + idPar.run().value());
+    // 60
+
+    // 5. VTaskPath par() — true parallel execution on virtual threads
+    VTaskPath<String> vtaskPar =
+        ForPath.par(
+                Path.vtaskPath(
+                    () -> {
+                      Thread.sleep(50);
+                      return "user-data";
+                    }),
+                Path.vtaskPath(
+                    () -> {
+                      Thread.sleep(50);
+                      return "config-data";
+                    }))
+            .yield((user, config) -> user + " + " + config);
+
+    System.out.println("VTaskPath par(2): " + vtaskPar.run().run());
+    // user-data + config-data
+
+    // 6. IOPath par() — combine two independent IO computations
+    IOPath<String> ioPar =
+        ForPath.par(Path.io(() -> "hello"), Path.io(() -> "world")).yield((a, b) -> a + " " + b);
+
+    System.out.println("IOPath par(2): " + ioPar.unsafeRun());
+    // hello world
+
+    // 7. Sequential from() chaining — each step depends on the previous
+    MaybePath<String> sequential =
+        ForPath.from(Path.just("Alice"))
+            .from(name -> Path.just(name.length()))
+            .yield((name, len) -> name + " has " + len + " letters");
+
+    System.out.println("Sequential chain: " + sequential.getOrElse("nothing"));
 
     System.out.println();
   }

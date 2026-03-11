@@ -13,6 +13,9 @@ import org.higherkindedj.hkt.function.Function6;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.hkt.tuple.Tuple7;
+import org.higherkindedj.hkt.tuple.Tuple8;
+import org.higherkindedj.hkt.tuple.Tuple9;
+import org.higherkindedj.hkt.tuple.Tuple10;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 6 in a EitherPath comprehension. */
@@ -55,6 +58,54 @@ public final class EitherPathSteps6<E, A, B, C, D, F, G> {
       Function<Tuple6<A, B, C, D, F, G>, H> extractor) {
     Objects.requireNonNull(extractor, "extractor must not be null");
     return let(extractor);
+  }
+
+  public <H, I> EitherPathSteps8<E, A, B, C, D, F, G, H, I> par(
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, H>> f1,
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, I>> f2) {
+    EitherMonad<E> m = monad();
+    Kind<EitherKind.Witness<E>, Tuple8<A, B, C, D, F, G, H, I>> next =
+        m.flatMap(
+            t -> m.map2(
+                EitherKindHelper.EITHER.widen(f1.apply(t).run()),
+                EitherKindHelper.EITHER.widen(f2.apply(t).run()),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2)),
+            this.computation);
+    return new EitherPathSteps8<>(next);
+  }
+
+  public <H, I, J> EitherPathSteps9<E, A, B, C, D, F, G, H, I, J> par(
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, H>> f1,
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, I>> f2,
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, J>> f3) {
+    EitherMonad<E> m = monad();
+    Kind<EitherKind.Witness<E>, Tuple9<A, B, C, D, F, G, H, I, J>> next =
+        m.flatMap(
+            t -> m.map3(
+                EitherKindHelper.EITHER.widen(f1.apply(t).run()),
+                EitherKindHelper.EITHER.widen(f2.apply(t).run()),
+                EitherKindHelper.EITHER.widen(f3.apply(t).run()),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3)),
+            this.computation);
+    return new EitherPathSteps9<>(next);
+  }
+
+  public <H, I, J, K> EitherPathSteps10<E, A, B, C, D, F, G, H, I, J, K> par(
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, H>> f1,
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, I>> f2,
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, J>> f3,
+      Function<Tuple6<A, B, C, D, F, G>, EitherPath<E, K>> f4) {
+    EitherMonad<E> m = monad();
+    Kind<EitherKind.Witness<E>, Tuple10<A, B, C, D, F, G, H, I, J, K>> next =
+        m.flatMap(
+            t -> m.map4(
+                EitherKindHelper.EITHER.widen(f1.apply(t).run()),
+                EitherKindHelper.EITHER.widen(f2.apply(t).run()),
+                EitherKindHelper.EITHER.widen(f3.apply(t).run()),
+                EitherKindHelper.EITHER.widen(f4.apply(t).run()),
+                (r1, r2, r3, r4) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3, r4)),
+            this.computation);
+    return new EitherPathSteps10<>(next);
   }
 
   public <R> EitherPath<E, R> yield(Function6<A, B, C, D, F, G, R> f) {

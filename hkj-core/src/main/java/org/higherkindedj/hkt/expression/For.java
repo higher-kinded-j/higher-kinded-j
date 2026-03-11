@@ -12,6 +12,9 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple3;
+import org.higherkindedj.hkt.tuple.Tuple4;
+import org.higherkindedj.hkt.tuple.Tuple5;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 
@@ -105,6 +108,187 @@ public final class For {
   public static <M extends WitnessArity<TypeArity.Unary>, A> FilterableSteps1<M, A> from(
       MonadZero<M> monad, Kind<M, A> source) {
     return new FilterableSteps1<>(monad, source);
+  }
+
+  // --- Parallel (Applicative) Entry Points ---
+
+  /**
+   * Initiates a for-comprehension by combining two independent computations in parallel using
+   * applicative semantics ({@code map2}).
+   *
+   * <p>Unlike {@link #from(Monad, Kind)}, which chains sequentially via {@code flatMap}, this
+   * method declares that the two computations are independent and can potentially execute
+   * concurrently. The actual parallelism depends on the underlying monad; for example, {@code
+   * VTaskMonad} can execute on separate virtual threads, whilst {@code MaybeMonad} will evaluate
+   * sequentially.
+   *
+   * @param monad The Monad instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @return Step 2 of the builder, tracking both values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B> MonadicSteps2<M, A, B> par(
+      Monad<M> monad, Kind<M, A> a, Kind<M, B> b) {
+    Kind<M, Tuple2<A, B>> combined = monad.map2(a, b, Tuple::of);
+    return new MonadicSteps2<>(monad, combined);
+  }
+
+  /**
+   * Initiates a for-comprehension by combining three independent computations in parallel.
+   *
+   * @param monad The Monad instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param c The third independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @param <C> The value type of the third computation.
+   * @return Step 3 of the builder, tracking all three values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B, C> MonadicSteps3<M, A, B, C> par(
+      Monad<M> monad, Kind<M, A> a, Kind<M, B> b, Kind<M, C> c) {
+    Kind<M, Tuple3<A, B, C>> combined = monad.map3(a, b, c, Tuple::of);
+    return new MonadicSteps3<>(monad, combined);
+  }
+
+  /**
+   * Initiates a for-comprehension by combining four independent computations in parallel.
+   *
+   * @param monad The Monad instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param c The third independent computation.
+   * @param d The fourth independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @param <C> The value type of the third computation.
+   * @param <D> The value type of the fourth computation.
+   * @return Step 4 of the builder, tracking all four values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B, C, D>
+      MonadicSteps4<M, A, B, C, D> par(
+          Monad<M> monad, Kind<M, A> a, Kind<M, B> b, Kind<M, C> c, Kind<M, D> d) {
+    Kind<M, Tuple4<A, B, C, D>> combined = monad.map4(a, b, c, d, Tuple::of);
+    return new MonadicSteps4<>(monad, combined);
+  }
+
+  /**
+   * Initiates a for-comprehension by combining five independent computations in parallel.
+   *
+   * @param monad The Monad instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param c The third independent computation.
+   * @param d The fourth independent computation.
+   * @param e The fifth independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @param <C> The value type of the third computation.
+   * @param <D> The value type of the fourth computation.
+   * @param <E> The value type of the fifth computation.
+   * @return Step 5 of the builder, tracking all five values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B, C, D, E>
+      MonadicSteps5<M, A, B, C, D, E> par(
+          Monad<M> monad, Kind<M, A> a, Kind<M, B> b, Kind<M, C> c, Kind<M, D> d, Kind<M, E> e) {
+    Kind<M, Tuple5<A, B, C, D, E>> combined = monad.map5(a, b, c, d, e, Tuple::of);
+    return new MonadicSteps5<>(monad, combined);
+  }
+
+  /**
+   * Initiates a filterable for-comprehension by combining two independent computations in parallel.
+   *
+   * @param monad The MonadZero instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @return Step 2 of the filterable builder, tracking both values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B> FilterableSteps2<M, A, B> par(
+      MonadZero<M> monad, Kind<M, A> a, Kind<M, B> b) {
+    Kind<M, Tuple2<A, B>> combined = monad.map2(a, b, Tuple::of);
+    return new FilterableSteps2<>(monad, combined);
+  }
+
+  /**
+   * Initiates a filterable for-comprehension by combining three independent computations in
+   * parallel.
+   *
+   * @param monad The MonadZero instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param c The third independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @param <C> The value type of the third computation.
+   * @return Step 3 of the filterable builder, tracking all three values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B, C> FilterableSteps3<M, A, B, C> par(
+      MonadZero<M> monad, Kind<M, A> a, Kind<M, B> b, Kind<M, C> c) {
+    Kind<M, Tuple3<A, B, C>> combined = monad.map3(a, b, c, Tuple::of);
+    return new FilterableSteps3<>(monad, combined);
+  }
+
+  /**
+   * Initiates a filterable for-comprehension by combining four independent computations in
+   * parallel.
+   *
+   * @param monad The MonadZero instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param c The third independent computation.
+   * @param d The fourth independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @param <C> The value type of the third computation.
+   * @param <D> The value type of the fourth computation.
+   * @return Step 4 of the filterable builder, tracking all four values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B, C, D>
+      FilterableSteps4<M, A, B, C, D> par(
+          MonadZero<M> monad, Kind<M, A> a, Kind<M, B> b, Kind<M, C> c, Kind<M, D> d) {
+    Kind<M, Tuple4<A, B, C, D>> combined = monad.map4(a, b, c, d, Tuple::of);
+    return new FilterableSteps4<>(monad, combined);
+  }
+
+  /**
+   * Initiates a filterable for-comprehension by combining five independent computations in
+   * parallel.
+   *
+   * @param monad The MonadZero instance (used as an Applicative).
+   * @param a The first independent computation.
+   * @param b The second independent computation.
+   * @param c The third independent computation.
+   * @param d The fourth independent computation.
+   * @param e The fifth independent computation.
+   * @param <M> The witness type of the Monad.
+   * @param <A> The value type of the first computation.
+   * @param <B> The value type of the second computation.
+   * @param <C> The value type of the third computation.
+   * @param <D> The value type of the fourth computation.
+   * @param <E> The value type of the fifth computation.
+   * @return Step 5 of the filterable builder, tracking all five values.
+   */
+  public static <M extends WitnessArity<TypeArity.Unary>, A, B, C, D, E>
+      FilterableSteps5<M, A, B, C, D, E> par(
+          MonadZero<M> monad,
+          Kind<M, A> a,
+          Kind<M, B> b,
+          Kind<M, C> c,
+          Kind<M, D> d,
+          Kind<M, E> e) {
+    Kind<M, Tuple5<A, B, C, D, E>> combined = monad.map5(a, b, c, d, e, Tuple::of);
+    return new FilterableSteps5<>(monad, combined);
   }
 
   /**
@@ -234,23 +418,81 @@ public final class For {
     }
 
     /**
+     * Combines two independent computations in parallel, both depending on the current value.
+     *
+     * <p>This uses applicative semantics ({@code map2}) to express that the two sub-computations
+     * are independent of each other, even though they both depend on the value from this step.
+     *
+     * @param f1 First computation depending on the current value.
+     * @param f2 Second computation depending on the current value.
+     * @param <B> The value type of the first sub-computation.
+     * @param <C> The value type of the second sub-computation.
+     * @return Step 3, tracking the original value and both sub-computation results.
+     */
+    public <B, C> MonadicSteps3<M, A, B, C> par(
+        Function<A, Kind<M, B>> f1, Function<A, Kind<M, C>> f2) {
+      Kind<M, Tuple3<A, B, C>> next =
+          monad.flatMap(
+              a -> monad.map2(f1.apply(a), f2.apply(a), (b, c) -> Tuple.of(a, b, c)), computation);
+      return new MonadicSteps3<>(monad, next);
+    }
+
+    /**
+     * Combines three independent computations in parallel, all depending on the current value.
+     *
+     * @param f1 First computation depending on the current value.
+     * @param f2 Second computation depending on the current value.
+     * @param f3 Third computation depending on the current value.
+     * @param <B> The value type of the first sub-computation.
+     * @param <C> The value type of the second sub-computation.
+     * @param <D> The value type of the third sub-computation.
+     * @return Step 4, tracking the original value and all three sub-computation results.
+     */
+    public <B, C, D> MonadicSteps4<M, A, B, C, D> par(
+        Function<A, Kind<M, B>> f1, Function<A, Kind<M, C>> f2, Function<A, Kind<M, D>> f3) {
+      Kind<M, Tuple4<A, B, C, D>> next =
+          monad.flatMap(
+              a ->
+                  monad.map3(
+                      f1.apply(a), f2.apply(a), f3.apply(a), (b, c, d) -> Tuple.of(a, b, c, d)),
+              computation);
+      return new MonadicSteps4<>(monad, next);
+    }
+
+    /**
+     * Combines four independent computations in parallel, all depending on the current value.
+     *
+     * @param f1 First computation depending on the current value.
+     * @param f2 Second computation depending on the current value.
+     * @param f3 Third computation depending on the current value.
+     * @param f4 Fourth computation depending on the current value.
+     * @param <B> The value type of the first sub-computation.
+     * @param <C> The value type of the second sub-computation.
+     * @param <D> The value type of the third sub-computation.
+     * @param <E> The value type of the fourth sub-computation.
+     * @return Step 5, tracking the original value and all four sub-computation results.
+     */
+    public <B, C, D, E> MonadicSteps5<M, A, B, C, D, E> par(
+        Function<A, Kind<M, B>> f1,
+        Function<A, Kind<M, C>> f2,
+        Function<A, Kind<M, D>> f3,
+        Function<A, Kind<M, E>> f4) {
+      Kind<M, Tuple5<A, B, C, D, E>> next =
+          monad.flatMap(
+              a ->
+                  monad.map4(
+                      f1.apply(a),
+                      f2.apply(a),
+                      f3.apply(a),
+                      f4.apply(a),
+                      (b, c, d, e) -> Tuple.of(a, b, c, d, e)),
+              computation);
+      return new MonadicSteps5<>(monad, next);
+    }
+
+    /**
      * Transitions from this for-comprehension step into a {@link ForState} builder by constructing
      * a state object from the current computation result.
-     *
-     * <p>This bridges the value-accumulation style of {@link For} comprehensions with the
-     * lens-based state threading of {@link ForState}. After calling this method, you can use lens
-     * operations ({@code update}, {@code modify}, {@code fromThen}, etc.) to further transform the
-     * state.
-     *
-     * <h3>Example</h3>
-     *
-     * <pre>{@code
-     * Kind<IdKind.Witness, Dashboard> result =
-     *     For.from(idMonad, fetchUser())
-     *         .toState(user -> new Dashboard(user, false))
-     *         .update(readyLens, true)
-     *         .yield();
-     * }</pre>
      *
      * @param constructor A function that constructs the state object from the current value.
      * @param <S> The type of the state object.
@@ -397,17 +639,84 @@ public final class For {
     }
 
     /**
-     * Transitions from this for-comprehension step into a {@link ForState} builder by constructing
-     * a state object from the current computation result.
+     * Combines two independent computations in parallel, both depending on the current value.
      *
-     * <p>This bridges the value-accumulation style of {@link For} comprehensions with the
-     * lens-based state threading of {@link ForState}. Since this step uses a {@link MonadZero}, the
-     * returned builder preserves filtering capabilities ({@code when}, {@code matchThen}).
+     * <p>This uses applicative semantics ({@code map2}) to express that the two sub-computations
+     * are independent of each other, even though they both depend on the value from this step.
+     *
+     * @param f1 First computation depending on the current value.
+     * @param f2 Second computation depending on the current value.
+     * @param <B> The value type of the first sub-computation.
+     * @param <C> The value type of the second sub-computation.
+     * @return Step 3, tracking the original value and both sub-computation results.
+     */
+    public <B, C> FilterableSteps3<M, A, B, C> par(
+        Function<A, Kind<M, B>> f1, Function<A, Kind<M, C>> f2) {
+      Kind<M, Tuple3<A, B, C>> next =
+          monad.flatMap(
+              a -> monad.map2(f1.apply(a), f2.apply(a), (b, c) -> Tuple.of(a, b, c)), computation);
+      return new FilterableSteps3<>(monad, next);
+    }
+
+    /**
+     * Combines three independent computations in parallel, all depending on the current value.
+     *
+     * @param f1 First computation depending on the current value.
+     * @param f2 Second computation depending on the current value.
+     * @param f3 Third computation depending on the current value.
+     * @param <B> The value type of the first sub-computation.
+     * @param <C> The value type of the second sub-computation.
+     * @param <D> The value type of the third sub-computation.
+     * @return Step 4, tracking the original value and all three sub-computation results.
+     */
+    public <B, C, D> FilterableSteps4<M, A, B, C, D> par(
+        Function<A, Kind<M, B>> f1, Function<A, Kind<M, C>> f2, Function<A, Kind<M, D>> f3) {
+      Kind<M, Tuple4<A, B, C, D>> next =
+          monad.flatMap(
+              a ->
+                  monad.map3(
+                      f1.apply(a), f2.apply(a), f3.apply(a), (b, c, d) -> Tuple.of(a, b, c, d)),
+              computation);
+      return new FilterableSteps4<>(monad, next);
+    }
+
+    /**
+     * Combines four independent computations in parallel, all depending on the current value.
+     *
+     * @param f1 First computation depending on the current value.
+     * @param f2 Second computation depending on the current value.
+     * @param f3 Third computation depending on the current value.
+     * @param f4 Fourth computation depending on the current value.
+     * @param <B> The value type of the first sub-computation.
+     * @param <C> The value type of the second sub-computation.
+     * @param <D> The value type of the third sub-computation.
+     * @param <E> The value type of the fourth sub-computation.
+     * @return Step 5, tracking the original value and all four sub-computation results.
+     */
+    public <B, C, D, E> FilterableSteps5<M, A, B, C, D, E> par(
+        Function<A, Kind<M, B>> f1,
+        Function<A, Kind<M, C>> f2,
+        Function<A, Kind<M, D>> f3,
+        Function<A, Kind<M, E>> f4) {
+      Kind<M, Tuple5<A, B, C, D, E>> next =
+          monad.flatMap(
+              a ->
+                  monad.map4(
+                      f1.apply(a),
+                      f2.apply(a),
+                      f3.apply(a),
+                      f4.apply(a),
+                      (b, c, d, e) -> Tuple.of(a, b, c, d, e)),
+              computation);
+      return new FilterableSteps5<>(monad, next);
+    }
+
+    /**
+     * Transitions from this for-comprehension step into a {@link ForState} builder.
      *
      * @param constructor A function that constructs the state object from the current value.
      * @param <S> The type of the state object.
-     * @return A {@link ForState.FilterableSteps} builder for chaining lens-based state operations
-     *     with filtering support.
+     * @return A {@link ForState.FilterableSteps} builder for chaining lens-based state operations.
      * @throws NullPointerException if {@code constructor} is null.
      */
     public <S> ForState.FilterableSteps<M, S> toState(Function<A, S> constructor) {

@@ -15,6 +15,8 @@ import org.higherkindedj.hkt.function.Function9;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple9;
 import org.higherkindedj.hkt.tuple.Tuple10;
+import org.higherkindedj.hkt.tuple.Tuple11;
+import org.higherkindedj.hkt.tuple.Tuple12;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 9 in a MaybePath comprehension. */
@@ -75,6 +77,34 @@ public final class MaybePathSteps9<A, B, C, D, E, F, G, H, I> {
                     .orElseGet(MONAD::zero),
             this.computation);
     return new MaybePathSteps10<>(newComp);
+  }
+
+  public <J, K> MaybePathSteps11<A, B, C, D, E, F, G, H, I, J, K> par(
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, MaybePath<J>> f1,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, MaybePath<K>> f2) {
+    Kind<MaybeKind.Witness, Tuple11<A, B, C, D, E, F, G, H, I, J, K>> next =
+        MONAD.flatMap(
+            t -> MONAD.map2(
+                MaybeKindHelper.MAYBE.widen(f1.apply(t).run()),
+                MaybeKindHelper.MAYBE.widen(f2.apply(t).run()),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2)),
+            this.computation);
+    return new MaybePathSteps11<>(next);
+  }
+
+  public <J, K, L> MaybePathSteps12<A, B, C, D, E, F, G, H, I, J, K, L> par(
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, MaybePath<J>> f1,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, MaybePath<K>> f2,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, MaybePath<L>> f3) {
+    Kind<MaybeKind.Witness, Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>> next =
+        MONAD.flatMap(
+            t -> MONAD.map3(
+                MaybeKindHelper.MAYBE.widen(f1.apply(t).run()),
+                MaybeKindHelper.MAYBE.widen(f2.apply(t).run()),
+                MaybeKindHelper.MAYBE.widen(f3.apply(t).run()),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2, r3)),
+            this.computation);
+    return new MaybePathSteps12<>(next);
   }
 
   public <R> MaybePath<R> yield(Function9<A, B, C, D, E, F, G, H, I, R> f) {

@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.function.Function9;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple9;
 import org.higherkindedj.hkt.tuple.Tuple10;
+import org.higherkindedj.hkt.tuple.Tuple11;
+import org.higherkindedj.hkt.tuple.Tuple12;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 9 in a filterable for-comprehension. */
@@ -79,6 +81,34 @@ public final class FilterableSteps9<M extends WitnessArity<TypeArity.Unary>, A, 
             t -> filter.test(t) ? monad.of(t) : monad.zero(),
             this.computation);
     return new FilterableSteps9<>(monad, newComputation);
+  }
+
+  public <J, K> FilterableSteps11<M, A, B, C, D, E, F, G, H, I, J, K> par(
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<M, J>> f1,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<M, K>> f2) {
+    Kind<M, Tuple11<A, B, C, D, E, F, G, H, I, J, K>> next =
+        monad.flatMap(
+            t -> monad.map2(
+                f1.apply(t),
+                f2.apply(t),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2)),
+            this.computation);
+    return new FilterableSteps11<>(monad, next);
+  }
+
+  public <J, K, L> FilterableSteps12<M, A, B, C, D, E, F, G, H, I, J, K, L> par(
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<M, J>> f1,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<M, K>> f2,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<M, L>> f3) {
+    Kind<M, Tuple12<A, B, C, D, E, F, G, H, I, J, K, L>> next =
+        monad.flatMap(
+            t -> monad.map3(
+                f1.apply(t),
+                f2.apply(t),
+                f3.apply(t),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2, r3)),
+            this.computation);
+    return new FilterableSteps12<>(monad, next);
   }
 
   public <S> ForState.FilterableSteps<M, S> toState(Function9<A, B, C, D, E, F, G, H, I, S> constructor) {

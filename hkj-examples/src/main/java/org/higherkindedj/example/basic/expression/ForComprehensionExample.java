@@ -42,6 +42,7 @@ import org.higherkindedj.optics.Lens;
  *   <li>StateT monad transformer for stateful computations
  *   <li>Extended arities (6-8 step comprehensions)
  *   <li>Bridging from For to ForState with toState()
+ *   <li>Parallel composition with par() for independent bindings
  * </ul>
  */
 public class ForComprehensionExample {
@@ -67,6 +68,8 @@ public class ForComprehensionExample {
     highArityExample();
     System.out.println("\n--- For → ForState Bridge with toState() ---");
     toStateBridgeExample();
+    System.out.println("\n--- Parallel Composition with par() ---");
+    parallelExample();
   }
 
   private static void listExample() {
@@ -259,5 +262,64 @@ public class ForComprehensionExample {
 
     System.out.println("  Full pipeline: " + IdKindHelper.ID.unwrap(fullPipeline));
     // Full pipeline: data:4|40|true
+  }
+
+  /**
+   * Demonstrates par() for parallel/applicative composition of independent bindings.
+   *
+   * <p>par() uses Applicative semantics (map2/ap) rather than Monad (flatMap), expressing that
+   * bindings are independent. For types like VTask/IO this enables concurrent execution; for others
+   * it documents the independence even if execution is sequential.
+   */
+  private static void parallelExample() {
+    final IdMonad idMonad = IdMonad.instance();
+    final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    final ListMonad listMonad = ListMonad.INSTANCE;
+
+    // 1. par(2) with Id — combine two independent values
+    Kind<IdKind.Witness, String> idResult =
+        For.par(idMonad, Id.of("hello"), Id.of("world")).yield((a, b) -> a + " " + b);
+
+    System.out.println("  Id par(2): " + IdKindHelper.ID.unwrap(idResult));
+    // hello world
+
+    // 2. par(3) with Id — combine three independent values
+    Kind<IdKind.Witness, Integer> idSum =
+        For.par(idMonad, Id.of(10), Id.of(20), Id.of(30)).yield((a, b, c) -> a + b + c);
+
+    System.out.println("  Id par(3): " + IdKindHelper.ID.unwrap(idSum));
+    // 60
+
+    // 3. par(2) with Maybe — short-circuits on Nothing
+    Kind<MaybeKind.Witness, String> maybeResult =
+        For.par(maybeMonad, MAYBE.just("Alice"), MAYBE.just(42))
+            .yield((name, age) -> name + " is " + age);
+
+    System.out.println("  Maybe par(2): " + MAYBE.narrow(maybeResult));
+    // Just(Alice is 42)
+
+    Kind<MaybeKind.Witness, String> maybeShort =
+        For.par(maybeMonad, MAYBE.just("Bob"), MAYBE.<Integer>nothing())
+            .yield((name, age) -> name + " is " + age);
+
+    System.out.println("  Maybe par(2) with Nothing: " + MAYBE.narrow(maybeShort));
+    // Nothing
+
+    // 4. par() then from() — parallel followed by sequential
+    Kind<IdKind.Witness, String> parThenFrom =
+        For.par(idMonad, Id.of("Alice"), Id.of(5))
+            .from(t -> Id.of(t._1() + " has " + t._2() + " letters"))
+            .yield((name, len, sentence) -> sentence.toUpperCase());
+
+    System.out.println("  par then from: " + IdKindHelper.ID.unwrap(parThenFrom));
+    // ALICE HAS 5 LETTERS
+
+    // 5. par(2) with List — cartesian product (applicative, not monadic)
+    Kind<ListKind.Witness, String> listResult =
+        For.par(listMonad, LIST.widen(List.of("A", "B")), LIST.widen(List.of(1, 2)))
+            .yield((letter, num) -> letter + num);
+
+    System.out.println("  List par(2): " + LIST.narrow(listResult));
+    // [A1, A2, B1, B2]
   }
 }

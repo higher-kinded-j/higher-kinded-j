@@ -6,6 +6,8 @@ import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.expression.ForPath;
+import org.higherkindedj.hkt.vtask.Par;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -25,6 +27,8 @@ import org.openjdk.jmh.annotations.State;
  *   <li>Execution cost of comprehensions with different step counts
  *   <li>Comparison of ForPath vs direct VTaskPath chaining
  *   <li>Performance of let() vs from() operations
+ *   <li>Parallel composition with par() vs sequential from()
+ *   <li>ForPath.par() overhead vs direct Par.map2/map3
  *   <li>Real-world workflow patterns
  * </ul>
  *
@@ -43,10 +47,22 @@ public class ForPathVTaskBenchmark {
   private int chainDepth;
 
   private VTaskPath<Integer> purePath;
+  private VTaskPath<Integer> purePathA;
+  private VTaskPath<Integer> purePathB;
+  private VTaskPath<Integer> purePathC;
+  private VTask<Integer> rawTaskA;
+  private VTask<Integer> rawTaskB;
+  private VTask<Integer> rawTaskC;
 
   @Setup
   public void setup() {
     purePath = Path.vtaskPure(42);
+    purePathA = Path.vtaskPure(1);
+    purePathB = Path.vtaskPure(2);
+    purePathC = Path.vtaskPure(3);
+    rawTaskA = VTask.succeed(1);
+    rawTaskB = VTask.succeed(2);
+    rawTaskC = VTask.succeed(3);
   }
 
   // ========== Construction Benchmarks ==========
@@ -298,5 +314,154 @@ public class ForPathVTaskBenchmark {
   @Benchmark
   public VTaskPath<Integer> direct_constructionOnly() {
     return purePath.via(a -> Path.vtaskPure(a * 2)).via(b -> Path.vtaskPure(b + 10));
+  }
+
+  // ========== par() Parallel Composition Benchmarks ==========
+
+  /**
+   * ForPath.par(2) with VTaskPath.
+   *
+   * <p>Measures applicative parallel composition overhead via ForPath.par().
+   */
+  @Benchmark
+  public Integer forPath_par2() {
+    return ForPath.par(purePathA, purePathB).yield((a, b) -> a + b).unsafeRun();
+  }
+
+  /**
+   * ForPath.par(3) with VTaskPath.
+   *
+   * <p>Measures applicative parallel composition with three inputs.
+   */
+  @Benchmark
+  public Integer forPath_par3() {
+    return ForPath.par(purePathA, purePathB, purePathC).yield((a, b, c) -> a + b + c).unsafeRun();
+  }
+
+  /**
+   * Direct Par.map2 without ForPath wrapper.
+   *
+   * <p>Baseline for measuring ForPath.par() comprehension overhead.
+   */
+  @Benchmark
+  public Integer direct_parMap2() {
+    return Par.map2(rawTaskA, rawTaskB, Integer::sum).run();
+  }
+
+  /**
+   * Direct Par.map3 without ForPath wrapper.
+   *
+   * <p>Baseline for measuring ForPath.par(3) comprehension overhead.
+   */
+  @Benchmark
+  public Integer direct_parMap3() {
+    return Par.map3(rawTaskA, rawTaskB, rawTaskC, (a, b, c) -> a + b + c).run();
+  }
+
+  /**
+   * Sequential from() for same independent computations as par(2).
+   *
+   * <p>Compare to forPath_par2 to measure the benefit of applicative vs monadic composition. For
+   * VTaskPath, par() enables true parallelism while from() forces sequential execution.
+   */
+  @Benchmark
+  public Integer forPath_from2_sequential() {
+    return ForPath.from(purePathA).from(a -> purePathB).yield((a, b) -> a + b).unsafeRun();
+  }
+
+  /**
+   * Sequential from() for same independent computations as par(3).
+   *
+   * <p>Compare to forPath_par3 to measure the benefit of applicative vs monadic composition.
+   */
+  @Benchmark
+  public Integer forPath_from3_sequential() {
+    return ForPath.from(purePathA)
+        .from(a -> purePathB)
+        .from(t -> purePathC)
+        .yield((a, b, c) -> a + b + c)
+        .unsafeRun();
+  }
+
+  /**
+   * par(2) followed by let() and from() chaining.
+   *
+   * <p>Measures realistic pattern: parallel fan-out then sequential processing.
+   */
+  @Benchmark
+  public Integer forPath_par2_thenChain() {
+    return ForPath.par(purePathA, purePathB)
+        .let(t -> t._1() + t._2())
+        .from(t -> Path.vtaskPure(t._3() * 10))
+        .yield((a, b, sum, scaled) -> scaled)
+        .unsafeRun();
+  }
+
+  /**
+   * Equivalent workflow without par: all sequential.
+   *
+   * <p>Compare to forPath_par2_thenChain for overhead measurement.
+   */
+  @Benchmark
+  public Integer forPath_from_thenChain() {
+    return ForPath.from(purePathA)
+        .from(a -> purePathB)
+        .let(t -> t._1() + t._2())
+        .from(t -> Path.vtaskPure(t._3() * 10))
+        .yield((a, b, sum, scaled) -> scaled)
+        .unsafeRun();
+  }
+
+  /**
+   * par(2) construction only (no execution).
+   *
+   * <p>Isolates the comprehension wrapper construction cost from virtual thread execution.
+   */
+  @Benchmark
+  public VTaskPath<Integer> forPath_par2_constructionOnly() {
+    return ForPath.par(purePathA, purePathB).yield((a, b) -> a + b);
+  }
+
+  /**
+   * par(3) construction only (no execution).
+   *
+   * <p>Isolates the comprehension wrapper construction cost.
+   */
+  @Benchmark
+  public VTaskPath<Integer> forPath_par3_constructionOnly() {
+    return ForPath.par(purePathA, purePathB, purePathC).yield((a, b, c) -> a + b + c);
+  }
+
+  // ========== par() Service Workflow Benchmarks ==========
+
+  /**
+   * Service workflow using par() for independent fetches.
+   *
+   * <p>Realistic pattern: fetch user and config in parallel, then combine.
+   */
+  @Benchmark
+  public String forPath_par_serviceWorkflow() {
+    VTaskPath<String> fetchUser = Path.vtaskPure("Alice");
+    VTaskPath<Integer> fetchOrderCount = Path.vtaskPure(5);
+
+    return ForPath.par(fetchUser, fetchOrderCount)
+        .yield((name, orders) -> name + " has " + orders + " orders")
+        .unsafeRun();
+  }
+
+  /**
+   * Same service workflow using sequential from().
+   *
+   * <p>Compare to forPath_par_serviceWorkflow for overhead difference.
+   */
+  @Benchmark
+  public String forPath_from_serviceWorkflow() {
+    VTaskPath<String> fetchUser = Path.vtaskPure("Alice");
+    VTaskPath<Integer> fetchOrderCount = Path.vtaskPure(5);
+
+    return ForPath.from(fetchUser)
+        .from(name -> fetchOrderCount)
+        .yield((name, orders) -> name + " has " + orders + " orders")
+        .unsafeRun();
   }
 }

@@ -71,4 +71,4 @@ Master the complete ForState API through progressive exercises, including the `t
 ---
 
 **Previous:** [Optics: Focus DSL](../optics/focus_dsl_journey.md)
-**Next:** [Learning Paths](../learning_paths.md)
+**Next:** [Expression: ForPath Parallel](forpath_parallel_journey.md)

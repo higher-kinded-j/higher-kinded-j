@@ -13,6 +13,9 @@ import org.higherkindedj.hkt.function.Function6;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.hkt.tuple.Tuple7;
+import org.higherkindedj.hkt.tuple.Tuple8;
+import org.higherkindedj.hkt.tuple.Tuple9;
+import org.higherkindedj.hkt.tuple.Tuple10;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 6 in a filterable for-comprehension. */
@@ -79,6 +82,51 @@ public final class FilterableSteps6<M extends WitnessArity<TypeArity.Unary>, A, 
             t -> filter.test(t) ? monad.of(t) : monad.zero(),
             this.computation);
     return new FilterableSteps6<>(monad, newComputation);
+  }
+
+  public <G, H> FilterableSteps8<M, A, B, C, D, E, F, G, H> par(
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, G>> f1,
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, H>> f2) {
+    Kind<M, Tuple8<A, B, C, D, E, F, G, H>> next =
+        monad.flatMap(
+            t -> monad.map2(
+                f1.apply(t),
+                f2.apply(t),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2)),
+            this.computation);
+    return new FilterableSteps8<>(monad, next);
+  }
+
+  public <G, H, I> FilterableSteps9<M, A, B, C, D, E, F, G, H, I> par(
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, G>> f1,
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, H>> f2,
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, I>> f3) {
+    Kind<M, Tuple9<A, B, C, D, E, F, G, H, I>> next =
+        monad.flatMap(
+            t -> monad.map3(
+                f1.apply(t),
+                f2.apply(t),
+                f3.apply(t),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3)),
+            this.computation);
+    return new FilterableSteps9<>(monad, next);
+  }
+
+  public <G, H, I, J> FilterableSteps10<M, A, B, C, D, E, F, G, H, I, J> par(
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, G>> f1,
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, H>> f2,
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, I>> f3,
+      Function<Tuple6<A, B, C, D, E, F>, Kind<M, J>> f4) {
+    Kind<M, Tuple10<A, B, C, D, E, F, G, H, I, J>> next =
+        monad.flatMap(
+            t -> monad.map4(
+                f1.apply(t),
+                f2.apply(t),
+                f3.apply(t),
+                f4.apply(t),
+                (r1, r2, r3, r4) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3, r4)),
+            this.computation);
+    return new FilterableSteps10<>(monad, next);
   }
 
   public <S> ForState.FilterableSteps<M, S> toState(Function6<A, B, C, D, E, F, S> constructor) {

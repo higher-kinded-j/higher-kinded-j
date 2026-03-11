@@ -140,6 +140,18 @@ The workflow has a natural two-phase shape:
 
 This split is what makes the pattern powerful. The gather phase uses `For` for concise accumulation. The enrich phase uses `ForState` for self-documenting named access. The bridge connects them seamlessly.
 
+~~~admonish tip title="Optimising the gather phase with par()"
+In this workflow, steps 1 and 2 (address validation and customer lookup) are independent — neither uses the other's result. You could use `For.par()` to express this:
+
+```java
+For.par(monad, lift(validateShippingAddress(...)), lift(lookupAndValidateCustomer(...)))
+    .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+    .toState(...)
+```
+
+With `EitherPath`, the benefit is documentation of intent; execution remains sequential. With `VTaskPath`, the two operations would run concurrently on virtual threads. See [Parallel Composition](../functional/for_comprehension.md#parallel-composition-with-par) for the full API.
+~~~
+
 ### Named State Replaces Tuple Positions
 
 The `ProcessingState` record gives every intermediate value a name:

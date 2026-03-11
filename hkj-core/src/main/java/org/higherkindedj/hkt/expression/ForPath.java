@@ -43,6 +43,9 @@ import org.higherkindedj.hkt.trymonad.TryKindHelper;
 import org.higherkindedj.hkt.trymonad.TryMonad;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple3;
+import org.higherkindedj.hkt.vtask.Par;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.hkt.vtask.VTaskKindHelper;
 import org.higherkindedj.hkt.vtask.VTaskMonad;
@@ -261,6 +264,380 @@ public final class ForPath {
       GenericPath<F, A> source) {
     Objects.requireNonNull(source, "source must not be null");
     return new GenericPathSteps1<>(source);
+  }
+
+  // ===== MaybePath Parallel Entry Points =====
+
+  /**
+   * Combines two independent MaybePath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> MaybePathSteps2<A, B> par(MaybePath<A> a, MaybePath<B> b) {
+    MaybeMonad m = MaybeMonad.INSTANCE;
+    Kind<MaybeKind.Witness, Tuple2<A, B>> combined =
+        m.map2(
+            MaybeKindHelper.MAYBE.widen(a.run()), MaybeKindHelper.MAYBE.widen(b.run()), Tuple::of);
+    return new MaybePathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent MaybePath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> MaybePathSteps3<A, B, C> par(
+      MaybePath<A> a, MaybePath<B> b, MaybePath<C> c) {
+    MaybeMonad m = MaybeMonad.INSTANCE;
+    Kind<MaybeKind.Witness, Tuple3<A, B, C>> combined =
+        m.map3(
+            MaybeKindHelper.MAYBE.widen(a.run()),
+            MaybeKindHelper.MAYBE.widen(b.run()),
+            MaybeKindHelper.MAYBE.widen(c.run()),
+            Tuple::of);
+    return new MaybePathSteps3<>(combined);
+  }
+
+  // ===== OptionalPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent OptionalPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> OptionalPathSteps2<A, B> par(OptionalPath<A> a, OptionalPath<B> b) {
+    OptionalMonad m = OptionalMonad.INSTANCE;
+    Kind<OptionalKind.Witness, Tuple2<A, B>> combined =
+        m.map2(
+            OptionalKindHelper.OPTIONAL.widen(a.run()),
+            OptionalKindHelper.OPTIONAL.widen(b.run()),
+            Tuple::of);
+    return new OptionalPathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent OptionalPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> OptionalPathSteps3<A, B, C> par(
+      OptionalPath<A> a, OptionalPath<B> b, OptionalPath<C> c) {
+    OptionalMonad m = OptionalMonad.INSTANCE;
+    Kind<OptionalKind.Witness, Tuple3<A, B, C>> combined =
+        m.map3(
+            OptionalKindHelper.OPTIONAL.widen(a.run()),
+            OptionalKindHelper.OPTIONAL.widen(b.run()),
+            OptionalKindHelper.OPTIONAL.widen(c.run()),
+            Tuple::of);
+    return new OptionalPathSteps3<>(combined);
+  }
+
+  // ===== EitherPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent EitherPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <E> the error type
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <E, A, B> EitherPathSteps2<E, A, B> par(EitherPath<E, A> a, EitherPath<E, B> b) {
+    EitherMonad<E> m = EitherMonad.instance();
+    Kind<EitherKind.Witness<E>, Tuple2<A, B>> combined =
+        m.map2(
+            EitherKindHelper.EITHER.widen(a.run()),
+            EitherKindHelper.EITHER.widen(b.run()),
+            Tuple::of);
+    return new EitherPathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent EitherPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <E> the error type
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <E, A, B, C> EitherPathSteps3<E, A, B, C> par(
+      EitherPath<E, A> a, EitherPath<E, B> b, EitherPath<E, C> c) {
+    EitherMonad<E> m = EitherMonad.instance();
+    Kind<EitherKind.Witness<E>, Tuple3<A, B, C>> combined =
+        m.map3(
+            EitherKindHelper.EITHER.widen(a.run()),
+            EitherKindHelper.EITHER.widen(b.run()),
+            EitherKindHelper.EITHER.widen(c.run()),
+            Tuple::of);
+    return new EitherPathSteps3<>(combined);
+  }
+
+  // ===== TryPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent TryPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> TryPathSteps2<A, B> par(TryPath<A> a, TryPath<B> b) {
+    TryMonad m = TryMonad.INSTANCE;
+    Kind<TryKind.Witness, Tuple2<A, B>> combined =
+        m.map2(TryKindHelper.TRY.widen(a.run()), TryKindHelper.TRY.widen(b.run()), Tuple::of);
+    return new TryPathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent TryPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> TryPathSteps3<A, B, C> par(TryPath<A> a, TryPath<B> b, TryPath<C> c) {
+    TryMonad m = TryMonad.INSTANCE;
+    Kind<TryKind.Witness, Tuple3<A, B, C>> combined =
+        m.map3(
+            TryKindHelper.TRY.widen(a.run()),
+            TryKindHelper.TRY.widen(b.run()),
+            TryKindHelper.TRY.widen(c.run()),
+            Tuple::of);
+    return new TryPathSteps3<>(combined);
+  }
+
+  // ===== IOPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent IOPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> IOPathSteps2<A, B> par(IOPath<A> a, IOPath<B> b) {
+    IOMonad m = IOMonad.INSTANCE;
+    Kind<IOKind.Witness, Tuple2<A, B>> combined =
+        m.map2(IOKindHelper.IO_OP.widen(a.run()), IOKindHelper.IO_OP.widen(b.run()), Tuple::of);
+    return new IOPathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent IOPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> IOPathSteps3<A, B, C> par(IOPath<A> a, IOPath<B> b, IOPath<C> c) {
+    IOMonad m = IOMonad.INSTANCE;
+    Kind<IOKind.Witness, Tuple3<A, B, C>> combined =
+        m.map3(
+            IOKindHelper.IO_OP.widen(a.run()),
+            IOKindHelper.IO_OP.widen(b.run()),
+            IOKindHelper.IO_OP.widen(c.run()),
+            Tuple::of);
+    return new IOPathSteps3<>(combined);
+  }
+
+  // ===== VTaskPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent VTaskPath computations using true parallel execution.
+   *
+   * <p>Unlike other path types which use sequential applicative semantics, VTaskPath {@code par()}
+   * methods use {@link Par#map2} to execute both computations concurrently on virtual threads via
+   * {@code StructuredTaskScope}.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> VTaskPathSteps2<A, B> par(VTaskPath<A> a, VTaskPath<B> b) {
+    VTask<Tuple2<A, B>> combined = Par.map2(a.run(), b.run(), Tuple::of);
+    Kind<VTaskKind.Witness, Tuple2<A, B>> kind = VTaskKindHelper.VTASK.widen(combined);
+    return new VTaskPathSteps2<>(kind);
+  }
+
+  /**
+   * Combines three independent VTaskPath computations using true parallel execution.
+   *
+   * <p>Uses {@link Par#map3} to execute all three computations concurrently on virtual threads.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> VTaskPathSteps3<A, B, C> par(
+      VTaskPath<A> a, VTaskPath<B> b, VTaskPath<C> c) {
+    VTask<Tuple3<A, B, C>> combined = Par.map3(a.run(), b.run(), c.run(), Tuple::of);
+    Kind<VTaskKind.Witness, Tuple3<A, B, C>> kind = VTaskKindHelper.VTASK.widen(combined);
+    return new VTaskPathSteps3<>(kind);
+  }
+
+  // ===== IdPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent IdPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> IdPathSteps2<A, B> par(IdPath<A> a, IdPath<B> b) {
+    IdMonad m = IdMonad.instance();
+    Kind<IdKind.Witness, Tuple2<A, B>> combined =
+        m.map2(IdKindHelper.ID.widen(a.run()), IdKindHelper.ID.widen(b.run()), Tuple::of);
+    return new IdPathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent IdPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> IdPathSteps3<A, B, C> par(IdPath<A> a, IdPath<B> b, IdPath<C> c) {
+    IdMonad m = IdMonad.instance();
+    Kind<IdKind.Witness, Tuple3<A, B, C>> combined =
+        m.map3(
+            IdKindHelper.ID.widen(a.run()),
+            IdKindHelper.ID.widen(b.run()),
+            IdKindHelper.ID.widen(c.run()),
+            Tuple::of);
+    return new IdPathSteps3<>(combined);
+  }
+
+  // ===== NonDetPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent NonDetPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <A, B> NonDetPathSteps2<A, B> par(NonDetPath<A> a, NonDetPath<B> b) {
+    ListMonad m = ListMonad.INSTANCE;
+    Kind<ListKind.Witness, Tuple2<A, B>> combined =
+        m.map2(ListKindHelper.LIST.widen(a.run()), ListKindHelper.LIST.widen(b.run()), Tuple::of);
+    return new NonDetPathSteps2<>(combined);
+  }
+
+  /**
+   * Combines three independent NonDetPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <A, B, C> NonDetPathSteps3<A, B, C> par(
+      NonDetPath<A> a, NonDetPath<B> b, NonDetPath<C> c) {
+    ListMonad m = ListMonad.INSTANCE;
+    Kind<ListKind.Witness, Tuple3<A, B, C>> combined =
+        m.map3(
+            ListKindHelper.LIST.widen(a.run()),
+            ListKindHelper.LIST.widen(b.run()),
+            ListKindHelper.LIST.widen(c.run()),
+            Tuple::of);
+    return new NonDetPathSteps3<>(combined);
+  }
+
+  // ===== GenericPath Parallel Entry Points =====
+
+  /**
+   * Combines two independent GenericPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param <F> the witness type
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @return step 2 of the builder
+   */
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B> GenericPathSteps2<F, A, B> par(
+      GenericPath<F, A> a, GenericPath<F, B> b) {
+    Monad<F> monad = a.monad();
+    Kind<F, Tuple2<A, B>> combined = monad.map2(a.runKind(), b.runKind(), Tuple::of);
+    return new GenericPathSteps2<>(monad, combined);
+  }
+
+  /**
+   * Combines three independent GenericPath computations using applicative semantics.
+   *
+   * @param a the first computation
+   * @param b the second computation
+   * @param c the third computation
+   * @param <F> the witness type
+   * @param <A> the first value type
+   * @param <B> the second value type
+   * @param <C> the third value type
+   * @return step 3 of the builder
+   */
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B, C>
+      GenericPathSteps3<F, A, B, C> par(
+          GenericPath<F, A> a, GenericPath<F, B> b, GenericPath<F, C> c) {
+    Monad<F> monad = a.monad();
+    Kind<F, Tuple3<A, B, C>> combined =
+        monad.map3(a.runKind(), b.runKind(), c.runKind(), Tuple::of);
+    return new GenericPathSteps3<>(monad, combined);
   }
 
   // ========================================================================
