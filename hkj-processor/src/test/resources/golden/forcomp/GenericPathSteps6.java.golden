@@ -12,6 +12,9 @@ import org.higherkindedj.hkt.function.Function6;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.hkt.tuple.Tuple7;
+import org.higherkindedj.hkt.tuple.Tuple8;
+import org.higherkindedj.hkt.tuple.Tuple9;
+import org.higherkindedj.hkt.tuple.Tuple10;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 6 in a GenericPath comprehension. */
@@ -50,6 +53,51 @@ public final class GenericPathSteps6<F extends WitnessArity<TypeArity.Unary>, A,
       Function<Tuple6<A, B, C, D, E, G>, H> extractor) {
     Objects.requireNonNull(extractor, "extractor must not be null");
     return let(extractor);
+  }
+
+  public <H, I> GenericPathSteps8<F, A, B, C, D, E, G, H, I> par(
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, H>> f1,
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, I>> f2) {
+    Kind<F, Tuple8<A, B, C, D, E, G, H, I>> next =
+        monad.flatMap(
+            t -> monad.map2(
+                f1.apply(t).runKind(),
+                f2.apply(t).runKind(),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2)),
+            this.computation);
+    return new GenericPathSteps8<>(monad, next);
+  }
+
+  public <H, I, J> GenericPathSteps9<F, A, B, C, D, E, G, H, I, J> par(
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, H>> f1,
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, I>> f2,
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, J>> f3) {
+    Kind<F, Tuple9<A, B, C, D, E, G, H, I, J>> next =
+        monad.flatMap(
+            t -> monad.map3(
+                f1.apply(t).runKind(),
+                f2.apply(t).runKind(),
+                f3.apply(t).runKind(),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3)),
+            this.computation);
+    return new GenericPathSteps9<>(monad, next);
+  }
+
+  public <H, I, J, K> GenericPathSteps10<F, A, B, C, D, E, G, H, I, J, K> par(
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, H>> f1,
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, I>> f2,
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, J>> f3,
+      Function<Tuple6<A, B, C, D, E, G>, GenericPath<F, K>> f4) {
+    Kind<F, Tuple10<A, B, C, D, E, G, H, I, J, K>> next =
+        monad.flatMap(
+            t -> monad.map4(
+                f1.apply(t).runKind(),
+                f2.apply(t).runKind(),
+                f3.apply(t).runKind(),
+                f4.apply(t).runKind(),
+                (r1, r2, r3, r4) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3, r4)),
+            this.computation);
+    return new GenericPathSteps10<>(monad, next);
   }
 
   public <R> GenericPath<F, R> yield(Function6<A, B, C, D, E, G, R> f) {

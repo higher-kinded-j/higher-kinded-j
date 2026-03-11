@@ -186,6 +186,19 @@ This is not magic. It is the result of combining a small number of simple, compo
 | Records | Provides immutable data with minimal syntax |
 | Annotations | Generates lenses, prisms, and bridges |
 
+~~~admonish note title="Why not par() in the gather phase?"
+The gather phase uses sequential `.from()` rather than `par()` because **step 3 depends on the results of steps 1 and 2**: `buildValidatedOrder` needs both the validated address and the customer. However, steps 1 and 2 *are* independent — `validateShippingAddress` and `lookupAndValidateCustomer` do not depend on each other. If these were expensive operations, you could use `For.par()` for them and chain step 3 with `.from()`:
+
+```java
+For.par(monad, lift(validateShippingAddress(address)), lift(lookupAndValidateCustomer(id)))
+    .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+    .toState((address, customer, order) -> ProcessingState.initial(address, customer, order))
+    // ... enrich phase continues
+```
+
+For `EitherPath`, `par()` is sequential, so the benefit is purely documentation of intent. For a `VTaskPath` version of this workflow, `par()` would provide true concurrent execution. See [Parallel Composition](../functional/for_comprehension.md#parallel-composition-with-par) for details.
+~~~
+
 None of these concepts is particularly complex. `Either` is just a container with two cases. `For` is a comprehension that accumulates results in a tuple. `toState()` constructs a record from those results. `ForState` threads that record through each step. Lenses are just pairs of getter and setter functions. Sealed interfaces are just sum types.
 
 The power comes from *composition*. Each building block does one thing well, and they combine without friction. Error propagation is automatic. State updates are immutable. Pattern matching is exhaustive. Code generation eliminates boilerplate.

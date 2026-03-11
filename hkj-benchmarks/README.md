@@ -30,7 +30,7 @@ Unlike unit tests which verify correctness, these benchmarks:
 | `VTaskPathVsIOPathBenchmark` | VTaskPath vs IOPath | Wrapper comparison |
 | `VTaskVsIOBenchmark` | VTask vs IO | Virtual vs platform threads |
 | `VTaskVsPlatformThreadsBenchmark` | VTask vs ExecutorService | Virtual threads vs thread pools |
-| `ForPathVTaskBenchmark` | ForPath with VTask | For-comprehension overhead |
+| `ForPathVTaskBenchmark` | ForPath with VTask | For-comprehension overhead, par() parallel composition |
 | `TrampolineBenchmark` | `Trampoline<A>` | Stack-safe recursion |
 | `FreeBenchmark` | `Free<F,A>` | Free monad overhead |
 | `VStreamBenchmark` | `VStream<A>` | Pull-based stream construction, combinators, pipelines |
@@ -58,9 +58,11 @@ Methods matching `*Chain*`, `*Map*`, `*FlatMap*`, `*Via*`
 - Tests linear scaling of composition
 
 #### Category 4: Parallel
-Methods in `VTaskParBenchmark`, methods matching `*par*`, `*zip*`, `*race*`
+Methods in `VTaskParBenchmark` and `ForPathVTaskBenchmark`, methods matching `*par*`, `*zip*`, `*race*`
 - Measures StructuredTaskScope overhead
 - Tests parallel combinator efficiency
+- Compares ForPath.par() comprehension overhead vs direct Par.map2/map3
+- Compares par() (applicative) vs from() (monadic) for independent computations
 
 #### Category 5: Concurrency Scaling
 Methods with `@Threads` annotations in `ConcurrencyScalingBenchmark`
@@ -116,6 +118,20 @@ Use these expectations to identify potential problems in benchmark results:
 **Warning signs:**
 - Wrapper overhead > 30% suggests unnecessary allocation
 - ForPath overhead > 50% indicates tuple handling inefficiency
+
+### ForPath.par() Parallel Composition
+
+| Comparison | Expected Result | Explanation |
+|------------|-----------------|-------------|
+| `forPath_par2` vs `direct_parMap2` | 5-15% overhead | ForPath wrapper + VTaskPath wrapping |
+| `forPath_par3` vs `direct_parMap3` | 5-15% overhead | Same wrapper overhead at arity 3 |
+| `forPath_par2` vs `forPath_from2_sequential` | Similar for instant tasks | No I/O means parallelism has no advantage |
+| `forPath_par2_constructionOnly` vs `forPath_constructionOnly` | par() faster | par() builds fewer closures than from() chains |
+| `forPath_par2_thenChain` vs `forPath_from_thenChain` | Similar for instant tasks | Chaining overhead dominates |
+
+**Warning signs:**
+- ForPath.par() > 30% slower than direct Par.map2 suggests excessive wrapping
+- par() significantly slower than from() for instant tasks indicates scope overhead
 
 ### VStream
 
@@ -191,8 +207,9 @@ These benchmarks inform architectural choices:
 1. **`VTaskVsIOBenchmark.*`** - When to use virtual threads vs platform threads
 2. **`VTaskVsPlatformThreadsBenchmark.*`** - Comparison with traditional ExecutorService
 3. **`ForPathVTaskBenchmark.forPath_* vs direct_*`** - For-comprehension syntax overhead
-4. **`AbstractionOverheadBenchmark.*`** - Cost of HKJ abstractions vs raw Java
-5. **`ConcurrencyScalingBenchmark.*`** - Thread scaling characteristics
+4. **`ForPathVTaskBenchmark.forPath_par* vs direct_parMap*`** - par() comprehension overhead vs direct Par combinators
+5. **`AbstractionOverheadBenchmark.*`** - Cost of HKJ abstractions vs raw Java
+6. **`ConcurrencyScalingBenchmark.*`** - Thread scaling characteristics
 
 ### Memory-Sensitive Operations
 
@@ -334,6 +351,21 @@ ForPathVTaskBenchmark.forPath_threeStepEquivalent  thrpt   20  10.234 +/- 0.321 
 - ForPath: ~10.2 ops/us
 - Overhead: ~17%
 - **Verdict:** Acceptable overhead for improved readability (expected 10-25%)
+
+### Example: ForPath.par() Overhead
+
+```
+Benchmark                                           Mode  Cnt   Score   Error   Units
+ForPathVTaskBenchmark.forPath_par2                 thrpt   20  11.234 +/- 0.456  ops/us
+ForPathVTaskBenchmark.direct_parMap2               thrpt   20  12.567 +/- 0.321  ops/us
+ForPathVTaskBenchmark.forPath_from2_sequential     thrpt   20  10.890 +/- 0.432  ops/us
+```
+
+**Analysis:**
+- ForPath.par(): ~11.2 ops/us
+- Direct Par.map2: ~12.6 ops/us
+- Overhead: ~11%
+- **Verdict:** Acceptable wrapper overhead for comprehension readability (expected 5-15%)
 
 ---
 
@@ -530,6 +562,25 @@ Available profilers:
 | `deepFlatMapChainExecution` | Composition | Stack safety for flatMap chains |
 | `baselineJavaStream*` | Execution | Raw Java Stream baselines for comparison |
 | `realWorldTransformPipeline` / `realWorldFlatMapFilter` | Composition | ETL-style patterns |
+
+### ForPathVTaskBenchmark (30 methods)
+
+| Method | Category | Measures |
+|--------|----------|----------|
+| `baseline_directVia` | Composition | Direct VTaskPath chaining baseline |
+| `forPath_twoStep` / `threeStep` / `fourStep` / `fiveStep` | Composition | Step count scaling |
+| `forPath_withLet` / `withFrom` / `mixedLetFrom` | Composition | let() vs from() overhead |
+| `direct_threeStepChain` / `forPath_threeStepEquivalent` | Composition | ForPath overhead |
+| `direct_valueCombination` / `forPath_valueCombination` | Composition | Tuple access overhead |
+| `forPath_serviceWorkflow` / `direct_serviceWorkflow` | Composition | Real-world pattern |
+| `forPath_calculationWorkflow` | Composition | Mixed let/from pattern |
+| `forPath_constructionOnly` / `direct_constructionOnly` | Construction | Pure construction cost |
+| `forPath_par2` / `forPath_par3` | Parallel | ForPath.par() composition |
+| `direct_parMap2` / `direct_parMap3` | Parallel | Direct Par.map2/map3 baseline |
+| `forPath_from2_sequential` / `from3_sequential` | Parallel | Sequential baseline for par() comparison |
+| `forPath_par2_thenChain` / `forPath_from_thenChain` | Parallel | Chaining after par() vs from() |
+| `forPath_par2_constructionOnly` / `par3_constructionOnly` | Construction | par() construction cost |
+| `forPath_par_serviceWorkflow` / `from_serviceWorkflow` | Parallel | Real-world par() vs from() |
 
 ### Comparison Benchmarks
 

@@ -11,6 +11,9 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple3;
+import org.higherkindedj.hkt.tuple.Tuple4;
+import org.higherkindedj.hkt.tuple.Tuple5;
+import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 2 in a non-filterable for-comprehension. */
@@ -54,6 +57,51 @@ public final class MonadicSteps2<M extends WitnessArity<TypeArity.Unary>, A, B>
             t -> Tuple.of(t._1(), t._2(), extractor.apply(t)),
             this.computation);
     return new MonadicSteps3<>(monad, newComputation);
+  }
+
+  public <C, D> MonadicSteps4<M, A, B, C, D> par(
+      Function<Tuple2<A, B>, Kind<M, C>> f1,
+      Function<Tuple2<A, B>, Kind<M, D>> f2) {
+    Kind<M, Tuple4<A, B, C, D>> next =
+        monad.flatMap(
+            t -> monad.map2(
+                f1.apply(t),
+                f2.apply(t),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), r1, r2)),
+            this.computation);
+    return new MonadicSteps4<>(monad, next);
+  }
+
+  public <C, D, E> MonadicSteps5<M, A, B, C, D, E> par(
+      Function<Tuple2<A, B>, Kind<M, C>> f1,
+      Function<Tuple2<A, B>, Kind<M, D>> f2,
+      Function<Tuple2<A, B>, Kind<M, E>> f3) {
+    Kind<M, Tuple5<A, B, C, D, E>> next =
+        monad.flatMap(
+            t -> monad.map3(
+                f1.apply(t),
+                f2.apply(t),
+                f3.apply(t),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), r1, r2, r3)),
+            this.computation);
+    return new MonadicSteps5<>(monad, next);
+  }
+
+  public <C, D, E, F> MonadicSteps6<M, A, B, C, D, E, F> par(
+      Function<Tuple2<A, B>, Kind<M, C>> f1,
+      Function<Tuple2<A, B>, Kind<M, D>> f2,
+      Function<Tuple2<A, B>, Kind<M, E>> f3,
+      Function<Tuple2<A, B>, Kind<M, F>> f4) {
+    Kind<M, Tuple6<A, B, C, D, E, F>> next =
+        monad.flatMap(
+            t -> monad.map4(
+                f1.apply(t),
+                f2.apply(t),
+                f3.apply(t),
+                f4.apply(t),
+                (r1, r2, r3, r4) -> Tuple.of(t._1(), t._2(), r1, r2, r3, r4)),
+            this.computation);
+    return new MonadicSteps6<>(monad, next);
   }
 
   public <S> ForState.Steps<M, S> toState(BiFunction<A, B, S> constructor) {

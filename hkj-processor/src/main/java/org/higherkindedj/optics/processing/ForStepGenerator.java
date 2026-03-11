@@ -56,7 +56,7 @@ final class ForStepGenerator {
     sb.append("import org.higherkindedj.hkt.TypeArity;\n");
     sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
     appendFunctionImport(sb, n);
-    appendTupleImports(sb, n, terminal);
+    appendTupleImports(sb, n, maxArity);
     sb.append("import org.higherkindedj.optics.annotations.Generated;\n");
     sb.append("\n");
 
@@ -165,6 +165,9 @@ final class ForStepGenerator {
       sb.append("  }\n\n");
     }
 
+    // par() methods
+    generateParMethods(sb, n, maxArity, "Monad", "MonadicSteps");
+
     // toState with spread function
     generateToStateSpread(sb, n, "Monad", "ForState.Steps");
 
@@ -213,7 +216,7 @@ final class ForStepGenerator {
     sb.append("import org.higherkindedj.hkt.TypeArity;\n");
     sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
     appendFunctionImport(sb, n);
-    appendTupleImports(sb, n, terminal);
+    appendTupleImports(sb, n, maxArity);
     sb.append("import org.higherkindedj.optics.annotations.Generated;\n");
     sb.append("\n");
 
@@ -369,6 +372,9 @@ final class ForStepGenerator {
     sb.append("    return new ").append(className).append("<>(monad, newComputation);\n");
     sb.append("  }\n\n");
 
+    // par() methods
+    generateParMethods(sb, n, maxArity, "MonadZero", "FilterableSteps");
+
     // toState with spread function
     generateToStateSpread(sb, n, "MonadZero", "ForState.FilterableSteps");
 
@@ -455,6 +461,93 @@ final class ForStepGenerator {
   }
 
   // ---------------------------------------------------------------------------
+  // Par methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Generates par() methods on a step class. For step N, generates par() with K parallel bindings
+   * where N + K <= maxArity. K ranges from 2 to 4.
+   */
+  private static void generateParMethods(
+      StringBuilder sb, int n, int maxArity, String monadType, String stepsPrefix) {
+    for (int k = 2; k <= 4; k++) {
+      int targetArity = n + k;
+      if (targetArity > maxArity) break;
+      generateParMethod(sb, n, k, targetArity, monadType, stepsPrefix);
+    }
+  }
+
+  /**
+   * Generates a single par() method that adds k parallel bindings to step n, producing step
+   * targetArity.
+   */
+  private static void generateParMethod(
+      StringBuilder sb, int n, int k, int targetArity, String monadType, String stepsPrefix) {
+    String targetClassName = stepsPrefix + targetArity;
+
+    // New type parameters for the parallel bindings
+    String[] newTypes = new String[k];
+    for (int i = 0; i < k; i++) {
+      newTypes[i] = TYPE_PARAMS[n + i];
+    }
+
+    // Method signature: public <NewType1, NewType2, ...> TargetSteps<M, A, ..., NewType1, ...>
+    // par(...)
+    sb.append("  public <");
+    for (int i = 0; i < k; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append(newTypes[i]);
+    }
+    sb.append("> ").append(targetClassName).append("<M");
+    for (int i = 0; i < targetArity; i++) {
+      sb.append(", ").append(TYPE_PARAMS[i]);
+    }
+    sb.append("> par(\n");
+
+    // Parameters: Function<TupleN<...>, Kind<M, NewTypeI>> fI
+    for (int i = 0; i < k; i++) {
+      sb.append("      Function<Tuple").append(n).append("<");
+      appendTypeParams(sb, n);
+      sb.append(">, Kind<M, ").append(newTypes[i]).append(">> f").append(i + 1);
+      if (i < k - 1) sb.append(",\n");
+    }
+    sb.append(") {\n");
+
+    // Body: monad.flatMap(t -> monad.mapK(f1.apply(t), ..., (r1, ...) -> Tuple.of(t._1(), ...,
+    // r1, ...)), computation)
+    sb.append("    Kind<M, Tuple").append(targetArity).append("<");
+    appendTypeParams(sb, targetArity);
+    sb.append(">> next =\n");
+    sb.append("        monad.flatMap(\n");
+    sb.append("            t -> monad.map").append(k).append("(\n");
+
+    // map arguments: f1.apply(t), f2.apply(t), ...
+    for (int i = 0; i < k; i++) {
+      sb.append("                f").append(i + 1).append(".apply(t)");
+      sb.append(",\n");
+    }
+
+    // combiner: (r1, r2, ...) -> Tuple.of(t._1(), ..., t._N(), r1, r2, ...)
+    sb.append("                (");
+    for (int i = 0; i < k; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append("r").append(i + 1);
+    }
+    sb.append(") -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    for (int i = 0; i < k; i++) {
+      if (i > 0) sb.append(", ");
+      sb.append("r").append(i + 1);
+    }
+    sb.append(")),\n");
+    sb.append("            this.computation);\n");
+    sb.append("    return new ").append(targetClassName).append("<>(monad, next);\n");
+    sb.append("  }\n\n");
+  }
+
+  // ---------------------------------------------------------------------------
   // Utility
   // ---------------------------------------------------------------------------
 
@@ -476,11 +569,12 @@ final class ForStepGenerator {
     }
   }
 
-  private static void appendTupleImports(StringBuilder sb, int n, boolean terminal) {
+  private static void appendTupleImports(StringBuilder sb, int n, int maxArity) {
     sb.append("import org.higherkindedj.hkt.tuple.Tuple;\n");
-    sb.append("import org.higherkindedj.hkt.tuple.Tuple").append(n).append(";\n");
-    if (!terminal) {
-      sb.append("import org.higherkindedj.hkt.tuple.Tuple").append(n + 1).append(";\n");
+    // Import TupleN for this step, TupleN+1 for from/let/focus, and up to TupleN+4 for par()
+    int maxTarget = Math.min(n + 4, maxArity);
+    for (int i = n; i <= maxTarget; i++) {
+      sb.append("import org.higherkindedj.hkt.tuple.Tuple").append(i).append(";\n");
     }
   }
 }

@@ -76,6 +76,7 @@
   - [Optics: Fluent & Free DSL](tutorials/optics/fluent_free_journey.md)
   - [Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)
   - [Expression: ForState](tutorials/expression/forstate_journey.md)
+  - [Expression: ForPath Parallel](tutorials/expression/forpath_parallel_journey.md)
   - [Resilience Patterns](tutorials/resilience/resilience_journey.md)
   - [Learning Paths](tutorials/learning_paths.md)
   - [Solutions Guide](tutorials/solutions_guide.md)

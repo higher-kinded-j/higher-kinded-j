@@ -12,6 +12,8 @@ import org.higherkindedj.hkt.function.Function9;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple9;
 import org.higherkindedj.hkt.tuple.Tuple10;
+import org.higherkindedj.hkt.tuple.Tuple11;
+import org.higherkindedj.hkt.tuple.Tuple12;
 import org.higherkindedj.optics.annotations.Generated;
 
 /** Step 9 in a GenericPath comprehension. */
@@ -50,6 +52,34 @@ public final class GenericPathSteps9<F extends WitnessArity<TypeArity.Unary>, A,
       Function<Tuple9<A, B, C, D, E, G, H, I, J>, K> extractor) {
     Objects.requireNonNull(extractor, "extractor must not be null");
     return let(extractor);
+  }
+
+  public <K, L> GenericPathSteps11<F, A, B, C, D, E, G, H, I, J, K, L> par(
+      Function<Tuple9<A, B, C, D, E, G, H, I, J>, GenericPath<F, K>> f1,
+      Function<Tuple9<A, B, C, D, E, G, H, I, J>, GenericPath<F, L>> f2) {
+    Kind<F, Tuple11<A, B, C, D, E, G, H, I, J, K, L>> next =
+        monad.flatMap(
+            t -> monad.map2(
+                f1.apply(t).runKind(),
+                f2.apply(t).runKind(),
+                (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2)),
+            this.computation);
+    return new GenericPathSteps11<>(monad, next);
+  }
+
+  public <K, L, M> GenericPathSteps12<F, A, B, C, D, E, G, H, I, J, K, L, M> par(
+      Function<Tuple9<A, B, C, D, E, G, H, I, J>, GenericPath<F, K>> f1,
+      Function<Tuple9<A, B, C, D, E, G, H, I, J>, GenericPath<F, L>> f2,
+      Function<Tuple9<A, B, C, D, E, G, H, I, J>, GenericPath<F, M>> f3) {
+    Kind<F, Tuple12<A, B, C, D, E, G, H, I, J, K, L, M>> next =
+        monad.flatMap(
+            t -> monad.map3(
+                f1.apply(t).runKind(),
+                f2.apply(t).runKind(),
+                f3.apply(t).runKind(),
+                (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2, r3)),
+            this.computation);
+    return new GenericPathSteps12<>(monad, next);
   }
 
   public <R> GenericPath<F, R> yield(Function9<A, B, C, D, E, G, H, I, J, R> f) {
