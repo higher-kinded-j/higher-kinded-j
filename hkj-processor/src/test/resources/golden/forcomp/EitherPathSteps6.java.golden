@@ -4,6 +4,10 @@ package org.higherkindedj.hkt.expression;
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.EitherKind;
@@ -106,6 +110,63 @@ public final class EitherPathSteps6<E, A, B, C, D, F, G> {
                 (r1, r2, r3, r4) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2, r3, r4)),
             this.computation);
     return new EitherPathSteps10<>(next);
+  }
+
+  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> EitherPathSteps7<E, A, B, C, D, F, G, Kind<TT, TR>> traverse(
+      Traverse<TT> traversable,
+      Function<Tuple6<A, B, C, D, F, G>, Kind<TT, TC>> extractor,
+      Function<TC, Kind<EitherKind.Witness<E>, TR>> f) {
+    Objects.requireNonNull(traversable, "traversable must not be null");
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    Objects.requireNonNull(f, "function must not be null");
+    EitherMonad<E> m = monad();
+    Kind<EitherKind.Witness<E>, Tuple7<A, B, C, D, F, G, Kind<TT, TR>>> newComp =
+        m.flatMap(
+            t ->
+                m.map(
+                    tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), tb),
+                    traversable.traverse(m, f, extractor.apply(t))),
+            computation);
+    return new EitherPathSteps7<>(newComp);
+  }
+
+  public <TT extends WitnessArity<TypeArity.Unary>, TR> EitherPathSteps7<E, A, B, C, D, F, G, Kind<TT, TR>> sequence(
+      Traverse<TT> traversable,
+      Function<Tuple6<A, B, C, D, F, G>, Kind<TT, Kind<EitherKind.Witness<E>, TR>>> extractor) {
+    Objects.requireNonNull(traversable, "traversable must not be null");
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    EitherMonad<E> m = monad();
+    Kind<EitherKind.Witness<E>, Tuple7<A, B, C, D, F, G, Kind<TT, TR>>> newComp =
+        m.flatMap(
+            t ->
+                m.map(
+                    tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), tb),
+                    traversable.sequenceA(m, extractor.apply(t))),
+            computation);
+    return new EitherPathSteps7<>(newComp);
+  }
+
+  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> EitherPathSteps7<E, A, B, C, D, F, G, Kind<TT, TR>> flatTraverse(
+      Traverse<TT> traversable,
+      Monad<TT> innerMonad,
+      Function<Tuple6<A, B, C, D, F, G>, Kind<TT, TC>> extractor,
+      Function<TC, Kind<EitherKind.Witness<E>, Kind<TT, TR>>> f) {
+    Objects.requireNonNull(traversable, "traversable must not be null");
+    Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    Objects.requireNonNull(f, "function must not be null");
+    EitherMonad<E> m = monad();
+    Kind<EitherKind.Witness<E>, Tuple7<A, B, C, D, F, G, Kind<TT, TR>>> newComp =
+        m.flatMap(
+            t -> {
+              Kind<EitherKind.Witness<E>, Kind<TT, Kind<TT, TR>>> traversed =
+                  traversable.traverse(m, f, extractor.apply(t));
+              return m.map(
+                  ttb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), innerMonad.flatMap(Function.identity(), ttb)),
+                  traversed);
+            },
+            computation);
+    return new EitherPathSteps7<>(newComp);
   }
 
   public <R> EitherPath<E, R> yield(Function6<A, B, C, D, F, G, R> f) {

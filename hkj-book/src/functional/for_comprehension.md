@@ -5,12 +5,14 @@
 - The four types of operations: generators (`.from()`), bindings (`.let()`), guards (`.when()`), and projections (`.yield()`)
 - Building complex workflows with StateT and other monad transformers
 - Converting "pyramid of doom" code into clean, imperative-style scripts
-- Expressing independent computations with `par()` for parallel composition
-- Real-world examples from simple Maybe operations to complex state management
 ~~~
 
 ~~~ admonish example title="See Example Code:"
 [ForComprehensionExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForComprehensionExample.java)
+~~~
+
+~~~admonish title="Hands On Practice"
+[Tutorial03_ForTraverseComprehension.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/expression/Tutorial03_ForTraverseComprehension.java)
 ~~~
 
 Endless nested callbacks and unreadable chains of flatMap calls can be tiresome. The `higher-kinded-j` library brings the elegance and power of Scala-style for-comprehensions to Java, allowing you to write complex asynchronous and sequential logic in a way that is clean, declarative, and easy to follow.
@@ -38,7 +40,7 @@ This code works, but the logic is buried inside nested lambdas. The intent (to s
 
 The `For` comprehension builder provides a much more intuitive way to write the same logic. It lets you express the sequence of operations as if they were simple, imperative steps.
 
-Here’s the same example rewritten with the `For` builder:
+Here's the same example rewritten with the `For` builder:
 
 ```java
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -92,26 +94,7 @@ At higher arities, the tuple-style `yield` is especially convenient for accessin
 ```
 
 ~~~admonish tip title="Consider toState() for complex workflows"
-As the number of bindings grows, tuple positions like `t._3()` and `t._4()` become hard to track. The `toState()` bridge lets you gather values with `For`, then transition to named fields for the rest. Here is the same example rewritten:
-
-```java
-@GenerateLenses
-record NameInfo(String name, int len, String upper, int score, String exclaimed, String summary) {}
-
-Kind<IdKind.Witness, String> result =
-    For.from(idMonad, Id.of("Alice"))
-        .let(name -> name.length())
-        .toState((name, len) -> new NameInfo(name, len, "", 0, "", ""))
-        .fromThen(ctx -> Id.of(ctx.name().toUpperCase()),               upperLens)
-        .fromThen(ctx -> Id.of(ctx.len() * 10),                        scoreLens)
-        .fromThen(ctx -> Id.of(ctx.upper() + "!"),                     exclaimedLens)
-        .fromThen(ctx -> Id.of(ctx.name() + " has " + ctx.len() + " letters"), summaryLens)
-        .yield(ctx -> ctx.summary() + " (score: " + ctx.score() + ")");
-
-// Same result: "Alice has 5 letters (score: 50)"
-```
-
-Every intermediate value now has a name. Inserting a new step won't shift any existing accessor. See [ForState: Named State Comprehensions](forstate_comprehension.md) for the full API.
+As the number of bindings grows, tuple positions like `t._3()` and `t._4()` become hard to track. The `toState()` bridge lets you gather values with `For`, then transition to named fields for the rest. See [Bridging to ForState](for_mtl.md#bridging-to-forstate-with-tostate) for details.
 ~~~
 
 ## Core Operations of the `For` Builder
@@ -171,8 +154,6 @@ var evens = For.from(listMonad, LIST.widen(List.of(1, 2, 3, 4, 5, 6)))
 
 Every comprehension ends with `.yield()`. This is the final **`map`** operation where you take all the values you've gathered from the generators and bindings and produce your final result. You can access the bound values as individual lambda parameters or as a single `Tuple`.
 
-
-
 ## Turn the power up: `StateT` Example
 
 - [ForComprehensionExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForComprehensionExample.java)
@@ -222,134 +203,6 @@ In this example, Using the `For` comprehension really helps hide the complexity 
 
 For a more extensive example of using the full power of the For comprehension head over to the [Order Workflow](../hkts/order-walkthrough.md)
 
-## MTL Integration
-
-The `For` builder composes naturally with [MTL capability interfaces](../transformers/mtl_capabilities.md). Because `MonadReader`, `MonadState`, and `MonadWriter` all extend `Monad<F>`, you can pass any MTL instance directly to `For.from()` and use capability operations as generators.
-
-### Reading Configuration with MonadReader
-
-```java
-<F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
-    buildConnectionString(MonadReader<F, AppConfig> env) {
-  return For.from(env, env.ask())
-      .yield(config -> config.dbUrl() + "?retries=" + config.maxRetries());
-}
-```
-
-The function declares a capability (`MonadReader`) rather than a concrete type. It works with `ReaderT<CompletableFuture, ...>` in production and `ReaderT<Id, ...>` in tests without any change.
-
-### Threading State with MonadState
-
-```java
-<F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer>
-    addTwoValues(MonadState<F, Counter> state) {
-  return For.from(state, state.modify(c -> new Counter(c.count() + 1, c.total() + 10)))
-      .from(_ -> state.modify(c -> new Counter(c.count() + 1, c.total() + 20)))
-      .from(_ -> state.gets(Counter::total))
-      .yield((_, _, total) -> total);
-}
-```
-
-Each `from()` step sees the state left by the previous step. The `For` comprehension handles the threading automatically.
-
-### Accumulating Output with MonadWriter
-
-```java
-<F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
-    auditedProcess(MonadWriter<F, List<String>> audit, String item) {
-  return For.from(audit, audit.tell(List.of("Processing " + item)))
-      .from(_ -> audit.tell(List.of("Completed " + item)))
-      .yield((_, _) -> "processed-" + item);
-}
-```
-
-Each `tell()` appends to the accumulated output. The entries combine via the `Monoid` for the output type.
-
-~~~admonish tip title="See Also"
-- [MTL Capabilities](../transformers/mtl_capabilities.md) for the full overview
-- [MonadReader](../transformers/mtl_reader.md), [MonadState](../transformers/mtl_state.md), [MonadWriter](../transformers/mtl_writer.md) for detailed API guides
-- [Combining Capabilities](../transformers/mtl_combining.md) for multi-capability patterns
-~~~
-
----
-
-## Parallel Composition with `par()`
-
-Sometimes two or more computations within a comprehension are **independent** of each other. Using `.from()` forces them into a sequential `flatMap` chain, even though neither needs the other's result. The `par()` combinator lets you express this independence explicitly.
-
-### Static Entry Points
-
-`For.par()` combines two to five independent computations using applicative semantics (`map2`/`map3`/`map4`/`map5`) rather than monadic `flatMap`:
-
-```java
-// Two independent values combined in parallel
-Kind<IdKind.Witness, String> result =
-    For.par(idMonad, Id.of("hello"), Id.of("world"))
-        .yield((a, b) -> a + " " + b);
-// "hello world"
-
-// Three independent values
-Kind<IdKind.Witness, Integer> sum =
-    For.par(idMonad, Id.of(10), Id.of(20), Id.of(30))
-        .yield((a, b, c) -> a + b + c);
-// 60
-```
-
-For `MonadZero` types like `Maybe`, short-circuiting works as expected:
-
-```java
-Kind<MaybeKind.Witness, String> result =
-    For.par(maybeMonad, MAYBE.just("Alice"), MAYBE.<Integer>nothing())
-        .yield((name, age) -> name + " is " + age);
-// Nothing — the second computation failed
-```
-
-### Instance `par()` for Dependent Branches
-
-When a prior value is needed before branching, use the instance `par()` method on `Steps1`. This performs a sequential `flatMap` to obtain the first value, then fans out the branches with `map2`/`map3`:
-
-```java
-Kind<IdKind.Witness, String> result =
-    For.from(idMonad, Id.of("Alice"))
-        .par(
-            name -> Id.of(name.length()),          // branch 1
-            name -> Id.of(name.toUpperCase()))      // branch 2
-        .yield((name, len, upper) -> upper + " has " + len + " letters");
-// "ALICE has 5 letters"
-```
-
-### Chaining After `par()`
-
-The result of `par()` is a regular step, so you can chain `.from()`, `.let()`, `.when()`, or another `.par()` after it:
-
-```java
-Kind<IdKind.Witness, String> result =
-    For.par(idMonad, Id.of("Alice"), Id.of(5))
-        .from(t -> Id.of(t._1() + " has " + t._2() + " letters"))
-        .yield((name, len, sentence) -> sentence.toUpperCase());
-// "ALICE HAS 5 LETTERS"
-```
-
-### When Is `par()` Actually Parallel?
-
-The `par()` combinator expresses *independence*, not necessarily *concurrency*. True parallel execution depends on the underlying type:
-
-| Type | Behaviour |
-|------|-----------|
-| VTask | True concurrency via `Par.map2`/`Par.map3` on virtual threads |
-| IO | Sequential (future: parallel IO executor) |
-| Maybe, Either, Optional | Sequential; short-circuits on failure |
-| List | Cartesian product (applicative, not monadic) |
-| Id | Immediate; no effect to parallelise |
-
-Even when execution is sequential, `par()` documents the *intent* that the computations are independent, making the dependency structure of your workflow explicit.
-
-~~~admonish tip title="See Also"
-For `par()` with Effect Path types (no manual Kind extraction), see [ForPath Parallel Composition](../effect/forpath_comprehension.md#parallel-composition-with-par).
-~~~
-
----
-
 ## Similarities to Scala
 
 If you're familiar with Scala, you'll recognise the pattern. In Scala, a for-comprehension looks like this:
@@ -368,293 +221,12 @@ The `For` builder in `higher-kinded-j` provides the same expressive power throug
 
 ---
 
-## Working with Optics
-
-~~~admonish info title="For-Optics Integration"
-The For comprehension integrates natively with the [Optics](../optics/optics_intro.md) library, providing first-class support for lens-based extraction, prism-based pattern matching, and traversal-based iteration within monadic comprehensions.
-~~~
-
-The `For` builder provides two optic-aware operations that extend the comprehension capabilities:
-
-### Extracting Values with `focus()`
-
-The `focus()` method extracts a value using a function and adds it to the accumulated tuple. This is particularly useful when working with nested data structures.
-
-```java
-record User(String name, Address address) {}
-record Address(String city, String street) {}
-
-var users = List.of(
-    new User("Alice", new Address("London", "Baker St")),
-    new User("Bob", new Address("Paris", "Champs-Élysées"))
-);
-
-Kind<ListKind.Witness, String> result =
-    For.from(listMonad, LIST.widen(users))
-        .focus(user -> user.address().city())
-        .yield((user, city) -> user.name() + " lives in " + city);
-
-// Result: ["Alice lives in London", "Bob lives in Paris"]
-```
-
-The extracted value is accumulated alongside the original value, making both available in subsequent steps and in the final `yield()`.
-
-### Pattern Matching with `match()`
-
-The `match()` method provides prism-like pattern matching within comprehensions. When used with a `MonadZero` (such as `List` or `Maybe`), it short-circuits the computation if the match fails.
-
-```java
-sealed interface Result permits Success, Failure {}
-record Success(String value) implements Result {}
-record Failure(String error) implements Result {}
-
-Prism<Result, Success> successPrism = Prism.of(
-    r -> r instanceof Success s ? Optional.of(s) : Optional.empty(),
-    s -> s
-);
-
-List<Result> results = List.of(
-    new Success("data1"),
-    new Failure("error"),
-    new Success("data2")
-);
-
-Kind<ListKind.Witness, String> successes =
-    For.from(listMonad, LIST.widen(results))
-        .match(successPrism)
-        .yield((result, success) -> success.value().toUpperCase());
-
-// Result: ["DATA1", "DATA2"] - failures are filtered out
-```
-
-With `Maybe`, failed matches short-circuit to `Nothing`:
-
-```java
-Kind<MaybeKind.Witness, String> result =
-    For.from(maybeMonad, MAYBE.just((Result) new Failure("error")))
-        .match(successPrism)
-        .yield((r, s) -> s.value());
-
-// Result: Nothing - the match failed
-```
-
-~~~admonish tip title="Combining focus() and match()"
-Both operations can be chained to build complex extraction and filtering pipelines:
-
-```java
-For.from(listMonad, LIST.widen(items))
-    .focus(item -> item.category())
-    .match(premiumCategoryPrism)
-    .when(t -> t._3().discount() > 0.1)
-    .yield((item, category, premium) -> item.name());
-```
-~~~
-
----
-
-## Bulk Operations with ForTraversal
-
-For operations over multiple elements within a structure, use `ForTraversal`. This provides a fluent API for applying transformations to all elements focused by a [Traversal](../optics/traversals.md).
-
-```java
-record Player(String name, int score) {}
-
-List<Player> players = List.of(
-    new Player("Alice", 100),
-    new Player("Bob", 200)
-);
-
-Traversal<List<Player>, Player> playersTraversal = Traversals.forList();
-Lens<Player, Integer> scoreLens = Lens.of(
-    Player::score,
-    (p, s) -> new Player(p.name(), s)
-);
-
-// Add bonus points to all players
-Kind<IdKind.Witness, List<Player>> result =
-    ForTraversal.over(playersTraversal, players, IdMonad.instance())
-        .modify(scoreLens, score -> score + 50)
-        .run();
-
-List<Player> updated = IdKindHelper.ID.unwrap(result);
-// Result: [Player("Alice", 150), Player("Bob", 250)]
-```
-
-### Filtering Within Traversals
-
-The `filter()` method preserves non-matching elements unchanged whilst applying transformations only to matching elements:
-
-```java
-Kind<IdKind.Witness, List<Player>> result =
-    ForTraversal.over(playersTraversal, players, IdMonad.instance())
-        .filter(p -> p.score() >= 150)
-        .modify(scoreLens, score -> score * 2)
-        .run();
-
-// Alice (100) unchanged, Bob (200) doubled to 400
-```
-
-### Collecting Results
-
-Use `toList()` to collect all focused elements:
-
-```java
-Kind<IdKind.Witness, List<Player>> allPlayers =
-    ForTraversal.over(playersTraversal, players, IdMonad.instance())
-        .toList();
-```
-
----
-
-## Bridging to ForState with `toState()`
-
-When a workflow starts with a few monadic steps (fetching data, computing values) and then needs to thread named state through a series of updates, `toState()` lets you transition seamlessly from `For` into `ForState` mid-comprehension. The accumulated values become the constructor arguments for your state record, and from that point on you work with named fields and lenses instead of tuple positions.
-
-```java
-record Dashboard(String user, int count, boolean ready) {}
-
-Lens<Dashboard, Boolean> readyLens = Lens.of(
-    Dashboard::ready, (d, v) -> new Dashboard(d.user(), d.count(), v));
-Lens<Dashboard, Integer> countLens = Lens.of(
-    Dashboard::count, (d, v) -> new Dashboard(d.user(), v, d.ready()));
-
-// Start with For (value accumulation), then switch to ForState (named state)
-Kind<IdKind.Witness, Dashboard> result =
-    For.from(idMonad, Id.of("Alice"))               // a = "Alice"
-        .from(name -> Id.of(name.length()))          // b = 5
-        .toState((name, count) ->                    // bridge: construct record
-            new Dashboard(name, count, false))
-        .modify(countLens, c -> c * 10)              // named lens operation
-        .update(readyLens, true)
-        .yield();
-
-// Dashboard("Alice", 50, true)
-```
-
-The `toState()` method is available at every arity (1 through 12) in both **spread-style** and **tuple-style**:
-
-```java
-// Spread-style: arguments unpacked
-.toState((name, count) -> new Dashboard(name, count, false))
-
-// Tuple-style: single tuple argument
-.toState(t -> new Dashboard(t._1(), t._2(), false))
-```
-
-When the comprehension uses a `MonadZero` (like `Maybe` or `List`), the returned builder is a `ForState.FilterableSteps`, preserving access to `when()` and `matchThen()` guards:
-
-```java
-Kind<MaybeKind.Witness, Dashboard> result =
-    For.from(maybeMonad, MAYBE.just("Alice"))
-        .toState(name -> new Dashboard(name, 0, false))
-        .when(d -> d.user().length() > 3)   // guard still available
-        .update(readyLens, true)
-        .yield();
-
-// Just(Dashboard("Alice", 0, true))
-```
-
-~~~admonish tip title="When to use toState()"
-Use `toState()` when your workflow has a natural two-phase shape: **gather** values with `For` (fetching, computing, filtering), then **build and refine** a structured record with `ForState` (lens updates, zooming, traversals). This gives you the best of both worlds: concise tuple-based accumulation for the first few steps, and named field access for the rest.
-~~~
-
-## Stateful Updates with ForState
-
-For workflows with more than a few steps, tuple-based access becomes fragile. `ForState` solves this by threading a **named record** through each step, with [lenses](../optics/lenses.md) providing type-safe field access. Every intermediate value has a name, not a position.
-
-```java
-// ForState: named fields instead of tuple positions
-ForState.withState(monad, monad.of(initialContext))
-    .fromThen(ctx -> validateOrder(ctx.orderId()),   validatedLens)
-    .fromThen(ctx -> processPayment(ctx),            confirmationLens)
-    .when(ctx -> ctx.totalCents() > 0)               // guard (MonadZero)
-    .zoom(addressLens)                                // narrow scope
-        .update(cityLens, "SPRINGFIELD")
-    .endZoom()
-    .yield(ctx -> buildReceipt(ctx.user(), ctx.confirmationId()));
-```
-
-ForState supports the full range of comprehension operations: pure updates (`update`, `modify`), effectful operations (`from`, `fromThen`), guards (`when`), pattern matching (`matchThen`), bulk traversal (`traverse`), and scope narrowing (`zoom`/`endZoom`).
-
-~~~admonish info title="Dedicated Chapter"
-For a complete API reference, side-by-side comparison with `For`, and guidance on when to use each comprehension style, see **[ForState: Named State Comprehensions](forstate_comprehension.md)**.
-~~~
-
----
-
-## Position-Aware Traversals with ForIndexed
-
-`ForIndexed` extends traversal comprehensions to include index/position awareness, enabling transformations that depend on element position within the structure.
-
-```java
-IndexedTraversal<Integer, List<Player>, Player> indexedPlayers =
-    IndexedTraversals.forList();
-
-List<Player> players = List.of(
-    new Player("Alice", 100),
-    new Player("Bob", 200),
-    new Player("Charlie", 150)
-);
-
-// Add position-based bonus (first place gets more)
-Kind<IdKind.Witness, List<Player>> result =
-    ForIndexed.overIndexed(indexedPlayers, players, IdMonad.instance())
-        .modify(scoreLens, (index, score) -> score + (100 - index * 10))
-        .run();
-
-// Alice: 100 + 100 = 200
-// Bob: 200 + 90 = 290
-// Charlie: 150 + 80 = 230
-```
-
-### Filtering by Position
-
-Use `filterIndex()` to focus only on specific positions:
-
-```java
-// Only modify top 3 players
-ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
-    .filterIndex(i -> i < 3)
-    .modify(scoreLens, (i, s) -> s * 2)
-    .run();
-```
-
-### Combined Index and Value Filtering
-
-Use `filter()` with a `BiPredicate` to filter based on both position and value:
-
-```java
-ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
-    .filter((index, player) -> index < 5 && player.score() > 100)
-    .modify(scoreLens, (i, s) -> s + 50)
-    .run();
-```
-
-### Collecting with Indices
-
-Use `toIndexedList()` to collect elements along with their indices:
-
-```java
-Kind<IdKind.Witness, List<Pair<Integer, Player>>> indexed =
-    ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
-        .toIndexedList();
-
-// Result: [Pair(0, Player("Alice", 100)), Pair(1, Player("Bob", 200)), ...]
-```
-
-~~~admonish tip title="See Also"
-For more details on indexed optics, see [Indexed Optics](../optics/indexed_optics.md).
-~~~
-
-~~~admonish tip title="See Also"
-- [ForState: Named State Comprehensions](forstate_comprehension.md) -- The recommended pattern for complex workflows with named field access
-- [ForPath Comprehension](../effect/forpath_comprehension.md) -- For-comprehensions that work directly with Effect Path types
-~~~
-
----
-
 ~~~admonish info title="Hands-On Learning"
 Practice parallel composition in [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises, ~20 minutes).
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice traverse in for-comprehensions in [Tutorial 03: Traverse in For-Comprehensions](../tutorials/expression/fortraverse_journey.md) (11 exercises, ~15 minutes).
 ~~~
 
 ~~~admonish tip title="Further Reading"
@@ -662,6 +234,15 @@ Practice parallel composition in [Tutorial 02: ForPath Parallel Composition](../
 - **Baeldung**: [Java CompletableFuture](https://www.baeldung.com/java-completablefuture) - Java's built-in approach to chaining dependent asynchronous steps
 ~~~
 
+~~~admonish tip title="See Also"
+- [Parallel Composition](for_par.md) -- Express independent computations with `par()`
+- [Traverse Within Comprehensions](for_traverse.md) -- Bulk operations over traversable structures
+- [Optics Integration](for_optics.md) -- `focus()`, `match()`, ForTraversal, and ForIndexed
+- [MTL & ForState Bridge](for_mtl.md) -- MTL integration and `toState()` bridge
+- [ForState: Named State Comprehensions](forstate_comprehension.md) -- The recommended pattern for complex workflows
+- [ForPath Comprehension](../effect/forpath_comprehension.md) -- For-comprehensions that work directly with Effect Path types
+~~~
+
 ---
 
-**Previous:** [Natural Transformation](natural_transformation.md) | **Next:** [ForState: Named State Comprehensions](forstate_comprehension.md)
+**Previous:** [Natural Transformation](natural_transformation.md) | **Next:** [Parallel Composition](for_par.md)

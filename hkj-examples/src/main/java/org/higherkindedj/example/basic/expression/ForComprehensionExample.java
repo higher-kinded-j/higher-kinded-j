@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
+import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -70,6 +71,8 @@ public class ForComprehensionExample {
     toStateBridgeExample();
     System.out.println("\n--- Parallel Composition with par() ---");
     parallelExample();
+    System.out.println("\n=== Traverse Within Comprehensions ===");
+    traverseExample();
   }
 
   private static void listExample() {
@@ -321,5 +324,23 @@ public class ForComprehensionExample {
 
     System.out.println("  List par(2): " + LIST.narrow(listResult));
     // [A1, A2, B1, B2]
+  }
+
+  /**
+   * Demonstrates traverse(), sequence(), and flatTraverse() within For comprehension chains.
+   *
+   * <p>These operations allow traversing a collection with an effectful function directly within a
+   * for-comprehension step, accumulating the traversed result into the tuple.
+   */
+  private static void traverseExample() {
+    // --- Traverse within For comprehension ---
+    var listTraverse = ListTraverse.INSTANCE;
+    Kind<MaybeKind.Witness, List<Integer>> traverseResult =
+        For.from(MaybeMonad.INSTANCE, MAYBE.just(Arrays.asList(1, 2, 3)))
+            .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
+            .yield((original, traversed) -> LIST.narrow(traversed));
+
+    System.out.println("Traverse [1,2,3] doubling: " + MAYBE.narrow(traverseResult));
+    // Traverse [1,2,3] doubling: Just([2, 4, 6])
   }
 }

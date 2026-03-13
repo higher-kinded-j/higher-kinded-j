@@ -7,6 +7,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.EitherPath;
@@ -641,6 +642,54 @@ public final class ForPath {
   }
 
   // ========================================================================
+  // Traverse / Sequence / FlatTraverse helpers (shared by all Steps1 classes)
+  // ========================================================================
+
+  private static <
+          M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, C, B>
+      Kind<M, Tuple2<A, Kind<T, B>>> traverseImpl(
+          Monad<M> monad,
+          Kind<M, A> computation,
+          Traverse<T> traversable,
+          Function<A, Kind<T, C>> extractor,
+          Function<C, Kind<M, B>> f) {
+    return monad.flatMap(
+        a -> monad.map(tb -> Tuple.of(a, tb), traversable.traverse(monad, f, extractor.apply(a))),
+        computation);
+  }
+
+  private static <
+          M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<M, Tuple2<A, Kind<T, B>>> sequenceImpl(
+          Monad<M> monad,
+          Kind<M, A> computation,
+          Traverse<T> traversable,
+          Function<A, Kind<T, Kind<M, B>>> extractor) {
+    return monad.flatMap(
+        a -> monad.map(tb -> Tuple.of(a, tb), traversable.sequenceA(monad, extractor.apply(a))),
+        computation);
+  }
+
+  private static <
+          M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, C, B>
+      Kind<M, Tuple2<A, Kind<T, B>>> flatTraverseImpl(
+          Monad<M> monad,
+          Kind<M, A> computation,
+          Traverse<T> traversable,
+          Monad<T> innerMonad,
+          Function<A, Kind<T, C>> extractor,
+          Function<C, Kind<M, Kind<T, B>>> f) {
+    return monad.flatMap(
+        a -> {
+          Kind<M, Kind<T, Kind<T, B>>> traversed =
+              traversable.traverse(monad, f, extractor.apply(a));
+          return monad.map(
+              ttb -> Tuple.of(a, innerMonad.flatMap(Function.identity(), ttb)), traversed);
+        },
+        computation);
+  }
+
+  // ========================================================================
   // MaybePath Steps (Filterable)
   // ========================================================================
 
@@ -732,6 +781,69 @@ public final class ForPath {
     }
 
     /**
+     * Traverses a structure extracted from the current value with an effectful function.
+     *
+     * @param traversable the Traverse instance
+     * @param extractor extracts the traversable structure
+     * @param f the effectful function
+     * @param <T> the traversable witness type
+     * @param <C> the element type
+     * @param <B> the result element type
+     * @return the next step with the traversed result
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> MaybePathSteps2<A, Kind<T, B>> traverse(
+        Traverse<T> traversable,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<MaybeKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new MaybePathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    /**
+     * Sequences a structure of monadic values extracted from the current value.
+     *
+     * @param traversable the Traverse instance
+     * @param extractor extracts the structure of monadic values
+     * @param <T> the traversable witness type
+     * @param <B> the element type
+     * @return the next step with the sequenced result
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, B> MaybePathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<MaybeKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new MaybePathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    /**
+     * Traverses with a function returning nested structures, then flattens.
+     *
+     * @param traversable the Traverse instance
+     * @param innerMonad the Monad for the inner structure
+     * @param extractor extracts the traversable structure
+     * @param f the effectful function returning nested structures
+     * @param <T> the traversable witness type
+     * @param <C> the element type
+     * @param <B> the result element type
+     * @return the next step with the flat-traversed result
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        MaybePathSteps2<A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<MaybeKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new MaybePathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
+    }
+
+    /**
      * Completes the comprehension by yielding a final result.
      *
      * @param f the yield function
@@ -803,6 +915,38 @@ public final class ForPath {
       return new OptionalPathSteps1<>(newComp);
     }
 
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        OptionalPathSteps2<A, Kind<T, B>> traverse(
+            Traverse<T> traversable,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<OptionalKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new OptionalPathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> OptionalPathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<OptionalKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new OptionalPathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        OptionalPathSteps2<A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<OptionalKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new OptionalPathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
+    }
+
     public <R> OptionalPath<R> yield(Function<A, R> f) {
       Kind<OptionalKind.Witness, R> result = MONAD.map(f, computation);
       return Path.optional(OptionalKindHelper.OPTIONAL.narrow(result));
@@ -849,6 +993,38 @@ public final class ForPath {
       return new EitherPathSteps2<>(newComp);
     }
 
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        EitherPathSteps2<E, A, Kind<T, B>> traverse(
+            Traverse<T> traversable,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<EitherKind.Witness<E>, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new EitherPathSteps2<>(traverseImpl(monad(), computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> EitherPathSteps2<E, A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<EitherKind.Witness<E>, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new EitherPathSteps2<>(sequenceImpl(monad(), computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        EitherPathSteps2<E, A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<EitherKind.Witness<E>, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new EitherPathSteps2<>(
+          flatTraverseImpl(monad(), computation, traversable, innerMonad, extractor, f));
+    }
+
     public <R> EitherPath<E, R> yield(Function<A, R> f) {
       EitherMonad<E> m = monad();
       Kind<EitherKind.Witness<E>, R> result = m.map(f, computation);
@@ -888,6 +1064,37 @@ public final class ForPath {
       Kind<TryKind.Witness, Tuple2<A, B>> newComp =
           MONAD.map(a -> Tuple.of(a, focusPath.get(a)), computation);
       return new TryPathSteps2<>(newComp);
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> TryPathSteps2<A, Kind<T, B>> traverse(
+        Traverse<T> traversable,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<TryKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new TryPathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> TryPathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<TryKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new TryPathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        TryPathSteps2<A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<TryKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new TryPathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
     }
 
     public <R> TryPath<R> yield(Function<A, R> f) {
@@ -930,6 +1137,36 @@ public final class ForPath {
       return new IOPathSteps2<>(newComp);
     }
 
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> IOPathSteps2<A, Kind<T, B>> traverse(
+        Traverse<T> traversable,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<IOKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new IOPathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> IOPathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<IOKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new IOPathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> IOPathSteps2<A, Kind<T, B>> flatTraverse(
+        Traverse<T> traversable,
+        Monad<T> innerMonad,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<IOKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new IOPathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
+    }
+
     public <R> IOPath<R> yield(Function<A, R> f) {
       Kind<IOKind.Witness, R> result = MONAD.map(f, computation);
       return Path.ioPath(IOKindHelper.IO_OP.narrow(result));
@@ -970,6 +1207,37 @@ public final class ForPath {
       return new VTaskPathSteps2<>(newComp);
     }
 
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> VTaskPathSteps2<A, Kind<T, B>> traverse(
+        Traverse<T> traversable,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<VTaskKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new VTaskPathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> VTaskPathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<VTaskKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new VTaskPathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        VTaskPathSteps2<A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<VTaskKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new VTaskPathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
+    }
+
     public <R> VTaskPath<R> yield(Function<A, R> f) {
       Kind<VTaskKind.Witness, R> result = MONAD.map(f, computation);
       return Path.vtaskPath(VTaskKindHelper.VTASK.narrow(result));
@@ -1008,6 +1276,36 @@ public final class ForPath {
       Kind<IdKind.Witness, Tuple2<A, B>> newComp =
           MONAD.map(a -> Tuple.of(a, focusPath.get(a)), computation);
       return new IdPathSteps2<>(newComp);
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> IdPathSteps2<A, Kind<T, B>> traverse(
+        Traverse<T> traversable,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<IdKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new IdPathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> IdPathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<IdKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new IdPathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> IdPathSteps2<A, Kind<T, B>> flatTraverse(
+        Traverse<T> traversable,
+        Monad<T> innerMonad,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<IdKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new IdPathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
     }
 
     public <R> IdPath<R> yield(Function<A, R> f) {
@@ -1053,6 +1351,37 @@ public final class ForPath {
       return new NonDetPathSteps1<>(newComp);
     }
 
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> NonDetPathSteps2<A, Kind<T, B>> traverse(
+        Traverse<T> traversable,
+        Function<A, Kind<T, C>> extractor,
+        Function<C, Kind<ListKind.Witness, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new NonDetPathSteps2<>(traverseImpl(MONAD, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B> NonDetPathSteps2<A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<ListKind.Witness, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new NonDetPathSteps2<>(sequenceImpl(MONAD, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        NonDetPathSteps2<A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<ListKind.Witness, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new NonDetPathSteps2<>(
+          flatTraverseImpl(MONAD, computation, traversable, innerMonad, extractor, f));
+    }
+
     public <R> NonDetPath<R> yield(Function<A, R> f) {
       Kind<ListKind.Witness, R> result = MONAD.map(f, computation);
       return NonDetPath.of(ListKindHelper.LIST.narrow(result));
@@ -1088,6 +1417,39 @@ public final class ForPath {
       Objects.requireNonNull(focusPath, "focusPath must not be null");
       Kind<F, Tuple2<A, B>> newComp = monad.map(a -> Tuple.of(a, focusPath.get(a)), computation);
       return new GenericPathSteps2<>(monad, newComp);
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        GenericPathSteps2<F, A, Kind<T, B>> traverse(
+            Traverse<T> traversable, Function<A, Kind<T, C>> extractor, Function<C, Kind<F, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new GenericPathSteps2<>(
+          monad, traverseImpl(monad, computation, traversable, extractor, f));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, B>
+        GenericPathSteps2<F, A, Kind<T, B>> sequence(
+            Traverse<T> traversable, Function<A, Kind<T, Kind<F, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      return new GenericPathSteps2<>(
+          monad, sequenceImpl(monad, computation, traversable, extractor));
+    }
+
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        GenericPathSteps2<F, A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<F, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      return new GenericPathSteps2<>(
+          monad, flatTraverseImpl(monad, computation, traversable, innerMonad, extractor, f));
     }
 
     public <R> GenericPath<F, R> yield(Function<A, R> f) {

@@ -53,6 +53,9 @@ final class ForStepGenerator {
     }
     sb.append("import org.higherkindedj.hkt.Kind;\n");
     sb.append("import org.higherkindedj.hkt.Monad;\n");
+    if (!terminal) {
+      sb.append("import org.higherkindedj.hkt.Traverse;\n");
+    }
     sb.append("import org.higherkindedj.hkt.TypeArity;\n");
     sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
     appendFunctionImport(sb, n);
@@ -168,6 +171,11 @@ final class ForStepGenerator {
     // par() methods
     generateParMethods(sb, n, maxArity, "Monad", "MonadicSteps");
 
+    // traverse/sequence/flatTraverse methods - only if not terminal
+    if (!terminal) {
+      generateTraverseMethods(sb, n, "Monad", "MonadicSteps");
+    }
+
     // toState with spread function
     generateToStateSpread(sb, n, "Monad", "ForState.Steps");
 
@@ -212,7 +220,11 @@ final class ForStepGenerator {
     }
     sb.append("import java.util.function.Predicate;\n");
     sb.append("import org.higherkindedj.hkt.Kind;\n");
+    sb.append("import org.higherkindedj.hkt.Monad;\n");
     sb.append("import org.higherkindedj.hkt.MonadZero;\n");
+    if (!terminal) {
+      sb.append("import org.higherkindedj.hkt.Traverse;\n");
+    }
     sb.append("import org.higherkindedj.hkt.TypeArity;\n");
     sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
     appendFunctionImport(sb, n);
@@ -374,6 +386,11 @@ final class ForStepGenerator {
 
     // par() methods
     generateParMethods(sb, n, maxArity, "MonadZero", "FilterableSteps");
+
+    // traverse/sequence/flatTraverse methods - only if not terminal
+    if (!terminal) {
+      generateTraverseMethods(sb, n, "MonadZero", "FilterableSteps");
+    }
 
     // toState with spread function
     generateToStateSpread(sb, n, "MonadZero", "ForState.FilterableSteps");
@@ -544,6 +561,122 @@ final class ForStepGenerator {
     sb.append(")),\n");
     sb.append("            this.computation);\n");
     sb.append("    return new ").append(targetClassName).append("<>(monad, next);\n");
+    sb.append("  }\n\n");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Traverse/Sequence/FlatTraverse methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Generates traverse(), sequence(), and flatTraverse() methods on a step class. These are only
+   * generated for non-terminal steps (n < maxArity).
+   *
+   * <p>Type parameters TT, TC, TR are used to avoid collisions with the class-level type params
+   * A-L.
+   */
+  private static void generateTraverseMethods(
+      StringBuilder sb, int n, String monadType, String stepsPrefix) {
+    int next = n + 1;
+    String nextClassName = stepsPrefix + next;
+
+    // traverse()
+    sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> ")
+        .append(nextClassName)
+        .append("<M");
+    for (int i = 0; i < n; i++) {
+      sb.append(", ").append(TYPE_PARAMS[i]);
+    }
+    sb.append(", Kind<TT, TR>> traverse(\n");
+    sb.append("      Traverse<TT> traversable,\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendTypeParams(sb, n);
+    sb.append(">, Kind<TT, TC>> extractor,\n");
+    sb.append("      Function<TC, Kind<M, TR>> f) {\n");
+    sb.append("    Objects.requireNonNull(traversable, \"traversable must not be null\");\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+    sb.append("    Objects.requireNonNull(f, \"function must not be null\");\n");
+    sb.append("    Kind<M, Tuple").append(next).append("<");
+    appendTypeParams(sb, n);
+    sb.append(", Kind<TT, TR>>> newComputation =\n");
+    sb.append("        monad.flatMap(\n");
+    sb.append("            t ->\n");
+    sb.append("                monad.map(\n");
+    sb.append("                    tb -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    sb.append("tb),\n");
+    sb.append("                    traversable.traverse(monad, f, extractor.apply(t))),\n");
+    sb.append("            this.computation);\n");
+    sb.append("    return new ").append(nextClassName).append("<>(monad, newComputation);\n");
+    sb.append("  }\n\n");
+
+    // sequence()
+    sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TR> ")
+        .append(nextClassName)
+        .append("<M");
+    for (int i = 0; i < n; i++) {
+      sb.append(", ").append(TYPE_PARAMS[i]);
+    }
+    sb.append(", Kind<TT, TR>> sequence(\n");
+    sb.append("      Traverse<TT> traversable,\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendTypeParams(sb, n);
+    sb.append(">, Kind<TT, Kind<M, TR>>> extractor) {\n");
+    sb.append("    Objects.requireNonNull(traversable, \"traversable must not be null\");\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+    sb.append("    Kind<M, Tuple").append(next).append("<");
+    appendTypeParams(sb, n);
+    sb.append(", Kind<TT, TR>>> newComputation =\n");
+    sb.append("        monad.flatMap(\n");
+    sb.append("            t ->\n");
+    sb.append("                monad.map(\n");
+    sb.append("                    tb -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    sb.append("tb),\n");
+    sb.append("                    traversable.sequenceA(monad, extractor.apply(t))),\n");
+    sb.append("            this.computation);\n");
+    sb.append("    return new ").append(nextClassName).append("<>(monad, newComputation);\n");
+    sb.append("  }\n\n");
+
+    // flatTraverse()
+    sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> ")
+        .append(nextClassName)
+        .append("<M");
+    for (int i = 0; i < n; i++) {
+      sb.append(", ").append(TYPE_PARAMS[i]);
+    }
+    sb.append(", Kind<TT, TR>> flatTraverse(\n");
+    sb.append("      Traverse<TT> traversable,\n");
+    sb.append("      Monad<TT> innerMonad,\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendTypeParams(sb, n);
+    sb.append(">, Kind<TT, TC>> extractor,\n");
+    sb.append("      Function<TC, Kind<M, Kind<TT, TR>>> f) {\n");
+    sb.append("    Objects.requireNonNull(traversable, \"traversable must not be null\");\n");
+    sb.append("    Objects.requireNonNull(innerMonad, \"innerMonad must not be null\");\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+    sb.append("    Objects.requireNonNull(f, \"function must not be null\");\n");
+    sb.append("    Kind<M, Tuple").append(next).append("<");
+    appendTypeParams(sb, n);
+    sb.append(", Kind<TT, TR>>> newComputation =\n");
+    sb.append("        monad.flatMap(\n");
+    sb.append("            t -> {\n");
+    sb.append("              Kind<M, Kind<TT, Kind<TT, TR>>> traversed =\n");
+    sb.append("                  traversable.traverse(monad, f, extractor.apply(t));\n");
+    sb.append("              return monad.map(\n");
+    sb.append("                  ttb -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    sb.append("innerMonad.flatMap(Function.identity(), ttb)),\n");
+    sb.append("                  traversed);\n");
+    sb.append("            },\n");
+    sb.append("            this.computation);\n");
+    sb.append("    return new ").append(nextClassName).append("<>(monad, newComputation);\n");
     sb.append("  }\n\n");
   }
 
