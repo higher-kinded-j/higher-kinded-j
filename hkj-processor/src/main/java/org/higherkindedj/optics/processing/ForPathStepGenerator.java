@@ -289,6 +289,11 @@ final class ForPathStepGenerator {
     // par() methods
     appendParMethods(sb, desc, n, terminal);
 
+    // traverse/sequence/flatTraverse -- only if not terminal
+    if (!terminal) {
+      appendTraverseMethods(sb, desc, n);
+    }
+
     // yield spread function
     appendYieldSpread(sb, desc, n);
 
@@ -324,6 +329,16 @@ final class ForPathStepGenerator {
     sb.append("import org.higherkindedj.hkt.Kind;\n");
     if (desc.isGeneric) {
       sb.append("import org.higherkindedj.hkt.Monad;\n");
+    } else if (!terminal) {
+      sb.append("import org.higherkindedj.hkt.Monad;\n");
+    }
+    if (!terminal) {
+      sb.append("import org.higherkindedj.hkt.Traverse;\n");
+    }
+    if (desc.isGeneric) {
+      sb.append("import org.higherkindedj.hkt.TypeArity;\n");
+      sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
+    } else if (!terminal) {
       sb.append("import org.higherkindedj.hkt.TypeArity;\n");
       sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
     }
@@ -828,6 +843,201 @@ final class ForPathStepGenerator {
       sb.append("monad, ");
     }
     sb.append("next);\n");
+    sb.append("  }\n\n");
+  }
+
+  // =========================================================================
+  // traverse/sequence/flatTraverse methods (non-terminal only)
+  // =========================================================================
+
+  /**
+   * Generates traverse(), sequence(), and flatTraverse() methods on a ForPath step class. Uses TT,
+   * TC, TR as type parameter names to avoid collision with class-level value type params.
+   */
+  private static void appendTraverseMethods(StringBuilder sb, PathTypeDescriptor desc, int n) {
+    String[] vp = valueParams(desc);
+    int next = n + 1;
+    String nextClassName = desc.stepsPrefix + next;
+
+    // traverse()
+    sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> ")
+        .append(nextClassName)
+        .append("<");
+    // Type args for next class: extra params + value params + Kind<TT, TR>
+    if (desc.isGeneric) {
+      sb.append("F");
+      for (int i = 0; i < n; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+      sb.append(", Kind<TT, TR>");
+    } else if (desc.hasExtraTypeParam) {
+      sb.append(desc.extraTypeParamName);
+      for (int i = 0; i < n; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+      sb.append(", Kind<TT, TR>");
+    } else {
+      for (int i = 0; i < n; i++) {
+        sb.append(vp[i]).append(", ");
+      }
+      sb.append("Kind<TT, TR>");
+    }
+    sb.append("> traverse(\n");
+    sb.append("      Traverse<TT> traversable,\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(">, Kind<TT, TC>> extractor,\n");
+    sb.append("      Function<TC, Kind<").append(desc.witnessType).append(", TR>> f) {\n");
+    sb.append("    Objects.requireNonNull(traversable, \"traversable must not be null\");\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+    sb.append("    Objects.requireNonNull(f, \"function must not be null\");\n");
+
+    String m = monadVar(desc, sb);
+    sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(next).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(", Kind<TT, TR>>> newComp =\n");
+    sb.append("        ").append(m).append(".flatMap(\n");
+    sb.append("            t ->\n");
+    sb.append("                ").append(m).append(".map(\n");
+    sb.append("                    tb -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    sb.append("tb),\n");
+    sb.append("                    traversable.traverse(")
+        .append(m)
+        .append(", f, extractor.apply(t))),\n");
+    sb.append("            computation);\n");
+    sb.append("    return new ").append(nextClassName).append("<>(");
+    if (desc.isGeneric) {
+      sb.append("monad, ");
+    }
+    sb.append("newComp);\n");
+    sb.append("  }\n\n");
+
+    // sequence()
+    sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TR> ")
+        .append(nextClassName)
+        .append("<");
+    if (desc.isGeneric) {
+      sb.append("F");
+      for (int i = 0; i < n; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+      sb.append(", Kind<TT, TR>");
+    } else if (desc.hasExtraTypeParam) {
+      sb.append(desc.extraTypeParamName);
+      for (int i = 0; i < n; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+      sb.append(", Kind<TT, TR>");
+    } else {
+      for (int i = 0; i < n; i++) {
+        sb.append(vp[i]).append(", ");
+      }
+      sb.append("Kind<TT, TR>");
+    }
+    sb.append("> sequence(\n");
+    sb.append("      Traverse<TT> traversable,\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(">, Kind<TT, Kind<").append(desc.witnessType).append(", TR>>> extractor) {\n");
+    sb.append("    Objects.requireNonNull(traversable, \"traversable must not be null\");\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+
+    // Re-declare monad variable for sequence (monadVar may have already emitted it for traverse,
+    // but these are separate methods in the generated code)
+    String m2 = monadRef(desc);
+    if (needsLocalMonad(desc)) {
+      sb.append("    EitherMonad<E> m = monad();\n");
+    }
+    sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(next).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(", Kind<TT, TR>>> newComp =\n");
+    sb.append("        ").append(m2).append(".flatMap(\n");
+    sb.append("            t ->\n");
+    sb.append("                ").append(m2).append(".map(\n");
+    sb.append("                    tb -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    sb.append("tb),\n");
+    sb.append("                    traversable.sequenceA(")
+        .append(m2)
+        .append(", extractor.apply(t))),\n");
+    sb.append("            computation);\n");
+    sb.append("    return new ").append(nextClassName).append("<>(");
+    if (desc.isGeneric) {
+      sb.append("monad, ");
+    }
+    sb.append("newComp);\n");
+    sb.append("  }\n\n");
+
+    // flatTraverse()
+    sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> ")
+        .append(nextClassName)
+        .append("<");
+    if (desc.isGeneric) {
+      sb.append("F");
+      for (int i = 0; i < n; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+      sb.append(", Kind<TT, TR>");
+    } else if (desc.hasExtraTypeParam) {
+      sb.append(desc.extraTypeParamName);
+      for (int i = 0; i < n; i++) {
+        sb.append(", ").append(vp[i]);
+      }
+      sb.append(", Kind<TT, TR>");
+    } else {
+      for (int i = 0; i < n; i++) {
+        sb.append(vp[i]).append(", ");
+      }
+      sb.append("Kind<TT, TR>");
+    }
+    sb.append("> flatTraverse(\n");
+    sb.append("      Traverse<TT> traversable,\n");
+    sb.append("      Monad<TT> innerMonad,\n");
+    sb.append("      Function<Tuple").append(n).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(">, Kind<TT, TC>> extractor,\n");
+    sb.append("      Function<TC, Kind<")
+        .append(desc.witnessType)
+        .append(", Kind<TT, TR>>> f) {\n");
+    sb.append("    Objects.requireNonNull(traversable, \"traversable must not be null\");\n");
+    sb.append("    Objects.requireNonNull(innerMonad, \"innerMonad must not be null\");\n");
+    sb.append("    Objects.requireNonNull(extractor, \"extractor must not be null\");\n");
+    sb.append("    Objects.requireNonNull(f, \"function must not be null\");\n");
+
+    String m3 = monadRef(desc);
+    if (needsLocalMonad(desc)) {
+      sb.append("    EitherMonad<E> m = monad();\n");
+    }
+    sb.append("    Kind<").append(desc.witnessType).append(", Tuple").append(next).append("<");
+    appendValueTypeParams(sb, desc, n);
+    sb.append(", Kind<TT, TR>>> newComp =\n");
+    sb.append("        ").append(m3).append(".flatMap(\n");
+    sb.append("            t -> {\n");
+    sb.append("              Kind<")
+        .append(desc.witnessType)
+        .append(", Kind<TT, Kind<TT, TR>>> traversed =\n");
+    sb.append("                  traversable.traverse(")
+        .append(m3)
+        .append(", f, extractor.apply(t));\n");
+    sb.append("              return ").append(m3).append(".map(\n");
+    sb.append("                  ttb -> Tuple.of(");
+    for (int i = 0; i < n; i++) {
+      sb.append("t._").append(i + 1).append("(), ");
+    }
+    sb.append("innerMonad.flatMap(Function.identity(), ttb)),\n");
+    sb.append("                  traversed);\n");
+    sb.append("            },\n");
+    sb.append("            computation);\n");
+    sb.append("    return new ").append(nextClassName).append("<>(");
+    if (desc.isGeneric) {
+      sb.append("monad, ");
+    }
+    sb.append("newComp);\n");
     sb.append("  }\n\n");
   }
 

@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.function.Function9;
@@ -84,6 +85,60 @@ public final class MonadicSteps9<M extends WitnessArity<TypeArity.Unary>, A, B, 
                 (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2, r3)),
             this.computation);
     return new MonadicSteps12<>(monad, next);
+  }
+
+  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> MonadicSteps10<M, A, B, C, D, E, F, G, H, I, Kind<TT, TR>> traverse(
+      Traverse<TT> traversable,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<TT, TC>> extractor,
+      Function<TC, Kind<M, TR>> f) {
+    Objects.requireNonNull(traversable, "traversable must not be null");
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    Objects.requireNonNull(f, "function must not be null");
+    Kind<M, Tuple10<A, B, C, D, E, F, G, H, I, Kind<TT, TR>>> newComputation =
+        monad.flatMap(
+            t ->
+                monad.map(
+                    tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), tb),
+                    traversable.traverse(monad, f, extractor.apply(t))),
+            this.computation);
+    return new MonadicSteps10<>(monad, newComputation);
+  }
+
+  public <TT extends WitnessArity<TypeArity.Unary>, TR> MonadicSteps10<M, A, B, C, D, E, F, G, H, I, Kind<TT, TR>> sequence(
+      Traverse<TT> traversable,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<TT, Kind<M, TR>>> extractor) {
+    Objects.requireNonNull(traversable, "traversable must not be null");
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    Kind<M, Tuple10<A, B, C, D, E, F, G, H, I, Kind<TT, TR>>> newComputation =
+        monad.flatMap(
+            t ->
+                monad.map(
+                    tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), tb),
+                    traversable.sequenceA(monad, extractor.apply(t))),
+            this.computation);
+    return new MonadicSteps10<>(monad, newComputation);
+  }
+
+  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> MonadicSteps10<M, A, B, C, D, E, F, G, H, I, Kind<TT, TR>> flatTraverse(
+      Traverse<TT> traversable,
+      Monad<TT> innerMonad,
+      Function<Tuple9<A, B, C, D, E, F, G, H, I>, Kind<TT, TC>> extractor,
+      Function<TC, Kind<M, Kind<TT, TR>>> f) {
+    Objects.requireNonNull(traversable, "traversable must not be null");
+    Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+    Objects.requireNonNull(extractor, "extractor must not be null");
+    Objects.requireNonNull(f, "function must not be null");
+    Kind<M, Tuple10<A, B, C, D, E, F, G, H, I, Kind<TT, TR>>> newComputation =
+        monad.flatMap(
+            t -> {
+              Kind<M, Kind<TT, Kind<TT, TR>>> traversed =
+                  traversable.traverse(monad, f, extractor.apply(t));
+              return monad.map(
+                  ttb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), innerMonad.flatMap(Function.identity(), ttb)),
+                  traversed);
+            },
+            this.computation);
+    return new MonadicSteps10<>(monad, newComputation);
   }
 
   public <S> ForState.Steps<M, S> toState(Function9<A, B, C, D, E, F, G, H, I, S> constructor) {

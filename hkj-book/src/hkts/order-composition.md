@@ -149,7 +149,7 @@ For.par(monad, lift(validateShippingAddress(...)), lift(lookupAndValidateCustome
     .toState(...)
 ```
 
-With `EitherPath`, the benefit is documentation of intent; execution remains sequential. With `VTaskPath`, the two operations would run concurrently on virtual threads. See [Parallel Composition](../functional/for_comprehension.md#parallel-composition-with-par) for the full API.
+With `EitherPath`, the benefit is documentation of intent; execution remains sequential. With `VTaskPath`, the two operations would run concurrently on virtual threads. See [Parallel Composition](../functional/for_par.md) for the full API.
 ~~~
 
 ### Named State Replaces Tuple Positions

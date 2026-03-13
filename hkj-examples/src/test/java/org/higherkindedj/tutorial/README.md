@@ -208,6 +208,15 @@ Learn to write stack-independent effectful code:
 - Writing polymorphic functions that accept capability interfaces
 - Composing MTL operations with For comprehensions
 
+## For-Comprehension Tutorial Series
+
+### Tutorial 03: Traverse in For-Comprehensions (~15 minutes)
+Use traverse, sequence, and flatTraverse within For and ForPath comprehension chains:
+- Traversing collections with effectful functions
+- Sequencing pre-built monadic values
+- flatTraverse for nested structures
+- Combining traverse with guards and other steps
+
 ## Solutions
 
 Complete solutions for all exercises are available in:

@@ -196,7 +196,7 @@ For.par(monad, lift(validateShippingAddress(address)), lift(lookupAndValidateCus
     // ... enrich phase continues
 ```
 
-For `EitherPath`, `par()` is sequential, so the benefit is purely documentation of intent. For a `VTaskPath` version of this workflow, `par()` would provide true concurrent execution. See [Parallel Composition](../functional/for_comprehension.md#parallel-composition-with-par) for details.
+For `EitherPath`, `par()` is sequential, so the benefit is purely documentation of intent. For a `VTaskPath` version of this workflow, `par()` would provide true concurrent execution. See [Parallel Composition](../functional/for_par.md) for details.
 ~~~
 
 None of these concepts is particularly complex. `Either` is just a container with two cases. `For` is a comprehension that accumulates results in a tuple. `toState()` constructs a record from those results. `ForState` threads that record through each step. Lenses are just pairs of getter and setter functions. Sealed interfaces are just sum types.

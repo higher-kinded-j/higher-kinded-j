@@ -628,6 +628,71 @@ Traversal<EventStream, Double> purchaseAmounts = EventStreamTraversals.events()
 
 ---
 
+## For-Comprehension Solutions
+
+### Tutorial 03: Traverse in For-Comprehensions
+
+**Exercise 1:** Basic traverse — traverse a list within a Maybe For-comprehension.
+```java
+.traverse(ListTraverse.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(i * 2))
+```
+
+**Exercise 2:** Traverse with failure — short-circuits when the effectful function returns Nothing.
+```java
+.traverse(ListTraverse.INSTANCE, a -> LIST.widen(a), (Integer i) -> i > 2 ? MAYBE.nothing() : MAYBE.just(i))
+```
+
+**Exercise 3:** Sequence — sequence pre-built monadic values using traverse with identity.
+```java
+.sequence(ListTraverse.INSTANCE, a -> LIST.widen(a))
+```
+
+**Exercise 4:** flatTraverse — traverse then flatten nested structures.
+```java
+.flatTraverse(ListTraverse.INSTANCE, ListMonad.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(LIST.widen(List.of(i, i * 10))))
+```
+
+**Exercise 5:** Traverse with Either — traverse collecting errors via Either monad.
+```java
+.traverse(ListTraverse.INSTANCE, a -> LIST.widen(a), (Integer i) -> EITHER.widen(Either.right(i * 3)))
+```
+
+**Exercise 6:** Multi-step with traverse — combine traverse with let and from steps.
+```java
+.let(t -> LIST.narrow(t._2()).size())
+```
+
+**Exercise 7:** Traverse with guard — combine traverse with when() filtering.
+```java
+.when(t -> LIST.narrow(t._2()).stream().allMatch(x -> x > 0))
+```
+
+**Exercise 8:** ForPath MaybePath traverse — traverse within a ForPath MaybePath chain.
+```java
+ForPath.from(Path.just(list)).traverse(ListTraverse.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(i + 1))
+```
+
+**Exercise 9:** ForPath sequence — sequence within a ForPath chain.
+```java
+.sequence(ListTraverse.INSTANCE, a -> LIST.widen(a))
+```
+
+**Exercise 10:** ForPath flatTraverse — flatTraverse within a ForPath chain.
+```java
+.flatTraverse(ListTraverse.INSTANCE, ListMonad.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(LIST.widen(List.of(i, i * 10))))
+```
+
+**Exercise 11:** Combined workflow — traverse with multiple steps, guards, and yield.
+```java
+For.from(maybeMonad, MAYBE.just(List.of(1, 2, 3)))
+    .traverse(ListTraverse.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(i * 2))
+    .let(t -> LIST.narrow(t._2()).stream().mapToInt(Integer::intValue).sum())
+    .when(t -> t._3() > 10)
+    .yield((original, doubled, sum) -> "Sum of doubled: " + sum)
+```
+
+---
+
 ## Tips for Using These Solutions
 
 1. **Try first, then check** - Attempt each exercise before looking at the solution

@@ -22,7 +22,7 @@ ForPath.par(pathA, pathB, pathC) → Steps3 → .let() / .from() / .yield()
 For `VTaskPath`, `par()` spawns virtual threads via `StructuredTaskScope`, achieving true concurrency. For other Path types, execution is sequential but the code documents the dependency structure of your workflow.
 
 ~~~admonish tip title="Read First"
-Before starting this tutorial, read the [ForPath Comprehension](../../effect/forpath_comprehension.md) chapter, particularly the [Parallel Composition with par()](../../effect/forpath_comprehension.md#parallel-composition-with-par) section.
+Before starting this tutorial, read the [ForPath Comprehension](../../effect/forpath_comprehension.md) chapter, particularly the [ForPath Parallel Composition](../../effect/forpath_par.md) section.
 ~~~
 
 ---

@@ -137,7 +137,7 @@ String result = IOKindHelper.narrow(io).unsafeRunSync();
 - Simple direct effects suffice → use [IOPath](path_io.md)
 - You don't need multiple interpreters
 - Performance is critical (free monads have overhead)
-- Operations can be parallelized → consider [FreeApPath](path_freeap.md)
+- Operations can be parallelised → consider [FreeApPath](path_freeap.md)
 
 ~~~admonish example title="Testing with Mock Interpreter"
 ```java
