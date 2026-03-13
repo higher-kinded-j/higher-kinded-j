@@ -11,8 +11,6 @@ deeply methodical approach to composing sequential operations.
 - How ForPath bridges the For comprehension system and the Effect Path API
 - Creating comprehensions directly with Path types (no manual `Kind` extraction)
 - Using generators (`.from()`), bindings (`.let()`), guards (`.when()`), and projections (`.yield()`)
-- Expressing independent computations with `par()` for parallel composition
-- Integrating optics with `.focus()` and `.match()` for structural navigation
 - Choosing between ForPath and the standard For class
 ~~~
 
@@ -104,7 +102,7 @@ MaybePath<String> result = ForPath.from(Path.just(10))
 
 ### Guards: `.when()`
 
-For Path types with `MonadZero` (MaybePath, OptionalPath, NonDetPath), the `.when()`
+For Path types with [`MonadZero`](../functional/monad_zero.md) (MaybePath, OptionalPath, NonDetPath), the `.when()`
 operation filters results. When the predicate returns false, the computation
 short-circuits to the monad's zero value (Nothing, empty, etc.).
 
@@ -202,226 +200,6 @@ MaybePath<String> empty = ForPath.from(Path.just((Result) new Failure("error")))
 
 ---
 
-## EitherPath Example
-
-For error-handling scenarios, EitherPath comprehensions propagate failures automatically:
-
-```java
-record User(String id, String name) {}
-record Order(String orderId, User user) {}
-
-Function<String, EitherPath<String, User>> findUser = id ->
-    id.equals("user-1")
-        ? Path.right(new User("user-1", "Alice"))
-        : Path.left("User not found: " + id);
-
-Function<User, EitherPath<String, Order>> createOrder = user ->
-    Path.right(new Order("order-123", user));
-
-EitherPath<String, String> result = ForPath.from(findUser.apply("user-1"))
-    .from(user -> createOrder.apply(user))
-    .yield((user, order) -> "Created " + order.orderId() + " for " + user.name());
-// Right("Created order-123 for Alice")
-
-EitherPath<String, String> failed = ForPath.from(findUser.apply("unknown"))
-    .from(user -> createOrder.apply(user))
-    .yield((user, order) -> "Created " + order.orderId());
-// Left("User not found: unknown")
-```
-
----
-
-## IOPath Example
-
-IOPath comprehensions compose deferred side-effectful computations:
-
-```java
-IOPath<String> readConfig = Path.io(() -> "production");
-IOPath<Integer> readPort = Path.io(() -> 8080);
-
-IOPath<String> serverInfo = ForPath.from(readConfig)
-    .from(env -> readPort)
-    .let(t -> t._1().toUpperCase())
-    .yield((env, port, upperEnv) -> upperEnv + " server on port " + port);
-
-// Nothing executes until:
-String result = serverInfo.unsafeRun();  // "PRODUCTION server on port 8080"
-```
-
----
-
-## VTaskPath Example
-
-VTaskPath comprehensions compose virtual thread-based concurrent computations:
-
-```java
-VTaskPath<User> fetchUser = Path.vtask(() -> userService.fetch(userId));
-VTaskPath<Profile> fetchProfile = Path.vtask(() -> profileService.fetch(profileId));
-
-VTaskPath<String> greeting = ForPath.from(fetchUser)
-    .from(user -> fetchProfile)
-    .let(t -> t._1().name().toUpperCase())
-    .yield((user, profile, upperName) ->
-        "Hello " + upperName + " from " + profile.city());
-
-// Nothing executes until:
-String result = greeting.unsafeRun();  // "Hello ALICE from London"
-```
-
-VTaskPath comprehensions are ideal for orchestrating multiple service calls:
-
-```java
-VTaskPath<OrderSummary> orderWorkflow = ForPath.from(Path.vtask(() -> validateOrder(order)))
-    .from(validated -> Path.vtask(() -> reserveInventory(validated)))
-    .from(t -> Path.vtask(() -> processPayment(t._2())))
-    .from(t -> Path.vtask(() -> sendConfirmation(t._3())))
-    .yield((validated, reserved, payment, confirmation) ->
-        new OrderSummary(validated.id(), payment.transactionId(), confirmation.sentAt()));
-
-// Execute the entire workflow
-Try<OrderSummary> result = orderWorkflow.runSafe();
-```
-
----
-
-## Parallel Composition with `par()`
-
-When two or more Path computations are independent, `ForPath.par()` lets you express this directly. For `VTaskPath`, this enables **true concurrent execution** on virtual threads via `Par.map2`/`Par.map3`. For other types, it documents the independence even if execution is sequential.
-
-### Static Entry Points
-
-`ForPath.par()` accepts two or three independent Path values and combines them using applicative semantics:
-
-```java
-// Two independent MaybePaths
-MaybePath<String> result =
-    ForPath.par(Path.just("Alice"), Path.just(42))
-        .yield((name, age) -> name + " is " + age);
-// Just("Alice is 42")
-
-// Three independent EitherPaths
-EitherPath<String, String> profile =
-    ForPath.par(
-            Path.<String, String>right("Alice"),
-            Path.<String, Integer>right(42),
-            Path.<String, String>right("admin"))
-        .yield((name, age, role) -> name + " (" + age + ") [" + role + "]");
-// Right("Alice (42) [admin]")
-```
-
-Short-circuiting works as expected for types with failure semantics:
-
-```java
-MaybePath<String> result =
-    ForPath.par(Path.just("Bob"), Path.<Integer>nothing())
-        .yield((name, age) -> name + " is " + age);
-// Nothing — the second computation failed
-```
-
-### VTaskPath: True Parallel Execution
-
-For `VTaskPath`, `par()` uses `Par.map2`/`Par.map3` under the hood, which spawns virtual threads via `StructuredTaskScope`. Independent computations genuinely execute concurrently:
-
-```java
-VTaskPath<String> result =
-    ForPath.par(
-            Path.vtaskPath(() -> fetchUserData(userId)),    // virtual thread 1
-            Path.vtaskPath(() -> fetchConfigData()))        // virtual thread 2
-        .yield((user, config) -> buildResponse(user, config));
-
-// Both fetches run concurrently; total time ≈ max(fetch1, fetch2)
-String response = result.run().run();
-```
-
-### IOPath and IdPath
-
-IO computations can also be combined with `par()`, though execution is currently sequential:
-
-```java
-IOPath<String> result =
-    ForPath.par(Path.io(() -> "hello"), Path.io(() -> "world"))
-        .yield((a, b) -> a + " " + b);
-
-String value = result.unsafeRun();  // "hello world"
-```
-
-IdPath uses `Id.of()` to wrap values:
-
-```java
-IdPath<Integer> sum =
-    ForPath.par(Path.idPath(Id.of(10)), Path.idPath(Id.of(20)), Path.idPath(Id.of(30)))
-        .yield((a, b, c) -> a + b + c);
-// Id(60)
-```
-
-### Chaining After `par()`
-
-The result of `par()` is a regular step, so you can chain `.from()`, `.let()`, `.when()`, or `.yield()` after it:
-
-```java
-MaybePath<String> result =
-    ForPath.par(Path.just("Alice"), Path.just(5))
-        .let(t -> t._1() + " has " + t._2() + " letters")
-        .yield((name, len, sentence) -> sentence.toUpperCase());
-// Just("ALICE HAS 5 LETTERS")
-```
-
-### When Is `par()` Actually Parallel?
-
-| Path Type | Behaviour |
-|-----------|-----------|
-| `VTaskPath` | True concurrency via `Par.map2`/`Par.map3` on virtual threads |
-| `IOPath` | Sequential (applicative, not parallel) |
-| `MaybePath`, `OptionalPath` | Sequential; short-circuits on Nothing/empty |
-| `EitherPath`, `TryPath` | Sequential; short-circuits on Left/Failure |
-| `NonDetPath` | Cartesian product (applicative semantics) |
-| `IdPath` | Immediate; no effect to parallelise |
-
-Even when execution is sequential, `par()` documents the *intent* that the computations are independent, making the dependency structure of your workflow explicit.
-
----
-
-## Extended Arity Example (6+ Bindings)
-
-All ForPath types support up to 12 chained bindings. Step 1 is hand-written; steps 2-12 are generated by the `hkj-processor` annotation processor:
-
-```java
-// A 6-step MaybePath comprehension
-MaybePath<String> profile = ForPath.from(Path.just("user-42"))
-    .from(id -> findUser(id))                    // b = User
-    .focus(user -> user.address())               // c = Address
-    .focus(addr -> addr.city())                  // d = city name
-    .let(t -> t._4().toUpperCase())              // e = uppercased city
-    .let(t -> t._2().name() + " from " + t._5()) // f = summary
-    .yield((id, user, addr, city, upper, summary) -> summary);
-
-// Result: Just("Alice from LONDON")
-```
-
-At higher arities, the tuple-style `yield` can be more readable:
-
-```java
-.yield(t -> t._6())  // access the summary directly by position
-```
-
----
-
-## NonDetPath Example
-
-NonDetPath (backed by List) generates all combinations:
-
-```java
-NonDetPath<String> combinations = ForPath.from(Path.list("red", "blue"))
-    .from(c -> Path.list("S", "M", "L"))
-    .when(t -> !t._1().equals("blue") || !t._2().equals("S"))  // filter out blue-S
-    .yield((colour, size) -> colour + "-" + size);
-
-List<String> result = combinations.run();
-// ["red-S", "red-M", "red-L", "blue-M", "blue-L"]
-```
-
----
-
 ## When to Use ForPath vs For
 
 | Scenario | Use |
@@ -446,6 +224,16 @@ as it works directly with the transformer's `Kind` representation.
 * **Type safety is preserved** throughout the comprehension
 ~~~
 
+~~~admonish tip title="See Also"
+- [ForPath Examples](forpath_examples.md) -- EitherPath, IOPath, VTaskPath, NonDetPath, and extended arity examples
+- [ForPath Parallel Composition](forpath_par.md) -- Express independent computations with `par()`
+- [ForPath Traverse](forpath_traverse.md) -- Traverse/Sequence/FlatTraverse within ForPath
+- [For Comprehension](../functional/for_comprehension.md) -- The underlying For class for raw `Kind` values
+- [Effect Path Overview](effect_path_overview.md) -- Introduction to the Effect Path API
+- [VTaskPath](path_vtask.md) -- Virtual thread-based Effect Path for concurrent workloads
+- [Focus DSL](../optics/focus_dsl.md) -- Optics integration for structural navigation
+~~~
+
 ~~~admonish example title="Benchmarks"
 ForPath has dedicated JMH benchmarks measuring for-comprehension overhead compared to direct chaining. Key expectations:
 
@@ -463,14 +251,7 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 Practice parallel composition with ForPath in [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises, ~20 minutes).
 ~~~
 
-~~~admonish tip title="See Also"
-- [For Comprehension](../functional/for_comprehension.md) - The underlying For class for raw `Kind` values
-- [Effect Path Overview](effect_path_overview.md) - Introduction to the Effect Path API
-- [VTaskPath](path_vtask.md) - Virtual thread-based Effect Path for concurrent workloads
-- [Focus DSL](../optics/focus_dsl.md) - Optics integration for structural navigation
-~~~
-
 ---
 
 **Previous:** [Composition Patterns](composition.md)
-**Next:** [Type Conversions](conversions.md)
+**Next:** [ForPath Examples](forpath_examples.md)

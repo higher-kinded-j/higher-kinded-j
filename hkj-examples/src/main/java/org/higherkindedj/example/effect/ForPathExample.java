@@ -2,6 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.effect;
 
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IOPath;
@@ -12,6 +17,7 @@ import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.expression.ForPath;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -83,6 +89,7 @@ public class ForPathExample {
     opticsIntegration();
     highArityExample();
     parallelComposition();
+    traverseWithinForPath();
   }
 
   private static void maybePathBasics() {
@@ -410,6 +417,36 @@ public class ForPathExample {
             .yield((name, len) -> name + " has " + len + " letters");
 
     System.out.println("Sequential chain: " + sequential.getOrElse("nothing"));
+
+    System.out.println();
+  }
+
+  private static void traverseWithinForPath() {
+    System.out.println("=== Traverse Within ForPath Comprehensions ===");
+
+    // Traverse a list within a MaybePath comprehension — doubling each element
+    MaybePath<List<Integer>> traverseResult =
+        ForPath.from(Path.just(Arrays.asList(1, 2, 3)))
+            .traverse(
+                ListTraverse.INSTANCE,
+                list -> LIST.widen(list),
+                (Integer i) -> MAYBE.<Integer>just(i * 2))
+            .yield((original, traversed) -> LIST.narrow(traversed));
+
+    System.out.println("Traverse [1,2,3] doubling: " + traverseResult.getOrElse(List.of()));
+    // [2, 4, 6]
+
+    // Traverse with failure — short-circuits when any element fails
+    MaybePath<List<Integer>> traverseWithFailure =
+        ForPath.from(Path.just(Arrays.asList(1, 2, 3)))
+            .traverse(
+                ListTraverse.INSTANCE,
+                list -> LIST.widen(list),
+                (Integer i) -> i > 2 ? MAYBE.<Integer>nothing() : MAYBE.just(i * 10))
+            .yield((original, traversed) -> LIST.narrow(traversed));
+
+    System.out.println("Traverse with failure: " + traverseWithFailure.getOrElse(List.of(-1)));
+    // [-1] (Nothing due to 3 > 2)
 
     System.out.println();
   }

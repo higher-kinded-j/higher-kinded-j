@@ -269,7 +269,7 @@ automatic resource cleanup.
 runs them **sequentially**: the FX lookup waits for the instrument lookup to complete.
 For two 50ms API calls, `Par.map2` takes ~50ms total vs ~100ms sequential.
 
-The same pattern is available within for-comprehensions via `ForPath.par()`. For example, `ForPath.par(vtask1, vtask2).yield(...)` uses `Par.map2` under the hood for VTaskPath. See [ForPath Parallel Composition](../effect/forpath_comprehension.md#parallel-composition-with-par) for the full API.
+The same pattern is available within for-comprehensions via `ForPath.par()`. For example, `ForPath.par(vtask1, vtask2).yield(...)` uses `Par.map2` under the hood for VTaskPath. See [ForPath Parallel Composition](../effect/forpath_par.md) for the full API.
 ~~~
 
 ---

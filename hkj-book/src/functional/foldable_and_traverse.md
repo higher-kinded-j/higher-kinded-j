@@ -148,6 +148,29 @@ System.out.println(VALIDATED.narrow(result));
 
 ---
 
+## Traverse in For-Comprehensions
+
+The `traverse`, `sequence`, and `flatTraverse` operations described above can also be used as **steps within for-comprehension chains**. The `For` and `ForPath` builders expose these operations directly, so you can process a traversable structure as part of a larger monadic workflow without breaking out of the comprehension.
+
+For example, within a `For` comprehension you can write:
+
+```java
+For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
+    .traverse(ListTraverse.INSTANCE,
+        t -> t._1(),
+        n -> n > 0 ? MAYBE.just(n * 10) : MAYBE.nothing())
+    .yield((original, transformed) -> transformed);
+```
+
+The `ForPath` builder offers the same capability for Effect Path types.
+
+~~~admonish tip title="See Also"
+- [Traverse Within Comprehensions](for_traverse.md) -- Full API reference with `traverse`, `sequence`, and `flatTraverse` examples
+- [ForPath Traverse](../effect/forpath_traverse.md) -- The same operations using the Effect Path API
+~~~
+
+---
+
 ~~~admonish info title="Key Takeaways"
 * **Foldable reduces structures to summaries** using `foldMap` and a `Monoid`
 * **Swap the Monoid, change the result**: sum, product, concatenation, boolean checks, all from the same fold

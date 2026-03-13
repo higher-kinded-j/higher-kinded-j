@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.tuple.Tuple;
@@ -491,6 +492,101 @@ public final class For {
     }
 
     /**
+     * Traverses a structure extracted from the current value, applying an effectful function to
+     * each element and collecting the results.
+     *
+     * <p>This integrates the {@link Traverse} type class into the for-comprehension, enabling bulk
+     * operations over traversable structures (such as lists, trees, or optional values) directly
+     * within the comprehension chain.
+     *
+     * @param traversable The {@link Traverse} instance for the structure type {@code T}.
+     * @param extractor A function that extracts the traversable structure from the current value.
+     * @param f An effectful function applied to each element of the structure.
+     * @param <T> The witness type of the traversable structure.
+     * @param <C> The element type of the extracted structure.
+     * @param <B> The result element type after applying the function.
+     * @return The next step, with the traversed result {@code Kind<T, B>} added to the tuple.
+     * @throws NullPointerException if any argument is null.
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, C, B> MonadicSteps2<M, A, Kind<T, B>> traverse(
+        Traverse<T> traversable, Function<A, Kind<T, C>> extractor, Function<C, Kind<M, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      Kind<M, Tuple2<A, Kind<T, B>>> newComputation =
+          monad.flatMap(
+              a ->
+                  monad.map(
+                      tb -> Tuple.of(a, tb), traversable.traverse(monad, f, extractor.apply(a))),
+              this.computation);
+      return new MonadicSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Sequences a structure of monadic values extracted from the current value, flipping the
+     * nesting from {@code Kind<T, Kind<M, B>>} to {@code Kind<M, Kind<T, B>>}.
+     *
+     * @param traversable The {@link Traverse} instance for the structure type {@code T}.
+     * @param extractor A function that extracts the structure of monadic values.
+     * @param <T> The witness type of the traversable structure.
+     * @param <B> The element type inside both the structure and the monad.
+     * @return The next step, with the sequenced result {@code Kind<T, B>} added to the tuple.
+     * @throws NullPointerException if any argument is null.
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, B> MonadicSteps2<M, A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<M, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple2<A, Kind<T, B>>> newComputation =
+          monad.flatMap(
+              a ->
+                  monad.map(
+                      tb -> Tuple.of(a, tb), traversable.sequenceA(monad, extractor.apply(a))),
+              this.computation);
+      return new MonadicSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Traverses a structure with a function that returns nested structures, then flattens the
+     * result using the inner monad.
+     *
+     * <p>This is equivalent to {@code traverse} followed by a {@code flatMap} on the inner
+     * structure, useful when each element maps to a nested {@code Kind<T, Kind<T, B>>} that needs
+     * to be flattened to {@code Kind<T, B>}.
+     *
+     * @param traversable The {@link Traverse} instance for the structure type {@code T}.
+     * @param innerMonad The {@link Monad} instance for the inner structure type {@code T}.
+     * @param extractor A function that extracts the traversable structure from the current value.
+     * @param f An effectful function that returns nested structures.
+     * @param <T> The witness type of the traversable structure.
+     * @param <C> The element type of the extracted structure.
+     * @param <B> The result element type after flattening.
+     * @return The next step, with the flat-traversed result {@code Kind<T, B>} added to the tuple.
+     * @throws NullPointerException if any argument is null.
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        MonadicSteps2<M, A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<M, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      Kind<M, Tuple2<A, Kind<T, B>>> newComputation =
+          monad.flatMap(
+              a -> {
+                Kind<M, Kind<T, Kind<T, B>>> traversed =
+                    traversable.traverse(monad, f, extractor.apply(a));
+                return monad.map(
+                    ttb -> Tuple.of(a, innerMonad.flatMap(Function.identity(), ttb)), traversed);
+              },
+              this.computation);
+      return new MonadicSteps2<>(monad, newComputation);
+    }
+
+    /**
      * Transitions from this for-comprehension step into a {@link ForState} builder by constructing
      * a state object from the current computation result.
      *
@@ -709,6 +805,94 @@ public final class For {
                       (b, c, d, e) -> Tuple.of(a, b, c, d, e)),
               computation);
       return new FilterableSteps5<>(monad, next);
+    }
+
+    /**
+     * Traverses a structure extracted from the current value, applying an effectful function to
+     * each element and collecting the results.
+     *
+     * @param traversable The {@link Traverse} instance for the structure type {@code T}.
+     * @param extractor A function that extracts the traversable structure from the current value.
+     * @param f An effectful function applied to each element of the structure.
+     * @param <T> The witness type of the traversable structure.
+     * @param <C> The element type of the extracted structure.
+     * @param <B> The result element type after applying the function.
+     * @return The next step, with the traversed result {@code Kind<T, B>} added to the tuple.
+     * @throws NullPointerException if any argument is null.
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        FilterableSteps2<M, A, Kind<T, B>> traverse(
+            Traverse<T> traversable, Function<A, Kind<T, C>> extractor, Function<C, Kind<M, B>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      Kind<M, Tuple2<A, Kind<T, B>>> newComputation =
+          monad.flatMap(
+              a ->
+                  monad.map(
+                      tb -> Tuple.of(a, tb), traversable.traverse(monad, f, extractor.apply(a))),
+              this.computation);
+      return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Sequences a structure of monadic values extracted from the current value, flipping the
+     * nesting from {@code Kind<T, Kind<M, B>>} to {@code Kind<M, Kind<T, B>>}.
+     *
+     * @param traversable The {@link Traverse} instance for the structure type {@code T}.
+     * @param extractor A function that extracts the structure of monadic values.
+     * @param <T> The witness type of the traversable structure.
+     * @param <B> The element type inside both the structure and the monad.
+     * @return The next step, with the sequenced result {@code Kind<T, B>} added to the tuple.
+     * @throws NullPointerException if any argument is null.
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, B> FilterableSteps2<M, A, Kind<T, B>> sequence(
+        Traverse<T> traversable, Function<A, Kind<T, Kind<M, B>>> extractor) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple2<A, Kind<T, B>>> newComputation =
+          monad.flatMap(
+              a ->
+                  monad.map(
+                      tb -> Tuple.of(a, tb), traversable.sequenceA(monad, extractor.apply(a))),
+              this.computation);
+      return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Traverses a structure with a function that returns nested structures, then flattens the
+     * result using the inner monad.
+     *
+     * @param traversable The {@link Traverse} instance for the structure type {@code T}.
+     * @param innerMonad The {@link Monad} instance for the inner structure type {@code T}.
+     * @param extractor A function that extracts the traversable structure from the current value.
+     * @param f An effectful function that returns nested structures.
+     * @param <T> The witness type of the traversable structure.
+     * @param <C> The element type of the extracted structure.
+     * @param <B> The result element type after flattening.
+     * @return The next step, with the flat-traversed result {@code Kind<T, B>} added to the tuple.
+     * @throws NullPointerException if any argument is null.
+     */
+    public <T extends WitnessArity<TypeArity.Unary>, C, B>
+        FilterableSteps2<M, A, Kind<T, B>> flatTraverse(
+            Traverse<T> traversable,
+            Monad<T> innerMonad,
+            Function<A, Kind<T, C>> extractor,
+            Function<C, Kind<M, Kind<T, B>>> f) {
+      Objects.requireNonNull(traversable, "traversable must not be null");
+      Objects.requireNonNull(innerMonad, "innerMonad must not be null");
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      Kind<M, Tuple2<A, Kind<T, B>>> newComputation =
+          monad.flatMap(
+              a -> {
+                Kind<M, Kind<T, Kind<T, B>>> traversed =
+                    traversable.traverse(monad, f, extractor.apply(a));
+                return monad.map(
+                    ttb -> Tuple.of(a, innerMonad.flatMap(Function.identity(), ttb)), traversed);
+              },
+              this.computation);
+      return new FilterableSteps2<>(monad, newComputation);
     }
 
     /**

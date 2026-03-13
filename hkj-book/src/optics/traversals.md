@@ -828,7 +828,7 @@ Original league unchanged: League[name=Pro League, teams=[Team[name=Team Alpha, 
 ---
 
 ~~~admonish tip title="For Comprehension Integration"
-For a fluent, comprehension-style API for traversal operations, see [For Comprehensions: Bulk Operations with ForTraversal](../functional/for_comprehension.md#bulk-operations-with-fortraversal). This provides an alternative syntax for filtering, modifying, and collecting traversal targets within an applicative context.
+For a fluent, comprehension-style API for traversal operations, see [Optics Integration: Bulk Operations with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal). This provides an alternative syntax for filtering, modifying, and collecting traversal targets within an applicative context.
 ~~~
 
 ---
