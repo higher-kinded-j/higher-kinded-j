@@ -645,7 +645,8 @@ public final class ForPath {
   // Traverse / Sequence / FlatTraverse helpers (shared by all Steps1 classes)
   // ========================================================================
 
-  private static <M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, C, B>
+  private static <
+          M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, C, B>
       Kind<M, Tuple2<A, Kind<T, B>>> traverseImpl(
           Monad<M> monad,
           Kind<M, A> computation,
@@ -657,7 +658,8 @@ public final class ForPath {
         computation);
   }
 
-  private static <M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, B>
+  private static <
+          M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, B>
       Kind<M, Tuple2<A, Kind<T, B>>> sequenceImpl(
           Monad<M> monad,
           Kind<M, A> computation,
@@ -668,7 +670,8 @@ public final class ForPath {
         computation);
   }
 
-  private static <M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, C, B>
+  private static <
+          M extends WitnessArity<TypeArity.Unary>, T extends WitnessArity<TypeArity.Unary>, A, C, B>
       Kind<M, Tuple2<A, Kind<T, B>>> flatTraverseImpl(
           Monad<M> monad,
           Kind<M, A> computation,
@@ -998,16 +1001,14 @@ public final class ForPath {
       Objects.requireNonNull(traversable, "traversable must not be null");
       Objects.requireNonNull(extractor, "extractor must not be null");
       Objects.requireNonNull(f, "function must not be null");
-      return new EitherPathSteps2<>(
-          traverseImpl(monad(), computation, traversable, extractor, f));
+      return new EitherPathSteps2<>(traverseImpl(monad(), computation, traversable, extractor, f));
     }
 
     public <T extends WitnessArity<TypeArity.Unary>, B> EitherPathSteps2<E, A, Kind<T, B>> sequence(
         Traverse<T> traversable, Function<A, Kind<T, Kind<EitherKind.Witness<E>, B>>> extractor) {
       Objects.requireNonNull(traversable, "traversable must not be null");
       Objects.requireNonNull(extractor, "extractor must not be null");
-      return new EitherPathSteps2<>(
-          sequenceImpl(monad(), computation, traversable, extractor));
+      return new EitherPathSteps2<>(sequenceImpl(monad(), computation, traversable, extractor));
     }
 
     public <T extends WitnessArity<TypeArity.Unary>, C, B>
