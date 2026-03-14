@@ -691,6 +691,82 @@ For.from(maybeMonad, MAYBE.just(List.of(1, 2, 3)))
     .yield((original, doubled, sum) -> "Sum of doubled: " + sum)
 ```
 
+### Tutorial 04: Enhanced Optics Integration
+
+**Exercise 1:** Basic traverseOver — give each employee a 1000-cent raise using Id monad.
+```java
+ForState.withState(idMonad, Id.of(employees))
+    .traverseOver(Traversals.forList(), e -> Id.of(new Employee(e.name(), e.salaryInCents() + 1000)))
+    .yield()
+```
+
+**Exercise 2:** traverseOver with Maybe — validate all salaries exceed 40000 cents.
+```java
+ForState.withState(maybeMonad, MAYBE.just(employees))
+    .traverseOver(Traversals.forList(), e -> e.salaryInCents() > 40000 ? MAYBE.just(e) : MAYBE.nothing())
+    .yield()
+```
+
+**Exercise 3:** Pure modifyThrough — uppercase all employee names.
+```java
+ForState.withState(idMonad, Id.of(employees))
+    .modifyThrough(Traversals.forList(), e -> new Employee(e.name().toUpperCase(), e.salaryInCents()))
+    .yield()
+```
+
+**Exercise 4:** modifyThrough with Lens — double all salaries via traversal + lens.
+```java
+ForState.withState(idMonad, Id.of(employees))
+    .modifyThrough(Traversals.forList(), salaryLens, s -> s * 2)
+    .yield()
+```
+
+**Exercise 5:** through(Iso) basics — convert Celsius to Fahrenheit in a For comprehension.
+```java
+For.from(idMonad, Id.of(new Celsius(100.0)))
+    .through(celsiusToFahrenheit)
+    .yield((celsius, fahrenheit) -> celsius.value() + "\u00B0C = " + fahrenheit.value() + "\u00B0F")
+```
+
+**Exercise 6:** through(Iso) with FilterableSteps — wrap string and filter on length.
+```java
+For.from((MonadZero<MaybeKind.Witness>) maybeMonad, MAYBE.just("hello"))
+    .through(stringToWrapper)
+    .when(t -> t._2().inner().length() > 3)
+    .yield((original, wrapped) -> original)
+```
+
+**Exercise 7:** modifyVia — add $50 to salary via centsToDollars Iso.
+```java
+ForState.withState(idMonad, Id.of(alice))
+    .modifyVia(salaryLens, centsToDollars, d -> d + 50.0)
+    .yield()
+```
+
+**Exercise 8:** updateVia — set salary to $750 via centsToDollars Iso.
+```java
+ForState.withState(idMonad, Id.of(alice))
+    .updateVia(salaryLens, centsToDollars, 750.0)
+    .yield()
+```
+
+**Exercise 9:** Combined workflow — validate, uppercase, and add bonus.
+```java
+ForState.withState(maybeMonad, MAYBE.just(employees))
+    .traverseOver(Traversals.forList(), e -> e.salaryInCents() > 0 ? MAYBE.just(e) : MAYBE.nothing())
+    .modifyThrough(Traversals.forList(), e -> new Employee(e.name().toUpperCase(), e.salaryInCents()))
+    .modifyThrough(Traversals.forList(), salaryLens, s -> s + 5000)
+    .yield()
+```
+
+**Exercise 10:** Department payroll — validate staff salaries and increase budget by 10%.
+```java
+ForState.withState(maybeMonad, MAYBE.just(engineering))
+    .traverse(staffLens, Traversals.forList(), e -> e.salaryInCents() > 0 ? MAYBE.just(e) : MAYBE.nothing())
+    .modifyVia(budgetLens, centsToDollars, d -> d * 1.1)
+    .yield()
+```
+
 ---
 
 ## Tips for Using These Solutions

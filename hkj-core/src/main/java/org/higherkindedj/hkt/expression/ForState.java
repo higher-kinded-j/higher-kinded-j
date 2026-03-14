@@ -11,6 +11,11 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -184,6 +189,87 @@ public final class ForState {
         Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, A>> f);
 
     /**
+     * Applies an effectful function to every element focused by a traversal directly on the state.
+     *
+     * <p>Unlike {@link #traverse(Lens, Traversal, Function)} which requires a lens to locate a
+     * collection field first, this method treats the entire state as the traversal source. The
+     * traversal focuses on elements within the state structure and the effectful function
+     * transforms each one.
+     *
+     * @param traversal The traversal focusing on elements within the state.
+     * @param f The effectful function to apply to each focused element.
+     * @param <A> The type of the focused elements.
+     * @return A new builder with the traversal operation queued.
+     * @throws NullPointerException if any argument is null.
+     */
+    <A> Steps<M, S> traverseOver(Traversal<S, A> traversal, Function<A, Kind<M, A>> f);
+
+    /**
+     * Applies a pure function to every element focused by a traversal on the state.
+     *
+     * <p>This is the traversal equivalent of {@link #modify(Lens, Function)}: it modifies all
+     * focused elements using a pure function, without requiring monadic effects.
+     *
+     * @param traversal The traversal focusing on elements within the state.
+     * @param modifier A pure function to transform each focused element.
+     * @param <A> The type of the focused elements.
+     * @return A new builder with the modification queued.
+     * @throws NullPointerException if any argument is null.
+     */
+    <A> Steps<M, S> modifyThrough(Traversal<S, A> traversal, Function<A, A> modifier);
+
+    /**
+     * Applies a pure function to a nested field within every element focused by a traversal.
+     *
+     * <p>This composes a traversal with a lens to reach a nested field within each focused element,
+     * then applies the modifier to that field. Equivalent to modifying through {@code
+     * traversal.andThen(lens)}.
+     *
+     * @param traversal The traversal focusing on elements within the state.
+     * @param lens The lens focusing on a field within each element.
+     * @param modifier A pure function to transform the nested field.
+     * @param <A> The type of the focused elements.
+     * @param <B> The type of the nested field.
+     * @return A new builder with the modification queued.
+     * @throws NullPointerException if any argument is null.
+     */
+    <A, B> Steps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier);
+
+    /**
+     * Modifies a state field through an {@link Iso} conversion.
+     *
+     * <p>Extracts a field via a lens, converts it to the Iso's target type, applies the modifier in
+     * that type, converts back, and stores the result. This enables type-safe transformations
+     * through equivalent representations.
+     *
+     * @param lens The lens focusing on the field to modify.
+     * @param iso The isomorphism between the field type and the modification type.
+     * @param modifier A function to transform the value in the Iso's target type.
+     * @param <A> The type of the field (Iso source).
+     * @param <B> The type to modify in (Iso target).
+     * @return A new builder with the modification queued.
+     * @throws NullPointerException if any argument is null.
+     */
+    <A, B> Steps<M, S> modifyVia(Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier);
+
+    /**
+     * Sets a state field through an {@link Iso} conversion.
+     *
+     * <p>Converts the provided value from the Iso's target type back to the field type using {@link
+     * Iso#reverseGet(Object)}, then stores it via the lens.
+     *
+     * @param lens The lens focusing on the field to set.
+     * @param iso The isomorphism between the field type and the value type.
+     * @param value The value in the Iso's target type.
+     * @param <A> The type of the field (Iso source).
+     * @param <B> The type of the provided value (Iso target).
+     * @return A new builder with the update queued.
+     * @throws NullPointerException if {@code lens} or {@code iso} is null.
+     */
+    <A, B> Steps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value);
+
+    /**
      * Narrows the state scope to a sub-part of the state via a lens.
      *
      * <p>Operations on the returned {@link ZoomedSteps} operate on the sub-state type {@code T}
@@ -301,6 +387,22 @@ public final class ForState {
     @Override
     <C, A> FilterableSteps<M, S> traverse(
         Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, A>> f);
+
+    @Override
+    <A> FilterableSteps<M, S> traverseOver(Traversal<S, A> traversal, Function<A, Kind<M, A>> f);
+
+    @Override
+    <A> FilterableSteps<M, S> modifyThrough(Traversal<S, A> traversal, Function<A, A> modifier);
+
+    @Override
+    <A, B> FilterableSteps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier);
+
+    @Override
+    <A, B> FilterableSteps<M, S> modifyVia(Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier);
+
+    @Override
+    <A, B> FilterableSteps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value);
 
     @Override
     <T> FilterableZoomedSteps<M, S, T> zoom(Lens<S, T> zoomLens);
@@ -453,6 +555,51 @@ public final class ForState {
     }
 
     @Override
+    public <A> Steps<M, S> traverseOver(Traversal<S, A> traversal, Function<A, Kind<M, A>> f) {
+      Objects.requireNonNull(traversal, "traversal must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      Kind<M, S> newState = monad.flatMap(s -> traversal.modifyF(f, s, monad), state);
+      return new ForStateStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A> Steps<M, S> modifyThrough(Traversal<S, A> traversal, Function<A, A> modifier) {
+      Objects.requireNonNull(traversal, "traversal must not be null");
+      Objects.requireNonNull(modifier, "modifier must not be null");
+      Kind<M, S> newState = monad.map(s -> pureTraversalModify(traversal, modifier, s), state);
+      return new ForStateStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A, B> Steps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier) {
+      Objects.requireNonNull(traversal, "traversal must not be null");
+      Objects.requireNonNull(lens, "lens must not be null");
+      Objects.requireNonNull(modifier, "modifier must not be null");
+      Traversal<S, B> composed = traversal.andThen(lens);
+      Kind<M, S> newState = monad.map(s -> pureTraversalModify(composed, modifier, s), state);
+      return new ForStateStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A, B> Steps<M, S> modifyVia(Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier) {
+      Objects.requireNonNull(lens, "lens must not be null");
+      Objects.requireNonNull(iso, "iso must not be null");
+      Objects.requireNonNull(modifier, "modifier must not be null");
+      Kind<M, S> newState =
+          monad.map(s -> lens.modify(a -> iso.reverseGet(modifier.apply(iso.get(a))), s), state);
+      return new ForStateStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A, B> Steps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value) {
+      Objects.requireNonNull(lens, "lens must not be null");
+      Objects.requireNonNull(iso, "iso must not be null");
+      Kind<M, S> newState = monad.map(s -> lens.set(iso.reverseGet(value), s), state);
+      return new ForStateStepsImpl<>(monad, newState);
+    }
+
+    @Override
     public <T> ZoomedSteps<M, S, T> zoom(Lens<S, T> zoomLens) {
       Objects.requireNonNull(zoomLens, "zoomLens must not be null");
       return new ForStateZoomedStepsImpl<>(monad, state, zoomLens);
@@ -570,6 +717,54 @@ public final class ForState {
                     newCollection -> collectionLens.set(newCollection, s), updatedCollection);
               },
               state);
+      return new ForStateFilterableStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A> FilterableSteps<M, S> traverseOver(
+        Traversal<S, A> traversal, Function<A, Kind<M, A>> f) {
+      Objects.requireNonNull(traversal, "traversal must not be null");
+      Objects.requireNonNull(f, "function must not be null");
+      Kind<M, S> newState = monad.flatMap(s -> traversal.modifyF(f, s, monad), state);
+      return new ForStateFilterableStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A> FilterableSteps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Function<A, A> modifier) {
+      Objects.requireNonNull(traversal, "traversal must not be null");
+      Objects.requireNonNull(modifier, "modifier must not be null");
+      Kind<M, S> newState = monad.map(s -> pureTraversalModify(traversal, modifier, s), state);
+      return new ForStateFilterableStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A, B> FilterableSteps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier) {
+      Objects.requireNonNull(traversal, "traversal must not be null");
+      Objects.requireNonNull(lens, "lens must not be null");
+      Objects.requireNonNull(modifier, "modifier must not be null");
+      Traversal<S, B> composed = traversal.andThen(lens);
+      Kind<M, S> newState = monad.map(s -> pureTraversalModify(composed, modifier, s), state);
+      return new ForStateFilterableStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A, B> FilterableSteps<M, S> modifyVia(
+        Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier) {
+      Objects.requireNonNull(lens, "lens must not be null");
+      Objects.requireNonNull(iso, "iso must not be null");
+      Objects.requireNonNull(modifier, "modifier must not be null");
+      Kind<M, S> newState =
+          monad.map(s -> lens.modify(a -> iso.reverseGet(modifier.apply(iso.get(a))), s), state);
+      return new ForStateFilterableStepsImpl<>(monad, newState);
+    }
+
+    @Override
+    public <A, B> FilterableSteps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value) {
+      Objects.requireNonNull(lens, "lens must not be null");
+      Objects.requireNonNull(iso, "iso must not be null");
+      Kind<M, S> newState = monad.map(s -> lens.set(iso.reverseGet(value), s), state);
       return new ForStateFilterableStepsImpl<>(monad, newState);
     }
 
@@ -692,5 +887,17 @@ public final class ForState {
     public FilterableSteps<M, S> endZoom() {
       return new ForStateFilterableStepsImpl<>(monad, state);
     }
+  }
+
+  /**
+   * Applies a pure modification to all elements focused by a traversal, using the Identity
+   * applicative to unwrap the result. This avoids exposing Identity details in the public API.
+   */
+  private static <S, A> S pureTraversalModify(
+      Traversal<S, A> traversal, Function<A, A> modifier, S source) {
+    IdMonad idMonad = IdMonad.instance();
+    Kind<IdKind.Witness, S> result =
+        traversal.modifyF(a -> Id.of(modifier.apply(a)), source, idMonad);
+    return IdKindHelper.ID.unwrap(result);
   }
 }

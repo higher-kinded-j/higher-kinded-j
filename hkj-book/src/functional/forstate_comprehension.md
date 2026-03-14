@@ -1,9 +1,14 @@
 # ForState: Named State Comprehensions
 
+> "The limits of my language mean the limits of my world."
+>
+> -- Ludwig Wittgenstein, _Tractatus Logico-Philosophicus_
+
 ~~~admonish info title="What You'll Learn"
 - Why `ForState` is the recommended comprehension pattern for workflows with more than two or three steps
 - How named record fields (`ctx.user()`, `ctx.address()`) replace fragile tuple positions (`t._1()`, `t._2()`)
 - The full ForState API: `update`, `modify`, `fromThen`, `when`, `matchThen`, `traverse`, and `zoom`
+- Traversal-aware bulk operations and Iso-integrated state updates
 - Side-by-side comparison of `For` vs `ForState` for the same workflow
 - Choosing between `For`, `ForPath`, and `ForState`
 ~~~
@@ -134,6 +139,45 @@ Every intermediate reference is a named accessor. The intent is visible at a gla
 
 ---
 
+## A Complete Workflow
+
+Before diving into individual operations, here is a realistic example that shows how they combine. Each annotation in the comments maps to one of the API sections below:
+
+```java
+@GenerateLenses
+record OrderContext(
+    String orderId,
+    OrderStatus status,
+    String extractedConfirmationId,
+    ShippingAddress shippingAddress,
+    List<String> tags,
+    int totalCents
+) {}
+
+MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+Traversal<List<String>, String> listTraversal = Traversals.forList();
+
+Kind<MaybeKind.Witness, String> result =
+    ForState.withState(maybeMonad, MAYBE.just(order))
+        .when(ctx -> ctx.orderId().startsWith("ORD"))            // guard
+        .matchThen(statusLens, confirmedIdPrism, extractedIdLens) // pattern match
+        .traverse(tagsLens, listTraversal,                        // bulk transform
+            tag -> MAYBE.just(tag.toUpperCase()))
+        .zoom(addressLens)                                        // narrow scope
+            .update(cityLens, "SPRINGFIELD")
+        .endZoom()                                                // restore scope
+        .modify(totalLens, t -> t + 500)                         // add shipping
+        .yield(ctx -> String.format("Order %s confirmed (%s), tags: %s, total: $%.2f",
+            ctx.orderId(),
+            ctx.extractedConfirmationId(),
+            ctx.tags(),
+            ctx.totalCents() / 100.0));
+```
+
+Every value is accessed by name. The workflow reads top-to-bottom. Adding or removing a step does not affect any other step. The rest of this chapter explains each operation in turn.
+
+---
+
 ## When to Use Which
 
 | Criterion | `For` | `ForState` | `ForPath` |
@@ -141,7 +185,7 @@ Every intermediate reference is a named accessor. The intent is visible at a gla
 | **Steps** | 1-3 | 3+ | 1-3 |
 | **Naming** | Tuple positions | Record fields | Tuple positions |
 | **Arity limit** | 12 | Unlimited | 12 |
-| **Optics** | `focus()`, `match()` | `update()`, `modify()`, `fromThen()`, `zoom()` | `focus()`, `match()` |
+| **Optics** | `focus()`, `match()`, `through()` | `update()`, `modify()`, `fromThen()`, `zoom()`, `traverseOver()`, `modifyThrough()`, `modifyVia()`, `updateVia()` | `focus()`, `match()` |
 | **Guards** | `when()` (MonadZero) | `when()`, `matchThen()` (MonadZero) | `when()` (MonadZero) |
 | **Returns** | `Kind<M, R>` | `Kind<M, S>` or `Kind<M, R>` | Concrete Path type |
 | **Best for** | Simple linear chains | Complex stateful workflows | Effect Path API users |
@@ -159,9 +203,17 @@ Any workflow that can be expressed with `For` can be expressed with `ForState`. 
 
 ---
 
-## API Reference
+## Operations Reference
 
-### Entry Points
+> "A complex system that works is invariably found to have evolved from a simple system that worked."
+>
+> -- John Gall, _The Systems Bible_
+
+The sections below group ForState operations by purpose. Each starts with the simplest form and builds towards more specialised variants.
+
+### Getting Started
+
+Every ForState workflow begins with `withState`. The two overloads determine whether guards and pattern matching are available:
 
 ```java
 // Standard entry point (any Monad)
@@ -173,9 +225,7 @@ ForState.withState(MonadZero<M> monad, Kind<M, S> initialState) → FilterableSt
 
 The `MonadZero` overload returns `FilterableSteps`, which extends `Steps` with guard and pattern-matching operations. This mirrors the `For.from(MonadZero, Kind)` design.
 
-### Bridging from For with `toState()`
-
-You can also enter ForState from a [`For`](for_comprehension.md) comprehension mid-chain. The `toState()` method on any `MonadicSteps` or `FilterableSteps` constructs the state record from the accumulated values and returns a `ForState.Steps` (or `ForState.FilterableSteps` for MonadZero monads):
+You can also enter ForState mid-chain from a [`For`](for_comprehension.md) comprehension. The `toState()` method constructs the state record from accumulated tuple values:
 
 ```java
 // Bridge: accumulate values with For, then transition to ForState
@@ -188,7 +238,7 @@ Kind<IdKind.Witness, Dashboard> result =
         .yield();
 ```
 
-Both spread-style (`(a, b) -> ...`) and tuple-style (`t -> ...`) constructors are supported at all arities (1 through 12). This is particularly useful when the first few steps of a workflow fetch or compute values, and the remaining steps refine a structured record:
+Both spread-style (`(a, b) -> ...`) and tuple-style (`t -> ...`) constructors are supported at all arities (1 through 12). This is particularly useful when the first few steps fetch or compute values, and the remaining steps refine a structured record:
 
 ```java
 // With MonadZero: filtering is preserved across the bridge
@@ -201,7 +251,9 @@ Kind<MaybeKind.Witness, Dashboard> result =
         .yield();
 ```
 
-### Pure State Updates
+### Updating State
+
+The most common operations are the simplest: setting a field to a known value, or transforming it with a pure function. These never involve effects and always succeed.
 
 **`update(lens, value)`** -- sets a field to a constant value:
 
@@ -221,7 +273,9 @@ ForState.withState(idMonad, Id.of(ctx))
     .yield();
 ```
 
-### Effectful Operations
+### Bringing in Effects
+
+When a step needs to call an external service, validate input, or perform any computation that lives inside the monad, use the effectful operations.
 
 **`fromThen(function, lens)`** -- runs a monadic computation and stores the result via a lens. This is the primary way to combine effects with state updates:
 
@@ -232,7 +286,7 @@ ForState.withState(eitherTMonad, eitherTMonad.of(ctx))
     .yield();
 ```
 
-**`from(function)`** -- runs a monadic computation for its effect, without updating state:
+**`from(function)`** -- runs a monadic computation for its effect, without updating state. Useful for logging, auditing, or side-effects that do not produce a value you need to keep:
 
 ```java
 ForState.withState(ioMonad, ioMonad.of(ctx))
@@ -241,7 +295,9 @@ ForState.withState(ioMonad, ioMonad.of(ctx))
     .yield();
 ```
 
-### Guards (MonadZero only)
+### Guarding and Matching
+
+These operations are only available when the monad is a `MonadZero` (such as `Maybe` or `List`). They let you short-circuit the workflow when conditions are not met, or when data does not match an expected shape.
 
 **`when(predicate)`** -- short-circuits to the monad's zero element if the predicate fails:
 
@@ -253,8 +309,6 @@ ForState.withState(maybeMonad, MAYBE.just(ctx))
     .yield();
 // Returns Just(finalCtx) if all guards pass, Nothing if any fails
 ```
-
-### Pattern Matching (MonadZero only)
 
 **`matchThen(sourceLens, prism, targetLens)`** -- extracts a field, matches with a prism, and stores the result. Short-circuits on mismatch:
 
@@ -281,9 +335,11 @@ ForState.withState(maybeMonad, MAYBE.just(ctx))
     .yield();
 ```
 
-### Bulk Operations
+### Working with Collections
 
-**`traverse(collectionLens, traversal, function)`** -- applies an effectful function to each element in a collection field:
+When the state contains a collection -- or *is* a collection -- these operations let you apply transformations to every element, optionally with effects.
+
+**`traverse(collectionLens, traversal, function)`** -- applies an effectful function to each element in a collection field. The lens locates the collection within the state record; the traversal iterates over its elements:
 
 ```java
 Traversal<List<String>, String> listTraversal = Traversals.forList();
@@ -295,6 +351,32 @@ ForState.withState(maybeMonad, MAYBE.just(ctx))
 // Transforms all tags if all are valid; Nothing if any tag is invalid
 ```
 
+**`traverseOver(traversal, function)`** -- like `traverse`, but operates directly on the state type itself when the state *is* the collection:
+
+```java
+ForState.withState(maybeMonad, MAYBE.just(employeeList))
+    .traverseOver(Traversals.forList(),
+        emp -> emp.salary() > 0 ? MAYBE.just(emp) : MAYBE.nothing())
+    .yield();
+```
+
+**`modifyThrough(traversal, modifier)`** -- applies a pure function to each element. No monadic context required:
+
+```java
+ForState.withState(idMonad, Id.of(employeeList))
+    .modifyThrough(Traversals.forList(),
+        emp -> new Employee(emp.name().toUpperCase(), emp.salary()))
+    .yield();
+```
+
+**`modifyThrough(traversal, lens, modifier)`** -- composes a traversal with a lens to modify a nested field within each element:
+
+```java
+ForState.withState(idMonad, Id.of(employeeList))
+    .modifyThrough(Traversals.forList(), salaryLens, s -> s + 500)
+    .yield();
+```
+
 ~~~admonish note title="Two Kinds of Traverse"
 `ForState.traverse(Lens, Traversal, Function)` is an **optics-based** bulk update: it uses a lens to locate a collection field within the state record and a traversal optic to iterate over its elements. The result is written back into the state via the same lens.
 
@@ -303,9 +385,34 @@ The `For` comprehension offers a different form: `For.traverse(Traverse, extract
 Both are useful; choose the one that matches your comprehension style. See [Traverse Within Comprehensions](for_traverse.md) for the `For`-based variant.
 ~~~
 
+### Converting Through Isos
+
+When a field is stored in one representation but you need to reason about it in another -- cents versus dollars, Celsius versus Fahrenheit -- these operations let you work in the natural representation without manual conversion.
+
+**`modifyVia(lens, iso, modifier)`** -- modifies a field by converting through an Iso, applying the modifier in the converted type, and converting back:
+
+```java
+Iso<Integer, Double> centsToDollars = Iso.of(c -> c / 100.0, d -> (int) (d * 100));
+
+ForState.withState(idMonad, Id.of(department))
+    .modifyVia(budgetLens, centsToDollars, dollars -> dollars * 1.1)
+    .yield();
+```
+
+**`updateVia(lens, iso, value)`** -- sets a field by converting the provided value through the Iso's `reverseGet`:
+
+```java
+ForState.withState(idMonad, Id.of(department))
+    .updateVia(budgetLens, centsToDollars, 750.0)
+    .yield();
+// Budget stored as 75000 cents
+```
+
 ### Zooming into Nested State
 
-**`zoom(lens)`** -- narrows the state scope to a sub-record. Operations within the zoom target the sub-state directly. **`endZoom()`** returns to the outer scope:
+When part of your state is itself a record with its own fields, `zoom` narrows the scope so you can operate on the sub-record directly. This avoids composing lenses manually and makes the nesting visible in the code's indentation.
+
+**`zoom(lens)`** -- narrows the state scope to a sub-record. **`endZoom()`** returns to the outer scope:
 
 ```java
 record Customer(String name, Address address, int loyaltyPoints) {}
@@ -323,6 +430,8 @@ ForState.withState(idMonad, Id.of(customer))
 ```
 
 ### Yielding Results
+
+Every ForState workflow ends with `yield`. Two forms are available:
 
 **`yield()`** -- returns the final state as-is:
 
@@ -342,49 +451,12 @@ Kind<M, String> receipt = ForState.withState(monad, ...)
 
 ---
 
-## Complete Example: Order Processing
-
-This example combines all ForState features in a realistic workflow:
-
-```java
-@GenerateLenses
-record OrderContext(
-    String orderId,
-    OrderStatus status,
-    String extractedConfirmationId,
-    ShippingAddress shippingAddress,
-    List<String> tags,
-    int totalCents
-) {}
-
-MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
-Traversal<List<String>, String> listTraversal = Traversals.forList();
-
-Kind<MaybeKind.Witness, String> result =
-    ForState.withState(maybeMonad, MAYBE.just(order))
-        .when(ctx -> ctx.orderId().startsWith("ORD"))           // guard
-        .matchThen(statusLens, confirmedIdPrism, extractedIdLens) // pattern match
-        .traverse(tagsLens, listTraversal,                       // bulk transform
-            tag -> MAYBE.just(tag.toUpperCase()))
-        .zoom(addressLens)                                       // narrow scope
-            .update(cityLens, "SPRINGFIELD")
-        .endZoom()                                               // restore scope
-        .modify(totalLens, t -> t + 500)                        // add shipping
-        .yield(ctx -> String.format("Order %s confirmed (%s), tags: %s, total: $%.2f",
-            ctx.orderId(),
-            ctx.extractedConfirmationId(),
-            ctx.tags(),
-            ctx.totalCents() / 100.0));
-```
-
-Every value is accessed by name. The workflow reads top-to-bottom. Adding or removing a step does not affect any other step.
-
----
-
 ~~~admonish tip title="See Also"
 - [For Comprehension](for_comprehension.md) -- The tuple-based comprehension for short chains
+- [Optics Integration](for_optics.md) -- Traversal, Iso, and optics operations within comprehensions
 - [ForPath Comprehension](../effect/forpath_comprehension.md) -- Comprehensions returning concrete Effect Path types
 - [Lenses](../optics/lenses.md) -- The optics that power ForState's named field access
+- [Isomorphisms](../optics/iso.md) -- Reversible type conversions used by `modifyVia` and `updateVia`
 - [ForState Tutorial](../tutorials/expression/forstate_journey.md) -- Hands-on exercises
 ~~~
 
