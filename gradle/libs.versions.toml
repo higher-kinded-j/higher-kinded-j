@@ -18,9 +18,9 @@ truth = "1.4.4"
 jmh = "1.37"
 jol = "0.17"
 
-# Spring Boot 4.0.1+ (requires Java 17+, Jakarta EE 11, Servlet 6.1)
+# Spring Boot 4.0.3 (requires Java 17+, Jakarta EE 11, Servlet 6.1)
 # Note: hkj-spring 0.2.7 supports Spring Boot 3.5.7, 0.2.8+ requires Spring Boot 4.0.1+
-spring-boot = "4.0.1"
+spring-boot = "4.0.3"
 spring-dependency-management = "1.1.7"
 
 # Jackson 3.x (group ID changed from com.fasterxml.jackson to tools.jackson in Spring Boot 4)

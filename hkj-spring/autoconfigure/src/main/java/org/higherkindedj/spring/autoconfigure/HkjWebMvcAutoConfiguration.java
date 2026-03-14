@@ -10,6 +10,8 @@ import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.IOPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.MaybePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.TryPathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.VStreamPathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.VTaskPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -41,6 +43,9 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>{@link ValidationPathReturnValueHandler} - Handles ValidationPath with error accumulation
  *   <li>{@link IOPathReturnValueHandler} - Handles IOPath deferred execution
  *   <li>{@link CompletableFuturePathReturnValueHandler} - Handles async CompletableFuturePath
+ *   <li>{@link VTaskPathReturnValueHandler} - Handles VTaskPath virtual thread execution
+ *   <li>{@link VStreamPathReturnValueHandler} - Handles VStreamPath SSE streaming on virtual
+ *       threads
  * </ul>
  *
  * <p>Uses {@link WebMvcRegistrations} to customize the {@link RequestMappingHandlerAdapter} and
@@ -68,6 +73,8 @@ public class HkjWebMvcAutoConfiguration {
    *   <li>hkj.web.io-path-enabled - controls IOPathReturnValueHandler
    *   <li>hkj.web.completable-future-path-enabled - controls
    *       CompletableFuturePathReturnValueHandler
+   *   <li>hkj.web.vtask-path-enabled - controls VTaskPathReturnValueHandler
+   *   <li>hkj.web.vstream-path-enabled - controls VStreamPathReturnValueHandler
    * </ul>
    *
    * @param properties The HKJ configuration properties
@@ -133,6 +140,27 @@ public class HkjWebMvcAutoConfiguration {
                       webConfig.getAsyncFailureStatus(),
                       webConfig.isAsyncIncludeExceptionDetails(),
                       properties.getAsync().getDefaultTimeoutMs()));
+            }
+
+            // Virtual thread handlers
+            HkjProperties.VirtualThreads vtConfig = properties.getVirtualThreads();
+
+            if (webConfig.isVtaskPathEnabled()) {
+              newHandlers.add(
+                  new VTaskPathReturnValueHandler(
+                      jsonMapper,
+                      webConfig.getVtaskFailureStatus(),
+                      webConfig.isVtaskIncludeExceptionDetails(),
+                      vtConfig.getDefaultTimeoutMs()));
+            }
+
+            if (webConfig.isVstreamPathEnabled()) {
+              newHandlers.add(
+                  new VStreamPathReturnValueHandler(
+                      jsonMapper,
+                      webConfig.getVstreamFailureStatus(),
+                      webConfig.isVstreamIncludeExceptionDetails(),
+                      vtConfig.getStreamTimeoutMs()));
             }
 
             newHandlers.addAll(originalHandlers);

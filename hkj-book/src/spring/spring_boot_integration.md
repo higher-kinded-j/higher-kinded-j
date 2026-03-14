@@ -2,8 +2,9 @@
 ## _Bringing Type-Safe Error Handling to Your REST APIs_
 
 ~~~admonish info title="What You'll Learn"
-- How to use Either, Validated, and CompletableFuturePath as Spring controller return types
+- How to use Either, Validated, CompletableFuturePath, VTaskPath, and VStreamPath as Spring controller return types
 - Zero-configuration setup with the hkj-spring-boot-starter
+- Virtual thread integration with VTaskPath (async) and VStreamPath (SSE streaming)
 - Automatic JSON serialisation with customisable formats
 - Monitoring functional operations with Spring Boot Actuator
 - Securing endpoints with functional error handling patterns
@@ -83,6 +84,8 @@ That's it! The starter auto-configures everything:
 - Either to HTTP response conversion with automatic status code mapping
 - Validated to HTTP response with error accumulation
 - CompletableFuturePath support for async operations
+- VTaskPath support for virtual thread async via DeferredResult
+- VStreamPath support for SSE streaming on virtual threads
 - JSON serialisation for functional types
 - Customisable error type to HTTP status code mapping
 
@@ -307,6 +310,99 @@ See the [Effect Path API documentation](../effect/path_types.md) for comprehensi
 
 ---
 
+### 4. VTaskPath: Virtual Thread Async Operations {#vtaskpath-virtual-thread-async}
+
+`VTaskPath<A>` runs deferred computations on virtual threads, providing async responses without thread pool configuration.
+
+#### Basic Usage
+
+```java
+@GetMapping("/users/{id}")
+public VTaskPath<User> getUser(@PathVariable String id) {
+    return vtUserService.findById(id);
+    // Executes on a virtual thread via DeferredResult
+    // No thread pool configuration needed
+}
+```
+
+**Response Handling:**
+The framework uses Spring's `DeferredResult`:
+1. Controller returns `VTaskPath`
+2. Framework calls `VTask.runAsync()` on a virtual thread
+3. Result is wrapped in `DeferredResult` with configurable timeout
+4. When complete, result is converted to HTTP 200 with JSON body
+5. On failure, returns configured error status (default: 500)
+
+#### Structured Concurrency
+
+Use `Scope` for parallel fan-out with automatic cancellation:
+
+```java
+@GetMapping("/users/{id}/enriched")
+public VTaskPath<EnrichedUser> getEnrichedUser(@PathVariable String id) {
+    VTask<User> userTask = VTask.of(() -> findUser(id));
+    VTask<Profile> profileTask = VTask.of(() -> fetchProfile(id));
+    VTask<OrderSummary> ordersTask = VTask.of(() -> fetchOrders(id));
+
+    return Path.vtask(
+        Scope.<Object>allSucceed()
+            .fork(userTask)
+            .fork(profileTask)
+            .fork(ordersTask)
+            .join())
+        .map(results -> new EnrichedUser(
+            (User) results.get(0),
+            (Profile) results.get(1),
+            (OrderSummary) results.get(2)
+        ));
+}
+```
+
+**Key advantages over CompletableFuturePath:**
+- No thread pool sizing or tuning — virtual threads scale automatically with the JVM
+- Structured concurrency via `Scope` replaces `CompletableFuture.allOf()` with cancellation awareness
+- Simpler imperative code style — blocking is free on virtual threads
+
+---
+
+### 5. VStreamPath: SSE Streaming on Virtual Threads {#vstreampath-sse-streaming}
+
+`VStreamPath<A>` enables Server-Sent Events (SSE) streaming backed by virtual threads. No WebFlux or Reactor dependency required.
+
+#### Basic Usage
+
+```java
+@GetMapping(value = "/users/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+public VStreamPath<User> streamUsers() {
+    return vtUserService.streamAllUsers();
+    // Each element emitted as an SSE data: event with JSON payload
+}
+```
+
+**Response Handling:**
+1. Controller returns `VStreamPath`
+2. Framework starts a virtual thread to consume the stream
+3. Each element is written as an SSE `data:` event with JSON payload
+4. A completion event is sent when the stream ends
+5. On error, an SSE error event is sent
+
+#### Parameterised Streams
+
+```java
+@GetMapping(value = "/ticks", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+public VStreamPath<TickEvent> streamTicks(@RequestParam(defaultValue = "10") int count) {
+    return vtUserService.streamTicks(count);
+    // Infinite stream limited by take(count)
+}
+```
+
+**Key advantages:**
+- No WebFlux, no Reactor, no Flux — just imperative code that streams
+- Pull-based with natural backpressure via virtual thread blocking
+- Configurable stream timeout via `hkj.virtual-threads.stream-timeout-ms`
+
+---
+
 ## JSON Serialisation {#json-serialisation}
 
 The starter provides flexible JSON serialisation for functional types.
@@ -390,6 +486,8 @@ hkj:
     either-path-enabled: true               # Enable EitherPath handler (default: true)
     validated-path-enabled: true            # Enable ValidationPath handler (default: true)
     completable-future-path-enabled: true   # Enable CompletableFuturePath handler (default: true)
+    vtask-path-enabled: true               # Enable VTaskPath handler (default: true)
+    vstream-path-enabled: true             # Enable VStreamPath handler (default: true)
     default-error-status: 400               # Default HTTP status for unmapped errors
 ```
 
@@ -404,6 +502,17 @@ hkj:
     max-pool-size: 20                  # Maximum threads
     queue-capacity: 100                # Queue size before rejection
     thread-name-prefix: "hkj-async-"   # Thread naming pattern
+```
+
+### Virtual Thread Configuration
+
+For VTaskPath and VStreamPath operations (no pool sizing needed):
+
+```yaml
+hkj:
+  virtual-threads:
+    default-timeout-ms: 30000          # VTask timeout (default: 30s)
+    stream-timeout-ms: 60000           # VStream timeout (default: 60s, 0 = no timeout)
 ```
 
 For complete configuration options, see [hkj-spring/CONFIGURATION.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/CONFIGURATION.md).
@@ -641,6 +750,8 @@ The starter automatically tracks:
 - **EitherPath metrics:** Success/error counts and rates
 - **ValidationPath metrics:** Valid/invalid counts and error distributions
 - **CompletableFuturePath metrics:** Async operation durations and success rates
+- **VTaskPath metrics:** Virtual thread execution durations and success rates
+- **VStreamPath metrics:** Stream completion counts and element distribution
 - **Thread pool health:** Active threads, queue size, saturation
 
 ### Custom HKJ Endpoint
@@ -880,6 +991,8 @@ Each functional type has a dedicated handler:
 1. **EitherPathReturnValueHandler:** Converts `EitherPath<L, R>` to HTTP responses
 2. **ValidationPathReturnValueHandler:** Converts `ValidationPath<E, A>` to HTTP responses
 3. **CompletableFuturePathReturnValueHandler:** Unwraps `CompletableFuturePath<A>` for async processing
+4. **VTaskPathReturnValueHandler:** Executes `VTaskPath<A>` on virtual threads via `DeferredResult`
+5. **VStreamPathReturnValueHandler:** Streams `VStreamPath<A>` as SSE events on virtual threads
 
 Handlers are registered automatically and integrated seamlessly with Spring's request processing lifecycle.
 
@@ -901,7 +1014,7 @@ Yes! The integration is non-invasive. You can use `EitherPath`, `ValidationPath`
 
 ### Does this work with Spring WebFlux?
 
-Currently, the starter supports Spring Web MVC (servlet-based). WebFlux support is planned for a future release.
+Currently, the starter supports Spring Web MVC (servlet-based). For reactive-style streaming, use `VStreamPath` which provides SSE streaming on virtual threads without requiring WebFlux or Reactor dependencies.
 
 ### Can I customise the error → HTTP status mapping?
 
@@ -954,7 +1067,8 @@ The integration focuses on functional validation patterns. For Spring's `@Valid`
 
 The hkj-spring-boot-starter brings functional programming patterns seamlessly into Spring Boot applications:
 
-- **Return functional types from controllers:** EitherPath, ValidationPath, CompletableFuturePath
+- **Return functional types from controllers:** EitherPath, ValidationPath, CompletableFuturePath, VTaskPath, VStreamPath
+- **Virtual thread integration:** VTaskPath for async, VStreamPath for SSE streaming — no thread pools or WebFlux needed
 - **Automatic HTTP response conversion:** No boilerplate required
 - **Explicit, type-safe error handling:** Errors in method signatures
 - **Composable operations:** Functional composition with map/via/flatMap

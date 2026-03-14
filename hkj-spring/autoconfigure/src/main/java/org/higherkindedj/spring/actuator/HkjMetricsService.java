@@ -18,6 +18,8 @@ import java.util.concurrent.TimeUnit;
  *   <li>EitherT async return value handler invocations
  *   <li>Async operation execution times
  *   <li>Error type distributions
+ *   <li>VTask virtual thread invocations (success/error) and duration
+ *   <li>VStream virtual thread invocations and element counts
  * </ul>
  *
  * <p>Metrics are exposed via Spring Boot Actuator and can be consumed by monitoring systems like
@@ -33,6 +35,12 @@ import java.util.concurrent.TimeUnit;
  * hkj.either_t.invocations{result="success"} - Count of async Either Right values
  * hkj.either_t.invocations{result="error"} - Count of async Either Left values
  * hkj.either_t.async.duration - Timer for async operation execution times
+ * hkj.vtask.invocations{result="success"} - Count of successful VTask executions
+ * hkj.vtask.invocations{result="error"} - Count of failed VTask executions
+ * hkj.vtask.duration - Timer for VTask execution times
+ * hkj.vstream.invocations{result="success"} - Count of successful VStream completions
+ * hkj.vstream.invocations{result="error"} - Count of failed VStream completions
+ * hkj.vstream.elements - Distribution summary of elements emitted per stream
  * </pre>
  */
 public class HkjMetricsService {
@@ -51,6 +59,15 @@ public class HkjMetricsService {
   private final Counter eitherTSuccessCounter;
   private final Counter eitherTErrorCounter;
   private final Timer eitherTAsyncTimer;
+
+  // VTask metrics
+  private final Counter vtaskSuccessCounter;
+  private final Counter vtaskErrorCounter;
+  private final Timer vtaskDurationTimer;
+
+  // VStream metrics
+  private final Counter vstreamSuccessCounter;
+  private final Counter vstreamErrorCounter;
 
   /**
    * Creates a new HkjMetricsService with the given MeterRegistry.
@@ -103,6 +120,37 @@ public class HkjMetricsService {
     this.eitherTAsyncTimer =
         Timer.builder("hkj.either_t.async.duration")
             .description("Duration of async EitherT operations")
+            .register(meterRegistry);
+
+    // Initialize VTask counters and timer
+    this.vtaskSuccessCounter =
+        Counter.builder("hkj.vtask.invocations")
+            .description("Number of VTask return value handler invocations")
+            .tag("result", "success")
+            .register(meterRegistry);
+
+    this.vtaskErrorCounter =
+        Counter.builder("hkj.vtask.invocations")
+            .description("Number of VTask return value handler invocations")
+            .tag("result", "error")
+            .register(meterRegistry);
+
+    this.vtaskDurationTimer =
+        Timer.builder("hkj.vtask.duration")
+            .description("Duration of VTask virtual thread operations")
+            .register(meterRegistry);
+
+    // Initialize VStream counters
+    this.vstreamSuccessCounter =
+        Counter.builder("hkj.vstream.invocations")
+            .description("Number of VStream return value handler invocations")
+            .tag("result", "success")
+            .register(meterRegistry);
+
+    this.vstreamErrorCounter =
+        Counter.builder("hkj.vstream.invocations")
+            .description("Number of VStream return value handler invocations")
+            .tag("result", "error")
             .register(meterRegistry);
   }
 
@@ -182,6 +230,98 @@ public class HkjMetricsService {
         .tag("exception_type", exceptionType)
         .register(meterRegistry)
         .increment();
+  }
+
+  /** Records a successful VTask invocation. */
+  public void recordVTaskSuccess() {
+    vtaskSuccessCounter.increment();
+  }
+
+  /**
+   * Records a failed VTask invocation.
+   *
+   * @param errorType the class name of the exception
+   */
+  public void recordVTaskError(String errorType) {
+    vtaskErrorCounter.increment();
+    Counter.builder("hkj.vtask.errors")
+        .description("Distribution of VTask error types")
+        .tag("error_type", errorType)
+        .register(meterRegistry)
+        .increment();
+  }
+
+  /**
+   * Records the duration of a VTask operation.
+   *
+   * @param durationMillis the duration in milliseconds
+   */
+  public void recordVTaskDuration(long durationMillis) {
+    vtaskDurationTimer.record(durationMillis, TimeUnit.MILLISECONDS);
+  }
+
+  /** Records a successful VStream completion. */
+  public void recordVStreamSuccess() {
+    vstreamSuccessCounter.increment();
+  }
+
+  /**
+   * Records a failed VStream completion.
+   *
+   * @param errorType the class name of the exception
+   */
+  public void recordVStreamError(String errorType) {
+    vstreamErrorCounter.increment();
+    Counter.builder("hkj.vstream.errors")
+        .description("Distribution of VStream error types")
+        .tag("error_type", errorType)
+        .register(meterRegistry)
+        .increment();
+  }
+
+  /**
+   * Records the number of elements emitted by a VStream.
+   *
+   * @param elementCount the number of elements emitted
+   */
+  public void recordVStreamElements(long elementCount) {
+    meterRegistry.summary("hkj.vstream.elements").record(elementCount);
+  }
+
+  /**
+   * Gets the current count of VTask success invocations.
+   *
+   * @return the count
+   */
+  public double getVTaskSuccessCount() {
+    return vtaskSuccessCounter.count();
+  }
+
+  /**
+   * Gets the current count of VTask error invocations.
+   *
+   * @return the count
+   */
+  public double getVTaskErrorCount() {
+    return vtaskErrorCounter.count();
+  }
+
+  /**
+   * Gets the current count of VStream success invocations.
+   *
+   * @return the count
+   */
+  public double getVStreamSuccessCount() {
+    return vstreamSuccessCounter.count();
+  }
+
+  /**
+   * Gets the current count of VStream error invocations.
+   *
+   * @return the count
+   */
+  public double getVStreamErrorCount() {
+    return vstreamErrorCounter.count();
   }
 
   /**

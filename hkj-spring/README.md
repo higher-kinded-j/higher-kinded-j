@@ -8,6 +8,7 @@ This module provides Spring Boot integration for higher-kinded-j, enabling type-
 |--------------------|---------------------|-----------------|-------|
 | 0.2.7 | 3.5.7 | 2.x | Legacy support |
 | 0.2.8+ | 4.0.1+ | 3.x | Effect Path API |
+| 0.3.7+ | 4.0.3+ | 3.x | + VTaskPath/VStreamPath virtual thread handlers |
 
 > **Important**: Version 0.2.8+ introduces breaking changes. Use 0.2.7 for Spring Boot 3.5.7 compatibility.
 
@@ -56,7 +57,7 @@ That's it! The starter auto-configures everything.
 
 ## Features
 
-### Effect Path API Support (6 Handler Types)
+### Effect Path API Support (8 Handler Types)
 
 | Path Type | Success | Failure | Use Case |
 |-----------|---------|---------|----------|
@@ -66,6 +67,8 @@ That's it! The starter auto-configures everything.
 | `ValidationPath<E, A>` | HTTP 200 | HTTP 400 (with all errors) | Input validation |
 | `IOPath<A>` | HTTP 200 | HTTP 500 | Deferred side effects |
 | `CompletableFuturePath<A>` | HTTP 200 | HTTP 500 | Async operations |
+| `VTaskPath<A>` | HTTP 200 (via DeferredResult) | HTTP 500 | Virtual thread async |
+| `VStreamPath<A>` | SSE stream | SSE error event | Virtual thread streaming |
 
 ### Automatic Path → HTTP Response Conversion
 
@@ -99,17 +102,28 @@ hkj:
     validation-path-enabled: true
     io-path-enabled: true
     completable-future-path-enabled: true
+    vtask-path-enabled: true
+    vstream-path-enabled: true
 
     # Customize status codes
     default-error-status: 400
     maybe-nothing-status: 404
     try-failure-status: 500
     validation-invalid-status: 400
+    vtask-failure-status: 500
+    vstream-failure-status: 500
 
     # Exception details (disable in production!)
     try-include-exception-details: false
     io-include-exception-details: false
     async-include-exception-details: false
+    vtask-include-exception-details: false
+    vstream-include-exception-details: false
+
+  # Virtual thread configuration (VTaskPath and VStreamPath)
+  virtual-threads:
+    default-timeout-ms: 30000     # VTask timeout (30s)
+    stream-timeout-ms: 60000      # VStream timeout (60s, 0 = no timeout)
 ```
 
 ## Module Structure
@@ -127,6 +141,8 @@ hkj-spring/
 │       ├── ValidationPathReturnValueHandler
 │       ├── IOPathReturnValueHandler
 │       ├── CompletableFuturePathReturnValueHandler
+│       ├── VTaskPathReturnValueHandler     # Virtual thread async
+│       ├── VStreamPathReturnValueHandler   # Virtual thread SSE streaming
 │       └── ErrorStatusCodeMapper
 ├── starter/           # Dependency aggregator
 └── example/           # Working example application
@@ -164,6 +180,18 @@ curl http://localhost:8080/api/config
 
 # Async user fetch - CompletableFuturePath
 curl http://localhost:8080/api/users/1/async
+
+# Virtual thread user fetch - VTaskPath
+curl http://localhost:8080/api/vt/users/1
+
+# Structured concurrency enrichment - VTaskPath with Scope
+curl http://localhost:8080/api/vt/users/1/enriched
+
+# Stream users as SSE - VStreamPath
+curl -N http://localhost:8080/api/vt/users/stream
+
+# Stream tick events - VStreamPath
+curl -N http://localhost:8080/api/vt/ticks?count=5
 ```
 
 ## How It Works
@@ -237,6 +265,62 @@ public CompletableFuturePath<User> getUserAsync(@PathVariable String id) {
         .map(user -> enrichWithProfile(user));
 }
 // Non-blocking - request thread is released while waiting
+```
+
+### Virtual Thread Async with VTaskPath
+
+```java
+@GetMapping("/users/{id}")
+public VTaskPath<User> getUser(@PathVariable String id) {
+    return vtUserService.findById(id);
+}
+// Runs on a virtual thread via DeferredResult — no thread pool needed
+```
+
+The handler:
+1. Checks if return type is `VTaskPath`
+2. Calls `VTask.runAsync()` to execute on a virtual thread
+3. Wraps result in a Spring `DeferredResult` with configurable timeout
+4. On success: writes JSON with HTTP 200
+5. On failure: writes error JSON with configured status code
+
+### Virtual Thread SSE Streaming with VStreamPath
+
+```java
+@GetMapping(value = "/users/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+public VStreamPath<User> streamUsers() {
+    return vtUserService.streamAllUsers();
+}
+// Pull-based streaming on virtual threads — no WebFlux/Reactor needed
+```
+
+The handler:
+1. Checks if return type is `VStreamPath`
+2. Runs the stream on a virtual thread
+3. Emits each element as an SSE `data:` event with JSON payload
+4. Sends a completion or error event when the stream ends
+
+### Structured Concurrency with Scope
+
+```java
+@GetMapping("/users/{id}/enriched")
+public VTaskPath<EnrichedUser> getEnrichedUser(@PathVariable String id) {
+    VTask<User> userTask = VTask.of(() -> findUser(id));
+    VTask<Profile> profileTask = VTask.of(() -> fetchProfile(id));
+    VTask<OrderSummary> ordersTask = VTask.of(() -> fetchOrders(id));
+
+    return Path.vtask(
+        Scope.<Object>allSucceed()
+            .fork(userTask)
+            .fork(profileTask)
+            .fork(ordersTask)
+            .join())
+        .map(results -> new EnrichedUser(
+            (User) results.get(0),
+            (Profile) results.get(1),
+            (OrderSummary) results.get(2)
+        ));
+}
 ```
 
 ## Benefits
@@ -338,7 +422,7 @@ class UserControllerTest {
 ## Requirements
 
 - Java 21+
-- Spring Boot 4.0.1+
+- Spring Boot 4.0.3+
 - higher-kinded-j core library
 
 ## Related Documentation

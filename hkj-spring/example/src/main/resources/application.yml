@@ -73,6 +73,14 @@ hkj:
     # Default timeout in milliseconds (default: 30000)
     default-timeout-ms: 30000
 
+  # Virtual thread configuration (for VTaskPath and VStreamPath handlers)
+  virtual-threads:
+    # Default timeout for VTaskPath responses in ms (default: 30000)
+    default-timeout-ms: 30000
+
+    # Default timeout for VStreamPath streaming responses in ms (default: 60000)
+    stream-timeout-ms: 60000
+
   # Actuator configuration
   actuator:
     # Enable metrics for HKJ handlers (default: true)
