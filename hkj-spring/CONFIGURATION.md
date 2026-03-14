@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document provides a complete reference for all configuration properties available in the higher-kinded-j Spring Boot 4.0.1+ integration.
+This document provides a complete reference for all configuration properties available in the higher-kinded-j Spring Boot 4.0.3+ integration.
 
 ## Table of Contents
 
@@ -9,8 +9,9 @@ This document provides a complete reference for all configuration properties ava
 3. [Validation Configuration](#validation-configuration)
 4. [JSON Serialization Configuration](#json-serialization-configuration)
 5. [Async Configuration](#async-configuration)
-6. [Complete Example](#complete-example)
-7. [Disabling Features](#disabling-features)
+6. [Virtual Thread Configuration](#virtual-thread-configuration)
+7. [Complete Example](#complete-example)
+8. [Disabling Features](#disabling-features)
 
 ## Quick Start
 
@@ -124,6 +125,36 @@ hkj:
     completable-future-path-enabled: false  # Disable async handler
 ```
 
+### `hkj.web.vtask-path-enabled`
+
+Enable or disable the `VTaskPathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `VTaskPath<Value>` types for virtual thread async operations via `DeferredResult`
+
+**Example:**
+```yaml
+hkj:
+  web:
+    vtask-path-enabled: false  # Disable VTaskPath handler
+```
+
+### `hkj.web.vstream-path-enabled`
+
+Enable or disable the `VStreamPathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `VStreamPath<Value>` types for SSE streaming on virtual threads
+
+**Example:**
+```yaml
+hkj:
+  web:
+    vstream-path-enabled: false  # Disable VStreamPath handler
+```
+
 ### `hkj.web.default-error-status`
 
 Default HTTP status code for Left/Invalid values when the error type is unknown.
@@ -228,6 +259,66 @@ Include exception details in CompletableFuturePath failure responses.
 hkj:
   web:
     async-include-exception-details: true  # Enable for development
+```
+
+### `hkj.web.vtask-failure-status`
+
+HTTP status code for VTaskPath failure values.
+
+- **Type:** `int`
+- **Default:** `500`
+- **Effect:** Status code returned when VTask execution fails
+
+**Example:**
+```yaml
+hkj:
+  web:
+    vtask-failure-status: 500
+```
+
+### `hkj.web.vstream-failure-status`
+
+HTTP status code for VStreamPath failure values.
+
+- **Type:** `int`
+- **Default:** `500`
+- **Effect:** Status code used for SSE error events when VStream execution fails
+
+**Example:**
+```yaml
+hkj:
+  web:
+    vstream-failure-status: 500
+```
+
+### `hkj.web.vtask-include-exception-details`
+
+Include exception details in VTaskPath failure responses.
+
+- **Type:** `boolean`
+- **Default:** `false`
+- **Effect:** When true, includes exception message and type in VTask failure responses
+
+**Example:**
+```yaml
+hkj:
+  web:
+    vtask-include-exception-details: true  # Enable for development
+```
+
+### `hkj.web.vstream-include-exception-details`
+
+Include exception details in VStreamPath error events.
+
+- **Type:** `boolean`
+- **Default:** `false`
+- **Effect:** When true, includes exception message and type in VStream SSE error events
+
+**Example:**
+```yaml
+hkj:
+  web:
+    vstream-include-exception-details: true  # Enable for development
 ```
 
 ### `hkj.web.error-status-mappings`
@@ -488,6 +579,40 @@ hkj:
     default-timeout-ms: 60000  # 60 seconds
 ```
 
+## Virtual Thread Configuration
+
+Configure virtual thread behaviour for VTaskPath and VStreamPath operations. Unlike the async configuration which manages a fixed thread pool, virtual threads require no pool sizing — they scale automatically with the JVM.
+
+### `hkj.virtual-threads.default-timeout-ms`
+
+Default timeout for VTaskPath responses in milliseconds.
+
+- **Type:** `long`
+- **Default:** `30000` (30 seconds)
+- **Effect:** Maximum time to wait for VTask completion before timing out the DeferredResult
+
+**Example:**
+```yaml
+hkj:
+  virtual-threads:
+    default-timeout-ms: 60000  # 60 seconds
+```
+
+### `hkj.virtual-threads.stream-timeout-ms`
+
+Default timeout for VStreamPath streaming responses in milliseconds.
+
+- **Type:** `long`
+- **Default:** `60000` (60 seconds)
+- **Effect:** Maximum time for the entire SSE stream before it is terminated. Set to 0 for no timeout.
+
+**Example:**
+```yaml
+hkj:
+  virtual-threads:
+    stream-timeout-ms: 120000  # 2 minutes
+```
+
 ## Complete Example
 
 Here is a complete configuration file with all options:
@@ -501,13 +626,19 @@ hkj:
     validation-path-enabled: true
     io-path-enabled: true
     completable-future-path-enabled: true
+    vtask-path-enabled: true
+    vstream-path-enabled: true
     default-error-status: 400
     maybe-nothing-status: 404
     try-failure-status: 500
     validation-invalid-status: 400
+    vtask-failure-status: 500
+    vstream-failure-status: 500
     try-include-exception-details: false
     io-include-exception-details: false
     async-include-exception-details: false
+    vtask-include-exception-details: false
+    vstream-include-exception-details: false
     error-status-mappings:
       UserNotFoundError: 404
       ValidationError: 400
@@ -533,6 +664,10 @@ hkj:
     executor-queue-capacity: 100
     executor-thread-name-prefix: "hkj-async-"
     default-timeout-ms: 30000
+
+  virtual-threads:
+    default-timeout-ms: 30000
+    stream-timeout-ms: 60000
 ```
 
 ## Disabling Features
@@ -585,6 +720,19 @@ hkj:
 - Nested Either/Validated in DTOs will use default Jackson serialization
 - Will likely fail with serialization errors
 
+### Disable Virtual Thread Support
+
+```yaml
+hkj:
+  web:
+    vtask-path-enabled: false
+    vstream-path-enabled: false
+```
+
+**Effect:**
+- Controllers returning `VTaskPath` or `VStreamPath` will use default Spring MVC serialization
+- Virtual thread async and SSE streaming features will not work
+
 ### Disable All Effect Path Handlers
 
 ```yaml
@@ -596,6 +744,8 @@ hkj:
     validation-path-enabled: false
     io-path-enabled: false
     completable-future-path-enabled: false
+    vtask-path-enabled: false
+    vstream-path-enabled: false
   json:
     custom-serializers-enabled: false
 ```
@@ -615,6 +765,8 @@ hkj:
     try-include-exception-details: true
     io-include-exception-details: true
     async-include-exception-details: true
+    vtask-include-exception-details: true
+    vstream-include-exception-details: true
   json:
     either-format: TAGGED  # More verbose for debugging
 ```
@@ -628,6 +780,8 @@ hkj:
     try-include-exception-details: false  # Never expose exceptions
     io-include-exception-details: false
     async-include-exception-details: false
+    vtask-include-exception-details: false
+    vstream-include-exception-details: false
     error-status-mappings:
       # Explicit mappings for security
       UserNotFoundError: 404
@@ -662,11 +816,17 @@ hkj.web.try-path-enabled=true
 hkj.web.validation-path-enabled=true
 hkj.web.io-path-enabled=true
 hkj.web.completable-future-path-enabled=true
+hkj.web.vtask-path-enabled=true
+hkj.web.vstream-path-enabled=true
 hkj.web.default-error-status=400
 hkj.web.maybe-nothing-status=404
 hkj.web.try-failure-status=500
 hkj.web.validation-invalid-status=400
+hkj.web.vtask-failure-status=500
+hkj.web.vstream-failure-status=500
 hkj.web.try-include-exception-details=false
+hkj.web.vtask-include-exception-details=false
+hkj.web.vstream-include-exception-details=false
 hkj.web.error-status-mappings.UserNotFoundError=404
 hkj.web.error-status-mappings.ValidationError=400
 
@@ -687,6 +847,10 @@ hkj.async.executor-max-pool-size=20
 hkj.async.executor-queue-capacity=100
 hkj.async.executor-thread-name-prefix=hkj-async-
 hkj.async.default-timeout-ms=30000
+
+# Virtual thread configuration
+hkj.virtual-threads.default-timeout-ms=30000
+hkj.virtual-threads.stream-timeout-ms=60000
 ```
 
 ## Programmatic Configuration

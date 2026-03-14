@@ -10,7 +10,7 @@ Exception-based error handling corrupts thought. When a method signature says `U
 
 Functional error handling clarifies thought. When a method returns `Either<DomainError, User>`, the signature tells the truth. Failure is possible. The error type is explicit. Callers must acknowledge this reality; the compiler ensures it. The code becomes honest.
 
-This chapter bridges functional programming and enterprise Java. The `hkj-spring-boot-starter` allows Spring controllers to return `Either`, `Validated`, and `EitherT` directly. The framework handles the translation to HTTP responses: `Right` becomes 200 OK; `Left` becomes the appropriate error status. Validation errors accumulate properly. Async operations compose cleanly.
+This chapter bridges functional programming and enterprise Java. The `hkj-spring-boot-starter` allows Spring controllers to return `Either`, `Validated`, `CompletableFuturePath`, `VTaskPath`, and `VStreamPath` directly. The framework handles the translation to HTTP responses: `Right` becomes 200 OK; `Left` becomes the appropriate error status. Validation errors accumulate properly. Async operations compose cleanly. Virtual thread operations run without thread pool configuration, and SSE streaming works without WebFlux or Reactor.
 
 The integration is non-invasive. Existing exception-based endpoints continue to work. Migration can proceed incrementally. But as more of your codebase adopts functional error handling, a subtle shift occurs. Errors become data. Control flow becomes explicit. The language of your code begins to clarify your thought rather than corrupt it.
 
@@ -51,7 +51,9 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
 |---------|---------|
 | `Either` return types | Typed errors in controller signatures |
 | `Validated` return types | Accumulate all validation errors |
-| `EitherT` return types | Async operations with typed errors |
+| `CompletableFuturePath` return types | Async operations with typed errors |
+| `VTaskPath` return types | Virtual thread async via DeferredResult — no thread pool needed |
+| `VStreamPath` return types | SSE streaming on virtual threads — no WebFlux/Reactor needed |
 | Automatic status mapping | Error types → HTTP status codes |
 | JSON serialisation | Configurable output formats |
 | Actuator integration | Metrics for functional operations |
@@ -66,7 +68,7 @@ If you use Spring's dependency injection and wonder how `ReaderPath` compares, s
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Spring Boot Integration** – Configure Spring to accept Either, Validated, and EitherT as controller return types. The framework automatically maps Right to 200 OK and Left to appropriate error statuses.
+- **Spring Boot Integration** – Configure Spring to accept Either, Validated, CompletableFuturePath, VTaskPath, and VStreamPath as controller return types. The framework automatically maps Right to 200 OK and Left to appropriate error statuses. VTaskPath provides virtual thread async, VStreamPath provides SSE streaming.
 - **Migration Guide** – A practical path from exception-based error handling to functional types. Start with one endpoint, prove the pattern, then expand incrementally.
 ~~~
 

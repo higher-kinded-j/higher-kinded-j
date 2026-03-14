@@ -21,7 +21,7 @@ This guide covers the Spring Boot Actuator integration for higher-kinded-j, prov
 
 The higher-kinded-j Actuator integration provides:
 
-- **Metrics tracking** for Either, Validated, and CompletableFuturePath operations
+- **Metrics tracking** for Either, Validated, CompletableFuturePath, VTask, and VStream operations
 - **Custom actuator endpoint** exposing HKJ configuration and metrics
 - **Health indicator** for async executor monitoring
 - **Micrometer integration** for metrics export to monitoring systems
@@ -29,8 +29,9 @@ The higher-kinded-j Actuator integration provides:
 ### Benefits
 
 - Monitor functional error handling in production
-- Track success/failure rates for Either and CompletableFuturePath
+- Track success/failure rates for Either, CompletableFuturePath, VTask, and VStream
 - Validate thread pool health for async operations
+- Track virtual thread performance and streaming element counts
 - Export metrics to Prometheus, Graphite, or other systems
 - Gain insights into validation patterns with Validated
 
@@ -100,6 +101,12 @@ The `HkjMetricsService` tracks metrics for all functional constructs using Micro
 | `hkj.async.errors` | Counter | CompletableFuturePath errors (tagged: error_type) |
 | `hkj.async.duration` | Timer | CompletableFuturePath async operation duration |
 | `hkj.async.exceptions` | Counter | CompletableFuturePath exceptions (tagged: exception_type) |
+| `hkj.vtask.invocations` | Counter | VTask invocations (tagged: success/error) |
+| `hkj.vtask.errors` | Counter | VTask errors (tagged: error_type) |
+| `hkj.vtask.duration` | Timer | VTask virtual thread operation duration |
+| `hkj.vstream.invocations` | Counter | VStream invocations (tagged: success/error) |
+| `hkj.vstream.errors` | Counter | VStream errors (tagged: error_type) |
+| `hkj.vstream.elements` | Summary | Number of elements emitted per VStream |
 
 #### Usage
 
@@ -149,6 +156,8 @@ GET /actuator/hkj
       "eitherPathEnabled": true,
       "validationPathEnabled": true,
       "completableFuturePathEnabled": true,
+      "vtaskPathEnabled": true,
+      "vstreamPathEnabled": true,
       "defaultErrorStatus": 400
     },
     "jackson": {
@@ -176,6 +185,18 @@ GET /actuator/hkj
       "errorCount": 10,
       "totalCount": 85,
       "successRate": 0.882
+    },
+    "vtask": {
+      "successCount": 340,
+      "errorCount": 15,
+      "totalCount": 355,
+      "successRate": 0.958
+    },
+    "vstream": {
+      "successCount": 120,
+      "errorCount": 5,
+      "totalCount": 125,
+      "successRate": 0.960
     }
   }
 }
@@ -321,13 +342,13 @@ Track success and error rates for synchronous Either operations.
 
 **Example Queries:**
 
-```java
-// Prometheus query for Either error rate
+```promql
+# Prometheus query for Either error rate
 rate(hkj_either_invocations_total{result="error"}[5m])
   /
 rate(hkj_either_invocations_total[5m])
 
-// Track specific error types
+# Track specific error types
 sum by (error_type) (hkj_either_errors_total)
 ```
 
@@ -342,13 +363,13 @@ Track validation success and accumulated error counts.
 
 **Example Queries:**
 
-```java
-// Prometheus query for validation success rate
+```promql
+# Prometheus query for validation success rate
 rate(hkj_validated_invocations_total{result="valid"}[5m])
   /
 rate(hkj_validated_invocations_total[5m])
 
-// Average errors per invalid validation
+# Average errors per invalid validation
 rate(hkj_validated_error_count_sum[5m])
   /
 rate(hkj_validated_error_count_count[5m])
@@ -366,16 +387,67 @@ Track async operations with success rates, durations, and exception handling.
 
 **Example Queries:**
 
-```java
-// Prometheus query for CompletableFuturePath latency (p95)
+```promql
+# Prometheus query for CompletableFuturePath latency (p95)
 histogram_quantile(0.95,
   rate(hkj_async_duration_seconds_bucket[5m]))
 
-// CompletableFuturePath error rate
+# CompletableFuturePath error rate
 rate(hkj_async_invocations_total{result="error"}[5m])
 
-// Exception types distribution
+# Exception types distribution
 sum by (exception_type) (hkj_async_exceptions_total)
+```
+
+### VTask Metrics
+
+Track virtual thread async operations with success rates and durations.
+
+**Use Cases:**
+- Monitor virtual thread task performance
+- Track VTask error rates
+- Identify slow virtual thread operations
+
+**Example Queries:**
+
+```promql
+# Prometheus query for VTask error rate
+rate(hkj_vtask_invocations_total{result="error"}[5m])
+  /
+rate(hkj_vtask_invocations_total[5m])
+
+# VTask p95 latency
+histogram_quantile(0.95,
+  rate(hkj_vtask_duration_seconds_bucket[5m]))
+
+# VTask error type distribution
+sum by (error_type) (hkj_vtask_errors_total)
+```
+
+### VStream Metrics
+
+Track SSE streaming operations on virtual threads with element counts.
+
+**Use Cases:**
+- Monitor streaming throughput
+- Track VStream error rates
+- Measure average elements per stream
+
+**Example Queries:**
+
+```promql
+# Prometheus query for VStream success rate
+rate(hkj_vstream_invocations_total{result="success"}[5m])
+  /
+rate(hkj_vstream_invocations_total[5m])
+
+# Average elements per stream
+rate(hkj_vstream_elements_sum[5m])
+  /
+rate(hkj_vstream_elements_count[5m])
+
+# VStream error type distribution
+sum by (error_type) (hkj_vstream_errors_total)
 ```
 
 ## Health Checks
@@ -834,7 +906,7 @@ class HkjEndpointIntegrationTest {
 
 The higher-kinded-j Actuator integration provides:
 
-- **Comprehensive metrics** for Either, Validated, and CompletableFuturePath
+- **Comprehensive metrics** for Either, Validated, CompletableFuturePath, VTask, and VStream
 - **Health monitoring** for async thread pools
 - **Custom endpoint** for configuration and metrics snapshots
 - **Micrometer integration** for export to monitoring systems

@@ -7,7 +7,7 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration properties for higher-kinded-j Spring Boot 4.0.1+ integration.
+ * Configuration properties for higher-kinded-j Spring Boot 4.0.3+ integration.
  *
  * <p>This version uses the Effect Path API exclusively. For Spring Boot 3.5.7, use hkj-spring
  * version 0.2.7.
@@ -42,6 +42,7 @@ public class HkjProperties {
   private Async async = new Async();
   private Actuator actuator = new Actuator();
   private Security security = new Security();
+  private VirtualThreads virtualThreads = new VirtualThreads();
 
   public Web getWeb() {
     return web;
@@ -91,6 +92,14 @@ public class HkjProperties {
     this.security = security;
   }
 
+  public VirtualThreads getVirtualThreads() {
+    return virtualThreads;
+  }
+
+  public void setVirtualThreads(VirtualThreads virtualThreads) {
+    this.virtualThreads = virtualThreads;
+  }
+
   /**
    * Web/MVC configuration properties for Effect Path API handlers.
    *
@@ -116,6 +125,12 @@ public class HkjProperties {
     /** Enable CompletableFuturePath return value handler. Default: true */
     private boolean completableFuturePathEnabled = true;
 
+    /** Enable VTaskPath return value handler (virtual threads). Default: true */
+    private boolean vtaskPathEnabled = true;
+
+    /** Enable VStreamPath return value handler (SSE streaming on virtual threads). Default: true */
+    private boolean vstreamPathEnabled = true;
+
     /**
      * Default HTTP status code for Left values when error type is unknown. Default: 400 (Bad
      * Request)
@@ -137,6 +152,12 @@ public class HkjProperties {
     /** HTTP status code for CompletableFuturePath failures. Default: 500 (Internal Server Error) */
     private int asyncFailureStatus = 500;
 
+    /** HTTP status code for VTaskPath failures. Default: 500 (Internal Server Error) */
+    private int vtaskFailureStatus = 500;
+
+    /** HTTP status code for VStreamPath failures. Default: 500 (Internal Server Error) */
+    private int vstreamFailureStatus = 500;
+
     /** Include exception details in TryPath failure responses. Default: false (production safe) */
     private boolean tryIncludeExceptionDetails = false;
 
@@ -148,6 +169,14 @@ public class HkjProperties {
      * (production safe)
      */
     private boolean asyncIncludeExceptionDetails = false;
+
+    /**
+     * Include exception details in VTaskPath failure responses. Default: false (production safe)
+     */
+    private boolean vtaskIncludeExceptionDetails = false;
+
+    /** Include exception details in VStreamPath error events. Default: false (production safe) */
+    private boolean vstreamIncludeExceptionDetails = false;
 
     /**
      * Custom error status code mappings.
@@ -286,6 +315,54 @@ public class HkjProperties {
 
     public void setAsyncIncludeExceptionDetails(boolean asyncIncludeExceptionDetails) {
       this.asyncIncludeExceptionDetails = asyncIncludeExceptionDetails;
+    }
+
+    public boolean isVtaskPathEnabled() {
+      return vtaskPathEnabled;
+    }
+
+    public void setVtaskPathEnabled(boolean vtaskPathEnabled) {
+      this.vtaskPathEnabled = vtaskPathEnabled;
+    }
+
+    public boolean isVstreamPathEnabled() {
+      return vstreamPathEnabled;
+    }
+
+    public void setVstreamPathEnabled(boolean vstreamPathEnabled) {
+      this.vstreamPathEnabled = vstreamPathEnabled;
+    }
+
+    public int getVtaskFailureStatus() {
+      return vtaskFailureStatus;
+    }
+
+    public void setVtaskFailureStatus(int vtaskFailureStatus) {
+      this.vtaskFailureStatus = vtaskFailureStatus;
+    }
+
+    public int getVstreamFailureStatus() {
+      return vstreamFailureStatus;
+    }
+
+    public void setVstreamFailureStatus(int vstreamFailureStatus) {
+      this.vstreamFailureStatus = vstreamFailureStatus;
+    }
+
+    public boolean isVtaskIncludeExceptionDetails() {
+      return vtaskIncludeExceptionDetails;
+    }
+
+    public void setVtaskIncludeExceptionDetails(boolean vtaskIncludeExceptionDetails) {
+      this.vtaskIncludeExceptionDetails = vtaskIncludeExceptionDetails;
+    }
+
+    public boolean isVstreamIncludeExceptionDetails() {
+      return vstreamIncludeExceptionDetails;
+    }
+
+    public void setVstreamIncludeExceptionDetails(boolean vstreamIncludeExceptionDetails) {
+      this.vstreamIncludeExceptionDetails = vstreamIncludeExceptionDetails;
     }
 
     public Map<String, Integer> getErrorStatusMappings() {
@@ -556,6 +633,50 @@ public class HkjProperties {
 
     public void setJwtAuthorityPrefix(String jwtAuthorityPrefix) {
       this.jwtAuthorityPrefix = jwtAuthorityPrefix;
+    }
+  }
+
+  /**
+   * Virtual thread configuration properties for VTask and VStream integration.
+   *
+   * <p>These properties control the behaviour of virtual-thread-based handlers. Unlike the {@link
+   * Async} configuration which manages a fixed thread pool, virtual threads require no pool sizing
+   * — they scale automatically with the JVM.
+   *
+   * <p>Example configuration:
+   *
+   * <pre>
+   * hkj:
+   *   virtual-threads:
+   *     default-timeout-ms: 30000
+   *     stream-timeout-ms: 60000
+   * </pre>
+   */
+  public static class VirtualThreads {
+
+    /** Default timeout for VTaskPath responses in milliseconds. Default: 30000 (30 seconds) */
+    private long defaultTimeoutMs = 30000;
+
+    /**
+     * Default timeout for VStreamPath streaming responses in milliseconds. Default: 60000 (60
+     * seconds). Set to 0 for no timeout.
+     */
+    private long streamTimeoutMs = 60000;
+
+    public long getDefaultTimeoutMs() {
+      return defaultTimeoutMs;
+    }
+
+    public void setDefaultTimeoutMs(long defaultTimeoutMs) {
+      this.defaultTimeoutMs = defaultTimeoutMs;
+    }
+
+    public long getStreamTimeoutMs() {
+      return streamTimeoutMs;
+    }
+
+    public void setStreamTimeoutMs(long streamTimeoutMs) {
+      this.streamTimeoutMs = streamTimeoutMs;
     }
   }
 }
