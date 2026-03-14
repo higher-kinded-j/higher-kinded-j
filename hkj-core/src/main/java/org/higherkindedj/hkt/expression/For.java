@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.hkt.tuple.Tuple4;
 import org.higherkindedj.hkt.tuple.Tuple5;
+import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 
@@ -419,6 +420,41 @@ public final class For {
     }
 
     /**
+     * Transforms the current value through an {@link Iso} and adds the converted value to the
+     * accumulated tuple.
+     *
+     * <p>This is similar to {@link #focus(Lens)} but uses an {@link Iso} for the extraction, making
+     * the reversible nature of the transformation explicit. The original value and the converted
+     * value are both available in subsequent steps.
+     *
+     * <h3>Example</h3>
+     *
+     * <pre>{@code
+     * Iso<Celsius, Fahrenheit> tempIso = Iso.of(
+     *     c -> new Fahrenheit(c.value() * 9.0 / 5.0 + 32),
+     *     f -> new Celsius((f.value() - 32) * 5.0 / 9.0));
+     *
+     * Kind<IdKind.Witness, String> result =
+     *     For.from(idMonad, Id.of(new Celsius(100.0)))
+     *         .through(tempIso)
+     *         .yield((celsius, fahrenheit) -> celsius + " = " + fahrenheit);
+     * // Result: "Celsius(100.0) = Fahrenheit(212.0)"
+     * }</pre>
+     *
+     * @param iso The {@link Iso} to use for the conversion.
+     * @param <B> The type of the converted value.
+     * @return The next step in the builder, tracking both the original and converted values.
+     * @throws NullPointerException if {@code iso} is null.
+     * @see Iso
+     */
+    public <B> MonadicSteps2<M, A, B> through(Iso<A, B> iso) {
+      Objects.requireNonNull(iso, "iso must not be null");
+      Kind<M, Tuple2<A, B>> newComputation =
+          monad.map(a -> Tuple.of(a, iso.get(a)), this.computation);
+      return new MonadicSteps2<>(monad, newComputation);
+    }
+
+    /**
      * Combines two independent computations in parallel, both depending on the current value.
      *
      * <p>This uses applicative semantics ({@code map2}) to express that the two sub-computations
@@ -689,6 +725,26 @@ public final class For {
       Objects.requireNonNull(lens, "lens must not be null");
       Kind<M, Tuple2<A, B>> newComputation =
           monad.map(a -> Tuple.of(a, lens.get(a)), this.computation);
+      return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Transforms the current value through an {@link Iso} and adds the converted value to the
+     * accumulated tuple.
+     *
+     * <p>This is similar to {@link #focus(Lens)} but uses an {@link Iso} for the extraction, making
+     * the reversible nature of the transformation explicit.
+     *
+     * @param iso The {@link Iso} to use for the conversion.
+     * @param <B> The type of the converted value.
+     * @return The next step in the builder, tracking both the original and converted values.
+     * @throws NullPointerException if {@code iso} is null.
+     * @see Iso
+     */
+    public <B> FilterableSteps2<M, A, B> through(Iso<A, B> iso) {
+      Objects.requireNonNull(iso, "iso must not be null");
+      Kind<M, Tuple2<A, B>> newComputation =
+          monad.map(a -> Tuple.of(a, iso.get(a)), this.computation);
       return new FilterableSteps2<>(monad, newComputation);
     }
 

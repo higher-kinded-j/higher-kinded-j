@@ -217,6 +217,15 @@ Use traverse, sequence, and flatTraverse within For and ForPath comprehension ch
 - flatTraverse for nested structures
 - Combining traverse with guards and other steps
 
+### Tutorial 04: Enhanced Optics Integration (~15 minutes)
+Deep integration between optics and state-threaded comprehensions:
+- `traverseOver`: effectful traversal directly over state elements
+- `modifyThrough`: pure modification via a Traversal (with optional nested Lens)
+- `modifyVia`: modify a field through an Iso conversion
+- `updateVia`: set a field through an Iso conversion
+- `through(Iso)`: convert a bound value via Iso in a For comprehension
+- Combined workflows chaining multiple Phase 6 operations
+
 ## Solutions
 
 Complete solutions for all exercises are available in:
