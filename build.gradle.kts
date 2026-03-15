@@ -18,17 +18,8 @@ repositories {
 }
 // OpenRewrite configuration for the root project
 rewrite {
-    activeRecipe("org.openrewrite.java.ShortenFullyQualifiedTypeReferences")
+    activeRecipe("com.higherkindedj.ShortenFullyQualifiedTypeReferencesJavaOnly")
     failOnDryRunResults = true  // CI enforcement
-
-    // Only parse Java source files, exclude build scripts and other non-Java files
-    exclusion(
-        "**/*.kts",
-        "**/*.kt",
-        "**/*.gradle",
-        "**/build/**",
-        "**/.gradle/**"
-    )
 }
 
 

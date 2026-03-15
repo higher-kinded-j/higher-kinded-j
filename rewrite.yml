@@ -1,0 +1,12 @@
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: com.higherkindedj.ShortenFullyQualifiedTypeReferencesJavaOnly
+displayName: Shorten fully qualified type references (Java files only)
+description: >
+  Wraps ShortenFullyQualifiedTypeReferences with a precondition that limits
+  it to Java source files, preventing modifications to Kotlin build scripts.
+preconditions:
+  - org.openrewrite.FindSourceFiles:
+      filePattern: "**/*.java"
+recipeList:
+  - org.openrewrite.java.ShortenFullyQualifiedTypeReferences

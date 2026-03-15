@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.example.service;
 
 import java.time.Duration;
+import java.util.List;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.effect.VTaskPath;
@@ -129,7 +130,7 @@ public class VirtualThreadUserService {
    */
   public VStreamPath<User> streamAllUsers() {
     return Path.vstream(
-        VStream.fromList(userService.findAll().fold(err -> java.util.List.of(), users -> users))
+        VStream.fromList(userService.findAll().fold(err -> List.of(), users -> users))
             .map(
                 user -> {
                   // Simulate per-element processing delay

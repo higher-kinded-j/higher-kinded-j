@@ -115,7 +115,7 @@ mavenPublishing {
 //
 // Fine-tuning individual settings (these override the profile):
 //   -Ppitest.threads=N         Override thread count
-//   -Ppitest.mutators=GROUP    Override mutator group (DEFAULT, STRONGER, ALL)
+//   -Ppitest.mutators=GROUP    Override mutator group (DEFAULTS, STRONGER, ALL)
 //   -Ppitest.heap=SIZE         Override per-fork heap (e.g. 768m, 1g)
 //
 // Reports: hkj-processor/build/reports/pitest/
@@ -126,7 +126,7 @@ val isFull = pitestProfile == "full"
 
 val cpuCount = Runtime.getRuntime().availableProcessors()
 val profileThreads = if (isFull) cpuCount else maxOf(1, cpuCount / 2)
-val profileMutators = if (isFull) "STRONGER" else "DEFAULT"
+val profileMutators = if (isFull) "STRONGER" else "DEFAULTS"
 val profileHeap = if (isFull) "1g" else "512m"
 
 // Allow per-setting overrides via project properties
@@ -135,8 +135,8 @@ val effectiveMutators = (project.findProperty("pitest.mutators") as String?) ?: 
 val effectiveHeap = (project.findProperty("pitest.heap") as String?) ?: profileHeap
 
 pitest {
-    // Use PIT version 1.22.0 as specified in project requirements
-    pitestVersion.set("1.22.0")
+    // Use PIT version 1.22.1 as specified in project requirements
+    pitestVersion.set("1.22.1")
 
     // Target classes for mutation
     targetClasses.set(setOf(
@@ -149,7 +149,7 @@ pitest {
         "org.higherkindedj.optics.processing.*Tests"
     ))
 
-    // Mutator group: DEFAULT (conservative) or STRONGER (full)
+    // Mutator group: DEFAULTS (conservative) or STRONGER (full)
     mutators.set(setOf(effectiveMutators))
 
     // Output formats
@@ -170,6 +170,15 @@ pitest {
 
     // Heap per forked JVM
     jvmArgs.set(listOf("-Xmx${effectiveHeap}"))
+
+    // Timeout: allow more time for mutated code (PIT default can be too tight)
+    timeoutConstInMillis.set(8000)
+    timeoutFactor.set("1.5".toBigDecimal())
+
+    // Exclude slow golden file tests from mutation runs to avoid minion timeouts
+    excludedTestClasses.set(setOf(
+        "org.higherkindedj.optics.processing.ForComprehensionGoldenFileTest"
+    ))
 
     // Exclude test infrastructure from mutation
     excludedClasses.set(setOf(

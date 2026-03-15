@@ -7,13 +7,13 @@ plugins {
 
 dependencies {
     // OpenRewrite core dependencies
-    compileOnly("org.openrewrite:rewrite-java:8.70.2")
-    compileOnly("org.openrewrite:rewrite-core:8.70.2")
+    compileOnly("org.openrewrite:rewrite-java:8.75.5")
+    compileOnly("org.openrewrite:rewrite-core:8.75.5")
 
     // Required for recipe testing
-    testImplementation("org.openrewrite:rewrite-java:8.70.2")
-    testImplementation("org.openrewrite:rewrite-test:8.70.2")
-    testImplementation("org.openrewrite:rewrite-java-25:8.70.2")
+    testImplementation("org.openrewrite:rewrite-java:8.75.5")
+    testImplementation("org.openrewrite:rewrite-test:8.75.5")
+    testImplementation("org.openrewrite:rewrite-java-25:8.75.5")
 
     // Testing dependencies
     testImplementation(platform(libs.junit.bom))
