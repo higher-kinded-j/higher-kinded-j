@@ -477,6 +477,52 @@ List<String> nicknames = Traversals.getAll(optionalNickname, user);
 
 ---
 
+## Recipe 10b: Extracting Values from Multiple Paths
+
+### Problem
+
+You have values scattered across different fields or branches of a data structure and need to extract them all into a single collection.
+
+### Solution
+
+```java
+record Team(String name, Employee lead, List<Employee> members) {}
+record Employee(String name, String email) {}
+
+// Folds for different paths
+Fold<Team, String> leadEmail = teamLeadLens.asFold()
+    .andThen(employeeEmailLens.asFold());
+Fold<Team, String> memberEmails = Fold.<Team, Employee>of(Team::members)
+    .andThen(employeeEmailLens.asFold());
+
+// Combine with plus
+Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
+
+// Or use sum for three or more paths
+Fold<Team, String> allNames = Fold.sum(
+    Fold.of(t -> List.of(t.name())),
+    teamLeadLens.asFold().andThen(employeeNameLens.asFold()),
+    Fold.<Team, Employee>of(Team::members).andThen(employeeNameLens.asFold())
+);
+
+// Usage
+Team team = new Team("Backend",
+    new Employee("Alice", "alice@co"),
+    List.of(new Employee("Bob", "bob@co")));
+
+List<String> emails = allEmails.getAll(team);
+// Result: ["alice@co", "bob@co"]
+
+List<String> names = allNames.getAll(team);
+// Result: ["Backend", "Alice", "Bob"]
+```
+
+### Why It Works
+
+`Fold.plus()` delegates `foldMap` to both constituent folds and combines results via the monoid. This means all fold operations (`getAll`, `exists`, `foldMap`, `length`, etc.) work correctly across the combined paths. The ordering is deterministic: results from the first fold appear before results from the second.
+
+---
+
 ## Focus DSL Recipes
 
 The following recipes demonstrate the Focus DSL for more ergonomic optic usage.

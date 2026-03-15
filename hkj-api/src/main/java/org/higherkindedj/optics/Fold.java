@@ -378,6 +378,100 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
+   * Combines this fold with another fold of the same type, producing a fold that returns results
+   * from both.
+   *
+   * <p>The combined fold first extracts all parts focused by {@code this} fold, then all parts
+   * focused by the {@code other} fold. Elements from this fold appear before elements from the
+   * other fold in all operations ({@link #getAll}, {@link #foldMap}, etc.).
+   *
+   * <p>Together with {@link #empty()}, this operation forms a monoid on folds:
+   *
+   * <ul>
+   *   <li><b>Left identity:</b> {@code Fold.empty().plus(fold)} behaves like {@code fold}
+   *   <li><b>Right identity:</b> {@code fold.plus(Fold.empty())} behaves like {@code fold}
+   *   <li><b>Associativity:</b> {@code a.plus(b).plus(c)} behaves like {@code a.plus(b.plus(c))}
+   * </ul>
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * record Person(String firstName, String lastName) {}
+   *
+   * Fold<Person, String> firstNameFold = Lens.of(Person::firstName, ...).asFold();
+   * Fold<Person, String> lastNameFold  = Lens.of(Person::lastName, ...).asFold();
+   *
+   * Fold<Person, String> allNames = firstNameFold.plus(lastNameFold);
+   * allNames.getAll(new Person("Alice", "Smith"));
+   * // Returns: ["Alice", "Smith"]
+   * }</pre>
+   *
+   * @param other The fold to combine with this fold.
+   * @return A new fold that focuses on all parts from both folds.
+   */
+  default Fold<S, A> plus(Fold<S, A> other) {
+    Fold<S, A> self = this;
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        return monoid.combine(self.foldMap(monoid, f, source), other.foldMap(monoid, f, source));
+      }
+    };
+  }
+
+  /**
+   * Returns a fold that focuses on no elements, serving as the identity element for {@link #plus}.
+   *
+   * <p>For any fold {@code f}:
+   *
+   * <ul>
+   *   <li>{@code Fold.empty().plus(f).getAll(s)} equals {@code f.getAll(s)}
+   *   <li>{@code f.plus(Fold.empty()).getAll(s)} equals {@code f.getAll(s)}
+   * </ul>
+   *
+   * @param <S> The type of the whole structure.
+   * @param <A> The type of the focused parts.
+   * @return A fold that always returns the monoid identity value.
+   */
+  static <S, A> Fold<S, A> empty() {
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        return monoid.empty();
+      }
+    };
+  }
+
+  /**
+   * Combines multiple folds into a single fold that returns results from all of them.
+   *
+   * <p>This is a convenience method equivalent to chaining {@link #plus} calls: {@code Fold.sum(a,
+   * b, c)} behaves like {@code a.plus(b).plus(c)}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Fold<Config, String> combined = Fold.sum(
+   *     hostFold, portFold, userFold
+   * );
+   * }</pre>
+   *
+   * @param first The first fold (required).
+   * @param rest Additional folds to combine.
+   * @param <S> The type of the whole structure.
+   * @param <A> The type of the focused parts.
+   * @return A fold that focuses on all parts from all provided folds.
+   */
+  @SafeVarargs
+  static <S, A> Fold<S, A> sum(Fold<S, A> first, Fold<S, A>... rest) {
+    Fold<S, A> result = first;
+    for (Fold<S, A> fold : rest) {
+      result = result.plus(fold);
+    }
+    return result;
+  }
+
+  /**
    * Creates a {@code Fold} from a function that extracts a list of focused parts.
    *
    * <p>Example:

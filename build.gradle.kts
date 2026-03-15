@@ -132,3 +132,68 @@ tasks.register("benchmarkValidation") {
         println("\nRun './gradlew :hkj-benchmarks:benchmarkSummary' for a quick results overview.")
     }
 }
+
+/**
+ * Release readiness quality gate.
+ *
+ * Runs all verification steps from fastest to slowest, failing fast
+ * on the cheapest checks first:
+ *
+ * 1. spotlessCheck       — code formatting (seconds)
+ * 2. build               — compile + unit tests + JaCoCo (minutes)
+ * 3. jmh                 — JMH benchmarks (minutes)
+ * 4. benchmark tests     — benchmark assertion tests (seconds, requires jmh)
+ * 5. pitest (full)       — mutation testing with STRONGER mutators (slowest)
+ *
+ * Usage: ./gradlew releaseReadiness
+ *
+ * This is the essential quality gate before any release. All steps must pass.
+ */
+tasks.register("releaseReadiness") {
+    group = "verification"
+    description = "Release quality gate: spotless, build, benchmarks, benchmark assertions, pitest (full profile)"
+
+    dependsOn("spotlessCheck")
+    dependsOn("build")
+    dependsOn(":hkj-benchmarks:jmh")
+    dependsOn(":hkj-benchmarks:test")
+    dependsOn("pitestFull")
+
+    // Enforce fast-to-slow ordering
+    tasks.findByPath("build")?.mustRunAfter("spotlessCheck")
+    tasks.findByPath(":hkj-benchmarks:jmh")?.mustRunAfter("build")
+    tasks.findByPath(":hkj-benchmarks:test")?.mustRunAfter(":hkj-benchmarks:jmh")
+
+    doLast {
+        println("\n" + "=".repeat(70))
+        println("  RELEASE READINESS — ALL CHECKS PASSED")
+        println("=".repeat(70))
+        println("\nAll quality gates passed (fast to slow):")
+        println("  1. Spotless           — code formatting")
+        println("  2. Build              — compile + unit tests + JaCoCo")
+        println("  3. JMH Benchmarks     — performance benchmarks")
+        println("  4. Benchmark Tests    — performance assertions")
+        println("  5. Pitest (full)      — mutation testing (STRONGER mutators)")
+        println("\nReports:")
+        println("  - JaCoCo:     hkj-core/build/reports/jacoco/test/html/index.html")
+        println("  - JMH JSON:   hkj-benchmarks/build/reports/jmh/results.json")
+        println("  - JMH Human:  hkj-benchmarks/build/reports/jmh/human.txt")
+        println("  - Pitest:     hkj-processor/build/reports/pitest/index.html")
+    }
+}
+
+tasks.register<Exec>("pitestFull") {
+    group = "verification"
+    description = "Run pitest with full profile (STRONGER mutators, all CPU cores)"
+    workingDir = rootProject.projectDir
+    commandLine(
+        if (System.getProperty("os.name").lowercase().contains("windows")) "gradlew.bat" else "./gradlew",
+        ":hkj-processor:pitest",
+        "-Ppitest.profile=full"
+    )
+    // Pitest is the slowest step — run it after everything else
+    mustRunAfter(":hkj-benchmarks:test")
+    doFirst {
+        println("\nRunning pitest with FULL profile (STRONGER mutators, all CPU cores)")
+    }
+}

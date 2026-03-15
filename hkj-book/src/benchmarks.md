@@ -197,6 +197,87 @@ VStream's pull-based model adds overhead per element compared to Java Stream's p
 
 ---
 
+## Benchmark Assertion Tests
+
+The benchmark suite includes automated assertion tests that validate performance characteristics after each benchmark run. These are not just "did it finish?" checks — they verify relative performance, overhead ratios, and sanity bounds.
+
+~~~admonish warning title="Tests Fail If Benchmarks Haven't Run"
+The assertion tests **fail** (not skip) if benchmark results are missing. This is intentional. Run `./gradlew :hkj-benchmarks:jmh` before running `./gradlew :hkj-benchmarks:test`. Silent skips hide missing quality gates.
+~~~
+
+### What the Tests Validate
+
+| Test Group | What It Checks |
+|------------|---------------|
+| **SanityChecks** | Every benchmark has positive throughput and bounded error margins |
+| **VTaskRelativePerformance** | VTask construction costs (succeed, of, map) are positive |
+| **ParCombinatorPerformance** | Par.zip and Par.map2 have positive throughput |
+| **VTaskVsIOOverhead** | Both VTask and IO construction perform within expected bounds |
+| **CoreTypePerformance** | Maybe, Either, and Trampoline operations have positive throughput |
+| **FoldPlusPerformance** | Fold combination overhead is bounded; `sum` vs `plus` parity |
+| **AbstractionOverhead** | Raw Java > IO > VTask ordering; VTaskPath wrapper overhead bounded |
+| **ConcurrencyScaling** | Single and multi-threaded VTask/IO performance is positive |
+| **IOPerformance** | IO construction vs execution ratios; deep recursion completes (stack safety) |
+| **IOPathPerformance** | IOPath construction, map pipelines, and error handling overhead |
+| **VTaskPathPerformance** | VTaskPath construction, map pipelines, and timeout overhead |
+| **VTaskPathVsIOPath** | Cross-type comparison: construction ratios and conversion costs |
+| **ForPathVTaskPerformance** | For-comprehension overhead vs direct chaining; parallel step overhead |
+| **ScopePerformance** | Scope.allSucceed, Resource bracket, and Par.all throughput |
+| **MemoryFootprint** | Bulk construction rates for VTask, IO, and CompletableFuture |
+| **VStreamPerformance** | VStream map execution, construction vs execution, Java Stream baseline |
+| **VTaskVsPlatformThreads** | VTask Par.all vs platform thread pool at scale |
+| **FreeMonadPerformance** | Free monad construction, stack safety, and interpretation overhead |
+
+### Running the Tests
+
+```bash
+# Step 1: Run benchmarks (generates results.json)
+./gradlew :hkj-benchmarks:jmh
+
+# Step 2: Run assertion tests against the results
+./gradlew :hkj-benchmarks:test
+
+# Or run both together via the benchmarkValidation task
+./gradlew benchmarkValidation
+```
+
+---
+
+## Release Quality Gate
+
+The `releaseReadiness` task is a single-command quality gate that runs every verification step, ordered from fastest to slowest so failures surface early:
+
+```bash
+./gradlew releaseReadiness
+```
+
+| Step | Task | What It Checks | Speed |
+|------|------|---------------|-------|
+| 1 | `spotlessCheck` | Code formatting (Google Java Format) | Seconds |
+| 2 | `build` | Compilation, all unit tests, JaCoCo coverage | Minutes |
+| 3 | `:hkj-benchmarks:jmh` | JMH benchmarks execute successfully | Minutes |
+| 4 | `:hkj-benchmarks:test` | Benchmark assertion tests pass | Seconds |
+| 5 | `:hkj-processor:pitest` (full) | Mutation testing with STRONGER mutators | Slowest |
+
+If any step fails, the build stops immediately. All five must pass before a release.
+
+~~~admonish info title="Pitest Full Profile"
+The release gate runs pitest with `-Ppitest.profile=full`, which uses STRONGER mutators and all available CPU cores. This is more thorough than the default conservative profile used during local development.
+~~~
+
+### Reports Generated
+
+After a successful run, reports are available at:
+
+| Tool | Location |
+|------|----------|
+| JaCoCo | `hkj-core/build/reports/jacoco/test/html/index.html` |
+| JMH (JSON) | `hkj-benchmarks/build/reports/jmh/results.json` |
+| JMH (human) | `hkj-benchmarks/build/reports/jmh/human.txt` |
+| Pitest | `hkj-processor/build/reports/pitest/index.html` |
+
+---
+
 ## When Overhead Matters (and When It Doesn't)
 
 The benchmarks consistently show that abstraction overhead is measured in **nanoseconds**. Real-world operations — database queries, HTTP calls, file reads — are measured in **milliseconds**. The overhead is three to four orders of magnitude smaller than any I/O operation.

@@ -46,7 +46,7 @@ jobs:
       #    This will compile, run tests (triggering jacocoTestReport via finalizedBy)
       #    and generate the XML report needed by Codecov.
       - name: Build with Gradle & Generate JaCoCo Report
-        run: ./gradlew build
+        run: ./gradlew build -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
 
       # 5. Upload the generated JaCoCo XML report to Codecov
       - name: Upload coverage reports to Codecov
