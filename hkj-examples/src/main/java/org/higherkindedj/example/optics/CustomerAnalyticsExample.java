@@ -67,6 +67,7 @@ public class CustomerAnalyticsExample {
     demonstrateComplexFiltering(customers);
     demonstrateFilterByWithNestedQueries(customers);
     demonstrateAggregationWithFilters(customers);
+    demonstrateCombinedFoldExtraction(customers);
     demonstrateBulkUpdates(customers);
   }
 
@@ -111,7 +112,7 @@ public class CustomerAnalyticsExample {
 
     Traversal<List<Customer>, Customer> allCustomers = Traversals.forList();
 
-    // Mark high spenders (>$1000) as VIP
+    // Mark high spenders (>£1000) as VIP
     Traversal<List<Customer>, Customer> highSpenders =
         allCustomers.filtered(c -> c.totalSpending() > 1000);
 
@@ -122,13 +123,13 @@ public class CustomerAnalyticsExample {
       System.out.println(
           "  "
               + customer.name()
-              + ": $"
+              + ": £"
               + customer.totalSpending()
               + " (VIP="
               + customer.vip()
               + ")");
     }
-    // Alice: VIP=true (>$1000), Bob: VIP=false, Charlie: VIP=true (already was + >$1000)
+    // Alice: VIP=true (>£1000), Bob: VIP=false, Charlie: VIP=true (already was + >£1000)
     // Diana: VIP=false, Eve: VIP=false
     System.out.println();
   }
@@ -163,7 +164,7 @@ public class CustomerAnalyticsExample {
 
     Traversal<List<Customer>, Customer> allCustomers = Traversals.forList();
 
-    // Find customers who: have >$500 spending AND are not VIP AND have multiple purchases
+    // Find customers who: have >£500 spending AND are not VIP AND have multiple purchases
     Traversal<List<Customer>, Customer> targetCustomers =
         allCustomers
             .filtered(c -> c.totalSpending() > 500)
@@ -172,18 +173,18 @@ public class CustomerAnalyticsExample {
 
     List<Customer> targets = Traversals.getAll(targetCustomers, customers);
 
-    System.out.println("Non-VIP customers with >$500 spending and multiple purchases:");
+    System.out.println("Non-VIP customers with >£500 spending and multiple purchases:");
     for (Customer customer : targets) {
       System.out.println(
           "  "
               + customer.name()
-              + ": $"
+              + ": £"
               + customer.totalSpending()
               + " ("
               + customer.purchases().size()
               + " purchases)");
     }
-    // Alice: $1350 (2 purchases), Eve: $680 (3 purchases)
+    // Alice: £1350 (2 purchases), Eve: £680 (3 purchases)
     System.out.println();
   }
 
@@ -193,23 +194,23 @@ public class CustomerAnalyticsExample {
     Traversal<List<Customer>, Customer> allCustomers = Traversals.forList();
     Fold<Customer, Purchase> customerPurchases = Fold.of(Customer::purchases);
 
-    // Find customers with electronics purchases over $500
+    // Find customers with electronics purchases over £500
     Traversal<List<Customer>, Customer> bigElectronicsBuyers =
         allCustomers.filterBy(
             customerPurchases, p -> p.category().equals("Electronics") && p.amount() > 500);
 
     List<Customer> result = Traversals.getAll(bigElectronicsBuyers, customers);
 
-    System.out.println("Customers with electronics purchases over $500:");
+    System.out.println("Customers with electronics purchases over £500:");
     for (Customer customer : result) {
       List<String> expensiveElectronics =
           customer.purchases().stream()
               .filter(p -> p.category().equals("Electronics") && p.amount() > 500)
-              .map(p -> p.productName() + " ($" + p.amount() + ")")
+              .map(p -> p.productName() + " (£" + p.amount() + ")")
               .toList();
       System.out.println("  " + customer.name() + ": " + expensiveElectronics);
     }
-    // Alice (Laptop $1200), Charlie (Phone $900, Tablet $600)
+    // Alice (Laptop £1200), Charlie (Phone £900, Tablet £600)
     System.out.println();
   }
 
@@ -227,7 +228,7 @@ public class CustomerAnalyticsExample {
 
     System.out.println("VIP Customer Metrics:");
     System.out.println("  Total VIP customers: " + vipCount);
-    System.out.println("  Total VIP revenue: $" + vipRevenue);
+    System.out.println("  Total VIP revenue: £" + vipRevenue);
 
     // Calculate spending from customers with >3 purchases
     Fold<List<Customer>, Customer> frequentBuyers =
@@ -239,9 +240,9 @@ public class CustomerAnalyticsExample {
 
     System.out.println("\nFrequent Buyer Metrics (3+ purchases):");
     System.out.println("  Count: " + frequentBuyerCount);
-    System.out.println("  Total revenue: $" + frequentBuyerRevenue);
+    System.out.println("  Total revenue: £" + frequentBuyerRevenue);
     if (frequentBuyerCount > 0) {
-      System.out.println("  Average spending: $" + (frequentBuyerRevenue / frequentBuyerCount));
+      System.out.println("  Average spending: £" + (frequentBuyerRevenue / frequentBuyerCount));
     }
 
     // Nested fold: sum of all electronics purchases
@@ -256,7 +257,47 @@ public class CustomerAnalyticsExample {
     }
 
     System.out.println("\nElectronics Category Metrics:");
-    System.out.println("  Total electronics spending: $" + totalElectronicsSpending);
+    System.out.println("  Total electronics spending: £" + totalElectronicsSpending);
+    System.out.println();
+  }
+
+  private static void demonstrateCombinedFoldExtraction(List<Customer> customers) {
+    System.out.println("--- Combined Fold Extraction with Fold.plus() ---");
+
+    Fold<List<Customer>, Customer> allCustomersFold = Fold.of(c -> c);
+
+    // Extract customer names
+    Fold<List<Customer>, String> namesFold =
+        allCustomersFold.andThen(Fold.of(c -> List.of(c.name())));
+
+    // Extract all product names from all customers
+    Fold<List<Customer>, String> productNamesFold =
+        allCustomersFold
+            .andThen(Fold.of(Customer::purchases))
+            .andThen(Fold.of(p -> List.of(p.productName())));
+
+    // Combine both: get all customer names AND all product names in one pass
+    Fold<List<Customer>, String> allNamesFold = namesFold.plus(productNamesFold);
+
+    System.out.println("All names (customers + products): " + allNamesFold.getAll(customers));
+    System.out.println("Total name count: " + allNamesFold.length(customers));
+
+    // Use Fold.sum() for multiple metric extractions
+    Fold<List<Customer>, Double> spendingFold =
+        allCustomersFold.andThen(Fold.of(c -> List.of(c.totalSpending())));
+
+    Fold<List<Customer>, Double> purchaseAmountsFold =
+        allCustomersFold
+            .andThen(Fold.of(Customer::purchases))
+            .andThen(Fold.of(p -> List.of(p.amount())));
+
+    // Get all monetary values across the entire dataset
+    Fold<List<Customer>, Double> allMonetaryValues = Fold.sum(spendingFold, purchaseAmountsFold);
+
+    double totalMonetary = allMonetaryValues.foldMap(Monoids.doubleAddition(), d -> d, customers);
+    System.out.println(
+        "Total monetary values (spending + purchase amounts): £"
+            + String.format("%.2f", totalMonetary));
     System.out.println();
   }
 
@@ -268,7 +309,7 @@ public class CustomerAnalyticsExample {
         Lens.of(
             Customer::totalSpending, (c, s) -> new Customer(c.name(), c.purchases(), c.vip(), s));
 
-    // Apply 10% discount to high spenders (>$1000)
+    // Apply 10% discount to high spenders (>£1000)
     Traversal<List<Customer>, Double> highSpenderSpending =
         allCustomers.filtered(c -> c.totalSpending() > 1000).andThen(spendingLens.asTraversal());
 
@@ -283,13 +324,13 @@ public class CustomerAnalyticsExample {
         System.out.println(
             "  "
                 + after.name()
-                + ": $"
+                + ": £"
                 + before.totalSpending()
-                + " -> $"
+                + " -> £"
                 + after.totalSpending()
                 + " (DISCOUNTED)");
       } else {
-        System.out.println("  " + after.name() + ": $" + after.totalSpending() + " (unchanged)");
+        System.out.println("  " + after.name() + ": £" + after.totalSpending() + " (unchanged)");
       }
     }
 
@@ -308,13 +349,13 @@ public class CustomerAnalyticsExample {
         System.out.println(
             "  "
                 + after.name()
-                + ": $"
+                + ": £"
                 + before.totalSpending()
-                + " -> $"
+                + " -> £"
                 + after.totalSpending()
                 + " (BONUS APPLIED)");
       } else {
-        System.out.println("  " + after.name() + ": $" + after.totalSpending() + " (unchanged)");
+        System.out.println("  " + after.name() + ": £" + after.totalSpending() + " (unchanged)");
       }
     }
 

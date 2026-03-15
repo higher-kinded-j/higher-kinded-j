@@ -57,7 +57,7 @@ Both can read. Only Traversal can write. Choose based on intent.
 
 ~~~admonish info title="In This Chapter"
 - **Traversals** – Focus on zero-or-more elements within a structure. Apply the same modification to every item in a list, or extract all values matching a path.
-- **Folds** – Read-only traversal that aggregates results using a Monoid. Sum all prices, count matching elements, or check if any element satisfies a predicate.
+- **Folds** – Read-only traversal that aggregates results using a Monoid. Sum all prices, count matching elements, or check if any element satisfies a predicate. Combine multiple folds with `plus` to extract values from different paths in a single query.
 - **Getters** – A read-only Lens. When you need to extract a value but never modify it, a Getter documents that intent in the type.
 - **Setters** – A write-only optic. Modify values without reading them first, useful when the modification doesn't depend on the current value.
 - **Common Data Structures** – Ready-made traversals for Java's standard collections. Iterate over List elements, Map entries, Set members, and more.
@@ -70,7 +70,7 @@ Both can read. Only Traversal can write. Choose based on intent.
 ## Chapter Contents
 
 1. [Traversals](traversals.md) - Bulk operations on collection elements
-2. [Folds](folds.md) - Read-only queries with monoid-based aggregation
+2. [Folds](folds.md) - Read-only queries with monoid-based aggregation and multi-path combination
 3. [Getters](getters.md) - Read-only focus on single values
 4. [Setters](setters.md) - Write-only modification without reading
 5. [Common Data Structures](common_data_structure_traversals.md) - Patterns for List, Map, Set, and more

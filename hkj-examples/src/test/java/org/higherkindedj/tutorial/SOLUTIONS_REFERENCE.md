@@ -939,3 +939,45 @@ List<String> auditLog = logger.getLog();
 ValidationOpticInterpreter validator = OpticInterpreters.validation();
 List<String> issues = validator.validate(program);
 ```
+
+### Tutorial 18: Fold Combination
+
+**Exercise 1:**
+```java
+Fold<Person, String> allNames = firstNameLens.asFold().plus(lastNameLens.asFold());
+```
+
+**Exercise 2:**
+```java
+Fold<Person, String> combined = nameFold.plus(Fold.empty());
+```
+
+**Exercise 3:**
+```java
+Fold<Team, String> allNames = leadNameFold.plus(memberNamesFold);
+```
+
+**Exercise 4:**
+```java
+Fold<Shape, String> shapeDesc = circleDesc.plus(rectDesc);
+```
+
+**Exercise 5:**
+```java
+Fold<Person, String> allInfo = Fold.sum(firstFold, lastFold, ageFold);
+```
+
+**Exercise 6:**
+```java
+Fold<Team, String> extractor = Fold.sum(teamNameFold, leadFirstNameFold, leadLastNameFold, memberFirstNamesFold);
+```
+
+**Exercise 7:**
+```java
+int totalAge = leadAgeFold.plus(memberAgesFold).foldMap(sumMonoid, age -> age, team);
+```
+
+**Exercise 8:**
+```java
+Fold<Team, String> categorisedNames = seniorNames.plus(juniorNames);
+```

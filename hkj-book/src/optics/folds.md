@@ -10,12 +10,17 @@
 - Composing folds with other optics for deep, conditional queries
 - The difference between `getAll`, `preview`, `find`, `exists`, `all`, and `length`
 - Maybe-based extensions for functional optional handling (`previewMaybe`, `findMaybe`, `getAllMaybe`)
+- Combining multiple folds with `plus`, `empty`, and `sum` for multi-path extraction
 - When to use Fold vs Traversal vs direct field access vs Stream API
 - Building read-only data processing pipelines with clear intent
 ~~~
 
 ~~~admonish title="Example Code"
 [FoldUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/FoldUsageExample.java)
+~~~
+
+~~~admonish title="Hands On Practice"
+[Tutorial18_FoldCombination.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial18_FoldCombination.java)
 ~~~
 
 In previous guides, we explored optics that allow both reading and writing: **`Lens`** for required fields, **`Prism`** for conditional variants, **`Iso`** for lossless conversions, and **`Traversal`** for bulk operations on collections.
@@ -724,6 +729,112 @@ Monoids give you:
 
 ---
 
+## Combining Folds
+
+### The Problem: Extracting Values from Multiple Paths
+
+Consider a data structure with values scattered across different fields or branches. Without fold combination, you would need to call `getAll` on each fold separately and concatenate the results manually:
+
+```java
+record Team(String name, Employee lead, List<Employee> members) {}
+record Employee(String name, String email) {}
+
+// Separate folds for different paths
+Fold<Team, String> leadEmail = teamLeadLens.asFold()
+    .andThen(employeeEmailLens.asFold());
+Fold<Team, String> memberEmails = Fold.<Team, Employee>of(Team::members)
+    .andThen(employeeEmailLens.asFold());
+
+// Manual combination - verbose and error-prone
+List<String> allEmails = new ArrayList<>();
+allEmails.addAll(leadEmail.getAll(team));
+allEmails.addAll(memberEmails.getAll(team));
+```
+
+### The Solution: `Fold.plus()`
+
+`Fold.plus()` combines two folds into one that returns results from both:
+
+```java
+// Clean, composable combination
+Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
+
+// Use like any other fold
+List<String> emails = allEmails.getAll(team);
+boolean hasGmail = allEmails.exists(e -> e.endsWith("@gmail.com"), team);
+int emailCount = allEmails.length(team);
+```
+
+### The Monoid Structure
+
+Folds under `plus` form a monoid, meaning they satisfy three laws:
+
+| Law | Meaning |
+|-----|---------|
+| **Left identity** | `Fold.empty().plus(f)` behaves like `f` |
+| **Right identity** | `f.plus(Fold.empty())` behaves like `f` |
+| **Associativity** | `(a.plus(b)).plus(c)` behaves like `a.plus(b.plus(c))` |
+
+`Fold.empty()` is the identity element, a fold that focuses on nothing:
+
+```java
+Fold<Team, String> nothing = Fold.empty();
+nothing.getAll(team);    // Returns: []
+nothing.length(team);    // Returns: 0
+nothing.isEmpty(team);   // Returns: true
+```
+
+For combining three or more folds, use `Fold.sum()`:
+
+```java
+Fold<Team, String> allText = Fold.sum(
+    teamNameFold,
+    leadNameFold,
+    memberNamesFold
+);
+// Equivalent to: teamNameFold.plus(leadNameFold).plus(memberNamesFold)
+```
+
+### Combining Different Optic Types
+
+Any optic can participate in fold combination via its `asFold()` method:
+
+```java
+// Lens-derived fold (exactly one element)
+Fold<Config, String> hostFold = hostLens.asFold();
+
+// Prism-derived fold (zero or one element)
+Fold<Config, String> optionalPortFold = portPrism.asFold();
+
+// Affine-derived fold (zero or one element)
+Fold<Config, String> optionalDbFold = dbAffine.asFold();
+
+// Combine them all
+Fold<Config, String> allConfigStrings = Fold.sum(
+    hostFold, optionalPortFold, optionalDbFold
+);
+```
+
+### Ordering Guarantees
+
+Elements from the first fold always appear before elements from the second:
+
+```java
+Fold<Employee, String> nameFirst = nameLens.asFold().plus(emailLens.asFold());
+nameFirst.getAll(employee);
+// Returns: ["Alice", "alice@example.com"]
+
+Fold<Employee, String> emailFirst = emailLens.asFold().plus(nameLens.asFold());
+emailFirst.getAll(employee);
+// Returns: ["alice@example.com", "Alice"]
+```
+
+~~~admonish note title="Performance Note"
+Each constituent fold in a `plus` combination performs its own pass over the source. For most use cases this is negligible, but if you are combining many folds over very large collections, consider whether a single custom `foldMap` implementation would be more appropriate.
+~~~
+
+---
+
 ## When to Use Folds vs Other Approaches
 
 ### Use Fold When:
@@ -1234,6 +1345,12 @@ Electronics count: 4
 By adding `Fold` to your arsenal alongside `Lens`, `Prism`, `Iso`, and `Traversal`, you have complete coverage for both reading and writing immutable data structures in a type-safe, composable way.
 
 The key insight: **Folds make queries first-class citizens in your codebase**, just as valuable and well-designed as the commands that modify state.
+
+---
+
+~~~admonish info title="Hands-On Learning"
+Practice fold combination in [Tutorial 18: Fold Combination](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial18_FoldCombination.java) (8 exercises, ~10 minutes).
+~~~
 
 ---
 

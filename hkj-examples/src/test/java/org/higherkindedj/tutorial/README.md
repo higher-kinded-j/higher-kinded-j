@@ -6,7 +6,7 @@ Welcome to the Higher-Kinded-J tutorial series! These hands-on tutorials will te
 
 This tutorial series consists of three tracks:
 1. **Core Types** (10 tutorials, ~80 minutes) - Learn about Functors, Applicatives, Monads, and more
-2. **Optics** (15 tutorials, ~150 minutes) - Learn about Lenses, Prisms, Traversals, Focus DSL, and advanced patterns
+2. **Optics** (16 tutorials, ~160 minutes) - Learn about Lenses, Prisms, Traversals, Focus DSL, and advanced patterns
 3. **MTL** (1 tutorial, ~35 minutes) - Learn about MonadReader, MonadState, MonadWriter, and polymorphic functions
 
 Each tutorial contains exercises where you need to replace `___` placeholders with working code. The tests will fail until you complete the exercises correctly.
@@ -197,6 +197,15 @@ Functional list decomposition:
 - head, last, tail, init accessors
 - Stack-safe trampoline operations
 - Composing with other optics
+
+### Tutorial 18: Fold Combination (~10 minutes)
+Combining multiple folds into one:
+- `Fold.plus()` for combining two folds
+- `Fold.empty()` as the identity element
+- `Fold.sum()` for combining multiple folds at once
+- Combining Lens, Prism, and Affine folds
+- Monoid-based aggregation across combined folds
+- Combining filtered folds for categorised results
 
 ## MTL Tutorial Series
 

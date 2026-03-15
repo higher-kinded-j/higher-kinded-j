@@ -5,6 +5,7 @@ package org.higherkindedj.example.optics.cookbook;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -59,6 +60,7 @@ public class CompositionRecipes {
     recipePrismLensComposition();
     recipeOptionalFieldAccess();
     recipeComplexComposition();
+    recipeCombiningMultipleExtractionPaths();
   }
 
   /**
@@ -213,6 +215,60 @@ public class CompositionRecipes {
 
     // Verify failures are unchanged
     System.out.println("Updated batch results: " + updated.results());
+    System.out.println();
+  }
+
+  /**
+   * Recipe: Combining Multiple Extraction Paths with Fold.plus().
+   *
+   * <p>Pattern: Extract values from different branches of a data structure and combine them into a
+   * single result set.
+   */
+  private static void recipeCombiningMultipleExtractionPaths() {
+    System.out.println("--- Recipe: Combining Multiple Extraction Paths ---");
+
+    // Two different ways to get a string value from a Result
+    Prism<Result, Success> successPrism =
+        Prism.of(r -> r instanceof Success s ? Optional.of(s) : Optional.empty(), s -> s);
+
+    Prism<Result, Failure> failurePrism =
+        Prism.of(r -> r instanceof Failure f ? Optional.of(f) : Optional.empty(), f -> f);
+
+    // Extract success values
+    Fold<Result, String> successValues =
+        successPrism.asFold().andThen(Fold.of(s -> List.of(s.value())));
+
+    // Extract failure messages
+    Fold<Result, String> failureMessages =
+        failurePrism.asFold().andThen(Fold.of(f -> List.of(f.error())));
+
+    // Combine: get ALL text from a Result regardless of variant
+    Fold<Result, String> allText = successValues.plus(failureMessages);
+
+    Result success = new Success("ok", new Metadata("api", 1L));
+    Result failure = new Failure("not found");
+
+    System.out.println("Success text: " + allText.getAll(success));
+    System.out.println("Failure text: " + allText.getAll(failure));
+
+    // Use with a batch via Fold.sum()
+    Fold<Batch, String> batchSuccesses =
+        Fold.<Batch, Result>of(Batch::results).andThen(successValues);
+    Fold<Batch, String> batchFailures =
+        Fold.<Batch, Result>of(Batch::results).andThen(failureMessages);
+
+    Fold<Batch, String> batchAllText = Fold.sum(batchSuccesses, batchFailures);
+
+    Batch batch =
+        new Batch(
+            "B1",
+            List.of(
+                new Success("result1", new Metadata("api", 1L)),
+                new Failure("error1"),
+                new Success("result2", new Metadata("db", 2L))));
+
+    System.out.println("All batch text: " + batchAllText.getAll(batch));
+    System.out.println("Total text items: " + batchAllText.length(batch));
     System.out.println();
   }
 }

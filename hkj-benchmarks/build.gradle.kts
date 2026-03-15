@@ -100,7 +100,7 @@ tasks {
     description = "Run benchmarks with large chain/recursion depths for stress testing"
     workingDir = rootProject.projectDir
     commandLine(
-      "./gradlew",
+      if (System.getProperty("os.name").lowercase().contains("windows")) "gradlew.bat" else "./gradlew",
       ":hkj-benchmarks:jmh",
       "-PbenchmarkMode=long"
     )

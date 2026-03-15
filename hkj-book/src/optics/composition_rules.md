@@ -256,6 +256,33 @@ public final class OrderOptics {
 
 ---
 
+## Parallel Composition with `Fold.plus()`
+
+The composition rules above describe **sequential** composition (`andThen`): navigating deeper into a structure. Higher-Kinded-J also supports **parallel** composition via `Fold.plus()`, which combines results from multiple paths at the same level.
+
+| Operation | Type | Purpose |
+|-----------|------|---------|
+| `andThen` | Sequential | Navigate deeper: `A -> B -> C` |
+| `plus` | Parallel | Combine results: `A -> B` and `A -> C` into `A -> (B + C)` |
+
+```java
+// Sequential: navigate deeper into the structure
+Fold<Customer, Item> items = ordersFold.andThen(itemsFold);
+
+// Parallel: combine results from different paths
+Fold<Person, String> allNames = firstNameFold.plus(lastNameFold);
+
+// Both together: compose then combine
+Fold<Team, String> allEmails = Fold.sum(
+    leadLens.asFold().andThen(emailLens.asFold()),
+    membersFold.andThen(emailLens.asFold())
+);
+```
+
+`plus` produces a `Fold` regardless of the input optic types, since the combined result is always read-only. Convert other optics via `asFold()` before combining.
+
+---
+
 ## Common Patterns
 
 ### Pattern 1: Optional Field Access

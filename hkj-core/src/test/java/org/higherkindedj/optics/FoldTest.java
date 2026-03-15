@@ -728,4 +728,402 @@ class FoldTest {
       assertThat(result.get().items()).hasSize(2);
     }
   }
+
+  @Nested
+  @DisplayName("plus() - Combining Folds")
+  class PlusCombination {
+
+    @Test
+    @DisplayName("plus() should combine two folds over different fields")
+    void basicCombination() {
+      record Person(String firstName, String lastName) {}
+      Lens<Person, String> firstLens =
+          Lens.of(Person::firstName, (p, n) -> new Person(n, p.lastName()));
+      Lens<Person, String> lastLens =
+          Lens.of(Person::lastName, (p, n) -> new Person(p.firstName(), n));
+
+      Fold<Person, String> combined = firstLens.asFold().plus(lastLens.asFold());
+      Person person = new Person("Alice", "Smith");
+
+      assertThat(combined.getAll(person)).containsExactly("Alice", "Smith");
+    }
+
+    @Test
+    @DisplayName("fold.plus(Fold.empty()) should behave like fold (right identity)")
+    void rightIdentity() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Order order = new Order(List.of(new Item("Apple", 100), new Item("Banana", 50)));
+
+      Fold<Order, Item> combined = itemsFold.plus(Fold.empty());
+      assertThat(combined.getAll(order)).isEqualTo(itemsFold.getAll(order));
+    }
+
+    @Test
+    @DisplayName("Fold.empty().plus(fold) should behave like fold (left identity)")
+    void leftIdentity() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Order order = new Order(List.of(new Item("Apple", 100), new Item("Banana", 50)));
+
+      Fold<Order, Item> combined = Fold.<Order, Item>empty().plus(itemsFold);
+      assertThat(combined.getAll(order)).isEqualTo(itemsFold.getAll(order));
+    }
+
+    @Test
+    @DisplayName("plus() should be associative")
+    void associativity() {
+      record Triple(String a, String b, String c) {}
+      Fold<Triple, String> fa =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super String, ? extends M> f, Triple s) {
+              return f.apply(s.a());
+            }
+          };
+      Fold<Triple, String> fb =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super String, ? extends M> f, Triple s) {
+              return f.apply(s.b());
+            }
+          };
+      Fold<Triple, String> fc =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super String, ? extends M> f, Triple s) {
+              return f.apply(s.c());
+            }
+          };
+
+      Triple t = new Triple("x", "y", "z");
+      assertThat(fa.plus(fb).plus(fc).getAll(t)).isEqualTo(fa.plus(fb.plus(fc)).getAll(t));
+    }
+
+    @Test
+    @DisplayName("plus() should preserve ordering (first fold before second)")
+    void preservesOrdering() {
+      Fold<Order, Item> fold1 = Fold.of(order -> order.items().subList(0, 1));
+      Fold<Order, Item> fold2 = Fold.of(order -> order.items().subList(1, 2));
+
+      Order order = new Order(List.of(new Item("First", 1), new Item("Second", 2)));
+      Fold<Order, Item> combined = fold1.plus(fold2);
+
+      assertThat(combined.getAll(order)).extracting(Item::name).containsExactly("First", "Second");
+    }
+
+    @Test
+    @DisplayName("preview() on combined fold should return the first element from the first fold")
+    void previewOnCombined() {
+      record Person(String firstName, String lastName) {}
+      Lens<Person, String> firstLens =
+          Lens.of(Person::firstName, (p, n) -> new Person(n, p.lastName()));
+      Lens<Person, String> lastLens =
+          Lens.of(Person::lastName, (p, n) -> new Person(p.firstName(), n));
+
+      Fold<Person, String> combined = firstLens.asFold().plus(lastLens.asFold());
+      assertThat(combined.preview(new Person("Alice", "Smith"))).contains("Alice");
+    }
+
+    @Test
+    @DisplayName("foldMap() with sum monoid should work across combined folds")
+    void foldMapWithSumMonoid() {
+      Fold<Order, Item> fold1 = Fold.of(order -> List.of(order.items().get(0)));
+      Fold<Order, Item> fold2 = Fold.of(order -> List.of(order.items().get(1)));
+
+      Fold<Order, Item> combined = fold1.plus(fold2);
+      Order order = new Order(List.of(new Item("A", 100), new Item("B", 200)));
+
+      int total = combined.foldMap(SUM_MONOID, Item::price, order);
+      assertThat(total).isEqualTo(300);
+    }
+
+    @Test
+    @DisplayName("length() on combined fold should return sum of lengths")
+    void lengthOnCombined() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Order order = new Order(List.of(new Item("A", 1), new Item("B", 2)));
+
+      Fold<Order, Item> combined = itemsFold.plus(itemsFold);
+      assertThat(combined.length(order)).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("exists() on combined fold should check both folds")
+    void existsOnCombined() {
+      record Pair(int left, int right) {}
+      Fold<Pair, Integer> leftFold =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super Integer, ? extends M> f, Pair s) {
+              return f.apply(s.left());
+            }
+          };
+      Fold<Pair, Integer> rightFold =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super Integer, ? extends M> f, Pair s) {
+              return f.apply(s.right());
+            }
+          };
+
+      Fold<Pair, Integer> combined = leftFold.plus(rightFold);
+      Pair pair = new Pair(5, 15);
+
+      assertThat(combined.exists(x -> x > 10, pair)).isTrue();
+      assertThat(combined.exists(x -> x > 20, pair)).isFalse();
+    }
+
+    @Test
+    @DisplayName("all() on combined fold should check both folds")
+    void allOnCombined() {
+      record Pair(int left, int right) {}
+      Fold<Pair, Integer> leftFold =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super Integer, ? extends M> f, Pair s) {
+              return f.apply(s.left());
+            }
+          };
+      Fold<Pair, Integer> rightFold =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super Integer, ? extends M> f, Pair s) {
+              return f.apply(s.right());
+            }
+          };
+
+      Fold<Pair, Integer> combined = leftFold.plus(rightFold);
+      Pair pair = new Pair(5, 15);
+
+      assertThat(combined.all(x -> x > 0, pair)).isTrue();
+      assertThat(combined.all(x -> x > 10, pair)).isFalse();
+    }
+
+    @Test
+    @DisplayName("find() on combined fold should find from first fold before second")
+    void findOnCombined() {
+      record Pair(int left, int right) {}
+      Fold<Pair, Integer> leftFold =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super Integer, ? extends M> f, Pair s) {
+              return f.apply(s.left());
+            }
+          };
+      Fold<Pair, Integer> rightFold =
+          new Fold<>() {
+            @Override
+            public <M> M foldMap(Monoid<M> m, Function<? super Integer, ? extends M> f, Pair s) {
+              return f.apply(s.right());
+            }
+          };
+
+      Fold<Pair, Integer> combined = leftFold.plus(rightFold);
+      Pair pair = new Pair(5, 15);
+
+      assertThat(combined.find(x -> x > 0, pair)).contains(5);
+    }
+
+    @Test
+    @DisplayName("filtered() should work after combination")
+    void filteredOnCombined() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> doubled = itemsFold.plus(itemsFold);
+
+      Order order = new Order(List.of(new Item("Apple", 50), new Item("Laptop", 1000)));
+
+      Fold<Order, Item> expensive = doubled.filtered(item -> item.price() > 100);
+      assertThat(expensive.getAll(order)).hasSize(2).allMatch(item -> item.name().equals("Laptop"));
+    }
+
+    @Test
+    @DisplayName("isEmpty() on combined fold should be true only when both are empty")
+    void isEmptyOnCombined() {
+      Fold<Order, Item> emptyFold = Fold.empty();
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Order order = new Order(List.of(new Item("A", 1)));
+
+      assertThat(emptyFold.plus(emptyFold).isEmpty(order)).isTrue();
+      assertThat(emptyFold.plus(itemsFold).isEmpty(order)).isFalse();
+      assertThat(itemsFold.plus(emptyFold).isEmpty(order)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Combining Lens.asFold() with Fold should work")
+    void lensAsFoldPlusFold() {
+      record Container(String label, List<String> tags) {}
+      Lens<Container, String> labelLens =
+          Lens.of(Container::label, (c, l) -> new Container(l, c.tags()));
+      Fold<Container, String> tagsFold = Fold.of(Container::tags);
+
+      Fold<Container, String> combined = labelLens.asFold().plus(tagsFold);
+      Container c = new Container("box", List.of("fragile", "heavy"));
+
+      assertThat(combined.getAll(c)).containsExactly("box", "fragile", "heavy");
+    }
+
+    @Test
+    @DisplayName("Combining Prism.asFold() with Fold should work")
+    void prismAsFoldPlusFold() {
+      Prism<Json, String> stringPrism =
+          Prism.of(
+              j -> j instanceof JsonString s ? Optional.of(s.value()) : Optional.empty(),
+              JsonString::new);
+      Prism<Json, Integer> numberPrism =
+          Prism.of(
+              j -> j instanceof JsonNumber n ? Optional.of(n.value()) : Optional.empty(),
+              JsonNumber::new);
+
+      // Combine string values and number values mapped to string
+      Fold<Json, String> stringFold = stringPrism.asFold();
+      Fold<Json, String> numberAsStringFold =
+          numberPrism
+              .asFold()
+              .andThen(
+                  new Fold<>() {
+                    @Override
+                    public <M> M foldMap(
+                        Monoid<M> monoid, Function<? super String, ? extends M> f, Integer source) {
+                      return f.apply(source.toString());
+                    }
+                  });
+
+      Fold<Json, String> combined = stringFold.plus(numberAsStringFold);
+      assertThat(combined.getAll(new JsonString("hello"))).containsExactly("hello");
+      assertThat(combined.getAll(new JsonNumber(42))).containsExactly("42");
+    }
+
+    @Test
+    @DisplayName("Combining Affine.asFold() with Fold should work")
+    void affineAsFoldPlusFold() {
+      record Config(Optional<String> host, Optional<String> port) {}
+      Affine<Config, String> hostAffine =
+          Affine.of(c -> c.host(), (c, h) -> new Config(Optional.of(h), c.port()));
+      Affine<Config, String> portAffine =
+          Affine.of(c -> c.port(), (c, p) -> new Config(c.host(), Optional.of(p)));
+
+      Fold<Config, String> combined = hostAffine.asFold().plus(portAffine.asFold());
+
+      Config both = new Config(Optional.of("localhost"), Optional.of("8080"));
+      assertThat(combined.getAll(both)).containsExactly("localhost", "8080");
+
+      Config hostOnly = new Config(Optional.of("localhost"), Optional.empty());
+      assertThat(combined.getAll(hostOnly)).containsExactly("localhost");
+    }
+
+    @Test
+    @DisplayName("Multiple chained plus calls should work")
+    void multipleChainedPlus() {
+      record Quad(String a, String b, String c, String d) {}
+      Function<Function<Quad, String>, Fold<Quad, String>> single =
+          getter ->
+              new Fold<>() {
+                @Override
+                public <M> M foldMap(Monoid<M> m, Function<? super String, ? extends M> f, Quad s) {
+                  return f.apply(getter.apply(s));
+                }
+              };
+
+      Fold<Quad, String> all =
+          single
+              .apply(Quad::a)
+              .plus(single.apply(Quad::b))
+              .plus(single.apply(Quad::c))
+              .plus(single.apply(Quad::d));
+
+      Quad q = new Quad("w", "x", "y", "z");
+      assertThat(all.getAll(q)).containsExactly("w", "x", "y", "z");
+    }
+
+    @Test
+    @DisplayName("Fold.empty() getAll should return empty list")
+    void emptyFoldGetAll() {
+      Fold<Order, Item> emptyFold = Fold.empty();
+      Order order = new Order(List.of(new Item("A", 1)));
+
+      assertThat(emptyFold.getAll(order)).isEmpty();
+      assertThat(emptyFold.length(order)).isEqualTo(0);
+      assertThat(emptyFold.isEmpty(order)).isTrue();
+      assertThat(emptyFold.preview(order)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Fold.sum() should combine multiple folds like chained plus")
+    void sumVarargs() {
+      record Triple(String a, String b, String c) {}
+      Function<Function<Triple, String>, Fold<Triple, String>> single =
+          getter ->
+              new Fold<>() {
+                @Override
+                public <M> M foldMap(
+                    Monoid<M> m, Function<? super String, ? extends M> f, Triple s) {
+                  return f.apply(getter.apply(s));
+                }
+              };
+
+      Fold<Triple, String> fa = single.apply(Triple::a);
+      Fold<Triple, String> fb = single.apply(Triple::b);
+      Fold<Triple, String> fc = single.apply(Triple::c);
+
+      Fold<Triple, String> summed = Fold.sum(fa, fb, fc);
+      Fold<Triple, String> chained = fa.plus(fb).plus(fc);
+
+      Triple t = new Triple("x", "y", "z");
+      assertThat(summed.getAll(t)).isEqualTo(chained.getAll(t));
+    }
+
+    @Test
+    @DisplayName("plus() with andThen should compose first then combine")
+    void plusWithAndThen() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      // Two different customers' orders via different paths
+      Fold<Customer, Item> customerItems = ordersFold.andThen(itemsFold);
+
+      // Combine the names fold from items with prices fold from items
+      Fold<Customer, String> namesFold =
+          customerItems.andThen(
+              new Fold<>() {
+                @Override
+                public <M> M foldMap(Monoid<M> m, Function<? super String, ? extends M> f, Item s) {
+                  return f.apply(s.name());
+                }
+              });
+      Fold<Customer, Integer> pricesFold =
+          customerItems.andThen(
+              new Fold<>() {
+                @Override
+                public <M> M foldMap(
+                    Monoid<M> m, Function<? super Integer, ? extends M> f, Item s) {
+                  return f.apply(s.price());
+                }
+              });
+
+      Customer customer = new Customer("John", List.of(new Order(List.of(new Item("Apple", 100)))));
+
+      assertThat(namesFold.getAll(customer)).containsExactly("Apple");
+      assertThat(pricesFold.foldMap(SUM_MONOID, p -> p, customer)).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("modifyF on combined fold should sequence effects from both folds")
+    void modifyFOnCombined() {
+      Fold<Order, Item> fold1 = Fold.of(order -> List.of(order.items().get(0)));
+      Fold<Order, Item> fold2 = Fold.of(order -> List.of(order.items().get(1)));
+      Fold<Order, Item> combined = fold1.plus(fold2);
+
+      Order order = new Order(List.of(new Item("Apple", 100), new Item("Banana", 200)));
+
+      // All items pass validation
+      Function<Item, Kind<OptionalKind.Witness, Item>> validate =
+          item -> OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
+
+      Kind<OptionalKind.Witness, Order> result =
+          combined.modifyF(validate, order, OptionalMonad.INSTANCE);
+
+      Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get()).isEqualTo(order);
+    }
+  }
 }
