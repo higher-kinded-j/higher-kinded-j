@@ -5,6 +5,9 @@ package org.higherkindedj.optics.processing.generator.vavr;
 import com.palantir.javapoet.ClassName;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 
+/// Base of Traversable Generators for Vavr's collections that are both:
+///  * A collection of 0...n, not 1
+///  * Of a single type/column
 public abstract class BaseVavrSingleIterableTraversableGenerator extends BaseTraversableGenerator {
   private static final String COLLECTION_PACKAGE = "io.vavr.collection";
 

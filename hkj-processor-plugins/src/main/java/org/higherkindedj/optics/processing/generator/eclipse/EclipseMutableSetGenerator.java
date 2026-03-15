@@ -7,7 +7,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields that are Eclipse
- * Collections' {@code ImmutableSet}.
+ * Collections' {@code MutableSet}.
  */
 @ServiceProvider(TraversableGenerator.class)
 public final class EclipseMutableSetGenerator

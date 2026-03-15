@@ -15,8 +15,8 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
- * A {@link TraversableGenerator} that adds support for traversing fields that are Eclipse
- * Collections' {@code ImmutableSet}.
+ * A {@link TraversableGenerator} that adds support for traversing fields that are Vavr's {@code
+ * List}.
  */
 @ServiceProvider(TraversableGenerator.class)
 public final class VavrListGenerator extends BaseVavrSingleIterableTraversableGenerator {
@@ -54,13 +54,13 @@ public final class VavrListGenerator extends BaseVavrSingleIterableTraversableGe
 
         // 3. Map over the effect to convert the inner List back to our type.
         .addStatement(
-            "final var effectOfSet = applicative.map("
+            "final var effectOfConvertBack = applicative.map("
                 + "newList -> $T.ofAll(newList), effectOfList)",
             LIST)
 
         // 4. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
-            "return applicative.map(converted -> new $T($L), effectOfSet)",
+            "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
             recordClassName,
             constructorArgs)
         .build();

@@ -30,8 +30,8 @@ public class VavrListGeneratorTest {
         """
         final var sourceList = source.keywords().toJavaCollection(ArrayList::new);
         final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
-        final var effectOfSet = applicative.map(newList -> List.ofAll(newList), effectOfList);
-        return applicative.map(converted -> new Article(source.id(), converted), effectOfSet);
+        final var effectOfConvertBack = applicative.map(newList -> List.ofAll(newList), effectOfList);
+        return applicative.map(converted -> new Article(source.id(), converted), effectOfConvertBack);
         """;
 
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);

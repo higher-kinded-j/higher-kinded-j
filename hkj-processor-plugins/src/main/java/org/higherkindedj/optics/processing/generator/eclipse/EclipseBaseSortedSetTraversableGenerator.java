@@ -10,6 +10,7 @@ import java.util.Objects;
 import javax.lang.model.element.RecordComponentElement;
 import org.higherkindedj.optics.util.Traversals;
 
+/** A base for the Traversable Generation for Sorted Sets from the Eclipse Collections */
 public abstract class EclipseBaseSortedSetTraversableGenerator
     extends EclipseBaseSingleIterableTraversableGenerator {
 
@@ -52,7 +53,7 @@ public abstract class EclipseBaseSortedSetTraversableGenerator
 
         // 3. Map over the effect to convert the inner List back to our type.
         .addStatement(
-            "final var effectOfSet = applicative.map("
+            "final var effectOfConvertBack = applicative.map("
                 + "newList -> $T.isNull(source.$L().comparator()) ? $T.$L.ofAll(newList) : $T.$L.ofAll(source.$L().comparator(), newList), effectOfList)",
             Objects.class,
             componentName,
@@ -64,7 +65,7 @@ public abstract class EclipseBaseSortedSetTraversableGenerator
 
         // 4. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
-            "return applicative.map(converted -> new $T($L), effectOfSet)",
+            "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
             recordClassName,
             constructorArgs)
         .build();

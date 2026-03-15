@@ -30,8 +30,8 @@ public class ApacheHashBagGeneratorTest {
         """
                 final var sourceList = new ArrayList<>(source.keywords());
                 final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
-                final var effectOfSet = applicative.map(newList -> new HashBag<>(newList), effectOfList);
-                return applicative.map(converted -> new Article(source.id(), converted), effectOfSet);
+                final var effectOfConvertBack = applicative.map(newList -> new HashBag<>(newList), effectOfList);
+                return applicative.map(converted -> new Article(source.id(), converted), effectOfConvertBack);
                 """;
 
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);

@@ -5,6 +5,9 @@ package org.higherkindedj.optics.processing.generator.guava;
 import com.palantir.javapoet.ClassName;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 
+/// Base of Traversable Generators for Google Guava Collections that are both:
+///  * A collection of 0...n, not 1
+///  * Of a single type/column
 public abstract class BaseGuavaSingleIterableTraversableGenerator extends BaseTraversableGenerator {
   private static final String COLLECTIONS_PACKAGE = "com.google.common.collect";
 

@@ -13,6 +13,9 @@ import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.util.Traversals;
 
+/// Base of Traversable Generators for Eclipse Collections that are both:
+///  * A collection of 0...n, not 1
+///  * Of a single type/column
 public abstract class EclipseBaseSingleIterableTraversableGenerator
     extends BaseTraversableGenerator {
   protected static final String API_PACKAGE = "org.eclipse.collections.api";
@@ -77,14 +80,14 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
 
         // 3. Map over the effect to convert the inner List back to our type.
         .addStatement(
-            "final var effectOfSet = applicative.map("
+            "final var effectOfConvertBack = applicative.map("
                 + "newList -> $T.$L.ofAll(newList), effectOfList)",
             api,
             immutable ? "immutable" : "mutable")
 
         // 4. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
-            "return applicative.map(converted -> new $T($L), effectOfSet)",
+            "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
             recordClassName,
             constructorArgs)
         .build();

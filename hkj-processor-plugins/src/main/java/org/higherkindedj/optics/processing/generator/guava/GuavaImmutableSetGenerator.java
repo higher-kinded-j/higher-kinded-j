@@ -15,7 +15,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
- * A {@link TraversableGenerator} that adds support for traversing fields that are Eclipse
+ * A {@link TraversableGenerator} that adds support for traversing fields that are Google Guava
  * Collections' {@code ImmutableSet}.
  */
 @ServiceProvider(TraversableGenerator.class)
@@ -52,13 +52,13 @@ public final class GuavaImmutableSetGenerator extends BaseGuavaSingleIterableTra
 
         // 3. Map over the effect to convert the inner List back to our type.
         .addStatement(
-            "final var effectOfSet = applicative.map("
+            "final var effectOfConvertBack = applicative.map("
                 + "newList -> $T.copyOf(newList), effectOfList)",
             IMMUTABLE_SET)
 
         // 4. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
-            "return applicative.map(converted -> new $T($L), effectOfSet)",
+            "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
             recordClassName,
             constructorArgs)
         .build();
