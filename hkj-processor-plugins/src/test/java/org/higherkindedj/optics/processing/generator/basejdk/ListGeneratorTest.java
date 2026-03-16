@@ -1,6 +1,6 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.optics.processing.generator.hkj;
+package org.higherkindedj.optics.processing.generator.basejdk;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
@@ -8,40 +8,37 @@ import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.
 
 import com.google.testing.compile.JavaFileObjects;
 import org.higherkindedj.optics.processing.TraversalProcessor;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class MaybeGeneratorIntegrationTest {
+@DisplayName("ListGenerator")
+public class ListGeneratorTest {
   @Test
-  void shouldGenerateCorrectTraversalForMaybe() {
+  @DisplayName("should generate correct traversal for List fields")
+  void shouldGenerateCorrectTraversalForList() {
     final var sourceFile =
         JavaFileObjects.forSourceString(
-            "com.example.QueryResult",
+            "com.example.Product",
             """
             package com.example;
 
             import org.higherkindedj.optics.annotations.GenerateTraversals;
-            import org.higherkindedj.hkt.maybe.Maybe;
-            import org.higherkindedj.hkt.Kind;
+            import java.util.List;
+            import org.higherkindedj.optics.util.Traversals;
 
             @GenerateTraversals
-            public record QueryResult(Maybe<String> result) {}
+            public record Product(String sku, List<String> tags) {}
             """);
 
     final String expectedBody =
         """
-        final Maybe<String> maybe = source.result();
-        if (maybe.isJust()) {
-          final var g_of_b = f.apply(maybe.get());
-          @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, String>) g_of_b;
-          return applicative.map(newValue -> new QueryResult(Maybe.just(newValue)), g_of_b_casted);
-        } else {
-          return applicative.of(source);
-        }
+        final var effectOfList = Traversals.traverseList(source.tags(), f, applicative);
+        return applicative.map(newList -> new Product(source.sku(), newList), effectOfList);
         """;
 
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
     assertThat(compilation).succeeded();
-    assertGeneratedCodeContains(compilation, "com.example.QueryResultTraversals", expectedBody);
+    assertGeneratedCodeContains(compilation, "com.example.ProductTraversals", expectedBody);
   }
 }

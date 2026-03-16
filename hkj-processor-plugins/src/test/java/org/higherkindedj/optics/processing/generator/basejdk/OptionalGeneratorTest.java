@@ -8,11 +8,14 @@ import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.
 
 import com.google.testing.compile.JavaFileObjects;
 import org.higherkindedj.optics.processing.TraversalProcessor;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class OptionalGeneratorIntegrationTest {
+@DisplayName("OptionalGenerator")
+public class OptionalGeneratorTest {
 
   @Test
+  @DisplayName("should generate correct traversal for Optional fields")
   void shouldGenerateCorrectTraversalForOptional() {
     final var sourceFile =
         JavaFileObjects.forSourceString(

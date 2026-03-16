@@ -147,6 +147,7 @@
   - [Build Plugins](tooling/gradle_plugin.md)
   - [Compile-Time Checks](tooling/compile_checks.md)
   - [Diagnostics](tooling/diagnostics.md)
+  - [Traversal Generator Plugins](tooling/generator_plugins.md)
 
 - [Integration Guides](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
