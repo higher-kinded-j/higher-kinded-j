@@ -1,5 +1,6 @@
 import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SourcesJar
 
 plugins {
   `java-library`
@@ -114,7 +115,7 @@ mavenPublishing {
     // - `JavadocJar.Javadoc()` to publish standard javadocs
     javadocJar = JavadocJar.Javadoc(),
     // whether to publish a sources jar
-    sourcesJar = true,
+    sourcesJar = SourcesJar.Sources(),
   ))
 
   coordinates(

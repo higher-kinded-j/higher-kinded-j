@@ -55,9 +55,8 @@ import java.lang.annotation.Target;
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
  *
- * @see org.higherkindedj.optics.focus.FocusPath
- * @see org.higherkindedj.optics.focus.AffinePath
- * @see org.higherkindedj.optics.focus.TraversalPath
+ * @see GenerateFocus#generateNavigators()
+ * @see GenerateFocus#maxNavigatorDepth()
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
