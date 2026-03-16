@@ -38,7 +38,7 @@ import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
  *
  * <p>This processor generates optics for external types that you do not own. It supports two modes:
  *
- * <h3>1. Package/Type Annotation with Class List</h3>
+ * <h2>1. Package/Type Annotation with Class List</h2>
  *
  * <p>When applied to a package (via {@code package-info.java}) or type with a class list, it
  * analyses each referenced class and generates appropriate optics:
@@ -50,7 +50,7 @@ import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
  *   <li>Classes with wither methods → Lens per wither (in {@code <TypeName>Lenses.java})
  * </ul>
  *
- * <h3>2. Spec Interface (Phase 2)</h3>
+ * <h2>2. Spec Interface (Phase 2)</h2>
  *
  * <p>When applied to an interface extending {@code OpticsSpec<S>}, it generates a utility class
  * implementing the optics defined by the interface's abstract methods. This supports:
@@ -66,6 +66,9 @@ import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.ImportOptics")
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class ImportOpticsProcessor extends AbstractProcessor {
+
+  /** Creates a new ImportOpticsProcessor. */
+  public ImportOpticsProcessor() {}
 
   private static final String OPTICS_SPEC_FQN = "org.higherkindedj.optics.annotations.OpticsSpec";
 

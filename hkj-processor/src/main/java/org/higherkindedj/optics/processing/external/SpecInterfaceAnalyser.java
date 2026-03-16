@@ -83,7 +83,7 @@ public class SpecInterfaceAnalyser {
   /**
    * Analyses a spec interface to determine what optics to generate.
    *
-   * @param specInterface the interface extending OpticsSpec<S>
+   * @param specInterface the interface extending {@code OpticsSpec<S>}
    * @return the analysis result, or empty if the interface is invalid
    */
   public Optional<SpecAnalysis> analyse(TypeElement specInterface) {

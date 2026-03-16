@@ -27,10 +27,14 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.annotations.GenerateFolds;
 
+/** Annotation processor that generates Fold optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFolds")
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class FoldProcessor extends AbstractProcessor {
+
+  /** Creates a new FoldProcessor. */
+  public FoldProcessor() {}
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

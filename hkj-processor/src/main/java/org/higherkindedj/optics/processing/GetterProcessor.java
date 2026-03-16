@@ -24,10 +24,14 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.GenerateGetters;
 
+/** Annotation processor that generates Getter optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateGetters")
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class GetterProcessor extends AbstractProcessor {
+
+  /** Creates a new GetterProcessor. */
+  public GetterProcessor() {}
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

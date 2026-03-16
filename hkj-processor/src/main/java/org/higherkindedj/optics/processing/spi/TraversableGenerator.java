@@ -17,7 +17,7 @@ public interface TraversableGenerator {
   /**
    * Checks if this generator can handle the given type.
    *
-   * @param type The type of the record component (e.g., java.util.List<String>).
+   * @param type The type of the record component (e.g., {@code java.util.List<String>}).
    * @return true if this generator supports the type.
    */
   boolean supports(TypeMirror type);

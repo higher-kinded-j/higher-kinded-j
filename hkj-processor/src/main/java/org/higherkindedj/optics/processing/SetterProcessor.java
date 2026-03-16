@@ -24,10 +24,14 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.GenerateSetters;
 
+/** Annotation processor that generates Setter optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateSetters")
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class SetterProcessor extends AbstractProcessor {
+
+  /** Creates a new SetterProcessor. */
+  public SetterProcessor() {}
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

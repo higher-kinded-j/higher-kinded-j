@@ -24,10 +24,14 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
+/** Annotation processor that generates Lens optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateLenses")
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class LensProcessor extends AbstractProcessor {
+
+  /** Creates a new LensProcessor. */
+  public LensProcessor() {}
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

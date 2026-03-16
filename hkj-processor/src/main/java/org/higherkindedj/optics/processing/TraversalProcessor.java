@@ -34,10 +34,14 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
+/** Annotation processor that generates Traversal optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateTraversals")
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class TraversalProcessor extends AbstractProcessor {
+
+  /** Creates a new TraversalProcessor. */
+  public TraversalProcessor() {}
 
   private final List<TraversableGenerator> generators = new ArrayList<>();
 

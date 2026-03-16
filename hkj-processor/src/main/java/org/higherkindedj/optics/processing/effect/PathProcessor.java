@@ -43,6 +43,9 @@ import org.higherkindedj.hkt.effect.annotation.PathVia;
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PathProcessor extends AbstractProcessor {
 
+  /** Creates a new PathProcessor. */
+  public PathProcessor() {}
+
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
   private static final ClassName PATH = ClassName.get("org.higherkindedj.hkt.effect", "Path");
   private static final ClassName SEMIGROUP = ClassName.get("org.higherkindedj.hkt", "Semigroup");

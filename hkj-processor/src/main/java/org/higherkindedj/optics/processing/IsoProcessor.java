@@ -33,6 +33,9 @@ import org.higherkindedj.optics.annotations.GenerateIsos;
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public final class IsoProcessor extends AbstractProcessor {
 
+  /** Creates a new IsoProcessor. */
+  public IsoProcessor() {}
+
   @Override
   public boolean process(
       final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {

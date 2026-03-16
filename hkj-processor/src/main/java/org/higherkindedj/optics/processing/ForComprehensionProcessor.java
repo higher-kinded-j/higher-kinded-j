@@ -35,6 +35,9 @@ import org.higherkindedj.optics.annotations.GenerateForComprehensions;
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class ForComprehensionProcessor extends AbstractProcessor {
 
+  /** Creates a new ForComprehensionProcessor. */
+  public ForComprehensionProcessor() {}
+
   private final Set<String> processedPackages = new HashSet<>();
 
   @Override

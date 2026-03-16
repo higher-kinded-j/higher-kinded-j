@@ -43,6 +43,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PrismProcessor extends AbstractProcessor {
 
+  /** Creates a new PrismProcessor. */
+  public PrismProcessor() {}
+
   /**
    * {@inheritDoc}
    *
