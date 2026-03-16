@@ -26,6 +26,9 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
 @Singleton
 public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
 
+  /** Creates a new HKJLifecycleParticipant. */
+  public HKJLifecycleParticipant() {}
+
   private static final String GROUP_ID = "io.github.higher-kinded-j";
   private static final String PLUGIN_KEY = GROUP_ID + ":hkj-maven-plugin";
   private static final String COMPILER_PLUGIN_KEY =

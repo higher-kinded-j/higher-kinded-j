@@ -43,6 +43,9 @@ import org.higherkindedj.hkt.effect.annotation.PathSource;
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PathSourceProcessor extends AbstractProcessor {
 
+  /** Creates a new PathSourceProcessor. */
+  public PathSourceProcessor() {}
+
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName CONSUMER = ClassName.get("java.util.function", "Consumer");

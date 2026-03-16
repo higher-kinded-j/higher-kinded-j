@@ -23,6 +23,9 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
  */
 public class PrismCodeGenerator {
 
+  /** Creates a new PrismCodeGenerator. */
+  public PrismCodeGenerator() {}
+
   private static final ClassName PRISM_CLASS = ClassName.get(Prism.class);
   private static final ClassName OPTIONAL_CLASS = ClassName.get(Optional.class);
 

@@ -89,6 +89,9 @@ import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class FocusProcessor extends AbstractProcessor {
 
+  /** Creates a new FocusProcessor. */
+  public FocusProcessor() {}
+
   /** ClassName for FocusPath (in hkj-core, not available at processor compile time). */
   private static final ClassName FOCUS_PATH_CLASS =
       ClassName.get("org.higherkindedj.optics.focus", "FocusPath");

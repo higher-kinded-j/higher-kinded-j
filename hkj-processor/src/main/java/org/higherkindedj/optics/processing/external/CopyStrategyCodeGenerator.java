@@ -25,6 +25,9 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKin
  */
 public class CopyStrategyCodeGenerator {
 
+  /** Creates a new CopyStrategyCodeGenerator. */
+  public CopyStrategyCodeGenerator() {}
+
   /**
    * Generates the setter lambda code block for a lens.
    *

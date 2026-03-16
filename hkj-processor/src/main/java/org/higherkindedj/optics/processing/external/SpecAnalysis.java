@@ -34,35 +34,53 @@ public record SpecAnalysis(
 
   /** The kind of optic defined by a method. */
   public enum OpticKind {
+    /** A Lens optic. */
     LENS,
+    /** A Prism optic. */
     PRISM,
+    /** A Traversal optic. */
     TRAVERSAL,
+    /** An Affine optic. */
     AFFINE,
+    /** An Iso optic. */
     ISO,
+    /** A Getter optic. */
     GETTER,
+    /** A Fold optic. */
     FOLD
   }
 
   /** The copy strategy specified by an annotation. */
   public enum CopyStrategyKind {
+    /** Uses the builder pattern. */
     VIA_BUILDER,
+    /** Uses wither methods. */
     WITHER,
+    /** Uses an all-args constructor. */
     VIA_CONSTRUCTOR,
+    /** Uses a copy constructor and setter. */
     VIA_COPY_AND_SET,
-    NONE // For prisms and traversals that don't need copy strategies
+    /** No copy strategy needed (for prisms and traversals). */
+    NONE
   }
 
   /** The prism matching strategy specified by an annotation. */
   public enum PrismHintKind {
+    /** Uses instanceof pattern matching. */
     INSTANCE_OF,
+    /** Uses predicate and getter methods. */
     MATCH_WHEN,
+    /** No prism hint specified. */
     NONE
   }
 
   /** The traversal strategy specified by an annotation. */
   public enum TraversalHintKind {
+    /** Uses an explicit traversal reference. */
     TRAVERSE_WITH,
+    /** Composes a lens to a field with a traversal. */
     THROUGH_FIELD,
+    /** No traversal hint specified. */
     NONE
   }
 
@@ -147,28 +165,57 @@ public record SpecAnalysis(
       String[] parameterOrder,
       String copyConstructor) {
 
-    /** Creates an empty copy strategy info. */
+    /**
+     * Creates an empty copy strategy info.
+     *
+     * @return an empty CopyStrategyInfo
+     */
     public static CopyStrategyInfo empty() {
       return new CopyStrategyInfo("", "", "", "", "", new String[0], "");
     }
 
-    /** Creates info for @ViaBuilder annotation. */
+    /**
+     * Creates info for {@code @ViaBuilder} annotation.
+     *
+     * @param getter the getter method name
+     * @param toBuilder the toBuilder method name
+     * @param setter the setter method name on the builder
+     * @param build the build method name
+     * @return a CopyStrategyInfo for builder pattern
+     */
     public static CopyStrategyInfo forBuilder(
         String getter, String toBuilder, String setter, String build) {
       return new CopyStrategyInfo(getter, toBuilder, setter, build, "", new String[0], "");
     }
 
-    /** Creates info for @Wither annotation. */
+    /**
+     * Creates info for {@code @Wither} annotation.
+     *
+     * @param getter the getter method name
+     * @param witherMethod the wither method name
+     * @return a CopyStrategyInfo for wither pattern
+     */
     public static CopyStrategyInfo forWither(String getter, String witherMethod) {
       return new CopyStrategyInfo(getter, "", "", "", witherMethod, new String[0], "");
     }
 
-    /** Creates info for @ViaConstructor annotation. */
+    /**
+     * Creates info for {@code @ViaConstructor} annotation.
+     *
+     * @param parameterOrder the constructor parameter order
+     * @return a CopyStrategyInfo for constructor pattern
+     */
     public static CopyStrategyInfo forConstructor(String[] parameterOrder) {
       return new CopyStrategyInfo("", "", "", "", "", parameterOrder, "");
     }
 
-    /** Creates info for @ViaCopyAndSet annotation. */
+    /**
+     * Creates info for {@code @ViaCopyAndSet} annotation.
+     *
+     * @param copyConstructor the copy constructor type
+     * @param setter the setter method name
+     * @return a CopyStrategyInfo for copy-and-set pattern
+     */
     public static CopyStrategyInfo forCopyAndSet(String copyConstructor, String setter) {
       return new CopyStrategyInfo("", "", setter, "", "", new String[0], copyConstructor);
     }
@@ -183,17 +230,32 @@ public record SpecAnalysis(
    */
   public record PrismHintInfo(TypeMirror targetType, String predicate, String getter) {
 
-    /** Creates an empty prism hint info. */
+    /**
+     * Creates an empty prism hint info.
+     *
+     * @return an empty PrismHintInfo
+     */
     public static PrismHintInfo empty() {
       return new PrismHintInfo(null, "", "");
     }
 
-    /** Creates info for @InstanceOf annotation. */
+    /**
+     * Creates info for {@code @InstanceOf} annotation.
+     *
+     * @param targetType the target subtype
+     * @return a PrismHintInfo for instanceof matching
+     */
     public static PrismHintInfo forInstanceOf(TypeMirror targetType) {
       return new PrismHintInfo(targetType, "", "");
     }
 
-    /** Creates info for @MatchWhen annotation. */
+    /**
+     * Creates info for {@code @MatchWhen} annotation.
+     *
+     * @param predicate the predicate method name
+     * @param getter the getter method name
+     * @return a PrismHintInfo for predicate matching
+     */
     public static PrismHintInfo forMatchWhen(String predicate, String getter) {
       return new PrismHintInfo(null, predicate, getter);
     }
@@ -209,17 +271,32 @@ public record SpecAnalysis(
   public record TraversalHintInfo(
       String traversalReference, String fieldName, String fieldTraversal) {
 
-    /** Creates an empty traversal hint info. */
+    /**
+     * Creates an empty traversal hint info.
+     *
+     * @return an empty TraversalHintInfo
+     */
     public static TraversalHintInfo empty() {
       return new TraversalHintInfo("", "", "");
     }
 
-    /** Creates info for @TraverseWith annotation. */
+    /**
+     * Creates info for {@code @TraverseWith} annotation.
+     *
+     * @param traversalReference the traversal reference expression
+     * @return a TraversalHintInfo for explicit traversal
+     */
     public static TraversalHintInfo forTraverseWith(String traversalReference) {
       return new TraversalHintInfo(traversalReference, "", "");
     }
 
-    /** Creates info for @ThroughField annotation. */
+    /**
+     * Creates info for {@code @ThroughField} annotation.
+     *
+     * @param fieldName the field name to traverse through
+     * @param traversal the traversal expression for the field
+     * @return a TraversalHintInfo for field-based traversal
+     */
     public static TraversalHintInfo forThroughField(String fieldName, String traversal) {
       return new TraversalHintInfo("", fieldName, traversal);
     }

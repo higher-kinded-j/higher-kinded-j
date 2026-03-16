@@ -59,7 +59,12 @@ public class NavigatorClassGenerator {
     /** TraversalPath - zero or more elements (collection). */
     TRAVERSAL;
 
-    /** Returns the widened path kind when composing with another kind. */
+    /**
+     * Returns the widened path kind when composing with another kind.
+     *
+     * @param other the other path kind to compose with
+     * @return the widened path kind
+     */
     public PathKind widen(PathKind other) {
       if (this == TRAVERSAL || other == TRAVERSAL) {
         return TRAVERSAL;

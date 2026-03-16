@@ -19,6 +19,9 @@ import org.apache.maven.project.MavenProject;
 @Mojo(name = "diagnostics", requiresProject = true)
 public class HKJDiagnosticsMojo extends AbstractMojo {
 
+  /** Creates a new HKJDiagnosticsMojo. */
+  public HKJDiagnosticsMojo() {}
+
   private static final String GROUP_ID = "io.github.higher-kinded-j";
   private static final String PLUGIN_KEY = GROUP_ID + ":hkj-maven-plugin";
 

@@ -21,6 +21,9 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKi
  */
 public class TraversalCodeGenerator {
 
+  /** Creates a new TraversalCodeGenerator. */
+  public TraversalCodeGenerator() {}
+
   // Standard traversal references - these must match actual method names in Traversals class
   private static final String LIST_TRAVERSAL = "org.higherkindedj.optics.util.Traversals.forList()";
   private static final String SET_TRAVERSAL = "org.higherkindedj.optics.util.Traversals.forSet()";
