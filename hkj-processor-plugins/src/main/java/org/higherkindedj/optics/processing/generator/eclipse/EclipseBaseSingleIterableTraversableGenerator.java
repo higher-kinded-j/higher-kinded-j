@@ -85,7 +85,7 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
             api,
             immutable ? "immutable" : "mutable")
 
-        // 4. Map over the final effect to reconstruct the record with the new Set.
+        // 4. Map over the final effect to reconstruct the record with the original type.
         .addStatement(
             "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
             recordClassName,
