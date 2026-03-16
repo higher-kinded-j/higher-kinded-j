@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0+) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.3.7) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,32 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### [v0.3.7](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.7) -- 15 March 2026
+
+**WriterT Transformer, For-Comprehension Power-Ups, Build Tooling, and Spring Virtual Thread Support**
+
+This release introduces the `WriterT` monad transformer with MTL-style capability interfaces, enriches for-comprehensions with parallel composition, traversal operations, and optics integration, adds compile-time Path type checking via the new `hkj-checker` javac plugin, delivers one-line project setup through build tool plugins (`hkj-gradle-plugin` and `hkj-maven-plugin`), and extends Spring MVC with virtual-thread-native return value handlers for `VTaskPath` and `VStreamPath`.
+
+- [WriterT](transformers/writert_transformer.md) -- Monad transformer for output accumulation across effect boundaries, wrapping `Kind<F, Pair<A, W>>` with automatic Monoid-based combining during `flatMap` chains
+- [MonadWriter](transformers/mtl_writer.md) -- MTL-style capability interface with `tell`, `listen`, `pass`, `listens`, and `censor` for output accumulation
+- [MonadReader](transformers/mtl_reader.md) -- MTL-style capability interface with `ask`, `local`, `reader`, and `asks` for shared environment access
+- [MonadState](transformers/mtl_state.md) -- MTL-style capability interface with `get`, `put`, `modify`, and `gets` for stateful computation
+- [par()](functional/for_par.md) -- Parallel/applicative composition for `For` and `ForPath` comprehensions; true concurrency on `VTask`, intent-documenting on sequential monads
+- [traverse/sequence/flatTraverse](functional/for_traverse.md) -- Bulk effectful operations within comprehension chains: apply an effectful function across a structure, flip `Structure<Effect<A>>` to `Effect<Structure<A>>`, or traverse-and-flatten in one step
+- [For-Comprehension Optics Integration](functional/for_optics.md) -- `through(Iso)` for type-safe value conversion in `For`; `traverseOver()`, `modifyThrough()`, `modifyVia()`, and `updateVia()` for optics-driven state operations in `ForState`
+- [Fold Combinators](optics/folds.md) -- `Fold.plus()`, `Fold.empty()`, and `Fold.sum()` forming a monoid on folds for multi-path data extraction
+- [Compile-Time Path Checks](tooling/compile_checks.md) -- `hkj-checker` javac plugin detecting Path type mismatches at compile time for `via`, `then`, `zipWith`, `zipWith3`, `recoverWith`, and `orElse`
+- [Build Plugins](tooling/gradle_plugin.md) -- `hkj-gradle-plugin` (one-line Gradle setup) and `hkj-maven-plugin` (Maven lifecycle extension) that auto-configure HKJ dependencies, `--enable-preview` flags, compile-time checking, and optional Spring Boot integration
+- [hkj-bom](tooling/gradle_plugin.md) -- Bill of Materials POM for version-aligned dependency management across all HKJ modules in both Gradle and Maven
+- [Diagnostics](tooling/diagnostics.md) -- `hkjDiagnostics` Gradle task and `mvn hkj:diagnostics` goal reporting active dependencies, compiler arguments, and checks
+- [VTaskPath Spring MVC](spring/spring_boot_integration.md) -- `VTaskPathReturnValueHandler` converting controller return values to async `DeferredResult` responses on virtual threads
+- [VStreamPath SSE](spring/spring_boot_integration.md) -- `VStreamPathReturnValueHandler` converting controller return values to Server-Sent Events with pull-based backpressure, no Reactor required
+- Dependency updates: Gradle 9.4.0, JUnit 6.0.3, Jackson 3.1.0, Spring Boot 4.0.3, jOOQ 3.20.11, javapoet 0.12.0, and others
+- Faster `FunctionValidator` and `KindValidator` with simplified implementation
+- Test reliability improvements: replaced `Thread.sleep` with Awaitility across test suite
+
+---
 
 ### [v0.3.6](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.6) -- 6 March 2026
 
