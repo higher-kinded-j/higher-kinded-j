@@ -21,6 +21,9 @@ public interface Monoids {
   /**
    * Returns a {@code Monoid} for {@link List}, where the combination is list concatenation and the
    * identity element is an empty list.
+   *
+   * @param <A> the element type of the list
+   * @return a Monoid for list concatenation
    */
   static <A> Monoid<List<A>> list() {
     return new Monoid<List<A>>() {
@@ -41,6 +44,9 @@ public interface Monoids {
   /**
    * Returns a {@code Monoid} for {@link Set}, where the combination is set union and the identity
    * element is an empty set.
+   *
+   * @param <A> the element type of the set
+   * @return a Monoid for set union
    */
   static <A> Monoid<Set<A>> set() {
     return new Monoid<Set<A>>() {
@@ -61,6 +67,8 @@ public interface Monoids {
   /**
    * Returns a {@code Monoid} for {@link String}, where the combination is concatenation and the
    * identity element is an empty string.
+   *
+   * @return a Monoid for string concatenation
    */
   static Monoid<String> string() {
     return new Monoid<String>() {
@@ -76,7 +84,11 @@ public interface Monoids {
     };
   }
 
-  /** Returns a {@code Monoid} for integer addition. Combination is `+`, identity is `0`. */
+  /**
+   * Returns a {@code Monoid} for integer addition. Combination is `+`, identity is `0`.
+   *
+   * @return a Monoid for integer addition
+   */
   static Monoid<Integer> integerAddition() {
     return new Monoid<Integer>() {
       @Override
@@ -91,7 +103,11 @@ public interface Monoids {
     };
   }
 
-  /** Returns a {@code Monoid} for integer multiplication. Combination is `*`, identity is `1`. */
+  /**
+   * Returns a {@code Monoid} for integer multiplication. Combination is `*`, identity is `1`.
+   *
+   * @return a Monoid for integer multiplication
+   */
   static Monoid<Integer> integerMultiplication() {
     return new Monoid<Integer>() {
       @Override
@@ -109,6 +125,8 @@ public interface Monoids {
   /**
    * Returns a {@code Monoid} for boolean conjunction ({@code &&}). Combination is {@code &&},
    * identity is {@code true}.
+   *
+   * @return a Monoid for boolean conjunction
    */
   static Monoid<Boolean> booleanAnd() {
     return new Monoid<Boolean>() {
@@ -127,6 +145,8 @@ public interface Monoids {
   /**
    * Returns a {@code Monoid} for boolean disjunction (`||`). Combination is `||`, identity is
    * `false`.
+   *
+   * @return a Monoid for boolean disjunction
    */
   static Monoid<Boolean> booleanOr() {
     return new Monoid<Boolean>() {
@@ -142,7 +162,11 @@ public interface Monoids {
     };
   }
 
-  /** Returns a {@code Monoid} for long addition. Combination is `+`, identity is `0L`. */
+  /**
+   * Returns a {@code Monoid} for long addition. Combination is `+`, identity is `0L`.
+   *
+   * @return a Monoid for long addition
+   */
   static Monoid<Long> longAddition() {
     return new Monoid<Long>() {
       @Override
@@ -157,7 +181,11 @@ public interface Monoids {
     };
   }
 
-  /** Returns a {@code Monoid} for long multiplication. Combination is `*`, identity is `1L`. */
+  /**
+   * Returns a {@code Monoid} for long multiplication. Combination is `*`, identity is `1L`.
+   *
+   * @return a Monoid for long multiplication
+   */
   static Monoid<Long> longMultiplication() {
     return new Monoid<Long>() {
       @Override
@@ -172,7 +200,11 @@ public interface Monoids {
     };
   }
 
-  /** Returns a {@code Monoid} for double addition. Combination is `+`, identity is `0.0`. */
+  /**
+   * Returns a {@code Monoid} for double addition. Combination is `+`, identity is `0.0`.
+   *
+   * @return a Monoid for double addition
+   */
   static Monoid<Double> doubleAddition() {
     return new Monoid<Double>() {
       @Override
@@ -187,7 +219,11 @@ public interface Monoids {
     };
   }
 
-  /** Returns a {@code Monoid} for double multiplication. Combination is `*`, identity is `1.0`. */
+  /**
+   * Returns a {@code Monoid} for double multiplication. Combination is `*`, identity is `1.0`.
+   *
+   * @return a Monoid for double multiplication
+   */
   static Monoid<Double> doubleMultiplication() {
     return new Monoid<Double>() {
       @Override

@@ -21,7 +21,7 @@ import org.jspecify.annotations.NullMarked;
  * {@code map} operation lets you apply that function to get {@code F<B>}, preserving the context:
  *
  * <pre>
- * F<A> + (A -> B) ──map──> F<B>
+ * F&lt;A&gt; + (A -&gt; B) ──map──&gt; F&lt;B&gt;
  * </pre>
  *
  * <h2>Common Examples</h2>

@@ -13,7 +13,7 @@ package org.higherkindedj.optics;
  * <p>This makes {@code Ixed} ideal for safe, partial access patterns where you want to modify an
  * element only if it exists, without the ability to insert or delete.
  *
- * <h3>Example Usage:</h3>
+ * <h2>Example Usage:</h2>
  *
  * <pre>{@code
  * // Create an Ixed instance for Map<String, Integer>

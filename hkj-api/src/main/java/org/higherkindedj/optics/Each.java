@@ -17,7 +17,7 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
  * Kind<F, A>}, Each works directly on concrete types, making it more convenient for everyday use
  * with standard Java collections.
  *
- * <h3>Relationship to Other Type Classes:</h3>
+ * <h2>Relationship to Other Type Classes:</h2>
  *
  * <ul>
  *   <li>{@link org.higherkindedj.hkt.Traverse} - HKT version for {@code Kind<F, A>}; Each wraps
@@ -27,7 +27,7 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
  *   <li>{@code Each} - Focuses on ALL elements at once
  * </ul>
  *
- * <h3>Example Usage:</h3>
+ * <h2>Example Usage:</h2>
  *
  * <pre>{@code
  * // Get an Each instance for List

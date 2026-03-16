@@ -16,7 +16,7 @@ import java.util.function.Function;
  * to {@link Optional#of(Object)} inserts or updates the entry. This makes {@code At} more powerful
  * than a simple indexed accessor.
  *
- * <h3>Example Usage:</h3>
+ * <h2>Example Usage:</h2>
  *
  * <pre>{@code
  * // Create an At instance for Map<String, Integer>

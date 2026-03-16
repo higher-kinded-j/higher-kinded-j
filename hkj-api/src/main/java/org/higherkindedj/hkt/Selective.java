@@ -347,7 +347,12 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
     return SimpleChoice.right(rightValue);
   }
 
-  /** Simple implementation of Choice for use in default methods. */
+  /**
+   * Simple implementation of Choice for use in default methods.
+   *
+   * @param <L> the left type
+   * @param <R> the right type
+   */
   final class SimpleChoice<L, R> implements Choice<L, R> {
     private final boolean isLeft;
     private final L left;
