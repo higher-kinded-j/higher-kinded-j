@@ -44,6 +44,15 @@ spotless = "8.3.0"
 openrewrite = "7.28.1"
 jmh-plugin = "0.7.3"
 
+# Annotation Processing
+avaje-spi = "2.16"
+
+# Optional library integrations
+eclipse-collections = "13.0.0"
+google-guava = "33.5.0-jre"
+apache-commons-collections4 = "4.5.0"
+vavr = "1.0.1"
+
 [libraries]
 # Core
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
@@ -114,6 +123,15 @@ javax-inject = { module = "javax.inject:javax.inject", version = "1" }
 
 # JOOQ
 jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
+
+# Annotation Processing
+avaje-spi = { module = "io.avaje:avaje-spi-service", version.ref="avaje-spi" }
+
+# Optional library integrations
+eclipse-collections = { module = "org.eclipse.collections:eclipse-collections", version.ref="eclipse-collections" }
+google-guava = { module = "com.google.guava:guava", version.ref = "google-guava" }
+apache-commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "apache-commons-collections4" }
+vavr = { module = "io.vavr:vavr", version.ref = "vavr" }
 
 [plugins]
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }

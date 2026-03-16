@@ -10,6 +10,17 @@ dependencies {
     implementation(project(":hkj-core"))
     implementation(libs.javapoet)
     implementation(libs.palantir.java.format)
+    /*
+     * The Avaje SPI (https://avaje.io/spi/) annotation processor help manage
+     *   SPI implementations. It does this by:
+     * 1. Automatically generating the META-INF/services files
+     * 2. Throwing a compile error if the `module-info` is missing an
+     *      implementation, with the error description containing
+     *      the full expected `provides` declaration that can be
+     *      copy and pasted into the `module-info.java` file
+     */
+    compileOnly(libs.avaje.spi)
+    annotationProcessor(libs.avaje.spi)
 
     testImplementation(libs.compile.testing)
     testImplementation(libs.truth)
@@ -18,6 +29,12 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.assertj.core)
+
+    // Optionally supported types
+    testImplementation(libs.eclipse.collections)
+    testImplementation(libs.google.guava)
+    testImplementation(libs.vavr)
+    testImplementation(libs.apache.commons.collections4)
 }
 
 tasks.test {
