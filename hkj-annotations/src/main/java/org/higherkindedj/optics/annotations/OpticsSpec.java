@@ -9,7 +9,7 @@ package org.higherkindedj.optics.annotations;
  * will analyse abstract methods and generate implementations based on their return types and
  * annotations.
  *
- * <h3>Generated Class Naming</h3>
+ * <h2>Generated Class Naming</h2>
  *
  * <p>The generated class name is derived from the spec interface name:
  *
@@ -22,7 +22,7 @@ package org.higherkindedj.optics.annotations;
  * <p><strong>Recommended convention:</strong> Name your spec interface with a "Spec" suffix for
  * cleaner generated class names.
  *
- * <h3>Method Annotations</h3>
+ * <h2>Method Annotations</h2>
  *
  * <p>Abstract methods must return an optic type ({@code Lens}, {@code Prism}, {@code Traversal},
  * etc.) and be annotated with a copy strategy or matching annotation:

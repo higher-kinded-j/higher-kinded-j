@@ -40,6 +40,7 @@ import java.lang.annotation.Target;
  * <p>The processor automatically maps the return type to the appropriate Path type:
  *
  * <table border="1">
+ *   <caption>Return type to Path type mapping</caption>
  *   <tr><th>Method Return Type</th><th>Generated Path Type</th></tr>
  *   <tr><td>{@code Optional<T>}</td><td>{@code OptionalPath<T>}</td></tr>
  *   <tr><td>{@code Maybe<T>}</td><td>{@code MaybePath<T>}</td></tr>

@@ -70,7 +70,7 @@ public @interface TraverseField {
    * <p>This should be a static field or method call that returns a {@code Traverse<F>} instance for
    * the Kind's witness type.
    *
-   * <h3>Examples</h3>
+   * <p><strong>Examples:</strong>
    *
    * <ul>
    *   <li>Enum singleton: {@code "com.example.TreeTraverse.INSTANCE"}
