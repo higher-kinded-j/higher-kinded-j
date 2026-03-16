@@ -1,19 +1,20 @@
-```
- _   _ _       _                      _   ___           _          _        ___
-| | | (_)     | |                    | | / (_)         | |        | |      |_  |
-| |_| |_  __ _| |__   ___ _ __ ______| |/ / _ _ __   __| | ___  __| |______  | |
-|  _  | |/ _` | '_ \ / _ \ '__|______|    \| | '_ \ / _` |/ _ \/ _` |______| | |
-| | | | | (_| | | | |  __/ |         | |\  \ | | | | (_| |  __/ (_| |    /\__/ /
-\_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/
-          __/ |
-         |___/
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="hkj-book/logos/HKJ%20Logo_05_Dark%20Theme.png">
+    <source media="(prefers-color-scheme: light)" srcset="hkj-book/logos/HKJ%20Logo_05_Light%20Theme.png">
+    <img alt="Higher-Kinded-J" src="hkj-book/logos/HKJ%20Logo_05_Light%20Theme.png" width="400">
+  </picture>
+</p>
 
-## _Unifying Composable Effects and Advanced Optics for Java_
+<h2 align="center" style="text-transform: uppercase; font-style: normal; font-weight: lighter; font-size: x-large; margin: 2em 0;">Unifying Composable Effects and Advanced Optics for Java</h2>
 
-[![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
-](https://github.com/higher-kinded-j/higher-kinded-j)
-[![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core)  [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
+<div align="center">
+  <a href="https://github.com/higher-kinded-j/higher-kinded-j"><img src="https://img.shields.io/badge/code-blue?logo=github" alt="GitHub Repository"></a>
+  <a href="https://codecov.io/gh/higher-kinded-j/higher-kinded-j"><img src="https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD" alt="Codecov Coverage"></a>
+  <a href="https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core"><img src="https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core" alt="Maven Central"></a>
+  <a href="https://github.com/higher-kinded-j/higher-kinded-j/discussions"><img src="https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j" alt="GitHub Discussions"></a>
+  <a href="https://techhub.social/@ultramagnetic"><img src="https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto" alt="Follow on Mastodon"></a>
+</div>
 
 
 Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **Effect Path API**, and type-safe immutable data navigation through the **Focus DSL**. Each is powerful alone. Together, they form a unified approach to building robust applications, where effects and structure compose seamlessly.

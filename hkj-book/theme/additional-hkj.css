@@ -259,6 +259,46 @@ html.mocha .sidebar .chapter > li.chapter-item > a:not(.active) { color: #89b4fa
 html.mocha .sidebar .chapter .section > li.chapter-item > a:not(.active) { color: #cba6f7 !important; } /* Mauve - Level 2 */
 html.mocha .sidebar .chapter .section .section > li.chapter-item > a:not(.active) { color: #94e2d5 !important; } /* Teal - Level 3 */
 
+/* ===== Home Page Title Hiding ===== */
+/* Hide the book title bar and any auto-generated h1 on the home page (identified by .hkj-logo) */
+body:has(.hkj-logo) .menu-title { visibility: hidden; }
+body:has(.hkj-logo) #content > main > h1:first-of-type { display: none; }
+
+/* ===== Strapline Styles (uses h3 theme colors) ===== */
+
+.hkj-strapline {
+    text-align: center;
+    text-transform: uppercase;
+    font-style: normal;
+    font-weight: lighter;
+    margin: 2em 0;
+}
+
+.hkj-strapline, .hkj-strapline a { font-size: x-large !important; }
+
+html.latte .hkj-strapline, html.latte .hkj-strapline a { color: #179299 !important; } /* Teal */
+html.frappe .hkj-strapline, html.frappe .hkj-strapline a { color: #81c8be !important; } /* Teal */
+html.macchiato .hkj-strapline, html.macchiato .hkj-strapline a { color: #8bd5ca !important; } /* Teal */
+html.mocha .hkj-strapline, html.mocha .hkj-strapline a { color: #94e2d5 !important; } /* Teal */
+
+/* ===== Theme-Aware Logo Styles ===== */
+
+/* Default: show light logo, hide dark logo */
+.hkj-logo-light { display: inline; }
+.hkj-logo-dark { display: none; }
+
+/* Frappe (dark theme) - show dark logo */
+html.frappe .hkj-logo-light { display: none; }
+html.frappe .hkj-logo-dark { display: inline; }
+
+/* Macchiato (dark theme) - show dark logo */
+html.macchiato .hkj-logo-light { display: none; }
+html.macchiato .hkj-logo-dark { display: inline; }
+
+/* Mocha (dark theme) - show dark logo */
+html.mocha .hkj-logo-light { display: none; }
+html.mocha .hkj-logo-dark { display: inline; }
+
 /* ===== Pipeline Diagram Styles ===== */
 
 .pipeline-diagram {
