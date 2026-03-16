@@ -30,6 +30,13 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
+// Only require signing when credentials are available (not in CI builds without secrets)
+tasks.withType<Sign>().configureEach {
+    isRequired = providers.environmentVariable("ORG_GRADLE_PROJECT_signingInMemoryKey")
+        .map { it.isNotBlank() }
+        .getOrElse(false)
+}
+
 // Generate version.properties so the plugin knows its own version at runtime
 val generateVersionProperties = tasks.register("generateVersionProperties") {
     val outputDir = layout.buildDirectory.dir("generated/resources/hkj")
