@@ -106,6 +106,7 @@ import org.jspecify.annotations.NullMarked;
  * <p>It's important to distinguish Bifunctor from {@link Profunctor}:
  *
  * <table border="1">
+ *   <caption>Bifunctor vs Profunctor comparison</caption>
  *   <tr>
  *     <th>Aspect</th>
  *     <th>Bifunctor</th>

@@ -497,6 +497,13 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    *   selective
    * );
    * }</pre>
+   *
+   * @param <F> the effect type witness
+   * @param predicate the predicate to test the new value against
+   * @param newValue the value to set if the predicate holds
+   * @param source the source object
+   * @param selective the Selective instance
+   * @return the source wrapped in {@code F}, potentially with the value updated
    */
   default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> setIf(
       Predicate<? super A> predicate, A newValue, S source, Selective<F> selective) {
@@ -521,6 +528,13 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    *   selective
    * );
    * }</pre>
+   *
+   * @param <F> the effect type witness
+   * @param shouldModify predicate that tests the current value
+   * @param modifier function to apply when the predicate holds
+   * @param source the source object
+   * @param selective the Selective instance
+   * @return the source wrapped in {@code F}, potentially modified
    */
   default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyWhen(
       Predicate<? super A> shouldModify,
@@ -549,6 +563,14 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    *   selective
    * );
    * }</pre>
+   *
+   * @param <F> the effect type witness
+   * @param predicate the predicate to branch on
+   * @param thenModifier modifier to apply when the predicate holds
+   * @param elseModifier modifier to apply when the predicate does not hold
+   * @param source the source object
+   * @param selective the Selective instance
+   * @return the source wrapped in {@code F}, modified by the appropriate branch
    */
   default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyBranch(
       Predicate<? super A> predicate,
