@@ -8,44 +8,41 @@ import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.
 
 import com.google.testing.compile.JavaFileObjects;
 import org.higherkindedj.optics.processing.TraversalProcessor;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class MapValueGeneratorIntegrationTest {
+@DisplayName("SetGenerator")
+public class SetGeneratorTest {
   @Test
-  void shouldGenerateCorrectTraversalForMapValue() {
+  @DisplayName("should generate correct traversal for Set fields")
+  void shouldGenerateCorrectTraversalForSet() {
     final var sourceFile =
         JavaFileObjects.forSourceString(
-            "com.example.Config",
+            "com.example.Article",
             """
             package com.example;
 
             import org.higherkindedj.optics.annotations.GenerateTraversals;
-            import java.util.Map;
+            import java.util.Set;
             import java.util.ArrayList;
-            import java.util.function.Function;
             import java.util.stream.Collectors;
-            import org.higherkindedj.hkt.Kind;
             import org.higherkindedj.optics.util.Traversals;
 
             @GenerateTraversals
-            public record Config(String id, Map<String, Integer> properties) {}
+            public record Article(long id, Set<String> keywords) {}
             """);
 
     final String expectedBody =
         """
-        final var sourceEntries = new ArrayList<>(source.properties().entrySet());
-        final Function<Map.Entry<String, Integer>, Kind<F, Map.Entry<String, Integer>>> entryF =
-            entry -> applicative.map(newValue -> Map.entry(entry.getKey(), newValue), f.apply(entry.getValue()));
-        final var effectOfEntries = Traversals.traverseList(sourceEntries, entryF, applicative);
-        final var effectOfMap = applicative.map(
-            newEntries -> newEntries.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
-            effectOfEntries);
-        return applicative.map(newMap -> new Config(source.id(), newMap), effectOfMap);
+        final var sourceList = new ArrayList<>(source.keywords());
+        final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
+        final var effectOfSet = applicative.map(newList -> newList.stream().collect(Collectors.toSet()), effectOfList);
+        return applicative.map(newSet -> new Article(source.id(), newSet), effectOfSet);
         """;
 
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
     assertThat(compilation).succeeded();
-    assertGeneratedCodeContains(compilation, "com.example.ConfigTraversals", expectedBody);
+    assertGeneratedCodeContains(compilation, "com.example.ArticleTraversals", expectedBody);
   }
 }

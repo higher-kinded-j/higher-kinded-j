@@ -15,6 +15,8 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 - **[Compile-Time Checks](compile_checks.md)** -- A javac plugin that detects Path type mismatches at compile time, preventing runtime `IllegalArgumentException` errors. Follows a strict no-false-positives policy.
 
 - **[Diagnostics](diagnostics.md)** -- The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
+
+- **[Traversal Generator Plugins](generator_plugins.md)** -- The 22 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and four third-party libraries. Includes a guide to writing your own generator for custom container types.
 ~~~
 
 ## Chapter Contents
@@ -22,6 +24,7 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 1. [Build Plugins](gradle_plugin.md) - One-line project setup for Gradle and Maven
 2. [Compile-Time Checks](compile_checks.md) - Path type mismatch detection
 3. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
+4. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
 
 ---
 

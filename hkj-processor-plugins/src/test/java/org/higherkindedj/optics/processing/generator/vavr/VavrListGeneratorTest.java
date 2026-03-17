@@ -8,10 +8,13 @@ import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.
 
 import com.google.testing.compile.JavaFileObjects;
 import org.higherkindedj.optics.processing.TraversalProcessor;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@DisplayName("VavrListGenerator")
 public class VavrListGeneratorTest {
   @Test
+  @DisplayName("should generate correct traversal for Vavr List fields")
   void shouldGenerateCorrectTraversal() {
     final var sourceFile =
         JavaFileObjects.forSourceString(

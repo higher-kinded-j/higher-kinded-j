@@ -8,34 +8,40 @@ import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.
 
 import com.google.testing.compile.JavaFileObjects;
 import org.higherkindedj.optics.processing.TraversalProcessor;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class ListGeneratorIntegrationTest {
+@DisplayName("ArrayGenerator")
+public class ArrayGeneratorTest {
   @Test
-  void shouldGenerateCorrectTraversalForList() {
+  @DisplayName("should generate correct traversal for Array fields")
+  void shouldGenerateCorrectTraversalForArray() {
     final var sourceFile =
         JavaFileObjects.forSourceString(
-            "com.example.Product",
+            "com.example.Game",
             """
             package com.example;
 
             import org.higherkindedj.optics.annotations.GenerateTraversals;
-            import java.util.List;
+            import java.util.Arrays;
+            import java.util.stream.Collectors;
             import org.higherkindedj.optics.util.Traversals;
 
             @GenerateTraversals
-            public record Product(String sku, List<String> tags) {}
+            public record Game(String name, String[] players) {}
             """);
 
     final String expectedBody =
         """
-        final var effectOfList = Traversals.traverseList(source.tags(), f, applicative);
-        return applicative.map(newList -> new Product(source.sku(), newList), effectOfList);
+        final var sourceList = Arrays.stream(source.players()).collect(Collectors.toList());
+        final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
+        final var effectOfArray = applicative.map(newList -> newList.toArray(size -> new String[size]), effectOfList);
+        return applicative.map(newArray -> new Game(source.name(), newArray), effectOfArray);
         """;
 
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
     assertThat(compilation).succeeded();
-    assertGeneratedCodeContains(compilation, "com.example.ProductTraversals", expectedBody);
+    assertGeneratedCodeContains(compilation, "com.example.GameTraversals", expectedBody);
   }
 }

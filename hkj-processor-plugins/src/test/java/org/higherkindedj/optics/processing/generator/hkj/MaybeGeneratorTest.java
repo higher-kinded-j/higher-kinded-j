@@ -8,32 +8,35 @@ import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.
 
 import com.google.testing.compile.JavaFileObjects;
 import org.higherkindedj.optics.processing.TraversalProcessor;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class ValidatedGeneratorIntegrationTest {
+@DisplayName("MaybeGenerator")
+public class MaybeGeneratorTest {
   @Test
-  void shouldGenerateCorrectTraversalForValidated() {
+  @DisplayName("should generate correct traversal for Maybe fields")
+  void shouldGenerateCorrectTraversalForMaybe() {
     final var sourceFile =
         JavaFileObjects.forSourceString(
-            "com.example.Input",
+            "com.example.QueryResult",
             """
             package com.example;
 
             import org.higherkindedj.optics.annotations.GenerateTraversals;
-            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.hkt.maybe.Maybe;
             import org.higherkindedj.hkt.Kind;
 
             @GenerateTraversals
-            public record Input(Validated<String, String> value) {}
+            public record QueryResult(Maybe<String> result) {}
             """);
 
     final String expectedBody =
         """
-        final Validated<String, String> validated = source.value();
-        if (validated.isValid()) {
-          final var g_of_b = f.apply(validated.get());
+        final Maybe<String> maybe = source.result();
+        if (maybe.isJust()) {
+          final var g_of_b = f.apply(maybe.get());
           @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, String>) g_of_b;
-          return applicative.map(newValue -> new Input(Validated.valid(newValue)), g_of_b_casted);
+          return applicative.map(newValue -> new QueryResult(Maybe.just(newValue)), g_of_b_casted);
         } else {
           return applicative.of(source);
         }
@@ -42,6 +45,6 @@ public class ValidatedGeneratorIntegrationTest {
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
     assertThat(compilation).succeeded();
-    assertGeneratedCodeContains(compilation, "com.example.InputTraversals", expectedBody);
+    assertGeneratedCodeContains(compilation, "com.example.QueryResultTraversals", expectedBody);
   }
 }
