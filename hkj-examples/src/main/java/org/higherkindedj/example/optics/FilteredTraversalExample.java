@@ -65,6 +65,7 @@ public class FilteredTraversalExample {
     demonstrateStaticCombinator();
     demonstrateFilterByNested();
     demonstrateFoldFiltering();
+    demonstrateFilteredAsFold();
   }
 
   private static void demonstrateBasicFiltering() {
@@ -297,5 +298,46 @@ public class FilteredTraversalExample {
     System.out.println("All expensive items are Electronics: " + allElectronics);
 
     System.out.println("\n=== Filtered optics enable declarative, composable data operations ===");
+  }
+
+  private static void demonstrateFilteredAsFold() {
+    System.out.println("--- Filtered Traversal to Fold: The Query Pipeline ---");
+
+    Traversal<List<User>, User> allUsers = Traversals.forList();
+
+    // Build a filtered traversal, then convert to Fold for read-only aggregation
+    Fold<List<User>, User> premiumFold =
+        allUsers.filtered(u -> u.tier() == SubscriptionTier.PREMIUM).asFold();
+
+    List<User> users =
+        List.of(
+            new User("Alice", true, 300, SubscriptionTier.PREMIUM),
+            new User("Bob", true, 150, SubscriptionTier.FREE),
+            new User("Charlie", false, 250, SubscriptionTier.PREMIUM),
+            new User("Diana", true, 180, SubscriptionTier.BASIC));
+
+    // Use the full Fold API on the filtered result
+    System.out.println(
+        "Premium users: " + premiumFold.getAll(users).stream().map(User::name).toList());
+    System.out.println("Premium count: " + premiumFold.length(users));
+
+    int totalPremiumScore = premiumFold.foldMap(Monoids.integerAddition(), User::score, users);
+    System.out.println("Total premium score: " + totalPremiumScore);
+
+    boolean allPremiumActive = premiumFold.all(User::active, users);
+    System.out.println("All premium users active: " + allPremiumActive);
+
+    // Chain: filtered traversal -> asFold -> andThen to extract a specific field
+    Lens<User, String> nameLens =
+        Lens.of(User::name, (u, n) -> new User(n, u.active(), u.score(), u.tier()));
+    Fold<List<User>, String> activePremiumNames =
+        allUsers
+            .filtered(User::active)
+            .filtered(u -> u.tier() == SubscriptionTier.PREMIUM)
+            .asFold()
+            .andThen(nameLens.asFold());
+
+    System.out.println("Active premium names: " + activePremiumNames.getAll(users));
+    System.out.println();
   }
 }

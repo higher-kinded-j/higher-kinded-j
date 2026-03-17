@@ -530,6 +530,154 @@ class TraversalTest {
   }
 
   @Nested
+  @DisplayName("asFold() - Conversion to Fold")
+  class AsFoldTests {
+
+    @Test
+    @DisplayName("asFold() getAll should return all focused elements")
+    void asFoldGetAll() {
+      Traversal<List<Street>, Street> listTraversal = listElements();
+      Fold<List<Street>, Street> fold = listTraversal.asFold();
+
+      List<Street> source = List.of(new Street("Elm"), new Street("Oak"), new Street("Pine"));
+      List<Street> result = fold.getAll(source);
+      assertThat(result).containsExactly(new Street("Elm"), new Street("Oak"), new Street("Pine"));
+    }
+
+    @Test
+    @DisplayName("asFold() getAll on empty list should return empty")
+    void asFoldGetAllEmpty() {
+      Traversal<List<Street>, Street> listTraversal = listElements();
+      Fold<List<Street>, Street> fold = listTraversal.asFold();
+
+      List<Street> result = fold.getAll(List.of());
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("asFold() exists should check focused elements")
+    void asFoldExists() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Fold<List<User>, User> fold = allUsers.asFold();
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      assertThat(fold.exists(User::active, users)).isTrue();
+      assertThat(fold.exists(u -> u.score() > 300, users)).isFalse();
+    }
+
+    @Test
+    @DisplayName("asFold() all should check all focused elements")
+    void asFoldAll() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Fold<List<User>, User> fold = allUsers.asFold();
+
+      List<User> allActive = List.of(new User("Alice", true, 100), new User("Charlie", true, 150));
+
+      List<User> mixed = List.of(new User("Alice", true, 100), new User("Bob", false, 200));
+
+      assertThat(fold.all(User::active, allActive)).isTrue();
+      assertThat(fold.all(User::active, mixed)).isFalse();
+    }
+
+    @Test
+    @DisplayName("asFold() length should count focused elements")
+    void asFoldLength() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Fold<List<User>, User> fold = allUsers.asFold();
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      assertThat(fold.length(users)).isEqualTo(3);
+      assertThat(fold.length(List.of())).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("asFold() preview should return first element")
+    void asFoldPreview() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Fold<List<User>, User> fold = allUsers.asFold();
+
+      List<User> users = List.of(new User("Alice", true, 100), new User("Bob", false, 200));
+
+      assertThat(fold.preview(users)).isPresent().hasValue(new User("Alice", true, 100));
+      assertThat(fold.preview(List.<User>of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("asFold() should compose with other folds via andThen")
+    void asFoldComposition() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Lens<User, String> nameLens =
+          Lens.of(User::name, (u, n) -> new User(n, u.active(), u.score()));
+
+      Fold<List<User>, String> namesFold = allUsers.asFold().andThen(nameLens.asFold());
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      List<String> names = namesFold.getAll(users);
+      assertThat(names).containsExactly("Alice", "Bob", "Charlie");
+    }
+
+    @Test
+    @DisplayName("asFold() on filtered traversal should only include matching elements")
+    void asFoldWithFiltered() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Traversal<List<User>, User> activeUsers = allUsers.filtered(User::active);
+      Fold<List<User>, User> fold = activeUsers.asFold();
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      List<User> result = fold.getAll(users);
+      assertThat(result).hasSize(2).extracting(User::name).containsExactly("Alice", "Charlie");
+    }
+
+    @Test
+    @DisplayName("asFold() can be used with plus to combine folds")
+    void asFoldWithPlus() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Lens<User, String> nameLens =
+          Lens.of(User::name, (u, n) -> new User(n, u.active(), u.score()));
+
+      // A fold for active user names, derived from a filtered traversal.
+      Fold<List<User>, String> activeNamesFold =
+          allUsers.filtered(User::active).asFold().andThen(nameLens.asFold());
+
+      // A fold for inactive user names.
+      Fold<List<User>, String> inactiveNamesFold =
+          allUsers.filtered(u -> !u.active()).asFold().andThen(nameLens.asFold());
+
+      // Combine them with plus(). The resulting fold will extract active names first, then
+      // inactive.
+      Fold<List<User>, String> allNamesFold = activeNamesFold.plus(inactiveNamesFold);
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      assertThat(allNamesFold.getAll(users)).containsExactly("Alice", "Charlie", "Bob");
+    }
+  }
+
+  @Nested
   @DisplayName("Selective Operations")
   class SelectiveOperations {
 

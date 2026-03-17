@@ -4,6 +4,7 @@ package org.higherkindedj.example.optics.cookbook;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
@@ -61,6 +62,7 @@ public class CompositionRecipes {
     recipeOptionalFieldAccess();
     recipeComplexComposition();
     recipeCombiningMultipleExtractionPaths();
+    recipeTraversalToFold();
   }
 
   /**
@@ -269,6 +271,67 @@ public class CompositionRecipes {
 
     System.out.println("All batch text: " + batchAllText.getAll(batch));
     System.out.println("Total text items: " + batchAllText.length(batch));
+    System.out.println();
+  }
+
+  /**
+   * Recipe: Traversal.asFold() for Read-Only Queries and Combination.
+   *
+   * <p>Pattern: Use Traversal for modifications, convert to Fold via asFold() for aggregation
+   * queries. The resulting Fold can be combined with other Folds via plus()/sum().
+   */
+  private static void recipeTraversalToFold() {
+    System.out.println("--- Recipe: Traversal.asFold() for Queries ---");
+
+    // Prism for Success variant
+    Prism<Result, Success> successPrism =
+        Prism.of(r -> r instanceof Success s ? Optional.of(s) : Optional.empty(), s -> s);
+
+    Lens<Success, String> valueLens = Lens.of(Success::value, (s, v) -> new Success(v, s.meta()));
+    Lens<Success, Metadata> metaLens = Lens.of(Success::meta, (s, m) -> new Success(s.value(), m));
+    Lens<Metadata, String> sourceLens =
+        Lens.of(Metadata::source, (m, src) -> new Metadata(src, m.timestamp()));
+
+    // Build a Traversal for all success values in a Batch
+    Lens<Batch, List<Result>> resultsLens =
+        Lens.of(Batch::results, (b, results) -> new Batch(b.batchId(), results));
+
+    Affine<Result, String> resultToValue = successPrism.andThen(valueLens);
+    Traversal<Batch, String> allSuccessValues =
+        resultsLens
+            .asTraversal()
+            .andThen(Traversals.<Result>forList().andThen(resultToValue.asTraversal()));
+
+    // Convert to Fold for read-only aggregation
+    Fold<Batch, String> successValuesFold = allSuccessValues.asFold();
+
+    Batch batch =
+        new Batch(
+            "B1",
+            List.of(
+                new Success("alpha", new Metadata("api", 1L)),
+                new Failure("error1"),
+                new Success("beta", new Metadata("db", 2L)),
+                new Success("gamma", new Metadata("cache", 3L))));
+
+    System.out.println("Success values: " + successValuesFold.getAll(batch));
+    System.out.println("Count: " + successValuesFold.length(batch));
+    System.out.println("Has 'beta': " + successValuesFold.exists(v -> v.equals("beta"), batch));
+
+    // Combine traversal-derived fold with another fold via plus()
+    Affine<Result, String> resultToSource = successPrism.andThen(metaLens).andThen(sourceLens);
+    Fold<Batch, String> sourcesFold =
+        resultsLens
+            .asTraversal()
+            .andThen(Traversals.<Result>forList().andThen(resultToSource.asTraversal()))
+            .asFold();
+
+    Fold<Batch, String> allStringsFold = successValuesFold.plus(sourcesFold);
+    System.out.println("All strings (values + sources): " + allStringsFold.getAll(batch));
+
+    // foldMap with a monoid on the traversal-derived fold
+    String concatenated = successValuesFold.foldMap(Monoids.string(), s -> s + " ", batch);
+    System.out.println("Concatenated values: " + concatenated.trim());
     System.out.println();
   }
 }

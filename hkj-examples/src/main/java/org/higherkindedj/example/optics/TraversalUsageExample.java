@@ -6,11 +6,14 @@ import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdSelective;
+import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -121,13 +124,55 @@ public class TraversalUsageExample {
     System.out.println("------------------------------------------");
     System.out.println("Original league unchanged: " + league);
 
+    asFoldAggregation();
     selectiveConditionalUpdate();
     selectiveBranchingUpdate();
   }
 
-  // --- NEW SCENARIO: Selective Conditional Updates ---
+  // --- SCENARIO: Converting Traversal to Fold for Read-Only Queries ---
+  private static void asFoldAggregation() {
+    System.out.println("--- Scenario 7: Traversal.asFold() for Aggregation ---");
+
+    var team1 = new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
+    var team2 =
+        new Team("Team Bravo", List.of(new Player("Charlie", 110), new Player("Diana", 120)));
+    var league = new League("Pro League", List.of(team1, team2));
+
+    // Build a traversal for all player scores
+    Traversal<League, Integer> scoreTraversal =
+        LeagueTraversals.teams()
+            .andThen(TeamTraversals.players())
+            .andThen(PlayerLenses.score().asTraversal());
+
+    // Convert to Fold when you only need read-only queries
+    Fold<League, Integer> scoreFold = scoreTraversal.asFold();
+
+    // Now use the full Fold API for aggregation and queries
+    int totalScore = scoreFold.foldMap(Monoids.integerAddition(), s -> s, league);
+    System.out.println("Total score across all players: " + totalScore);
+
+    int playerCount = scoreFold.length(league);
+    System.out.println("Number of players: " + playerCount);
+
+    Optional<Integer> topScore = scoreFold.preview(league);
+    System.out.println("First score: " + topScore.orElse(0));
+
+    boolean allAbove50 = scoreFold.all(s -> s > 50, league);
+    System.out.println("All scores above 50: " + allAbove50);
+
+    boolean anyAbove115 = scoreFold.exists(s -> s > 115, league);
+    System.out.println("Any score above 115: " + anyAbove115);
+
+    // Compose further: asFold() on a filtered traversal
+    Fold<League, Integer> highScoreFold = scoreTraversal.filtered(s -> s >= 110).asFold();
+    List<Integer> highScores = highScoreFold.getAll(league);
+    System.out.println("High scores (>= 110): " + highScores);
+    System.out.println();
+  }
+
+  // --- SCENARIO: Selective Conditional Updates ---
   private static void selectiveConditionalUpdate() {
-    System.out.println("--- Scenario 7: Selective Conditional Updates ---");
+    System.out.println("--- Scenario 8: Selective Conditional Updates ---");
 
     var team1 =
         new Team(
@@ -158,9 +203,9 @@ public class TraversalUsageExample {
     System.out.println();
   }
 
-  // --- NEW SCENARIO: Selective Branching ---
+  // --- SCENARIO: Selective Branching ---
   private static void selectiveBranchingUpdate() {
-    System.out.println("--- Scenario 8: Selective Branching Updates ---");
+    System.out.println("--- Scenario 9: Selective Branching Updates ---");
 
     var team =
         new Team(
