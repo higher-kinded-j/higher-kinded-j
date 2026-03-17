@@ -41,6 +41,9 @@ tasks.named<JavaCompile>("jmhCompileGeneratedClasses") {
 // Enable JUnit 6 for test discovery
 tasks.test {
   useJUnitPlatform()
+  // Benchmark assertion tests require JMH results to be present.
+  // Skip them during normal builds; run via benchmarkValidation or releaseReadiness.
+  onlyIf { project.file("${layout.buildDirectory.get()}/reports/jmh/results.json").exists() }
 }
 
 jmh {

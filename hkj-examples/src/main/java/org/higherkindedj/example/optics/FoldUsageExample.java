@@ -6,8 +6,11 @@ import java.util.*;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * Comprehensive example demonstrating Fold optics for read-only querying and data extraction.
@@ -152,6 +155,43 @@ public class FoldUsageExample {
             .filter(p -> "Electronics".equals(p.category()))
             .count();
     System.out.println("Electronics count: " + electronicsCount);
+
+    // --- SCENARIO 6: Traversal-Derived Folds ---
+    System.out.println("--- Scenario 6: Traversal-Derived Folds via asFold() ---");
+
+    // Build a Traversal for all items across all orders, then convert to Fold
+    Lens<OrderHistory, List<Order>> ordersLens =
+        Lens.of(OrderHistory::orders, (h, os) -> new OrderHistory(os));
+    Lens<Order, List<ProductItem>> itemsLens =
+        Lens.of(Order::items, (o, is) -> new Order(o.orderId(), is, o.customerName()));
+
+    Traversal<OrderHistory, ProductItem> allItemsTraversal =
+        ordersLens
+            .asTraversal()
+            .andThen(Traversals.<Order>forList())
+            .andThen(itemsLens.asTraversal())
+            .andThen(Traversals.forList());
+
+    // Convert to Fold — now we have the same query power as generated folds
+    Fold<OrderHistory, ProductItem> traversalDerivedFold = allItemsTraversal.asFold();
+
+    // These produce the same results as using the generated folds
+    List<ProductItem> allItems2 = traversalDerivedFold.getAll(history);
+    System.out.println("Products via traversal-derived fold: " + allItems2.size());
+
+    double total =
+        traversalDerivedFold.foldMap(Monoids.doubleAddition(), ProductItem::price, history);
+    System.out.println("Total via traversal-derived fold: £" + String.format("%.2f", total));
+
+    // Filter the traversal, then convert to Fold for targeted queries
+    Fold<OrderHistory, ProductItem> electronicsFold =
+        allItemsTraversal.filtered(p -> "Electronics".equals(p.category())).asFold();
+
+    int electronicsCount2 = electronicsFold.length(history);
+    double electronicsTotal =
+        electronicsFold.foldMap(Monoids.doubleAddition(), ProductItem::price, history);
+    System.out.println("Electronics count: " + electronicsCount2);
+    System.out.println("Electronics total: £" + String.format("%.2f", electronicsTotal));
 
     System.out.println("\n=== END OF EXAMPLE ===");
   }

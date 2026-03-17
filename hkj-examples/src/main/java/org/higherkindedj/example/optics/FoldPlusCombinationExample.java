@@ -9,6 +9,8 @@ import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * Demonstrates {@link Fold#plus}, {@link Fold#empty}, and {@link Fold#sum} for combining multiple
@@ -59,6 +61,7 @@ public class FoldPlusCombinationExample {
 
     demonstratBasicPlus();
     demonstrateLensPlusFold();
+    demonstrateTraversalAsFoldPlus();
     demonstrateSumMultiplePaths();
     demonstrateSealedInterfaceBranches();
     demonstrateMonoidAggregation();
@@ -103,6 +106,37 @@ public class FoldPlusCombinationExample {
 
     System.out.println("All team member names: " + allTeamNames.getAll(team));
     System.out.println("Total people: " + allTeamNames.length(team));
+    System.out.println();
+  }
+
+  /** Combine a Traversal-derived Fold with a Lens-derived Fold using plus(). */
+  private static void demonstrateTraversalAsFoldPlus() {
+    System.out.println("--- Traversal.asFold() + plus(): Lead and All Members ---");
+
+    // Lens-derived fold: the team lead's email (single value)
+    Fold<Team, String> leadEmailFold = teamLeadLens.asFold().andThen(employeeEmailLens.asFold());
+
+    // Traversal-derived fold: all member emails (multiple values)
+    Lens<Team, List<Employee>> teamMembersLens =
+        Lens.of(Team::members, (t, m) -> new Team(t.name(), t.lead(), m));
+    Traversal<Team, Employee> membersTraversal =
+        teamMembersLens.asTraversal().andThen(Traversals.forList());
+    Fold<Team, String> memberEmailsFold =
+        membersTraversal.asFold().andThen(employeeEmailLens.asFold());
+
+    // Combine: lead email + all member emails
+    Fold<Team, String> allTeamEmails = leadEmailFold.plus(memberEmailsFold);
+
+    Team team =
+        new Team(
+            "Platform",
+            new Employee("Alice", "alice@co"),
+            List.of(new Employee("Bob", "bob@co"), new Employee("Carol", "carol@co")));
+
+    System.out.println("Lead email: " + leadEmailFold.getAll(team));
+    System.out.println("Member emails: " + memberEmailsFold.getAll(team));
+    System.out.println("All team emails (combined): " + allTeamEmails.getAll(team));
+    System.out.println("Total emails: " + allTeamEmails.length(team));
     System.out.println();
   }
 

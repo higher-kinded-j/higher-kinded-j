@@ -523,6 +523,54 @@ List<String> names = allNames.getAll(team);
 
 ---
 
+## Recipe 10c: Traversal-Derived Folds for Read-Only Queries
+
+### Problem
+
+You have a `Traversal` built for modifications, but now need to perform read-only aggregation, counting, or existence checks on the same path.
+
+### Solution
+
+```java
+record Order(String id, List<LineItem> items) {}
+record LineItem(String product, int quantity, double price) {}
+
+// Existing traversal for modifications
+Traversal<Order, Double> allPrices =
+    OrderLenses.items().asTraversal()
+        .andThen(Traversals.forList())
+        .andThen(LineItemLenses.price().asTraversal());
+
+// Convert to fold for read-only queries
+Fold<Order, Double> pricesFold = allPrices.asFold();
+
+Order order = new Order("ORD-1", List.of(
+    new LineItem("Widget", 2, 29.99),
+    new LineItem("Gadget", 1, 149.99),
+    new LineItem("Gizmo", 3, 9.99)
+));
+
+// Aggregation with foldMap
+double total = pricesFold.foldMap(Monoids.doubleAddition(), p -> p, order);
+// Result: 189.97
+
+// Query operations
+boolean hasExpensive = pricesFold.exists(p -> p > 100.0, order);
+// Result: true
+
+boolean allAffordable = pricesFold.all(p -> p < 200.0, order);
+// Result: true
+
+int itemCount = pricesFold.length(order);
+// Result: 3
+```
+
+### Why It Works
+
+`Traversal.asFold()` reuses the traversal's `modifyF` with a `Const` applicative that accumulates monoidal values instead of modifying the structure. This gives you the full Fold API (`foldMap`, `exists`, `all`, `length`, `preview`, `plus`) whilst traversing the structure only once. Use this pattern when you need richer query operations than `Traversals.getAll()` provides, or when combining traversal paths with `Fold.plus()` for multi-path extraction.
+
+---
+
 ## Focus DSL Recipes
 
 The following recipes demonstrate the Focus DSL for more ergonomic optic usage.

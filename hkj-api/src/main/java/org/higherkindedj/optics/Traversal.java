@@ -6,6 +6,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
@@ -52,6 +53,42 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
   @Override
   <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
       Function<A, Kind<F, A>> f, S source, Applicative<F> applicative);
+
+  /**
+   * Converts this {@code Traversal} to a read-only {@link Fold}.
+   *
+   * <p>This is always possible because a {@code Traversal} can be viewed as a read-only query that
+   * focuses on zero or more elements. The resulting {@code Fold} discards the modification
+   * capability and retains only the ability to extract and aggregate focused parts.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Traversal<Order, Product> itemsTraversal = OrderTraversals.items();
+   * Fold<Order, Product> itemsFold = itemsTraversal.asFold();
+   *
+   * // Now use Fold operations like getAll, foldMap, exists, etc.
+   * List<Product> products = itemsFold.getAll(order);
+   * boolean hasExpensive = itemsFold.exists(p -> p.price() > 100, order);
+   * }</pre>
+   *
+   * @return A {@link Fold} that represents this {@code Traversal} as a read-only optic.
+   */
+  default Fold<S, A> asFold() {
+    Traversal<S, A> self = this;
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        // Use the Const applicative to accumulate monoidal values through modifyF.
+        // Each focused element A is mapped to M via f, and the Const applicative
+        // combines them using the monoid, discarding any structural modifications.
+        Applicative<ConstForFold.Witness<M>> constApp = ConstForFold.applicative(monoid);
+        Kind<ConstForFold.Witness<M>, S> result =
+            self.modifyF(a -> new ConstForFold<>(f.apply(a)), source, constApp);
+        return ConstForFold.narrow(result).value();
+      }
+    };
+  }
 
   /**
    * Composes this {@code Traversal<S, A>} with another {@code Traversal<A, B>} to create a new

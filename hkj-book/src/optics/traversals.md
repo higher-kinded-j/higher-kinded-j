@@ -7,6 +7,7 @@
 - Using `@GenerateTraversals` for automatic collection optics
 - Composing traversals with lenses and prisms for deep bulk updates
 - The `Traversals.modify()` and `Traversals.getAll()` utility methods
+- Converting a Traversal to a read-only Fold with `asFold()` for queries and aggregation
 - Understanding zero-or-more target semantics
 - When to use traversals vs streams vs manual loops for collection processing
 ~~~
@@ -833,6 +834,102 @@ For a fluent, comprehension-style API for traversal operations, see [Optics Inte
 
 ---
 
+## Converting to Read-Only Folds with `asFold()`
+
+### _Switching from Modification to Aggregation_
+
+Sometimes you build a `Traversal` for modification but later need the same path for read-only queries, aggregation, or combining with other folds. The `asFold()` method converts any `Traversal<S, A>` into a `Fold<S, A>`, giving you access to the full Fold API: `foldMap`, `exists`, `all`, `length`, `preview`, and more.
+
+### Why Convert?
+
+A `Traversal` already provides `getAll` (via `Traversals.getAll()`), but converting to a `Fold` unlocks:
+
+| Capability | Traversal | Fold (via `asFold()`) |
+|---|---|---|
+| Get all values | `Traversals.getAll()` | `getAll()` |
+| Monoidal aggregation | Not available | `foldMap(monoid, f, source)` |
+| Check existence | Not available | `exists(predicate, source)` |
+| Check all match | Not available | `all(predicate, source)` |
+| Count elements | Not available | `length(source)` |
+| Get first element | Not available | `preview(source)` |
+| Combine with other folds | Not available | `plus(otherFold)` |
+
+**Intent clarity** is also important: using a `Fold` signals to other developers that the code path is strictly read-only.
+
+### Basic Usage
+
+```java
+// Build a traversal to all player scores
+Traversal<League, Integer> allScores =
+    LeagueTraversals.teams()
+        .andThen(TeamTraversals.players())
+        .andThen(PlayerLenses.score().asTraversal());
+
+// Convert to a Fold for read-only queries
+Fold<League, Integer> scoresFold = allScores.asFold();
+
+// Now use the full Fold API
+int totalScore = scoresFold.foldMap(Monoids.integerAddition(), s -> s, league);
+boolean hasHighScorer = scoresFold.exists(s -> s > 100, league);
+boolean allPositive = scoresFold.all(s -> s > 0, league);
+int playerCount = scoresFold.length(league);
+Optional<Integer> firstScore = scoresFold.preview(league);
+```
+
+### Filtered Traversals as Folds
+
+Converting a filtered traversal to a fold is particularly useful for conditional queries:
+
+```java
+// Filtered traversal: only active players (score > 0)
+Traversal<League, Player> activePlayers =
+    LeagueTraversals.teams()
+        .andThen(TeamTraversals.players())
+        .filtered(p -> p.score() > 0);
+
+// Convert to fold for aggregation
+Fold<League, Player> activePlayersFold = activePlayers.asFold();
+int activeCount = activePlayersFold.length(league);
+boolean anyHighScorer = activePlayersFold
+    .andThen(PlayerLenses.score().asFold())
+    .exists(s -> s > 100, league);
+```
+
+### Combining with Other Folds Using `plus()`
+
+One of the most powerful patterns is combining a traversal-derived fold with other folds using `plus()` for multi-path extraction:
+
+```java
+// Fold from a traversal: all member emails
+Fold<Team, String> memberEmails =
+    TeamTraversals.players()
+        .andThen(PlayerLenses.email().asTraversal())
+        .asFold();
+
+// Fold from a lens: team lead email
+Fold<Team, String> leadEmail =
+    TeamLenses.lead().asFold()
+        .andThen(PlayerLenses.email().asFold());
+
+// Combine both paths into a single fold
+Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
+
+List<String> emails = allEmails.getAll(team);
+// Result: lead email followed by all member emails
+```
+
+### How It Works Internally
+
+The `asFold()` method leverages the existing `modifyF` infrastructure with a special `Const` applicative. Instead of modifying the structure, it accumulates monoidal values:
+
+1. Each focused element `A` is mapped to a monoidal value `M` via the provided function
+2. The `Const` applicative combines these values using the monoid, discarding structural modifications
+3. The final accumulated result is extracted
+
+This means `asFold()` traverses the structure exactly once, making it efficient even for deeply nested paths.
+
+---
+
 ## Unifying the Concepts
 
 A `Traversal` is the most general of the core optics. In fact, all other optics can be seen as specialised `Traversal`s:
@@ -844,7 +941,7 @@ A `Traversal` is the most general of the core optics. In fact, all other optics 
 This is the reason they can all be composed together so seamlessly. By mastering `Traversal`, you complete your understanding of the core optics family, enabling you to build powerful, declarative, and safe data transformations that work efficiently across any number of targets.
 
 ~~~admonish info title="Hands-On Learning"
-Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java) (7 exercises, ~10 minutes).
+Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java) (8 exercises, ~12 minutes).
 ~~~
 
 ---
