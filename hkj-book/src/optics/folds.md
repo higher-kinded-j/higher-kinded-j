@@ -924,7 +924,7 @@ String name = customerFold.getAll(order).get(0); // Just use order.customerName(
 // Fold<Order, Product> items = OrderFolds.items();
 // Order updated = items.set(newProduct, order); // ❌ No 'set' method!
 
-// Verbose: Unnecessary conversion when Traversal is already available
+// Verbose: Unnecessary conversion when you only need getAll
 Traversal<Order, Product> traversal = OrderTraversals.items();
 Fold<Order, Product> fold = traversal.asFold();
 List<Product> products = fold.getAll(order); // Just use Traversals.getAll() directly!
@@ -950,6 +950,12 @@ Order updated = Traversals.modify(itemsTraversal, this::applyDiscount, order);
 // Clear purpose: Use Fold when expressing query intent
 Fold<Order, Product> queryItems = OrderFolds.items();
 boolean hasExpensive = queryItems.exists(p -> p.price() > 1000, order);
+
+// Right time for asFold(): when you need foldMap, exists, all, plus, or length
+Fold<Order, Integer> quantitiesFold = OrderTraversals.items()
+    .andThen(ProductLenses.quantity().asTraversal())
+    .asFold();
+int totalQuantity = quantitiesFold.foldMap(Monoids.integerAddition(), q -> q, order);
 ```
 
 ---

@@ -9,8 +9,10 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -434,6 +436,66 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
+   * Exercise 8: Converting Traversal to Fold with asFold()
+   *
+   * <p>Use asFold() to convert a filtered Traversal into a read-only Fold, then use foldMap to
+   * compute an aggregate value.
+   *
+   * <p>Task: Get the total score of all active players using asFold() and foldMap
+   */
+  @Test
+  void exercise8_traversalAsFold() {
+    @GenerateLenses
+    record Player(String name, int score, boolean active) {}
+
+    @GenerateLenses
+    @GenerateTraversals
+    record Team(String name, List<Player> players) {}
+
+    // Manual implementations (simulating what annotation processors would create)
+    class PlayerLenses {
+      public static Lens<Player, Integer> score() {
+        return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore, p.active()));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
+
+    Team team =
+        new Team(
+            "Team Alpha",
+            List.of(
+                new Player("Alice", 120, true),
+                new Player("Bob", 80, false),
+                new Player("Charlie", 150, true),
+                new Player("Diana", 90, true)));
+
+    // TODO: Complete these steps:
+    // 1. Create a filtered traversal for active players only
+    // 2. Compose with the score lens to focus on scores
+    // 3. Convert to Fold using asFold()
+    // 4. Use foldMap with Monoids.integerAddition() to compute the total
+
+    // Hint: TeamTraversals.players().filtered(Player::active)
+    //           .andThen(PlayerLenses.score().asTraversal()).asFold()
+    Fold<Team, Integer> activeScoresFold = answerRequired();
+
+    int totalActiveScore = activeScoresFold.foldMap(Monoids.integerAddition(), s -> s, team);
+
+    // Alice(120) + Charlie(150) + Diana(90) = 360
+    assertThat(totalActiveScore).isEqualTo(360);
+
+    // Bonus: verify fold query methods work too
+    assertThat(activeScoresFold.length(team)).isEqualTo(3);
+    assertThat(activeScoresFold.all(s -> s > 50, team)).isTrue();
+    assertThat(activeScoresFold.exists(s -> s > 140, team)).isTrue();
+  }
+
+  /**
    * Congratulations! You've completed Tutorial 05: Traversal Basics
    *
    * <p>You now understand:
@@ -445,6 +507,7 @@ public class Tutorial05_TraversalBasics {
    *   <li>✓ How to filter elements with filtered()
    *   <li>✓ How to extract all values with getAll()
    *   <li>✓ How to apply complex conditional updates
+   *   <li>✓ How to convert Traversals to Folds for read-only aggregation
    *   <li>✓ When to use Traversals (bulk operations on collections)
    * </ul>
    *
