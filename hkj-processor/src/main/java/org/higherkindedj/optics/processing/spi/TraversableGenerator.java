@@ -23,6 +23,28 @@ public interface TraversableGenerator {
   boolean supports(TypeMirror type);
 
   /**
+   * Returns the cardinality of elements within this container type.
+   *
+   * <p>This determines the appropriate path type in the Focus DSL:
+   *
+   * <ul>
+   *   <li>{@link Cardinality#ZERO_OR_ONE} → {@code AffinePath} (for types like Optional, Maybe,
+   *       Either, Try, Validated)
+   *   <li>{@link Cardinality#ZERO_OR_MORE} → {@code TraversalPath} (for types like List, Set, Map,
+   *       arrays, and third-party collections)
+   * </ul>
+   *
+   * <p>The default implementation returns {@link Cardinality#ZERO_OR_MORE}, which is correct for
+   * most collection types. Generators for optional/either-like types should override this to return
+   * {@link Cardinality#ZERO_OR_ONE}.
+   *
+   * @return the cardinality of elements in this container type
+   */
+  default Cardinality getCardinality() {
+    return Cardinality.ZERO_OR_MORE;
+  }
+
+  /**
    * Returns the index of the type argument that this generator focuses on for traversal.
    *
    * <p>For most container types like {@code List<T>} or {@code Optional<T>}, this is 0 (the first

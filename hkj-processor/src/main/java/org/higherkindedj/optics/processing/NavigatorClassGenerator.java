@@ -16,6 +16,8 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
+import org.higherkindedj.optics.processing.spi.Cardinality;
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
  * Generates navigator wrapper classes for fluent cross-type navigation.
@@ -96,6 +98,7 @@ public class NavigatorClassGenerator {
   private final int maxDepth;
   private final Set<String> includeFields;
   private final Set<String> excludeFields;
+  private final List<TraversableGenerator> traversableGenerators;
 
   /**
    * Creates a new navigator class generator.
@@ -105,18 +108,21 @@ public class NavigatorClassGenerator {
    * @param maxDepth maximum depth for navigator chains
    * @param includeFields fields to include (empty means all)
    * @param excludeFields fields to exclude
+   * @param traversableGenerators SPI generators for recognising additional container types
    */
   public NavigatorClassGenerator(
       ProcessingEnvironment processingEnv,
       Set<String> navigableTypes,
       int maxDepth,
       String[] includeFields,
-      String[] excludeFields) {
+      String[] excludeFields,
+      List<TraversableGenerator> traversableGenerators) {
     this.processingEnv = processingEnv;
     this.navigableTypes = navigableTypes;
     this.maxDepth = Math.max(1, Math.min(10, maxDepth));
     this.includeFields = new HashSet<>(Arrays.asList(includeFields));
     this.excludeFields = new HashSet<>(Arrays.asList(excludeFields));
+    this.traversableGenerators = traversableGenerators != null ? traversableGenerators : List.of();
   }
 
   /** Returns the ClassName for a given PathKind. */
@@ -173,6 +179,15 @@ public class NavigatorClassGenerator {
         if (COLLECTION_TYPES.contains(ifaceElement.getQualifiedName().toString())) {
           return PathKind.TRAVERSAL;
         }
+      }
+    }
+
+    // Consult TraversableGenerator SPI for additional container types
+    for (TraversableGenerator generator : traversableGenerators) {
+      if (generator.supports(type)) {
+        return generator.getCardinality() == Cardinality.ZERO_OR_ONE
+            ? PathKind.AFFINE
+            : PathKind.TRAVERSAL;
       }
     }
 
@@ -614,8 +629,8 @@ public class NavigatorClassGenerator {
                   fieldName);
 
       // Determine the via method and conversion needed based on path widening
-      String viaStatement =
-          buildViaStatement(currentPathKind, widenedKind, targetFocusClass, fieldName);
+      final String viaStatement =
+          buildViaStatement(currentPathKind, widenedKind, fieldKind, targetFocusClass, fieldName);
 
       // Check if the field type is also navigable and we haven't exceeded depth
       if (currentDepth < maxDepth && isNavigableType(fieldType)) {
@@ -644,21 +659,22 @@ public class NavigatorClassGenerator {
 
   /** Builds the via statement for navigating from current path kind to the widened kind. */
   private String buildViaStatement(
-      PathKind currentKind, PathKind widenedKind, ClassName targetFocusClass, String fieldName) {
+      PathKind currentKind,
+      PathKind widenedKind,
+      PathKind fieldKind,
+      ClassName targetFocusClass,
+      String fieldName) {
     String baseVia =
         String.format("delegate.via(%s.%s().toLens())", targetFocusClass.simpleName(), fieldName);
 
-    // If the path kind is widening, we need to add conversion
-    if (currentKind == PathKind.FOCUS && widenedKind == PathKind.AFFINE) {
-      // FocusPath.via() with AffinePath widens to AffinePath - handled automatically by via()
-      // overloads
-      return baseVia;
-    } else if (currentKind == PathKind.FOCUS && widenedKind == PathKind.TRAVERSAL) {
-      // FocusPath to TraversalPath - use asTraversal()
+    // When the field introduces widening (e.g., SPI types like Either→AFFINE, Map→TRAVERSAL),
+    // the Focus static method still returns FocusPath (no widening in the static method), so
+    // .toLens() works. We then convert the result to the correct path type.
+    if (widenedKind == PathKind.TRAVERSAL && currentKind != PathKind.TRAVERSAL) {
       return baseVia + ".asTraversal()";
-    } else if (currentKind == PathKind.AFFINE && widenedKind == PathKind.TRAVERSAL) {
-      // AffinePath to TraversalPath - use asTraversal()
-      return baseVia + ".asTraversal()";
+    }
+    if (widenedKind == PathKind.AFFINE && currentKind == PathKind.FOCUS) {
+      return baseVia + ".asAffine()";
     }
 
     return baseVia;

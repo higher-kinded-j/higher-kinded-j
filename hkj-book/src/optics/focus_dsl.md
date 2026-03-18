@@ -17,7 +17,7 @@
 ~~~
 
 ~~~admonish title="Hands On Practice"
-[Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) | [Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java)
+[Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) | [Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) | [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
 ~~~
 
 ~~~admonish title="Example Code"
@@ -507,6 +507,60 @@ Optional<String> homeCity = UserFocus.homeAddress().city().getOptional(user);
 // workAddresses navigator methods return TraversalPath
 List<String> workCities = UserFocus.workAddresses().city().getAll(user);
 ```
+
+### SPI-Aware Navigator Path Widening
+
+The path widening table above covers `Optional`, `Maybe`, `List`, `Set`, and `Collection` types, which are recognised by hardcoded checks. However, many useful container types are registered through the `TraversableGenerator` SPI, and these are also recognised for navigator widening.
+
+Each SPI generator declares a `Cardinality` value that determines the navigator path type:
+
+| Cardinality | Navigator Path | Types |
+|-------------|---------------|-------|
+| `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>`, `Optional<A>`, `Maybe<A>` |
+| `ZERO_OR_MORE` | `TraversalPath` | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
+
+For example, a record with a `Map` field and an `Either` field:
+
+```java
+@GenerateFocus(generateNavigators = true)
+record Warehouse(String name, Map<String, Integer> inventory, Either<String, String> verifiedName) {}
+
+// inventory → TraversalPath (Map is ZERO_OR_MORE via MapValueGenerator SPI)
+List<Integer> quantities = WarehouseFocus.inventory().getAll(warehouse);
+
+// verifiedName → AffinePath (Either is ZERO_OR_ONE via EitherGenerator SPI)
+Optional<String> verified = WarehouseFocus.verifiedName().getOptional(warehouse);
+```
+
+#### Compound Widening
+
+When navigating through multiple container types, the path widens according to lattice rules:
+
+| Current | + Field | = Result |
+|---------|---------|----------|
+| FOCUS | AFFINE | AFFINE |
+| FOCUS | TRAVERSAL | TRAVERSAL |
+| AFFINE | AFFINE | AFFINE |
+| AFFINE | TRAVERSAL | TRAVERSAL |
+| TRAVERSAL | anything | TRAVERSAL |
+
+For instance, navigating through `Optional<Address>` (AFFINE) where `Address` has a `Map<String, String>` field (TRAVERSAL via SPI) produces a `TraversalPath`:
+
+```java
+@GenerateFocus(generateNavigators = true)
+record Company(String name, Optional<Address> backup) {}
+
+@GenerateFocus(generateNavigators = true)
+record Address(String street, Map<String, String> metadata) {}
+
+// Optional (AFFINE) + Map (TRAVERSAL via SPI) = TRAVERSAL
+TraversalPath<Company, String> metadataValues =
+    CompanyFocus.backup().metadata();  // Returns TraversalPath
+```
+
+~~~admonish note title="Custom Generators"
+If you write a custom `TraversableGenerator` for your own container type, override `getCardinality()` to return `ZERO_OR_ONE` for optional-like types. The default is `ZERO_OR_MORE`, which is correct for collection-like types. See [Traversal Generator Plugins](../tooling/generator_plugins.md) for details.
+~~~
 
 ### Controlling Navigator Generation
 
@@ -1485,7 +1539,7 @@ TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the Focus DSL in [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises, ~12 minutes) and [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises, ~12 minutes).
+Practice the Focus DSL in [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises, ~12 minutes), [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises, ~12 minutes), and [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) (7 exercises, ~10 minutes).
 ~~~
 
 ---

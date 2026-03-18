@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.focus;
 
-import org.higherkindedj.optics.Lens;
+import java.util.Map;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -97,17 +98,25 @@ public class NavigatorExample {
       includeFields = {"homeAddress"})
   public record Person(String name, Address homeAddress, Address workAddress) {}
 
-  // ============= Manual Lenses for Demonstration =============
+  // ============= Domain Model with SPI-Aware Navigator Widening =============
 
-  // These lenses simulate what the processor generates
-  static final Lens<Company, Address> companyHeadquartersLens =
-      Lens.of(Company::headquarters, (c, a) -> new Company(c.name(), a, c.employeeCount()));
-
-  static final Lens<Address, String> addressCityLens =
-      Lens.of(Address::city, (a, city) -> new Address(a.street(), city, a.postcode()));
-
-  static final Lens<Address, String> addressStreetLens =
-      Lens.of(Address::street, (a, street) -> new Address(street, a.city(), a.postcode()));
+  /**
+   * A warehouse with inventory tracked as a Map and a location address.
+   *
+   * <p>The {@code inventory} field is a {@code Map<String, Integer>}, which the SPI recognises via
+   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. Navigator methods for this
+   * field will return {@code TraversalPath} instead of {@code FocusPath}.
+   *
+   * <p>The {@code verifiedName} field is an {@code Either<String, String>}, which the SPI
+   * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. Navigator methods
+   * for this field will return {@code AffinePath} instead of {@code FocusPath}.
+   */
+  @GenerateFocus(generateNavigators = true)
+  public record Warehouse(
+      String name,
+      Map<String, Integer> inventory,
+      Either<String, String> verifiedName,
+      Address location) {}
 
   // ============= Examples =============
 
@@ -116,6 +125,7 @@ public class NavigatorExample {
 
     basicNavigatorUsage();
     navigatorDelegateMethods();
+    spiAwareNavigationExample();
     depthLimitingExample();
     fieldFilteringExample();
   }
@@ -142,21 +152,20 @@ public class NavigatorExample {
     Company company =
         new Company("Acme Corp", new Address("123 Main St", "London", "SW1A 1AA"), 100);
 
-    // Without navigators - explicit composition required
-    FocusPath<Company, Address> headquartersPath = FocusPath.of(companyHeadquartersLens);
-    FocusPath<Company, String> cityPathManual = headquartersPath.via(addressCityLens);
-    String cityManual = cityPathManual.get(company);
-    System.out.println("City (manual composition): " + cityManual);
+    // Without navigators - explicit composition with .via()
+    String cityManual =
+        CompanyFocus.headquarters().toPath().via(AddressFocus.city().toLens()).get(company);
+    System.out.println("City (manual .via() composition): " + cityManual);
 
-    // With navigators - the generated CompanyFocus.headquarters() returns a
-    // HeadquartersNavigator that has a city() method, enabling:
-    //
-    //   String city = CompanyFocus.headquarters().city().get(company);
-    //
-    // This example shows what the generated code enables.
-    // The navigator wraps the underlying FocusPath and delegates operations.
-    System.out.println("With navigators: CompanyFocus.headquarters().city().get(company)");
-    System.out.println("  -> Returns the city without explicit .via() call\n");
+    // With navigators - fluent cross-type navigation
+    String cityNavigator = CompanyFocus.headquarters().city().get(company);
+    System.out.println("City (navigator):                 " + cityNavigator);
+
+    // Navigate to a different field just as easily
+    String street = CompanyFocus.headquarters().street().get(company);
+    System.out.println("Street (navigator):               " + street);
+
+    System.out.println();
   }
 
   /**
@@ -177,29 +186,89 @@ public class NavigatorExample {
 
     Company company = new Company("TechCo", new Address("456 Oak Ave", "Manchester", "M1 1AA"), 50);
 
-    // Demonstrate the operations that navigators support
-    FocusPath<Company, Address> hqPath = FocusPath.of(companyHeadquartersLens);
+    // get() on the navigator - extract the nested Address
+    Address hq = CompanyFocus.headquarters().get(company);
+    System.out.println("get():    " + hq);
 
-    // get() - extract value
-    Address hq = hqPath.get(company);
-    System.out.println("get(): " + hq.city());
+    // set() on the navigator - replace the entire Address
+    Company movedCompany =
+        CompanyFocus.headquarters().set(new Address("789 New St", "Birmingham", "B1 1AA"), company);
+    System.out.println(
+        "set():    Moved to " + CompanyFocus.headquarters().get(movedCompany).city());
 
-    // set() - replace value
-    Company movedCompany = hqPath.set(new Address("789 New St", "Birmingham", "B1 1AA"), company);
-    System.out.println("set(): Moved to " + hqPath.get(movedCompany).city());
-
-    // modify() - transform value
+    // modify() on the navigator - transform the Address
     Company updatedCompany =
-        hqPath.modify(
-            addr -> new Address(addr.street().toUpperCase(), addr.city(), addr.postcode()),
-            company);
-    System.out.println("modify(): Street is now " + hqPath.get(updatedCompany).street());
+        CompanyFocus.headquarters()
+            .modify(
+                addr -> new Address(addr.street().toUpperCase(), addr.city(), addr.postcode()),
+                company);
+    System.out.println(
+        "modify(): Street is now " + CompanyFocus.headquarters().get(updatedCompany).street());
 
-    // With navigators, these same operations work on the nested path:
-    //   CompanyFocus.headquarters().city().get(company)
-    //   CompanyFocus.headquarters().city().set("Edinburgh", company)
-    //   CompanyFocus.headquarters().city().modify(String::toUpperCase, company)
-    System.out.println("\nNavigators enable the same operations on nested paths.\n");
+    // Navigated delegate methods work on nested paths too
+    FocusPath<Company, String> cityPath = CompanyFocus.headquarters().city();
+    System.out.println("Nested get():    " + cityPath.get(company));
+
+    Company renamedCity = cityPath.set("Edinburgh", company);
+    System.out.println("Nested set():    " + cityPath.get(renamedCity));
+
+    Company uppercasedCity = cityPath.modify(String::toUpperCase, company);
+    System.out.println("Nested modify(): " + cityPath.get(uppercasedCity));
+
+    System.out.println();
+  }
+
+  /**
+   * Demonstrates SPI-aware navigator path widening.
+   *
+   * <p>The {@code TraversableGenerator} SPI allows the processor to recognise container types
+   * beyond the hardcoded {@code Optional}, {@code Maybe}, {@code List}, {@code Set}, and {@code
+   * Collection}. Each SPI generator declares a {@code Cardinality}:
+   *
+   * <ul>
+   *   <li>{@code ZERO_OR_ONE} (Either, Try, Validated) → navigator returns {@code AffinePath}
+   *   <li>{@code ZERO_OR_MORE} (Map, arrays, third-party collections) → navigator returns {@code
+   *       TraversalPath}
+   * </ul>
+   *
+   * <p>This means navigators correctly handle SPI-registered types without falling back to {@code
+   * FocusPath}:
+   *
+   * <pre>{@code
+   * // Map<String, Integer> field → TraversalPath (via MapValueGenerator SPI)
+   * WarehouseFocus.inventory()  // Returns TraversalPath<Warehouse, Integer>
+   *
+   * // Either<String, String> field → AffinePath (via EitherGenerator SPI)
+   * WarehouseFocus.verifiedName()  // Returns AffinePath<Warehouse, String>
+   * }</pre>
+   */
+  static void spiAwareNavigationExample() {
+    System.out.println("--- SPI-Aware Navigator Path Widening ---");
+
+    Warehouse warehouse =
+        new Warehouse(
+            "Central",
+            Map.of("widgets", 100, "gadgets", 50),
+            Either.right("Verified Central"),
+            new Address("10 Dock Rd", "Bristol", "BS1 1AA"));
+
+    // location is a plain record field → navigator returns FocusPath delegates
+    String locationCity = WarehouseFocus.location().city().get(warehouse);
+    System.out.println("location().city():    " + locationCity);
+
+    Warehouse movedWarehouse = WarehouseFocus.location().city().set("Cardiff", warehouse);
+    System.out.println(
+        "After set(Cardiff):   " + WarehouseFocus.location().city().get(movedWarehouse));
+
+    // Standard Focus fields on Warehouse for non-navigable types
+    String name = WarehouseFocus.name().get(warehouse);
+    System.out.println("name():               " + name);
+
+    System.out.println();
+    System.out.println("SPI cardinality summary:");
+    System.out.println("  ZERO_OR_ONE  → AffinePath:    Either, Try, Validated, Optional, Maybe");
+    System.out.println("  ZERO_OR_MORE → TraversalPath:  Map, List, Set, Collection");
+    System.out.println();
   }
 
   /**
@@ -212,26 +281,46 @@ public class NavigatorExample {
    * @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
    * record Organisation(Division mainDivision) {}
    *
-   * // Depth 1: Returns DivisionNavigator
+   * // Depth 1: Returns MainDivisionNavigator (has nested navigators)
    * OrganisationFocus.mainDivision()
    *
-   * // Depth 2: Returns FocusPath (not a navigator)
+   * // Depth 2: Returns DepartmentNavigator (delegate methods only, no deeper navigators)
    * OrganisationFocus.mainDivision().department()
    *
-   * // Beyond depth: Use .via() for further navigation
-   * OrganisationFocus.mainDivision().department().via(DepartmentFocus.managerName().toLens())
+   * // Use .toPath() to access the underlying FocusPath for .via() composition
+   * OrganisationFocus.mainDivision().department().toPath().via(DepartmentFocus.managerName().toLens())
    * }</pre>
    */
   static void depthLimitingExample() {
     System.out.println("--- Depth Limiting ---");
 
-    System.out.println("With maxNavigatorDepth = 2:");
-    System.out.println("  Depth 1: OrganisationFocus.mainDivision() -> DivisionNavigator");
-    System.out.println("  Depth 2: .department() -> FocusPath<Organisation, Department>");
-    System.out.println("  Beyond: Use .via(DepartmentFocus.managerName().toLens())\n");
+    Department engineering = new Department("Engineering", "Alice");
+    Division rd = new Division("R&D", engineering);
+    Organisation org = new Organisation("Acme Corp", rd);
 
-    // This prevents excessive code generation for deeply nested structures
-    // while still allowing navigation via explicit composition.
+    // Depth 1: mainDivision() returns a MainDivisionNavigator
+    String divisionName = OrganisationFocus.mainDivision().name().get(org);
+    System.out.println("Depth 1 - division name: " + divisionName);
+
+    // Depth 2: department() returns a DepartmentNavigator with delegate methods
+    // but no further nested navigators (depth exhausted)
+    Department dept = OrganisationFocus.mainDivision().department().get(org);
+    System.out.println("Depth 2 - department:    " + dept.name());
+
+    // Access leaf fields directly through the navigator's delegate methods
+    String deptName = OrganisationFocus.mainDivision().department().name().get(org);
+    System.out.println("Depth 2 - dept name:     " + deptName);
+
+    // Or use .toPath() to get the underlying FocusPath for .via() composition
+    String manager =
+        OrganisationFocus.mainDivision()
+            .department()
+            .toPath()
+            .via(DepartmentFocus.managerName().toLens())
+            .get(org);
+    System.out.println("Via toPath().via():       " + manager);
+
+    System.out.println();
   }
 
   /**
@@ -261,11 +350,24 @@ public class NavigatorExample {
   static void fieldFilteringExample() {
     System.out.println("--- Field Filtering ---");
 
-    System.out.println("With includeFields = {\"homeAddress\"}:");
+    Address home = new Address("1 Home Lane", "Oxford", "OX1 1AA");
+    Address work = new Address("2 Office St", "Reading", "RG1 1AA");
+    Person person = new Person("Bob", home, work);
+
+    // homeAddress has a navigator (included in includeFields)
+    String homeCity = PersonFocus.homeAddress().city().get(person);
+    System.out.println("homeAddress (navigator): " + homeCity);
+
+    // workAddress returns plain FocusPath (not in includeFields)
+    FocusPath<Person, Address> workPath = PersonFocus.workAddress();
+    String workCity = workPath.via(AddressFocus.city().toLens()).get(person);
+    System.out.println("workAddress (via()):     " + workCity);
+
+    // Modify through the navigator
+    Person movedPerson = PersonFocus.homeAddress().city().set("Cambridge", person);
     System.out.println(
-        "  PersonFocus.homeAddress() -> HomeAddressNavigator (has city(), street())");
-    System.out.println("  PersonFocus.workAddress() -> FocusPath<Person, Address> (no navigator)");
-    System.out.println(
-        "\nExcludeFields works similarly - excluded fields get standard FocusPath.\n");
+        "After move home:         " + PersonFocus.homeAddress().city().get(movedPerson));
+
+    System.out.println();
   }
 }

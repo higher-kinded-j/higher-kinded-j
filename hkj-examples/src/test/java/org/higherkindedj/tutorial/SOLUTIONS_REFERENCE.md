@@ -981,3 +981,52 @@ int totalAge = leadAgeFold.plus(memberAgesFold).foldMap(sumMonoid, age -> age, t
 ```java
 Fold<Team, String> categorisedNames = seniorNames.plus(juniorNames);
 ```
+
+### Tutorial 19: Navigator Generation
+
+**Exercise 1:**
+```java
+FocusPath<Company, String> cityPath = FocusPath.of(companyHqLens).via(addressCityLens);
+String city = cityPath.get(acme);
+```
+
+**Exercise 2:**
+```java
+Company relocated = cityPath.set("Edinburgh", acme);
+Company shouted = cityPath.modify(String::toUpperCase, acme);
+```
+
+**Exercise 3:**
+```java
+AffinePath<Organisation, Address> officePath = FocusPath.of(orgOfficeLens).some();
+Optional<Address> presentAddress = officePath.getOptional(org);
+Optional<Address> absentAddress = officePath.getOptional(noOffice);
+```
+
+**Exercise 4:**
+```java
+TraversalPath<Department, String> allMembers = FocusPath.of(membersLens).each();
+List<String> names = allMembers.getAll(engineering);
+Department shouted = allMembers.modifyAll(String::toUpperCase, engineering);
+```
+
+**Exercise 5:**
+```java
+TraversalPath<Warehouse, Integer> allQuantities = FocusPath.of(warehouseInventoryLens).each(EachInstances.mapValuesEach());
+List<Integer> quantities = allQuantities.getAll(warehouse);
+```
+
+**Exercise 6:**
+```java
+AffinePath<Team, Department> deptPath = FocusPath.of(deptLens).some();
+TraversalPath<Team, String> allMembers = deptPath.via(membersLens).each();
+List<String> members = allMembers.getAll(team);
+List<String> noMembers = allMembers.getAll(emptyTeam);
+```
+
+**Exercise 7:**
+```java
+FocusPath<University, String> deepCityPath = FocusPath.of(campusLens).via(buildingLens).via(addressLens).via(addressCityLens);
+String city = deepCityPath.get(oxford);
+University moved = deepCityPath.set("Cambridge", oxford);
+```

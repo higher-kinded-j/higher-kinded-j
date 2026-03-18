@@ -173,6 +173,18 @@ public interface TraversableGenerator {
     boolean supports(TypeMirror type);
 
     /**
+     * Declares the cardinality of elements in this container type.
+     * Used by navigator generation to determine the correct path type:
+     *   ZERO_OR_ONE  → AffinePath  (Optional, Either, Try, Validated)
+     *   ZERO_OR_MORE → TraversalPath (List, Map, arrays, third-party collections)
+     *
+     * Default is ZERO_OR_MORE, which is correct for collection-like types.
+     */
+    default Cardinality getCardinality() {
+        return Cardinality.ZERO_OR_MORE;
+    }
+
+    /**
      * Which type argument to focus on (0-indexed).
      * Default is 0. Override to 1 for types like Either<L, R>
      * where the traversal focuses on the second argument.
@@ -191,6 +203,10 @@ public interface TraversableGenerator {
         List<? extends RecordComponentElement> allComponents);
 }
 ```
+
+~~~admonish note title="Cardinality and Navigator Generation"
+The `getCardinality()` method influences both `@GenerateTraversals` and `@GenerateFocus(generateNavigators = true)`. When the Focus processor generates navigator classes, it consults each SPI generator's cardinality to determine whether a field should produce an `AffinePath` (zero or one element) or a `TraversalPath` (zero or more elements). Without this, SPI-registered types would default to `FocusPath`, losing the correct widening semantics.
+~~~
 
 ### Step-by-Step Example
 
@@ -291,6 +307,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
+- **Override `getCardinality()`** to return `Cardinality.ZERO_OR_ONE` for optional-like types (e.g. `Either`, `Try`, `Validated`). The default `ZERO_OR_MORE` is correct for collection-like types and does not need overriding.
 - **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements.
 
 ---
@@ -300,6 +317,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type
+* **Cardinality drives navigator widening**: `ZERO_OR_ONE` produces `AffinePath`; `ZERO_OR_MORE` produces `TraversalPath` in generated navigators
 ~~~
 
 ~~~admonish tip title="See Also"

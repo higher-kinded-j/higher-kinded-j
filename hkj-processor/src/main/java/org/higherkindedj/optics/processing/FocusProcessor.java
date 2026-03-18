@@ -5,16 +5,14 @@ package org.higherkindedj.optics.processing;
 import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.Processor;
-import javax.annotation.processing.RoundEnvironment;
-import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
+import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -30,6 +28,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
  * Annotation processor for {@link GenerateFocus} that generates Focus DSL utility classes.
@@ -91,6 +90,15 @@ public class FocusProcessor extends AbstractProcessor {
 
   /** Creates a new FocusProcessor. */
   public FocusProcessor() {}
+
+  private final List<TraversableGenerator> traversableGenerators = new ArrayList<>();
+
+  @Override
+  public synchronized void init(ProcessingEnvironment processingEnv) {
+    super.init(processingEnv);
+    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
+        .forEach(traversableGenerators::add);
+  }
 
   /** ClassName for FocusPath (in hkj-core, not available at processor compile time). */
   private static final ClassName FOCUS_PATH_CLASS =
@@ -189,7 +197,12 @@ public class FocusProcessor extends AbstractProcessor {
     if (generateNavigators) {
       navigatorGenerator =
           new NavigatorClassGenerator(
-              processingEnv, navigableTypes, maxNavigatorDepth, includeFields, excludeFields);
+              processingEnv,
+              navigableTypes,
+              maxNavigatorDepth,
+              includeFields,
+              excludeFields,
+              traversableGenerators);
     }
 
     // Generate FocusPath methods for each component
