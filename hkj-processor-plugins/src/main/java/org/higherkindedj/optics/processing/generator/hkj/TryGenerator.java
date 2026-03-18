@@ -16,6 +16,7 @@ import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
+import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
@@ -34,6 +35,11 @@ public class TryGenerator extends BaseTraversableGenerator {
     }
     final Element element = declaredType.asElement();
     return element.toString().equals(FQN_TRY);
+  }
+
+  @Override
+  public Cardinality getCardinality() {
+    return Cardinality.ZERO_OR_ONE;
   }
 
   @Override

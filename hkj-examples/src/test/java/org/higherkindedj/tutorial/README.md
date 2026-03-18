@@ -207,6 +207,14 @@ Combining multiple folds into one:
 - Monoid-based aggregation across combined folds
 - Combining filtered folds for categorised results
 
+### Tutorial 19: Navigator Generation (~10 minutes)
+Fluent cross-type navigation with generated navigators:
+- Navigator delegation: wrapping FocusPath with get/set/modify
+- Path widening through Optional (AffinePath) and collections (TraversalPath)
+- SPI-aware widening for Map, Either, Try, and Validated via Cardinality
+- Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
+- Depth limiting with `maxNavigatorDepth` and fallback to `.via()`
+
 ## MTL Tutorial Series
 
 ### Tutorial 02: MTL Basics (~35 minutes)

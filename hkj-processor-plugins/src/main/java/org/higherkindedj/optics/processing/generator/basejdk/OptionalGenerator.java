@@ -16,6 +16,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
+import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
@@ -36,6 +37,11 @@ public class OptionalGenerator extends BaseTraversableGenerator {
     if (!(type instanceof DeclaredType declaredType)) return false;
     final Element element = declaredType.asElement();
     return element.toString().equals(FQN_OPTIONAL);
+  }
+
+  @Override
+  public Cardinality getCardinality() {
+    return Cardinality.ZERO_OR_ONE;
   }
 
   @Override

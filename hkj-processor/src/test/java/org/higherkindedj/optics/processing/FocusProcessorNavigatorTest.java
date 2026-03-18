@@ -513,6 +513,240 @@ public class FocusProcessorNavigatorTest {
   }
 
   @Nested
+  @DisplayName("SPI-Aware Navigator Path Widening")
+  class SpiAwareNavigatorPathWidening {
+
+    @Test
+    @DisplayName("should widen navigator field to TraversalPath for Map fields via SPI")
+    void shouldWidenNavigatorFieldToTraversalPathForMapViaSpi() {
+      // When a navigator's target record has a Map field, the navigation method for that
+      // field should return TraversalPath (Map is recognised via MapValueGenerator SPI)
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Map;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Map<String, String> metadata) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      // Inside HeadquartersNavigator, the metadata() method should return TraversalPath
+      // because Map is recognised as ZERO_OR_MORE by the SPI
+      final String expectedMetadataTraversal =
+          """
+          public TraversalPath<S, Map<String, String>> metadata() {
+          """;
+
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", expectedMetadataTraversal);
+    }
+
+    @Test
+    @DisplayName("should widen navigator field to AffinePath for Either fields via SPI")
+    void shouldWidenNavigatorFieldToAffinePathForEitherViaSpi() {
+      // When a navigator's target record has an Either field, the navigation method should
+      // return AffinePath (Either is recognised via EitherGenerator SPI with ZERO_OR_ONE)
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.hkt.either.Either;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Either<String, String> validated) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      // Inside HeadquartersNavigator, the validated() method should return AffinePath
+      // because Either is recognised as ZERO_OR_ONE by the SPI
+      final String expectedEitherAffine =
+          """
+          public AffinePath<S, Either<String, String>> validated() {
+          """;
+
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedEitherAffine);
+    }
+
+    @Test
+    @DisplayName("should widen navigator field to AffinePath for Try fields via SPI")
+    void shouldWidenNavigatorFieldToAffinePathForTryViaSpi() {
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.hkt.trymonad.Try;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Try<String> verifiedCity) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      final String expectedTryAffine =
+          """
+          public AffinePath<S, Try<String>> verifiedCity() {
+          """;
+
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedTryAffine);
+    }
+
+    @Test
+    @DisplayName("should widen navigator field to AffinePath for Validated fields via SPI")
+    void shouldWidenNavigatorFieldToAffinePathForValidatedViaSpi() {
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.hkt.validated.Validated;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Validated<String, String> checkedCity) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      final String expectedValidatedAffine =
+          """
+          public AffinePath<S, Validated<String, String>> checkedCity() {
+          """;
+
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedValidatedAffine);
+    }
+
+    @Test
+    @DisplayName("should widen SPI AFFINE and TRAVERSAL fields within the same navigator")
+    void shouldWidenMultipleSpiFieldsWithinNavigator() {
+      // A navigable record with both AFFINE (Either) and TRAVERSAL (Map) SPI fields.
+      // Inside the navigator, each field should have the correct widened return type.
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.hkt.either.Either;
+              import java.util.Map;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(
+                  String street,
+                  Either<String, String> validated,
+                  Map<String, String> metadata) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      // Inside HeadquartersNavigator (FOCUS delegate):
+      // validated() should be AffinePath (Either is ZERO_OR_ONE via SPI)
+      final String expectedEitherAffine =
+          """
+          public AffinePath<S, Either<String, String>> validated() {
+          """;
+
+      // metadata() should be TraversalPath (Map is ZERO_OR_MORE via SPI)
+      final String expectedMapTraversal =
+          """
+          public TraversalPath<S, Map<String, String>> metadata() {
+          """;
+
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedEitherAffine);
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedMapTraversal);
+    }
+  }
+
+  @Nested
   @DisplayName("Javadoc Generation")
   class JavadocGeneration {
 

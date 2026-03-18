@@ -16,6 +16,7 @@ import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
+import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 @ServiceProvider(TraversableGenerator.class)
@@ -30,6 +31,11 @@ public class EitherGenerator extends BaseTraversableGenerator {
     }
     final Element element = declaredType.asElement();
     return element != null && element.toString().equals(FQN_EITHER);
+  }
+
+  @Override
+  public Cardinality getCardinality() {
+    return Cardinality.ZERO_OR_ONE;
   }
 
   @Override

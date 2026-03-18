@@ -8,7 +8,7 @@
 - Kind field support and type class integration
 ~~~
 
-**Duration**: ~22 minutes | **Tutorials**: 2 | **Exercises**: 18
+**Duration**: ~32 minutes | **Tutorials**: 3 | **Exercises**: 25
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
 
@@ -148,11 +148,53 @@ TraversalPath<User, Role> allRolesPath = rolesKindPath
 
 ---
 
+## Tutorial 19: Navigator Generation (~10 minutes)
+**File**: `Tutorial19_NavigatorGeneration.java` | **Exercises**: 7
+
+Learn how generated navigators enable fluent cross-type navigation, and how SPI-aware path widening determines the correct path type for container fields.
+
+**What you'll learn**:
+- Navigator delegation: wrapping FocusPath with get/set/modify
+- Path widening through Optional (AffinePath) and List (TraversalPath)
+- SPI-aware widening for Map, Either, Try, and Validated via Cardinality
+- Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
+- Depth limiting with `maxNavigatorDepth` and fallback to `.via()`
+
+**Key insight**: The `TraversableGenerator` SPI declares a `Cardinality` for each container type. Navigator generation consults this cardinality to select `AffinePath` (ZERO_OR_ONE) or `TraversalPath` (ZERO_OR_MORE), so types like `Map`, `Either`, and `Try` are handled correctly without hardcoding.
+
+**Compound widening rules**:
+```
+FOCUS    + AFFINE    = AFFINE
+FOCUS    + TRAVERSAL = TRAVERSAL
+AFFINE   + AFFINE    = AFFINE
+AFFINE   + TRAVERSAL = TRAVERSAL
+TRAVERSAL + anything = TRAVERSAL
+```
+
+**Example**:
+```java
+@GenerateFocus(generateNavigators = true)
+record Company(String name, Optional<Address> backup) {}
+
+@GenerateFocus(generateNavigators = true)
+record Address(String street, Map<String, String> metadata) {}
+
+// Optional (AFFINE) + Map (TRAVERSAL via SPI) = TRAVERSAL
+TraversalPath<Company, String> values = CompanyFocus.backup().metadata();
+```
+
+**Links to documentation**: [Focus DSL](../../optics/focus_dsl.md) | [Traversal Generator Plugins](../../tooling/generator_plugins.md)
+
+[Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
+
+---
+
 ## Running the Tutorials
 
 ```bash
 ./gradlew :hkj-examples:test --tests "*Tutorial12_FocusDSL*"
 ./gradlew :hkj-examples:test --tests "*Tutorial13_AdvancedFocusDSL*"
+./gradlew :hkj-examples:test --tests "*Tutorial19_NavigatorGeneration*"
 ```
 
 ---
