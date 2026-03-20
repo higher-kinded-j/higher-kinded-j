@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */
-@DisplayName("Tutorial 18: SPI Type Navigation")
+@DisplayName("Tutorial 20: Container Navigation")
 public class Tutorial20_ContainerNavigation {
 
   /** Helper method for incomplete exercises that throws a clear exception. */
