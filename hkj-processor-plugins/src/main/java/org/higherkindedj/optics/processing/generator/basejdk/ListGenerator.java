@@ -6,6 +6,7 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -31,6 +32,16 @@ public class ListGenerator extends BaseTraversableGenerator {
     if (!(type instanceof DeclaredType declaredType)) return false;
     final Element element = declaredType.asElement();
     return element.toString().equals(FQN_LIST);
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "EachInstances.listEach()";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
   @Override

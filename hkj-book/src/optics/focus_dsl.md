@@ -7,7 +7,8 @@
 - Using `@GenerateFocus` to generate path builders automatically
 - **Fluent cross-type navigation** with generated navigators (no `.via()` needed)
 - The difference between `FocusPath`, `AffinePath`, and `TraversalPath`
-- Collection navigation with `.each()`, `.each(Each)`, `.at()`, `.some()`, `.nullable()`, and `.traverseOver()`
+- Collection navigation with `.each()`, `.each(Each)`, `.at()`, `.some()`, `.some(Affine)`, `.nullable()`, and `.traverseOver()`
+- **Custom container types**: automatic `AffinePath` and `TraversalPath` generation for `Either`, `Try`, `Validated`, `Map`, arrays, and your own types
 - **Seamless nullable field handling** with `@Nullable` annotation detection
 - Type class integration: effectful operations, monoid aggregation, and Traverse support
 - Working with sum types using `instanceOf()` and conditional modification with `modifyWhen()`
@@ -21,7 +22,7 @@
 ~~~
 
 ~~~admonish title="Example Code"
-[NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) | [TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
+[NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) | [ContainerNavigationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java) | [TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
 ~~~
 
 The Focus DSL provides a fluent, path-based syntax for working with optics. Instead of manually composing lenses, prisms, and traversals, you can navigate through your data structures using intuitive method chains that mirror the shape of your data.
@@ -298,6 +299,44 @@ AffinePath<Employee, String> emailPath = EmployeeFocus.email();
 // Internally uses .some() to unwrap the Optional
 Optional<String> email = emailPath.getOptional(employee);
 ```
+
+### `.some(Affine)` - Navigate SPI Container Types
+
+For container types registered via the `TraversableGenerator` SPI that hold zero or one element, provide an `Affine` instance to focus on the contained value:
+
+```java
+import org.higherkindedj.optics.util.Affines;
+
+// Either<String, Integer> field - focus on the Right value
+record Config(int port, Either<String, Integer> timeout) {}
+
+Lens<Config, Either<String, Integer>> timeoutLens =
+    Lens.of(Config::timeout, (c, t) -> new Config(c.port(), t));
+
+AffinePath<Config, Integer> timeoutPath =
+    FocusPath.of(timeoutLens).some(Affines.eitherRight());
+
+// Get: returns Optional.of(30) for Right(30), Optional.empty() for Left("disabled")
+Optional<Integer> value = timeoutPath.getOptional(config);
+
+// Set: replaces the Right value, no-op if Left
+Config updated = timeoutPath.set(60, config);
+```
+
+The following `Affine` instances are provided for built-in SPI types:
+
+| Container type | Affine instance | Focuses on |
+|----------------|-----------------|------------|
+| `Either<L, R>` | `Affines.eitherRight()` | The `Right` value |
+| `Try<A>` | `Affines.trySuccess()` | The `Success` value |
+| `Validated<E, A>` | `Affines.validatedValid()` | The `Valid` value |
+| `Maybe<A>` | `Affines.just()` | The `Just` value |
+
+When `@GenerateFocus` is used on a record with these field types, the generated Focus methods automatically call `.some(...)` with the appropriate `Affine`, producing an `AffinePath`.
+
+~~~admonish tip title="See Also"
+For a runnable example covering all container types, see [ContainerNavigationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java).
+~~~
 
 ### List Decomposition with `.via()`
 
@@ -1020,8 +1059,234 @@ public final class EmployeeFocus {
     public static AffinePath<Employee, Skill> skill(int index) {
         return FocusPath.of(EmployeeLenses.skills()).at(index);
     }
+
+    // Either<String, Integer> field -> AffinePath (SPI widening with .some(Affine))
+    public static AffinePath<Employee, Integer> timeout() {
+        return FocusPath.of(EmployeeLenses.timeout()).some(Affines.eitherRight());
+    }
+
+    // Map<String, Integer> field -> TraversalPath (SPI widening with .each(Each))
+    public static TraversalPath<Employee, Integer> scores() {
+        return FocusPath.of(EmployeeLenses.scores()).each(EachInstances.mapValuesEach());
+    }
 }
 ```
+
+---
+
+## Custom Container Types
+
+The Focus DSL automatically recognises `Optional`, `List`, and `Set` fields. But what about `Either`, `Try`, `Map`, or your own container types?
+
+Every container type holds its values in one of two ways: it either wraps *at most one* value (like `Either`, which holds a success *or* a failure), or it holds *zero or more* values (like `Map`, which holds a collection of entries). The Focus DSL calls this the container's **cardinality**, and it determines the generated path type:
+
+- **Zero or one** (e.g., `Either<L, R>`, `Try<A>`, `Validated<E, A>`) produces an `AffinePath`, the value may or may not be present.
+- **Zero or more** (e.g., `Map<K, V>`, `T[]`) produces a `TraversalPath`, there may be many values to iterate over.
+
+The `TraversableGenerator` SPI lets any container type participate in this path widening. When `@GenerateFocus` encounters a registered container field, it generates the correct `AffinePath` or `TraversalPath` automatically, with no manual composition needed.
+
+### How It Works
+
+For a record with an `Either` field:
+
+```java
+@GenerateFocus
+record ApiResponse(int status, Either<String, UserData> body) {}
+```
+
+The processor generates:
+
+```java
+// body() returns AffinePath, not FocusPath, because Either is a ZERO_OR_ONE container
+public static AffinePath<ApiResponse, UserData> body() {
+    return FocusPath.of(Lens.of(ApiResponse::body, ...)).some(Affines.eitherRight());
+}
+```
+
+The `.some(Affines.eitherRight())` call composes an `Affine` that focuses on the `Right` value, widening the path from `FocusPath` to `AffinePath`. For `ZERO_OR_MORE` SPI types (like `Map`), the static Focus method returns `FocusPath` for backwards compatibility — users call `.each(EachInstances.mapValuesEach())` manually to widen to `TraversalPath`. Navigator methods, however, widen automatically.
+
+### Supported Container Types
+
+The tables below show both the **navigator path** (the return type when navigating through a navigator chain) and the **static Focus method** return type (the type returned by a top-level `XxxFocus.field()` call). These differ for `ZERO_OR_MORE` SPI types — see the note after the tables.
+
+#### HKJ and JDK types
+
+| Container | Cardinality | Navigator path | Static Focus method | Optic used |
+|-----------|-------------|---------------|---------------------|------------|
+| `Either<L, R>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.eitherRight()` |
+| `Try<A>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.trySuccess()` |
+| `Validated<E, A>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.validatedValid()` |
+| `Maybe<A>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.just()` |
+| `Optional<A>` | Zero or one | `AffinePath` | `AffinePath` | `.some()` (built-in) |
+| `Map<K, V>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `EachInstances.mapValuesEach()` |
+| `T[]` (arrays) | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `EachInstances.arrayEach()` |
+| `List<A>` | Zero or more | `TraversalPath` | `TraversalPath` | `.each()` (built-in) |
+| `Set<A>` | Zero or more | `TraversalPath` | `TraversalPath` | `.each()` (built-in) |
+
+¹ SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Call `.each(eachInstance)` to widen manually.
+
+#### Eclipse Collections
+
+| Container | Cardinality | Navigator path | Static Focus method | Optic used |
+|-----------|-------------|---------------|---------------------|------------|
+| `ImmutableList<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Lists.immutable.ofAll(list))` |
+| `MutableList<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Lists.mutable.ofAll(list))` |
+| `ImmutableSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Sets.immutable.ofAll(list))` |
+| `MutableSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Sets.mutable.ofAll(list))` |
+| `ImmutableBag<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Bags.immutable.ofAll(list))` |
+| `MutableBag<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Bags.mutable.ofAll(list))` |
+| `ImmutableSortedSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> SortedSets.immutable.ofAll(list))` |
+| `MutableSortedSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> SortedSets.mutable.ofAll(list))` |
+
+#### Guava, Vavr, and Apache Commons
+
+| Container | Library | Cardinality | Navigator path | Static Focus method | Optic used |
+|-----------|---------|-------------|---------------|---------------------|------------|
+| `ImmutableList<A>` | Guava | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(ImmutableList::copyOf)` |
+| `ImmutableSet<A>` | Guava | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(ImmutableSet::copyOf)` |
+| `io.vavr.collection.List<A>` | Vavr | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> List.ofAll(list))` |
+| `io.vavr.collection.Set<A>` | Vavr | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> HashSet.ofAll(list))` |
+| `HashBag<A>` | Apache Commons | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(HashBag::new)` |
+| `UnmodifiableList<A>` | Apache Commons | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(UnmodifiableList::new)` |
+
+All third-party generators use `EachInstances.fromIterableCollecting(collector)` — a generic factory that iterates the container, traverses elements with the applicative functor, and reconstructs the container via the provided collector function. No additional modules are needed; the user's project already has the third-party library on the classpath since it declared the container type in its record.
+
+~~~admonish note title="ZERO_OR_MORE static method behaviour"
+For `ZERO_OR_MORE` SPI types (all collection-like containers above), the static Focus method returns `FocusPath` — not `TraversalPath`. This preserves backwards compatibility. To traverse manually, call `.each(eachInstance)`:
+
+```java
+// Static method returns FocusPath<AssetClass, ImmutableList<Position>>
+var positions = AssetClassFocus.positions();
+
+// Manually widen to TraversalPath
+TraversalPath<AssetClass, Position> traversal = positions.each(
+    EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
+```
+
+Navigator generation handles `ZERO_OR_MORE` automatically — navigator methods for third-party collection fields return `TraversalPath` without manual widening.
+~~~
+
+### Cross-Ecosystem Navigation
+
+Real-world Java projects often mix collection libraries: JDK collections for standard code, Eclipse Collections for high-performance immutable data, HKJ types (`Either`, `Try`, `Validated`) for typed error handling. The Focus DSL navigates across all of these with a single annotation.
+
+Consider a portfolio risk analysis domain where different subsystems use different libraries:
+
+```java
+@GenerateFocus(generateNavigators = true)
+record Position(
+    String ticker,
+    int quantity,
+    Optional<StopLoss> stopLoss,                   // JDK Optional  → AffinePath
+    Either<PricingError, MarketPrice> livePrice     // HKJ Either    → AffinePath
+) {}
+
+@GenerateFocus(generateNavigators = true)
+record AssetClass(
+    String className,
+    ImmutableList<Position> positions,              // Eclipse Collections → TraversalPath
+    Try<ValuationResult> latestValuation,           // HKJ Try            → AffinePath
+    Map<String, Double> exposures                   // JDK Map            → TraversalPath
+) {}
+
+@GenerateFocus(generateNavigators = true)
+record Portfolio(
+    String portfolioId,
+    ImmutableList<AssetClass> holdings,             // Eclipse Collections → TraversalPath
+    Validated<List<String>, RiskReport> risk,       // HKJ Validated      → AffinePath
+    Either<ComplianceViolation, Approval> status    // HKJ Either         → AffinePath
+) {}
+```
+
+The generated navigators compose across all three ecosystems in a single fluent chain:
+
+```java
+// Extract all tickers across all asset classes
+// Path: Eclipse ImmutableList (TRAVERSAL) → Eclipse ImmutableList (TRAVERSAL)
+List<String> tickers = Traversals.getAll(
+    PortfolioFocus.holdings().positions().ticker().toTraversal(), portfolio);
+
+// Extract all successful live prices
+// Path: Eclipse ImmutableList → Eclipse ImmutableList → HKJ Either (AFFINE → TRAVERSAL)
+List<MarketPrice> prices = Traversals.getAll(
+    PortfolioFocus.holdings().positions().livePrice().toTraversal(), portfolio);
+
+// Extract all stop-loss configurations (filtering absent ones)
+// Path: Eclipse ImmutableList → Eclipse ImmutableList → JDK Optional (AFFINE → TRAVERSAL)
+List<StopLoss> stopLosses = Traversals.getAll(
+    PortfolioFocus.holdings().positions().stopLoss().toTraversal(), portfolio);
+```
+
+The path kind propagates through the chain: `FOCUS → TRAVERSAL → TRAVERSAL → AFFINE = TRAVERSAL`. Each navigator method returns the correctly widened path type, with no manual composition needed. ZERO_OR_MORE SPI containers (like Eclipse Collections `ImmutableList`) are automatically traversed using the SPI-generated `.each()` optic.
+
+See the [PortfolioRiskExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/PortfolioRiskExample.java) for a complete runnable demonstration with 5 progressive scenarios.
+
+### Registering Your Own Container Types
+
+Third-party libraries can register their own container types by implementing `TraversableGenerator` and registering it via `META-INF/services`.
+
+**Step 1: Implement the SPI interface**
+
+```java
+package com.example.optics;
+
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import java.util.Set;
+
+public class ResultGenerator extends BaseTraversableGenerator {
+
+    @Override
+    public String supportedTypeName() {
+        return "com.example.Result";
+    }
+
+    @Override
+    public Cardinality getCardinality() {
+        return Cardinality.ZERO_OR_ONE;  // Result holds zero or one success value
+    }
+
+    @Override
+    public int getFocusTypeArgumentIndex() {
+        return 1;  // Result<E, A> focuses on A (index 1)
+    }
+
+    @Override
+    public String generateOpticExpression() {
+        return "ResultAffines.success()";  // Java expression returning an Affine
+    }
+
+    @Override
+    public Set<String> getRequiredImports() {
+        return Set.of("com.example.optics.ResultAffines");
+    }
+
+    // ... implement remaining methods from BaseTraversableGenerator
+}
+```
+
+**Step 2: Register via `META-INF/services`**
+
+Create the file `src/main/resources/META-INF/services/org.higherkindedj.optics.processing.spi.TraversableGenerator`:
+
+```
+com.example.optics.ResultGenerator
+```
+
+**Step 3: Module system configuration** (if using JPMS)
+
+```java
+module com.example.optics {
+    requires org.higherkindedj.processor;
+    provides org.higherkindedj.optics.processing.spi.TraversableGenerator
+        with com.example.optics.ResultGenerator;
+}
+```
+
+Once registered, any `@GenerateFocus` record with a `Result<E, A>` field will automatically generate an `AffinePath` that calls `.some(ResultAffines.success())`.
+
+~~~admonish info title="Hands-On Learning"
+Practice container type navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~12 minutes).
+~~~
 
 ---
 
@@ -1539,7 +1804,7 @@ TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the Focus DSL in [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises, ~12 minutes), [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises, ~12 minutes), and [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) (7 exercises, ~10 minutes).
+Practice the Focus DSL in [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises, ~12 minutes), [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises, ~12 minutes), [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) (7 exercises, ~10 minutes), and [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~12 minutes).
 ~~~
 
 ---

@@ -84,6 +84,7 @@ import org.higherkindedj.hkt.WitnessArity;
  *
  * @param <S> The source type of the whole structure (e.g., {@code UserProfile}).
  * @param <A> The target type of the focused part (e.g., {@code String} for the email value).
+ * @since 0.3.8
  */
 public interface Affine<S, A> extends Optic<S, S, A, A> {
 

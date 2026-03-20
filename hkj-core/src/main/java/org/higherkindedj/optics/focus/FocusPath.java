@@ -440,6 +440,33 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
   }
 
   /**
+   * Composes this path with an affine that focuses on zero or one element within the focused value.
+   *
+   * <p>This is a semantic alias for {@link #via(Affine)} that signals the intent of navigating into
+   * a container type that holds zero or one element, such as {@code Either}, {@code Try}, {@code
+   * Validated}, or {@code Maybe}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Navigate into an Either field
+   * FocusPath<Order, Either<Error, Payment>> paymentPath = OrderFocus.paymentResult();
+   * AffinePath<Order, Payment> payment = paymentPath.some(Affines.eitherRight());
+   *
+   * // Navigate into a Try field
+   * FocusPath<Config, Try<Settings>> settingsPath = ConfigFocus.settings();
+   * AffinePath<Config, Settings> settings = settingsPath.some(Affines.trySuccess());
+   * }</pre>
+   *
+   * @param affine the affine for accessing the inner value
+   * @param <B> the inner value type
+   * @return an AffinePath focusing on the inner value
+   */
+  default <B> AffinePath<S, B> some(Affine<A, B> affine) {
+    return via(affine);
+  }
+
+  /**
    * When the focused type may be null, creates an AffinePath that safely handles null values.
    *
    * <p>This is useful for working with legacy APIs or records that use null to represent absent

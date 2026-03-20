@@ -10,6 +10,7 @@ import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -42,6 +43,16 @@ public class OptionalGenerator extends BaseTraversableGenerator {
   @Override
   public Cardinality getCardinality() {
     return Cardinality.ZERO_OR_ONE;
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "Affines.some()";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("org.higherkindedj.optics.util.Affines");
   }
 
   @Override

@@ -5,12 +5,21 @@ package org.higherkindedj.optics.processing.spi;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.TypeMirror;
 
 /**
  * A Service Provider Interface (SPI) for generating Traversal implementations. Implement this
  * interface to add support for new traversable container types to the TraversalProcessor.
+ *
+ * <p>Implementations may also override the default methods {@link #getCardinality()}, {@link
+ * #generateOpticExpression()}, and {@link #getRequiredImports()} to participate in Focus DSL path
+ * widening. When these methods are overridden, the FocusProcessor and NavigatorClassGenerator will
+ * automatically select the correct path type ({@code AffinePath} or {@code TraversalPath}) and
+ * generate the appropriate composition call ({@code .some(affine)} or {@code .each(each)}).
+ *
+ * @since 0.3.8
  */
 public interface TraversableGenerator {
 
@@ -55,6 +64,29 @@ public interface TraversableGenerator {
    */
   default int getFocusTypeArgumentIndex() {
     return 0;
+  }
+
+  /**
+   * Returns a Java source expression that creates the optic instance for composing into a Focus
+   * path chain.
+   *
+   * <p>For ZERO_OR_ONE types, this should return an expression producing an {@code Affine}. For
+   * ZERO_OR_MORE types, this should return an expression producing an {@code Each}.
+   *
+   * @return a valid Java source expression, e.g. {@code "Affines.eitherRight()"}
+   */
+  default String generateOpticExpression() {
+    return "";
+  }
+
+  /**
+   * Returns the fully qualified class names that must be imported for the optic expression to
+   * compile.
+   *
+   * @return set of fully qualified class names (defaults to empty)
+   */
+  default Set<String> getRequiredImports() {
+    return Set.of();
   }
 
   /**

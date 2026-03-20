@@ -7,7 +7,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Affine;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -473,6 +476,174 @@ class AffinesTest {
       boolean result = Affines.matches(someAffine, source);
 
       assertFalse(result);
+    }
+  }
+
+  // ============================================================================
+  // eitherRight() Tests
+  // ============================================================================
+
+  @Nested
+  @DisplayName("eitherRight() tests")
+  class EitherRightTests {
+
+    @Test
+    @DisplayName("getOptional should return value when Either is Right")
+    void getOptionalWhenRight() {
+      Affine<Either<String, Integer>, Integer> rightAffine = Affines.eitherRight();
+      var source = Either.<String, Integer>right(42);
+
+      Optional<Integer> result = rightAffine.getOptional(source);
+
+      assertTrue(result.isPresent());
+      assertEquals(42, result.get());
+    }
+
+    @Test
+    @DisplayName("getOptional should return empty when Either is Left")
+    void getOptionalWhenLeft() {
+      Affine<Either<String, Integer>, Integer> rightAffine = Affines.eitherRight();
+      var source = Either.<String, Integer>left("error");
+
+      Optional<Integer> result = rightAffine.getOptional(source);
+
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("set should wrap value in Either.right()")
+    void setWrapsInRight() {
+      Affine<Either<String, Integer>, Integer> rightAffine = Affines.eitherRight();
+      var source = Either.<String, Integer>right(42);
+
+      var result = rightAffine.set(100, source);
+
+      assertTrue(result.isRight());
+      assertEquals(100, result.getRight());
+    }
+
+    @Test
+    @DisplayName("set on Left should return Right with new value")
+    void setOnLeftReturnsRight() {
+      Affine<Either<String, Integer>, Integer> rightAffine = Affines.eitherRight();
+      var source = Either.<String, Integer>left("error");
+
+      var result = rightAffine.set(100, source);
+
+      assertTrue(result.isRight());
+      assertEquals(100, result.getRight());
+    }
+  }
+
+  // ============================================================================
+  // trySuccess() Tests
+  // ============================================================================
+
+  @Nested
+  @DisplayName("trySuccess() tests")
+  class TrySuccessTests {
+
+    @Test
+    @DisplayName("getOptional should return value when Try is Success")
+    void getOptionalWhenSuccess() {
+      Affine<Try<Integer>, Integer> successAffine = Affines.trySuccess();
+      var source = Try.success(42);
+
+      Optional<Integer> result = successAffine.getOptional(source);
+
+      assertTrue(result.isPresent());
+      assertEquals(42, result.get());
+    }
+
+    @Test
+    @DisplayName("getOptional should return empty when Try is Failure")
+    void getOptionalWhenFailure() {
+      Affine<Try<Integer>, Integer> successAffine = Affines.trySuccess();
+      var source = Try.<Integer>failure(new RuntimeException("oops"));
+
+      Optional<Integer> result = successAffine.getOptional(source);
+
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("set should wrap value in Try.success()")
+    void setWrapsInSuccess() {
+      Affine<Try<Integer>, Integer> successAffine = Affines.trySuccess();
+      var source = Try.success(42);
+
+      var result = successAffine.set(100, source);
+
+      assertTrue(result.isSuccess());
+      assertEquals(100, result.orElse(-1));
+    }
+
+    @Test
+    @DisplayName("modify should transform Success value")
+    void modifyShouldTransformSuccess() {
+      Affine<Try<Integer>, Integer> successAffine = Affines.trySuccess();
+      var source = Try.success(42);
+
+      var result = successAffine.modify(x -> x * 2, source);
+
+      assertTrue(result.isSuccess());
+      assertEquals(84, result.orElse(-1));
+    }
+  }
+
+  // ============================================================================
+  // validatedValid() Tests
+  // ============================================================================
+
+  @Nested
+  @DisplayName("validatedValid() tests")
+  class ValidatedValidTests {
+
+    @Test
+    @DisplayName("getOptional should return value when Validated is Valid")
+    void getOptionalWhenValid() {
+      Affine<Validated<String, Integer>, Integer> validAffine = Affines.validatedValid();
+      var source = Validated.<String, Integer>valid(42);
+
+      Optional<Integer> result = validAffine.getOptional(source);
+
+      assertTrue(result.isPresent());
+      assertEquals(42, result.get());
+    }
+
+    @Test
+    @DisplayName("getOptional should return empty when Validated is Invalid")
+    void getOptionalWhenInvalid() {
+      Affine<Validated<String, Integer>, Integer> validAffine = Affines.validatedValid();
+      var source = Validated.<String, Integer>invalid("error");
+
+      Optional<Integer> result = validAffine.getOptional(source);
+
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("set should wrap value in Validated.valid()")
+    void setWrapsInValid() {
+      Affine<Validated<String, Integer>, Integer> validAffine = Affines.validatedValid();
+      var source = Validated.<String, Integer>valid(42);
+
+      var result = validAffine.set(100, source);
+
+      assertTrue(result.isValid());
+      assertEquals(100, result.get());
+    }
+
+    @Test
+    @DisplayName("modify should transform Valid value")
+    void modifyShouldTransformValid() {
+      Affine<Validated<String, Integer>, Integer> validAffine = Affines.validatedValid();
+      var source = Validated.<String, Integer>valid(42);
+
+      var result = validAffine.modify(x -> x * 2, source);
+
+      assertTrue(result.isValid());
+      assertEquals(84, result.get());
     }
   }
 

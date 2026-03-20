@@ -73,6 +73,7 @@ import org.jspecify.annotations.NullMarked;
  * @see FocusPath for paths focusing on exactly one element
  * @see TraversalPath for paths focusing on zero or more elements
  * @see FocusPaths for utility methods and optics factories
+ * @since 0.3.8
  */
 @NullMarked
 public sealed interface AffinePath<S, A> permits AffineFocusPath {
@@ -429,6 +430,20 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
   @SuppressWarnings("unchecked")
   default <E> AffinePath<S, E> some() {
     return via((Affine<A, E>) FocusPaths.optionalSome());
+  }
+
+  /**
+   * Composes this path with an affine that focuses on zero or one element within the focused value.
+   *
+   * <p>This is a semantic alias for {@link #via(Affine)} that signals the intent of navigating into
+   * a container type that holds zero or one element.
+   *
+   * @param affine the affine for accessing the inner value
+   * @param <B> the inner value type
+   * @return an AffinePath focusing on the inner value
+   */
+  default <B> AffinePath<S, B> some(Affine<A, B> affine) {
+    return via(affine);
   }
 
   /**
