@@ -9,6 +9,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -41,6 +42,16 @@ public class EitherGenerator extends BaseTraversableGenerator {
   @Override
   public int getFocusTypeArgumentIndex() {
     return 1; // Either<L, R> focuses on R (the second type argument)
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "Affines.eitherRight()";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("org.higherkindedj.optics.util.Affines");
   }
 
   @Override

@@ -155,6 +155,22 @@ A virtual threads capstone demonstrating a complete concurrent data pipeline:
 
 **[Market Data Pipeline Deep Dive →](examples_market_data.md)**
 
+### Portfolio Risk Analysis
+
+A cross-ecosystem navigation example demonstrating:
+
+- **SPI type widening** across JDK, Eclipse Collections, and HKJ container types
+- **Path kind propagation** through `FocusPath`, `AffinePath`, and `TraversalPath`
+- **Navigator chains** that cross three container ecosystems in a single expression
+- **Affine optics** for safe access to `Either`, `Try`, `Validated`, and `Optional`
+- **TraversableGenerator SPI** for automatic container recognition
+
+~~~admonish example title="See the Code"
+[org.higherkindedj.example.optics.focus.PortfolioRiskExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/PortfolioRiskExample.java)
+~~~
+
+**[Portfolio Risk Analysis Deep Dive →](examples_portfolio_risk.md)**
+
 ---
 
 ## Complete Examples Reference
@@ -168,6 +184,7 @@ For a comprehensive listing of all examples with run commands, see the [Examples
 1. [Order Processing Workflow](examples_order.md) – Building production-ready business workflows
 2. [Draughts Game](examples_draughts.md) – Pure functional game development
 3. [Market Data Pipeline](examples_market_data.md) – Virtual threads capstone with concurrent streaming
+4. [Portfolio Risk Analysis](examples_portfolio_risk.md) – Cross-ecosystem container navigation with Focus DSL
 
 ---
 

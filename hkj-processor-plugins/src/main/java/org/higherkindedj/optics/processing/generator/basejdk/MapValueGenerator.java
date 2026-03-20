@@ -9,6 +9,7 @@ import io.avaje.spi.ServiceProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
@@ -39,6 +40,16 @@ public class MapValueGenerator extends BaseTraversableGenerator {
   @Override
   public int getFocusTypeArgumentIndex() {
     return 1; // Map<K, V> focuses on V (the second type argument)
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "EachInstances.mapValuesEach()";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
   @Override

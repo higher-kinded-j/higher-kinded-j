@@ -8,6 +8,7 @@ import com.palantir.javapoet.TypeName;
 import io.avaje.spi.ServiceProvider;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.ArrayType;
@@ -30,6 +31,16 @@ public class ArrayGenerator extends BaseTraversableGenerator {
   @Override
   public boolean supports(final TypeMirror type) {
     return type instanceof ArrayType;
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "EachInstances.arrayEach()";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
   /** Generates the body of the `modifyF` method for a traversal over an array. */

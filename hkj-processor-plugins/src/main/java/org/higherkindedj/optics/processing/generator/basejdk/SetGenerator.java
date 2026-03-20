@@ -7,6 +7,7 @@ import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
@@ -30,6 +31,16 @@ public class SetGenerator extends BaseTraversableGenerator {
     if (!(type instanceof DeclaredType declaredType)) return false;
     final Element element = declaredType.asElement();
     return element.toString().equals(FQN_SET);
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "EachInstances.setEach()";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
   @Override

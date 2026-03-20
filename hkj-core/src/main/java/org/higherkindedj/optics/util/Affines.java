@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Affine;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -27,6 +30,8 @@ import org.jspecify.annotations.Nullable;
  *   <li><b>Affine:</b> Optional fields in records, nullable properties, conditional access
  *   <li><b>Prism:</b> Sum type variants (sealed interfaces), type-safe instanceof checks
  * </ul>
+ *
+ * @since 0.3.8
  */
 @NullMarked
 public final class Affines {
@@ -117,6 +122,89 @@ public final class Affines {
     return Affine.of(
         maybe -> maybe.isJust() ? Optional.of(maybe.get()) : Optional.empty(),
         (maybe, value) -> Maybe.just(value));
+  }
+
+  /**
+   * Creates an affine focusing on the Right value of an {@link Either}.
+   *
+   * <p>This affine focuses on the Right value when present, and returns empty when the Either is a
+   * Left. Setting always wraps the value in {@code Either.right()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Affine<Either<String, Integer>, Integer> rightAffine = Affines.eitherRight();
+   *
+   * Either<String, Integer> right = Either.right(42);
+   * Optional<Integer> result = rightAffine.getOptional(right);  // Optional.of(42)
+   *
+   * Either<String, Integer> left = Either.left("error");
+   * Optional<Integer> noMatch = rightAffine.getOptional(left);  // Optional.empty()
+   * }</pre>
+   *
+   * @param <L> the Left type of the Either
+   * @param <R> the Right type of the Either
+   * @return an affine focusing on Right values in an Either
+   */
+  public static <L, R> Affine<Either<L, R>, R> eitherRight() {
+    return Affine.of(
+        either -> either.isRight() ? Optional.of(either.getRight()) : Optional.empty(),
+        (either, value) -> Either.right(value));
+  }
+
+  /**
+   * Creates an affine focusing on the Success value of a {@link Try}.
+   *
+   * <p>This affine focuses on the success value when present, and returns empty when the Try is a
+   * Failure. Setting always wraps the value in {@code Try.success()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Affine<Try<Integer>, Integer> successAffine = Affines.trySuccess();
+   *
+   * Try<Integer> success = Try.success(42);
+   * Optional<Integer> result = successAffine.getOptional(success);  // Optional.of(42)
+   *
+   * Try<Integer> failure = Try.failure(new RuntimeException("oops"));
+   * Optional<Integer> noMatch = successAffine.getOptional(failure);  // Optional.empty()
+   * }</pre>
+   *
+   * @param <A> the value type of the Try
+   * @return an affine focusing on Success values in a Try
+   */
+  public static <A> Affine<Try<A>, A> trySuccess() {
+    return Affine.of(
+        tryA -> tryA.fold(Optional::of, _ -> Optional.empty()),
+        (tryA, value) -> Try.success(value));
+  }
+
+  /**
+   * Creates an affine focusing on the Valid value of a {@link Validated}.
+   *
+   * <p>This affine focuses on the valid value when present, and returns empty when the Validated is
+   * Invalid. Setting always wraps the value in {@code Validated.valid()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Affine<Validated<String, Integer>, Integer> validAffine = Affines.validatedValid();
+   *
+   * Validated<String, Integer> valid = Validated.valid(42);
+   * Optional<Integer> result = validAffine.getOptional(valid);  // Optional.of(42)
+   *
+   * Validated<String, Integer> invalid = Validated.invalid("error");
+   * Optional<Integer> noMatch = validAffine.getOptional(invalid);  // Optional.empty()
+   * }</pre>
+   *
+   * @param <E> the error type of the Validated
+   * @param <A> the value type of the Validated
+   * @return an affine focusing on Valid values in a Validated
+   */
+  public static <E, A> Affine<Validated<E, A>, A> validatedValid() {
+    return Affine.of(
+        validated -> validated.isValid() ? Optional.of(validated.get()) : Optional.empty(),
+        (validated, value) -> Validated.valid(value));
   }
 
   /**

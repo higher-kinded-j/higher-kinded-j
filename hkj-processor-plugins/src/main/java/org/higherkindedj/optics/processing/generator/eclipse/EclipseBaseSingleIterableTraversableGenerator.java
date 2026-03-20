@@ -6,6 +6,7 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -44,6 +45,22 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
     this.supportedElement = supportedElement;
     this.immutable = immutable;
     this.api = api;
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    String mutability = immutable ? "immutable" : "mutable";
+    return "EachInstances.fromIterableCollecting(list -> "
+        + api.simpleName()
+        + "."
+        + mutability
+        + ".ofAll(list))";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of(
+        "org.higherkindedj.optics.each.EachInstances", api.packageName() + "." + api.simpleName());
   }
 
   @Override

@@ -6,6 +6,7 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -30,6 +31,20 @@ public abstract class VavrBaseSingleIterableTraversableGenerator extends BaseTra
       final ClassName supportedType, final ClassName constructedType) {
     this.supportedType = supportedType;
     this.constructedType = constructedType;
+  }
+
+  @Override
+  public String generateOpticExpression() {
+    return "EachInstances.fromIterableCollecting(list -> "
+        + constructedType.simpleName()
+        + ".ofAll(list))";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of(
+        "org.higherkindedj.optics.each.EachInstances",
+        constructedType.packageName() + "." + constructedType.simpleName());
   }
 
   @Override

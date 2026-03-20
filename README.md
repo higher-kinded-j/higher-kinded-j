@@ -142,6 +142,7 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 * **Filtered traversals** for predicate-based focusing within collections
 * **Indexed optics** for position-aware transformations
 * **Focus DSL** for type-safe, fluent path navigation with seamless bridging into external libraries
+* **Custom container types** with automatic `AffinePath` and `TraversalPath` generation for `Either`, `Try`, `Validated`, `Map`, arrays, and user-registered types
 * **Effect integration** bridging optics with the Effect Path API
 
 ---
@@ -200,6 +201,18 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
 Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
+
+### Optic Path Types
+
+The Focus DSL uses its own path types for navigating data structures:
+
+| Path Type | When to Use |
+|-----------|-------------|
+| `FocusPath<S, A>` | Direct lens-based field access (always present) |
+| `AffinePath<S, A>` | Zero-or-one focus: `Optional`, `@Nullable`, or SPI types such as `Either`, `Try`, `Validated` |
+| `TraversalPath<S, A>` | Zero-or-more focus: `List`, `Set`, or SPI types such as `Map` and arrays |
+
+SPI-registered container types are automatically widened to the correct path type via the `TraversableGenerator` SPI. Third-party libraries can register their own container types to participate in path widening.
 
 ---
 

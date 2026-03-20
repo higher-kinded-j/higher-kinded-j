@@ -16,6 +16,9 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jooq)
 
+    // Eclipse Collections for cross-ecosystem portfolio risk example
+    implementation(libs.eclipse.collections)
+
     // Testing dependencies for tutorials
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)

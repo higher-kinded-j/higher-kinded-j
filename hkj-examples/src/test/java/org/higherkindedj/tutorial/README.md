@@ -215,6 +215,14 @@ Fluent cross-type navigation with generated navigators:
 - Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
 - Depth limiting with `maxNavigatorDepth` and fallback to `.via()`
 
+### Tutorial 20: Custom Container Navigation (~12 minutes)
+Navigating custom container types with Affines:
+- `Affines.eitherRight()` for Either fields
+- `Affines.trySuccess()` for Try fields
+- `Affines.validatedValid()` for Validated fields
+- `some(Affine)` composition on path types
+- Composing container-widened paths with standard lens paths
+
 ## MTL Tutorial Series
 
 ### Tutorial 02: MTL Basics (~35 minutes)

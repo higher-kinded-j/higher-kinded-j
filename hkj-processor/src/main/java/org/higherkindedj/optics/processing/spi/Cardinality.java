@@ -15,6 +15,7 @@ package org.higherkindedj.optics.processing.spi;
  * </ul>
  *
  * @see TraversableGenerator#getCardinality()
+ * @since 0.3.8
  */
 public enum Cardinality {
   /**

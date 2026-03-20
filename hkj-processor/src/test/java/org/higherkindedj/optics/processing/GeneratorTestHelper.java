@@ -109,6 +109,8 @@ public final class GeneratorTestHelper {
             .replaceAll("org\\.higherkindedj\\.optics\\.focus\\.FocusPath", "FocusPath")
             .replaceAll("org\\.higherkindedj\\.optics\\.focus\\.AffinePath", "AffinePath")
             .replaceAll("org\\.higherkindedj\\.optics\\.focus\\.TraversalPath", "TraversalPath")
+            .replaceAll("org\\.higherkindedj\\.optics\\.util\\.Affines", "Affines")
+            .replaceAll("org\\.higherkindedj\\.optics\\.each\\.EachInstances", "EachInstances")
             .replaceAll("org\\.higherkindedj\\.hkt\\.Applicative", "Applicative")
             // Test-specific types
             .replaceAll("com\\.example\\.Shape", "Shape")
@@ -123,6 +125,10 @@ public final class GeneratorTestHelper {
             .replaceAll("com\\.example\\.Playlist", "Playlist")
             .replaceAll("com\\.example\\.model\\.Person", "Person")
             .replaceAll("com\\.example\\.Wrapper", "Wrapper")
+            .replaceAll("com\\.example\\.Order", "Order")
+            .replaceAll("com\\.example\\.Config", "Config")
+            .replaceAll("com\\.example\\.Form", "Form")
+            .replaceAll("com\\.example\\.Registry", "Registry")
             // External types for ImportOptics tests
             .replaceAll("com\\.external\\.Customer", "Customer")
             .replaceAll("com\\.external\\.Pair", "Pair")
