@@ -215,9 +215,9 @@ Department modified = employeesPath.modifyAll(e -> promote(e), department);
 
 ~~~admonish tip title="See Also"
 1. [Navigation and Composition](focus_navigation.md) - Collection navigation, `.via()` composition, and generated navigators
-2. [Type Class and Effect Integration](focus_effects.md) - `modifyF()`, `foldMap()`, `traverseOver()`, sum types, and Effect path bridging
+2. [Type Class and Effect Integration](focus_effects.md) - `modifyF([spi_widening_roadmap.md](../../../../../../../home/magnus/Documents/Higher-Kinded-J%20Ideas/focus-spi-widening/spi_widening_roadmap.md))`, `foldMap()`, `traverseOver()`, sum types, and Effect path bridging
 3. [Custom Containers and Code Generation](focus_containers.md) - Generated class structure, SPI container types, and registration
-4. [Focus DSL Reference](focus_reference.md) - Decision guide, common patterns, performance, pitfalls, and FAQ
+4. [Focus DSL Reference](focus_reference.md) - Decision guide, c[spi_widening_roadmap.md](../../../../../../../home/magnus/Documents/Higher-Kinded-J%20Ideas/focus-spi-widening/spi_widening_roadmap.md)ommon patterns, performance, pitfalls, and FAQ
 ~~~
 
 ---
