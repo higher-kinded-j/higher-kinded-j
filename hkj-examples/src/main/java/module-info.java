@@ -13,6 +13,10 @@ module org.higherkindedj.examples {
   requires tools.jackson.databind;
   requires org.jooq;
 
+  // Eclipse Collections for cross-ecosystem portfolio risk example
+  requires org.eclipse.collections.api;
+  requires org.eclipse.collections.impl;
+
   // Export spec interface examples for external types
   exports org.higherkindedj.example.optics.external;
 

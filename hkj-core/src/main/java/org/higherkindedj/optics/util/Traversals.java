@@ -278,6 +278,41 @@ public final class Traversals {
   }
 
   /**
+   * Creates a {@code Traversal} for any {@link Iterable} container type, given a function that
+   * reconstructs the container from a {@link List} of elements.
+   *
+   * <p>This is useful for third-party collection types (e.g., Eclipse Collections {@code
+   * ImmutableList}, Vavr {@code List}) that are {@code Iterable} but not {@code java.util.List}.
+   * The traversal converts the container to a list, applies the effectful function via {@link
+   * #traverseList}, then reconstructs the container using the provided collector.
+   *
+   * <pre>{@code
+   * // Eclipse Collections ImmutableList traversal
+   * Traversal<ImmutableList<String>, String> ecTraversal =
+   *     Traversals.forIterableCollecting(list -> Lists.immutable.ofAll(list));
+   * }</pre>
+   *
+   * @param collector A function that converts a {@code List<A>} back into the container type {@code
+   *     C}.
+   * @param <C> The container type, which must be {@code Iterable<A>}.
+   * @param <A> The element type.
+   * @return A {@code Traversal} for the elements of the container.
+   */
+  public static <C extends Iterable<A>, A> Traversal<C, A> forIterableCollecting(
+      final Function<List<A>, C> collector) {
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, C> modifyF(
+          final Function<A, Kind<F, A>> f, final C source, final Applicative<F> applicative) {
+        final List<A> list = new ArrayList<>();
+        source.forEach(list::add);
+        Kind<F, List<A>> traversed = traverseList(list, f, applicative);
+        return applicative.map(collector, traversed);
+      }
+    };
+  }
+
+  /**
    * Creates a {@code Traversal} for all elements of an array.
    *
    * <p>This is a canonical traversal for array types, allowing an effectful function to be applied

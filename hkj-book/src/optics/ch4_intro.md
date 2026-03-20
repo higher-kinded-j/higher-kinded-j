@@ -156,6 +156,10 @@ Same program, different execution strategies.
 ## Chapter Contents
 
 1. [Focus DSL](focus_dsl.md) - Path-based navigation with type safety and IDE support
+   - [Navigation and Composition](focus_navigation.md) - Collection navigation, `.via()` composition, and generated navigators
+   - [Type Class and Effect Integration](focus_effects.md) - Effectful operations, monoid aggregation, and Effect path bridging
+   - [Custom Containers and Code Generation](focus_containers.md) - SPI container types, generated class structure, and registration
+   - [Focus DSL Reference](focus_reference.md) - Decision guide, common patterns, performance, pitfalls, and FAQ
 2. [Optics for External Types](importing_optics.md) - Generate optics for types you don't own
 3. [Taming JSON with Jackson](optics_spec_interfaces.md) - Spec interfaces for complex external types
 4. [Database Records with JOOQ](copy_strategies.md) - Copy strategies for builder-based types

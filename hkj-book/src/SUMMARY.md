@@ -97,6 +97,7 @@
     - [Building the Pipeline](examples/market_building.md)
     - [Alerts and Resilience](examples/market_alerts.md)
     - [Quick Reference](examples/market_reference.md)
+  - [Portfolio Risk Analysis](examples/examples_portfolio_risk.md)
 
 - [Optics I: Fundamentals](optics/ch1_intro.md)
   - [What Are Optics?](optics/optics_intro.md)
@@ -127,6 +128,10 @@
 
 - [Optics IV: Java-Friendly APIs](optics/ch4_intro.md)
   - [Focus DSL](optics/focus_dsl.md)
+    - [Navigation and Composition](optics/focus_navigation.md)
+    - [Type Class and Effect Integration](optics/focus_effects.md)
+    - [Custom Containers and Code Generation](optics/focus_containers.md)
+    - [Focus DSL Reference](optics/focus_reference.md)
   - [Optics for External Types](optics/importing_optics.md)
     - [Taming JSON with Jackson](optics/optics_spec_interfaces.md)
     - [Database Records with JOOQ](optics/copy_strategies.md)

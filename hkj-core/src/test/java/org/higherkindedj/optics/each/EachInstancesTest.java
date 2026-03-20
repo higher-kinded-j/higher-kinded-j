@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.extensions.EachExtensions;
@@ -607,6 +608,39 @@ class EachInstancesTest {
       Each<Stream<String>, String> streamEach = EachInstances.streamEach();
       assertThat(streamEach.supportsIndexed()).isFalse();
     }
+
+    @Test
+    @DisplayName("each() should modify empty stream to empty stream")
+    void eachModifiesEmptyStream() {
+      Each<Stream<String>, String> streamEach = EachInstances.streamEach();
+      Stream<String> stream = Stream.empty();
+
+      Stream<String> modified = Traversals.modify(streamEach.each(), String::toUpperCase, stream);
+
+      assertThat(modified.toList()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("each() should traverse single-element stream")
+    void eachTraversesSingleElementStream() {
+      Each<Stream<String>, String> streamEach = EachInstances.streamEach();
+      Stream<String> stream = Stream.of("only");
+
+      List<String> elements = Traversals.getAll(streamEach.each(), stream);
+
+      assertThat(elements).containsExactly("only");
+    }
+
+    @Test
+    @DisplayName("each() should modify single-element stream")
+    void eachModifiesSingleElementStream() {
+      Each<Stream<Integer>, Integer> streamEach = EachInstances.streamEach();
+      Stream<Integer> stream = Stream.of(42);
+
+      Stream<Integer> modified = Traversals.modify(streamEach.each(), n -> n * 2, stream);
+
+      assertThat(modified.toList()).containsExactly(84);
+    }
   }
 
   @Nested
@@ -730,6 +764,36 @@ class EachInstancesTest {
       List<String> elements = Traversals.getAll(traversal, maybeKind);
 
       assertThat(elements).isEmpty();
+    }
+
+    @Test
+    @DisplayName("fromTraverse() should modify Just value")
+    void fromTraverseModifiesJust() {
+      Traverse<MaybeKind.Witness> maybeTraverse = MaybeTraverse.INSTANCE;
+      Each<Kind<MaybeKind.Witness, String>, String> each =
+          EachInstances.fromTraverse(maybeTraverse);
+
+      Kind<MaybeKind.Witness, String> maybeKind = MaybeKindHelper.MAYBE.widen(Maybe.just("hello"));
+      Kind<MaybeKind.Witness, String> modified =
+          Traversals.modify(each.each(), String::toUpperCase, maybeKind);
+
+      Maybe<String> result = MaybeKindHelper.MAYBE.narrow(modified);
+      assertThat(result).isEqualTo(Maybe.just("HELLO"));
+    }
+
+    @Test
+    @DisplayName("fromTraverse() should leave Nothing unchanged when modifying")
+    void fromTraverseModifyNothingIsNoOp() {
+      Traverse<MaybeKind.Witness> maybeTraverse = MaybeTraverse.INSTANCE;
+      Each<Kind<MaybeKind.Witness, String>, String> each =
+          EachInstances.fromTraverse(maybeTraverse);
+
+      Kind<MaybeKind.Witness, String> maybeKind = MaybeKindHelper.MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, String> modified =
+          Traversals.modify(each.each(), String::toUpperCase, maybeKind);
+
+      Maybe<String> result = MaybeKindHelper.MAYBE.narrow(modified);
+      assertThat(result).isEqualTo(Maybe.nothing());
     }
 
     @Test
@@ -1079,6 +1143,139 @@ class EachInstancesTest {
 
       assertThat(minimalEach.eachWithIndex()).isEmpty();
       assertThat(minimalEach.supportsIndexed()).isFalse();
+    }
+  }
+
+  // ===== VStream Each Instance =====
+
+  @Nested
+  @DisplayName("VStream Each Instance")
+  class VStreamEachTests {
+
+    @Test
+    @DisplayName("each() should traverse VStream elements")
+    void eachTraversesVStreamElements() {
+      Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
+      VStream<String> vstream = VStream.of("a", "b", "c");
+      Traversal<VStream<String>, String> traversal = vstreamEach.each();
+
+      List<String> elements = Traversals.getAll(traversal, vstream);
+
+      assertThat(elements).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("each() should modify VStream elements")
+    void eachModifiesVStreamElements() {
+      Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
+      VStream<String> vstream = VStream.of("hello", "world");
+      Traversal<VStream<String>, String> traversal = vstreamEach.each();
+
+      VStream<String> modified = Traversals.modify(traversal, String::toUpperCase, vstream);
+
+      assertThat(modified.toList().run()).containsExactly("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("each() should handle empty VStream")
+    void eachHandlesEmptyVStream() {
+      Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
+      VStream<String> vstream = VStream.empty();
+      Traversal<VStream<String>, String> traversal = vstreamEach.each();
+
+      List<String> elements = Traversals.getAll(traversal, vstream);
+
+      assertThat(elements).isEmpty();
+    }
+
+    @Test
+    @DisplayName("each() should handle single-element VStream")
+    void eachHandlesSingleElementVStream() {
+      Each<VStream<Integer>, Integer> vstreamEach = EachInstances.vstreamEach();
+      VStream<Integer> vstream = VStream.of(42);
+      Traversal<VStream<Integer>, Integer> traversal = vstreamEach.each();
+
+      List<Integer> elements = Traversals.getAll(traversal, vstream);
+
+      assertThat(elements).containsExactly(42);
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false for VStream")
+    void supportsIndexedReturnsFalse() {
+      Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
+      assertThat(vstreamEach.supportsIndexed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("eachWithIndex() should return empty for VStream")
+    void eachWithIndexReturnsEmpty() {
+      Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
+      assertThat(vstreamEach.<Integer>eachWithIndex()).isEmpty();
+    }
+  }
+
+  // ===== fromIterableCollecting Factory =====
+
+  @Nested
+  @DisplayName("fromIterableCollecting Factory")
+  class FromIterableCollectingTests {
+
+    @Test
+    @DisplayName("should traverse elements of a custom Iterable")
+    void traversesCustomIterableElements() {
+      // Use LinkedHashSet as the custom Iterable container
+      Each<LinkedHashSet<String>, String> each =
+          EachInstances.fromIterableCollecting(list -> new LinkedHashSet<>(list));
+      LinkedHashSet<String> set = new LinkedHashSet<>(List.of("a", "b", "c"));
+
+      List<String> elements = Traversals.getAll(each.each(), set);
+
+      assertThat(elements).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("should modify elements of a custom Iterable")
+    void modifiesCustomIterableElements() {
+      Each<LinkedHashSet<String>, String> each =
+          EachInstances.fromIterableCollecting(list -> new LinkedHashSet<>(list));
+      LinkedHashSet<String> set = new LinkedHashSet<>(List.of("hello", "world"));
+
+      LinkedHashSet<String> modified = Traversals.modify(each.each(), String::toUpperCase, set);
+
+      assertThat(modified).containsExactly("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("should handle empty custom Iterable")
+    void handlesEmptyCustomIterable() {
+      Each<LinkedHashSet<String>, String> each =
+          EachInstances.fromIterableCollecting(list -> new LinkedHashSet<>(list));
+      LinkedHashSet<String> set = new LinkedHashSet<>();
+
+      List<String> elements = Traversals.getAll(each.each(), set);
+
+      assertThat(elements).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should work with ArrayList as custom container")
+    void worksWithArrayListContainer() {
+      Each<ArrayList<Integer>, Integer> each =
+          EachInstances.fromIterableCollecting(list -> new ArrayList<>(list));
+      ArrayList<Integer> source = new ArrayList<>(List.of(1, 2, 3));
+
+      ArrayList<Integer> modified = Traversals.modify(each.each(), n -> n * 10, source);
+
+      assertThat(modified).containsExactly(10, 20, 30);
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false")
+    void supportsIndexedReturnsFalse() {
+      Each<LinkedHashSet<String>, String> each =
+          EachInstances.fromIterableCollecting(list -> new LinkedHashSet<>(list));
+      assertThat(each.supportsIndexed()).isFalse();
     }
   }
 }

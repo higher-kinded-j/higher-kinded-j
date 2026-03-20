@@ -406,4 +406,36 @@ public final class EachInstances {
       Traverse<F> traverse) {
     return () -> TraverseTraversals.forTraverse(traverse);
   }
+
+  // ===== Generic Iterable =====
+
+  /**
+   * Creates an {@link Each} instance for any {@link Iterable} container type, given a function that
+   * reconstructs the container from a {@link List} of elements.
+   *
+   * <p>This is particularly useful for third-party collection types (e.g., Eclipse Collections
+   * {@code ImmutableList}, Vavr {@code List}) that are {@code Iterable} but do not extend {@code
+   * java.util.List}. The traversal iterates elements, applies the effectful function, then
+   * reconstructs the container via the provided collector.
+   *
+   * <pre>{@code
+   * // Eclipse Collections ImmutableList
+   * Each<ImmutableList<String>, String> ecEach =
+   *     EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list));
+   *
+   * // Guava ImmutableList
+   * Each<ImmutableList<String>, String> guavaEach =
+   *     EachInstances.fromIterableCollecting(ImmutableList::copyOf);
+   * }</pre>
+   *
+   * @param collector A function that converts a {@code List<A>} back into the container type {@code
+   *     C}.
+   * @param <C> The container type, which must be {@code Iterable<A>}.
+   * @param <A> The element type.
+   * @return An {@code Each} instance for the container.
+   */
+  public static <C extends Iterable<A>, A> Each<C, A> fromIterableCollecting(
+      Function<List<A>, C> collector) {
+    return () -> Traversals.forIterableCollecting(collector);
+  }
 }

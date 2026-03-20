@@ -565,6 +565,21 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
   }
 
   /**
+   * Composes this traversal with an affine that focuses on zero or one element within each focused
+   * value.
+   *
+   * <p>This is a semantic alias for {@link #via(Affine)} that signals the intent of navigating into
+   * a container type that holds zero or one element.
+   *
+   * @param affine the affine for accessing the inner value
+   * @param <B> the inner value type
+   * @return a TraversalPath focusing on inner values
+   */
+  default <B> TraversalPath<S, B> some(Affine<A, B> affine) {
+    return via(affine);
+  }
+
+  /**
    * For each element this traversal focuses on, if that element is a traversable container {@code
    * Kind<F, E>}, flattens to traverse all nested elements.
    *

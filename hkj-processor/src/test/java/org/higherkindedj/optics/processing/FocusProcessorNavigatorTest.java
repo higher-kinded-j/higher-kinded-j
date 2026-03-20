@@ -552,10 +552,11 @@ public class FocusProcessorNavigatorTest {
       assertThat(compilation).succeeded();
 
       // Inside HeadquartersNavigator, the metadata() method should return TraversalPath
-      // because Map is recognised as ZERO_OR_MORE by the SPI
+      // with the inner value type (Map values are String), because Map is recognised as
+      // ZERO_OR_MORE by the SPI and the navigator applies .each(opticExpr) to unwrap.
       final String expectedMetadataTraversal =
           """
-          public TraversalPath<S, Map<String, String>> metadata() {
+          public TraversalPath<S, String> metadata() {
           """;
 
       assertGeneratedCodeContains(
@@ -598,10 +599,12 @@ public class FocusProcessorNavigatorTest {
       assertThat(compilation).succeeded();
 
       // Inside HeadquartersNavigator, the validated() method should return AffinePath
-      // because Either is recognised as ZERO_OR_ONE by the SPI
+      // with the inner type (Either<String,String> focuses on String at index 1),
+      // because Either is recognised as ZERO_OR_ONE by the SPI and the navigator
+      // applies .some(opticExpr) to unwrap.
       final String expectedEitherAffine =
           """
-          public AffinePath<S, Either<String, String>> validated() {
+          public AffinePath<S, String> validated() {
           """;
 
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedEitherAffine);
@@ -640,9 +643,11 @@ public class FocusProcessorNavigatorTest {
 
       assertThat(compilation).succeeded();
 
+      // Try<String> focuses on String (the success type), so the navigator method
+      // returns AffinePath with the inner type after applying .some(opticExpr).
       final String expectedTryAffine =
           """
-          public AffinePath<S, Try<String>> verifiedCity() {
+          public AffinePath<S, String> verifiedCity() {
           """;
 
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedTryAffine);
@@ -681,9 +686,11 @@ public class FocusProcessorNavigatorTest {
 
       assertThat(compilation).succeeded();
 
+      // Validated<String, String> focuses on String (the valid type at index 1),
+      // so the navigator method returns AffinePath with the inner type.
       final String expectedValidatedAffine =
           """
-          public AffinePath<S, Validated<String, String>> checkedCity() {
+          public AffinePath<S, String> checkedCity() {
           """;
 
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedValidatedAffine);
@@ -729,20 +736,68 @@ public class FocusProcessorNavigatorTest {
       assertThat(compilation).succeeded();
 
       // Inside HeadquartersNavigator (FOCUS delegate):
-      // validated() should be AffinePath (Either is ZERO_OR_ONE via SPI)
+      // validated() should be AffinePath with inner type (Either focuses on String at index 1)
       final String expectedEitherAffine =
           """
-          public AffinePath<S, Either<String, String>> validated() {
+          public AffinePath<S, String> validated() {
           """;
 
-      // metadata() should be TraversalPath (Map is ZERO_OR_MORE via SPI)
+      // metadata() should be TraversalPath with inner value type (Map focuses on String at index 1)
       final String expectedMapTraversal =
           """
-          public TraversalPath<S, Map<String, String>> metadata() {
+          public TraversalPath<S, String> metadata() {
           """;
 
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedEitherAffine);
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedMapTraversal);
+    }
+
+    @Test
+    @DisplayName("should widen to AffinePath for Either field via SPI")
+    void shouldWidenToAffinePathForEitherField() {
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.hkt.either.Either;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Either<String, Address> result) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, String city) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      // The navigator delegate for an Either field should use AffinePath
+      final String expectedNavigatorClass =
+          """
+          public static final class ResultNavigator<S> {
+          """;
+
+      final String expectedDelegateField =
+          """
+          private final AffinePath<S, Address> delegate;
+          """;
+
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedNavigatorClass);
+      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedDelegateField);
     }
   }
 
@@ -786,6 +841,151 @@ public class FocusProcessorNavigatorTest {
       final String expectedJavadocNote = "navigator classes for fluent cross-type navigation";
 
       assertGeneratedCodeContainsRaw(compilation, "com.example.CompanyFocus", expectedJavadocNote);
+    }
+  }
+
+  @Nested
+  @DisplayName("Cross-Package Navigator Generation")
+  class CrossPackageNavigatorGeneration {
+
+    @Test
+    @DisplayName("should compile when navigator references record in different package")
+    void shouldCompileWithCrossPackageNavigator() {
+      // Record in package org.example.a
+      final JavaFileObject recordASource =
+          JavaFileObjects.forSourceString(
+              "org.example.a.MyRecordInA",
+              """
+              package org.example.a;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record MyRecordInA(String someField) {}
+              """);
+
+      // Record in package org.example.b that references the record in org.example.a
+      final JavaFileObject recordBSource =
+          JavaFileObjects.forSourceString(
+              "org.example.b.MyRecordInB",
+              """
+              package org.example.b;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.example.a.MyRecordInA;
+
+              @GenerateFocus(generateNavigators = true)
+              public record MyRecordInB(MyRecordInA crossReference) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(recordASource, recordBSource);
+
+      // The critical assertion: the generated code must compile successfully.
+      // Before the fix, the generated MyRecordInBFocus referenced MyRecordInAFocus
+      // without importing it, causing a compilation error.
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should generate import for cross-package Focus class in navigator via statement")
+    void shouldGenerateImportForCrossPackageFocusClass() {
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "org.example.a.Address",
+              """
+              package org.example.a;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, String city) {}
+              """);
+
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "org.example.b.Company",
+              """
+              package org.example.b;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.example.a.Address;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(addressSource, companySource);
+
+      assertThat(compilation).succeeded();
+
+      // Verify the generated code imports AddressFocus from the other package
+      assertGeneratedCodeContainsRaw(
+          compilation, "org.example.b.CompanyFocus", "import org.example.a.AddressFocus;");
+
+      // Verify the navigator's via statement references AddressFocus (not unqualified)
+      assertGeneratedCodeContainsRaw(
+          compilation, "org.example.b.CompanyFocus", "AddressFocus.street()");
+
+      assertGeneratedCodeContainsRaw(
+          compilation, "org.example.b.CompanyFocus", "AddressFocus.city()");
+    }
+
+    @Test
+    @DisplayName("should compile with deeply nested cross-package navigation")
+    void shouldCompileWithDeeplyNestedCrossPackageNavigation() {
+      final JavaFileObject citySource =
+          JavaFileObjects.forSourceString(
+              "org.example.geo.City",
+              """
+              package org.example.geo;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record City(String name, int population) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "org.example.contact.Address",
+              """
+              package org.example.contact;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.example.geo.City;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, City city) {}
+              """);
+
+      final JavaFileObject personSource =
+          JavaFileObjects.forSourceString(
+              "org.example.people.Person",
+              """
+              package org.example.people;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.example.contact.Address;
+
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3)
+              public record Person(String name, Address home) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(citySource, addressSource, personSource);
+
+      // Must compile: Person -> Address (different package) -> City (yet another package)
+      assertThat(compilation).succeeded();
+
+      // PersonFocus should import AddressFocus
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "org.example.people.PersonFocus",
+          "import org.example.contact.AddressFocus;");
     }
   }
 }

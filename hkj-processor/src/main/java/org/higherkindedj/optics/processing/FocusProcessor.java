@@ -28,7 +28,9 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
+import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
 
 /**
  * Annotation processor for {@link GenerateFocus} that generates Focus DSL utility classes.
@@ -119,6 +121,14 @@ public class FocusProcessor extends AbstractProcessor {
   /** Collection types that widen to TraversalPath via .each(). */
   private static final Set<String> COLLECTION_TYPES =
       Set.of("java.util.List", "java.util.Set", "java.util.Collection");
+
+  /** Loads SPI generators via ServiceLoader. */
+  private List<TraversableGenerator> loadSpiGenerators() {
+    List<TraversableGenerator> generators = new ArrayList<>();
+    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
+        .forEach(generators::add);
+    return generators;
+  }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -380,6 +390,28 @@ public class FocusProcessor extends AbstractProcessor {
             recordTypeName,
             recordTypeName);
       }
+      case SPI_ZERO_OR_ONE -> {
+        // SPI-registered zero-or-one type: AffinePath via .some(opticExpr)
+        TraversableGenerator gen = pathTypeInfo.spiGenerator();
+        String opticExpr = gen.generateOpticExpression();
+        List<Object> args =
+            new ArrayList<>(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));
+        String resolvedExpr =
+            OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);
+        methodBuilder.addStatement(
+            "return " + baseLens + ".some(" + resolvedExpr + ")", args.toArray());
+      }
+      case SPI_ZERO_OR_MORE -> {
+        // SPI-registered zero-or-more type: TraversalPath via .each(opticExpr)
+        TraversableGenerator gen = pathTypeInfo.spiGenerator();
+        String opticExpr = gen.generateOpticExpression();
+        List<Object> args =
+            new ArrayList<>(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));
+        String resolvedExpr =
+            OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);
+        methodBuilder.addStatement(
+            "return " + baseLens + ".each(" + resolvedExpr + ")", args.toArray());
+      }
       default ->
           methodBuilder.addStatement(
               "return " + baseLens, FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName);
@@ -424,16 +456,24 @@ public class FocusProcessor extends AbstractProcessor {
     /** Kind types with ZERO_OR_ONE semantics - AffinePath via .traverseOver().headOption(). */
     KIND_ZERO_OR_ONE,
     /** Kind types with ZERO_OR_MORE semantics - TraversalPath via .traverseOver(). */
-    KIND_ZERO_OR_MORE
+    KIND_ZERO_OR_MORE,
+    /** SPI-registered zero-or-one type - AffinePath via .some(affine). */
+    SPI_ZERO_OR_ONE,
+    /** SPI-registered zero-or-more type - TraversalPath via .each(each). */
+    SPI_ZERO_OR_MORE
   }
 
   /** Holds information about path type analysis. */
   private record PathTypeInfo(
-      ClassName pathClass, TypeName innerType, WideningType wideningType, KindFieldInfo kindInfo) {
+      ClassName pathClass,
+      TypeName innerType,
+      WideningType wideningType,
+      KindFieldInfo kindInfo,
+      TraversableGenerator spiGenerator) {
 
-    /** Creates a PathTypeInfo without Kind info. */
+    /** Creates a PathTypeInfo without Kind info or SPI generator. */
     static PathTypeInfo of(ClassName pathClass, TypeName innerType, WideningType wideningType) {
-      return new PathTypeInfo(pathClass, innerType, wideningType, null);
+      return new PathTypeInfo(pathClass, innerType, wideningType, null, null);
     }
 
     /** Creates a PathTypeInfo for a Kind field. */
@@ -444,7 +484,16 @@ public class FocusProcessor extends AbstractProcessor {
             case ZERO_OR_ONE -> WideningType.KIND_ZERO_OR_ONE;
             case ZERO_OR_MORE -> WideningType.KIND_ZERO_OR_MORE;
           };
-      return new PathTypeInfo(pathClass, kindInfo.elementType(), widening, kindInfo);
+      return new PathTypeInfo(pathClass, kindInfo.elementType(), widening, kindInfo, null);
+    }
+
+    /** Creates a PathTypeInfo for an SPI-detected field. */
+    static PathTypeInfo forSpi(
+        ClassName pathClass,
+        TypeName innerType,
+        WideningType wideningType,
+        TraversableGenerator generator) {
+      return new PathTypeInfo(pathClass, innerType, wideningType, null, generator);
     }
   }
 
@@ -454,7 +503,8 @@ public class FocusProcessor extends AbstractProcessor {
     boolean isNullable = NullableAnnotations.hasNullableAnnotation(component);
 
     if (type.getKind() != TypeKind.DECLARED) {
-      // Primitive types cannot be null, but boxed types can
+      // Primitive and array types: no SPI widening in FocusProcessor (arrays remain FocusPath).
+      // Users can manually call .each(EachInstances.arrayEach()) for array traversal.
       if (isNullable) {
         return PathTypeInfo.of(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
       }
@@ -492,7 +542,38 @@ public class FocusProcessor extends AbstractProcessor {
       return PathTypeInfo.forKind(pathClass, info);
     }
 
-    // Check for @Nullable annotation (after Kind check, as Kind types have their own semantics)
+    // Consult SPI generators for ZERO_OR_ONE container types (e.g. Either, Try, Validated).
+    // ZERO_OR_MORE types (Map, arrays) are NOT widened here to preserve backwards compatibility;
+    // they remain FocusPath and users can manually call .each(eachInstance) for traversal.
+    TraversableGenerator matchedGenerator = null;
+    for (TraversableGenerator generator : loadSpiGenerators()) {
+      if (generator.supports(type)) {
+        if (matchedGenerator != null) {
+          processingEnv
+              .getMessager()
+              .printMessage(
+                  Diagnostic.Kind.WARNING,
+                  "Multiple TraversableGenerator SPI providers support type "
+                      + type
+                      + ": "
+                      + matchedGenerator.getClass().getName()
+                      + " and "
+                      + generator.getClass().getName()
+                      + ". Using the first match.",
+                  component);
+        } else {
+          matchedGenerator = generator;
+        }
+      }
+    }
+    if (matchedGenerator != null && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_ONE) {
+      int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();
+      TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);
+      return PathTypeInfo.forSpi(
+          AFFINE_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_ONE, matchedGenerator);
+    }
+
+    // Check for @Nullable annotation (after Kind and SPI checks)
     if (isNullable) {
       return PathTypeInfo.of(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
     }
@@ -502,18 +583,23 @@ public class FocusProcessor extends AbstractProcessor {
 
   /** Extracts the first type argument from a parameterised type. */
   private TypeName extractTypeArgument(DeclaredType declaredType) {
+    return extractTypeArgumentAt(declaredType, 0);
+  }
+
+  /** Extracts the type argument at the given index from a parameterised type. */
+  private TypeName extractTypeArgumentAt(DeclaredType declaredType, int index) {
     List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-    if (typeArgs.isEmpty()) {
+    if (typeArgs.isEmpty() || index >= typeArgs.size()) {
       return ClassName.get(Object.class);
     }
-    return TypeName.get(typeArgs.get(0)).box();
+    return TypeName.get(typeArgs.get(index)).box();
   }
 
   /** Gets the path class description for Javadoc. */
   private String getPathDescription(PathTypeInfo info) {
     return switch (info.wideningType) {
-      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE -> "AffinePath";
-      case COLLECTION, KIND_ZERO_OR_MORE -> "TraversalPath";
+      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -> "AffinePath";
+      case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -> "TraversalPath";
       case NONE -> "FocusPath";
     };
   }
@@ -521,8 +607,8 @@ public class FocusProcessor extends AbstractProcessor {
   /** Gets the appropriate get method name for Javadoc examples. */
   private String getPathGetMethod(PathTypeInfo info) {
     return switch (info.wideningType) {
-      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE -> "getOptional";
-      case COLLECTION, KIND_ZERO_OR_MORE -> "getAll";
+      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -> "getOptional";
+      case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -> "getAll";
       case NONE -> "get";
     };
   }
