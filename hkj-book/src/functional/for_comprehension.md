@@ -222,11 +222,8 @@ The `For` builder in `higher-kinded-j` provides the same expressive power throug
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practice parallel composition in [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises, ~20 minutes).
-~~~
-
-~~~admonish info title="Hands-On Learning"
-Practice traverse in for-comprehensions in [Tutorial 03: Traverse in For-Comprehensions](../tutorials/expression/fortraverse_journey.md) (11 exercises, ~15 minutes).
+- [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises, ~20 minutes).
+- [Tutorial 03: Traverse in For-Comprehensions](../tutorials/expression/fortraverse_journey.md) (11 exercises, ~15 minutes).
 ~~~
 
 ~~~admonish tip title="Further Reading"

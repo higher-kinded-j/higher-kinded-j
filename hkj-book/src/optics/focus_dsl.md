@@ -18,7 +18,9 @@
 ~~~
 
 ~~~admonish title="Hands On Practice"
-[Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) | [Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) | [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
+- [Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) 
+- [Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) 
+- [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
 ~~~
 
 ~~~admonish title="Example Code"
@@ -211,12 +213,12 @@ Department modified = employeesPath.modifyAll(e -> promote(e), department);
 
 ---
 
-## Sub-Chapter Contents
-
+~~~admonish tip title="See Also"
 1. [Navigation and Composition](focus_navigation.md) - Collection navigation, `.via()` composition, and generated navigators
 2. [Type Class and Effect Integration](focus_effects.md) - `modifyF()`, `foldMap()`, `traverseOver()`, sum types, and Effect path bridging
 3. [Custom Containers and Code Generation](focus_containers.md) - Generated class structure, SPI container types, and registration
 4. [Focus DSL Reference](focus_reference.md) - Decision guide, common patterns, performance, pitfalls, and FAQ
+~~~
 
 ---
 
