@@ -10,7 +10,8 @@
 ~~~
 
 ~~~admonish title="Hands On Practice"
-[Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) | [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
+- [Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) 
+- [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
 ~~~
 
 ~~~admonish title="Example Code"
@@ -407,6 +408,50 @@ TraversalPath<Company, String> metadataValues =
 
 ~~~admonish note title="Custom Generators"
 If you write a custom `TraversableGenerator` for your own container type, override `getCardinality()` to return `ZERO_OR_ONE` for optional-like types. The default is `ZERO_OR_MORE`, which is correct for collection-like types. See [Traversal Generator Plugins](../tooling/generator_plugins.md) for details.
+~~~
+
+### Nested Container Widening
+
+Fields with nested container types are automatically detected and generate composed widening chains. Previously, only the outermost container was widened; the inner container required manual navigation.
+
+| Field Type | Generated Chain | Return Type |
+|-----------|----------------|-------------|
+| `Optional<List<String>>` | `.some().each()` | `TraversalPath` |
+| `List<Optional<String>>` | `.each().some()` | `TraversalPath` |
+| `Optional<Optional<String>>` | `.some().some()` | `AffinePath` |
+| `List<List<String>>` | `.each().each()` | `TraversalPath` |
+| `Either<E, Map<K, V>>` | `.some(Affines.eitherRight()).each(EachInstances.mapValuesEach())` | `TraversalPath` |
+| `Optional<Either<E, String>>` | `.some().some(Affines.eitherRight())` | `AffinePath` |
+
+The widening lattice composes across nesting levels:
+
+- **Focus + Affine = Affine** (e.g., a plain field containing an Optional)
+- **Focus + Traversal = Traversal** (e.g., a plain field containing a List)
+- **Affine + Traversal = Traversal** (e.g., `Optional<List<...>>`)
+- **Traversal + anything = Traversal** (e.g., `List<Optional<...>>`, `List<List<...>>`)
+
+```java
+@GenerateFocus
+record Config(
+    String name,
+    Optional<List<String>> tags,           // TraversalPath via .some().each()
+    List<Optional<String>> items,          // TraversalPath via .each().some()
+    Optional<Optional<String>> nested,     // AffinePath via .some().some()
+    Either<String, List<Integer>> data     // TraversalPath via .some(eitherRight()).each()
+) {}
+
+// Usage
+TraversalPath<Config, String> allTags = ConfigFocus.tags();
+List<String> tagValues = allTags.getAll(config);
+
+AffinePath<Config, String> nestedOpt = ConfigFocus.nested();
+Optional<String> innerValue = nestedOpt.getOptional(config);
+```
+
+Nesting is detected up to three levels deep. For deeper nesting, use manual `.via()` composition on the generated path.
+
+~~~admonish note title="Navigator Path Kind Propagation"
+Navigators also correctly compose path kinds for nested containers. If a field is `Optional<List<Address>>` and `Address` is a navigable type, the navigator will use `TraversalPath` (the composed result of Affine + Traversal) for all navigation methods on the inner `Address` fields.
 ~~~
 
 ### Controlling Navigator Generation

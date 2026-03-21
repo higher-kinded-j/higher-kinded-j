@@ -43,8 +43,6 @@ Company result = OpticInterpreters.direct().run(program);
 
 - **Navigating deeply nested structures** with many levels
 - **IDE autocomplete is important** for discoverability
-- **Teaching or onboarding** developers new to optics
-- **Prototyping** before optimising for performance
 
 ```java
 // Focus DSL - clear intent, discoverable

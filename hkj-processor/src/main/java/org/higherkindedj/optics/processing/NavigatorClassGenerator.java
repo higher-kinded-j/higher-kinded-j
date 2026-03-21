@@ -147,7 +147,9 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Determines what path kind a field type introduces, considering annotations.
+   * Determines what path kind a field type introduces, considering annotations. Recursively
+   * composes path kinds for nested container types (e.g., Optional&lt;List&lt;String&gt;&gt;
+   * produces TRAVERSAL).
    *
    * @param component the record component (may be null for nested navigation)
    * @param type the field type to analyse
@@ -159,7 +161,21 @@ public class NavigatorClassGenerator {
       return PathKind.AFFINE;
     }
 
-    if (type.getKind() != TypeKind.DECLARED) {
+    return getFieldPathKindRecursive(type, 0);
+  }
+
+  /** Maximum recursion depth for nested container path kind analysis. */
+  private static final int MAX_NAVIGATOR_NESTING_DEPTH = 3;
+
+  /**
+   * Recursively determines the composed path kind for a type, accounting for nested containers.
+   *
+   * @param type the type to analyse
+   * @param depth current recursion depth
+   * @return the composed path kind
+   */
+  private PathKind getFieldPathKindRecursive(TypeMirror type, int depth) {
+    if (depth >= MAX_NAVIGATOR_NESTING_DEPTH || type.getKind() != TypeKind.DECLARED) {
       return PathKind.FOCUS;
     }
 
@@ -168,10 +184,12 @@ public class NavigatorClassGenerator {
     String qualifiedName = typeElement.getQualifiedName().toString();
 
     if (OPTIONAL_TYPES.contains(qualifiedName)) {
-      return PathKind.AFFINE;
+      PathKind innerKind = getInnerPathKind(declaredType, 0, depth);
+      return PathKind.AFFINE.widen(innerKind);
     }
     if (COLLECTION_TYPES.contains(qualifiedName)) {
-      return PathKind.TRAVERSAL;
+      PathKind innerKind = getInnerPathKind(declaredType, 0, depth);
+      return PathKind.TRAVERSAL.widen(innerKind);
     }
 
     // Check for subtypes of Collection
@@ -179,7 +197,8 @@ public class NavigatorClassGenerator {
       if (iface.getKind() == TypeKind.DECLARED) {
         TypeElement ifaceElement = (TypeElement) ((DeclaredType) iface).asElement();
         if (COLLECTION_TYPES.contains(ifaceElement.getQualifiedName().toString())) {
-          return PathKind.TRAVERSAL;
+          PathKind innerKind = getInnerPathKind(declaredType, 0, depth);
+          return PathKind.TRAVERSAL.widen(innerKind);
         }
       }
     }
@@ -190,38 +209,41 @@ public class NavigatorClassGenerator {
     }
 
     // Consult TraversableGenerator SPI for additional container types.
-    // Generators are pre-sorted by priority descending; highest-priority match wins.
-    // Only equal-priority conflicts emit a warning.
-    TraversableGenerator matched = null;
-    for (TraversableGenerator generator : traversableGenerators) {
-      if (generator.supports(type)) {
-        if (matched != null && matched.priority() == generator.priority()) {
-          processingEnv
-              .getMessager()
-              .printMessage(
-                  Diagnostic.Kind.WARNING,
-                  "Multiple TraversableGenerator SPI providers with equal priority ("
-                      + generator.priority()
-                      + ") support type "
-                      + type
-                      + ": "
-                      + matched.getClass().getName()
-                      + " and "
-                      + generator.getClass().getName()
-                      + ". Using the first match.");
-        } else if (matched == null) {
-          matched = generator;
-        }
-      }
-    }
+    TraversableGenerator matched = findSpiGenerator(type);
     if (matched != null) {
-      return switch (matched.getCardinality()) {
-        case ZERO_OR_ONE -> PathKind.AFFINE;
-        case ZERO_OR_MORE -> PathKind.TRAVERSAL;
-      };
+      PathKind spiKind =
+          switch (matched.getCardinality()) {
+            case ZERO_OR_ONE -> PathKind.AFFINE;
+            case ZERO_OR_MORE -> PathKind.TRAVERSAL;
+          };
+      PathKind innerKind =
+          getInnerPathKind(declaredType, matched.getFocusTypeArgumentIndex(), depth);
+      return spiKind.widen(innerKind);
     }
 
     return PathKind.FOCUS;
+  }
+
+  /**
+   * Gets the composed path kind of the inner type argument at the given index.
+   *
+   * @param declaredType the outer container type
+   * @param typeArgIndex the index of the type argument to check
+   * @param currentDepth the current recursion depth
+   * @return the path kind of the inner type, or FOCUS if not a container
+   */
+  private PathKind getInnerPathKind(DeclaredType declaredType, int typeArgIndex, int currentDepth) {
+    List<? extends TypeMirror> args = declaredType.getTypeArguments();
+    if (args.isEmpty() || typeArgIndex >= args.size()) {
+      return PathKind.FOCUS;
+    }
+    TypeMirror innerType = args.get(typeArgIndex);
+    // Resolve wildcards
+    TypeMirror resolved = ProcessorUtils.resolveWildcard(innerType);
+    if (resolved == null) {
+      return PathKind.FOCUS;
+    }
+    return getFieldPathKindRecursive(resolved, currentDepth + 1);
   }
 
   /**
@@ -1041,14 +1063,37 @@ public class NavigatorClassGenerator {
     return (TypeElement) declaredType.asElement();
   }
 
-  /** Finds the SPI generator for a type and returns it, or null if none matches. */
+  /**
+   * Finds the highest-priority SPI generator that supports the given type. Emits a warning if
+   * multiple generators with equal priority match.
+   *
+   * @param type the type to check
+   * @return the matched generator, or null if none found
+   */
   private TraversableGenerator findSpiGenerator(TypeMirror type) {
+    TraversableGenerator matched = null;
     for (TraversableGenerator generator : traversableGenerators) {
       if (generator.supports(type)) {
-        return generator;
+        if (matched != null && matched.priority() == generator.priority()) {
+          processingEnv
+              .getMessager()
+              .printMessage(
+                  Diagnostic.Kind.WARNING,
+                  "Multiple TraversableGenerator SPI providers with equal priority ("
+                      + generator.priority()
+                      + ") support type "
+                      + type
+                      + ": "
+                      + matched.getClass().getName()
+                      + " and "
+                      + generator.getClass().getName()
+                      + ". Using the first match.");
+        } else if (matched == null) {
+          matched = generator;
+        }
       }
     }
-    return null;
+    return matched;
   }
 
   /**

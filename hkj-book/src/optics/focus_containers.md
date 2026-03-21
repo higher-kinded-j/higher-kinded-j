@@ -8,7 +8,7 @@
 ~~~
 
 ~~~admonish title="Hands On Practice"
-[Tutorial20_ContainerNavigation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~12 minutes)
+[Tutorial20_ContainerNavigation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes)
 ~~~
 
 ---
@@ -89,6 +89,8 @@ Every container type holds its values in one of two ways: it either wraps *at mo
 - **Zero or more** (e.g., `Map<K, V>`, `T[]`) produces a `TraversalPath`; there may be many values to iterate over.
 
 The `TraversableGenerator` SPI lets any container type participate in this path widening. When `@GenerateFocus` encounters a registered container field, it generates the correct `AffinePath` or `TraversalPath` automatically, with no manual composition needed.
+
+Nested container patterns such as `Optional<List<String>>` or `Either<E, Map<K, V>>` are also detected automatically. The processor generates composed widening chains (e.g., `.some().each()`) and selects the correct return type using the widening lattice. See [Nested Container Widening](focus_navigation.md#nested-container-widening) for details.
 
 ### How It Works
 
@@ -241,7 +243,7 @@ module com.example.optics {
 Once registered, any `@GenerateFocus` record with a `Result<E, A>` field will automatically generate an `AffinePath` that calls `.some(ResultAffines.success())`.
 
 ~~~admonish info title="Hands-On Learning"
-Practice container type navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~12 minutes).
+Practice container type navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"

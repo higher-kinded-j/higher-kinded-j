@@ -496,7 +496,7 @@ The `.toLens()` method converts a Focus path into a composable optic, which we c
                                    │
                                    ▼
                ┌───────────────────────────────────────┐
-               │ Does it have toBuilder().build()?    │
+               │ Does it have toBuilder().build()?     │
                └───────────────────────────────────────┘
                       │ YES                    │ NO
                       ▼                        ▼
@@ -505,10 +505,10 @@ The `.toLens()` method converts a Focus path into a composable optic, which we c
             │                  │    └───────────────────────┘
             │ JOOQ, Lombok,    │           │ YES       │ NO
             │ Immutables,      │           ▼           ▼
-            │ AutoValue        │    ┌──────────┐  ┌─────────────────────┐
-            └──────────────────┘    │ @Wither  │  │ Does it have an     │
+            │ AutoValue        │    ┌──────────┐  ┌──────────────────────┐
+            └──────────────────┘    │ @Wither  │  │ Does it have an      │
                                     │          │  │ all-args constructor?│
-                                    │LocalDate,│  └─────────────────────┘
+                                    │LocalDate,│  └──────────────────────┘
                                     │java.time │       │ YES       │ NO
                                     └──────────┘       ▼           ▼
                                              ┌───────────────┐ ┌──────────────┐
