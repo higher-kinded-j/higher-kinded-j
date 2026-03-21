@@ -326,6 +326,52 @@ public class Tutorial19_NavigatorGeneration {
   }
 
   /**
+   * Exercise 8: widenCollections and SPI priority
+   *
+   * <p>The {@code @GenerateFocus} annotation has a {@code widenCollections} attribute (default
+   * false). When enabled, SPI-registered ZERO_OR_MORE container types automatically produce {@code
+   * TraversalPath} instead of {@code FocusPath}.
+   *
+   * <p>Additionally, the {@code TraversableGenerator} SPI now supports a {@code priority()} method.
+   * When multiple generators support the same type, the highest-priority one wins silently. Only
+   * equal-priority conflicts emit a compile-time warning.
+   *
+   * <p>Priority constants:
+   *
+   * <ul>
+   *   <li>{@code PRIORITY_FALLBACK} (-100) — catch-all generators
+   *   <li>{@code PRIORITY_DEFAULT} (0) — standard generators
+   *   <li>{@code PRIORITY_OVERRIDE} (100) — explicit overrides of built-in generators
+   * </ul>
+   *
+   * <p>Task: Manually compose a path that simulates what widenCollections does automatically
+   */
+  @Test
+  void exercise8_widenCollectionsAndPriority() {
+    // widenCollections = true would make WarehouseFocus.inventory() return
+    // TraversalPath<Warehouse, Integer> directly.
+    // Without it, we must compose manually (as in Exercise 5).
+
+    Warehouse warehouse = new Warehouse("W1", Map.of("bolts", 100, "nuts", 250, "washers", 50));
+
+    // TODO: Create a FocusPath for inventory, then manually widen to TraversalPath
+    // This is what widenCollections = true does automatically for ZERO_OR_MORE SPI types.
+    // Hint: FocusPath.of(warehouseInventoryLens).each(EachInstances.mapValuesEach())
+    TraversalPath<Warehouse, Integer> allQuantities = answerRequired();
+
+    // TODO: Use modifyAll to double every inventory quantity
+    Warehouse doubled = answerRequired();
+
+    // All quantities should be doubled
+    List<Integer> quantities = allQuantities.getAll(doubled);
+    assertThat(quantities).containsExactlyInAnyOrder(200, 500, 100);
+
+    // The SPI priority system ensures that if two generators both support Map<K,V>,
+    // the one with the higher priority() value wins without a warning.
+    // Only equal-priority conflicts produce a compile-time warning.
+  }
+
+  /**
    * Congratulations! You've completed Tutorial 19: Navigator Generation
    *
    * <p>You now understand:
@@ -336,6 +382,8 @@ public class Tutorial19_NavigatorGeneration {
    *   <li>That the SPI determines correct widening for Map, Either, Try, and Validated
    *   <li>That compound widening only increases (AFFINE + TRAVERSAL = TRAVERSAL)
    *   <li>How maxNavigatorDepth controls generation depth, with .via() as a fallback
+   *   <li>How {@code widenCollections = true} auto-widens SPI ZERO_OR_MORE types
+   *   <li>How SPI generator priority resolves conflicts between overlapping generators
    * </ul>
    *
    * <p>Key takeaways:
@@ -344,8 +392,9 @@ public class Tutorial19_NavigatorGeneration {
    *   <li>In production, use @GenerateFocus(generateNavigators = true) to get this behaviour
    *       automatically
    *   <li>The TraversableGenerator SPI is extensible; custom generators can declare their own
-   *       Cardinality
+   *       Cardinality and priority
    *   <li>Navigator generation respects includeFields and excludeFields for fine-grained control
+   *   <li>Use {@code widenCollections = true} to eliminate manual {@code .each(eachInstance)} calls
    * </ul>
    *
    * <p>Next: See the Solutions Reference for all solutions

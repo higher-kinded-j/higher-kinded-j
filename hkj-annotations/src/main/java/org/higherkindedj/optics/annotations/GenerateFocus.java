@@ -103,6 +103,23 @@ public @interface GenerateFocus {
   int maxNavigatorDepth() default 3;
 
   /**
+   * When true, fields of SPI-registered ZERO_OR_MORE container types (e.g., Eclipse Collections
+   * {@code ImmutableList}, Guava {@code ImmutableSet}, {@code Map}, arrays) will automatically
+   * return {@code TraversalPath} instead of {@code FocusPath}.
+   *
+   * <p>By default this is false, preserving backwards compatibility: ZERO_OR_MORE SPI types remain
+   * as {@code FocusPath}, and users must manually call {@code .each(eachInstance)} for traversal.
+   *
+   * <p>When enabled, the processor calls {@code .each(opticExpression)} automatically for any SPI
+   * generator with {@link org.higherkindedj.optics.processing.spi.Cardinality#ZERO_OR_MORE}
+   * cardinality.
+   *
+   * @return true to auto-widen ZERO_OR_MORE SPI types to TraversalPath (default: false)
+   * @since 0.4.0
+   */
+  boolean widenCollections() default false;
+
+  /**
    * Field names to include in navigator generation.
    *
    * <p>If empty (the default), all fields with navigable types are included. When specified, only
