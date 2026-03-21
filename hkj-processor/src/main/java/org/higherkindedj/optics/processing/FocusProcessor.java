@@ -412,6 +412,13 @@ public class FocusProcessor extends AbstractProcessor {
         methodBuilder.addStatement(
             "return " + baseLens + ".each(" + resolvedExpr + ")", args.toArray());
       }
+      case NESTED -> {
+        // Nested container type: composed widening chain
+        List<Object> args =
+            new ArrayList<>(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));
+        String chainExpr = buildWideningChainExpression(pathTypeInfo.wideningChain(), args);
+        methodBuilder.addStatement("return " + baseLens + chainExpr, args.toArray());
+      }
       default ->
           methodBuilder.addStatement(
               "return " + baseLens, FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName);
@@ -441,6 +448,79 @@ public class FocusProcessor extends AbstractProcessor {
         ".<%s, %s>traverseOver(%s)", witnessType, elementType, kindInfo.traverseExpression());
   }
 
+  /**
+   * Builds the chained widening expression for a nested container.
+   *
+   * <p>For example, {@code Optional<List<String>>} produces {@code .some().each()}, and {@code
+   * Either<E, Map<K, V>>} produces {@code
+   * .some(Affines.eitherRight()).each(EachInstances.mapValuesEach())}.
+   *
+   * @param chain the list of widening steps
+   * @param args the mutable list of JavaPoet arguments (for SPI import resolution)
+   * @return the chained expression string
+   */
+  private String buildWideningChainExpression(List<WideningStep> chain, List<Object> args) {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < chain.size(); i++) {
+      WideningStep step = chain.get(i);
+      // Check if the next step requires argument type matching (SPI with parameters).
+      // If so, the current no-arg step needs a type witness to help Java's type inference.
+      boolean nextStepNeedsTypeWitness =
+          i + 1 < chain.size() && isParameterisedStep(chain.get(i + 1));
+      switch (step.type()) {
+        case OPTIONAL -> {
+          if (nextStepNeedsTypeWitness && step.innerTypeMirror() != null) {
+            sb.append(".<$T>some()");
+            args.add(TypeName.get(step.innerTypeMirror()));
+          } else {
+            sb.append(".some()");
+          }
+        }
+        case COLLECTION -> {
+          if (nextStepNeedsTypeWitness && step.innerTypeMirror() != null) {
+            sb.append(".<$T>each()");
+            args.add(TypeName.get(step.innerTypeMirror()));
+          } else {
+            sb.append(".each()");
+          }
+        }
+        case NULLABLE -> sb.append(".nullable()");
+        case SPI_ZERO_OR_ONE -> {
+          TraversableGenerator gen = step.spiGenerator();
+          String opticExpr = gen.generateOpticExpression();
+          String resolvedExpr =
+              OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);
+          sb.append(".some(").append(resolvedExpr).append(")");
+        }
+        case SPI_ZERO_OR_MORE -> {
+          TraversableGenerator gen = step.spiGenerator();
+          String opticExpr = gen.generateOpticExpression();
+          String resolvedExpr =
+              OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);
+          sb.append(".each(").append(resolvedExpr).append(")");
+        }
+        case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE -> {
+          KindFieldInfo kindInfo = step.kindInfo();
+          sb.append(buildTraverseOverCall(kindInfo)).append(".headOption()");
+        }
+        case KIND_ZERO_OR_MORE -> {
+          KindFieldInfo kindInfo = step.kindInfo();
+          sb.append(buildTraverseOverCall(kindInfo));
+        }
+        default -> {
+          // NONE or NESTED should not appear in a chain
+        }
+      }
+    }
+    return sb.toString();
+  }
+
+  /** Returns true if this widening step requires argument type matching (has parameters). */
+  private static boolean isParameterisedStep(WideningStep step) {
+    return step.type() == WideningType.SPI_ZERO_OR_ONE
+        || step.type() == WideningType.SPI_ZERO_OR_MORE;
+  }
+
   /** Represents the type of path widening to apply. */
   private enum WideningType {
     /** No widening - standard FocusPath. */
@@ -460,20 +540,40 @@ public class FocusProcessor extends AbstractProcessor {
     /** SPI-registered zero-or-one type - AffinePath via .some(affine). */
     SPI_ZERO_OR_ONE,
     /** SPI-registered zero-or-more type - TraversalPath via .each(each). */
-    SPI_ZERO_OR_MORE
+    SPI_ZERO_OR_MORE,
+    /** Nested container type - composed widening chain. */
+    NESTED
   }
+
+  /**
+   * Represents a single widening step in a nested container chain.
+   *
+   * @param type the widening type for this step
+   * @param kindInfo Kind field info if this step is a Kind type (may be null)
+   * @param spiGenerator SPI generator if this step is an SPI type (may be null)
+   * @param innerTypeMirror the type produced by unwrapping this container (may be null)
+   */
+  private record WideningStep(
+      WideningType type,
+      KindFieldInfo kindInfo,
+      TraversableGenerator spiGenerator,
+      TypeMirror innerTypeMirror) {}
+
+  /** Maximum recursion depth for nested container analysis. */
+  private static final int MAX_NESTING_DEPTH = 3;
 
   /** Holds information about path type analysis. */
   private record PathTypeInfo(
       ClassName pathClass,
       TypeName innerType,
       WideningType wideningType,
+      List<WideningStep> wideningChain,
       KindFieldInfo kindInfo,
       TraversableGenerator spiGenerator) {
 
     /** Creates a PathTypeInfo without Kind info or SPI generator. */
     static PathTypeInfo of(ClassName pathClass, TypeName innerType, WideningType wideningType) {
-      return new PathTypeInfo(pathClass, innerType, wideningType, null, null);
+      return new PathTypeInfo(pathClass, innerType, wideningType, List.of(), null, null);
     }
 
     /** Creates a PathTypeInfo for a Kind field. */
@@ -484,7 +584,8 @@ public class FocusProcessor extends AbstractProcessor {
             case ZERO_OR_ONE -> WideningType.KIND_ZERO_OR_ONE;
             case ZERO_OR_MORE -> WideningType.KIND_ZERO_OR_MORE;
           };
-      return new PathTypeInfo(pathClass, kindInfo.elementType(), widening, kindInfo, null);
+      return new PathTypeInfo(
+          pathClass, kindInfo.elementType(), widening, List.of(), kindInfo, null);
     }
 
     /** Creates a PathTypeInfo for an SPI-detected field. */
@@ -493,7 +594,13 @@ public class FocusProcessor extends AbstractProcessor {
         TypeName innerType,
         WideningType wideningType,
         TraversableGenerator generator) {
-      return new PathTypeInfo(pathClass, innerType, wideningType, null, generator);
+      return new PathTypeInfo(pathClass, innerType, wideningType, List.of(), null, generator);
+    }
+
+    /** Creates a PathTypeInfo for a nested container with a widening chain. */
+    static PathTypeInfo forNested(
+        ClassName pathClass, TypeName innerType, List<WideningStep> chain) {
+      return new PathTypeInfo(pathClass, innerType, WideningType.NESTED, chain, null, null);
     }
   }
 
@@ -518,12 +625,30 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Check for Optional types (takes precedence over @Nullable)
     if (OPTIONAL_TYPES.contains(qualifiedName)) {
+      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);
+      Optional<PathTypeInfo> nested =
+          analyseNestedContainer(
+              new WideningStep(WideningType.OPTIONAL, null, null, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+      if (nested.isPresent()) {
+        return nested.get();
+      }
       TypeName innerType = extractTypeArgument(declaredType);
       return PathTypeInfo.of(AFFINE_PATH_CLASS, innerType, WideningType.OPTIONAL);
     }
 
     // Check for Collection types (takes precedence over @Nullable)
     if (COLLECTION_TYPES.contains(qualifiedName)) {
+      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);
+      Optional<PathTypeInfo> nested =
+          analyseNestedContainer(
+              new WideningStep(WideningType.COLLECTION, null, null, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+      if (nested.isPresent()) {
+        return nested.get();
+      }
       TypeName innerType = extractTypeArgument(declaredType);
       return PathTypeInfo.of(TRAVERSAL_PATH_CLASS, innerType, WideningType.COLLECTION);
     }
@@ -549,32 +674,19 @@ public class FocusProcessor extends AbstractProcessor {
     // otherwise they remain FocusPath for backwards compatibility.
     // Generators are pre-sorted by priority descending; highest-priority match wins.
     // Only equal-priority conflicts emit a warning.
-    TraversableGenerator matchedGenerator = null;
-    for (TraversableGenerator generator : traversableGenerators) {
-      if (generator.supports(type)) {
-        if (matchedGenerator != null && matchedGenerator.priority() == generator.priority()) {
-          processingEnv
-              .getMessager()
-              .printMessage(
-                  Diagnostic.Kind.WARNING,
-                  "Multiple TraversableGenerator SPI providers with equal priority ("
-                      + generator.priority()
-                      + ") support type "
-                      + type
-                      + ": "
-                      + matchedGenerator.getClass().getName()
-                      + " and "
-                      + generator.getClass().getName()
-                      + ". Using the first match.",
-                  component);
-        } else if (matchedGenerator == null) {
-          matchedGenerator = generator;
-        }
-        // If matchedGenerator has higher priority, skip silently
-      }
-    }
+    TraversableGenerator matchedGenerator = findSpiGenerator(type, component);
     if (matchedGenerator != null && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_ONE) {
       int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();
+      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);
+      Optional<PathTypeInfo> nested =
+          analyseNestedContainer(
+              new WideningStep(
+                  WideningType.SPI_ZERO_OR_ONE, null, matchedGenerator, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+      if (nested.isPresent()) {
+        return nested.get();
+      }
       TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);
       return PathTypeInfo.forSpi(
           AFFINE_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_ONE, matchedGenerator);
@@ -585,6 +697,16 @@ public class FocusProcessor extends AbstractProcessor {
         && matchedGenerator != null
         && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_MORE) {
       int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();
+      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);
+      Optional<PathTypeInfo> nested =
+          analyseNestedContainer(
+              new WideningStep(
+                  WideningType.SPI_ZERO_OR_MORE, null, matchedGenerator, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+      if (nested.isPresent()) {
+        return nested.get();
+      }
       TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);
       return PathTypeInfo.forSpi(
           TRAVERSAL_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_MORE, matchedGenerator);
@@ -596,6 +718,206 @@ public class FocusProcessor extends AbstractProcessor {
     }
 
     return PathTypeInfo.of(FOCUS_PATH_CLASS, null, WideningType.NONE);
+  }
+
+  /**
+   * Finds the highest-priority SPI generator that supports the given type.
+   *
+   * @param type the type to check
+   * @param component the record component for diagnostic messages (may be null)
+   * @return the matched generator, or null if none found
+   */
+  private TraversableGenerator findSpiGenerator(TypeMirror type, Element component) {
+    TraversableGenerator matchedGenerator = null;
+    for (TraversableGenerator generator : traversableGenerators) {
+      if (generator.supports(type)) {
+        if (matchedGenerator != null && matchedGenerator.priority() == generator.priority()) {
+          if (component != null) {
+            processingEnv
+                .getMessager()
+                .printMessage(
+                    Diagnostic.Kind.WARNING,
+                    "Multiple TraversableGenerator SPI providers with equal priority ("
+                        + generator.priority()
+                        + ") support type "
+                        + type
+                        + ": "
+                        + matchedGenerator.getClass().getName()
+                        + " and "
+                        + generator.getClass().getName()
+                        + ". Using the first match.",
+                    component);
+          }
+        } else if (matchedGenerator == null) {
+          matchedGenerator = generator;
+        }
+      }
+    }
+    return matchedGenerator;
+  }
+
+  /**
+   * Analyses whether an inner type contains nested containers and, if so, builds the full widening
+   * chain starting with the given outer step.
+   *
+   * @param outerStep the widening step for the outermost container
+   * @param innerTypeMirror the inner type to check for further nesting
+   * @param widenCollections whether to widen ZERO_OR_MORE SPI types
+   * @return a PathTypeInfo for the nested chain, or empty if no nesting was found
+   */
+  private Optional<PathTypeInfo> analyseNestedContainer(
+      WideningStep outerStep, TypeMirror innerTypeMirror, boolean widenCollections) {
+    if (innerTypeMirror == null) {
+      return Optional.empty();
+    }
+    List<WideningStep> innerChain = analyseNestedType(innerTypeMirror, widenCollections, 1);
+    if (innerChain.isEmpty()) {
+      return Optional.empty();
+    }
+    List<WideningStep> fullChain = new ArrayList<>();
+    fullChain.add(outerStep);
+    fullChain.addAll(innerChain);
+    TypeName deepInnerType = resolveDeepInnerType(innerTypeMirror, innerChain);
+    ClassName pathClass = computeComposedPathClass(fullChain);
+    return Optional.of(PathTypeInfo.forNested(pathClass, deepInnerType, fullChain));
+  }
+
+  /**
+   * Recursively analyses a type to detect nested container patterns. Returns a list of widening
+   * steps for the inner containers, or an empty list if the type is not a recognised container.
+   *
+   * @param type the type to analyse
+   * @param widenCollections whether to widen ZERO_OR_MORE SPI types
+   * @param depth current recursion depth
+   * @return list of widening steps for nested containers
+   */
+  private List<WideningStep> analyseNestedType(
+      TypeMirror type, boolean widenCollections, int depth) {
+    if (depth >= MAX_NESTING_DEPTH || type.getKind() != TypeKind.DECLARED) {
+      return List.of();
+    }
+
+    DeclaredType declaredType = (DeclaredType) type;
+    TypeElement typeElement = (TypeElement) declaredType.asElement();
+    String qualifiedName = typeElement.getQualifiedName().toString();
+
+    // Check for Optional types
+    if (OPTIONAL_TYPES.contains(qualifiedName)) {
+      List<WideningStep> steps = new ArrayList<>();
+      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);
+      steps.add(new WideningStep(WideningType.OPTIONAL, null, null, innerTypeMirror));
+      if (innerTypeMirror != null) {
+        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));
+      }
+      return steps;
+    }
+
+    // Check for Collection types
+    if (COLLECTION_TYPES.contains(qualifiedName)) {
+      List<WideningStep> steps = new ArrayList<>();
+      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);
+      steps.add(new WideningStep(WideningType.COLLECTION, null, null, innerTypeMirror));
+      if (innerTypeMirror != null) {
+        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));
+      }
+      return steps;
+    }
+
+    // Check for SPI types
+    TraversableGenerator gen = findSpiGenerator(type, null);
+    if (gen != null && gen.getCardinality() == Cardinality.ZERO_OR_ONE) {
+      List<WideningStep> steps = new ArrayList<>();
+      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, gen.getFocusTypeArgumentIndex());
+      steps.add(new WideningStep(WideningType.SPI_ZERO_OR_ONE, null, gen, innerTypeMirror));
+      if (innerTypeMirror != null) {
+        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));
+      }
+      return steps;
+    }
+    if (widenCollections && gen != null && gen.getCardinality() == Cardinality.ZERO_OR_MORE) {
+      List<WideningStep> steps = new ArrayList<>();
+      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, gen.getFocusTypeArgumentIndex());
+      steps.add(new WideningStep(WideningType.SPI_ZERO_OR_MORE, null, gen, innerTypeMirror));
+      if (innerTypeMirror != null) {
+        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));
+      }
+      return steps;
+    }
+
+    return List.of();
+  }
+
+  /**
+   * Computes the final path class by composing the widening lattice across a chain.
+   *
+   * <p>The widening lattice: Focus + Affine = Affine, Focus + Traversal = Traversal, Affine +
+   * Traversal = Traversal.
+   */
+  private ClassName computeComposedPathClass(List<WideningStep> chain) {
+    boolean hasTraversal = false;
+    boolean hasAffine = false;
+    for (WideningStep step : chain) {
+      switch (step.type()) {
+        case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -> hasTraversal = true;
+        case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE ->
+            hasAffine = true;
+        default -> {}
+      }
+    }
+    if (hasTraversal) return TRAVERSAL_PATH_CLASS;
+    if (hasAffine) return AFFINE_PATH_CLASS;
+    return FOCUS_PATH_CLASS;
+  }
+
+  /**
+   * Resolves the deepest inner type by walking through the nested container chain.
+   *
+   * @param typeMirror the type at the current nesting level
+   * @param chain the remaining widening steps
+   * @return the innermost type name
+   */
+  private TypeName resolveDeepInnerType(TypeMirror typeMirror, List<WideningStep> chain) {
+    if (chain.isEmpty() || typeMirror.getKind() != TypeKind.DECLARED) {
+      return TypeName.get(typeMirror).box();
+    }
+
+    DeclaredType declaredType = (DeclaredType) typeMirror;
+    WideningStep step = chain.getFirst();
+
+    int typeArgIndex = 0;
+    if (step.spiGenerator() != null) {
+      typeArgIndex = step.spiGenerator().getFocusTypeArgumentIndex();
+    }
+
+    TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);
+    if (innerTypeMirror == null) {
+      return ClassName.get(Object.class);
+    }
+
+    if (chain.size() == 1) {
+      // Resolve wildcard bounds on the innermost type
+      TypeMirror resolved = ProcessorUtils.resolveWildcard(innerTypeMirror);
+      return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
+    }
+
+    return resolveDeepInnerType(innerTypeMirror, chain.subList(1, chain.size()));
+  }
+
+  /** Gets the first type argument of a declared type, or null if none. */
+  private TypeMirror getFirstTypeArgument(DeclaredType declaredType) {
+    return getTypeArgumentAt(declaredType, 0);
+  }
+
+  /** Gets the type argument at the given index, or null if out of bounds. */
+  private TypeMirror getTypeArgumentAt(DeclaredType declaredType, int index) {
+    List<? extends TypeMirror> args = declaredType.getTypeArguments();
+    if (args.isEmpty() || index >= args.size()) {
+      return null;
+    }
+    TypeMirror arg = args.get(index);
+    // Resolve wildcard bounds
+    TypeMirror resolved = ProcessorUtils.resolveWildcard(arg);
+    return resolved != null ? resolved : null;
   }
 
   /** Extracts the first type argument from a parameterised type. */
@@ -620,19 +942,33 @@ public class FocusProcessor extends AbstractProcessor {
 
   /** Gets the path class description for Javadoc. */
   private String getPathDescription(PathTypeInfo info) {
+    if (info.wideningType == WideningType.NESTED) {
+      ClassName pathClass = info.pathClass();
+      if (pathClass.equals(TRAVERSAL_PATH_CLASS)) return "TraversalPath";
+      if (pathClass.equals(AFFINE_PATH_CLASS)) return "AffinePath";
+      return "FocusPath";
+    }
     return switch (info.wideningType) {
       case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -> "AffinePath";
       case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -> "TraversalPath";
       case NONE -> "FocusPath";
+      case NESTED -> "FocusPath"; // handled above, unreachable
     };
   }
 
   /** Gets the appropriate get method name for Javadoc examples. */
   private String getPathGetMethod(PathTypeInfo info) {
+    if (info.wideningType == WideningType.NESTED) {
+      ClassName pathClass = info.pathClass();
+      if (pathClass.equals(TRAVERSAL_PATH_CLASS)) return "getAll";
+      if (pathClass.equals(AFFINE_PATH_CLASS)) return "getOptional";
+      return "get";
+    }
     return switch (info.wideningType) {
       case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -> "getOptional";
       case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -> "getAll";
       case NONE -> "get";
+      case NESTED -> "get"; // handled above, unreachable
     };
   }
 
