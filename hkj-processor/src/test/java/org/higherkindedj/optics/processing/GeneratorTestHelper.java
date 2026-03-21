@@ -129,6 +129,7 @@ public final class GeneratorTestHelper {
             .replaceAll("com\\.example\\.Config", "Config")
             .replaceAll("com\\.example\\.Form", "Form")
             .replaceAll("com\\.example\\.Registry", "Registry")
+            .replaceAll("com\\.example\\.BadRecord", "BadRecord")
             // External types for ImportOptics tests
             .replaceAll("com\\.external\\.Customer", "Customer")
             .replaceAll("com\\.external\\.Pair", "Pair")

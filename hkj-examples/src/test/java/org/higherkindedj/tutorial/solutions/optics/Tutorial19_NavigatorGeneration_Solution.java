@@ -171,6 +171,23 @@ public class Tutorial19_NavigatorGeneration_Solution {
   }
 
   @Test
+  void exercise8_widenCollectionsAndPriority() {
+    Warehouse warehouse = new Warehouse("W1", Map.of("bolts", 100, "nuts", 250, "washers", 50));
+
+    // SOLUTION: Create TraversalPath via .each(mapValuesEach()) — this is what
+    // widenCollections = true does automatically for ZERO_OR_MORE SPI types
+    TraversalPath<Warehouse, Integer> allQuantities =
+        FocusPath.of(warehouseInventoryLens).each(EachInstances.mapValuesEach());
+
+    // SOLUTION: modifyAll to double every quantity
+    Warehouse doubled = allQuantities.modifyAll(q -> q * 2, warehouse);
+
+    // All quantities should be doubled
+    List<Integer> quantities = allQuantities.getAll(doubled);
+    assertThat(quantities).containsExactlyInAnyOrder(200, 500, 100);
+  }
+
+  @Test
   void exercise7_depthLimiting() {
     record Building(String buildingName, Address address) {}
 

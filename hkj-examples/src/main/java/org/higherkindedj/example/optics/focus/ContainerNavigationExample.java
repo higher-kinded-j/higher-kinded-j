@@ -7,6 +7,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.util.Affines;
@@ -27,6 +28,7 @@ import org.higherkindedj.optics.util.Affines;
  *   <li>{@link Affines#validatedValid()} - focuses on the Valid value of a Validated
  *   <li>{@code some(Affine)} composition - widens a FocusPath into an AffinePath
  *   <li>Composing through multiple container types via chained {@code .via()} calls
+ *   <li>Comparing manual composition with {@code @GenerateFocus} SPI auto-widening
  * </ul>
  */
 public class ContainerNavigationExample {
@@ -47,6 +49,37 @@ public class ContainerNavigationExample {
 
   /** An order with an identifier and a result that is either an error message or a payment. */
   record Order(String id, Either<String, Payment> result) {}
+
+  // ============= @GenerateFocus Records (SPI auto-widening) =============
+
+  /**
+   * Same Config model but with {@code @GenerateFocus}.
+   *
+   * <p>The SPI {@code EitherGenerator} recognises {@code Either<String, Integer>} as a ZERO_OR_ONE
+   * container, so {@code AutoConfigFocus.port()} automatically returns {@code
+   * AffinePath<AutoConfig, Integer>} — no manual {@code some(Affine)} needed.
+   */
+  @GenerateFocus
+  record AutoConfig(String name, Either<String, Integer> port) {}
+
+  /**
+   * Same ServiceResult model but with {@code @GenerateFocus}.
+   *
+   * <p>The SPI {@code TryGenerator} recognises {@code Try<String>} as ZERO_OR_ONE, so {@code
+   * AutoServiceResultFocus.response()} returns {@code AffinePath<AutoServiceResult, String>}.
+   */
+  @GenerateFocus
+  record AutoServiceResult(String service, Try<String> response) {}
+
+  /**
+   * Same FormField model but with {@code @GenerateFocus}.
+   *
+   * <p>The SPI {@code ValidatedGenerator} recognises {@code Validated<String, Integer>} as
+   * ZERO_OR_ONE, so {@code AutoFormFieldFocus.answer()} returns {@code AffinePath<AutoFormField,
+   * Integer>}.
+   */
+  @GenerateFocus
+  record AutoFormField(String label, Validated<String, Integer> answer) {}
 
   // ============= Manual Lenses =============
 
@@ -77,6 +110,7 @@ public class ContainerNavigationExample {
     tryNavigationExample();
     validatedNavigationExample();
     composedContainerPathExample();
+    autoWideningComparisonExample();
   }
 
   /**
@@ -211,6 +245,75 @@ public class ContainerNavigationExample {
     // Modify on a failed order is a no-op
     Order unchangedFailed = amountPath.modify(a -> a - 500, failedOrder);
     System.out.println("Modify on failed order (no-op): " + unchangedFailed.result());
+
+    System.out.println();
+  }
+
+  /**
+   * Compares manual container navigation with {@code @GenerateFocus} SPI auto-widening.
+   *
+   * <p>The TraversableGenerator SPI allows the annotation processor to recognise container types
+   * and automatically generate the correct path widening. This eliminates the boilerplate of
+   * creating manual Lenses and calling {@code some(Affine)}.
+   *
+   * <p>Manual approach (above examples):
+   *
+   * <pre>{@code
+   * Lens<Config, Either<String, Integer>> lens = Lens.of(Config::port, ...);
+   * AffinePath<Config, Integer> path = FocusPath.of(lens).some(Affines.eitherRight());
+   * }</pre>
+   *
+   * <p>Generated approach (SPI auto-widening):
+   *
+   * <pre>{@code
+   * // @GenerateFocus on the record is all you need:
+   * AffinePath<AutoConfig, Integer> path = AutoConfigFocus.port();
+   * }</pre>
+   */
+  static void autoWideningComparisonExample() {
+    System.out.println("--- @GenerateFocus SPI Auto-Widening Comparison ---");
+
+    // --- Either: manual vs generated ---
+    AutoConfig validConfig = new AutoConfig("web-server", Either.right(8080));
+    AutoConfig errorConfig = new AutoConfig("web-server", Either.left("PORT_NOT_SET"));
+
+    // Generated: AutoConfigFocus.port() returns AffinePath<AutoConfig, Integer> directly
+    var portPath = AutoConfigFocus.port(); // AffinePath — auto-widened by EitherGenerator SPI
+    System.out.println("Either (generated):");
+    System.out.println("  port() type:     " + portPath.getClass().getSimpleName());
+    System.out.println("  Get from Right:  " + portPath.getOptional(validConfig));
+    System.out.println("  Get from Left:   " + portPath.getOptional(errorConfig));
+
+    // --- Try: manual vs generated ---
+    AutoServiceResult success = new AutoServiceResult("auth", Try.success("token-abc-123"));
+    AutoServiceResult failure =
+        new AutoServiceResult("auth", Try.failure(new RuntimeException("Connection refused")));
+
+    // Generated: AutoServiceResultFocus.response() returns AffinePath — auto-widened by
+    // TryGenerator SPI
+    var responsePath = AutoServiceResultFocus.response();
+    System.out.println("Try (generated):");
+    System.out.println("  response() type: " + responsePath.getClass().getSimpleName());
+    System.out.println("  Get from Success: " + responsePath.getOptional(success));
+    System.out.println("  Get from Failure: " + responsePath.getOptional(failure));
+
+    // --- Validated: manual vs generated ---
+    AutoFormField validField = new AutoFormField("Age", Validated.valid(25));
+    AutoFormField invalidField = new AutoFormField("Age", Validated.invalid("Must be a number"));
+
+    // Generated: AutoFormFieldFocus.answer() returns AffinePath — auto-widened by
+    // ValidatedGenerator SPI
+    var answerPath = AutoFormFieldFocus.answer();
+    System.out.println("Validated (generated):");
+    System.out.println("  answer() type:   " + answerPath.getClass().getSimpleName());
+    System.out.println("  Get from Valid:   " + answerPath.getOptional(validField));
+    System.out.println("  Get from Invalid: " + answerPath.getOptional(invalidField));
+
+    System.out.println();
+    System.out.println("Summary: @GenerateFocus + SPI auto-widening eliminates manual Lens");
+    System.out.println("creation and explicit some(Affine) calls. The generated Focus class");
+    System.out.println("returns the correct path type (AffinePath or TraversalPath) based on");
+    System.out.println("the container's Cardinality registered via TraversableGenerator SPI.");
 
     System.out.println();
   }

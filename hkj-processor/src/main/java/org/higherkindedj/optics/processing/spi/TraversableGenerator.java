@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.TypeMirror;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A Service Provider Interface (SPI) for generating Traversal implementations. Implement this
@@ -22,6 +23,36 @@ import javax.lang.model.type.TypeMirror;
  * @since 0.3.8
  */
 public interface TraversableGenerator {
+
+  /** Priority for catch-all/fallback generators. */
+  int PRIORITY_FALLBACK = -100;
+
+  /** Default priority for standard generators. */
+  int PRIORITY_DEFAULT = 0;
+
+  /** Priority for explicit overrides of built-in generators. */
+  int PRIORITY_OVERRIDE = 100;
+
+  /**
+   * Returns the priority of this generator. Higher values indicate higher priority. When multiple
+   * generators support the same type, the highest-priority one wins. Equal-priority conflicts emit
+   * a compile-time warning.
+   *
+   * <p>Recommended constants:
+   *
+   * <ul>
+   *   <li>{@link #PRIORITY_FALLBACK} ({@value #PRIORITY_FALLBACK}) — catch-all generators
+   *   <li>{@link #PRIORITY_DEFAULT} ({@value #PRIORITY_DEFAULT}) — standard generators
+   *   <li>{@link #PRIORITY_OVERRIDE} ({@value #PRIORITY_OVERRIDE}) — explicit overrides of built-in
+   *       generators
+   * </ul>
+   *
+   * @return the priority of this generator (default: {@value #PRIORITY_DEFAULT})
+   * @since 0.4.0
+   */
+  default int priority() {
+    return PRIORITY_DEFAULT;
+  }
 
   /**
    * Checks if this generator can handle the given type.
@@ -87,6 +118,26 @@ public interface TraversableGenerator {
    */
   default Set<String> getRequiredImports() {
     return Set.of();
+  }
+
+  /**
+   * Resolves a type that may be a wildcard to its effective type for focus extraction. Delegates to
+   * {@link ProcessorUtils#resolveWildcard(TypeMirror)}.
+   *
+   * <p>SPI implementors can use this to resolve wildcard bounds in type arguments:
+   *
+   * <ul>
+   *   <li>{@code ? extends T} → {@code T}
+   *   <li>{@code ? super T} → {@code null} (treat as Object)
+   *   <li>{@code ?} → {@code null} (treat as Object)
+   * </ul>
+   *
+   * @param type the type to resolve
+   * @return the resolved type, or null if the wildcard should be treated as Object
+   * @since 0.4.0
+   */
+  default TypeMirror resolveEffectiveType(TypeMirror type) {
+    return ProcessorUtils.resolveWildcard(type);
   }
 
   /**

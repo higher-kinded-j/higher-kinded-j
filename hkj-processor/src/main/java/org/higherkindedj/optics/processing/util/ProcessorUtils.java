@@ -3,6 +3,8 @@
 package org.higherkindedj.optics.processing.util;
 
 import java.util.Locale;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
 
 /**
  * Shared utility methods for annotation processors in the optics module.
@@ -13,6 +15,33 @@ public final class ProcessorUtils {
 
   private ProcessorUtils() {
     // Utility class - prevent instantiation
+  }
+
+  /**
+   * Resolves a wildcard type to its effective type for focus extraction.
+   *
+   * <ul>
+   *   <li>{@code ? extends T} → {@code T} (upper bound)
+   *   <li>{@code ? super T} → {@code null} (caller should treat as Object)
+   *   <li>{@code ?} (unbounded) → {@code null} (caller should treat as Object)
+   * </ul>
+   *
+   * <p>If the type is not a wildcard, it is returned unchanged.
+   *
+   * @param type the type to resolve
+   * @return the resolved type, or null if the wildcard should be treated as Object
+   * @since 0.4.0
+   */
+  public static TypeMirror resolveWildcard(TypeMirror type) {
+    if (type instanceof WildcardType wildcard) {
+      TypeMirror extendsBound = wildcard.getExtendsBound();
+      if (extendsBound != null) {
+        return extendsBound;
+      }
+      // ? super T or unbounded ? — caller should use Object
+      return null;
+    }
+    return type;
   }
 
   /**

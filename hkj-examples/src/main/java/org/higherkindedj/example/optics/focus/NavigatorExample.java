@@ -22,6 +22,8 @@ import org.higherkindedj.optics.focus.FocusPath;
  *   <li>Controlling navigator generation with {@code maxNavigatorDepth}, {@code includeFields}, and
  *       {@code excludeFields}
  *   <li>Falling back to {@code .via()} for deeper navigation beyond the depth limit
+ *   <li>Using {@code widenCollections = true} to auto-widen SPI ZERO_OR_MORE types
+ *   <li>SPI generator priority for resolving conflicts between overlapping generators
  * </ul>
  *
  * <h2>Comparison: With vs Without Navigators</h2>
@@ -118,6 +120,32 @@ public class NavigatorExample {
       Either<String, String> verifiedName,
       Address location) {}
 
+  // ============= Domain Model with widenCollections =============
+
+  /**
+   * A shop with inventory tracked as a Map, demonstrating {@code widenCollections = true}.
+   *
+   * <p>By default, SPI-registered ZERO_OR_MORE container types (like {@code Map<K,V>}) produce
+   * {@code FocusPath} in the generated Focus class. With {@code widenCollections = true}, they
+   * automatically widen to {@code TraversalPath}, eliminating the need to manually call {@code
+   * .each(eachInstance)}.
+   *
+   * <p>Compare:
+   *
+   * <ul>
+   *   <li><b>Without</b> {@code widenCollections}: {@code ShopFocus.stock()} returns {@code
+   *       FocusPath<Shop, Map<String, Integer>>} — requires manual {@code .each(mapValuesEach())}
+   *   <li><b>With</b> {@code widenCollections}: {@code ShopWidenedFocus.stock()} returns {@code
+   *       TraversalPath<ShopWidened, Integer>} — already widened
+   * </ul>
+   */
+  @GenerateFocus
+  public record Shop(String name, Map<String, Integer> stock) {}
+
+  /** Same as {@link Shop} but with {@code widenCollections = true}. */
+  @GenerateFocus(widenCollections = true)
+  public record ShopWidened(String name, Map<String, Integer> stock) {}
+
   // ============= Examples =============
 
   public static void main(String[] args) {
@@ -126,6 +154,8 @@ public class NavigatorExample {
     basicNavigatorUsage();
     navigatorDelegateMethods();
     spiAwareNavigationExample();
+    widenCollectionsExample();
+    spiPriorityExample();
     depthLimitingExample();
     fieldFilteringExample();
   }
@@ -268,6 +298,87 @@ public class NavigatorExample {
     System.out.println("SPI cardinality summary:");
     System.out.println("  ZERO_OR_ONE  → AffinePath:    Either, Try, Validated, Optional, Maybe");
     System.out.println("  ZERO_OR_MORE → TraversalPath:  Map, List, Set, Collection");
+    System.out.println();
+  }
+
+  /**
+   * Demonstrates the {@code widenCollections} annotation attribute.
+   *
+   * <p>By default, SPI-registered ZERO_OR_MORE container types (like {@code Map<K,V>}) produce
+   * {@code FocusPath} in the generated Focus class. Users must manually call {@code
+   * .each(eachInstance)} to get a {@code TraversalPath}.
+   *
+   * <p>With {@code @GenerateFocus(widenCollections = true)}, the processor automatically applies
+   * the SPI's optic expression, producing {@code TraversalPath} directly.
+   *
+   * <pre>{@code
+   * // Without widenCollections (default):
+   * FocusPath<Shop, Map<String, Integer>> stock = ShopFocus.stock();
+   * TraversalPath<Shop, Integer> values = stock.each(EachInstances.mapValuesEach());
+   *
+   * // With widenCollections = true:
+   * TraversalPath<ShopWidened, Integer> values = ShopWidenedFocus.stock();
+   * }</pre>
+   */
+  static void widenCollectionsExample() {
+    System.out.println("--- widenCollections Attribute ---");
+
+    Shop shop = new Shop("Corner Shop", Map.of("apples", 50, "bread", 30, "milk", 20));
+    ShopWidened shopW =
+        new ShopWidened("Corner Shop", Map.of("apples", 50, "bread", 30, "milk", 20));
+
+    // Without widenCollections: stock() returns FocusPath<Shop, Map<String, Integer>>
+    // Must manually widen to traverse into Map values.
+    var stockPath = ShopFocus.stock(); // FocusPath<Shop, Map<String, Integer>>
+    System.out.println("ShopFocus.stock() type:        " + stockPath.getClass().getSimpleName());
+    System.out.println("  Raw Map value:               " + stockPath.get(shop));
+
+    // With widenCollections = true: stock() returns TraversalPath<ShopWidened, Integer>
+    // Already widened — no manual .each() call needed.
+    var stockWidened = ShopWidenedFocus.stock(); // TraversalPath<ShopWidened, Integer>
+    System.out.println("ShopWidenedFocus.stock() type: " + stockWidened.getClass().getSimpleName());
+    System.out.println("  All stock values:            " + stockWidened.getAll(shopW));
+    System.out.println(
+        "  Total stock:                 "
+            + stockWidened.getAll(shopW).stream().mapToInt(Integer::intValue).sum());
+
+    System.out.println();
+  }
+
+  /**
+   * Demonstrates the SPI priority system for resolving conflicts.
+   *
+   * <p>When multiple {@code TraversableGenerator} SPI providers support the same type, priority
+   * determines which one wins. Higher values win; equal priorities emit a compile-time warning.
+   *
+   * <p>Priority constants:
+   *
+   * <ul>
+   *   <li>{@code PRIORITY_FALLBACK} (-100) — catch-all generators
+   *   <li>{@code PRIORITY_DEFAULT} (0) — standard generators (the default)
+   *   <li>{@code PRIORITY_OVERRIDE} (100) — explicit overrides of built-in generators
+   * </ul>
+   *
+   * <p>This system allows third-party libraries to provide custom generators that override or
+   * coexist with built-in ones without conflicts.
+   */
+  static void spiPriorityExample() {
+    System.out.println("--- SPI Generator Priority ---");
+
+    System.out.println("TraversableGenerator priority constants:");
+    System.out.println("  PRIORITY_FALLBACK (-100): Catch-all / fallback generators");
+    System.out.println("  PRIORITY_DEFAULT  (  0): Standard generators (built-in)");
+    System.out.println("  PRIORITY_OVERRIDE ( 100): Explicit overrides of built-ins");
+    System.out.println();
+    System.out.println("Resolution rules:");
+    System.out.println("  1. Generators are sorted by priority (highest first)");
+    System.out.println("  2. The first matching generator wins");
+    System.out.println("  3. Equal-priority conflicts emit a compile-time WARNING");
+    System.out.println("  4. Higher-priority match silently takes precedence");
+    System.out.println();
+    System.out.println("Example: A custom ImmutableList generator with PRIORITY_OVERRIDE");
+    System.out.println("would override the built-in Eclipse Collections generator.");
+
     System.out.println();
   }
 

@@ -19,6 +19,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Generates navigator wrapper classes for fluent cross-type navigation.
@@ -188,23 +189,27 @@ public class NavigatorClassGenerator {
       return PathKind.TRAVERSAL;
     }
 
-    // Consult TraversableGenerator SPI for additional container types
+    // Consult TraversableGenerator SPI for additional container types.
+    // Generators are pre-sorted by priority descending; highest-priority match wins.
+    // Only equal-priority conflicts emit a warning.
     TraversableGenerator matched = null;
     for (TraversableGenerator generator : traversableGenerators) {
       if (generator.supports(type)) {
-        if (matched != null) {
+        if (matched != null && matched.priority() == generator.priority()) {
           processingEnv
               .getMessager()
               .printMessage(
                   Diagnostic.Kind.WARNING,
-                  "Multiple TraversableGenerator SPI providers support type "
+                  "Multiple TraversableGenerator SPI providers with equal priority ("
+                      + generator.priority()
+                      + ") support type "
                       + type
                       + ": "
                       + matched.getClass().getName()
                       + " and "
                       + generator.getClass().getName()
                       + ". Using the first match.");
-        } else {
+        } else if (matched == null) {
           matched = generator;
         }
       }
@@ -635,6 +640,15 @@ public class NavigatorClassGenerator {
             .build());
   }
 
+  /** Returns the set of delegate method names for a given path kind. */
+  private static Set<String> getDelegateMethodNames(PathKind pathKind) {
+    return switch (pathKind) {
+      case FOCUS -> Set.of("get", "set", "modify", "toLens", "toPath");
+      case AFFINE -> Set.of("getOptional", "set", "modify", "matches", "toPath");
+      case TRAVERSAL -> Set.of("getAll", "setAll", "modifyAll", "count", "isEmpty", "toPath");
+    };
+  }
+
   /** Adds navigation methods for each field of the target record. */
   private void addNavigationMethods(
       TypeSpec.Builder navigatorBuilder,
@@ -648,9 +662,30 @@ public class NavigatorClassGenerator {
     String targetPackage =
         processingEnv.getElementUtils().getPackageOf(targetRecord).getQualifiedName().toString();
     ClassName targetFocusClass = ClassName.get(targetPackage, targetFocusClassName);
+    Set<String> delegateNames = getDelegateMethodNames(currentPathKind);
 
     for (RecordComponentElement component : components) {
       String fieldName = component.getSimpleName().toString();
+
+      // Skip fields that would collide with delegate method names
+      if (delegateNames.contains(fieldName)) {
+        processingEnv
+            .getMessager()
+            .printMessage(
+                Diagnostic.Kind.NOTE,
+                "Navigator field '"
+                    + fieldName
+                    + "' in "
+                    + targetRecord.getSimpleName()
+                    + " collides with a delegate method name. "
+                    + "Use .toPath().via("
+                    + targetFocusClassName
+                    + "."
+                    + fieldName
+                    + "().toLens()) as a workaround.",
+                component);
+        continue;
+      }
       TypeMirror fieldType = component.asType();
       TypeName fieldTypeName = TypeName.get(fieldType).box();
 
@@ -793,11 +828,14 @@ public class NavigatorClassGenerator {
         ParameterizedTypeName.get(pathClass, sourceTypeVar, innerTypeName);
     methodBuilder.returns(innerReturnType);
 
-    // Check if the inner type is navigable and we should wrap in a navigator
+    // Check if the inner type is navigable and we should wrap in a navigator.
+    // Only wrap for SPI ZERO_OR_MORE types, not hardcoded collection types (List, Set, Collection),
+    // because generateNavigatorsWithPathKind only generates navigator classes for SPI containers
+    // and directly navigable types, not for hardcoded collection types.
     boolean wrapInNavigator = false;
     ClassName navigatorFromTargetFocus = null;
-    if (fieldKind == PathKind.TRAVERSAL) {
-      // For TRAVERSAL fields (collections/ZERO_OR_MORE SPI), check if inner type is navigable
+    if (fieldKind == PathKind.TRAVERSAL && !isHardcodedWideningType(fieldType)) {
+      // For SPI ZERO_OR_MORE TRAVERSAL fields, check if inner type is navigable
       TypeElement innerTypeElement = extractInnerTypeElement(fieldType);
       if (currentDepth < maxDepth
           && innerTypeElement != null
@@ -862,7 +900,8 @@ public class NavigatorClassGenerator {
     if (OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName)) {
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
       if (!typeArgs.isEmpty()) {
-        return TypeName.get(typeArgs.get(0)).box();
+        TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArgs.get(0));
+        return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
       }
       return null;
     }
@@ -874,7 +913,8 @@ public class NavigatorClassGenerator {
         if (COLLECTION_TYPES.contains(ifaceElement.getQualifiedName().toString())) {
           List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
           if (!typeArgs.isEmpty()) {
-            return TypeName.get(typeArgs.get(0)).box();
+            TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArgs.get(0));
+            return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
           }
         }
       }
@@ -886,7 +926,8 @@ public class NavigatorClassGenerator {
       int focusIdx = generator.getFocusTypeArgumentIndex();
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
       if (focusIdx < typeArgs.size()) {
-        return TypeName.get(typeArgs.get(focusIdx)).box();
+        TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
+        return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
       }
     }
 
@@ -912,7 +953,7 @@ public class NavigatorClassGenerator {
     if (OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName)) {
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
       if (!typeArgs.isEmpty()) {
-        innerType = typeArgs.get(0);
+        innerType = ProcessorUtils.resolveWildcard(typeArgs.get(0));
       }
     }
 
@@ -923,7 +964,7 @@ public class NavigatorClassGenerator {
         int focusIdx = generator.getFocusTypeArgumentIndex();
         List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
         if (focusIdx < typeArgs.size()) {
-          innerType = typeArgs.get(focusIdx);
+          innerType = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
         }
       }
     }
@@ -1066,7 +1107,8 @@ public class NavigatorClassGenerator {
 
     // Check if field is an SPI container wrapping a navigable inner type
     // (e.g., Either<String, Address> where Address is navigable).
-    // Skip types already handled by hardcoded OPTIONAL_TYPES/COLLECTION_TYPES.
+    // Skip types already handled by hardcoded OPTIONAL_TYPES/COLLECTION_TYPES
+    // (Optional<Branch> fields are handled by createFocusPathMethod via .some() widening).
     boolean spiContainerNavigable = false;
     TraversableGenerator spiGenerator = null;
     TypeElement innerNavigableType = null;

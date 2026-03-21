@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,7 @@ import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor for {@link GenerateFocus} that generates Focus DSL utility classes.
@@ -100,6 +102,8 @@ public class FocusProcessor extends AbstractProcessor {
     super.init(processingEnv);
     ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
         .forEach(traversableGenerators::add);
+    // Sort by priority descending so highest-priority generators are checked first
+    traversableGenerators.sort(Comparator.comparingInt(TraversableGenerator::priority).reversed());
   }
 
   /** ClassName for FocusPath (in hkj-core, not available at processor compile time). */
@@ -121,14 +125,6 @@ public class FocusProcessor extends AbstractProcessor {
   /** Collection types that widen to TraversalPath via .each(). */
   private static final Set<String> COLLECTION_TYPES =
       Set.of("java.util.List", "java.util.Set", "java.util.Collection");
-
-  /** Loads SPI generators via ServiceLoader. */
-  private List<TraversableGenerator> loadSpiGenerators() {
-    List<TraversableGenerator> generators = new ArrayList<>();
-    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
-        .forEach(generators::add);
-    return generators;
-  }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -171,6 +167,7 @@ public class FocusProcessor extends AbstractProcessor {
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
     boolean generateNavigators = annotation.generateNavigators();
+    boolean widenCollections = annotation.widenCollections();
     int maxNavigatorDepth = annotation.maxNavigatorDepth();
     String[] includeFields = annotation.includeFields();
     String[] excludeFields = annotation.excludeFields();
@@ -228,7 +225,9 @@ public class FocusProcessor extends AbstractProcessor {
 
       // Fall back to standard FocusPath method if no navigator method was created
       if (method == null) {
-        method = createFocusPathMethod(component, recordElement, components, recordTypeName);
+        method =
+            createFocusPathMethod(
+                component, recordElement, components, recordTypeName, widenCollections);
       }
 
       focusClassBuilder.addMethod(method);
@@ -262,14 +261,15 @@ public class FocusProcessor extends AbstractProcessor {
       RecordComponentElement component,
       TypeElement recordElement,
       List<? extends RecordComponentElement> allComponents,
-      TypeName recordTypeName) {
+      TypeName recordTypeName,
+      boolean widenCollections) {
 
     String componentName = component.getSimpleName().toString();
     TypeMirror componentType = component.asType();
     TypeName componentTypeName = TypeName.get(componentType);
 
     // Detect path type widening based on field type and annotations
-    PathTypeInfo pathTypeInfo = analyseFieldType(component, componentType);
+    PathTypeInfo pathTypeInfo = analyseFieldType(component, componentType, widenCollections);
 
     // Determine return type and inner type based on widening
     ClassName pathClass = pathTypeInfo.pathClass;
@@ -498,7 +498,8 @@ public class FocusProcessor extends AbstractProcessor {
   }
 
   /** Analyses a field type and annotations to determine path widening. */
-  private PathTypeInfo analyseFieldType(RecordComponentElement component, TypeMirror type) {
+  private PathTypeInfo analyseFieldType(
+      RecordComponentElement component, TypeMirror type, boolean widenCollections) {
     // Check for @Nullable annotation on the field first
     boolean isNullable = NullableAnnotations.hasNullableAnnotation(component);
 
@@ -542,18 +543,23 @@ public class FocusProcessor extends AbstractProcessor {
       return PathTypeInfo.forKind(pathClass, info);
     }
 
-    // Consult SPI generators for ZERO_OR_ONE container types (e.g. Either, Try, Validated).
-    // ZERO_OR_MORE types (Map, arrays) are NOT widened here to preserve backwards compatibility;
-    // they remain FocusPath and users can manually call .each(eachInstance) for traversal.
+    // Consult SPI generators for container types (e.g. Either, Try, Validated, Map).
+    // ZERO_OR_ONE types are always widened to AffinePath.
+    // ZERO_OR_MORE types are only widened to TraversalPath when widenCollections is enabled;
+    // otherwise they remain FocusPath for backwards compatibility.
+    // Generators are pre-sorted by priority descending; highest-priority match wins.
+    // Only equal-priority conflicts emit a warning.
     TraversableGenerator matchedGenerator = null;
-    for (TraversableGenerator generator : loadSpiGenerators()) {
+    for (TraversableGenerator generator : traversableGenerators) {
       if (generator.supports(type)) {
-        if (matchedGenerator != null) {
+        if (matchedGenerator != null && matchedGenerator.priority() == generator.priority()) {
           processingEnv
               .getMessager()
               .printMessage(
                   Diagnostic.Kind.WARNING,
-                  "Multiple TraversableGenerator SPI providers support type "
+                  "Multiple TraversableGenerator SPI providers with equal priority ("
+                      + generator.priority()
+                      + ") support type "
                       + type
                       + ": "
                       + matchedGenerator.getClass().getName()
@@ -561,9 +567,10 @@ public class FocusProcessor extends AbstractProcessor {
                       + generator.getClass().getName()
                       + ". Using the first match.",
                   component);
-        } else {
+        } else if (matchedGenerator == null) {
           matchedGenerator = generator;
         }
+        // If matchedGenerator has higher priority, skip silently
       }
     }
     if (matchedGenerator != null && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_ONE) {
@@ -571,6 +578,16 @@ public class FocusProcessor extends AbstractProcessor {
       TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);
       return PathTypeInfo.forSpi(
           AFFINE_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_ONE, matchedGenerator);
+    }
+
+    // When widenCollections is enabled, also widen ZERO_OR_MORE SPI types to TraversalPath
+    if (widenCollections
+        && matchedGenerator != null
+        && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_MORE) {
+      int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();
+      TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);
+      return PathTypeInfo.forSpi(
+          TRAVERSAL_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_MORE, matchedGenerator);
     }
 
     // Check for @Nullable annotation (after Kind and SPI checks)
@@ -592,7 +609,13 @@ public class FocusProcessor extends AbstractProcessor {
     if (typeArgs.isEmpty() || index >= typeArgs.size()) {
       return ClassName.get(Object.class);
     }
-    return TypeName.get(typeArgs.get(index)).box();
+    TypeMirror typeArg = typeArgs.get(index);
+    // Resolve wildcard bounds: ? extends T → T, ? super T / ? → Object
+    TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArg);
+    if (resolved == null) {
+      return ClassName.get(Object.class);
+    }
+    return TypeName.get(resolved).box();
   }
 
   /** Gets the path class description for Javadoc. */

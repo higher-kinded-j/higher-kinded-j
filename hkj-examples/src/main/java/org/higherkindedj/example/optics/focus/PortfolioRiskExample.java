@@ -45,6 +45,7 @@ import org.higherkindedj.optics.util.Traversals;
  *   <li>JDK {@code Optional} and {@code Map} standard widening
  *   <li>Navigator chains crossing 3+ container ecosystems in a single expression
  *   <li>Path kind propagation: FOCUS → TRAVERSAL → TRAVERSAL → AFFINE
+ *   <li>{@code widenCollections = true} for automatic TraversalPath widening of Map fields
  * </ul>
  *
  * @see org.higherkindedj.optics.each.EachInstances#fromIterableCollecting
@@ -112,6 +113,19 @@ public class PortfolioRiskExample {
       Either<ComplianceViolation, Approval> status // HKJ Either         → AffinePath
       ) {}
 
+  /**
+   * An asset class variant using {@code widenCollections = true} to auto-widen the Map field.
+   *
+   * <p>Compare with {@link AssetClass}: here, {@code WidenedAssetClassFocus.exposures()} returns
+   * {@code TraversalPath<WidenedAssetClass, Double>} directly, instead of {@code
+   * FocusPath<AssetClass, Map<String, Double>>}. No manual {@code .each(mapValuesEach())} needed.
+   */
+  @GenerateFocus(widenCollections = true)
+  public record WidenedAssetClass(
+      String className,
+      Map<String, Double> exposures // Map → TraversalPath (auto-widened by widenCollections)
+      ) {}
+
   // ============= Examples =============
 
   public static void main(String[] args) {
@@ -123,6 +137,7 @@ public class PortfolioRiskExample {
     navigatorTraversal(portfolio);
     affineContainerAccess(portfolio);
     mixedEcosystemQuery(portfolio);
+    widenCollectionsComparison();
     fullRiskPipeline(portfolio);
   }
 
@@ -234,7 +249,42 @@ public class PortfolioRiskExample {
     System.out.println();
   }
 
-  // --- Scenario 5: Full Risk Pipeline ---
+  // --- Scenario 5: widenCollections Comparison ---
+
+  /**
+   * Compares Map field access with and without {@code widenCollections = true}.
+   *
+   * <p>Without: {@code AssetClassFocus.exposures()} returns {@code FocusPath<AssetClass,
+   * Map<String, Double>>} — must call {@code .each(mapValuesEach())} to traverse values.
+   *
+   * <p>With: {@code WidenedAssetClassFocus.exposures()} returns {@code
+   * TraversalPath<WidenedAssetClass, Double>} — already widened.
+   */
+  private static void widenCollectionsComparison() {
+    System.out.println("--- 5. widenCollections Comparison ---");
+
+    WidenedAssetClass equities =
+        new WidenedAssetClass("Equities", Map.of("USD", 0.85, "EUR", 0.10, "GBP", 0.05));
+
+    // With widenCollections = true: exposures() returns TraversalPath directly
+    var exposuresPath = WidenedAssetClassFocus.exposures();
+    System.out.println(
+        "WidenedAssetClassFocus.exposures() type: " + exposuresPath.getClass().getSimpleName());
+
+    var allExposures = exposuresPath.getAll(equities);
+    System.out.println("All exposure values: " + allExposures);
+
+    double totalExposure = allExposures.stream().mapToDouble(Double::doubleValue).sum();
+    System.out.printf("Total exposure: %.2f (should be ~1.0)%n", totalExposure);
+
+    // Modify all exposures (e.g., rebalance by doubling EUR weight)
+    WidenedAssetClass rebalanced = exposuresPath.modifyAll(v -> v * 1.1, equities);
+    System.out.println("After 10% increase: " + exposuresPath.getAll(rebalanced));
+
+    System.out.println();
+  }
+
+  // --- Scenario 6: Full Risk Pipeline ---
 
   /**
    * A realistic business query combining all container types: "If the portfolio is approved and the
@@ -244,7 +294,7 @@ public class PortfolioRiskExample {
    * for loops. With HKJ navigators, it's a handful of path expressions.
    */
   private static void fullRiskPipeline(Portfolio portfolio) {
-    System.out.println("--- 5. Full Risk Pipeline ---");
+    System.out.println("--- 6. Full Risk Pipeline ---");
 
     // Check compliance status
     var approval = PortfolioFocus.status().getOptional(portfolio);
