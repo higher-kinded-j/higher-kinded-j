@@ -997,6 +997,87 @@ class SpecMutationKillingTest {
     }
   }
 
+  @Nested
+  @DisplayName("OpticMethodInfo requires* methods")
+  class OpticMethodInfoRequiresMethods {
+
+    @Test
+    @DisplayName("requiresCopyStrategy should return true for LENS")
+    void requiresCopyStrategyForLens() {
+      var info =
+          new SpecAnalysis.OpticMethodInfo(
+              null,
+              SpecAnalysis.OpticKind.LENS,
+              null,
+              CopyStrategyKind.NONE,
+              SpecAnalysis.CopyStrategyInfo.empty(),
+              SpecAnalysis.PrismHintKind.NONE,
+              SpecAnalysis.PrismHintInfo.empty(),
+              TraversalHintKind.NONE,
+              SpecAnalysis.TraversalHintInfo.empty());
+      assertThat(info.requiresCopyStrategy()).isTrue();
+      assertThat(info.requiresPrismHint()).isFalse();
+      assertThat(info.requiresTraversalHint()).isFalse();
+    }
+
+    @Test
+    @DisplayName("requiresPrismHint should return true for PRISM")
+    void requiresPrismHintForPrism() {
+      var info =
+          new SpecAnalysis.OpticMethodInfo(
+              null,
+              SpecAnalysis.OpticKind.PRISM,
+              null,
+              CopyStrategyKind.NONE,
+              SpecAnalysis.CopyStrategyInfo.empty(),
+              SpecAnalysis.PrismHintKind.NONE,
+              SpecAnalysis.PrismHintInfo.empty(),
+              TraversalHintKind.NONE,
+              SpecAnalysis.TraversalHintInfo.empty());
+      assertThat(info.requiresCopyStrategy()).isFalse();
+      assertThat(info.requiresPrismHint()).isTrue();
+      assertThat(info.requiresTraversalHint()).isFalse();
+    }
+
+    @Test
+    @DisplayName("requiresTraversalHint should return true for TRAVERSAL")
+    void requiresTraversalHintForTraversal() {
+      var info =
+          new SpecAnalysis.OpticMethodInfo(
+              null,
+              SpecAnalysis.OpticKind.TRAVERSAL,
+              null,
+              CopyStrategyKind.NONE,
+              SpecAnalysis.CopyStrategyInfo.empty(),
+              SpecAnalysis.PrismHintKind.NONE,
+              SpecAnalysis.PrismHintInfo.empty(),
+              TraversalHintKind.NONE,
+              SpecAnalysis.TraversalHintInfo.empty());
+      assertThat(info.requiresCopyStrategy()).isFalse();
+      assertThat(info.requiresPrismHint()).isFalse();
+      assertThat(info.requiresTraversalHint()).isTrue();
+    }
+
+    @Test
+    @DisplayName("none of requires* should return true for GETTER")
+    void noneRequiredForGetter() {
+      var info =
+          new SpecAnalysis.OpticMethodInfo(
+              null,
+              SpecAnalysis.OpticKind.GETTER,
+              null,
+              CopyStrategyKind.NONE,
+              SpecAnalysis.CopyStrategyInfo.empty(),
+              SpecAnalysis.PrismHintKind.NONE,
+              SpecAnalysis.PrismHintInfo.empty(),
+              TraversalHintKind.NONE,
+              SpecAnalysis.TraversalHintInfo.empty());
+      assertThat(info.requiresCopyStrategy()).isFalse();
+      assertThat(info.requiresPrismHint()).isFalse();
+      assertThat(info.requiresTraversalHint()).isFalse();
+    }
+  }
+
   // =============================================================================
   // SpecInterfaceAnalyser - findFieldType edge cases
   // =============================================================================

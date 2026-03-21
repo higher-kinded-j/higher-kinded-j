@@ -183,6 +183,24 @@ class SpecInterfaceAnalyserTest {
     return processor.getResult();
   }
 
+  /**
+   * Like {@link #analyseSpec} but does not assert compilation success. Use for tests where the
+   * analyser is expected to report errors that cause compilation to fail.
+   */
+  private Optional<SpecAnalysis> analyseSpecAllowingErrors(
+      String typeName, JavaFileObject... additionalSources) {
+    JavaFileObject[] allSources = new JavaFileObject[additionalSources.length + 4];
+    allSources[0] = OPTICS_SPEC;
+    allSources[1] = LENS;
+    allSources[2] = PRISM;
+    allSources[3] = TRAVERSAL;
+    System.arraycopy(additionalSources, 0, allSources, 4, additionalSources.length);
+
+    AnalyserTestProcessor processor = new AnalyserTestProcessor(typeName);
+    javac().withProcessors(processor).compile(allSources);
+    return processor.getResult();
+  }
+
   @Nested
   @DisplayName("Source Type Extraction")
   class SourceTypeExtraction {
@@ -295,6 +313,41 @@ class SpecInterfaceAnalyserTest {
       assertThat(result.get().defaultMethods()).hasSize(1);
       assertThat(result.get().defaultMethods().get(0).getSimpleName().toString())
           .isEqualTo("firstName");
+    }
+
+    @Test
+    @DisplayName("should ignore static methods in spec interface")
+    void shouldIgnoreStaticMethods() {
+      var person =
+          JavaFileObjects.forSourceString(
+              "com.test.Person",
+              """
+              package com.test;
+              public record Person(String name, int age) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.StaticSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import org.higherkindedj.optics.Lens;
+              public interface StaticSpec extends OpticsSpec<Person> {
+                  @ViaBuilder
+                  Lens<Person, String> name();
+                  static void helperMethod() {}
+              }
+              """);
+
+      Optional<SpecAnalysis> result = analyseSpec("com.test.StaticSpec", person, spec, VIA_BUILDER);
+
+      assertThat(result).isPresent();
+      // Static method should be ignored - only 'name' should be present
+      assertThat(result.get().opticMethods()).hasSize(1);
+      assertThat(result.get().opticMethods().get(0).method().getSimpleName().toString())
+          .isEqualTo("name");
     }
   }
 
@@ -615,6 +668,121 @@ class SpecInterfaceAnalyserTest {
       assertThat(method.traversalHint()).isEqualTo(TraversalHintKind.TRAVERSE_WITH);
       assertThat(method.traversalHintInfo().traversalReference())
           .isEqualTo("org.higherkindedj.optics.Traversals.list()");
+    }
+  }
+
+  @Nested
+  @DisplayName("Error Paths")
+  class ErrorPaths {
+
+    @Test
+    @DisplayName("should return empty for non-interface spec type")
+    void shouldReturnEmptyForNonInterfaceSpec() {
+      var personClass =
+          JavaFileObjects.forSourceString(
+              "com.test.PersonClass",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              public class PersonClass implements OpticsSpec<String> {}
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpecAllowingErrors("com.test.PersonClass", personClass);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty when spec does not extend OpticsSpec")
+    void shouldReturnEmptyWhenNotExtendingOpticsSpec() {
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.NotASpec",
+              """
+              package com.test;
+              public interface NotASpec {}
+              """);
+
+      Optional<SpecAnalysis> result = analyseSpecAllowingErrors("com.test.NotASpec", spec);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty when OpticsSpec has no type argument")
+    void shouldReturnEmptyForRawOpticsSpec() {
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.RawSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              @SuppressWarnings("rawtypes")
+              public interface RawSpec extends OpticsSpec {}
+              """);
+
+      Optional<SpecAnalysis> result = analyseSpecAllowingErrors("com.test.RawSpec", spec);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty for method with non-declared return type")
+    void shouldReturnEmptyForPrimitiveReturnType() {
+      var person =
+          JavaFileObjects.forSourceString(
+              "com.test.Person",
+              """
+              package com.test;
+              public record Person(String name) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BadReturnSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              public interface BadReturnSpec extends OpticsSpec<Person> {
+                  int badMethod();
+              }
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpecAllowingErrors("com.test.BadReturnSpec", person, spec);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty when optic has too few type arguments")
+    void shouldReturnEmptyForOpticWithoutTypeArgs() {
+      var person =
+          JavaFileObjects.forSourceString(
+              "com.test.Person",
+              """
+              package com.test;
+              public record Person(String name) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BadFocusSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.Lens;
+              @SuppressWarnings("rawtypes")
+              public interface BadFocusSpec extends OpticsSpec<Person> {
+                  Lens rawLens();
+              }
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpecAllowingErrors("com.test.BadFocusSpec", person, spec);
+
+      assertThat(result).isEmpty();
     }
   }
 

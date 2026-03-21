@@ -2,6 +2,7 @@ plugins {
     `java-library`
     id("com.vanniktech.maven.publish")
     id("info.solidsoft.pitest") version "1.19.0-rc.3"
+    jacoco
 }
 
 dependencies {
@@ -33,6 +34,61 @@ tasks.test {
     useJUnitPlatform()
     maxParallelForks = Runtime.getRuntime().availableProcessors()
     setForkEvery(100)
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    // Exclude test infrastructure from coverage measurement
+    classDirectories.setFrom(
+        sourceSets.main.get().output.classesDirs.map { dir ->
+            fileTree(dir).apply {
+                exclude(
+                    "**/RuntimeCompilationHelper*.class"
+                )
+            }
+        }
+    )
+}
+
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+
+    classDirectories.setFrom(
+        sourceSets.main.get().output.classesDirs.map { dir ->
+            fileTree(dir).apply {
+                exclude(
+                    "**/RuntimeCompilationHelper*.class"
+                )
+            }
+        }
+    )
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.85".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 // =============================================================================

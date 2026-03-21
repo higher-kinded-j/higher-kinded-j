@@ -66,4 +66,18 @@ class TraversableGeneratorTest {
     assertEquals(Cardinality.ZERO_OR_ONE, values[0]);
     assertEquals(Cardinality.ZERO_OR_MORE, values[1]);
   }
+
+  @Test
+  @DisplayName("resolveEffectiveType should delegate to ProcessorUtils.resolveWildcard")
+  void resolveEffectiveTypeShouldDelegateToProcessorUtils() {
+    // resolveEffectiveType with null returns null (ProcessorUtils handles null gracefully)
+    TypeMirror result = MINIMAL_IMPL.resolveEffectiveType(null);
+    assertNull(result);
+  }
+
+  @Test
+  @DisplayName("priority should default to PRIORITY_DEFAULT")
+  void priorityShouldDefaultToPriorityDefault() {
+    assertEquals(TraversableGenerator.PRIORITY_DEFAULT, MINIMAL_IMPL.priority());
+  }
 }
