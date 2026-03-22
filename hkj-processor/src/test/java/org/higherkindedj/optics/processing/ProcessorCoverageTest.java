@@ -233,6 +233,77 @@ class ProcessorCoverageTest {
     }
 
     @Test
+    @DisplayName("should handle @Nullable on primitive int field (non-declared, non-array type)")
+    void shouldHandleNullablePrimitiveIntField() {
+      // Use custom @Nullable with RECORD_COMPONENT target to ensure detection in test environment
+      final var nullableAnnotation =
+          JavaFileObjects.forSourceString(
+              "org.jspecify.annotations.Nullable",
+              """
+              package org.jspecify.annotations;
+              import java.lang.annotation.*;
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
+                       ElementType.RECORD_COMPONENT})
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """);
+
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.NullablePrim",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus
+              public record NullablePrim(String name, @Nullable int score) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, sourceFile);
+
+      assertThat(compilation).succeeded();
+      // @Nullable on a primitive type should produce AffinePath with boxed type
+      assertGeneratedCodeContains(
+          compilation, "com.example.NullablePrimFocus", "AffinePath<NullablePrim,");
+    }
+
+    @Test
+    @DisplayName("should handle @Nullable on primitive double field")
+    void shouldHandleNullablePrimitiveDoubleField() {
+      final var nullableAnnotation =
+          JavaFileObjects.forSourceString(
+              "org.jspecify.annotations.Nullable",
+              """
+              package org.jspecify.annotations;
+              import java.lang.annotation.*;
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
+                       ElementType.RECORD_COMPONENT})
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """);
+
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.NullableDbl",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus
+              public record NullableDbl(String name, @Nullable double value) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, sourceFile);
+
+      assertThat(compilation).succeeded();
+      // @Nullable on a primitive double should produce AffinePath with boxed type
+      assertGeneratedCodeContains(
+          compilation, "com.example.NullableDblFocus", "AffinePath<NullableDbl,");
+    }
+
+    @Test
     @DisplayName("should handle Optional<Optional<String>> nested containers")
     void shouldHandleOptionalOfOptional() {
       final var sourceFile =

@@ -262,6 +262,39 @@ class CopyStrategyCodeGeneratorTest {
       assertThat(code.setter()).contains("copy.setName(newValue)");
       assertThat(code.setter()).contains("return copy");
     }
+
+    @Test
+    @DisplayName("should generate copy and set setter with explicit copyConstructor")
+    void shouldGenerateCopyAndSetSetterWithCopyConstructor() {
+      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet("PersonCopy", "setName");
+
+      GeneratedCode code =
+          generateCode(CopyStrategyKind.VIA_COPY_AND_SET, info, "name", PERSON_SOURCE);
+
+      // When copyConstructor is non-empty, the branch at line 164-175 is triggered
+      assertThat(code.setter()).contains("com.test.Person copy = new com.test.Person(source)");
+      assertThat(code.setter()).contains("copy.setName(newValue)");
+      assertThat(code.setter()).contains("return copy");
+    }
+  }
+
+  @Nested
+  @DisplayName("Error Paths")
+  class ErrorPaths {
+
+    @Test
+    @DisplayName("should throw IllegalArgumentException for CopyStrategyKind.NONE")
+    void shouldThrowForNoneStrategy() {
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "");
+
+      // javac wraps processor exceptions in RuntimeException
+      RuntimeException thrown =
+          org.junit.jupiter.api.Assertions.assertThrows(
+              RuntimeException.class,
+              () -> generateCode(CopyStrategyKind.NONE, info, "name", PERSON_SOURCE));
+      assertThat(thrown).hasCauseInstanceOf(IllegalArgumentException.class);
+      assertThat(thrown.getCause()).hasMessageContaining("No copy strategy specified");
+    }
   }
 
   @Nested

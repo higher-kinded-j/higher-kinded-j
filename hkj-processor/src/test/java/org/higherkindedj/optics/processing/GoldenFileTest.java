@@ -128,6 +128,80 @@ class GoldenFileTest {
         """);
   }
 
+  /** Record with many fields (10+) for verifying processor handles large records */
+  private static JavaFileObject manyFieldsRecord() {
+    return JavaFileObjects.forSourceString(
+        "com.test.ManyFields",
+        """
+        package com.test;
+
+        public record ManyFields(
+            String field1,
+            int field2,
+            double field3,
+            boolean field4,
+            long field5,
+            String field6,
+            int field7,
+            String field8,
+            double field9,
+            String field10,
+            boolean field11,
+            String field12) {}
+        """);
+  }
+
+  /** Record with nested generic types for verifying complex type parameter handling */
+  private static JavaFileObject nestedGenericsRecord() {
+    return JavaFileObjects.forSourceString(
+        "com.test.NestedGenerics",
+        """
+        package com.test;
+
+        import java.util.List;
+        import java.util.Map;
+        import java.util.Optional;
+
+        public record NestedGenerics(
+            Map<String, List<Integer>> index,
+            Optional<List<String>> optionalTags,
+            List<Map<String, Object>> entries) {}
+        """);
+  }
+
+  /** Custom Nullable annotation for test environment */
+  private static JavaFileObject nullableAnnotation() {
+    return JavaFileObjects.forSourceString(
+        "org.jspecify.annotations.Nullable",
+        """
+        package org.jspecify.annotations;
+
+        import java.lang.annotation.*;
+
+        @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
+                 ElementType.RECORD_COMPONENT})
+        @Retention(RetentionPolicy.RUNTIME)
+        public @interface Nullable {}
+        """);
+  }
+
+  /** Record with @Nullable fields for verifying nullable annotation handling */
+  private static JavaFileObject nullableFieldsRecord() {
+    return JavaFileObjects.forSourceString(
+        "com.test.NullableFields",
+        """
+        package com.test;
+
+        import org.jspecify.annotations.Nullable;
+
+        public record NullableFields(
+            String id,
+            @Nullable String nickname,
+            @Nullable String bio,
+            int score) {}
+        """);
+  }
+
   private static JavaFileObject packageInfo(String... typeNames) {
     StringBuilder imports = new StringBuilder();
     StringBuilder classes = new StringBuilder();
@@ -200,7 +274,26 @@ class GoldenFileTest {
             "com.test.optics.NestedLenses",
             "NestedLenses.java.golden",
             nestedRecord(),
-            packageInfo("com.test.Nested")));
+            packageInfo("com.test.Nested")),
+        new GoldenTestCase(
+            "Many fields record lenses",
+            "com.test.optics.ManyFieldsLenses",
+            "ManyFieldsLenses.java.golden",
+            manyFieldsRecord(),
+            packageInfo("com.test.ManyFields")),
+        new GoldenTestCase(
+            "Nested generics record lenses",
+            "com.test.optics.NestedGenericsLenses",
+            "NestedGenericsLenses.java.golden",
+            nestedGenericsRecord(),
+            packageInfo("com.test.NestedGenerics")),
+        new GoldenTestCase(
+            "Nullable fields record lenses",
+            "com.test.optics.NullableFieldsLenses",
+            "NullableFieldsLenses.java.golden",
+            nullableFieldsRecord(),
+            nullableAnnotation(),
+            packageInfo("com.test.NullableFields")));
   }
 
   // =============================================================================

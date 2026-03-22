@@ -436,6 +436,80 @@ class SpecInterfaceCoverageTest {
   }
 
   @Nested
+  @DisplayName("ExternalPrismGenerator with multiple subtypes")
+  class ExternalPrismGeneratorMultipleSubtypes {
+
+    @Test
+    @DisplayName("should generate prisms for sealed interface with three subtypes")
+    void shouldGeneratePrismsForThreeSubtypes() {
+      final var sealedInterface =
+          JavaFileObjects.forSourceString(
+              "com.external.Vehicle",
+              """
+              package com.external;
+              public sealed interface Vehicle permits Vehicle.Car, Vehicle.Truck, Vehicle.Bike {
+                  record Car(int seats) implements Vehicle {}
+                  record Truck(double payload) implements Vehicle {}
+                  record Bike(boolean electric) implements Vehicle {}
+              }
+              """);
+
+      final var importAnnotation =
+          JavaFileObjects.forSourceString(
+              "com.myapp.VehicleImporter",
+              """
+              package com.myapp;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import com.external.Vehicle;
+              @ImportOptics({Vehicle.class})
+              public class VehicleImporter {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(sealedInterface, importAnnotation);
+
+      assertThat(compilation).succeeded();
+      // All three subtypes should have prism methods
+      assertGeneratedCodeContains(compilation, "com.myapp.VehiclePrisms", "car()");
+      assertGeneratedCodeContains(compilation, "com.myapp.VehiclePrisms", "truck()");
+      assertGeneratedCodeContains(compilation, "com.myapp.VehiclePrisms", "bike()");
+    }
+
+    @Test
+    @DisplayName("should generate prisms for enum with many constants")
+    void shouldGeneratePrismsForManyEnumConstants() {
+      final var enumType =
+          JavaFileObjects.forSourceString(
+              "com.external.Priority",
+              """
+              package com.external;
+              public enum Priority { LOW, MEDIUM, HIGH, CRITICAL, BLOCKER }
+              """);
+
+      final var importAnnotation =
+          JavaFileObjects.forSourceString(
+              "com.myapp.PriorityImporter",
+              """
+              package com.myapp;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import com.external.Priority;
+              @ImportOptics({Priority.class})
+              public class PriorityImporter {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(enumType, importAnnotation);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.PriorityPrisms", "low()");
+      assertGeneratedCodeContains(compilation, "com.myapp.PriorityPrisms", "critical()");
+      assertGeneratedCodeContains(compilation, "com.myapp.PriorityPrisms", "blocker()");
+    }
+  }
+
+  @Nested
   @DisplayName("SpecInterfaceAnalyser coverage")
   class SpecInterfaceAnalyserCoverage {
 
@@ -683,6 +757,172 @@ class SpecInterfaceCoverageTest {
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("requires a traversal hint annotation");
+    }
+  }
+
+  @Nested
+  @DisplayName("@InstanceOf prism in spec interface")
+  class InstanceOfPrismInSpec {
+
+    @Test
+    @DisplayName("should generate prism with @InstanceOf for sealed type")
+    void shouldGeneratePrismWithInstanceOf() {
+      final var externalSealed =
+          JavaFileObjects.forSourceString(
+              "com.external.Shape",
+              """
+              package com.external;
+              public sealed interface Shape permits Shape.Circle, Shape.Rect {
+                  record Circle(double radius) implements Shape {}
+                  record Rect(double w, double h) implements Shape {}
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ShapeOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import com.external.Shape;
+
+              @ImportOptics
+              public interface ShapeOpticsSpec extends OpticsSpec<Shape> {
+
+                  @InstanceOf(Shape.Circle.class)
+                  Prism<Shape, Shape.Circle> asCircle();
+
+                  @InstanceOf(Shape.Rect.class)
+                  Prism<Shape, Shape.Rect> asRect();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalSealed, specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ShapeOptics", "Prism<Shape, Shape.Circle> asCircle()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ShapeOptics", "Prism<Shape, Shape.Rect> asRect()");
+      assertGeneratedCodeContains(compilation, "com.myapp.ShapeOptics", "instanceof");
+    }
+  }
+
+  @Nested
+  @DisplayName("@MatchWhen prism in spec interface")
+  class MatchWhenPrismInSpec {
+
+    @Test
+    @DisplayName("should generate prism with @MatchWhen predicate/getter")
+    void shouldGeneratePrismWithMatchWhen() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.JsonNode",
+              """
+              package com.external;
+              public class JsonNode {
+                  public boolean isArray() { return false; }
+                  public JsonNode asArray() { return this; }
+                  public boolean isObject() { return false; }
+                  public JsonNode asObject() { return this; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.JsonOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.MatchWhen;
+              import com.external.JsonNode;
+
+              @ImportOptics
+              public interface JsonOpticsSpec extends OpticsSpec<JsonNode> {
+
+                  @MatchWhen(predicate = "isArray", getter = "asArray")
+                  Prism<JsonNode, JsonNode> asArray();
+
+                  @MatchWhen(predicate = "isObject", getter = "asObject")
+                  Prism<JsonNode, JsonNode> asObject();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.JsonOptics", "Prism<JsonNode, JsonNode> asArray()");
+      assertGeneratedCodeContains(compilation, "com.myapp.JsonOptics", "isArray()");
+      assertGeneratedCodeContains(compilation, "com.myapp.JsonOptics", "asArray()");
+    }
+  }
+
+  @Nested
+  @DisplayName("@ThroughField traversal with Set field in spec interface")
+  class ThroughFieldWithSetInSpec {
+
+    @Test
+    @DisplayName("should generate traversal with @ThroughField for Set field with auto-detection")
+    void shouldGenerateTraversalForSetField() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Catalog",
+              """
+              package com.external;
+              import java.util.Set;
+              public class Catalog {
+                  private final String name;
+                  private final Set<String> items;
+                  public Catalog(String name, Set<String> items) {
+                      this.name = name; this.items = items;
+                  }
+                  public String name() { return name; }
+                  public Set<String> items() { return items; }
+                  public Catalog withName(String name) { return new Catalog(name, this.items); }
+                  public Catalog withItems(Set<String> items) { return new Catalog(this.name, items); }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.CatalogOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import com.external.Catalog;
+
+              @ImportOptics
+              public interface CatalogOpticsSpec extends OpticsSpec<Catalog> {
+
+                  @ThroughField(field = "items")
+                  Traversal<Catalog, String> items();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.CatalogOptics", "Traversal<Catalog, String> items()");
+      // Should auto-detect Set traversal
+      assertGeneratedCodeContains(compilation, "com.myapp.CatalogOptics", "Traversals.forSet()");
     }
   }
 

@@ -516,6 +516,120 @@ class NavigatorCoverageTest {
       assertGeneratedCodeContains(
           compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
     }
+
+    @Test
+    @DisplayName("should skip navigator field that collides with FocusPath delegate 'modify'")
+    void shouldSkipFieldCollidingWithModifyDelegate() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String modify, String data) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Outer",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(String name, Inner inner) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // 'modify' collides with FocusPath delegate, 'data' should still be generated
+      assertGeneratedCodeContains(
+          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
+    }
+
+    @Test
+    @DisplayName("should skip navigator field that collides with FocusPath delegate 'toPath'")
+    void shouldSkipFieldCollidingWithToPathDelegate() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String toPath, String data) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Outer",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(String name, Inner inner) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // 'toPath' collides with FocusPath delegate, 'data' should still be generated
+      assertGeneratedCodeContains(
+          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
+    }
+
+    @Test
+    @DisplayName("should skip navigator field that collides with AffinePath delegate 'matches'")
+    void shouldSkipFieldCollidingWithMatchesDelegate() {
+      final JavaFileObject nullableAnnotation =
+          JavaFileObjects.forSourceString(
+              "org.jspecify.annotations.Nullable",
+              """
+              package org.jspecify.annotations;
+              import java.lang.annotation.*;
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
+                       ElementType.RECORD_COMPONENT})
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """);
+
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String matches, String data) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.AffineOuter",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus(generateNavigators = true)
+              public record AffineOuter(@Nullable Inner inner, String name) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(nullableAnnotation, innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // 'matches' collides with AffinePath delegate; 'data' should still be navigable
+      assertGeneratedCodeContains(
+          compilation, "com.example.AffineOuterFocus", "AffinePath<S, String> data()");
+    }
   }
 
   @Nested
@@ -569,6 +683,81 @@ class NavigatorCoverageTest {
   }
 
   @Nested
+  @DisplayName("Single-Field Widened Record")
+  class SingleFieldWidenedRecord {
+
+    @Test
+    @DisplayName(
+        "should generate navigator for record with single Optional field and navigators enabled")
+    void shouldGenerateNavigatorForSingleOptionalField() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String value) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Wrapper",
+              """
+              package com.example;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Wrapper(Optional<Inner> item) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // Single Optional<Inner> field should produce AffinePath-based navigator
+      // with correct setter lambda for a record with only one field
+      assertGeneratedCodeContains(compilation, "com.example.WrapperFocus", "item()");
+    }
+
+    @Test
+    @DisplayName(
+        "should generate navigator for record with single List field and navigators enabled")
+    void shouldGenerateNavigatorForSingleListField() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String value) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Wrapper",
+              """
+              package com.example;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Wrapper(List<Inner> items) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // Single List<Inner> field should produce TraversalPath-based navigator
+      // with correct setter lambda for a record with only one field
+      assertGeneratedCodeContains(compilation, "com.example.WrapperFocus", "items()");
+    }
+  }
+
+  @Nested
   @DisplayName("Set Collection Type")
   class SetCollectionType {
 
@@ -592,6 +781,62 @@ class NavigatorCoverageTest {
 
       assertGeneratedCodeContains(
           compilation, "com.example.RegistryFocus", "TraversalPath<Registry, String> entries()");
+    }
+  }
+
+  @Nested
+  @DisplayName("AFFINE to TRAVERSAL Widening in Navigator")
+  class AffineToTraversalWidening {
+
+    @Test
+    @DisplayName("should widen from AFFINE to TRAVERSAL when @Nullable navigable has List field")
+    void shouldWidenAffineToTraversalInNavigator() {
+      final JavaFileObject nullableAnnotation =
+          JavaFileObjects.forSourceString(
+              "org.jspecify.annotations.Nullable",
+              """
+              package org.jspecify.annotations;
+              import java.lang.annotation.*;
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
+                       ElementType.RECORD_COMPONENT})
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """);
+
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String label, List<String> tags) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.AffineOuter",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus(generateNavigators = true)
+              public record AffineOuter(String name, @Nullable Inner inner) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(nullableAnnotation, innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // @Nullable Inner makes navigator AFFINE context; Inner's List<String> tags
+      // widens to TRAVERSAL. AFFINE.widen(TRAVERSAL) = TRAVERSAL.
+      // So tags() in the navigator should return TraversalPath<S, String>
+      assertGeneratedCodeContains(
+          compilation, "com.example.AffineOuterFocus", "TraversalPath<S, String> tags()");
     }
   }
 }
