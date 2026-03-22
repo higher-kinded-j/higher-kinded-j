@@ -263,4 +263,58 @@ class CopyStrategyCodeGeneratorTest {
       assertThat(code.setter()).contains("return copy");
     }
   }
+
+  @Nested
+  @DisplayName("Two-parameter generateGetterLambda and getterMethodName")
+  class TwoParamGetterLambda {
+
+    @Test
+    @DisplayName("should generate record-style getter via 2-param generateGetterLambda")
+    void shouldGenerateRecordStyleGetterTwoParam() {
+      // Test the 2-parameter overload of generateGetterLambda(fieldName, sourceType)
+      // which always defaults to record-style accessors
+      var testProcessor =
+          new AbstractProcessor() {
+            String result;
+            String methodName;
+
+            @Override
+            public Set<String> getSupportedAnnotationTypes() {
+              return Set.of("*");
+            }
+
+            @Override
+            public SourceVersion getSupportedSourceVersion() {
+              return SourceVersion.RELEASE_25;
+            }
+
+            @Override
+            public boolean process(
+                Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+              if (roundEnv.processingOver()) return false;
+              TypeElement el = processingEnv.getElementUtils().getTypeElement("com.test.Person");
+              if (el != null) {
+                CopyStrategyCodeGenerator gen = new CopyStrategyCodeGenerator();
+                CodeBlock getter = gen.generateGetterLambda("name", el.asType());
+                result = getter.toString();
+                methodName = gen.getterMethodName("name");
+              }
+              return false;
+            }
+          };
+
+      Compilation compilation = javac().withProcessors(testProcessor).compile(PERSON_SOURCE);
+      assertThat(compilation).succeeded();
+      assertThat(testProcessor.result).isEqualTo("source -> source.name()");
+      assertThat(testProcessor.methodName).isEqualTo("name");
+    }
+
+    @Test
+    @DisplayName("should generate JavaBean-style getter method name")
+    void shouldGenerateJavaBeanGetterMethodName() {
+      CopyStrategyCodeGenerator gen = new CopyStrategyCodeGenerator();
+      assertThat(gen.javaBeanGetterMethodName("name")).isEqualTo("getName");
+      assertThat(gen.javaBeanGetterMethodName("age")).isEqualTo("getAge");
+    }
+  }
 }
