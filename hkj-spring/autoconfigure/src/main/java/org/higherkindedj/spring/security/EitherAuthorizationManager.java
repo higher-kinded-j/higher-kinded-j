@@ -50,6 +50,9 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
 public class EitherAuthorizationManager
     implements AuthorizationManager<RequestAuthorizationContext> {
 
+  /** Creates a new EitherAuthorizationManager with default settings. */
+  public EitherAuthorizationManager() {}
+
   /**
    * Authorizes access using Either for functional decision making.
    *
@@ -130,9 +133,18 @@ public class EitherAuthorizationManager
     return Either.right(new AuthorizationSuccess(authentication.getName(), path));
   }
 
-  /** Error type for authorization failures. */
+  /**
+   * Error type for authorization failures.
+   *
+   * @param reason the reason authorization was denied
+   */
   public record AuthorizationError(String reason) {}
 
-  /** Success type for authorization. */
+  /**
+   * Success type for authorization.
+   *
+   * @param principal the authorized principal name
+   * @param allowedPath the path that was authorized
+   */
   public record AuthorizationSuccess(String principal, String allowedPath) {}
 }

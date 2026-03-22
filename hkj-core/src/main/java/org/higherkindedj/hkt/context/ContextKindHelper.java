@@ -31,11 +31,11 @@ public enum ContextKindHelper implements ContextConverterOps {
 
   /**
    * Internal record implementing {@link ContextKind ContextKind<R, A>} to hold the concrete {@link
-   * Context Context<R, A>} instance.
+   * Context Context&lt;R, A&gt;} instance.
    *
    * @param <R> The scoped value type of the Context.
    * @param <A> The result type of the Context.
-   * @param context The non-null, actual {@link Context Context<R, A>} instance.
+   * @param context The non-null, actual {@link Context Context&lt;R, A&gt;} instance.
    */
   record ContextHolder<R, A>(Context<R, A> context) implements ContextKind<R, A> {
 
@@ -50,12 +50,13 @@ public enum ContextKindHelper implements ContextConverterOps {
   }
 
   /**
-   * Widens a concrete {@link Context Context<R, A>} instance into its higher-kinded representation,
-   * {@code Kind<ContextKind.Witness<R>, A>}.
+   * Widens a concrete {@link Context Context&lt;R, A&gt;} instance into its higher-kinded
+   * representation, {@code Kind<ContextKind.Witness<R>, A>}.
    *
    * @param <R> The type of the scoped value.
    * @param <A> The type of the result produced by the Context.
-   * @param context The concrete {@link Context Context<R, A>} instance to widen. Must be non-null.
+   * @param context The concrete {@link Context Context&lt;R, A&gt;} instance to widen. Must be
+   *     non-null.
    * @return A non-null {@code Kind<ContextKind.Witness<R>, A>} representing the wrapped Context.
    * @throws NullPointerException if {@code context} is null.
    */
@@ -66,14 +67,14 @@ public enum ContextKindHelper implements ContextConverterOps {
 
   /**
    * Narrows a {@code Kind<ContextKind.Witness<R>, A>} back to its concrete {@link Context
-   * Context<R, A>} type.
+   * Context&lt;R, A&gt;} type.
    *
    * <p>This implementation uses a holder-based approach with pattern matching.
    *
    * @param <R> The type of the scoped value.
    * @param <A> The type of the result produced by the Context.
    * @param kind The {@code Kind<ContextKind.Witness<R>, A>} instance to narrow. May be null.
-   * @return The underlying, non-null {@link Context Context<R, A>} instance.
+   * @return The underlying, non-null {@link Context Context&lt;R, A&gt;} instance.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input kind is null or not a
    *     valid ContextHolder.
    */

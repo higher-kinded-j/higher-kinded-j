@@ -200,6 +200,10 @@ public class ValidatedUserDetailsService implements UserDetailsService {
     users.put(userDetails.getUsername(), userDetails);
   }
 
-  /** Validation error for user details. */
+  /**
+   * Validation error for user details.
+   *
+   * @param message the validation error message
+   */
   public record UserValidationError(String message) {}
 }

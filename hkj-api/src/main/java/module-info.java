@@ -1,3 +1,7 @@
+/**
+ * Provides the core API types for higher-kinded-j, including HKT encoding, optics, and functional
+ * interfaces.
+ */
 @org.jspecify.annotations.NullMarked
 module org.higherkindedj.api {
   requires static org.jspecify;

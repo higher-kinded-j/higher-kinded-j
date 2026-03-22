@@ -16,6 +16,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
  */
 public abstract class BaseTraversableGenerator implements TraversableGenerator {
 
+  /** Creates a new {@code BaseTraversableGenerator}. */
+  protected BaseTraversableGenerator() {}
+
   /**
    * Extracts the primary generic type from a container-like record component.
    *

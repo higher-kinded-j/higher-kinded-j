@@ -27,6 +27,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public class ValidatedGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link Validated} fields. */
+  public ValidatedGenerator() {}
+
   private static final String FQN_VALIDATED = "org.higherkindedj.hkt.validated.Validated";
 
   @Override

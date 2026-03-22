@@ -102,7 +102,7 @@ public final class TraverseTraversals {
    * Creates a {@link Traversal} for {@link List} elements using the standard List encoding.
    *
    * <p>This traversal focuses on all elements within a {@code Kind<ListKind.Witness, A>}. For
-   * working with raw {@code java.util.List}, use {@link ListTraversals#forList()} instead.
+   * working with raw {@code java.util.List}, use {@code ListTraversals} instead.
    *
    * <h2>Example</h2>
    *

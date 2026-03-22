@@ -13,9 +13,9 @@ import org.higherkindedj.hkt.util.validation.Validation;
 /**
  * Implements the {@link Monad} interface for the {@link Context} type.
  *
- * <p>This class allows {@link Context Context<R, A>} to be used as a monad. The {@code Context}
- * monad allows sequencing of operations that read from {@link ScopedValue} bindings in the current
- * thread scope.
+ * <p>This class allows {@link Context Context&lt;R, A&gt;} to be used as a monad. The {@code
+ * Context} monad allows sequencing of operations that read from {@link ScopedValue} bindings in the
+ * current thread scope.
  *
  * <p>The higher-kinded type (HKT) witness for {@code Context<R, ?>} is {@link ContextKind.Witness
  * Witness<R>}. This means that when using {@code ContextMonad} with generic HKT abstractions, a

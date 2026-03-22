@@ -35,6 +35,7 @@ public class ValidatedDeserializer extends StdDeserializer<Validated<?, ?>> {
 
   private static final long serialVersionUID = 1L;
 
+  /** Creates a new ValidatedDeserializer for the Validated type. */
   @SuppressWarnings("unchecked")
   public ValidatedDeserializer() {
     super((Class<Validated<?, ?>>) (Class<?>) Validated.class);

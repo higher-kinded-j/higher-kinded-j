@@ -23,6 +23,9 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(HkjProperties.class)
 public class HkjAutoConfiguration {
 
+  /** Creates a new HkjAutoConfiguration. */
+  public HkjAutoConfiguration() {}
+
   @Configuration(proxyBeanMethods = false)
   static class HkjCoreConfiguration {
     // Placeholder for future core beans if needed

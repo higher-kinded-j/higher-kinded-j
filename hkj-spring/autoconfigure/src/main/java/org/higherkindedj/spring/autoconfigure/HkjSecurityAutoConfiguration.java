@@ -87,6 +87,11 @@ public class HkjSecurityAutoConfiguration {
 
   private final HkjProperties properties;
 
+  /**
+   * Creates a new security auto-configuration with the given properties.
+   *
+   * @param properties the HKJ configuration properties
+   */
   public HkjSecurityAutoConfiguration(HkjProperties properties) {
     this.properties = properties;
   }

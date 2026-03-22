@@ -28,6 +28,9 @@ import org.higherkindedj.optics.util.Traversals;
 @ServiceProvider(TraversableGenerator.class)
 public class MapValueGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link java.util.Map} value traversal. */
+  public MapValueGenerator() {}
+
   private static final String FQN_MAP = "java.util.Map";
 
   @Override

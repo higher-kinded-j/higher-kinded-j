@@ -20,10 +20,14 @@ import org.higherkindedj.optics.util.Traversals;
 public abstract class GuavaBaseSingleIterableTraversableGenerator extends BaseTraversableGenerator {
   private static final String COLLECTIONS_PACKAGE = "com.google.common.collect";
 
+  /** Class name for Guava's {@code ImmutableList}. */
   public static final ClassName IMMUTABLE_LIST =
       ClassName.get(COLLECTIONS_PACKAGE, "ImmutableList");
+
+  /** Class name for Guava's {@code ImmutableSet}. */
   public static final ClassName IMMUTABLE_SET = ClassName.get(COLLECTIONS_PACKAGE, "ImmutableSet");
 
+  /** The concrete Guava collection type this generator supports. */
   protected final ClassName supportedType;
 
   GuavaBaseSingleIterableTraversableGenerator(final ClassName supportedType) {

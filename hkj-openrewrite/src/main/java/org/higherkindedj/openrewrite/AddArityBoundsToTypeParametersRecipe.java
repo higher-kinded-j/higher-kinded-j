@@ -37,6 +37,9 @@ import org.openrewrite.marker.Markers;
  */
 public class AddArityBoundsToTypeParametersRecipe extends Recipe {
 
+  /** Creates a new instance of this recipe. */
+  public AddArityBoundsToTypeParametersRecipe() {}
+
   private static final String WITNESS_ARITY_FQN = "org.higherkindedj.hkt.WitnessArity";
   private static final String TYPE_ARITY_FQN = "org.higherkindedj.hkt.TypeArity";
 

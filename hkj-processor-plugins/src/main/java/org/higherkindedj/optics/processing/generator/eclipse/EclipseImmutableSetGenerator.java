@@ -13,6 +13,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 public final class EclipseImmutableSetGenerator
     extends EclipseBaseSingleIterableTraversableGenerator {
 
+  /** Creates a new generator for Eclipse Collections {@code ImmutableSet} fields. */
   public EclipseImmutableSetGenerator() {
     super(IMMUTABLE_SET, true, SETS_API);
   }

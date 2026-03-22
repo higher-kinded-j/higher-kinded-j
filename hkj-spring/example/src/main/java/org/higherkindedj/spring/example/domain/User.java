@@ -7,6 +7,11 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 /**
  * User domain model. {@literal @}GenerateLenses automatically generates UserLenses class with
  * lenses for each field.
+ *
+ * @param id the user ID
+ * @param email the user's email address
+ * @param firstName the user's first name
+ * @param lastName the user's last name
  */
 @GenerateLenses
 public record User(String id, String email, String firstName, String lastName) {}

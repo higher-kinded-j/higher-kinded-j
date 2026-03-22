@@ -20,8 +20,15 @@ import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
+/**
+ * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Either},
+ * focusing on the right value.
+ */
 @ServiceProvider(TraversableGenerator.class)
 public class EitherGenerator extends BaseTraversableGenerator {
+
+  /** Creates a new generator for {@link Either} fields. */
+  public EitherGenerator() {}
 
   private static final String FQN_EITHER = "org.higherkindedj.hkt.either.Either";
 

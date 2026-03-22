@@ -27,6 +27,11 @@ public class ValidationController {
 
   private final UserService userService;
 
+  /**
+   * Constructs a ValidationController.
+   *
+   * @param userService the user service
+   */
   public ValidationController(UserService userService) {
     this.userService = userService;
   }
@@ -40,6 +45,9 @@ public class ValidationController {
    *
    * <p>Compare this to the Either-based endpoint at POST /api/users which would only return the
    * FIRST validation error.
+   *
+   * @param request the user creation request
+   * @return Validated containing either validation errors or the created user
    */
   @PostMapping("/users")
   public Validated<List<ValidationError>, User> createUserWithValidation(
@@ -90,6 +98,9 @@ public class ValidationController {
    *   ]
    * }
    * </pre>
+   *
+   * @param requests the list of user creation requests
+   * @return ValidationBatchResult containing results for each request
    */
   @PostMapping("/batch")
   public ValidationBatchResult validateBatch(@RequestBody List<CreateUserRequest> requests) {
@@ -105,6 +116,9 @@ public class ValidationController {
    * Response DTO demonstrating nested Validated values. The List of Validated values will be
    * serialized using Jackson's ValidatedSerializer, producing wrapped JSON with valid/value/errors
    * structure.
+   *
+   * @param batchId the batch identifier
+   * @param results the list of validation results
    */
   public record ValidationBatchResult(
       String batchId, List<Validated<List<ValidationError>, User>> results) {}

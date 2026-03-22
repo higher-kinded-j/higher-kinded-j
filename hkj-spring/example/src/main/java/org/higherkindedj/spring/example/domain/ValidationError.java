@@ -5,6 +5,9 @@ package org.higherkindedj.spring.example.domain;
 /**
  * Error indicating a validation failure. The error class name contains "Validation" so the
  * EitherReturnValueHandler will automatically return HTTP 400.
+ *
+ * @param field the field that failed validation
+ * @param message the validation error message
  */
 public record ValidationError(String field, String message) implements DomainError {
   @Override

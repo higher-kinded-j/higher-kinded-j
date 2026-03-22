@@ -28,6 +28,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class HkjSpringExampleApplication {
 
+  /** Creates an HkjSpringExampleApplication instance. */
+  public HkjSpringExampleApplication() {}
+
+  /**
+   * Application entry point.
+   *
+   * @param args command-line arguments
+   */
   public static void main(String[] args) {
     SpringApplication.run(HkjSpringExampleApplication.class, args);
   }

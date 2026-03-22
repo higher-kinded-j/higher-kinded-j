@@ -13,6 +13,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 public final class EclipseImmutableSortedSetGenerator
     extends EclipseBaseSortedSetTraversableGenerator {
 
+  /** Creates a new generator for Eclipse Collections {@code ImmutableSortedSet} fields. */
   public EclipseImmutableSortedSetGenerator() {
     super(IMMUTABLE_SORTED_SET, true, SORTED_SETS_API);
   }

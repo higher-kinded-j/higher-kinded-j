@@ -53,6 +53,9 @@ import tools.jackson.databind.json.JsonMapper;
     matchIfMissing = true)
 public class HkjJacksonAutoConfiguration {
 
+  /** Creates a new HkjJacksonAutoConfiguration. */
+  public HkjJacksonAutoConfiguration() {}
+
   /**
    * Provides the HkjJacksonModule bean which will be automatically registered with Spring Boot's
    * JsonMapper.

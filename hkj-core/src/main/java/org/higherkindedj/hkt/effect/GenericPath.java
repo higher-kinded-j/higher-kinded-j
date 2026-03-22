@@ -105,7 +105,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
    * Creates a GenericPath from a Kind and MonadError instance.
    *
    * <p>This factory enables error recovery operations like {@link #recover(Function)}, {@link
-   * #recoverWith(Function)}, and {@link #mapError(Function)}.
+   * #recoverWith(Function)}, and {@code mapError}.
    *
    * @param value the Kind to wrap; must not be null
    * @param monadError the MonadError instance; must not be null

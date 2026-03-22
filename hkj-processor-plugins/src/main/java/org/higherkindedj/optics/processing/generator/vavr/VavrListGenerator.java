@@ -12,6 +12,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public final class VavrListGenerator extends VavrBaseSingleIterableTraversableGenerator {
 
+  /** Creates a new generator for Vavr {@code List} fields. */
   public VavrListGenerator() {
     super(LIST, LIST);
   }

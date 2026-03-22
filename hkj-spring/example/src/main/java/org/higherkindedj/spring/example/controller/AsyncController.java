@@ -49,6 +49,11 @@ public class AsyncController {
 
   private final AsyncUserService asyncUserService;
 
+  /**
+   * Constructs an AsyncController.
+   *
+   * @param asyncUserService the async user service
+   */
   public AsyncController(AsyncUserService asyncUserService) {
     this.asyncUserService = asyncUserService;
   }
@@ -121,6 +126,11 @@ public class AsyncController {
     return asyncUserService.getHealthAsync();
   }
 
-  /** Health status response. */
+  /**
+   * Health status response.
+   *
+   * @param status the health status
+   * @param message a descriptive message
+   */
   public record HealthStatus(String status, String message) {}
 }

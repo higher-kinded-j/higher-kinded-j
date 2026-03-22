@@ -29,6 +29,9 @@ import org.openrewrite.java.tree.TypeTree;
  */
 public class AddWitnessArityToWitnessClass extends Recipe {
 
+  /** Creates a new instance of this recipe. */
+  public AddWitnessArityToWitnessClass() {}
+
   private static final String WITNESS_ARITY_FQN = "org.higherkindedj.hkt.WitnessArity";
   private static final String TYPE_ARITY_FQN = "org.higherkindedj.hkt.TypeArity";
   private static final String KIND_FQN = "org.higherkindedj.hkt.Kind";

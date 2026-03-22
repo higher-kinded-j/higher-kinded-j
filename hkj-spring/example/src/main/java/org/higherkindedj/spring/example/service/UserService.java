@@ -28,6 +28,7 @@ public class UserService {
   // In-memory "database" for the example
   private final Map<String, User> users = new ConcurrentHashMap<>();
 
+  /** Creates a new user service with pre-populated test data. */
   public UserService() {
     // Pre-populate with some test users
     users.put("1", new User("1", "alice@example.com", "Alice", "Smith"));

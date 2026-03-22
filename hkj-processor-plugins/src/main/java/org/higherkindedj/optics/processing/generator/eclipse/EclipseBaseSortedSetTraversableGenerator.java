@@ -14,15 +14,27 @@ import org.higherkindedj.optics.util.Traversals;
 public abstract class EclipseBaseSortedSetTraversableGenerator
     extends EclipseBaseSingleIterableTraversableGenerator {
 
+  /** Package name for Eclipse Collections sorted set interfaces. */
   public static final String SORTED_SET_PACKAGE = SET_PACKAGE + ".sorted";
 
+  /** Class name for the Eclipse Collections {@code SortedSets} factory. */
   public static final ClassName SORTED_SETS_API = ClassName.get(FACTORY_PACKAGE, "SortedSets");
 
+  /** Class name for Eclipse Collections {@code ImmutableSortedSet}. */
   public static final ClassName IMMUTABLE_SORTED_SET =
       ClassName.get(SORTED_SET_PACKAGE, "ImmutableSortedSet");
+
+  /** Class name for Eclipse Collections {@code MutableSortedSet}. */
   public static final ClassName MUTABLE_SORTED_SET =
       ClassName.get(SORTED_SET_PACKAGE, "MutableSortedSet");
 
+  /**
+   * Creates a new generator for an Eclipse Collections sorted set type.
+   *
+   * @param supportedElement the sorted set element type to support
+   * @param immutable whether the target sorted set is immutable
+   * @param api the factory class used to create sorted set instances
+   */
   protected EclipseBaseSortedSetTraversableGenerator(
       final ClassName supportedElement, final boolean immutable, final ClassName api) {
     super(supportedElement, immutable, api);

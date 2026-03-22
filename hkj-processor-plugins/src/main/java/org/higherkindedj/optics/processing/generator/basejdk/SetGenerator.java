@@ -24,6 +24,9 @@ import org.higherkindedj.optics.util.Traversals;
 @ServiceProvider(TraversableGenerator.class)
 public class SetGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link java.util.Set} fields. */
+  public SetGenerator() {}
+
   private static final String FQN_SET = "java.util.Set";
 
   @Override

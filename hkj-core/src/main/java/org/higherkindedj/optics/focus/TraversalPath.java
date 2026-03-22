@@ -44,13 +44,13 @@ import org.jspecify.annotations.NullMarked;
  *
  * <p>In the Focus DSL hierarchy, TraversalPath is the most general type:
  *
- * <pre>
- *      FocusPath<S, A>     (exactly one element)
- *            │
- *      AffinePath<S, A>    (zero or one element)
- *            │
- *    TraversalPath<S, A>   (zero or more elements)
- * </pre>
+ * <pre>{@code
+ *   FocusPath<S, A>     (exactly one element)
+ *         │
+ *   AffinePath<S, A>    (zero or one element)
+ *         │
+ * TraversalPath<S, A>   (zero or more elements)
+ * }</pre>
  *
  * <h2>Example Usage</h2>
  *

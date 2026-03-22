@@ -35,6 +35,7 @@ public class EitherDeserializer extends StdDeserializer<Either<?, ?>> {
 
   private static final long serialVersionUID = 1L;
 
+  /** Creates a new EitherDeserializer for {@link Either} types. */
   @SuppressWarnings("unchecked")
   public EitherDeserializer() {
     super((Class<Either<?, ?>>) (Class<?>) Either.class);

@@ -12,6 +12,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public final class GuavaImmutableSetGenerator extends GuavaBaseSingleIterableTraversableGenerator {
 
+  /** Creates a new generator for Guava {@code ImmutableSet} fields. */
   public GuavaImmutableSetGenerator() {
     super(IMMUTABLE_SET);
   }

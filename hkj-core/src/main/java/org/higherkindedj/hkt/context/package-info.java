@@ -55,7 +55,7 @@
  * <h2>Comparison with Reader</h2>
  *
  * <p>{@code Context<R, A>} is conceptually similar to {@link org.higherkindedj.hkt.reader.Reader
- * Reader<R, A>}, but with crucial differences:
+ * Reader&lt;R, A&gt;}, but with crucial differences:
  *
  * <ul>
  *   <li><b>Reader:</b> Requires explicit parameter passing at {@code run(r)}

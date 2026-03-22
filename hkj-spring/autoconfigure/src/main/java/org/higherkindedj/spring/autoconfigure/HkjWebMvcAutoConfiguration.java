@@ -59,6 +59,9 @@ import tools.jackson.databind.json.JsonMapper;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class HkjWebMvcAutoConfiguration {
 
+  /** Creates a new HkjWebMvcAutoConfiguration. */
+  public HkjWebMvcAutoConfiguration() {}
+
   /**
    * Customizes the RequestMappingHandlerAdapter to add Effect Path return value handlers before
    * Spring's default handlers.

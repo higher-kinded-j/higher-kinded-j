@@ -35,6 +35,11 @@ public class VirtualThreadUserService {
 
   private final UserService userService;
 
+  /**
+   * Constructs a VirtualThreadUserService.
+   *
+   * @param userService the underlying user service
+   */
   public VirtualThreadUserService(UserService userService) {
     this.userService = userService;
   }
@@ -165,15 +170,38 @@ public class VirtualThreadUserService {
         .take(count);
   }
 
-  /** Enriched user combining user, profile, and order data. */
+  /**
+   * Enriched user combining user, profile, and order data.
+   *
+   * @param user the user
+   * @param profile the user's profile
+   * @param orders the user's order summary
+   */
   public record EnrichedUser(User user, Profile profile, OrderSummary orders) {}
 
-  /** User profile data. */
+  /**
+   * User profile data.
+   *
+   * @param userId the user ID
+   * @param tier the membership tier
+   * @param points the loyalty points
+   */
   public record Profile(String userId, String tier, int points) {}
 
-  /** Order summary data. */
+  /**
+   * Order summary data.
+   *
+   * @param userId the user ID
+   * @param totalOrders the total number of orders
+   * @param totalAmount the total monetary amount
+   */
   public record OrderSummary(String userId, int totalOrders, double totalAmount) {}
 
-  /** A tick event for streaming demonstration. */
+  /**
+   * A tick event for streaming demonstration.
+   *
+   * @param sequence the tick sequence number
+   * @param timestamp the tick timestamp in milliseconds
+   */
   public record TickEvent(int sequence, long timestamp) {}
 }

@@ -29,6 +29,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public class MaybeGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link Maybe} fields. */
+  public MaybeGenerator() {}
+
   private static final String FQN_MAYBE = "org.higherkindedj.hkt.maybe.Maybe";
 
   @Override
