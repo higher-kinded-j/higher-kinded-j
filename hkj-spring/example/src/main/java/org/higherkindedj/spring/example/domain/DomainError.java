@@ -7,5 +7,10 @@ package org.higherkindedj.spring.example.domain;
  * matching.
  */
 public sealed interface DomainError permits UserNotFoundError, ValidationError {
+  /**
+   * Returns the error message.
+   *
+   * @return the error message
+   */
   String message();
 }

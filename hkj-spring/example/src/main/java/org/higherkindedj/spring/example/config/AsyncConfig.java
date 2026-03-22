@@ -37,6 +37,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig {
 
+  /** Creates an AsyncConfig instance. */
+  public AsyncConfig() {}
+
   /**
    * Creates the async executor for CompletableFuture-based async operations.
    *

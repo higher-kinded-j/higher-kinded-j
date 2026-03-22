@@ -132,6 +132,10 @@ public class EitherAuthenticationConverter implements Converter<Jwt, AbstractAut
     return new UsernamePasswordAuthenticationToken(jwt.getSubject(), jwt, authorities);
   }
 
-  /** Error type for authentication conversion failures. */
+  /**
+   * Error type for authentication conversion failures.
+   *
+   * @param message the error message describing the conversion failure
+   */
   public record AuthConversionError(String message) {}
 }

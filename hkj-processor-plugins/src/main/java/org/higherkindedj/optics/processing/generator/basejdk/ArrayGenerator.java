@@ -27,6 +27,9 @@ import org.higherkindedj.optics.util.Traversals;
 @ServiceProvider(TraversableGenerator.class)
 public class ArrayGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for native Java array fields. */
+  public ArrayGenerator() {}
+
   /** Supports any type that is an instance of {@link ArrayType}. */
   @Override
   public boolean supports(final TypeMirror type) {

@@ -34,6 +34,7 @@ public class ValidatedSerializer extends StdSerializer<Validated<?, ?>> {
 
   private static final long serialVersionUID = 1L;
 
+  /** Creates a new ValidatedSerializer for the Validated type. */
   @SuppressWarnings("unchecked")
   public ValidatedSerializer() {
     super((Class<Validated<?, ?>>) (Class<?>) Validated.class);

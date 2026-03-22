@@ -13,6 +13,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 public final class ApacheUnmodifiableListGenerator
     extends ApacheBaseSingleIterableTraversableGenerator {
 
+  /** Creates a new generator for Apache Commons Collections {@code UnmodifiableList} fields. */
   public ApacheUnmodifiableListGenerator() {
     super(UNMODIFIABLE_LIST);
   }

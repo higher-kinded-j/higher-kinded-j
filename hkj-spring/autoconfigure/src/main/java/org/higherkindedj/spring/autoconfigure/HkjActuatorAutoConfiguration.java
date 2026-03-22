@@ -48,6 +48,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableConfigurationProperties(HkjProperties.class)
 public class HkjActuatorAutoConfiguration {
 
+  /** Creates a new HkjActuatorAutoConfiguration. */
+  public HkjActuatorAutoConfiguration() {}
+
   /**
    * Creates the HKJ metrics service for tracking handler invocations.
    *

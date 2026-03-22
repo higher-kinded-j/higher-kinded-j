@@ -31,6 +31,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public class OptionalGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link java.util.Optional} fields. */
+  public OptionalGenerator() {}
+
   private static final String FQN_OPTIONAL = "java.util.Optional";
 
   @Override

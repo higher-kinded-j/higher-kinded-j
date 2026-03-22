@@ -34,6 +34,7 @@ public class HkjJacksonModule extends SimpleModule {
 
   private static final long serialVersionUID = 1L;
 
+  /** Creates a new HkjJacksonModule and registers serializers for HKJ types. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public HkjJacksonModule() {
     super("HkjJacksonModule");

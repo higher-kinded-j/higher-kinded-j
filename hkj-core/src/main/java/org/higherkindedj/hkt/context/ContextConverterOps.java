@@ -8,8 +8,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Defines the conversion operations (widen/narrow) for {@link Context} types.
  *
- * <p>These operations allow converting between the concrete {@link Context Context<R, A>} type and
- * its higher-kinded representation {@code Kind<ContextKind.Witness<R>, A>}.
+ * <p>These operations allow converting between the concrete {@link Context Context&lt;R, A&gt;}
+ * type and its higher-kinded representation {@code Kind<ContextKind.Witness<R>, A>}.
  *
  * @see Context
  * @see ContextKind
@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 public interface ContextConverterOps {
 
   /**
-   * Widens a concrete {@link Context Context<R, A>} to its higher-kinded representation.
+   * Widens a concrete {@link Context Context&lt;R, A&gt;} to its higher-kinded representation.
    *
    * @param context The context to widen. Must not be null.
    * @param <R> The type of the scoped value.
@@ -29,7 +29,7 @@ public interface ContextConverterOps {
   <R, A> Kind<ContextKind.Witness<R>, A> widen(Context<R, A> context);
 
   /**
-   * Narrows a higher-kinded representation back to a concrete {@link Context Context<R, A>}.
+   * Narrows a higher-kinded representation back to a concrete {@link Context Context&lt;R, A&gt;}.
    *
    * @param kind The higher-kinded representation. May be null.
    * @param <R> The type of the scoped value.

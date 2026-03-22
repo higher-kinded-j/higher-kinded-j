@@ -111,8 +111,7 @@ public @interface GenerateFocus {
    * as {@code FocusPath}, and users must manually call {@code .each(eachInstance)} for traversal.
    *
    * <p>When enabled, the processor calls {@code .each(opticExpression)} automatically for any SPI
-   * generator with {@link org.higherkindedj.optics.processing.spi.Cardinality#ZERO_OR_MORE}
-   * cardinality.
+   * generator with {@code Cardinality.ZERO_OR_MORE} cardinality.
    *
    * @return true to auto-widen ZERO_OR_MORE SPI types to TraversalPath (default: false)
    * @since 0.4.0

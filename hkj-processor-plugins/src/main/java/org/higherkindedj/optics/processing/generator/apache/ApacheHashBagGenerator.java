@@ -12,6 +12,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public final class ApacheHashBagGenerator extends ApacheBaseSingleIterableTraversableGenerator {
 
+  /** Creates a new generator for Apache Commons Collections {@code HashBag} fields. */
   public ApacheHashBagGenerator() {
     super(HASH_BAG);
   }

@@ -39,6 +39,9 @@ import com.sun.source.util.Trees;
  */
 public class HKJCheckerPlugin implements Plugin {
 
+  /** Creates a new HKJChecker plugin instance. */
+  public HKJCheckerPlugin() {}
+
   /** The plugin name used with {@code -Xplugin:HKJChecker}. */
   public static final String PLUGIN_NAME = "HKJChecker";
 

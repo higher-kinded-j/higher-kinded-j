@@ -5,6 +5,8 @@ package org.higherkindedj.spring.example.domain;
 /**
  * Error indicating that a user was not found. The error class name contains "NotFound" so the
  * EitherReturnValueHandler will automatically return HTTP 404.
+ *
+ * @param userId the ID of the user that was not found
  */
 public record UserNotFoundError(String userId) implements DomainError {
   @Override

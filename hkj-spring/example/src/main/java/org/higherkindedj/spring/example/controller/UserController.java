@@ -24,6 +24,11 @@ public class UserController {
 
   private final UserService userService;
 
+  /**
+   * Constructs a UserController.
+   *
+   * @param userService the user service
+   */
   public UserController(UserService userService) {
     this.userService = userService;
   }
@@ -33,6 +38,9 @@ public class UserController {
    *
    * <p>Examples: - GET /api/users/1 → 200 OK with user JSON - GET /api/users/999 → 404 Not Found
    * with error JSON
+   *
+   * @param id the user ID
+   * @return Either containing a DomainError or the User
    */
   @GetMapping("/{id}")
   public Either<DomainError, User> getUser(@PathVariable String id) {
@@ -43,6 +51,8 @@ public class UserController {
    * Get all users.
    *
    * <p>Example: - GET /api/users → 200 OK with list of users
+   *
+   * @return Either containing a DomainError or the list of users
    */
   @GetMapping
   public Either<DomainError, List<User>> getAllUsers() {
@@ -54,6 +64,9 @@ public class UserController {
    *
    * <p>Examples: - POST /api/users with valid data → 200 OK with created user - POST /api/users
    * with invalid email → 400 Bad Request with error JSON
+   *
+   * @param request the user creation request
+   * @return Either containing a DomainError or the created User
    */
   @PostMapping
   public Either<DomainError, User> createUser(@RequestBody CreateUserRequest request) {
@@ -64,6 +77,9 @@ public class UserController {
    * Demonstrates composing Either values.
    *
    * <p>Chains two operations: 1. Find user by ID 2. Return just the email
+   *
+   * @param id the user ID
+   * @return Either containing a DomainError or the user's email
    */
   @GetMapping("/{id}/email")
   public Either<DomainError, String> getUserEmail(@PathVariable String id) {
@@ -89,6 +105,8 @@ public class UserController {
    *   ]
    * }
    * </pre>
+   *
+   * @return BatchResult containing sample user results
    */
   @GetMapping("/batch")
   public BatchResult getUserBatch() {
@@ -115,6 +133,8 @@ public class UserController {
    *   "message": "HkjJacksonModule configured via Spring Boot auto-configuration"
    * }
    * </pre>
+   *
+   * @return a map of Jackson module configuration details
    */
   @GetMapping("/debug/jackson-modules")
   public Map<String, Object> getJacksonModules() {
@@ -130,6 +150,9 @@ public class UserController {
   /**
    * Response DTO demonstrating nested Either values. The List of Either values will be serialized
    * using Jackson's EitherSerializer, producing wrapped JSON with isRight/left/right structure.
+   *
+   * @param batchId the batch identifier
+   * @param results the list of Either results for each user lookup
    */
   public record BatchResult(String batchId, List<Either<DomainError, User>> results) {}
 }

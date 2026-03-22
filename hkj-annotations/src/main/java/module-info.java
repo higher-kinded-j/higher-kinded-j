@@ -1,3 +1,4 @@
+/** Provides annotations for higher-kinded-j optics code generation and general-purpose use. */
 module org.higherkindedj.annotations {
   // Exports the general-purpose annotations package.
   exports org.higherkindedj.annotation;

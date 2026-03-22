@@ -20,11 +20,19 @@ import org.higherkindedj.optics.util.Traversals;
 public abstract class VavrBaseSingleIterableTraversableGenerator extends BaseTraversableGenerator {
   private static final String COLLECTION_PACKAGE = "io.vavr.collection";
 
+  /** Class name for Vavr's {@code Set} interface. */
   public static final ClassName SET = ClassName.get(COLLECTION_PACKAGE, "Set");
+
+  /** Class name for Vavr's {@code HashSet} implementation. */
   public static final ClassName HASH_SET = ClassName.get(COLLECTION_PACKAGE, "HashSet");
+
+  /** Class name for Vavr's {@code List}. */
   public static final ClassName LIST = ClassName.get(COLLECTION_PACKAGE, "List");
 
+  /** The Vavr collection type this generator matches against. */
   protected final ClassName supportedType;
+
+  /** The concrete Vavr type used to construct new collection instances. */
   protected final ClassName constructedType;
 
   VavrBaseSingleIterableTraversableGenerator(

@@ -51,6 +51,11 @@ public class VirtualThreadController {
 
   private final VirtualThreadUserService vtUserService;
 
+  /**
+   * Creates a new controller with the given virtual thread user service.
+   *
+   * @param vtUserService the virtual thread user service
+   */
   public VirtualThreadController(VirtualThreadUserService vtUserService) {
     this.vtUserService = vtUserService;
   }

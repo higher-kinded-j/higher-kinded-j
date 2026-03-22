@@ -19,27 +19,64 @@ import org.higherkindedj.optics.util.Traversals;
 ///  * Of a single type/column
 public abstract class EclipseBaseSingleIterableTraversableGenerator
     extends BaseTraversableGenerator {
+  /** Base API package name for Eclipse Collections. */
   protected static final String API_PACKAGE = "org.eclipse.collections.api";
+
+  /** Package name for Eclipse Collections factory classes. */
   protected static final String FACTORY_PACKAGE = API_PACKAGE + ".factory";
+
+  /** Package name for Eclipse Collections bag interfaces. */
   protected static final String BAG_PACKAGE = API_PACKAGE + ".bag";
+
+  /** Package name for Eclipse Collections list interfaces. */
   protected static final String LIST_PACKAGE = API_PACKAGE + ".list";
+
+  /** Package name for Eclipse Collections set interfaces. */
   protected static final String SET_PACKAGE = API_PACKAGE + ".set";
 
+  /** Class name for the Eclipse Collections {@code Bags} factory. */
   public static final ClassName BAGS_API = ClassName.get(FACTORY_PACKAGE, "Bags");
+
+  /** Class name for the Eclipse Collections {@code Lists} factory. */
   public static final ClassName LISTS_API = ClassName.get(FACTORY_PACKAGE, "Lists");
+
+  /** Class name for the Eclipse Collections {@code Sets} factory. */
   public static final ClassName SETS_API = ClassName.get(FACTORY_PACKAGE, "Sets");
 
+  /** Class name for Eclipse Collections {@code ImmutableBag}. */
   public static final ClassName IMMUTABLE_BAG = ClassName.get(BAG_PACKAGE, "ImmutableBag");
+
+  /** Class name for Eclipse Collections {@code MutableBag}. */
   public static final ClassName MUTABLE_BAG = ClassName.get(BAG_PACKAGE, "MutableBag");
+
+  /** Class name for Eclipse Collections {@code ImmutableList}. */
   public static final ClassName IMMUTABLE_LIST = ClassName.get(LIST_PACKAGE, "ImmutableList");
+
+  /** Class name for Eclipse Collections {@code MutableList}. */
   public static final ClassName MUTABLE_LIST = ClassName.get(LIST_PACKAGE, "MutableList");
+
+  /** Class name for Eclipse Collections {@code ImmutableSet}. */
   public static final ClassName IMMUTABLE_SET = ClassName.get(SET_PACKAGE, "ImmutableSet");
+
+  /** Class name for Eclipse Collections {@code MutableSet}. */
   public static final ClassName MUTABLE_SET = ClassName.get(SET_PACKAGE, "MutableSet");
 
+  /** The concrete Eclipse collection element type this generator supports. */
   protected final ClassName supportedElement;
+
+  /** Whether this generator targets an immutable collection variant. */
   protected final boolean immutable;
+
+  /** The Eclipse Collections factory class used to create instances. */
   protected final ClassName api;
 
+  /**
+   * Creates a new generator for an Eclipse Collections single-iterable type.
+   *
+   * @param supportedElement the collection element type to support
+   * @param immutable whether the target collection is immutable
+   * @param api the factory class used to create collection instances
+   */
   protected EclipseBaseSingleIterableTraversableGenerator(
       final ClassName supportedElement, final boolean immutable, final ClassName api) {
     this.supportedElement = supportedElement;

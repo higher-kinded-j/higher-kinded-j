@@ -27,6 +27,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 @ServiceProvider(TraversableGenerator.class)
 public class TryGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link Try} fields. */
+  public TryGenerator() {}
+
   private static final String FQN_TRY = "org.higherkindedj.hkt.trymonad.Try";
 
   @Override

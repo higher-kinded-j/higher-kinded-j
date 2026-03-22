@@ -13,6 +13,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 public final class EclipseImmutableBagGenerator
     extends EclipseBaseSingleIterableTraversableGenerator {
 
+  /** Creates a new generator for Eclipse Collections {@code ImmutableBag} fields. */
   public EclipseImmutableBagGenerator() {
     super(IMMUTABLE_BAG, true, BAGS_API);
   }

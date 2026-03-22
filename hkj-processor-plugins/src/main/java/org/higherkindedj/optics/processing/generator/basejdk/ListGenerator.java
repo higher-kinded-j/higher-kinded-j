@@ -25,6 +25,9 @@ import org.higherkindedj.optics.util.Traversals;
 @ServiceProvider(TraversableGenerator.class)
 public class ListGenerator extends BaseTraversableGenerator {
 
+  /** Creates a new generator for {@link java.util.List} fields. */
+  public ListGenerator() {}
+
   private static final String FQN_LIST = "java.util.List";
 
   @Override

@@ -33,6 +33,12 @@ public class AsyncUserService {
   private final UserService userService;
   private final Executor asyncExecutor;
 
+  /**
+   * Constructs an AsyncUserService.
+   *
+   * @param userService the underlying user service
+   * @param asyncExecutor the executor for async operations
+   */
   public AsyncUserService(
       UserService userService, @Qualifier("hkjAsyncExecutor") Executor asyncExecutor) {
     this.userService = userService;
@@ -173,7 +179,11 @@ public class AsyncUserService {
     return Path.future(future);
   }
 
-  /** Simulates I/O delay for demonstration purposes. */
+  /**
+   * Simulates I/O delay for demonstration purposes.
+   *
+   * @param millis the number of milliseconds to sleep
+   */
   private void sleep(long millis) {
     try {
       Thread.sleep(millis);
@@ -182,21 +192,43 @@ public class AsyncUserService {
     }
   }
 
-  /** Enriched user data combining user and profile information. */
+  /**
+   * Enriched user data combining user and profile information.
+   *
+   * @param user the user
+   * @param profile the user's profile
+   */
   public record EnrichedUser(User user, Profile profile) {}
 
-  /** User profile data (simulated). */
+  /**
+   * User profile data (simulated).
+   *
+   * @param userId the user ID
+   * @param tier the membership tier
+   * @param points the loyalty points
+   */
   public record Profile(String userId, String tier, int points) {}
 
   /** Exception thrown when a user is not found. */
   public static class UserNotFoundException extends RuntimeException {
+    /** The ID of the user that was not found. */
     private final String userId;
 
+    /**
+     * Constructs a UserNotFoundException.
+     *
+     * @param userId the ID of the user that was not found
+     */
     public UserNotFoundException(String userId) {
       super("User not found: " + userId);
       this.userId = userId;
     }
 
+    /**
+     * Returns the user ID that was not found.
+     *
+     * @return the user ID
+     */
     public String getUserId() {
       return userId;
     }
@@ -204,6 +236,11 @@ public class AsyncUserService {
 
   /** Exception thrown for validation errors. */
   public static class ValidationException extends RuntimeException {
+    /**
+     * Constructs a ValidationException.
+     *
+     * @param message the validation error message
+     */
     public ValidationException(String message) {
       super(message);
     }
