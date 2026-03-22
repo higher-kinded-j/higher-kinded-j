@@ -258,6 +258,58 @@ class TraversalCodeGeneratorTest {
   }
 
   @Nested
+  @DisplayName("getStandardTraversal")
+  class GetStandardTraversalTests {
+
+    @Test
+    @DisplayName("should return correct traversal reference for each container kind")
+    void shouldReturnCorrectTraversalForEachKind() {
+      TraversalCodeGenerator generator = new TraversalCodeGenerator();
+
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.LIST))
+          .contains("Traversals.forList()");
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.SET))
+          .contains("Traversals.forSet()");
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.OPTIONAL))
+          .contains("Traversals.forOptional()");
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.ARRAY))
+          .contains("Traversals.forArray()");
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.MAP))
+          .contains("Traversals.forMapValues()");
+    }
+  }
+
+  @Nested
+  @DisplayName("Error Paths")
+  class ErrorPaths {
+
+    @Test
+    @DisplayName("should throw IllegalArgumentException for TraversalHintKind.NONE")
+    void shouldThrowForNoneHintKind() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Data",
+              """
+              package com.test;
+              import java.util.List;
+              public record Data(List<String> items) {}
+              """);
+
+      TraversalHintInfo info = TraversalHintInfo.forTraverseWith("");
+
+      // javac wraps processor exceptions in RuntimeException
+      RuntimeException thrown =
+          org.junit.jupiter.api.Assertions.assertThrows(
+              RuntimeException.class,
+              () ->
+                  generateTraversal(
+                      "com.test.Data", "java.lang.String", TraversalHintKind.NONE, info, source));
+      assertThat(thrown).hasCauseInstanceOf(IllegalArgumentException.class);
+      assertThat(thrown.getCause()).hasMessageContaining("No traversal hint specified");
+    }
+  }
+
+  @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
 

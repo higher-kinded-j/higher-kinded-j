@@ -281,6 +281,43 @@ class PrismCodeGeneratorTest {
   }
 
   @Nested
+  @DisplayName("Error Paths")
+  class ErrorPaths {
+
+    @Test
+    @DisplayName("should throw IllegalArgumentException for PrismHintKind.NONE")
+    void shouldThrowForNoneHintKind() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Shape",
+              """
+              package com.test;
+              public abstract class Shape {}
+              """);
+
+      var sub =
+          JavaFileObjects.forSourceString(
+              "com.test.Circle",
+              """
+              package com.test;
+              public class Circle extends Shape {}
+              """);
+
+      PrismHintInfo info = PrismHintInfo.empty();
+
+      // javac wraps processor exceptions in RuntimeException
+      RuntimeException thrown =
+          org.junit.jupiter.api.Assertions.assertThrows(
+              RuntimeException.class,
+              () ->
+                  generatePrism(
+                      "com.test.Shape", "com.test.Circle", PrismHintKind.NONE, info, source, sub));
+      assertThat(thrown).hasCauseInstanceOf(IllegalArgumentException.class);
+      assertThat(thrown.getCause()).hasMessageContaining("No prism hint specified");
+    }
+  }
+
+  @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
 

@@ -242,6 +242,88 @@ public class FocusProcessorNestedContainerTest {
   }
 
   @Nested
+  @DisplayName("Four-Level Nesting (MAX_NESTING_DEPTH boundary)")
+  class FourLevelNesting {
+
+    @Test
+    @DisplayName(
+        "Optional<List<Optional<List<String>>>> should stop at depth 3 and treat inner List as"
+            + " leaf")
+    void fourLevelNestingShouldHitDepthLimit() {
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.Config",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Optional;
+              import java.util.List;
+
+              @GenerateFocus
+              public record Config(String name, Optional<List<Optional<List<String>>>> deep) {}
+              """);
+
+      // The processor has MAX_NESTING_DEPTH = 3, so the 4th level (inner List<String>)
+      // should be treated as a leaf rather than being unwrapped further.
+      // The chain should still compile and produce a valid path.
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+      assertThat(compilation).succeeded();
+
+      // At minimum, the field should be generated (the exact return type depends on
+      // depth-limit behaviour — TraversalPath since we pass through List at level 2)
+      assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", "deep()");
+    }
+
+    @Test
+    @DisplayName(
+        "Optional<Optional<Optional<Optional<String>>>> at 4 levels should hit depth limit")
+    void quadrupleOptionalShouldHitDepthLimit() {
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.Config",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Optional;
+
+              @GenerateFocus
+              public record Config(String name, Optional<Optional<Optional<Optional<String>>>> deep) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+      assertThat(compilation).succeeded();
+
+      // Should still generate the field, depth limit truncates the chain
+      assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", "deep()");
+    }
+
+    @Test
+    @DisplayName("List<Optional<List<Optional<String>>>> mixed 4-level nesting")
+    void mixedFourLevelNestingShouldHitDepthLimit() {
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.Config",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Optional;
+              import java.util.List;
+
+              @GenerateFocus
+              public record Config(String name, List<Optional<List<Optional<String>>>> deep) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+      assertThat(compilation).succeeded();
+
+      assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", "deep()");
+    }
+  }
+
+  @Nested
   @DisplayName("Non-Nested Types Unchanged")
   class NonNestedRegression {
 
