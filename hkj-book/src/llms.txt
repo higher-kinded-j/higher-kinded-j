@@ -62,7 +62,7 @@ Comprehensive optics implementation for type-safe immutable data access and upda
 - **Iso** - Bidirectional transformation
 - **Affine** - Optional focus (zero or one)
 - **Traversal** - Multiple focuses in a collection
-- **Fold** - Read-only traversal
+- **Fold** - Read-only traversal; `Traversal.asFold()` converts any traversal to a fold for monoidal aggregation
 - **Getter** / **Setter** - Read-only or write-only access
 - **At** / **Ixed** - Key-based and index-based access
 - **Each** - Access each element in a container
@@ -72,8 +72,12 @@ Comprehensive optics implementation for type-safe immutable data access and upda
 
 Type-safe structural navigation integrated with Effect Paths:
 - `FocusPath<S, A>` - Exactly one focus
-- `AffinePath<S, A>` - Zero or one focus
-- `TraversalPath<S, A>` - Zero or more focuses
+- `AffinePath<S, A>` - Zero or one focus (e.g. `Optional`, `Either`, `Maybe`, `Try`)
+- `TraversalPath<S, A>` - Zero or more focuses (e.g. `List`, `Set`, arrays)
+
+SPI-aware container widening automatically selects the correct path type based on container cardinality. Annotate with `@GenerateFocus(widenCollections = true)` and the processor infers `AffinePath` for `ZERO_OR_ONE` containers and `TraversalPath` for `ZERO_OR_MORE` containers, eliminating manual `.each()` and `.some()` calls. Nested containers like `Optional<List<String>>` resolve correctly through recursive cardinality analysis.
+
+22 `TraversableGenerator` plugins across 6 library families: JDK (Array, List, Set, Optional, MapValue), Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, and HKJ native (Either, Maybe, Try, Validated).
 
 ```java
 userService.findById(userId)           // EitherPath<Error, User>
@@ -135,7 +139,7 @@ Annotation-driven boilerplate elimination:
 - `@GenerateFocus` - Generates FocusPath accessors
 - `@GenerateTraversals` - Generates TraversalPath for collections
 - **ForPath step classes** - Steps 2-12 auto-generated for all 10 Path types
-- **Processor plugins** for Array, Either, List, Map, Maybe, Optional, Set, Try, Validated
+- **TraversableGenerator SPI** - 22 generator plugins across 6 library families (JDK, Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, HKJ native) with cardinality-based path widening, priority system, and wildcard type resolution
 
 ## Compile-Time Safety
 
@@ -177,6 +181,8 @@ dependencies {
 - Effect Path API: https://higher-kinded-j.github.io/latest/effect/ch_intro.html
 - Optics Guide: https://higher-kinded-j.github.io/latest/optics/optics_intro.html
 - Focus DSL: https://higher-kinded-j.github.io/latest/optics/focus_dsl.html
+- Focus Containers: https://higher-kinded-j.github.io/latest/optics/focus_containers.html
+- Focus Navigation: https://higher-kinded-j.github.io/latest/optics/focus_navigation.html
 - Resilience: https://higher-kinded-j.github.io/latest/resilience/resilience_intro.html
 - Tutorials: https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html
 - Spring Boot: https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html

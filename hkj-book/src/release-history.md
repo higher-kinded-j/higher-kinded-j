@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.3.7) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.0) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,26 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### v0.4.0 -- 22 March 2026
+
+**SPI-Aware Path Widening, Expanded Plugin Ecosystem, and Focus DSL Restructure**
+
+This release introduces SPI-aware path widening for the Focus DSL, allowing automatic `AffinePath` and `TraversalPath` generation based on container cardinality, expands the `TraversableGenerator` plugin ecosystem to 22 generators across 6 library families, adds `Traversal.asFold()` for read-only monoidal aggregation, restructures the Focus DSL documentation into dedicated pages, and delivers comprehensive test coverage and Javadoc quality improvements across processor modules.
+
+- [SPI-Aware Path Widening](optics/focus_navigation.md) -- Automatic path type inference based on container cardinality: `ZERO_OR_ONE` produces `AffinePath`, `ZERO_OR_MORE` produces `TraversalPath`, eliminating manual `.each()` and `.some()` calls in generated navigators
+- [Cardinality-Based Widening](optics/focus_containers.md) -- `TraversableGenerator` SPI extended with `Cardinality` enum, priority system (`PRIORITY_FALLBACK`, `PRIORITY_DEFAULT`, `PRIORITY_OVERRIDE`), `widenCollections` opt-in attribute, and wildcard type resolution for `? extends T`, `? super T`, and bare `?`
+- [Nested Container Widening](optics/focus_containers.md) -- Compound types like `Optional<List<String>>` resolve correctly through recursive cardinality analysis, with navigator field collision detection
+- [Generator Plugin Ecosystem](tooling/generator_plugins.md) -- 22 `TraversableGenerator` implementations across 6 library families: base JDK (Array, List, Set, Optional, MapValue), Apache Commons Collections4 (HashBag, UnmodifiableList), Eclipse Collections (ImmutableBag, MutableBag, ImmutableList, MutableList, ImmutableSet, MutableSet, ImmutableSortedSet, MutableSortedSet), Google Guava (ImmutableList, ImmutableSet), Vavr (List, Set), and HKJ native (Either, Maybe, Try, Validated)
+- [Traversal.asFold()](optics/folds.md) -- Conversion from any `Traversal` to a read-only `Fold` for monoidal aggregation, existence checks, and length counting via new `ConstForFold` applicative functor
+- [AffinePath](optics/focus_navigation.md) -- New `AffinePath<S, A>` for zero-or-one navigation in Focus DSL, with `Affine` optic interface supporting `getOrModify` and `set`
+- [Portfolio Risk Analysis](examples/examples_portfolio_risk.md) -- Capstone example demonstrating container navigation, SPI widening, and nested optics composition
+- Focus DSL documentation restructured into dedicated pages: [Containers](optics/focus_containers.md), [Navigation](optics/focus_navigation.md), [Effects](optics/focus_effects.md), and [Reference](optics/focus_reference.md)
+- [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) -- 7 exercises on annotation-driven navigator code generation
+- [Tutorial 20: Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) -- 4 exercises on SPI-aware container type navigation
+- Automated SPI service declarations via Avaje SPI processor for plugin discovery
+
+---
 
 ### [v0.3.7](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.3.7) -- 15 March 2026
 

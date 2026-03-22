@@ -126,6 +126,7 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 * **Indexed optics** for position-aware transformations
 * **Profunctor architecture** enabling adaptation between different data shapes
 * **Focus DSL** for type-safe, fluent path navigation with seamless bridging into external libraries
+* **[SPI-aware container types](optics/focus_containers.md)** with automatic `AffinePath` and `TraversalPath` generation via cardinality-based widening, supporting 22 container types across JDK, Apache Commons, Eclipse Collections, Guava, Vavr, and HKJ native types
 * **Effect integration** bridging optics with the Effect Path API
 
 ---
@@ -203,7 +204,7 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 | **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | ~40 min | 30 |
 | **[Optics: Traversals](tutorials/optics/traversals_journey.md)** | Traversals, composition, practical applications | ~40 min | 27 |
 | **[Optics: Fluent & Free](tutorials/optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | ~37 min | 22 |
-| **[Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)** | Type-safe path navigation | ~22 min | 18 |
+| **[Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)** | Type-safe path navigation, container widening | ~32 min | 25 |
 
 Perfect for developers who prefer learning by building. [Get started →](tutorials/tutorials_intro.md)
 
@@ -276,10 +277,11 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 2. **[Practical Guide: Lenses](optics/lenses.md):** Nested immutable updates
 3. **[Practical Guide: Prisms](optics/prisms.md):** Working with sum types
 4. **[Focus DSL](optics/focus_dsl.md):** Type-safe structural navigation
-5. **[External Types](optics/importing_optics.md):** Importing optics for types you don't own
-6. **[Spec Interfaces](optics/optics_spec_interfaces.md):** Jackson, JOOQ, and complex external types
-7. **[Focus DSL Bridging](optics/focus_external_bridging.md):** Seamless navigation into Immutables, Lombok, AutoValue
-8. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
+5. **[Container Navigation](optics/focus_containers.md):** SPI-aware container widening and custom types
+6. **[External Types](optics/importing_optics.md):** Importing optics for types you don't own
+7. **[Spec Interfaces](optics/optics_spec_interfaces.md):** Jackson, JOOQ, and complex external types
+8. **[Focus DSL Bridging](optics/focus_external_bridging.md):** Seamless navigation into Immutables, Lombok, AutoValue
+9. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
 
 ### Foundations (Reference)
 These sections document the underlying machinery. Most users can start with Effect Paths directly.
