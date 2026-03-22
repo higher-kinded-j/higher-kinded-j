@@ -7,7 +7,7 @@
 - Interpreting programs for logging, validation, and direct execution
 ~~~
 
-**Duration**: ~37 minutes | **Tutorials**: 3 | **Exercises**: 22
+**Duration**: ~35 minutes | **Tutorials**: 3 | **Exercises**: 22
 
 **Prerequisites**: [Optics: Traversals & Practice Journey](traversals_journey.md)
 
@@ -21,7 +21,7 @@ Fluent API (ergonomics) → Advanced Prisms → Free Monad DSL (programs as data
 
 ---
 
-## Tutorial 09: Fluent Optics API (~12 minutes)
+## Tutorial 09: Fluent Optics API (~10 minutes)
 **File**: `Tutorial09_FluentOpticsAPI.java` | **Exercises**: 7
 
 Learn the ergonomic fluent API for Java-friendly optic operations.

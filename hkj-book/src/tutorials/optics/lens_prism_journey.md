@@ -35,7 +35,7 @@ When you compose a Lens with a Prism, you get an Affine. This journey builds tha
 
 ---
 
-## Tutorial 01: Lens Basics (~8 minutes)
+## Tutorial 01: Lens Basics (~10 minutes)
 **File**: `Tutorial01_LensBasics.java` | **Exercises**: 7
 
 Learn immutable field access and modification with Lenses, the foundation of the optics library.
@@ -134,7 +134,7 @@ Optional<String> tracking = shippedPrism
 
 ---
 
-## Tutorial 04: Affine Basics (~12 minutes)
+## Tutorial 04: Affine Basics (~10 minutes)
 **File**: `Tutorial04_AffineBasics.java` | **Exercises**: 7
 
 Learn to work with optional fields and nullable properties using Affines.

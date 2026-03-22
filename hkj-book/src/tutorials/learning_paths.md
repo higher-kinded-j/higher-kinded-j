@@ -1,25 +1,25 @@
 # Learning Paths
 
 ~~~admonish info title="Choose Your Path"
-Each journey is designed to be completed in a single sitting (22-40 minutes). Paths are recommended sequences of journeys for different goals.
+Each journey is designed to be completed in a single sitting (25–40 minutes). Paths are recommended sequences of journeys for different goals.
 ~~~
 
 ## All Journeys at a Glance
 
 | Journey | Duration | Exercises | Level |
 |---------|----------|-----------|-------|
-| [Core: Foundations](coretypes/foundations_journey.md) | ~38 min | 24 | Beginner |
+| [Core: Foundations](coretypes/foundations_journey.md) | ~40 min | 24 | Beginner |
 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | Intermediate |
-| [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~38 min | 26 | Advanced |
+| [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~40 min | 26 | Advanced |
 | [Effect API](effect/effect_journey.md) | ~65 min | 15 | All Levels |
 | [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min | 16 | Intermediate |
 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | ~30 min | 12 | Intermediate |
 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min | 30 | Beginner |
 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Intermediate |
-| [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min | 22 | Advanced |
-| [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~22 min | 18 | Intermediate |
+| [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min | 22 | Advanced |
+| [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min | 29 | Intermediate |
 | [Expression: ForState](expression/forstate_journey.md) | ~25 min | 11 | Intermediate |
-| [Resilience Patterns](resilience/resilience_journey.md) | ~46 min | 22 | Intermediate |
+| [Resilience Patterns](resilience/resilience_journey.md) | ~45 min | 22 | Intermediate |
 
 ---
 
@@ -34,13 +34,13 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 | Session | Journey | Duration |
 |---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
 | 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
 | 3 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
 | 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
 | 5 | [Expression: ForState](expression/forstate_journey.md) | ~25 min |
 
-**Total**: 5 sessions, ~168 min across sessions
+**Total**: 5 sessions, ~170 min across sessions
 
 **Best for**: New users who want the recommended learning experience.
 
@@ -51,10 +51,10 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 | Session | Journey | Duration |
 |---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
 | 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
 
-**Total**: 2 sessions, ~73 min across sessions
+**Total**: 2 sessions, ~75 min across sessions
 
 **Best for**: Developers who want to use the library immediately without deep theory.
 
@@ -65,13 +65,13 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 | Session | Journey | Duration |
 |---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
 | 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
 | 3 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
 | 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
 | 5 | [Expression: ForState](expression/forstate_journey.md) | ~25 min |
 
-**Total**: 5 sessions, ~168 min across sessions
+**Total**: 5 sessions, ~170 min across sessions
 
 **Best for**: Developers building production applications who want solid foundations.
 
@@ -82,11 +82,11 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 | Session | Journey | Duration |
 |---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
 | 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
-| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~38 min |
+| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~40 min |
 
-**Total**: 3 sessions, ~106 min across sessions
+**Total**: 3 sessions, ~110 min across sessions
 
 **Best for**: Developers who want to understand the FP theory deeply before applying it.
 
@@ -99,10 +99,10 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 |---------|---------|----------|
 | 1 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
 | 2 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
-| 3 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min |
-| 4 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~22 min |
+| 3 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
+| 4 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
 
-**Total**: 4 sessions, ~139 min across sessions
+**Total**: 4 sessions, ~150 min across sessions
 
 **Best for**: Developers working with complex immutable data structures who want to master optics.
 
@@ -113,21 +113,21 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 | Session | Journey | Duration |
 |---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~38 min |
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
 | 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
-| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~38 min |
+| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~40 min |
 | 4 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
 | 5 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
 | 6 | [Expression: ForState](expression/forstate_journey.md) | ~25 min |
 | 7 | [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min |
 | 8 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | ~30 min |
-| 9 | [Resilience Patterns](resilience/resilience_journey.md) | ~46 min |
+| 9 | [Resilience Patterns](resilience/resilience_journey.md) | ~45 min |
 | 10 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
 | 11 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
-| 12 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min |
-| 13 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~22 min |
+| 12 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
+| 13 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
 
-**Total**: 13 sessions, ~456 min across sessions
+**Total**: 13 sessions, ~470 min across sessions
 
 **Best for**: Those who want comprehensive mastery of Higher-Kinded-J.
 
@@ -137,12 +137,12 @@ Each journey is designed to be completed in a single sitting (22-40 minutes). Pa
 
 For longer learning sessions, these combinations work well together and stay under 60 minutes:
 
-### Error Mastery (~56 min)
+### Error Mastery (~70 min)
 Combine [Core: Error Handling](coretypes/error_handling_journey.md) + [Core: Advanced Patterns](coretypes/advanced_journey.md)
 
 Focus: Complete the error handling and advanced FP patterns in one sitting.
 
-### DSL Power (~59 min)
+### DSL Power (~70 min)
 Combine [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) + [Optics: Focus DSL](optics/focus_dsl_journey.md)
 
 Focus: Master both the Free Monad DSL and the Focus DSL together.

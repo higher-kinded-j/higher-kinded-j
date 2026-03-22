@@ -8,7 +8,7 @@
 - Kind field support and type class integration
 ~~~
 
-**Duration**: ~32 minutes | **Tutorials**: 3 | **Exercises**: 25
+**Duration**: ~35 minutes | **Tutorials**: 4 | **Exercises**: 29
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
 
@@ -24,7 +24,7 @@ This is often the most practical way to work with optics in day-to-day code.
 
 ---
 
-## Tutorial 12: Focus DSL Basics (~12 minutes)
+## Tutorial 12: Focus DSL Basics (~10 minutes)
 **File**: `Tutorial12_FocusDSL.java` | **Exercises**: 10
 
 Learn the Focus DSL for ergonomic, type-safe path navigation through nested data structures.
@@ -189,12 +189,45 @@ TraversalPath<Company, String> values = CompanyFocus.backup().metadata();
 
 ---
 
+## Tutorial 20: Container Navigation (~5 minutes)
+**File**: `Tutorial20_ContainerNavigation.java` | **Exercises**: 4
+
+Navigate container types discovered via the `TraversableGenerator` SPI, including HKJ native types (`Either`, `Try`, `Validated`) and composition with standard lenses.
+
+**What you'll learn**:
+- Navigating `Either` right values via SPI-generated `AffinePath`
+- Navigating `Try` success values via SPI-generated `AffinePath`
+- Composing SPI-aware container paths with lens-based field access
+- Navigating `Validated` valid values via SPI-generated `AffinePath`
+
+**Key insight**: Container navigation paths are generated automatically when `@GenerateFocus(generateNavigators = true)` is used. The `TraversableGenerator` SPI determines the cardinality, so `Either`, `Try`, and `Validated` all produce `AffinePath` navigators without any manual optic composition.
+
+**Example**:
+```java
+@GenerateFocus(generateNavigators = true)
+record Position(
+    String ticker,
+    Either<PricingError, MarketPrice> livePrice  // → AffinePath
+) {}
+
+// SPI-aware AffinePath navigation
+AffinePath<Position, MarketPrice> pricePath = PositionFocus.livePrice();
+Optional<MarketPrice> price = pricePath.getOptional(position);
+```
+
+**Links to documentation**: [Focus Containers](../../optics/focus_containers.md) | [Focus Navigation](../../optics/focus_navigation.md)
+
+[Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java)
+
+---
+
 ## Running the Tutorials
 
 ```bash
 ./gradlew :hkj-examples:test --tests "*Tutorial12_FocusDSL*"
 ./gradlew :hkj-examples:test --tests "*Tutorial13_AdvancedFocusDSL*"
 ./gradlew :hkj-examples:test --tests "*Tutorial19_NavigatorGeneration*"
+./gradlew :hkj-examples:test --tests "*Tutorial20_ContainerNavigation*"
 ```
 
 ---

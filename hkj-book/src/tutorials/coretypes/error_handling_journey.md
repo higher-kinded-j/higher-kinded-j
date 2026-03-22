@@ -20,7 +20,7 @@ MonadError (explicit failures) → Concrete Types (right tool for the job) → R
 
 ---
 
-## Tutorial 05: MonadError Handling (~8 minutes)
+## Tutorial 05: MonadError Handling (~10 minutes)
 **File**: `Tutorial05_MonadErrorHandling.java` | **Exercises**: 7
 
 Learn to make failures explicit and recoverable using MonadError.
@@ -72,7 +72,7 @@ Need error message?
 
 ---
 
-## Tutorial 07: Real World (~12 minutes)
+## Tutorial 07: Real World (~10 minutes)
 **File**: `Tutorial07_RealWorld.java` | **Exercises**: 6
 
 Bring everything together by building realistic workflows that combine multiple patterns.
