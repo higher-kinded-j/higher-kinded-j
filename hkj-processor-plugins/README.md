@@ -6,7 +6,7 @@ Traversal generator plugins for Higher-Kinded-J's `@GenerateTraversals` annotati
 
 When you annotate a Java record with `@GenerateTraversals`, the `TraversalProcessor` in `hkj-processor` generates traversal optics for each record component whose type is a supported container. The processor discovers generator plugins at compile time via Java's `ServiceLoader` mechanism.
 
-This module ships 22 generators covering JDK collections, Higher-Kinded-J core types, and four popular third-party libraries.
+This module ships 23 generators covering JDK collections, Higher-Kinded-J core types, and four popular third-party libraries.
 
 ## Supported Types
 

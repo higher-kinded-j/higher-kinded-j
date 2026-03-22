@@ -88,7 +88,7 @@ Learn the rules and patterns for composing different optic types.
 
 ---
 
-## Tutorial 07: Generated Optics (~8 minutes)
+## Tutorial 07: Generated Optics (~10 minutes)
 **File**: `Tutorial07_GeneratedOptics.java` | **Exercises**: 7
 
 Learn to leverage annotation-driven code generation for zero-boilerplate optics.
@@ -118,7 +118,7 @@ public record User(String name, String email, Address address) {}
 
 ---
 
-## Tutorial 08: Real World Optics (~12 minutes)
+## Tutorial 08: Real World Optics (~10 minutes)
 **File**: `Tutorial08_RealWorldOptics.java` | **Exercises**: 6
 
 Apply optics to realistic scenarios that mirror production code.

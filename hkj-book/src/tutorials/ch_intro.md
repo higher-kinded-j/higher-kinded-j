@@ -48,14 +48,14 @@ The loop is simple. The understanding it produces is not.
 
 | Journey | Focus | Duration | Exercises |
 |---------|-------|----------|-----------|
-| **Core: Foundations** | HKT simulation, Functor, Applicative, Monad | ~38 min | 24 |
+| **Core: Foundations** | HKT simulation, Functor, Applicative, Monad | ~40 min | 24 |
 | **Core: Error Handling** | MonadError, concrete types, real-world patterns | ~30 min | 20 |
-| **Core: Advanced** | Natural Transformations, Coyoneda, Free Applicative | ~26 min | 16 |
+| **Core: Advanced** | Natural Transformations, Coyoneda, Free Applicative | ~40 min | 26 |
 | **Effect API** | Effect paths, ForPath, Effect Contexts | ~65 min | 15 |
 | **Optics: Lens & Prism** | Lens basics, Prism, Affine | ~40 min | 30 |
 | **Optics: Traversals** | Traversals, composition, practical applications | ~40 min | 27 |
-| **Optics: Fluent & Free** | Fluent API, Free Monad DSL | ~37 min | 22 |
-| **Optics: Focus DSL** | Type-safe path navigation | ~22 min | 18 |
+| **Optics: Fluent & Free** | Fluent API, Free Monad DSL | ~35 min | 22 |
+| **Optics: Focus DSL** | Type-safe path navigation, container widening | ~35 min | 29 |
 
 Start with whichever interests you most. The [Learning Paths](learning_paths.md) guide suggests sequences for different goals.
 

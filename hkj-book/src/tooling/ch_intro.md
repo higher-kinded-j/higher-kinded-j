@@ -16,7 +16,7 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[Diagnostics](diagnostics.md)** -- The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
 
-- **[Traversal Generator Plugins](generator_plugins.md)** -- The 22 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and four third-party libraries. Includes a guide to writing your own generator for custom container types.
+- **[Traversal Generator Plugins](generator_plugins.md)** -- The 23 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and four third-party libraries. Includes a guide to writing your own generator for custom container types.
 ~~~
 
 ## Chapter Contents

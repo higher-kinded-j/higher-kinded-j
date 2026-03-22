@@ -6,7 +6,7 @@
 - Building the mental model for functional programming in Java
 ~~~
 
-**Duration**: ~38 minutes | **Tutorials**: 4 | **Exercises**: 24
+**Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 24
 
 ## Journey Overview
 
@@ -20,7 +20,7 @@ By the end, you'll understand why these abstractions exist and how they help you
 
 ---
 
-## Tutorial 01: Kind Basics (~8 minutes)
+## Tutorial 01: Kind Basics (~10 minutes)
 **File**: `Tutorial01_KindBasics.java` | **Exercises**: 4
 
 Demystify the `Kind<F, A>` wrapper that makes Higher-Kinded Types possible in Java.
@@ -39,7 +39,7 @@ Demystify the `Kind<F, A>` wrapper that makes Higher-Kinded Types possible in Ja
 
 ---
 
-## Tutorial 02: Functor Mapping (~8 minutes)
+## Tutorial 02: Functor Mapping (~10 minutes)
 **File**: `Tutorial02_FunctorMapping.java` | **Exercises**: 6
 
 Learn to transform values inside containers uniformly, regardless of the container type.
@@ -81,7 +81,7 @@ Learn to combine multiple independent computations, perfect for validating forms
 
 ---
 
-## Tutorial 04: Monad Chaining (~12 minutes)
+## Tutorial 04: Monad Chaining (~10 minutes)
 **File**: `Tutorial04_MonadChaining.java` | **Exercises**: 7
 
 Learn to chain computations where each step depends on the result of the previous one.

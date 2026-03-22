@@ -15,7 +15,7 @@ When you annotate a record with `@GenerateTraversals`, the annotation processor 
 
 Each container type is handled by a **generator plugin**: a small class that implements the `TraversableGenerator` SPI (Service Provider Interface). The processor discovers these plugins at compile time via Java's `ServiceLoader` and delegates code generation to whichever plugin claims support for the field's type.
 
-Higher-Kinded-J ships 22 generator plugins covering JDK types, HKJ core types, and four popular third-party collection libraries.
+Higher-Kinded-J ships 23 generator plugins covering JDK types, HKJ core types, and four popular third-party collection libraries.
 
 ---
 
@@ -313,7 +313,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **22 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, and Apache Commons
+* **23 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, and Apache Commons
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type

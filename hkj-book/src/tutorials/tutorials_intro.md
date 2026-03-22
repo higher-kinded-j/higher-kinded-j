@@ -43,15 +43,15 @@ After completing Core: Foundations, the **Effect API journey** is the recommende
 
 | Journey | Duration | Exercises | Focus |
 |---------|----------|-----------|-------|
-| [Resilience Patterns](resilience/resilience_journey.md) | ~46 min | 22 | Circuit breaker, saga, retry, bulkhead |
+| [Resilience Patterns](resilience/resilience_journey.md) | ~45 min | 22 | Circuit breaker, saga, retry, bulkhead |
 
 ### Core Types Journeys (Foundation)
 
 | Journey | Duration | Exercises | Focus |
 |---------|----------|-----------|-------|
-| [Foundations](coretypes/foundations_journey.md) | ~38 min | 24 | Kind, Functor, Applicative, Monad |
+| [Foundations](coretypes/foundations_journey.md) | ~40 min | 24 | Kind, Functor, Applicative, Monad |
 | [Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | MonadError, Either, Maybe, Validated |
-| [Advanced Patterns](coretypes/advanced_journey.md) | ~38 min | 26 | Natural Transformations, Coyoneda, Free Ap, Static Analysis |
+| [Advanced Patterns](coretypes/advanced_journey.md) | ~40 min | 26 | Natural Transformations, Coyoneda, Free Ap, Static Analysis |
 
 ### Optics Journeys
 
@@ -59,8 +59,8 @@ After completing Core: Foundations, the **Effect API journey** is the recommende
 |---------|----------|-----------|-------|
 | [Lens & Prism](optics/lens_prism_journey.md) | ~40 min | 30 | Lens, Prism, Affine fundamentals |
 | [Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Traversals, composition, real-world use |
-| [Fluent & Free DSL](optics/fluent_free_journey.md) | ~37 min | 22 | Fluent API, Free Monad DSL |
-| [Focus DSL](optics/focus_dsl_journey.md) | ~22 min | 18 | Type-safe path navigation |
+| [Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min | 22 | Fluent API, Free Monad DSL |
+| [Focus DSL](optics/focus_dsl_journey.md) | ~35 min | 29 | Type-safe path navigation, container widening |
 
 ## How the Tutorials Work
 
