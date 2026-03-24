@@ -38,7 +38,8 @@ class FocusProcessorEdgeCasesTest {
   class NullableFieldPrecedence {
 
     @Test
-    @DisplayName("@Nullable on Optional field should still produce AffinePath via Optional widening")
+    @DisplayName(
+        "@Nullable on Optional field should still produce AffinePath via Optional widening")
     void nullableOptionalShouldUseOptionalWidening() {
       // Optional takes precedence over @Nullable
       final JavaFileObject sourceFile =
@@ -64,7 +65,8 @@ class FocusProcessorEdgeCasesTest {
     }
 
     @Test
-    @DisplayName("@Nullable on non-container declared type should produce AffinePath via .nullable()")
+    @DisplayName(
+        "@Nullable on non-container declared type should produce AffinePath via .nullable()")
     void nullableOnDeclaredTypeShouldProduceAffinePath() {
       final JavaFileObject sourceFile =
           JavaFileObjects.forSourceString(

@@ -132,7 +132,8 @@ class NavigatorDelegateAndWideningTest {
   class TraversalPathDelegates {
 
     @Test
-    @DisplayName("should generate TraversalPath method for List<Navigable> with collection widening")
+    @DisplayName(
+        "should generate TraversalPath method for List<Navigable> with collection widening")
     void shouldGenerateTraversalPathForListNavigable() {
       final JavaFileObject memberSource =
           JavaFileObjects.forSourceString(
@@ -375,15 +376,12 @@ class NavigatorDelegateAndWideningTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(leafSource, midSource, rootSource);
+          javac().withProcessors(new FocusProcessor()).compile(leafSource, midSource, rootSource);
 
       assertThat(compilation).succeeded();
 
       // Root → Mid navigator should exist
-      assertGeneratedCodeContains(
-          compilation, "com.example.RootFocus", "MidNavigator<Root> mid()");
+      assertGeneratedCodeContains(compilation, "com.example.RootFocus", "MidNavigator<Root> mid()");
     }
   }
 
@@ -576,9 +574,7 @@ class NavigatorDelegateAndWideningTest {
       assertThat(compilation).succeeded();
 
       assertGeneratedCodeContains(
-          compilation,
-          "com.example.RegistryFocus",
-          "TraversalPath<Registry, String> items()");
+          compilation, "com.example.RegistryFocus", "TraversalPath<Registry, String> items()");
     }
   }
 
