@@ -104,13 +104,24 @@ public final class Bulkhead {
     Objects.requireNonNull(task, "task must not be null");
     Objects.requireNonNull(waitTimeout, "waitTimeout must not be null");
     return () -> {
-      // Check if we can accept another waiter
-      int currentWaiters = waitingCount.get();
-      if (config.maxWait() > 0 && currentWaiters >= config.maxWait()) {
-        throw new BulkheadFullException(config.maxConcurrent(), currentWaiters);
+      // Atomically check-and-increment to prevent TOCTOU race on waitingCount.
+      // Multiple threads could otherwise pass the check simultaneously and all increment,
+      // exceeding the maxWait limit.
+      if (config.maxWait() > 0) {
+        int observed =
+            waitingCount.getAndUpdate(
+                cur -> {
+                  if (cur >= config.maxWait()) {
+                    return cur; // Don't increment — will be rejected
+                  }
+                  return cur + 1;
+                });
+        if (observed >= config.maxWait()) {
+          throw new BulkheadFullException(config.maxConcurrent(), observed);
+        }
+      } else {
+        waitingCount.incrementAndGet();
       }
-
-      waitingCount.incrementAndGet();
       try {
         boolean acquired = semaphore.tryAcquire(waitTimeout.toMillis(), TimeUnit.MILLISECONDS);
         if (!acquired) {

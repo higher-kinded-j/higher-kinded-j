@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -216,16 +215,7 @@ public final class ForTraversal {
 
     @Override
     public Kind<F, List<A>> toList() {
-      // Collect all elements using a list-building traversal
-      List<A> collected = new ArrayList<>();
-      traversal.modifyF(
-          a -> {
-            collected.add(a);
-            return applicative.of(a);
-          },
-          source,
-          applicative);
-      return applicative.of(collected);
+      return applicative.of(traversal.asFold().getAll(source));
     }
   }
 }

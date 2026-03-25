@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.lazy;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.function.Function;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -85,7 +87,11 @@ public final class Lazy<A> {
       synchronized (this) {
         if (!evaluated) {
           try {
-            this.value = computation.get();
+            if (computation instanceof FlatMapComputation<?, ?>) {
+              this.value = evaluateFlatMapChain();
+            } else {
+              this.value = computation.get();
+            }
             this.exception = null;
           } catch (Throwable t) {
             this.exception = t;
@@ -100,6 +106,36 @@ public final class Lazy<A> {
       throw this.exception;
     }
     return this.value;
+  }
+
+  /** Iteratively evaluates a chain of flatMap operations to avoid stack overflow. */
+  @SuppressWarnings("unchecked")
+  private A evaluateFlatMapChain() throws Throwable {
+    Deque<Function<Object, Lazy<?>>> continuations = new ArrayDeque<>();
+    Lazy<?> current = this;
+
+    // Unwind the initial chain
+    while (current.computation instanceof FlatMapComputation<?, ?> chain) {
+      continuations.push((Function<Object, Lazy<?>>) (Function<?, ?>) chain.function());
+      current = chain.source();
+    }
+
+    // Evaluate the base Lazy (which is a simple computation, not a flatMap chain)
+    Object result = current.force();
+
+    // Apply continuations iteratively
+    while (!continuations.isEmpty()) {
+      Lazy<?> next = (Lazy<?>) continuations.pop().apply(result);
+      Validation.function().requireNonNullResult(next, "f", FLAT_MAP);
+      // If next is itself a flatMap chain, unwind it too
+      while (next.computation instanceof FlatMapComputation<?, ?> chain) {
+        continuations.push((Function<Object, Lazy<?>>) (Function<?, ?>) chain.function());
+        next = chain.source();
+      }
+      result = next.force();
+    }
+
+    return (A) result;
   }
 
   /**
@@ -130,12 +166,20 @@ public final class Lazy<A> {
    */
   public <B> Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>> f) {
     Validation.function().require(f, "f", FLAT_MAP);
-    return Lazy.defer(
-        () -> {
-          Lazy<? extends B> nextLazy = f.apply(this.force());
-          Validation.function().requireNonNullResult(nextLazy, "f", FLAT_MAP);
-          return nextLazy.force();
-        });
+    return new Lazy<>(new FlatMapComputation<>(this, f));
+  }
+
+  /** Internal marker computation for flatMap chains, enabling iterative evaluation in force(). */
+  private record FlatMapComputation<A, B>(
+      Lazy<A> source, Function<? super A, ? extends Lazy<? extends B>> function)
+      implements ThrowableSupplier<B> {
+    @Override
+    public @Nullable B get() throws Throwable {
+      // Direct evaluation fallback — not used when force() detects the chain
+      Lazy<? extends B> nextLazy = function.apply(source.force());
+      Validation.function().requireNonNullResult(nextLazy, "f", FLAT_MAP);
+      return nextLazy.force();
+    }
   }
 
   /**

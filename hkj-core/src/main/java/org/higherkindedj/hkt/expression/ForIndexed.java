@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -243,16 +242,7 @@ public final class ForIndexed {
 
     @Override
     public Kind<F, List<Pair<I, A>>> toIndexedList() {
-      // Collect all elements with their indices
-      List<Pair<I, A>> collected = new ArrayList<>();
-      traversal.imodifyF(
-          (i, a) -> {
-            collected.add(new Pair<>(i, a));
-            return applicative.of(a);
-          },
-          source,
-          applicative);
-      return applicative.of(collected);
+      return applicative.of(traversal.asIndexedFold().toIndexedList(source));
     }
   }
 }

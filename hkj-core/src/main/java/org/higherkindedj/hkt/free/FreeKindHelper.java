@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.free;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper for converting between Free and Kind representations.
@@ -55,7 +57,10 @@ public enum FreeKindHelper {
    * @return The concrete Free instance
    * @throws ClassCastException if the Kind is not a FreeHolder
    */
-  public <F extends WitnessArity<?>, A> Free<F, A> narrow(Kind<FreeKind.Witness<F>, A> kind) {
-    return ((FreeHolder<F, A>) kind).free();
+  @SuppressWarnings("unchecked")
+  public <F extends WitnessArity<?>, A> Free<F, A> narrow(
+      @Nullable Kind<FreeKind.Witness<F>, A> kind) {
+    return Validation.kind()
+        .narrowWithPattern(kind, Free.class, FreeHolder.class, holder -> holder.free());
   }
 }

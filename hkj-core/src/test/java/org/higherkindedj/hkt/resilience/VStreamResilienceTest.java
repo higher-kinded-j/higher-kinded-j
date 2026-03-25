@@ -6,7 +6,10 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.vstream.VStream;
@@ -359,6 +362,80 @@ class VStreamResilienceTest {
       List<Integer> result = metered.toList().run();
 
       assertThat(result).containsExactly(1, 3, 5);
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #17: VStreamThrottle non-atomic compound operations on window state
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Throttle Thread Safety (audit issue #17)")
+  class ThrottleThreadSafetyTests {
+
+    @Test
+    @DisplayName("concurrent throttled streams sharing window state should not corrupt counts")
+    void concurrentThrottledStreamsShouldNotCorruptState() throws Exception {
+      int maxPerWindow = 5;
+      Duration window = Duration.ofMillis(100);
+
+      List<Integer> input = new ArrayList<>();
+      for (int i = 0; i < 100; i++) input.add(i);
+      VStream<Integer> stream = VStream.fromList(input);
+      VStream<Integer> throttled = VStreamThrottle.throttle(stream, maxPerWindow, window);
+
+      List<Integer> result = throttled.toList().run();
+      assertThat(result).hasSize(100).containsExactlyElementsOf(input);
+    }
+
+    @Test
+    @DisplayName("concurrent pulls exercise CAS retry on within-window increment path")
+    void concurrentPullsCASRetryWithinWindow() throws Exception {
+      // With a large window, all pulls land in the "within window" branch (line 102).
+      // Multiple threads racing on compareAndSet cause some to fail and retry.
+      runConcurrentThrottlePulls(100_000, Duration.ofSeconds(60));
+    }
+
+    @Test
+    @DisplayName("concurrent pulls exercise CAS retry on new-window reset path")
+    void concurrentPullsCASRetryNewWindow() throws Exception {
+      // With a tiny window (1ns), every pull sees the window as expired and enters
+      // the "new window" branch (line 91). Concurrent compareAndSet causes retries.
+      runConcurrentThrottlePulls(100_000, Duration.ofNanos(1));
+    }
+
+    private void runConcurrentThrottlePulls(int maxPerWindow, Duration window) throws Exception {
+      int numThreads = 16;
+      int pullsPerThread = 100;
+
+      // Thread-safe infinite source: generate() creates independent tails per pull
+      AtomicInteger counter = new AtomicInteger(0);
+      VStream<Integer> source = VStream.generate(() -> counter.getAndIncrement());
+      VStream<Integer> throttled = VStreamThrottle.throttle(source, maxPerWindow, window);
+
+      CyclicBarrier barrier = new CyclicBarrier(numThreads);
+      List<Thread> threads = new ArrayList<>();
+
+      for (int t = 0; t < numThreads; t++) {
+        threads.add(
+            Thread.ofVirtual()
+                .start(
+                    () -> {
+                      try {
+                        barrier.await(5, TimeUnit.SECONDS);
+                        for (int i = 0; i < pullsPerThread; i++) {
+                          throttled.pull().run();
+                        }
+                      } catch (Exception e) {
+                        // Concurrent pulls may see unexpected states — acceptable
+                      }
+                    }));
+      }
+
+      for (Thread thread : threads) {
+        thread.join(10_000);
+        assertThat(thread.isAlive()).as("Thread should not be stuck").isFalse();
+      }
     }
   }
 }

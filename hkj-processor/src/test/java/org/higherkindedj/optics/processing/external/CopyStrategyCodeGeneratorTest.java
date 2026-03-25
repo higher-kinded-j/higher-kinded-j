@@ -18,6 +18,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -289,7 +290,7 @@ class CopyStrategyCodeGeneratorTest {
 
       // javac wraps processor exceptions in RuntimeException
       RuntimeException thrown =
-          org.junit.jupiter.api.Assertions.assertThrows(
+          Assertions.assertThrows(
               RuntimeException.class,
               () -> generateCode(CopyStrategyKind.NONE, info, "name", PERSON_SOURCE));
       assertThat(thrown).hasCauseInstanceOf(IllegalArgumentException.class);

@@ -112,7 +112,7 @@ public final class OptionalSelective extends OptionalMonad
 
     // If choice is Right(b), we already have our value
     if (choice.isRight()) {
-      return OPTIONAL.widen(Optional.of(choice.getRight()));
+      return OPTIONAL.widen(Optional.ofNullable(choice.getRight()));
     }
 
     // Choice is Left(a), so we need to apply the function

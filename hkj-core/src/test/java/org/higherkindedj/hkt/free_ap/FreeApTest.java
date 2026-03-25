@@ -624,4 +624,31 @@ class FreeApTest {
       assertThat(app1).isSameAs(app2);
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #9: FreeAp.interpretFreeAp uses unbounded recursion
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Stack Safety (audit issue #9)")
+  class StackSafetyTests {
+
+    @Test
+    @DisplayName("deeply nested Ap structures should not StackOverflow during interpretation")
+    void deepApNestingShouldNotOverflow() {
+      // Build a deeply nested Ap structure: ap(ap(ap(...pure(f)..., lift(v)), lift(v)), lift(v))
+      FreeAp<MaybeKind.Witness, Integer> result = FreeAp.pure(0);
+      for (int i = 0; i < 10_000; i++) {
+        FreeAp<MaybeKind.Witness, Function<Integer, Integer>> fn = FreeAp.pure(n -> n + 1);
+        result = result.ap(fn);
+      }
+
+      // interpretFreeAp uses direct recursion — will StackOverflow for deep Ap structures
+      Kind<MaybeKind.Witness, Integer> interpreted =
+          result.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE);
+      Maybe<Integer> maybe = MAYBE.narrow(interpreted);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).isEqualTo(10_000);
+    }
+  }
 }

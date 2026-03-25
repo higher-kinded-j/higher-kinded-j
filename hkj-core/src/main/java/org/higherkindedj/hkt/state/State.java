@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -99,22 +101,45 @@ public interface State<S, A> {
    */
   default <B> State<S, B> flatMap(Function<? super A, ? extends State<S, ? extends B>> f) {
     Validation.function().require(f, "f", FLAT_MAP);
-    return State.of(
-        initialState -> {
-          StateTuple<S, A> result1 = this.run(initialState);
-          A valueA = result1.value();
-          S stateS1 = result1.state();
+    return new FlatMappedState<>(this, f);
+  }
 
-          State<S, ? extends B> nextState = f.apply(valueA);
-          Validation.function().requireNonNullResult(nextState, "f", FLAT_MAP);
+  /**
+   * Internal representation of a flatMap chain that evaluates iteratively to avoid stack overflow.
+   */
+  final class FlatMappedState<S, A, B> implements State<S, B> {
+    private final State<S, A> source;
+    private final Function<? super A, ? extends State<S, ? extends B>> f;
 
-          StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
+    FlatMappedState(State<S, A> source, Function<? super A, ? extends State<S, ? extends B>> f) {
+      this.source = source;
+      this.f = f;
+    }
 
-          B finalValue = (B) finalResultTuple.value();
-          S finalState = finalResultTuple.state();
+    @Override
+    @SuppressWarnings("unchecked")
+    public StateTuple<S, B> run(S initialState) {
+      State<S, ?> current = this;
+      S state = initialState;
+      Deque<Function<Object, State<S, ?>>> continuations = new ArrayDeque<>();
 
-          return new StateTuple<>(finalValue, finalState);
-        });
+      while (true) {
+        if (current instanceof FlatMappedState<S, ?, ?> fm) {
+          continuations.push((Function<Object, State<S, ?>>) (Function<?, ?>) fm.f);
+          current = fm.source;
+        } else {
+          StateTuple<S, ?> result = current.run(state);
+          state = result.state();
+          Object value = result.value();
+          if (continuations.isEmpty()) {
+            return new StateTuple<>((B) value, state);
+          }
+          State<S, ?> next = continuations.pop().apply(value);
+          Validation.function().requireNonNullResult(next, "f", FLAT_MAP);
+          current = next;
+        }
+      }
+    }
   }
 
   // --- Static Helper Methods ---

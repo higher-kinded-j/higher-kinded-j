@@ -148,14 +148,15 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("of() should create Failure when supplier throws Error")
-    void of_shouldCreateFailureWhenSupplierThrowsError() {
+    @DisplayName("of() should propagate Error when supplier throws Error")
+    void of_shouldPropagateErrorWhenSupplierThrowsError() {
       Supplier<String> supplier =
           () -> {
             throw error;
           };
-      Try<String> tryResult = Try.of(supplier);
-      assertThatTry(tryResult).isFailure().hasException(error);
+      assertThatThrownBy(() -> Try.of(supplier))
+          .isInstanceOf(StackOverflowError.class)
+          .isSameAs(error);
     }
 
     @Test
@@ -508,6 +509,18 @@ class TryTest extends TryTestBase {
     }
 
     @Test
+    @DisplayName("map() on Success should propagate Error if mapper throws Error")
+    void map_onSuccess_shouldPropagateErrorIfMapperThrowsError() {
+      Function<String, Integer> errorMapper =
+          s -> {
+            throw new StackOverflowError("fatal");
+          };
+      assertThatThrownBy(() -> successInstance.map(errorMapper))
+          .isInstanceOf(StackOverflowError.class)
+          .hasMessage("fatal");
+    }
+
+    @Test
     @DisplayName("map() on Failure should return same Failure instance")
     void map_onFailure_shouldReturnSameFailureInstance() {
       Try<Integer> result = failureInstance.map(mapper);
@@ -566,6 +579,18 @@ class TryTest extends TryTestBase {
           .hasExceptionOfType(IllegalStateException.class)
           .hasExceptionSatisfying(
               ex -> assertThat(ex).hasMessageContaining("FlatMap mapper func failed"));
+    }
+
+    @Test
+    @DisplayName("flatMap() on Success should propagate Error if mapper throws Error")
+    void flatMap_onSuccess_shouldPropagateErrorIfMapperThrowsError() {
+      Function<String, Try<Integer>> errorMapper =
+          s -> {
+            throw new StackOverflowError("fatal");
+          };
+      assertThatThrownBy(() -> successInstance.flatMap(errorMapper))
+          .isInstanceOf(StackOverflowError.class)
+          .hasMessage("fatal");
     }
 
     @Test
@@ -650,6 +675,18 @@ class TryTest extends TryTestBase {
     }
 
     @Test
+    @DisplayName("recover() on Failure should propagate Error if recovery func throws Error")
+    void recover_onFailure_shouldPropagateErrorIfRecoveryFuncThrowsError() {
+      Function<Throwable, String> errorRecoveryFunc =
+          t -> {
+            throw new StackOverflowError("fatal");
+          };
+      assertThatThrownBy(() -> failureInstance.recover(errorRecoveryFunc))
+          .isInstanceOf(StackOverflowError.class)
+          .hasMessage("fatal");
+    }
+
+    @Test
     @DisplayName("recover() should throw NPE if recovery func is null")
     void recover_shouldThrowIfRecoveryFuncIsNull() {
       assertThatNullPointerException()
@@ -723,6 +760,18 @@ class TryTest extends TryTestBase {
     }
 
     @Test
+    @DisplayName("recoverWith() on Failure should propagate Error if recovery func throws Error")
+    void recoverWith_onFailure_shouldPropagateErrorIfRecoveryFuncThrowsError() {
+      Function<Throwable, Try<String>> errorRecoveryFunc =
+          t -> {
+            throw new StackOverflowError("fatal");
+          };
+      assertThatThrownBy(() -> failureInstance.recoverWith(errorRecoveryFunc))
+          .isInstanceOf(StackOverflowError.class)
+          .hasMessage("fatal");
+    }
+
+    @Test
     @DisplayName("recoverWith() should throw NPE if recovery func is null")
     void recoverWith_shouldThrowIfRecoveryFuncIsNull() {
       assertThatNullPointerException()
@@ -776,25 +825,19 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("match() on Success should catch exception from success action")
-    void match_onSuccess_shouldCatchExceptionFromSuccessAction() {
-      successResult.set(null);
-      failureResult.set(null);
-      assertThatCode(() -> successInstance.match(throwingSuccessAction, failureAction))
-          .doesNotThrowAnyException();
-      assertThat(successResult.get()).isNull();
-      assertThat(failureResult.get()).isNull();
+    @DisplayName("match() on Success should propagate exception from success action")
+    void match_onSuccess_shouldPropagateExceptionFromSuccessAction() {
+      assertThatThrownBy(() -> successInstance.match(throwingSuccessAction, failureAction))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("Success action failed");
     }
 
     @Test
-    @DisplayName("match() on Failure should catch exception from failure action")
-    void match_onFailure_shouldCatchExceptionFromFailureAction() {
-      successResult.set(null);
-      failureResult.set(null);
-      assertThatCode(() -> failureInstance.match(successAction, throwingFailureAction))
-          .doesNotThrowAnyException();
-      assertThat(successResult.get()).isNull();
-      assertThat(failureResult.get()).isNull();
+    @DisplayName("match() on Failure should propagate exception from failure action")
+    void match_onFailure_shouldPropagateExceptionFromFailureAction() {
+      assertThatThrownBy(() -> failureInstance.match(successAction, throwingFailureAction))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("Failure action failed");
     }
 
     @Test
@@ -889,5 +932,29 @@ class TryTest extends TryTestBase {
   @SuppressWarnings("unchecked")
   private static <T, E extends Throwable> T sneakyThrow(Throwable t) throws E {
     throw (E) t;
+  }
+
+  // ==========================================================================
+  // Audit Issue #16: Try.Failure allows null cause via public constructor
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Failure Null Cause (audit issue #16)")
+  class FailureNullCauseTests {
+
+    @Test
+    @DisplayName("Failure constructor should reject null cause")
+    void failureConstructorShouldRejectNullCause() {
+      // The public record constructor allows null, producing a corrupted instance
+      // where get() does `throw null` which throws NullPointerException
+      assertThatNullPointerException().isThrownBy(() -> new Try.Failure<>(null));
+    }
+
+    @Test
+    @DisplayName("Failure with null cause should not throw null from get()")
+    void failureWithNullCauseShouldNotThrowNull() {
+      // Construction is rejected with NPE, so get() never reaches `throw null`
+      assertThatNullPointerException().isThrownBy(() -> new Try.Failure<>(null));
+    }
   }
 }

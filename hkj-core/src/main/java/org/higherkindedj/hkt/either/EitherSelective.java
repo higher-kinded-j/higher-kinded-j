@@ -203,9 +203,12 @@ public final class EitherSelective<L> extends EitherMonad<L>
       return EITHER.widen(Either.left(condEither.getLeft()));
     }
 
-    boolean condition = condEither.getRight();
+    Boolean conditionValue = condEither.getRight();
+    if (conditionValue == null) {
+      throw new IllegalArgumentException("whenS condition Boolean must not be null");
+    }
 
-    if (condition) {
+    if (conditionValue) {
       // Execute and return the effect
       return fa;
     } else {
@@ -243,10 +246,13 @@ public final class EitherSelective<L> extends EitherMonad<L>
       return EITHER.widen(Either.left(condEither.getLeft()));
     }
 
-    boolean condition = condEither.getRight();
+    Boolean conditionValue = condEither.getRight();
+    if (conditionValue == null) {
+      throw new IllegalArgumentException("ifS condition Boolean must not be null");
+    }
 
     // Return the appropriate branch
     // Note: We don't evaluate both branches - this is key for selective functors
-    return condition ? fthen : felse;
+    return conditionValue ? fthen : felse;
   }
 }

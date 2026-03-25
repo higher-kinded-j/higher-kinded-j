@@ -535,7 +535,9 @@ public final class PathOps {
             () -> {
               Throwable lastError = null;
               for (VTaskPath<A> path : paths) {
-                Try<A> result = path.runSafe();
+                // Use VTask.runSafe() (catches all Throwable) instead of
+                // Effectful.runSafe() (catches only Exception via Try.of())
+                Try<A> result = path.run().runSafe();
                 // Use pattern matching on the sealed Try type to extract values
                 // without dead lambda branches that fold() would require.
                 switch (result) {
@@ -545,12 +547,16 @@ public final class PathOps {
                   case Try.Failure<A>(var cause) -> lastError = cause;
                 }
               }
-              // VTaskPath.unsafeRun() only throws RuntimeException or Error
-              // (checked exceptions are wrapped), so lastError will always be one of these
+              // VTask.runSafe() catches all Throwable, so lastError can be
+              // RuntimeException, Error, or checked Exception.
               if (lastError instanceof RuntimeException re) {
                 throw re;
               }
-              throw (Error) lastError;
+              if (lastError instanceof Error err) {
+                throw err;
+              }
+              // Checked exception — wrap to satisfy the lambda's signature
+              throw new RuntimeException(lastError);
             }));
   }
 
@@ -1126,11 +1132,13 @@ public final class PathOps {
               for (CompletableFuture<A> future : futures) {
                 future.whenComplete(
                     (value, ex) -> {
-                      if (ex == null && !result.isDone()) {
-                        result.complete(value);
-                        // Cancel others (best effort)
-                        futures.forEach(f -> f.cancel(true));
-                      } else if (ex != null) {
+                      if (ex == null) {
+                        // result.complete() is atomic: returns true only for the first caller
+                        if (result.complete(value)) {
+                          // Cancel others (best effort)
+                          futures.forEach(f -> f.cancel(true));
+                        }
+                      } else {
                         synchronized (failures) {
                           failures.add(ex);
                           if (failures.size() == paths.size()) {

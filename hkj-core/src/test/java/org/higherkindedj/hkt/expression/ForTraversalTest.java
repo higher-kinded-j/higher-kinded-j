@@ -10,6 +10,10 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOApplicative;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
@@ -316,6 +320,38 @@ class ForTraversalTest {
       assertThat(resultList)
           .containsExactly(
               new Player("alice", 50), new Player("BOB", 160), new Player("CHARLIE", 110));
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #10: ForTraversal.toList() relies on side-effect mutation
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("toList with Deferred Applicative (audit issue #10)")
+  class ToListDeferredApplicativeTests {
+
+    @Test
+    @DisplayName("toList with IO applicative should collect elements correctly")
+    void toListWithIOApplicativeShouldCollectElements() {
+      // ForTraversal.toList() mutates a local ArrayList in callbacks and discards
+      // the modifyF result. With a lazy/deferred applicative like IO, the callbacks
+      // haven't executed yet when applicative.of(collected) is returned.
+      List<Player> players =
+          List.of(new Player("Alice", 100), new Player("Bob", 200), new Player("Charlie", 300));
+
+      IOApplicative ioApplicative = IOApplicative.INSTANCE;
+
+      Kind<IOKind.Witness, List<Player>> result =
+          ForTraversal.over(playersTraversal, players, ioApplicative).toList();
+
+      // When using IO applicative, the collected list should be populated
+      // after running the IO, not empty
+      IO<List<Player>> io = IOKindHelper.IO_OP.narrow(result);
+      List<Player> collected = io.unsafeRunSync();
+      assertThat(collected)
+          .containsExactly(
+              new Player("Alice", 100), new Player("Bob", 200), new Player("Charlie", 300));
     }
   }
 }

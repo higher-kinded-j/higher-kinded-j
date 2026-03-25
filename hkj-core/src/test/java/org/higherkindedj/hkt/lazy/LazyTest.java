@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -719,6 +720,68 @@ class LazyTest extends LazyTestBase {
           .withMappers(Object::toString)
           .onlyValidations()
           .testAll();
+    }
+  }
+
+  // ==========================================================================
+  // Internal computation coverage: now() supplier and FlatMapComputation.get()
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Internal Computation Coverage")
+  class InternalComputationTests {
+
+    @SuppressWarnings("unchecked")
+    private ThrowableSupplier<?> getComputation(Lazy<?> lazy) throws Exception {
+      Field field = Lazy.class.getDeclaredField("computation");
+      field.setAccessible(true);
+      return (ThrowableSupplier<?>) field.get(lazy);
+    }
+
+    @Test
+    @DisplayName("now() supplier returns the pre-computed value when called directly")
+    void nowSupplierReturnsValue() throws Throwable {
+      Lazy<String> lazy = Lazy.now("hello");
+      ThrowableSupplier<?> computation = getComputation(lazy);
+      assertThat(computation.get()).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName("now(null) supplier returns null when called directly")
+    void nowSupplierReturnsNull() throws Throwable {
+      Lazy<String> lazy = Lazy.now(null);
+      ThrowableSupplier<?> computation = getComputation(lazy);
+      assertThat(computation.get()).isNull();
+    }
+
+    @Test
+    @DisplayName("FlatMapComputation.get() evaluates correctly when called directly")
+    void flatMapComputationGetEvaluates() throws Throwable {
+      Lazy<Integer> base = Lazy.now(5);
+      Lazy<String> mapped = base.flatMap(n -> Lazy.now(n + "!"));
+      ThrowableSupplier<?> computation = getComputation(mapped);
+      assertThat(computation.get()).isEqualTo("5!");
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #7: Lazy flatMap chains are not stack-safe
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Stack Safety (audit issue #7)")
+  class StackSafetyTests {
+
+    @Test
+    @DisplayName("deeply chained flatMap should not StackOverflow")
+    void deepFlatMapChainShouldNotOverflow() throws Throwable {
+      Lazy<Integer> lazy = Lazy.defer(() -> 0);
+      for (int i = 0; i < 20_000; i++) {
+        lazy = lazy.flatMap(n -> Lazy.defer(() -> n + 1));
+      }
+      final Lazy<Integer> finalLazy = lazy;
+      // This will StackOverflow with the current implementation
+      assertThat(finalLazy.force()).isEqualTo(20_000);
     }
   }
 }

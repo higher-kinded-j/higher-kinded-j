@@ -189,7 +189,7 @@ public final class VStreamReactive {
    */
   private static final class VStreamSubscription<A> implements Flow.Subscription {
 
-    private VStream<A> current;
+    private volatile VStream<A> current;
     private final Flow.Subscriber<? super A> subscriber;
     private final AtomicLong demand = new AtomicLong(0);
     private final AtomicBoolean cancelled = new AtomicBoolean(false);

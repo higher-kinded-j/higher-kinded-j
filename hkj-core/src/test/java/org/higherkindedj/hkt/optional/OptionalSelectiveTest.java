@@ -519,4 +519,27 @@ class OptionalSelectiveTest extends OptionalTestBase {
       assertThatOptional(result2).isPresent();
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #14: OptionalSelective.select uses Optional.of() on Right(null)
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Select Right Null Handling (audit issue #14)")
+  class SelectRightNullTests {
+
+    @Test
+    @DisplayName("select with Right(null) should return empty, not NPE")
+    void selectWithRightNullShouldReturnEmpty() {
+      // Choice.right(null) is valid — getRight() returns null
+      // Optional.of(null) throws NPE — should use Optional.ofNullable()
+      Choice<String, String> rightNull = Selective.right(null);
+      Kind<OptionalKind.Witness, Choice<String, String>> fab = presentOf(rightNull);
+      Kind<OptionalKind.Witness, Function<String, String>> ff = presentOf(s -> "applied:" + s);
+
+      // Should produce Optional.empty(), not throw NPE
+      Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
+      assertThatOptional(result).isEmpty();
+    }
+  }
 }
