@@ -697,4 +697,49 @@ class MaybeSelectiveTest extends MaybeTestBase {
       assertThat(maybe2.get()).isEqualTo(Unit.INSTANCE);
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #13: MaybeSelective.branch inconsistent null handling
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Branch Null Handling (audit issue #13)")
+  class BranchNullHandlingTests {
+
+    @Test
+    @DisplayName("branch right path should handle function returning null without NPE")
+    void branchRightPathShouldHandleNullResult() {
+      // Right path uses Maybe.just(result) which NPEs if function returns null
+      // Left path uses Maybe.fromNullable(result) — inconsistent
+      Choice<Integer, String> rightChoice = Selective.right("input");
+      Kind<MaybeKind.Witness, Choice<Integer, String>> fab = MAYBE.widen(Maybe.just(rightChoice));
+      Kind<MaybeKind.Witness, Function<Integer, String>> fl =
+          MAYBE.widen(Maybe.just(i -> "left:" + i));
+      // Right handler returns null
+      Kind<MaybeKind.Witness, Function<String, String>> fr =
+          MAYBE.widen(Maybe.just(s -> (String) null));
+
+      // Should produce Nothing (like the left path does), not NPE
+      Kind<MaybeKind.Witness, String> result = selective.branch(fab, fl, fr);
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("branch left path handles function returning null as Nothing")
+    void branchLeftPathHandlesNullResultAsNothing() {
+      // Left path already uses fromNullable — this should work
+      Choice<Integer, String> leftChoice = Selective.left(42);
+      Kind<MaybeKind.Witness, Choice<Integer, String>> fab = MAYBE.widen(Maybe.just(leftChoice));
+      // Left handler returns null
+      Kind<MaybeKind.Witness, Function<Integer, String>> fl =
+          MAYBE.widen(Maybe.just(i -> (String) null));
+      Kind<MaybeKind.Witness, Function<String, String>> fr =
+          MAYBE.widen(Maybe.just(s -> "right:" + s));
+
+      Kind<MaybeKind.Witness, String> result = selective.branch(fab, fl, fr);
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isNothing()).isTrue();
+    }
+  }
 }

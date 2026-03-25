@@ -11,6 +11,11 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.effect;
   exports org.higherkindedj.hkt.effect.capability;
   exports org.higherkindedj.hkt.effect.context;
+  exports org.higherkindedj.hkt.effect.spi;
+  exports org.higherkindedj.hkt.util.validation;
+
+  uses org.higherkindedj.hkt.effect.spi.PathProvider;
+
   exports org.higherkindedj.hkt.resilience;
   exports org.higherkindedj.hkt.either;
   exports org.higherkindedj.hkt.either_t;

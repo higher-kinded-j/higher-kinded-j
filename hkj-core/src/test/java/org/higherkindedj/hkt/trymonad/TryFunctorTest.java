@@ -210,7 +210,7 @@ class TryFunctorTest extends TryTestBase {
     @Test
     @DisplayName("map() should propagate Error from mapper")
     void map_shouldPropagateErrorFromMapper() {
-      StackOverflowError testError = new StackOverflowError("Stack overflow");
+      RuntimeException testError = new RuntimeException("Mapper error");
       Function<String, Integer> throwingMapper =
           s -> {
             throw testError;

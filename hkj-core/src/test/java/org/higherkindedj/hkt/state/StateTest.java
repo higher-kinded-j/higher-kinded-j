@@ -872,4 +872,27 @@ class StateTest extends StateTestBase<Integer> {
       assertThatThrownBy(() -> computation.run(getInitialState())).isSameAs(testException);
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #7: State flatMap chains are not stack-safe
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Stack Safety (audit issue #7)")
+  class StackSafetyTests {
+
+    @Test
+    @DisplayName("deeply chained flatMap should not StackOverflow")
+    void deepFlatMapChainShouldNotOverflow() {
+      State<Integer, Integer> state = State.of(s -> new StateTuple<>(0, s));
+      for (int i = 0; i < 20_000; i++) {
+        state = state.flatMap(n -> State.of(s -> new StateTuple<>(n + 1, s)));
+      }
+      final State<Integer, Integer> finalState = state;
+      // This will StackOverflow with the current implementation
+      StateTuple<Integer, Integer> result = finalState.run(0);
+      assertThat(result.state()).isEqualTo(0);
+      assertThat(result.value()).isEqualTo(20_000);
+    }
+  }
 }

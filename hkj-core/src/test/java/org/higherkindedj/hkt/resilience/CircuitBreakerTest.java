@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.core.ConditionFactory;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -994,6 +996,234 @@ class CircuitBreakerTest {
                 CircuitOpenException coe = (CircuitOpenException) ex;
                 assertThat(coe.retryAfter().isNegative()).isFalse();
               });
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #4: stateTransitions counter must not be corrupted by CAS retries
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("State Transition Counter Accuracy (audit issue #4)")
+  class StateTransitionCounterTests {
+
+    @Test
+    @DisplayName("single CLOSED->OPEN transition increments stateTransitions by exactly 1")
+    void singleTransitionIncrementsCountByOne() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(3)
+                  .successThreshold(1)
+                  .openDuration(Duration.ofSeconds(60))
+                  .callTimeout(Duration.ofSeconds(5))
+                  .build());
+
+      long initialTransitions = breaker.metrics().stateTransitions();
+
+      // Cause exactly enough failures to trip CLOSED -> OPEN
+      for (int i = 0; i < 3; i++) {
+        try {
+          breaker.protect(VTask.fail(new RuntimeException("fail"))).run();
+        } catch (RuntimeException ignored) {
+        }
+      }
+
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+      assertThat(breaker.metrics().stateTransitions()).isEqualTo(initialTransitions + 1);
+    }
+
+    @Test
+    @DisplayName(
+        "concurrent failures produce correct transition count (no double-counting from CAS retries)")
+    void concurrentFailuresProduceCorrectTransitionCount() throws Exception {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .successThreshold(1)
+                  .openDuration(Duration.ofSeconds(60))
+                  .callTimeout(Duration.ofSeconds(5))
+                  .build());
+
+      int threadCount = 10;
+      CyclicBarrier barrier = new CyclicBarrier(threadCount);
+      CountDownLatch done = new CountDownLatch(threadCount);
+
+      for (int i = 0; i < threadCount; i++) {
+        Thread.ofVirtual()
+            .start(
+                () -> {
+                  try {
+                    barrier.await(2, TimeUnit.SECONDS);
+                    breaker.protect(VTask.fail(new RuntimeException("fail"))).run();
+                  } catch (Exception ignored) {
+                  } finally {
+                    done.countDown();
+                  }
+                });
+      }
+
+      done.await(5, TimeUnit.SECONDS);
+
+      long transitions = breaker.metrics().stateTransitions();
+      assertThat(transitions)
+          .as("stateTransitions should be exactly 1 (CLOSED->OPEN), not inflated by CAS retries")
+          .isEqualTo(1);
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #5: onSuccess in OPEN state must not transition to CLOSED
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("OPEN State Success Handling (audit issue #5)")
+  class OpenStateSuccessTests {
+
+    @Test
+    @DisplayName("success recorded while OPEN should not close the circuit")
+    void successInOpenStateShouldNotCloseCircuit() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(2)
+                  .successThreshold(1)
+                  .openDuration(Duration.ofSeconds(60))
+                  .callTimeout(Duration.ofSeconds(5))
+                  .build());
+
+      // Trip the circuit to OPEN
+      for (int i = 0; i < 2; i++) {
+        try {
+          breaker.protect(VTask.fail(new RuntimeException("fail"))).run();
+        } catch (RuntimeException ignored) {
+        }
+      }
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+
+      breaker.tripOpen();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+
+      // A call while OPEN should be rejected, not succeed
+      VTask<String> task = breaker.protect(VTask.succeed("should-be-rejected"));
+      assertThatThrownBy(task::run).isInstanceOf(CircuitOpenException.class);
+
+      // Circuit should still be OPEN
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName(
+        "onSuccess called while OPEN due to concurrent state change should not close circuit")
+    void onSuccessWhileOpenDueToConcurrentStateChange() throws Exception {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(3)
+                  .successThreshold(1)
+                  .openDuration(Duration.ofSeconds(60))
+                  .callTimeout(Duration.ofSeconds(5))
+                  .build());
+
+      CountDownLatch taskStarted = new CountDownLatch(1);
+      CountDownLatch proceedToComplete = new CountDownLatch(1);
+      AtomicReference<String> taskResult = new AtomicReference<>();
+
+      // Start a slow task that will succeed - admitted while CLOSED
+      VTask<String> slowTask =
+          breaker.protect(
+              () -> {
+                taskStarted.countDown();
+                proceedToComplete.await(5, TimeUnit.SECONDS);
+                return "success";
+              });
+
+      Thread taskThread =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      taskResult.set(slowTask.run());
+                    } catch (Exception ignored) {
+                    }
+                  });
+
+      // Wait for task to start executing (admitted while CLOSED)
+      assertThat(taskStarted.await(2, TimeUnit.SECONDS)).isTrue();
+
+      // Trip breaker to OPEN while the slow task is still in-flight
+      causeFailures(breaker, 3);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+
+      // Let the slow task complete - onSuccess() is called while state is OPEN
+      proceedToComplete.countDown();
+      taskThread.join(5000);
+
+      // Breaker should still be OPEN (the OPEN case in onSuccess returns current state)
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+      assertThat(taskResult.get()).isEqualTo("success");
+    }
+  }
+
+  // ==========================================================================
+  // CAS contention: concurrent OPEN -> HALF_OPEN transition in protect()
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("CAS Contention in protect()")
+  class CASContentionTests {
+
+    @Test
+    @DisplayName("concurrent protect() calls race on OPEN->HALF_OPEN CAS; loser re-reads state")
+    void concurrentOpenToHalfOpenCASContention() throws Exception {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .successThreshold(1)
+                  .openDuration(Duration.ofMillis(1))
+                  .callTimeout(Duration.ofSeconds(5))
+                  .build());
+
+      int iterations = 50;
+      for (int iter = 0; iter < iterations; iter++) {
+        // Trip to OPEN
+        breaker.tripOpen();
+        assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+
+        // Wait for open duration to elapse so next protect() will attempt HALF_OPEN transition
+        Thread.sleep(5);
+
+        // Race multiple threads to trigger the OPEN->HALF_OPEN CAS in protect()
+        int threadCount = 4;
+        CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+
+        for (int t = 0; t < threadCount; t++) {
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      barrier.await(2, TimeUnit.SECONDS);
+                      breaker.protect(VTask.succeed("ok")).run();
+                    } catch (CircuitOpenException ignored) {
+                      // Expected for threads that see OPEN after CAS contention
+                    } catch (Exception e) {
+                      errors.add(e);
+                    } finally {
+                      done.countDown();
+                    }
+                  });
+        }
+
+        done.await(5, TimeUnit.SECONDS);
+        assertThat(errors).as("No unexpected exceptions in iteration " + iter).isEmpty();
+
+        // Reset for next iteration
+        breaker.reset();
+      }
     }
   }
 }

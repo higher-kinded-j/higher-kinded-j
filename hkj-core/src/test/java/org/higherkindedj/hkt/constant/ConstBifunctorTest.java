@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.constant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 
 import java.util.function.BiPredicate;
@@ -48,7 +49,9 @@ class ConstBifunctorTest {
           .withCompositionFirstMapper(compositionFirstMapper)
           .withCompositionSecondMapper(compositionSecondMapper)
           .withEqualityChecker(equalityChecker)
-          .testAll();
+          .selectTests()
+          .skipExceptions()
+          .test();
     }
   }
 
@@ -92,8 +95,7 @@ class ConstBifunctorTest {
     void secondWithDifferentPhantomTypePreservesConstantValue() {
       Kind2<ConstKind2.Witness, Integer, String> const_ = CONST.widen2(new Const<>(42));
 
-      // Note: mapper must not dereference input since Const applies it to null for exception
-      // propagation
+      // The mapper is validated for non-null but never invoked (phantom type)
       Const<Integer, Double> result = CONST.narrow2(bifunctor.second(s -> 3.14, const_));
 
       assertThat(result.value()).isEqualTo(42);
@@ -158,6 +160,50 @@ class ConstBifunctorTest {
 
       Const<String, Boolean> finalResult = CONST.narrow2(result3);
       assertThat(finalResult.value()).isEqualTo("constant");
+    }
+
+    @Test
+    @DisplayName("Const.mapSecond should not NPE when mapper cannot handle null (audit issue #1)")
+    void mapSecondShouldNotNpeWithNonNullMapper() {
+      Const<String, Integer> c = new Const<>("hello");
+      // This mapper does arithmetic on its input — calling it with null would NPE
+      Const<String, Double> result = c.mapSecond(i -> i * 2.0);
+      assertThat(result.value()).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName(
+        "Const.bimap should not NPE when second mapper cannot handle null (audit issue #1)")
+    void bimapShouldNotNpeWithNonNullSecondMapper() {
+      Const<String, Integer> c = new Const<>("hello");
+      Const<Integer, String> result = c.bimap(String::length, i -> "Value: " + (i + 1));
+      assertThat(result.value()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName(
+        "ConstBifunctor.second should not NPE when mapper cannot handle null (audit issue #1)")
+    void constBifunctorSecondShouldNotNpe() {
+      var const_ = CONST.widen2(new Const<String, Integer>("hello"));
+      // mapper that dereferences its input — would NPE if called with null
+      var result = ConstBifunctor.INSTANCE.second((Integer i) -> i.toString(), const_);
+      Const<String, String> narrowed = CONST.narrow2(result);
+      assertThat(narrowed.value()).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName("Const.mapSecond should still validate non-null mapper parameter (audit issue #1)")
+    void mapSecondShouldStillRejectNullMapper() {
+      Const<String, Integer> c = new Const<>("hello");
+      assertThatNullPointerException().isThrownBy(() -> c.mapSecond(null));
+    }
+
+    @Test
+    @DisplayName("Const.bimap should still validate non-null mapper parameters (audit issue #1)")
+    void bimapShouldStillRejectNullMappers() {
+      Const<String, Integer> c = new Const<>("hello");
+      assertThatNullPointerException().isThrownBy(() -> c.bimap(null, i -> i));
+      assertThatNullPointerException().isThrownBy(() -> c.bimap(s -> s, null));
     }
 
     @Test

@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -162,13 +164,42 @@ public interface IO<A> extends IOKind<A> {
    */
   default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
     Validation.function().require(f, "f", FLAT_MAP);
-    return IO.delay(
-        () -> {
-          A a = this.unsafeRunSync();
-          IO<B> nextIO = f.apply(a);
-          Validation.function().requireNonNullResult(nextIO, "f", FLAT_MAP);
-          return nextIO.unsafeRunSync();
-        });
+    return new FlatMappedIO<>(this, f);
+  }
+
+  /**
+   * Internal representation of a flatMap chain that evaluates iteratively to avoid stack overflow.
+   */
+  final class FlatMappedIO<A, B> implements IO<B> {
+    private final IO<A> source;
+    private final Function<? super A, ? extends IO<B>> f;
+
+    FlatMappedIO(IO<A> source, Function<? super A, ? extends IO<B>> f) {
+      this.source = source;
+      this.f = f;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public B unsafeRunSync() {
+      IO<?> current = this;
+      Deque<Function<Object, IO<?>>> continuations = new ArrayDeque<>();
+
+      while (true) {
+        if (current instanceof FlatMappedIO<?, ?> fm) {
+          continuations.push((Function<Object, IO<?>>) (Function<?, ?>) fm.f);
+          current = fm.source;
+        } else {
+          Object result = current.unsafeRunSync();
+          if (continuations.isEmpty()) {
+            return (B) result;
+          }
+          IO<?> next = continuations.pop().apply(result);
+          Validation.function().requireNonNullResult(next, "f", FLAT_MAP);
+          current = next;
+        }
+      }
+    }
   }
 
   /**

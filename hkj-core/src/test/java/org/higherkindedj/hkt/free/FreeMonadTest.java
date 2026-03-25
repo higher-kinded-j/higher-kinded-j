@@ -3,12 +3,19 @@
 package org.higherkindedj.hkt.free;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityKindHelper;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -364,6 +371,129 @@ class FreeMonadTest extends FreeTestBase {
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
           .testLaws();
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #8: Free.interpretFree Suspend case bypasses trampolining
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Interpret Stack Safety (audit issue #8)")
+  class InterpretStackSafetyTests {
+
+    @Test
+    @DisplayName(
+        "deeply nested Suspend chains should not StackOverflow when interpreted into Identity")
+    void deepSuspendChainsShouldNotOverflow() {
+      // Build a deep chain of Suspend nodes: suspend(identity(suspend(identity(...pure(0)))))
+      Free<IdentityKind.Witness, Integer> program = Free.pure(0);
+      for (int i = 0; i < 20_000; i++) {
+        final Free<IdentityKind.Witness, Integer> current = program;
+        // Wrap in Suspend: the Identity functor wraps a Free
+        Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
+            IdentityKindHelper.IDENTITY.widen(new Identity<>(current));
+        program = Free.suspend(suspended);
+      }
+
+      // interpretFree recurses inside the target monad's flatMap for Suspend case,
+      // which means 20k deep recursion if the target monad isn't stack-safe
+      Integer result = runFree(program);
+      assertThat(result).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("deep flatMap chain in Free should interpret without StackOverflow")
+    void deepFlatMapChainShouldInterpretWithoutOverflow() {
+      Free<IdentityKind.Witness, Integer> program = Free.pure(0);
+      for (int i = 0; i < 20_000; i++) {
+        program = program.flatMap(n -> Free.pure(n + 1));
+      }
+
+      Integer result = runFree(program);
+      assertThat(result).isEqualTo(20_000);
+    }
+  }
+
+  // ==========================================================================
+  // Lazy monad interpretation tests (IO monad exercises the lazy branch
+  // in interpretFree/interpretFreeNatural where eager[0] stays false)
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Lazy Monad Interpretation (IO)")
+  class LazyMonadInterpretationTests {
+
+    /** Interprets a Free program into IO using Function-based foldMap (interpretFree). */
+    private <A> A runFreeViaIO(Free<IdentityKind.Witness, A> free) {
+      Function<Kind<IdentityKind.Witness, ?>, Kind<IOKind.Witness, ?>> transform =
+          kind -> {
+            Object value = IDENTITY.narrow(kind).value();
+            return IO_OP.widen(IO.delay(() -> value));
+          };
+      Kind<IOKind.Witness, A> result = free.foldMap(transform, IOMonad.INSTANCE);
+      return IO_OP.narrow(result).unsafeRunSync();
+    }
+
+    /** Interprets a Free program into IO using Natural-based foldMap (interpretFreeNatural). */
+    private <A> A runFreeViaIONatural(Free<IdentityKind.Witness, A> free) {
+      Natural<IdentityKind.Witness, IOKind.Witness> transform =
+          new Natural<>() {
+            @Override
+            public <X> Kind<IOKind.Witness, X> apply(Kind<IdentityKind.Witness, X> fa) {
+              X value = IdentityKindHelper.IDENTITY.narrow(fa).value();
+              return IO_OP.widen(IO.delay(() -> value));
+            }
+          };
+      Kind<IOKind.Witness, A> result = free.foldMap(transform, IOMonad.INSTANCE);
+      return IO_OP.narrow(result).unsafeRunSync();
+    }
+
+    @Test
+    @DisplayName("interpretFree lazy branch: Suspend via IO monad (Function-based)")
+    void interpretFreeLazyBranchWithSuspend() {
+      // Suspend wraps a value in Identity, which the transform converts to IO
+      Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
+          IDENTITY.widen(new Identity<>(Free.pure(42)));
+      Free<IdentityKind.Witness, Integer> program = Free.suspend(suspended);
+
+      Integer result = runFreeViaIO(program);
+      assertThat(result).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("interpretFreeNatural lazy branch: Suspend via IO monad (Natural-based)")
+    void interpretFreeNaturalLazyBranchWithSuspend() {
+      Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
+          IDENTITY.widen(new Identity<>(Free.pure(42)));
+      Free<IdentityKind.Witness, Integer> program = Free.suspend(suspended);
+
+      Integer result = runFreeViaIONatural(program);
+      assertThat(result).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("interpretFree lazy branch: FlatMapped with Suspend via IO monad")
+    void interpretFreeLazyBranchWithFlatMappedSuspend() {
+      Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
+          IDENTITY.widen(new Identity<>(Free.pure(10)));
+      Free<IdentityKind.Witness, Integer> program =
+          Free.<IdentityKind.Witness, Integer>suspend(suspended).flatMap(n -> Free.pure(n * 2));
+
+      Integer result = runFreeViaIO(program);
+      assertThat(result).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("interpretFreeNatural lazy branch: FlatMapped with Suspend via IO monad")
+    void interpretFreeNaturalLazyBranchWithFlatMappedSuspend() {
+      Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
+          IDENTITY.widen(new Identity<>(Free.pure(10)));
+      Free<IdentityKind.Witness, Integer> program =
+          Free.<IdentityKind.Witness, Integer>suspend(suspended).flatMap(n -> Free.pure(n * 2));
+
+      Integer result = runFreeViaIONatural(program);
+      assertThat(result).isEqualTo(20);
     }
   }
 }

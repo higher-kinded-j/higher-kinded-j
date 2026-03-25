@@ -413,8 +413,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
     // Runtime check: same witness type (relies on same Monad instance in practice)
     GenericPath<F, B> typedOther = (GenericPath<F, B>) otherGeneric;
 
-    Kind<F, C> result =
-        monad.flatMap(a -> monad.map(b -> combiner.apply(a, b), typedOther.value), value);
+    Kind<F, C> result = monad.map2(value, typedOther.value, combiner);
     return new GenericPath<>(result, monad, monadError);
   }
 

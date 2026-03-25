@@ -173,12 +173,10 @@ public final class LoggingOpticInterpreter {
   String opticName(Object optic) {
     String className = optic.getClass().getSimpleName();
     if (className.isEmpty()) {
-      // Anonymous class - try to get a meaningful name
+      // Anonymous class - extract the portion after the last package separator.
+      // When lastDot is -1 (no dots), substring(0) returns the full string.
       className = optic.getClass().getName();
-      int lastDot = className.lastIndexOf('.');
-      if (lastDot >= 0) {
-        className = className.substring(lastDot + 1);
-      }
+      className = className.substring(className.lastIndexOf('.') + 1);
     }
     return className;
   }

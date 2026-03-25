@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.func;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A helper class for working with {@link FunctionKind}. This class provides methods for widening
@@ -38,7 +39,15 @@ public final class FunctionKindHelper {
    * @param <B> the output type of the function
    * @return the narrowed function
    */
-  public <A, B> FunctionKind<A, B> narrow(Kind2<FunctionKind.Witness, A, B> kind) {
+  @SuppressWarnings("unchecked")
+  public <A, B> FunctionKind<A, B> narrow(@Nullable Kind2<FunctionKind.Witness, A, B> kind) {
+    if (kind == null) {
+      throw new NullPointerException("Cannot narrow null Kind2 to FunctionKind");
+    }
+    if (!(kind instanceof FunctionKind<?, ?>)) {
+      throw new IllegalArgumentException(
+          "Expected FunctionKind but got: " + kind.getClass().getName());
+    }
     return (FunctionKind<A, B>) kind;
   }
 

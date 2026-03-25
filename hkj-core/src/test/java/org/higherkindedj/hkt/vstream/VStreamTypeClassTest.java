@@ -118,6 +118,21 @@ class VStreamTypeClassTest {
     }
 
     @Test
+    @DisplayName("ap produces full Cartesian product with multiple functions (audit issue #2)")
+    void apProducesFullCartesianProduct() {
+      // 2 functions x 3 values = 6 results — verifies aStream is replayed for each function
+      Kind<VStreamKind.Witness, Function<Integer, String>> fns =
+          VSTREAM.widen(VStream.fromList(List.of(i -> "a" + i, i -> "b" + i)));
+      Kind<VStreamKind.Witness, Integer> values = VSTREAM.widen(VStream.fromList(List.of(1, 2, 3)));
+
+      Kind<VStreamKind.Witness, String> result = applicative.ap(fns, values);
+
+      assertThat(VSTREAM.narrow(result).toList().run())
+          .hasSize(6)
+          .containsExactly("a1", "a2", "a3", "b1", "b2", "b3");
+    }
+
+    @Test
     @DisplayName("map2 combines two streams")
     void map2CombinesTwoStreams() {
       Kind<VStreamKind.Witness, Integer> s1 = VSTREAM.widen(VStream.of(1, 2));

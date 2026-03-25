@@ -10,6 +10,10 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOApplicative;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
@@ -617,6 +621,37 @@ class ForIndexedTest {
               new Player("C", 230),
               new Player("D", 340),
               new Player("e", 50));
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #10: ForIndexed.toIndexedList() relies on side-effect mutation
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("toIndexedList with Deferred Applicative (audit issue #10)")
+  class ToIndexedListDeferredApplicativeTests {
+
+    @Test
+    @DisplayName("toIndexedList with IO applicative should collect elements correctly")
+    void toIndexedListWithIOApplicativeShouldCollectElements() {
+      // ForIndexed.toIndexedList() mutates a local ArrayList in callbacks and discards
+      // the imodifyF result. With a lazy/deferred applicative like IO, the callbacks
+      // haven't executed yet when applicative.of(collected) is returned.
+      List<Player> players = List.of(new Player("Alice", 100), new Player("Bob", 200));
+
+      IOApplicative ioApplicative = IOApplicative.INSTANCE;
+      IndexedTraversal<Integer, List<Player>, Player> indexedTraversal =
+          IndexedTraversals.forList();
+
+      Kind<IOKind.Witness, List<Pair<Integer, Player>>> result =
+          ForIndexed.overIndexed(indexedTraversal, players, ioApplicative).toIndexedList();
+
+      IO<List<Pair<Integer, Player>>> io = IOKindHelper.IO_OP.narrow(result);
+      List<Pair<Integer, Player>> collected = io.unsafeRunSync();
+      assertThat(collected).hasSize(2);
+      assertThat(collected.get(0)).isEqualTo(new Pair<>(0, new Player("Alice", 100)));
+      assertThat(collected.get(1)).isEqualTo(new Pair<>(1, new Player("Bob", 200)));
     }
   }
 }

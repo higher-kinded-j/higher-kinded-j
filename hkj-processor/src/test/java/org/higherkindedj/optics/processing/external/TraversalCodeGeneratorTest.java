@@ -18,6 +18,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -299,7 +300,7 @@ class TraversalCodeGeneratorTest {
 
       // javac wraps processor exceptions in RuntimeException
       RuntimeException thrown =
-          org.junit.jupiter.api.Assertions.assertThrows(
+          Assertions.assertThrows(
               RuntimeException.class,
               () ->
                   generateTraversal(

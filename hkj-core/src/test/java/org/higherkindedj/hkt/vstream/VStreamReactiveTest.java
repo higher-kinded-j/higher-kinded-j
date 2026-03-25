@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 import java.util.concurrent.SubmissionPublisher;
@@ -1241,6 +1242,96 @@ class VStreamReactiveTest {
       assertThatIllegalArgumentException()
           .isThrownBy(() -> VStreamReactive.fromPublisher(publisher, 0))
           .withMessageContaining("bufferSize must be positive");
+    }
+  }
+
+  // ==========================================================================
+  // Audit Issue #3: VStreamSubscription.current visibility across virtual threads
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Cross-thread Visibility Tests (audit issue #3)")
+  class CrossThreadVisibilityTests {
+
+    @Test
+    @DisplayName("toPublisher delivers all elements correctly across thread boundary")
+    void toPublisherDeliversAllElements() throws Exception {
+      VStream<Integer> stream = VStream.fromList(List.of(1, 2, 3, 4, 5));
+      Flow.Publisher<Integer> publisher = VStreamReactive.toPublisher(stream);
+
+      CopyOnWriteArrayList<Integer> received = new CopyOnWriteArrayList<>();
+      CountDownLatch completed = new CountDownLatch(1);
+
+      publisher.subscribe(
+          new Flow.Subscriber<>() {
+            Flow.Subscription sub;
+
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+              this.sub = subscription;
+              subscription.request(5);
+            }
+
+            @Override
+            public void onNext(Integer item) {
+              received.add(item);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+              completed.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+              completed.countDown();
+            }
+          });
+
+      assertThat(completed.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(received).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("toPublisher handles incremental requests correctly")
+    void toPublisherHandlesIncrementalRequests() throws Exception {
+      VStream<Integer> stream = VStream.fromList(List.of(10, 20, 30));
+      Flow.Publisher<Integer> publisher = VStreamReactive.toPublisher(stream);
+
+      CopyOnWriteArrayList<Integer> received = new CopyOnWriteArrayList<>();
+      CountDownLatch completed = new CountDownLatch(1);
+
+      publisher.subscribe(
+          new Flow.Subscriber<>() {
+            Flow.Subscription sub;
+
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+              this.sub = subscription;
+              // Request one at a time
+              subscription.request(1);
+            }
+
+            @Override
+            public void onNext(Integer item) {
+              received.add(item);
+              // Request next after receiving current
+              sub.request(1);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+              completed.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+              completed.countDown();
+            }
+          });
+
+      assertThat(completed.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(received).containsExactly(10, 20, 30);
     }
   }
 }

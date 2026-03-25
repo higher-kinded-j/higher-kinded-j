@@ -517,4 +517,32 @@ class PathRegistryTest {
       }
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #11: register() sets loaded=true, preventing ServiceLoader discovery
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Register and ServiceLoader Coexistence (audit issue #11)")
+  class RegisterAndServiceLoaderTests {
+
+    @Test
+    @DisplayName("manual register should not prevent ServiceLoader discovery of other providers")
+    void manualRegisterShouldNotPreventServiceLoaderDiscovery() {
+      // Start clean
+      PathRegistry.clear();
+
+      // Register a custom Maybe provider manually
+      PathRegistry.register(new MaybePathProvider());
+
+      // The ServiceLoader-discovered TestOptionalPathProvider should still be available
+      // Bug: register() sets loaded=true, so ensureLoaded() skips ServiceLoader
+      assertThat(PathRegistry.hasProvider(MaybeKind.Witness.class))
+          .as("Manually registered MaybeKind provider should be present")
+          .isTrue();
+      assertThat(PathRegistry.hasProvider(OptionalKind.Witness.class))
+          .as("ServiceLoader-discovered OptionalKind provider should also be present")
+          .isTrue();
+    }
+  }
 }

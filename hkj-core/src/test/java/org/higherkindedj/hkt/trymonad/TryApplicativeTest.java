@@ -271,7 +271,7 @@ class TryApplicativeTest extends TryTestBase {
     @Test
     @DisplayName("ap() should propagate Error from function application")
     void ap_shouldPropagateErrorFromFunctionApplication() {
-      StackOverflowError testError = new StackOverflowError("Stack overflow");
+      RuntimeException testError = new RuntimeException("Function application error");
       Function<String, Integer> throwingFunc =
           s -> {
             throw testError;

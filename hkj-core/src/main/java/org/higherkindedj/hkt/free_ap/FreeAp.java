@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.free_ap;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -282,32 +284,43 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    * @param <A> The result type
    * @return The interpreted result in G
    */
+  @SuppressWarnings("unchecked")
   private static <
           F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A>
       Kind<G, A> interpretFreeAp(
           FreeAp<F, A> freeAp, Natural<F, G> transform, Applicative<G> applicative) {
 
-    return switch (freeAp) {
-      case Pure<F, A> pure ->
-          // Pure values are lifted into the applicative
-          applicative.of(pure.value());
+    // Unwind right-nested Ap chains iteratively to avoid stack overflow.
+    // Collect the function (ff) nodes while following the value (fa) chain.
+    Deque<FreeAp<F, ?>> ffStack = new ArrayDeque<>();
+    FreeAp<F, ?> current = freeAp;
 
-      case Lift<F, A> lift ->
-          // Lifted instructions are transformed
-          transform.apply(lift.fa());
+    while (current instanceof Ap<F, ?, ?> ap) {
+      Ap<F, Object, ?> typed = (Ap<F, Object, ?>) ap;
+      ffStack.push(typed.ff());
+      current = typed.fa();
+    }
 
-      case Ap<F, ?, A> ap -> {
-        // Handle the Ap case by recursively interpreting both branches
-        // Both branches are INDEPENDENT - this is where parallelism can happen
-        @SuppressWarnings("unchecked")
-        Ap<F, Object, A> typed = (Ap<F, Object, A>) ap;
+    // current is now Pure or Lift — interpret the leaf
+    // (Ap nodes were consumed by the while loop above, so only Pure/Lift remain)
+    Kind<G, Object> result;
+    if (current instanceof Pure<F, ?> pure) {
+      result = (Kind<G, Object>) applicative.of(pure.value());
+    } else {
+      Lift<F, ?> lift = (Lift<F, ?>) current;
+      result = (Kind<G, Object>) transform.apply(lift.fa());
+    }
 
-        Kind<G, Function<Object, A>> gf = interpretFreeAp(typed.ff(), transform, applicative);
-        Kind<G, Object> ga = interpretFreeAp(typed.fa(), transform, applicative);
+    // Apply accumulated function nodes in reverse (LIFO) order
+    while (!ffStack.isEmpty()) {
+      FreeAp<F, ?> ffNode = ffStack.pop();
+      // ff nodes are typically Pure/Lift but could be nested Ap (handled by recursion)
+      Kind<G, Function<Object, Object>> gf =
+          (Kind<G, Function<Object, Object>>) interpretFreeAp(ffNode, transform, applicative);
+      result = (Kind<G, Object>) applicative.ap(gf, result);
+    }
 
-        yield applicative.ap(gf, ga);
-      }
-    };
+    return (Kind<G, A>) result;
   }
 
   /**

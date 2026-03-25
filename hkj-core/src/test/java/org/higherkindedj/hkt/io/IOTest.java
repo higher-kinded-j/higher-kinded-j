@@ -786,4 +786,25 @@ class IOTest {
           .withMessageContaining("Wrapped: Checked");
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #7: IO flatMap chains are not stack-safe
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Stack Safety (audit issue #7)")
+  class StackSafetyTests {
+
+    @Test
+    @DisplayName("deeply chained flatMap should not StackOverflow")
+    void deepFlatMapChainShouldNotOverflow() {
+      IO<Integer> io = IO.delay(() -> 0);
+      for (int i = 0; i < 20_000; i++) {
+        io = io.flatMap(n -> IO.delay(() -> n + 1));
+      }
+      final IO<Integer> finalIo = io;
+      // This will StackOverflow with the current implementation
+      assertThat(finalIo.unsafeRunSync()).isEqualTo(20_000);
+    }
+  }
 }

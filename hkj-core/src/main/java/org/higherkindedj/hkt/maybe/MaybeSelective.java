@@ -176,7 +176,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
         return MAYBE.nothing();
       }
       C result = rightFunction.get().apply(choice.getRight());
-      return MAYBE.widen(Maybe.just(result));
+      return MAYBE.widen(Maybe.fromNullable(result));
     }
   }
 

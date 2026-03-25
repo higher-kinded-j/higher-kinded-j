@@ -215,10 +215,31 @@ public sealed interface Free<F extends WitnessArity<?>, A>
         Kind<M, Free<F, A>> transformed =
             (Kind<M, Free<F, A>>) transform.apply(suspend.computation());
 
-        // Use Trampoline.defer to ensure stack safety for nested interpretations
-        yield Trampoline.done(
-            monad.flatMap(
-                innerFree -> interpretFree(innerFree, transform, monad).run(), transformed));
+        // Try to extract the inner Free eagerly (works for strict monads like Identity).
+        // For strict monads, monad.map evaluates immediately, allowing us to defer
+        // the recursive interpretation through the Trampoline for stack safety.
+        // For lazy monads (IO, State), the monad's own laziness provides stack safety.
+        @SuppressWarnings("unchecked")
+        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free[1];
+        boolean[] eager = {false};
+        monad.map(
+            innerFree -> {
+              innerFreeRef[0] = innerFree;
+              eager[0] = true;
+              return innerFree;
+            },
+            transformed);
+
+        if (eager[0]) {
+          // Strict monad: defer interpretation through Trampoline for stack safety
+          Free<F, A> innerFree = innerFreeRef[0];
+          yield Trampoline.defer(() -> interpretFree(innerFree, transform, monad));
+        } else {
+          // Lazy monad: use monad.flatMap (the monad's laziness provides stack safety)
+          yield Trampoline.done(
+              monad.flatMap(
+                  innerFree -> interpretFree(innerFree, transform, monad).run(), transformed));
+        }
       }
 
       case FlatMapped<F, ?, A> flatMapped -> {
@@ -264,14 +285,29 @@ public sealed interface Free<F extends WitnessArity<?>, A>
 
       case Suspend<F, A> suspend -> {
         // Transform the suspended computation using the type-safe Natural transformation
-        // The Natural transformation properly handles the type: Kind<F, Free<F, A>> -> Kind<M,
-        // Free<F, A>>
         Kind<M, Free<F, A>> transformed = transform.apply(suspend.computation());
 
-        // Use Trampoline.defer to ensure stack safety for nested interpretations
-        yield Trampoline.done(
-            monad.flatMap(
-                innerFree -> interpretFreeNatural(innerFree, transform, monad).run(), transformed));
+        // Try to extract the inner Free eagerly (works for strict monads).
+        @SuppressWarnings("unchecked")
+        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free[1];
+        boolean[] eager = {false};
+        monad.map(
+            innerFree -> {
+              innerFreeRef[0] = innerFree;
+              eager[0] = true;
+              return innerFree;
+            },
+            transformed);
+
+        if (eager[0]) {
+          Free<F, A> innerFree = innerFreeRef[0];
+          yield Trampoline.defer(() -> interpretFreeNatural(innerFree, transform, monad));
+        } else {
+          yield Trampoline.done(
+              monad.flatMap(
+                  innerFree -> interpretFreeNatural(innerFree, transform, monad).run(),
+                  transformed));
+        }
       }
 
       case FlatMapped<F, ?, A> flatMapped -> {

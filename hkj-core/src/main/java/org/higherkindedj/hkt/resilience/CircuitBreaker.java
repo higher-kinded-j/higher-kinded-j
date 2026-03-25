@@ -247,41 +247,55 @@ public final class CircuitBreaker {
 
   private void onSuccess() {
     successfulCalls.incrementAndGet();
-    stateRef.getAndUpdate(
-        current ->
-            switch (current.status()) {
-              case CLOSED, OPEN ->
-                  new InternalState(Status.CLOSED, 0, 0, current.lastStateChange());
-              case HALF_OPEN -> {
-                int newSuccesses = current.successCount() + 1;
-                if (newSuccesses >= config.successThreshold()) {
-                  stateTransitions.incrementAndGet();
-                  yield new InternalState(Status.CLOSED, 0, 0, Instant.now());
-                }
-                yield new InternalState(
-                    Status.HALF_OPEN, 0, newSuccesses, current.lastStateChange());
-              }
-            });
+    InternalState prev =
+        stateRef.getAndUpdate(
+            current ->
+                switch (current.status()) {
+                  case CLOSED ->
+                      current.failureCount() > 0
+                          ? new InternalState(Status.CLOSED, 0, 0, current.lastStateChange())
+                          : current;
+                  case OPEN -> current; // OPEN state: must NOT transition to CLOSED
+                  case HALF_OPEN -> {
+                    int newSuccesses = current.successCount() + 1;
+                    if (newSuccesses >= config.successThreshold()) {
+                      yield new InternalState(Status.CLOSED, 0, 0, Instant.now());
+                    }
+                    yield new InternalState(
+                        Status.HALF_OPEN, 0, newSuccesses, current.lastStateChange());
+                  }
+                });
+    // Determine if this call caused a state transition based on the previous state.
+    // This is done outside the CAS lambda to avoid double-counting on retries.
+    if (prev.status() == Status.HALF_OPEN && prev.successCount() + 1 >= config.successThreshold()) {
+      stateTransitions.incrementAndGet();
+    }
   }
 
   private void onFailure() {
     failedCalls.incrementAndGet();
-    stateRef.getAndUpdate(
-        current ->
-            switch (current.status()) {
-              case CLOSED -> {
-                int newFailures = current.failureCount() + 1;
-                if (newFailures >= config.failureThreshold()) {
-                  stateTransitions.incrementAndGet();
-                  yield new InternalState(Status.OPEN, 0, 0, Instant.now());
-                }
-                yield new InternalState(Status.CLOSED, newFailures, 0, current.lastStateChange());
-              }
-              case HALF_OPEN -> {
-                stateTransitions.incrementAndGet();
-                yield new InternalState(Status.OPEN, 0, 0, Instant.now());
-              }
-              case OPEN -> current; // Should not happen during execution
-            });
+    InternalState prev =
+        stateRef.getAndUpdate(
+            current ->
+                switch (current.status()) {
+                  case CLOSED -> {
+                    int newFailures = current.failureCount() + 1;
+                    if (newFailures >= config.failureThreshold()) {
+                      yield new InternalState(Status.OPEN, 0, 0, Instant.now());
+                    }
+                    yield new InternalState(
+                        Status.CLOSED, newFailures, 0, current.lastStateChange());
+                  }
+                  case HALF_OPEN -> new InternalState(Status.OPEN, 0, 0, Instant.now());
+                  case OPEN -> current; // Should not happen during execution
+                });
+    // Determine if this call caused a state transition based on the previous state.
+    // This is done outside the CAS lambda to avoid double-counting on retries.
+    boolean transitioned =
+        (prev.status() == Status.CLOSED && prev.failureCount() + 1 >= config.failureThreshold())
+            || prev.status() == Status.HALF_OPEN;
+    if (transitioned) {
+      stateTransitions.incrementAndGet();
+    }
   }
 }

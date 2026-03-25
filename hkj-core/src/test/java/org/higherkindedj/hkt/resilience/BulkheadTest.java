@@ -733,4 +733,99 @@ class BulkheadTest {
       assertThat(exceptionCount.get()).isEqualTo(1);
     }
   }
+
+  // ==========================================================================
+  // Audit Issue #6: maxWait must be enforced atomically (TOCTOU race)
+  // ==========================================================================
+
+  @Nested
+  @DisplayName("Atomic maxWait Enforcement (audit issue #6)")
+  class AtomicMaxWaitTests {
+
+    @Test
+    @DisplayName("maxWait limit is enforced even under concurrent pressure")
+    void maxWaitLimitEnforcedUnderConcurrency() throws Exception {
+      int maxConcurrent = 1;
+      int maxWait = 2;
+      BulkheadConfig config =
+          BulkheadConfig.builder()
+              .maxConcurrent(maxConcurrent)
+              .maxWait(maxWait)
+              .waitTimeout(Duration.ofSeconds(2))
+              .fairness(true)
+              .build();
+      Bulkhead bulkhead = Bulkhead.create(config);
+
+      CountDownLatch holderStarted = new CountDownLatch(1);
+      CountDownLatch holderFinish = new CountDownLatch(1);
+
+      // Hold the only permit
+      Thread.ofVirtual()
+          .start(
+              () -> {
+                try {
+                  bulkhead
+                      .protect(
+                          VTask.of(
+                              () -> {
+                                holderStarted.countDown();
+                                holderFinish.await(5, TimeUnit.SECONDS);
+                                return "holder";
+                              }))
+                      .run();
+                } catch (Exception ignored) {
+                }
+              });
+
+      holderStarted.await(1, TimeUnit.SECONDS);
+
+      // Fill the wait queue with maxWait=2 waiters
+      CountDownLatch waitersQueued = new CountDownLatch(maxWait);
+      for (int i = 0; i < maxWait; i++) {
+        Thread.ofVirtual()
+            .start(
+                () -> {
+                  try {
+                    waitersQueued.countDown();
+                    bulkhead.protect(VTask.succeed("waiter")).run();
+                  } catch (Exception ignored) {
+                  }
+                });
+      }
+
+      waitersQueued.await(1, TimeUnit.SECONDS);
+      Thread.sleep(100); // Let waiters enter tryAcquire
+
+      // Concurrently attempt many more callers — all should be rejected
+      int extraCallers = 20;
+      CyclicBarrier barrier = new CyclicBarrier(extraCallers);
+      AtomicInteger rejectedCount = new AtomicInteger(0);
+      AtomicInteger acceptedCount = new AtomicInteger(0);
+      CountDownLatch extraDone = new CountDownLatch(extraCallers);
+
+      for (int i = 0; i < extraCallers; i++) {
+        Thread.ofVirtual()
+            .start(
+                () -> {
+                  try {
+                    barrier.await(2, TimeUnit.SECONDS);
+                    bulkhead.protect(VTask.succeed("extra")).run();
+                    acceptedCount.incrementAndGet();
+                  } catch (BulkheadFullException e) {
+                    rejectedCount.incrementAndGet();
+                  } catch (Exception ignored) {
+                  } finally {
+                    extraDone.countDown();
+                  }
+                });
+      }
+
+      extraDone.await(5, TimeUnit.SECONDS);
+      holderFinish.countDown();
+
+      assertThat(rejectedCount.get())
+          .as("All extra callers beyond maxWait should be rejected")
+          .isEqualTo(extraCallers);
+    }
+  }
 }

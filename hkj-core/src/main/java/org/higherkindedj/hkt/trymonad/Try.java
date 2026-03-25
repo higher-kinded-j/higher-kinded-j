@@ -85,8 +85,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     Validation.function().require(supplier, "supplier", OF);
     try {
       return new Success<>(supplier.get());
-    } catch (Throwable t) {
-      return new Failure<>(t);
+    } catch (Exception e) {
+      return new Failure<>(e);
     }
   }
 
@@ -290,14 +290,9 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     Validation.function().require(successAction, "successAction", MATCH);
     Validation.function().require(failureAction, "failureAction", MATCH);
 
-    try {
-      switch (this) {
-        case Success<T>(var value) -> successAction.accept(value);
-        case Failure<T>(var cause) -> failureAction.accept(cause);
-      }
-    } catch (Throwable t) {
-      // Catch any exceptions from consumer actions to prevent propagation from side effects
-      System.err.println("Exception in Try.match() consumer: " + t.getMessage());
+    switch (this) {
+      case Success<T>(var value) -> successAction.accept(value);
+      case Failure<T>(var cause) -> failureAction.accept(cause);
     }
   }
 
@@ -341,8 +336,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       Validation.function().require(mapper, "mapper", MAP);
       try {
         return new Success<>(mapper.apply(value));
-      } catch (Throwable t) {
-        return new Failure<>(t);
+      } catch (Exception e) {
+        return new Failure<>(e);
       }
     }
 
@@ -352,8 +347,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       Try<? extends U> result;
       try {
         result = mapper.apply(value);
-      } catch (Throwable t) {
-        return new Failure<>(t);
+      } catch (Exception e) {
+        return new Failure<>(e);
       }
 
       Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
@@ -389,6 +384,12 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @param cause The non-null {@link Throwable} that caused the failure.
    */
   record Failure<T>(Throwable cause) implements Try<T> {
+
+    public Failure {
+      if (cause == null) {
+        throw new NullPointerException("cause must not be null");
+      }
+    }
 
     @Override
     public boolean isSuccess() {
@@ -437,8 +438,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER);
       try {
         return new Success<>(recoveryFunction.apply(cause));
-      } catch (Throwable t) {
-        return new Failure<>(t);
+      } catch (Exception e) {
+        return new Failure<>(e);
       }
     }
 
@@ -449,8 +450,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       Try<? extends T> result;
       try {
         result = recoveryFunction.apply(cause);
-      } catch (Throwable t) {
-        return new Failure<>(t);
+      } catch (Exception e) {
+        return new Failure<>(e);
       }
       Validation.function().requireNonNullResult(result, "recoveryFunction", RECOVER_WITH);
       @SuppressWarnings("unchecked")

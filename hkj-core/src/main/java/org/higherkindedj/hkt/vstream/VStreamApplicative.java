@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
+import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -89,8 +90,15 @@ public class VStreamApplicative extends VStreamFunctor implements Applicative<VS
     VStream<? extends Function<A, B>> fStream = VSTREAM.narrow(ff);
     VStream<A> aStream = VSTREAM.narrow(fa);
 
-    // Cartesian product: each function applied to each value
-    VStream<B> result = fStream.flatMap(f -> aStream.map(f));
+    // Materialise the value stream once so it can be replayed for each function.
+    // Without this, flatMap would consume aStream on the first function and subsequent
+    // functions would see an empty/exhausted stream, breaking Cartesian product semantics.
+    VStream<B> result =
+        VStream.defer(
+            () -> {
+              List<A> values = aStream.toList().run();
+              return fStream.flatMap(f -> VStream.fromList(values).map(f));
+            });
     return VSTREAM.widen(result);
   }
 }

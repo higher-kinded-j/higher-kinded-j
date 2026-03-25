@@ -54,9 +54,8 @@ public record Const<C, A>(C value) {
    * to the constant value, while the second function affects only the phantom type parameter (and
    * thus has no runtime effect on the value).
    *
-   * <p><b>Note on exception propagation:</b> Although the second function doesn't affect the
-   * constant value, it is still applied (to a null input) to ensure that any exceptions it might
-   * throw are properly propagated. This maintains consistency with bifunctor exception semantics.
+   * <p>The second function is validated for non-null but is never invoked, since there is no value
+   * of the phantom type {@code A} to apply it to.
    *
    * <p>Example:
    *
@@ -64,13 +63,14 @@ public record Const<C, A>(C value) {
    * Const<String, Integer> const = new Const<>("hello");
    * Const<Integer, String> result = const.bimap(
    *     String::length,           // Transform constant: "hello" -> 5
-   *     i -> "Value: " + i        // Transform phantom type only
+   *     i -> "Value: " + i        // Transform phantom type only (not invoked)
    * );
    * // result.value() is 5
    * }</pre>
    *
    * @param firstMapper The non-null function to apply to the constant value.
-   * @param secondMapper The non-null function that defines the phantom type transformation.
+   * @param secondMapper The non-null function that defines the phantom type transformation (not
+   *     invoked).
    * @param <D> The type of the constant value in the resulting {@code Const}.
    * @param <B> The phantom type parameter in the resulting {@code Const}.
    * @return A new {@code Const<D, B>} with the constant value transformed. The returned instance
@@ -82,10 +82,8 @@ public record Const<C, A>(C value) {
     Validation.function().require(firstMapper, "firstMapper", BIMAP);
     Validation.function().require(secondMapper, "secondMapper", BIMAP);
 
-    // Apply secondMapper to ensure exception propagation, even though we ignore the result
-    // since A is phantom. We use null as the input since we don't have a value of type A.
-    secondMapper.apply(null);
-
+    // A is phantom — we have no value of type A, so we must NOT invoke secondMapper.
+    // The mapper is validated for non-null above, which is sufficient.
     return new Const<>(firstMapper.apply(value));
   }
 
@@ -123,9 +121,8 @@ public record Const<C, A>(C value) {
    * <p>Since the second type parameter is phantom (not stored), this operation has no effect on the
    * constant value. It only changes the phantom type in the type signature.
    *
-   * <p><b>Note on exception propagation:</b> Although this operation doesn't affect the constant
-   * value, the mapper is still applied (to a null input) to ensure that any exceptions it might
-   * throw are properly propagated. This maintains consistency with bifunctor exception semantics.
+   * <p>The mapper is validated for non-null but is never invoked, since there is no value of the
+   * phantom type {@code A} to apply it to.
    *
    * <p>Example:
    *
@@ -147,10 +144,8 @@ public record Const<C, A>(C value) {
   public <B> Const<C, B> mapSecond(Function<? super A, ? extends B> secondMapper) {
     Validation.function().require(secondMapper, "secondMapper", MAP_SECOND);
 
-    // Apply secondMapper to ensure exception propagation, even though we ignore the result
-    // since A is phantom. We use null as the input since we don't have a value of type A.
-    secondMapper.apply(null);
-
+    // A is phantom — we have no value of type A, so we must NOT invoke secondMapper.
+    // The mapper is validated for non-null above, which is sufficient.
     // Since A is phantom, we can safely cast - the constant value remains unchanged
     return (Const<C, B>) this;
   }
