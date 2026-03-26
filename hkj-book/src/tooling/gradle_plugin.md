@@ -64,7 +64,7 @@ SNAPSHOT versions of the plugin are published to the Sonatype snapshots reposito
 pluginManagement {
     repositories {
         maven {
-            url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
         }
         gradlePluginPortal()
         mavenCentral()
@@ -79,7 +79,7 @@ You also need the same repository in your project's `repositories` block so the 
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
     }
 }
 ```
