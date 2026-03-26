@@ -11,7 +11,8 @@
 <div align="center">
   <a href="https://github.com/higher-kinded-j/higher-kinded-j"><img src="https://img.shields.io/badge/code-blue?logo=github" alt="GitHub Repository"></a>
   <a href="https://codecov.io/gh/higher-kinded-j/higher-kinded-j"><img src="https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD" alt="Codecov Coverage"></a>
-  <a href="https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core"><img src="https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core" alt="Maven Central"></a>
+  <a href="https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core"><img src="https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core?versionPrefix=&label=maven-central" alt="Maven Central"></a>
+  <a href="https://central.sonatype.com/repository/maven-snapshots/io/github/higher-kinded-j/hkj-core/"><img src="https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fio%2Fgithub%2Fhigher-kinded-j%2Fhkj-core%2Fmaven-metadata.xml&versionPrefix=&label=snapshot&color=green" alt="Latest Snapshot"></a>
   <a href="https://github.com/higher-kinded-j/higher-kinded-j/discussions"><img src="https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j" alt="GitHub Discussions"></a>
   <a href="https://techhub.social/@ultramagnetic"><img src="https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto" alt="Follow on Mastodon"></a>
 </div>
@@ -289,7 +290,7 @@ For **SNAPSHOT** versions, add the Sonatype snapshots repository to both `plugin
 // settings.gradle.kts
 pluginManagement {
     repositories {
-        maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
+        maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
         gradlePluginPortal()
         mavenCentral()
     }
@@ -300,7 +301,7 @@ pluginManagement {
 // build.gradle.kts
 repositories {
     mavenCentral()
-    maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
+    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
 }
 ```
 
@@ -341,7 +342,7 @@ See the **[Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
     }
 }
 ```
