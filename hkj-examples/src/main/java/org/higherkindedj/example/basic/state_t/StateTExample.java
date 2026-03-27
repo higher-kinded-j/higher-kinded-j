@@ -11,11 +11,15 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
-import org.higherkindedj.hkt.state_t.StateTKind; // For StateTKind.Witness
+import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTMonad;
 
 public class StateTExample {
@@ -160,5 +164,35 @@ public class StateTExample {
       Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, f.apply(s)));
     return StateT.create(runFn, monadF);
+  }
+
+  // --- mapT: Switching from Optional to Id ---
+  //
+  // mapT swaps the outer monad without touching the state-threading logic.
+  // StateT uniquely requires a new Monad instance because it stores its monad
+  // for internal sequencing.
+
+  public static void mapTExample() {
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    Monad<IdKind.Witness> idMonad = IdMonad.instance();
+
+    StateT<Integer, OptionalKind.Witness, String> optionalStateT =
+        StateT.create(
+            s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, "count=" + s))), optionalMonad);
+
+    // Use mapT to switch from Optional to Id, providing a default for empty results
+    StateT<Integer, IdKind.Witness, String> idStateT =
+        optionalStateT.mapT(
+            idMonad,
+            optKind -> {
+              Optional<StateTuple<Integer, String>> opt = OPTIONAL.narrow(optKind);
+              return IdKindHelper.ID.widen(Id.of(opt.orElse(StateTuple.of(0, "empty"))));
+            });
+
+    // Run with Id monad — no optionality, guaranteed result
+    Kind<IdKind.Witness, StateTuple<Integer, String>> result = idStateT.runStateT(10);
+    Id<StateTuple<Integer, String>> id = IdKindHelper.ID.narrow(result);
+    System.out.println("\nmapT result (Optional -> Id): " + id.value());
+    // StateTuple[state=11, value=count=10]
   }
 }

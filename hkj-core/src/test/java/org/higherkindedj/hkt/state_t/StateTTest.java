@@ -3,12 +3,17 @@
 package org.higherkindedj.hkt.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
@@ -376,6 +381,99 @@ class StateTTest {
       String str = st.toString();
       // At minimum the toString should be stable and not throw
       assertThat(str).isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("mapT")
+  class MapTTests {
+
+    @Test
+    @DisplayName("mapT with identity should return equivalent StateT")
+    void mapT_identity() {
+      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
+          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+
+      StateT<String, OptionalKind.Witness, Integer> result =
+          st.mapT(outerMonad, Function.identity());
+
+      Optional<StateTuple<String, Integer>> unwrapped = unwrapT(result);
+      assertThat(unwrapped).isPresent();
+      assertThat(unwrapped.get().value()).isEqualTo(initialValue);
+      assertThat(unwrapped.get().state()).isEqualTo(updatedState);
+    }
+
+    @Test
+    @DisplayName("mapT should transform outer monad to a different type")
+    void mapT_crossMonad() {
+      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
+          s -> outerMonad.of(StateTuple.of(s + "_done", 99));
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+
+      Monad<IdKind.Witness> idMonad = IdMonad.instance();
+      StateT<String, IdKind.Witness, Integer> result =
+          st.mapT(
+              idMonad,
+              optKind -> {
+                Optional<StateTuple<String, Integer>> opt = OPTIONAL.narrow(optKind);
+                return IdKindHelper.ID.widen(Id.of(opt.orElse(StateTuple.of("empty", -1))));
+              });
+
+      // Run the transformed StateT with Id monad
+      Kind<IdKind.Witness, StateTuple<String, Integer>> idResult = result.runStateT(initialState);
+      Id<StateTuple<String, Integer>> id = IdKindHelper.ID.narrow(idResult);
+      assertThat(id.value().value()).isEqualTo(99);
+      assertThat(id.value().state()).isEqualTo("initial_done");
+    }
+
+    @Test
+    @DisplayName("mapT should preserve state threading")
+    void mapT_preservesStateThreading() {
+      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
+          s -> outerMonad.of(StateTuple.of(s.toUpperCase(), s.length()));
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+
+      StateT<String, OptionalKind.Witness, Integer> result =
+          st.mapT(outerMonad, Function.identity());
+
+      Optional<StateTuple<String, Integer>> unwrapped = unwrapT(result);
+      assertThat(unwrapped).isPresent();
+      assertThat(unwrapped.get().state()).isEqualTo("INITIAL");
+      assertThat(unwrapped.get().value()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("mapT should preserve empty outer monad")
+    void mapT_preservesEmpty() {
+      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> emptyFn =
+          s -> OPTIONAL.widen(Optional.empty());
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(emptyFn, outerMonad);
+
+      StateT<String, OptionalKind.Witness, Integer> result =
+          st.mapT(outerMonad, Function.identity());
+
+      Optional<StateTuple<String, Integer>> unwrapped = unwrapT(result);
+      assertThat(unwrapped).isEmpty();
+    }
+
+    @Test
+    @DisplayName("mapT should reject null function")
+    void mapT_rejectsNullFunction() {
+      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
+          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      assertThatThrownBy(() -> st.mapT(outerMonad, null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("mapT should reject null monad")
+    void mapT_rejectsNullMonad() {
+      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
+          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      assertThatThrownBy(() -> st.mapT(null, Function.identity()))
+          .isInstanceOf(NullPointerException.class);
     }
   }
 }

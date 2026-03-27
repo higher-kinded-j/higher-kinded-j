@@ -126,6 +126,42 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
   }
 
   /**
+   * Transforms the outer monad layer of this {@code ReaderT} by applying the given function to the
+   * result of each invocation of the underlying {@code run} function, producing a new {@code
+   * ReaderT<G, R_ENV, A>}. The environment handling is left untouched — only the monadic context of
+   * each computed result changes.
+   *
+   * <p>Because {@code ReaderT} wraps a function rather than a value, {@code mapT} composes {@code
+   * f} after the result of {@code run}:
+   *
+   * <pre>
+   * env ──&gt; run() ──&gt; Kind&lt;F, A&gt; ──&gt; f ──&gt; Kind&lt;G, A&gt;
+   * </pre>
+   *
+   * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
+   * level, or for switching between monadic contexts via a natural transformation.
+   *
+   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   *
+   * <pre>{@code
+   * ReaderT<IOKind.Witness, Config, String> ioReader = ...;
+   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   *
+   * ReaderT<TaskKind.Witness, Config, String> taskReader = ioReader.mapT(ioToTask::apply);
+   * }</pre>
+   *
+   * @param f The function to apply to each computed {@code Kind<F, A>}. Must not be null.
+   * @param <G> The witness type of the target outer monad.
+   * @return A new {@code ReaderT<G, R_ENV, A>} that applies {@code f} after each run.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public <G extends WitnessArity<TypeArity.Unary>> ReaderT<G, R_ENV, A> mapT(
+      Function<Kind<F, A>, Kind<G, A>> f) {
+    Validation.function().require(f, "f", MAP_T);
+    return ReaderT.of(env -> f.apply(this.run().apply(env)));
+  }
+
+  /**
    * Accesses the underlying function {@code R_ENV -> Kind<F, A>} of this {@link ReaderT}.
    *
    * @return The function {@code R_ENV -> Kind<F, A>}. Never null.

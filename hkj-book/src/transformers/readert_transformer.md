@@ -156,6 +156,37 @@ ReaderT<F, R, A> concrete = READER_T.narrow(kind);
 
 ---
 
+## Transforming the Outer Monad with `mapT`
+
+Sometimes you need to change the *outer monad* of a `ReaderT` without altering the environment-threading logic. Perhaps you want to switch from `Optional` to `Id` (collapsing optionality with a default), or apply a natural transformation to move between effect types.
+
+Because `ReaderT` wraps a function rather than a value, `mapT` composes the transformation function after each result of `run`:
+
+```
+  env ──> run() ──> Kind<F, A> ──> f ──> Kind<G, A>
+   │                                          │
+   └──── combined into new ReaderT<G, R, A> ──┘
+```
+
+```java
+// Switch from Optional to Id, providing a default for empty results
+ReaderT<OptionalKind.Witness, Config, String> optReader = ...;
+
+ReaderT<IdKind.Witness, Config, String> idReader =
+    optReader.mapT(optKind -> {
+      Optional<String> opt = OPTIONAL.narrow(optKind);
+      return ID.widen(Id.of(opt.orElse("default")));
+    });
+```
+
+~~~admonish note title="mapT vs map"
+`map` transforms the *value* produced by the reader (the `A` in `Kind<F, A>`).
+`mapT` transforms the *outer monad* that wraps each result — the `F` in `R -> F<A>`.
+The environment-threading is completely unaffected.
+~~~
+
+---
+
 ## Creating ReaderT Instances
 
 ~~~admonish title="Creating _ReaderT_ Instances"

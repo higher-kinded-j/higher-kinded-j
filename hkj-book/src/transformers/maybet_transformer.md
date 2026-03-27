@@ -147,6 +147,43 @@ MaybeT<F, A> concrete = MAYBE_T.narrow(kind);
 
 ---
 
+## Transforming the Outer Monad with `mapT`
+
+Sometimes you need to change the *outer monad* of a `MaybeT` without touching the inner `Maybe` at all. Perhaps you have an `IO`-based pipeline but want to switch to a `Task` for structured concurrency, or you want to collapse two layers of optionality by moving from `Optional<Maybe<A>>` to `Id<Maybe<A>>`.
+
+`mapT` applies a function to the wrapped `Kind<F, Maybe<A>>` and produces a new `MaybeT<G, A>`:
+
+```
+  MaybeT< F , A >  ── mapT(f) ──>  MaybeT< G , A >
+       │                                  │
+  ┌────┴────┐                        ┌────┴────┐
+  │    F    │   f: F[...] -> G[...]  │    G    │
+  │ ┌─────┐ │        ====>           │ ┌─────┐ │
+  │ │Maybe│ │  inner Maybe sealed    │ │Maybe│ │
+  │ │  A  │ │                        │ │  A  │ │
+  │ └─────┘ │                        │ └─────┘ │
+  └─────────┘                        └─────────┘
+```
+
+```java
+// Collapse Optional<Maybe<A>> into Id<Maybe<A>>
+MaybeT<OptionalKind.Witness, String> optMt = MaybeT.just(optMonad, "Hello");
+
+MaybeT<IdKind.Witness, String> idMt =
+    optMt.mapT(optKind -> {
+      Optional<Maybe<String>> opt = OPTIONAL.narrow(optKind);
+      return ID.widen(Id.of(opt.orElse(Maybe.nothing())));
+    });
+```
+
+~~~admonish note title="mapT vs map"
+`map` transforms the *value* inside the `Maybe` (the `A` in `Just(A)`).
+`mapT` transforms the *outer monad* wrapping the `Maybe` — the `F` in `F<Maybe<A>>`.
+They operate at different levels of the transformer stack.
+~~~
+
+---
+
 ## Creating MaybeT Instances
 
 ~~~admonish title="Creating _MaybeT_ Instances"

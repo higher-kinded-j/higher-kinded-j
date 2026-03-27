@@ -3,11 +3,16 @@
 package org.higherkindedj.hkt.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -341,6 +346,59 @@ class MaybeTTest {
       MaybeT<OptionalKind.Witness, String> step2 = MaybeT.fromKind(kind2);
 
       assertThat(unwrapT(step2)).isPresent().contains(Maybe.just("test"));
+    }
+  }
+
+  @Nested
+  @DisplayName("mapT")
+  class MapTTests {
+
+    @Test
+    @DisplayName("mapT with identity should return equivalent MaybeT")
+    void mapT_identity() {
+      MaybeT<OptionalKind.Witness, String> mt = MaybeT.just(outerMonad, justValue);
+      MaybeT<OptionalKind.Witness, String> result = mt.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(Maybe.just(justValue));
+    }
+
+    @Test
+    @DisplayName("mapT should transform outer monad to a different type")
+    void mapT_crossMonad() {
+      MaybeT<OptionalKind.Witness, String> mt = MaybeT.just(outerMonad, justValue);
+
+      MaybeT<IdKind.Witness, String> result =
+          mt.mapT(
+              optKind -> {
+                Optional<Maybe<String>> opt = OPTIONAL.narrow(optKind);
+                return IdKindHelper.ID.widen(Id.of(opt.orElse(Maybe.nothing())));
+              });
+
+      Id<Maybe<String>> id = IdKindHelper.ID.narrow(result.value());
+      assertThat(id.value()).isEqualTo(Maybe.just(justValue));
+    }
+
+    @Test
+    @DisplayName("mapT should preserve Nothing")
+    void mapT_preservesNothing() {
+      MaybeT<OptionalKind.Witness, String> mt = MaybeT.nothing(outerMonad);
+      MaybeT<OptionalKind.Witness, String> result = mt.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("mapT should preserve empty outer monad")
+    void mapT_preservesEmpty() {
+      Kind<OptionalKind.Witness, Maybe<String>> empty = OPTIONAL.widen(Optional.empty());
+      MaybeT<OptionalKind.Witness, String> mt = MaybeT.fromKind(empty);
+      MaybeT<OptionalKind.Witness, String> result = mt.mapT(Function.identity());
+      assertThat(unwrapT(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("mapT should reject null function")
+    void mapT_rejectsNull() {
+      MaybeT<OptionalKind.Witness, String> mt = MaybeT.just(outerMonad, justValue);
+      assertThatThrownBy(() -> mt.mapT(null)).isInstanceOf(NullPointerException.class);
     }
   }
 }

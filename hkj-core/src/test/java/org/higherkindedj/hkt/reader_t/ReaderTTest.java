@@ -3,12 +3,16 @@
 package org.higherkindedj.hkt.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
@@ -306,6 +310,73 @@ class ReaderTTest {
           OPTIONAL.narrow(outerMonad.map(String::length, runFunc.apply(environment)));
 
       assertThat(result).isPresent().contains(environment.length());
+    }
+  }
+
+  @Nested
+  @DisplayName("mapT")
+  class MapTTests {
+
+    @Test
+    @DisplayName("mapT with identity should return equivalent ReaderT")
+    void mapT_identity() {
+      ReaderT<OptionalKind.Witness, String, Integer> rt =
+          ReaderT.reader(outerMonad, simpleFunction);
+      ReaderT<OptionalKind.Witness, String, Integer> result = rt.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(environment.length());
+    }
+
+    @Test
+    @DisplayName("mapT should transform outer monad to a different type")
+    void mapT_crossMonad() {
+      ReaderT<OptionalKind.Witness, String, Integer> rt =
+          ReaderT.reader(outerMonad, simpleFunction);
+
+      ReaderT<IdKind.Witness, String, Integer> result =
+          rt.mapT(
+              optKind -> {
+                Optional<Integer> opt = OPTIONAL.narrow(optKind);
+                return IdKindHelper.ID.widen(Id.of(opt.orElse(-1)));
+              });
+
+      // Run the transformed reader with the environment
+      Kind<IdKind.Witness, Integer> idResult = result.run().apply(environment);
+      Id<Integer> id = IdKindHelper.ID.narrow(idResult);
+      assertThat(id.value()).isEqualTo(environment.length());
+    }
+
+    @Test
+    @DisplayName("mapT should thread environment correctly after transformation")
+    void mapT_threadsEnvironment() {
+      ReaderT<OptionalKind.Witness, String, Integer> rt =
+          ReaderT.reader(outerMonad, simpleFunction);
+      ReaderT<OptionalKind.Witness, String, Integer> result = rt.mapT(Function.identity());
+
+      // Verify with different environments
+      Optional<Integer> result1 = OPTIONAL.narrow(result.run().apply(environment));
+      Optional<Integer> result2 = OPTIONAL.narrow(result.run().apply(otherEnvironment));
+
+      assertThat(result1).isPresent().contains(environment.length());
+      assertThat(result2).isPresent().contains(otherEnvironment.length());
+    }
+
+    @Test
+    @DisplayName("mapT should preserve empty outer monad")
+    void mapT_preservesEmpty() {
+      ReaderT<OptionalKind.Witness, String, Integer> rt =
+          ReaderT.of(env -> OPTIONAL.widen(Optional.empty()));
+      ReaderT<OptionalKind.Witness, String, Integer> result = rt.mapT(Function.identity());
+
+      Optional<Integer> unwrapped = OPTIONAL.narrow(result.run().apply(environment));
+      assertThat(unwrapped).isEmpty();
+    }
+
+    @Test
+    @DisplayName("mapT should reject null function")
+    void mapT_rejectsNull() {
+      ReaderT<OptionalKind.Witness, String, Integer> rt =
+          ReaderT.reader(outerMonad, simpleFunction);
+      assertThatThrownBy(() -> rt.mapT(null)).isInstanceOf(NullPointerException.class);
     }
   }
 }

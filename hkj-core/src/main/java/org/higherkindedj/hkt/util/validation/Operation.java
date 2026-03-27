@@ -84,7 +84,8 @@ public enum Operation {
   MAP_ELEVENTH("mapEleventh"),
   MAP_TWELFTH("mapTwelfth"),
   MAP_ERROR("mapError"),
-  MAP_WRITTEN("mapWritten");
+  MAP_WRITTEN("mapWritten"),
+  MAP_T("mapT");
 
   Operation(String label) {
     this.label = label;

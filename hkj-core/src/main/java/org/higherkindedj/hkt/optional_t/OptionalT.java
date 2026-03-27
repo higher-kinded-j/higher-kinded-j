@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.optional_t;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
@@ -133,6 +134,36 @@ public record OptionalT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Opti
     Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
     return new OptionalT<>(mapped);
+  }
+
+  /**
+   * Transforms the outer monad layer of this {@code OptionalT} by applying the given function to
+   * the underlying {@code Kind<F, Optional<A>>}, producing a new {@code OptionalT<G, A>} wrapping
+   * the result. The inner {@link Optional} value is left untouched — only the surrounding monadic
+   * context changes.
+   *
+   * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
+   * level, or for switching between monadic contexts via a natural transformation.
+   *
+   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   *
+   * <pre>{@code
+   * OptionalT<IOKind.Witness, String> ioResult = ...;
+   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   *
+   * OptionalT<TaskKind.Witness, String> taskResult = ioResult.mapT(ioToTask::apply);
+   * }</pre>
+   *
+   * @param f The function to apply to the underlying {@code Kind<F, Optional<A>>}. Must not be
+   *     null.
+   * @param <G> The witness type of the target outer monad.
+   * @return A new {@code OptionalT<G, A>} wrapping the transformed monadic value.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public <G extends WitnessArity<TypeArity.Unary>> OptionalT<G, A> mapT(
+      Function<Kind<F, Optional<A>>, Kind<G, Optional<A>>> f) {
+    Validation.function().require(f, "f", MAP_T);
+    return OptionalT.fromKind(f.apply(this.value()));
   }
 
   /**

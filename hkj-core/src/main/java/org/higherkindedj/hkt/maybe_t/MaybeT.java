@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.maybe_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
@@ -128,6 +129,34 @@ public record MaybeT<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, Maybe<A
     Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
     Kind<F, Maybe<A>> mapped = outerMonad.map(Maybe::fromNullable, fa);
     return new MaybeT<>(mapped);
+  }
+
+  /**
+   * Transforms the outer monad layer of this {@code MaybeT} by applying the given function to the
+   * underlying {@code Kind<F, Maybe<A>>}, producing a new {@code MaybeT<G, A>} wrapping the result.
+   * The inner {@link Maybe} value is left untouched — only the surrounding monadic context changes.
+   *
+   * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
+   * level, or for switching between monadic contexts via a natural transformation.
+   *
+   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   *
+   * <pre>{@code
+   * MaybeT<IOKind.Witness, String> ioResult = ...;
+   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   *
+   * MaybeT<TaskKind.Witness, String> taskResult = ioResult.mapT(ioToTask::apply);
+   * }</pre>
+   *
+   * @param f The function to apply to the underlying {@code Kind<F, Maybe<A>>}. Must not be null.
+   * @param <G> The witness type of the target outer monad.
+   * @return A new {@code MaybeT<G, A>} wrapping the transformed monadic value.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public <G extends WitnessArity<TypeArity.Unary>> MaybeT<G, A> mapT(
+      Function<Kind<F, Maybe<A>>, Kind<G, Maybe<A>>> f) {
+    Validation.function().require(f, "f", MAP_T);
+    return MaybeT.fromKind(f.apply(this.value()));
   }
 
   /**

@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.optional_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
 import java.util.Optional;
@@ -15,6 +16,7 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional_t.OptionalT;
 import org.higherkindedj.hkt.optional_t.OptionalTKind;
 import org.higherkindedj.hkt.optional_t.OptionalTMonad;
@@ -64,6 +66,19 @@ public class OptionalTExample {
     Kind<CompletableFutureKind.Witness, Optional<String>> wrappedFVO = ot1.value();
     CompletableFuture<Optional<String>> futureOptional = FUTURE.narrow(wrappedFVO);
     futureOptional.thenAccept(optStr -> System.out.println("ot1 result: " + optStr));
+
+    // --- mapT: Switching from Future to Optional ---
+    // mapT swaps the outer monad without touching the inner Optional.
+    // Here we await the async result and move into a synchronous context.
+    OptionalT<OptionalKind.Witness, String> syncOt =
+        ot2.mapT(
+            futureKind -> {
+              Optional<String> awaited = FUTURE.narrow(futureKind).join();
+              return OPTIONAL.widen(Optional.of(awaited));
+            });
+
+    Optional<Optional<String>> syncResult = OPTIONAL.narrow(syncOt.value());
+    System.out.println("mapT result (Future -> Optional): " + syncResult);
   }
 
   public static class OptionalTAsyncExample {

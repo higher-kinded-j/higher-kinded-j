@@ -50,7 +50,7 @@ class TransformerConsistencyRules {
   @DisplayName("Transformer monad classes should have lift method")
   void transformer_monads_should_have_lift_method() {
     classes()
-        .that(isTransformerType())
+        .that(isTransformerTypeWithDirectLiftF())
         .and()
         .areNotInterfaces()
         .and()
@@ -113,6 +113,26 @@ class TransformerConsistencyRules {
   }
 
   /**
+   * Transformer types should have a mapT method.
+   *
+   * <p>The mapT method allows transforming the outer monad layer of a transformer without
+   * unwrapping the inner value. This is a standard operation for monad transformers.
+   */
+  @Test
+  @DisplayName("Transformer types should have mapT method")
+  void transformer_types_should_have_mapT_method() {
+    classes()
+        .that(isTransformerType())
+        .and()
+        .areNotInterfaces()
+        .and()
+        .haveSimpleNameNotEndingWith("package-info")
+        .should(haveMethodNamed("mapT"))
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /**
    * Transformer Kind interfaces should follow naming convention.
    *
    * <p>Each transformer should have a Kind interface (e.g., EitherTKind, MaybeTKind).
@@ -147,19 +167,40 @@ class TransformerConsistencyRules {
   }
 
   /**
-   * Custom predicate that matches transformer types (EitherT, MaybeT, OptionalT, ReaderT).
+   * Custom predicate matching transformer types that declare {@code liftF} directly. StateT is
+   * excluded because it provides {@code liftF} through {@link StateTKindHelper} instead.
    *
    * @return the described predicate
    */
-  private static DescribedPredicate<JavaClass> isTransformerType() {
+  private static DescribedPredicate<JavaClass> isTransformerTypeWithDirectLiftF() {
     return DescribedPredicate.describe(
-        "is a transformer type (EitherT, MaybeT, OptionalT, ReaderT)",
+        "is a transformer type with direct liftF (EitherT, MaybeT, OptionalT, ReaderT, WriterT)",
         javaClass -> {
           String name = javaClass.getSimpleName();
           return name.equals("EitherT")
               || name.equals("MaybeT")
               || name.equals("OptionalT")
-              || name.equals("ReaderT");
+              || name.equals("ReaderT")
+              || name.equals("WriterT");
+        });
+  }
+
+  /**
+   * Custom predicate that matches all transformer types.
+   *
+   * @return the described predicate
+   */
+  private static DescribedPredicate<JavaClass> isTransformerType() {
+    return DescribedPredicate.describe(
+        "is a transformer type (EitherT, MaybeT, OptionalT, ReaderT, StateT, WriterT)",
+        javaClass -> {
+          String name = javaClass.getSimpleName();
+          return name.equals("EitherT")
+              || name.equals("MaybeT")
+              || name.equals("OptionalT")
+              || name.equals("ReaderT")
+              || name.equals("StateT")
+              || name.equals("WriterT");
         });
   }
 

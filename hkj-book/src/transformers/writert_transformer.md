@@ -183,6 +183,44 @@ Without a `Monoid`, WriterT cannot combine the output from `flatMap` chains. The
 
 ---
 
+## Transforming the Outer Monad with `mapT`
+
+Sometimes you need to change the *outer monad* of a `WriterT` without touching the accumulated output. Perhaps you want to wrap an `Id`-based writer into an `Optional` context for a downstream API, or switch effect types via a natural transformation.
+
+`mapT` applies a function to the wrapped `Kind<F, Pair<A, W>>` and produces a new `WriterT<G, W, A>`:
+
+```
+  WriterT< F , W, A >  ── mapT(f) ──>  WriterT< G , W, A >
+       │                                      │
+  ┌────┴────┐                            ┌────┴────┐
+  │    F    │     f: F[...] -> G[...]    │    G    │
+  │ ┌─────┐ │          ====>             │ ┌─────┐ │
+  │ │Pair │ │   inner Pair untouched     │ │Pair │ │
+  │ │ A,W │ │                            │ │ A,W │ │
+  │ └─────┘ │                            │ └─────┘ │
+  └─────────┘                            └─────────┘
+```
+
+```java
+// Switch from Id to Optional — wrapping a pure writer into an optional context
+WriterT<IdKind.Witness, List<String>, String> idWriter =
+    WriterT.writer(idMonad, "result", List.of("step 1", "step 2"));
+
+WriterT<OptionalKind.Witness, List<String>, String> optWriter =
+    idWriter.mapT(idKind -> {
+      Pair<String, List<String>> pair = ID.unwrap(idKind);
+      return OPTIONAL.widen(Optional.of(pair));
+    });
+```
+
+~~~admonish note title="mapT vs map"
+`map` transforms the *value* inside the `Pair` (the `A` in `Pair<A, W>`).
+`mapT` transforms the *outer monad* wrapping the `Pair` — the `F` in `F<Pair<A, W>>`.
+The accumulated output `W` is completely unaffected.
+~~~
+
+---
+
 ## Creating WriterT Instances
 
 ```java

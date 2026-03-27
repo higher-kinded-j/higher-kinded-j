@@ -5,6 +5,7 @@ package org.higherkindedj.example.basic.either_t;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
@@ -15,6 +16,8 @@ import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalKindHelper;
 
 public class EitherTExample {
 
@@ -156,8 +159,40 @@ public class EitherTExample {
     // Expected: Left(DomainError[message=Input empty])
   }
 
+  // --- mapT: Switching the outer monad ---
+  //
+  // mapT lets you swap the outer monad without touching the inner Either.
+  // Here we convert a Future-based EitherT into an Optional-based one —
+  // useful when you have already awaited a result and want to continue
+  // in a synchronous context.
+
+  public void mapTExample() {
+    System.out.println("\n--- 4. Using mapT to switch from Future to Optional ---");
+
+    // Start with an async result
+    Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> futureResult =
+        runWorkflow("Data");
+
+    EitherT<CompletableFutureKind.Witness, DomainError, ProcessedData> futureET =
+        EitherT.fromKind(futureResult);
+
+    // Use mapT to await the future and move into Optional
+    EitherT<OptionalKind.Witness, DomainError, ProcessedData> optionalET =
+        futureET.mapT(
+            futureKind -> {
+              Either<DomainError, ProcessedData> awaited = FUTURE.join(futureKind);
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(awaited));
+            });
+
+    // Now we can work synchronously with the Optional-based transformer
+    Optional<Either<DomainError, ProcessedData>> result =
+        OptionalKindHelper.OPTIONAL.narrow(optionalET.value());
+    System.out.println("Synchronous result: " + result);
+  }
+
   public static void main(String[] args) {
     EitherTExample example = new EitherTExample();
     example.asyncWorkflowErrorHandlingExample();
+    example.mapTExample();
   }
 }
