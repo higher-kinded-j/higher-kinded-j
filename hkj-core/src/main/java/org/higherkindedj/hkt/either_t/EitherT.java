@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.either_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
@@ -137,6 +138,36 @@ public record EitherT<F extends WitnessArity<TypeArity.Unary>, L, R>(Kind<F, Eit
     Validation.kind().requireNonNull(fr, LIFT_F, "source Kind");
     Kind<F, Either<L, R>> mapped = outerMonad.map(Either::right, fr);
     return new EitherT<>(mapped);
+  }
+
+  /**
+   * Transforms the outer monad layer of this {@code EitherT} by applying the given function to the
+   * underlying {@code Kind<F, Either<L, R>>}, producing a new {@code EitherT<G, L, R>} wrapping the
+   * result. The inner {@link Either} value is left untouched — only the surrounding monadic context
+   * changes.
+   *
+   * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
+   * level, or for switching between monadic contexts via a natural transformation.
+   *
+   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   *
+   * <pre>{@code
+   * EitherT<IOKind.Witness, String, Integer> ioResult = ...;
+   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   *
+   * EitherT<TaskKind.Witness, String, Integer> taskResult = ioResult.mapT(ioToTask::apply);
+   * }</pre>
+   *
+   * @param f The function to apply to the underlying {@code Kind<F, Either<L, R>>}. Must not be
+   *     null.
+   * @param <G> The witness type of the target outer monad.
+   * @return A new {@code EitherT<G, L, R>} wrapping the transformed monadic value.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public <G extends WitnessArity<TypeArity.Unary>> EitherT<G, L, R> mapT(
+      Function<Kind<F, Either<L, R>>, Kind<G, Either<L, R>>> f) {
+    Validation.function().require(f, "f", MAP_T);
+    return EitherT.fromKind(f.apply(this.value()));
   }
 
   /**

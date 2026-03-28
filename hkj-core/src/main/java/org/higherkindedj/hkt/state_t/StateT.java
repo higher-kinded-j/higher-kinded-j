@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.state_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP_T;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -82,6 +83,43 @@ public record StateT<S, F extends WitnessArity<TypeArity.Unary>, A>(
    */
   public Kind<F, A> evalStateT(S initialState) {
     return this.monadF.map(StateTuple::value, runStateT(initialState));
+  }
+
+  /**
+   * Transforms the outer monad layer of this {@code StateT} by applying the given function to the
+   * result of each state transition, producing a new {@code StateT<S, G, A>} that uses {@code
+   * monadG} for sequencing. The state-threading logic is left untouched — only the monadic context
+   * of each computed {@link StateTuple} changes.
+   *
+   * <p>Because {@code StateT} stores its {@link Monad} instance internally, switching from {@code
+   * F} to {@code G} requires a new {@code Monad<G>} to be supplied.
+   *
+   * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
+   * level, or for switching between monadic contexts via a natural transformation.
+   *
+   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   *
+   * <pre>{@code
+   * StateT<Integer, IOKind.Witness, String> ioState = ...;
+   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   * Monad<TaskKind.Witness> taskMonad = ...;
+   *
+   * StateT<Integer, TaskKind.Witness, String> taskState =
+   *     ioState.mapT(taskMonad, ioToTask::apply);
+   * }</pre>
+   *
+   * @param monadG The {@link Monad} instance for the target monad {@code G}. Must not be null.
+   * @param f The function to apply to each computed {@code Kind<F, StateTuple<S, A>>}. Must not be
+   *     null.
+   * @param <G> The witness type of the target outer monad.
+   * @return A new {@code StateT<S, G, A>} that applies {@code f} after each state transition.
+   * @throws NullPointerException if {@code monadG} or {@code f} is null.
+   */
+  public <G extends WitnessArity<TypeArity.Unary>> StateT<S, G, A> mapT(
+      Monad<G> monadG, Function<Kind<F, StateTuple<S, A>>, Kind<G, StateTuple<S, A>>> f) {
+    Validation.transformer().requireOuterMonad(monadG, STATE_T_CLASS, MAP_T);
+    Validation.function().require(f, "f", MAP_T);
+    return StateT.create(s -> f.apply(this.runStateTFn().apply(s)), monadG);
   }
 
   /**

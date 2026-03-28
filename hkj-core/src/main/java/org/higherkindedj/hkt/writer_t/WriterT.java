@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.writer_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
@@ -116,6 +117,35 @@ public record WriterT<F extends WitnessArity<TypeArity.Unary>, W, A>(Kind<F, Pai
     Validation.function().require(monoid, "monoid", LIFT_F);
     Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
     return new WriterT<>(monad.map(a -> Pair.of(a, monoid.empty()), fa));
+  }
+
+  /**
+   * Transforms the outer monad layer of this {@code WriterT} by applying the given function to the
+   * underlying {@code Kind<F, Pair<A, W>>}, producing a new {@code WriterT<G, W, A>} wrapping the
+   * result. The inner {@link Pair} of value and accumulated output is left untouched — only the
+   * surrounding monadic context changes.
+   *
+   * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
+   * level, or for switching between monadic contexts via a natural transformation.
+   *
+   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   *
+   * <pre>{@code
+   * WriterT<IOKind.Witness, String, Integer> ioResult = ...;
+   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   *
+   * WriterT<TaskKind.Witness, String, Integer> taskResult = ioResult.mapT(ioToTask::apply);
+   * }</pre>
+   *
+   * @param f The function to apply to the underlying {@code Kind<F, Pair<A, W>>}. Must not be null.
+   * @param <G> The witness type of the target outer monad.
+   * @return A new {@code WriterT<G, W, A>} wrapping the transformed monadic value.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  public <G extends WitnessArity<TypeArity.Unary>> WriterT<G, W, A> mapT(
+      Function<Kind<F, Pair<A, W>>, Kind<G, Pair<A, W>>> f) {
+    Validation.function().require(f, "f", MAP_T);
+    return WriterT.fromKind(f.apply(this.run()));
   }
 
   /**

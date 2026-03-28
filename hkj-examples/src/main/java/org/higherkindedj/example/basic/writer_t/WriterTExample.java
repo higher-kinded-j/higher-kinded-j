@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.writer_t;
 
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
 import java.util.List;
+import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Pair;
@@ -12,6 +14,7 @@ import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.writer_t.WriterT;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
 import org.higherkindedj.hkt.writer_t.WriterTMonad;
@@ -98,6 +101,8 @@ public class WriterTExample {
     var resultPair = unwrap(result);
     System.out.println("Final value: " + resultPair.first());
     System.out.println("Diagnostics: " + resultPair.second());
+
+    mapTExample();
   }
 
   /** A multi-step computation that accumulates diagnostic output. */
@@ -109,6 +114,31 @@ public class WriterTExample {
         .let(t -> t._2() + 10)
         .from(t -> w.tell(List.of("Added 10: " + t._4())))
         .yield((_, doubled, _, plusTen, _) -> plusTen);
+  }
+
+  // --- Example 5: Using mapT to switch from Id to Optional ---
+  //
+  // mapT swaps the outer monad without touching the accumulated log.
+  // Here we wrap an Id-based WriterT into an Optional context — useful
+  // when a downstream API expects optional semantics.
+
+  void mapTExample() {
+    var idMonad = IdMonad.instance();
+
+    WriterT<IdKind.Witness, List<String>, String> idWriter =
+        WriterT.writer(idMonad, "result", List.of("step 1", "step 2"));
+
+    WriterT<OptionalKind.Witness, List<String>, String> optWriter =
+        idWriter.mapT(
+            idKind -> {
+              Pair<String, List<String>> pair = IdKindHelper.ID.unwrap(idKind);
+              return OPTIONAL.widen(Optional.of(pair));
+            });
+
+    Optional<Pair<String, List<String>>> result = OPTIONAL.narrow(optWriter.run());
+    System.out.println("\n--- mapT: Id -> Optional ---");
+    System.out.println("Result: " + result);
+    // Optional[Pair[first=result, second=[step 1, step 2]]]
   }
 
   /** Helper to unwrap a WriterT over Id to its Pair. */

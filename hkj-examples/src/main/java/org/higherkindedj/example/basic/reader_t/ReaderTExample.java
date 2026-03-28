@@ -8,6 +8,9 @@ import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.reader_t.ReaderT;
@@ -79,5 +82,19 @@ public class ReaderTExample {
     //        (ReaderTKind<OptionalKind.Witness, Config, String>) READER_T.widen(rt1);
     var kindRt1 = READER_T.widen(rt1);
     ReaderT<OptionalKind.Witness, Config, String> unwrappedRt1 = READER_T.narrow(kindRt1);
+
+    // --- mapT: Switching from Optional to Id ---
+    // mapT composes a function after each run result, changing the outer monad.
+    // Here we collapse Optional into Id, providing a default for empty results.
+    ReaderT<IdKind.Witness, Config, String> idRt =
+        rt1.mapT(
+            optKind -> {
+              Optional<String> opt = OPTIONAL.narrow(optKind);
+              return IdKindHelper.ID.widen(Id.of(opt.orElse("default")));
+            });
+
+    Kind<IdKind.Witness, String> idResult = idRt.run().apply(testConfig);
+    Id<String> id = IdKindHelper.ID.narrow(idResult);
+    System.out.println("mapT result (Optional -> Id): " + id.value());
   }
 }

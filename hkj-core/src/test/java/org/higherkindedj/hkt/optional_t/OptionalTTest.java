@@ -4,11 +4,16 @@ package org.higherkindedj.hkt.optional_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
@@ -207,6 +212,59 @@ class OptionalTTest {
 
       assertThat(otOuterEmpty.toString()).startsWith("OptionalT[value=").endsWith("]");
       assertThat(otOuterEmpty.toString()).contains("Optional.empty");
+    }
+  }
+
+  @Nested
+  @DisplayName("mapT")
+  class MapTTests {
+
+    @Test
+    @DisplayName("mapT with identity should return equivalent OptionalT")
+    void mapT_identity() {
+      OptionalT<OptionalKind.Witness, String> ot = OptionalT.some(outerMonad, presentValue);
+      OptionalT<OptionalKind.Witness, String> result = ot.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(Optional.of(presentValue));
+    }
+
+    @Test
+    @DisplayName("mapT should transform outer monad to a different type")
+    void mapT_crossMonad() {
+      OptionalT<OptionalKind.Witness, String> ot = OptionalT.some(outerMonad, presentValue);
+
+      OptionalT<IdKind.Witness, String> result =
+          ot.mapT(
+              optKind -> {
+                Optional<Optional<String>> opt = OPTIONAL.narrow(optKind);
+                return IdKindHelper.ID.widen(Id.of(opt.orElse(Optional.empty())));
+              });
+
+      Id<Optional<String>> id = IdKindHelper.ID.narrow(result.value());
+      assertThat(id.value()).isPresent().contains(presentValue);
+    }
+
+    @Test
+    @DisplayName("mapT should preserve None (empty inner)")
+    void mapT_preservesNone() {
+      OptionalT<OptionalKind.Witness, String> ot = OptionalT.none(outerMonad);
+      OptionalT<OptionalKind.Witness, String> result = ot.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(Optional.empty());
+    }
+
+    @Test
+    @DisplayName("mapT should preserve empty outer monad")
+    void mapT_preservesEmptyOuter() {
+      Kind<OptionalKind.Witness, Optional<String>> outerEmpty = OPTIONAL.widen(Optional.empty());
+      OptionalT<OptionalKind.Witness, String> ot = OptionalT.fromKind(outerEmpty);
+      OptionalT<OptionalKind.Witness, String> result = ot.mapT(Function.identity());
+      assertThat(unwrapT(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("mapT should reject null function")
+    void mapT_rejectsNull() {
+      OptionalT<OptionalKind.Witness, String> ot = OptionalT.some(outerMonad, presentValue);
+      assertThatThrownBy(() -> ot.mapT(null)).isInstanceOf(NullPointerException.class);
     }
   }
 }

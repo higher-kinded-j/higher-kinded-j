@@ -162,6 +162,43 @@ EitherT<F, L, R> concrete = EITHER_T.narrow(kind);
 
 ---
 
+## Transforming the Outer Monad with `mapT`
+
+Sometimes you need to change the *outer monad* of an `EitherT` without touching the inner `Either` at all. Imagine you have built a pipeline over `CompletableFuture` but now want to continue in a synchronous `Optional` context — or you want to apply a cross-cutting concern (logging, retry) at the monad level.
+
+`mapT` does exactly this. It applies a function to the wrapped `Kind<F, Either<L, R>>` and produces a new `EitherT<G, L, R>`:
+
+```
+  EitherT< F , L, R >  ── mapT(f) ──>  EitherT< G , L, R >
+       │                                      │
+  ┌────┴────┐                            ┌────┴────┐
+  │    F    │     f: F[...] -> G[...]    │    G    │
+  │ ┌─────┐ │         ====>              │ ┌─────┐ │
+  │ │ E   │ │   inner Either untouched   │ │ E   │ │
+  │ │ L|R │ │                            │ │ L|R │ │
+  │ └─────┘ │                            │ └─────┘ │
+  └─────────┘                            └─────────┘
+```
+
+```java
+// Switch from Future to Optional after awaiting a result
+EitherT<CompletableFutureKind.Witness, Error, Data> futureET = ...;
+
+EitherT<OptionalKind.Witness, Error, Data> optionalET =
+    futureET.mapT(futureKind -> {
+      Either<Error, Data> awaited = FUTURE.join(futureKind);
+      return OPTIONAL.widen(Optional.of(awaited));
+    });
+```
+
+~~~admonish note title="mapT vs map"
+`map` transforms the *value* inside the `Either` (the `R` in `Right(R)`).
+`mapT` transforms the *outer monad* wrapping the `Either` — the `F` in `F<Either<L, R>>`.
+They operate at different levels of the transformer stack.
+~~~
+
+---
+
 ## Creating EitherT Instances
 
 ~~~admonish title="Creating _EitherT_ Instances"

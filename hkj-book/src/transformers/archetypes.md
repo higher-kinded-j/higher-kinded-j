@@ -181,19 +181,19 @@ A REST API receives a request body with multiple fields. Each field has its own 
 
 <pre style="line-height:1.5;font-size:0.95em">
     <span style="color:#4CAF50">validateName ════●═══╗</span>
-                        ║
+    <span style="color:#4CAF50">                     ║</span>
     <span style="color:#4CAF50">validateEmail ═══●═══╬═══ zipWith3Accum ═══●═══▶  Registration</span>
-                        ║
+    <span style="color:#4CAF50">                     ║</span>
     <span style="color:#4CAF50">validateAge ════●════╝</span>
 
     If any fail, errors <b>accumulate</b> (not short-circuit):
 
     <span style="color:#F44336">validateName ────●───╗</span>
     <span style="color:#F44336">  "Name too short"   ║</span>
-                        <span style="color:#F44336">╠═══ zipWith3Accum ═══●═══▶  List[err1, err2]</span>
+    <span style="color:#F44336">                     ╠═══ zipWith3Accum ═══●═══▶  List[err1, err2]</span>
     <span style="color:#F44336">validateEmail ───●───╝</span>
-    <span style="color:#F44336">  "Invalid email"</span>
-                        ║
+    <span style="color:#F44336">  "Invalid email"</span><span style="color:#4CAF50">    ║</span>
+    <span style="color:#4CAF50">                     ║</span>
     <span style="color:#4CAF50">validateAge ════●════╝</span>
     <span style="color:#4CAF50">  (valid, but still</span>
     <span style="color:#4CAF50">   collected with errors)</span>
@@ -314,7 +314,7 @@ Financial regulations require every step in a transaction to produce an audit en
 <pre style="line-height:1.5;font-size:0.95em">
     <span style="color:#4CAF50"><b>Value</b>   ═══●══════════════●══════════════●═══▶  TransferResult</span>
     <span style="color:#4CAF50">         debit          credit         map</span>
-              │                │
+              │               │
               ▼ <i>siding</i>        ▼ <i>siding</i>
     <span style="color:#FFB300"><b>Log</b>     ──●──────────────●──────────────────▶  [DEBIT, CREDIT]</span>
     <span style="color:#FFB300">       [DEBIT ...]    [CREDIT ...]</span>

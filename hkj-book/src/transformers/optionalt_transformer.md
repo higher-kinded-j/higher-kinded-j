@@ -148,6 +148,43 @@ OptionalT<F, A> concrete = OPTIONAL_T.narrow(kind);
 
 ---
 
+## Transforming the Outer Monad with `mapT`
+
+Sometimes you need to change the *outer monad* of an `OptionalT` without touching the inner `Optional`. Perhaps you have awaited an async result and want to continue in a synchronous context, or you want to apply a natural transformation to switch effect types.
+
+`mapT` applies a function to the wrapped `Kind<F, Optional<A>>` and produces a new `OptionalT<G, A>`:
+
+```
+  OptionalT< F , A >  ── mapT(f) ──>  OptionalT< G , A >
+       │                                     │
+  ┌────┴────┐                           ┌────┴────┐
+  │    F    │   f: F[...] -> G[...]     │    G    │
+  │ ┌─────┐ │         ====>             │ ┌─────┐ │
+  │ │Opt  │ │  inner Optional sealed    │ │Opt  │ │
+  │ │  A  │ │                           │ │  A  │ │
+  │ └─────┘ │                           │ └─────┘ │
+  └─────────┘                           └─────────┘
+```
+
+```java
+// Switch from Future to Optional after awaiting an async result
+OptionalT<CompletableFutureKind.Witness, String> asyncOt = ...;
+
+OptionalT<OptionalKind.Witness, String> syncOt =
+    asyncOt.mapT(futureKind -> {
+      Optional<String> awaited = FUTURE.narrow(futureKind).join();
+      return OPTIONAL.widen(Optional.of(awaited));
+    });
+```
+
+~~~admonish note title="mapT vs map"
+`map` transforms the *value* inside the `Optional` (the `A` in `Optional.of(A)`).
+`mapT` transforms the *outer monad* wrapping the `Optional` — the `F` in `F<Optional<A>>`.
+They operate at different levels of the transformer stack.
+~~~
+
+---
+
 ## Creating OptionalT Instances
 
 ~~~admonish title="Creating _OptionalT_ Instances"

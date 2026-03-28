@@ -15,6 +15,9 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.maybe_t.MaybeTKind;
@@ -30,8 +33,33 @@ public class MaybeTExample {
   public static void main(String[] args) {
     MaybeTExample example = new MaybeTExample();
     example.createExample();
+    example.mapTExample();
     MaybeTAsyncExample asyncExample = new MaybeTAsyncExample();
     asyncExample.asyncExample();
+  }
+
+  // --- mapT: Switching the outer monad ---
+  //
+  // mapT lets you swap the outer monad without unwrapping the inner Maybe.
+  // Here we convert an Optional-based MaybeT into an Id-based one —
+  // collapsing the two layers of optionality into a single Maybe.
+
+  public void mapTExample() {
+    System.out.println("\n--- mapT: Optional -> Id ---");
+    OptionalMonad optMonad = OptionalMonad.INSTANCE;
+
+    MaybeT<OptionalKind.Witness, String> mt = MaybeT.just(optMonad, "Hello");
+
+    // Use mapT to collapse Optional<Maybe<A>> into Id<Maybe<A>>
+    MaybeT<IdKind.Witness, String> idMt =
+        mt.mapT(
+            optKind -> {
+              Optional<Maybe<String>> opt = OPTIONAL.narrow(optKind);
+              return IdKindHelper.ID.widen(Id.of(opt.orElse(Maybe.nothing())));
+            });
+
+    Id<Maybe<String>> result = IdKindHelper.ID.narrow(idMt.value());
+    System.out.println("Result: " + result.value()); // Just(Hello)
   }
 
   public void createExample() {

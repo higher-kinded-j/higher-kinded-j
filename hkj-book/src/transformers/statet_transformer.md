@@ -208,6 +208,42 @@ Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> combined =
 
 ---
 
+## Transforming the Outer Monad with `mapT`
+
+Sometimes you need to change the *outer monad* of a `StateT` without touching the state-threading logic. Perhaps you want to switch from `Optional` to `Id` (guaranteeing a result with a default), or apply a natural transformation to move between effect types.
+
+Because `StateT` stores its `Monad<F>` instance internally, switching from `F` to `G` requires supplying a new `Monad<G>`. This is the one transformer where `mapT` takes an extra parameter:
+
+```
+  state ──> runStateTFn() ──> Kind<F, StateTuple<S, A>> ──> f ──> Kind<G, StateTuple<S, A>>
+    │                                                                        │
+    └──── combined into new StateT<S, G, A> with monadG ────────────────────┘
+```
+
+```java
+// Switch from Optional to Id, providing a default for empty results
+StateT<Integer, OptionalKind.Witness, String> optStateT = ...;
+Monad<IdKind.Witness> idMonad = IdMonad.instance();
+
+StateT<Integer, IdKind.Witness, String> idStateT =
+    optStateT.mapT(idMonad, optKind -> {
+      Optional<StateTuple<Integer, String>> opt = OPTIONAL.narrow(optKind);
+      return ID.widen(Id.of(opt.orElse(StateTuple.of(0, "default"))));
+    });
+```
+
+~~~admonish note title="mapT vs map"
+`map` transforms the *value* produced by the state computation (the `A` in `StateTuple<S, A>`).
+`mapT` transforms the *outer monad* wrapping each state transition — the `F` in `S -> F<StateTuple<S, A>>`.
+The state-threading is completely unaffected.
+~~~
+
+~~~admonish warning title="StateT requires a new Monad instance"
+Unlike the other five transformers, `StateT.mapT` takes `Monad<G> monadG` as its first parameter. This is because `StateT` stores the monad instance for internal sequencing — when you switch monads, the new `StateT` needs the new monad to continue operating correctly.
+~~~
+
+---
+
 ## State-Specific Operations
 
 Common state operations can be constructed using `StateT.create`:

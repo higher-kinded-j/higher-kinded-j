@@ -3,12 +3,17 @@
 package org.higherkindedj.hkt.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
@@ -293,6 +298,59 @@ class EitherTTest {
       EitherT<OptionalKind.Witness, String, String> lifted = EitherT.liftF(outerMonad, liftedValue);
       assertThat(lifted).isNotNull();
       assertThat(lifted.value()).isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("mapT")
+  class MapTTests {
+
+    @Test
+    @DisplayName("mapT with identity should return equivalent EitherT")
+    void mapT_identity() {
+      EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, rightValue);
+      EitherT<OptionalKind.Witness, String, String> result = et.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(Either.right(rightValue));
+    }
+
+    @Test
+    @DisplayName("mapT should transform outer monad to a different type")
+    void mapT_crossMonad() {
+      EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, rightValue);
+
+      // Transform Optional to Id via natural transformation
+      EitherT<IdKind.Witness, String, String> result =
+          et.mapT(
+              optKind -> {
+                Optional<Either<String, String>> opt = OPTIONAL.narrow(optKind);
+                return IdKindHelper.ID.widen(Id.of(opt.orElse(Either.left("empty"))));
+              });
+
+      Id<Either<String, String>> id = IdKindHelper.ID.narrow(result.value());
+      assertThat(id.value()).isEqualTo(Either.right(rightValue));
+    }
+
+    @Test
+    @DisplayName("mapT should preserve left values")
+    void mapT_preservesLeft() {
+      EitherT<OptionalKind.Witness, String, String> et = EitherT.left(outerMonad, leftValue);
+      EitherT<OptionalKind.Witness, String, String> result = et.mapT(Function.identity());
+      assertThat(unwrapT(result)).isPresent().contains(Either.left(leftValue));
+    }
+
+    @Test
+    @DisplayName("mapT should preserve empty outer monad")
+    void mapT_preservesEmpty() {
+      EitherT<OptionalKind.Witness, String, String> et = EitherT.fromKind(wrappedEmpty);
+      EitherT<OptionalKind.Witness, String, String> result = et.mapT(Function.identity());
+      assertThat(unwrapT(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("mapT should reject null function")
+    void mapT_rejectsNull() {
+      EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, rightValue);
+      assertThatThrownBy(() -> et.mapT(null)).isInstanceOf(NullPointerException.class);
     }
   }
 }
