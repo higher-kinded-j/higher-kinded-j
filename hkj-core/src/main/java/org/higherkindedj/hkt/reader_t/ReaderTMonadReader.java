@@ -67,8 +67,8 @@ public class ReaderTMonadReader<F extends WitnessArity<TypeArity.Unary>, R_ENV>
   @Override
   public <A> Kind<ReaderTKind.Witness<F, R_ENV>, A> local(
       Function<R_ENV, R_ENV> f, Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
-    Validation.function().require(f, "f", MODIFY);
-    Validation.kind().requireNonNull(ma, MODIFY);
+    Validation.function().require(f, "f", LOCAL);
+    Validation.kind().requireNonNull(ma, LOCAL);
 
     ReaderT<F, R_ENV, A> readerT = READER_T.narrow(ma);
     ReaderT<F, R_ENV, A> localReaderT = new ReaderT<>(r -> readerT.run().apply(f.apply(r)));

@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.list;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -16,6 +15,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.FList;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -103,23 +103,17 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
     Validation.function().validateTraverse(applicative, f, ta);
 
     List<A> listA = LIST.narrow(ta);
-    Kind<G, LinkedList<B>> result = applicative.of(new LinkedList<>());
+    // Use an immutable cons-list for O(1) prepend per step.
+    // This is safe with multi-branch applicatives (e.g., List) since FList is immutable.
+    Kind<G, FList<B>> result = applicative.of(new FList.Nil<>());
 
     for (A a : listA) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
-      result =
-          applicative.map2(
-              result,
-              effectOfB,
-              (listB, b) -> {
-                // Create new list to ensure correctness for multi-branch Applicatives (e.g., List)
-                LinkedList<B> newList = new LinkedList<>(listB);
-                newList.add((B) b);
-                return newList;
-              });
+      result = applicative.map2(result, effectOfB, (flist, b) -> flist.cons((B) b)); // O(1) prepend
     }
 
-    return applicative.map(LIST::widen, result);
+    // Reverse the cons-list to restore original order, then widen to ListKind
+    return applicative.map(flist -> LIST.widen(flist.toList()), result);
   }
 
   /**

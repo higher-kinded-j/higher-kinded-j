@@ -272,9 +272,10 @@ public final class VStreamPar {
 
           // Background thread manages a StructuredTaskScope with one subtask per source.
           // Each subtask pulls elements and pushes them to the shared queue.
-          Thread.ofVirtual().start(() -> runMergeScope(streams, queue, cancelled));
+          Thread producer =
+              Thread.ofVirtual().start(() -> runMergeScope(streams, queue, cancelled));
 
-          return mergeFromQueue(queue, sourceCount, cancelled);
+          return mergeFromQueue(queue, sourceCount, cancelled, producer);
         });
   }
 
@@ -355,9 +356,13 @@ public final class VStreamPar {
    * @param remainingSources the number of source streams that have not yet sent {@link
    *     MergeSignal.SourceDone}.
    * @param cancelled shared cancellation flag; set to {@code true} to stop producers.
+   * @param producer the background producer thread to join on close.
    */
   private static <A> VStream<A> mergeFromQueue(
-      LinkedBlockingQueue<MergeSignal<A>> queue, int remainingSources, AtomicBoolean cancelled) {
+      LinkedBlockingQueue<MergeSignal<A>> queue,
+      int remainingSources,
+      AtomicBoolean cancelled,
+      Thread producer) {
     // No guard needed: merge() guarantees remainingSources >= 2 on the initial call,
     // and recursive calls pass newRemaining >= 1 (the newRemaining <= 0 branch yields Done).
     return new VStream<>() {
@@ -370,13 +375,14 @@ public final class VStreamPar {
                 return switch (signal) {
                   case MergeSignal.Element<A> e ->
                       new VStream.Step.Emit<>(
-                          e.value(), mergeFromQueue(queue, remainingSources, cancelled));
+                          e.value(), mergeFromQueue(queue, remainingSources, cancelled, producer));
                   case MergeSignal.SourceDone<A> _ -> {
                     int newRemaining = remainingSources - 1;
                     if (newRemaining <= 0) {
                       yield new VStream.Step.Done<>();
                     }
-                    yield new VStream.Step.Skip<>(mergeFromQueue(queue, newRemaining, cancelled));
+                    yield new VStream.Step.Skip<>(
+                        mergeFromQueue(queue, newRemaining, cancelled, producer));
                   }
                   case MergeSignal.SourceError<A> err -> throw handleFailedCause(err.cause());
                 };
@@ -391,6 +397,11 @@ public final class VStreamPar {
       public VTask<Unit> close() {
         cancelled.set(true);
         queue.clear();
+        try {
+          producer.join();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
         return VTask.succeed(Unit.INSTANCE);
       }
     };

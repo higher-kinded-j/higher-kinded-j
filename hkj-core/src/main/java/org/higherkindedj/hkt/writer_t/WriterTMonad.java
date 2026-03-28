@@ -180,7 +180,7 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
   @Override
   public <A> Kind<WriterTKind.Witness<F, W>, Pair<A, W>> listen(
       Kind<WriterTKind.Witness<F, W>, A> ma) {
-    Validation.kind().requireNonNull(ma, MAP);
+    Validation.kind().requireNonNull(ma, LISTEN);
 
     WriterT<F, W, A> writerTA = WRITER_T.narrow(ma);
     // listen produces Pair<Pair<A, W>, W> — the inner value becomes a pair with the output,
@@ -201,7 +201,7 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
   @Override
   public <A> Kind<WriterTKind.Witness<F, W>, A> pass(
       Kind<WriterTKind.Witness<F, W>, Pair<A, Function<W, W>>> ma) {
-    Validation.kind().requireNonNull(ma, MAP);
+    Validation.kind().requireNonNull(ma, PASS);
 
     WriterT<F, W, Pair<A, Function<W, W>>> writerT = WRITER_T.narrow(ma);
     Kind<F, Pair<A, W>> passed =

@@ -83,10 +83,10 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * guaranteed. Otherwise, prefer using {@link #fold(Function, Function)}, {@link #map(Function)},
    * or pattern matching to safely access the value.
    *
-   * @return The value of type {@code R} if this is a {@link Right}.
+   * @return The value of type {@code R} if this is a {@link Right}, which may be null.
    * @throws NoSuchElementException if this is a {@link Left}.
    */
-  R getRight() throws NoSuchElementException;
+  @Nullable R getRight() throws NoSuchElementException;
 
   /**
    * Applies one of two functions depending on whether this instance is a {@link Left} or a {@link

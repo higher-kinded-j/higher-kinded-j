@@ -185,7 +185,7 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>} representing {@code F<Optional.empty()>}.
    */
   @Override
-  public <A> Kind<OptionalTKind.Witness<F>, A> raiseError(Unit error) {
+  public <A> Kind<OptionalTKind.Witness<F>, A> raiseError(@Nullable Unit error) {
     // Note: error parameter is ignored since Optional.empty() doesn't carry error information
     return OPTIONAL_T.widen(OptionalT.none(outerMonad));
   }

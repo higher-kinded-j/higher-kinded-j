@@ -1132,5 +1132,239 @@ class VStreamParTest {
       merged.close().run();
       merged.close().run();
     }
+
+    @Test
+    @DisplayName("close() handles InterruptedException during producer.join()")
+    void closeHandlesInterruptedExceptionDuringJoin() throws InterruptedException {
+      CountDownLatch subtaskStarted = new CountDownLatch(1);
+
+      // Source that emits one element then blocks, keeping the producer thread alive
+      VStream<Integer> blockingSource =
+          VStream.defer(
+              () -> {
+                VStream<Integer> blocking =
+                    () ->
+                        VTask.of(
+                            () -> {
+                              subtaskStarted.countDown();
+                              Thread.sleep(60_000);
+                              return new VStream.Step.Done<>();
+                            });
+                return () -> VTask.succeed(new VStream.Step.Emit<>(1, blocking));
+              });
+
+      // take(1) will pull one element then call close() on the inner mergeFromQueue stream
+      // (via the tail chain), which calls producer.join()
+      VStream<Integer> merged = VStreamPar.merge(blockingSource, VStream.of(2)).take(1);
+
+      AtomicBoolean closeCompleted = new AtomicBoolean(false);
+      AtomicReference<Boolean> interruptPreserved = new AtomicReference<>();
+      CountDownLatch finished = new CountDownLatch(1);
+
+      // Run on a worker thread so we can set the interrupt flag before take triggers close
+      Thread worker =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      // Pull the one element — take(1) will call close() internally on next pull
+                      // We need the subtask started before we interrupt
+                      VStream.Step<Integer> first = merged.pull().run();
+                      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+
+                      // Wait for blocking subtask to start so producer thread is in join-able state
+                      subtaskStarted.await(5, TimeUnit.SECONDS);
+                      Thread.sleep(50);
+
+                      // Set interrupt flag — when take(0) calls close() -> producer.join(),
+                      // join() will throw InterruptedException, exercising lines 402-403
+                      Thread.currentThread().interrupt();
+
+                      // This pull triggers take's n<=0 path which calls close()
+                      VStream.Step<Integer> second =
+                          ((VStream.Step.Emit<Integer>) first).tail().pull().run();
+                      assertThat(second).isInstanceOf(VStream.Step.Done.class);
+
+                      interruptPreserved.set(Thread.currentThread().isInterrupted());
+                      closeCompleted.set(true);
+                    } catch (Exception e) {
+                      // If close threw, the interrupt was not caught properly
+                      closeCompleted.set(false);
+                    } finally {
+                      finished.countDown();
+                    }
+                  });
+
+      assertThat(finished.await(10, TimeUnit.SECONDS)).isTrue();
+      assertThat(closeCompleted.get()).isTrue();
+      assertThat(interruptPreserved.get()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("Additional Coverage Tests")
+  class AdditionalCoverage {
+
+    @Test
+    @DisplayName("pullBatch() handles Skip steps from filtered source in parEvalMap")
+    void pullBatchHandlesSkipStepsInParEvalMap() {
+      // filter() produces Skip steps, exercising the Skip case (i--) in pullBatch
+      VStream<Integer> filtered = VStream.of(1, 2, 3, 4, 5, 6).filter(n -> n % 2 == 0);
+
+      VStream<Integer> result = VStreamPar.parEvalMap(filtered, 3, n -> VTask.succeed(n * 10));
+
+      assertThatVStream(result).producesElements(20, 40, 60);
+    }
+
+    @Test
+    @DisplayName("pullBatch() handles Skip steps from filtered source in parEvalMapUnordered")
+    void pullBatchHandlesSkipStepsInParEvalMapUnordered() {
+      VStream<Integer> filtered = VStream.of(1, 2, 3, 4, 5, 6).filter(n -> n > 4);
+
+      VStream<Integer> result =
+          VStreamPar.parEvalMapUnordered(filtered, 2, n -> VTask.succeed(n * 10));
+
+      List<Integer> resultList = result.toList().run();
+      assertThat(resultList).containsExactlyInAnyOrder(50, 60);
+    }
+
+    @Test
+    @DisplayName("processBatchOrdered() throws when function returns null task")
+    void processBatchOrderedThrowsOnNullTask() {
+      VStream<Integer> stream = VStream.of(1, 2, 3);
+
+      VStream<Integer> result = VStreamPar.parEvalMap(stream, 3, n -> null);
+
+      assertThatThrownBy(() -> result.toList().run()).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("processBatchUnordered() throws when function returns null task")
+    void processBatchUnorderedThrowsOnNullTask() {
+      VStream<Integer> stream = VStream.of(1, 2, 3);
+
+      VStream<Integer> result = VStreamPar.parEvalMapUnordered(stream, 3, n -> null);
+
+      assertThatThrownBy(() -> result.toList().run()).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("parEvalMapUnordered() with negative concurrency throws IllegalArgumentException")
+    void parEvalMapUnorderedWithNegativeConcurrencyThrows() {
+      VStream<Integer> stream = VStream.of(1);
+
+      assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(stream, -1, n -> VTask.succeed(n)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("concurrency");
+    }
+
+    @Test
+    @DisplayName("parEvalFlatMap() with negative concurrency throws IllegalArgumentException")
+    void parEvalFlatMapWithNegativeConcurrencyThrows() {
+      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), -1, n -> VStream.of(n)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("concurrency");
+    }
+
+    @Test
+    @DisplayName("parCollect() propagates errors from source stream")
+    void parCollectPropagatesErrors() {
+      VStream<Integer> stream =
+          VStream.of(1, 2, 3)
+              .flatMap(
+                  n -> {
+                    if (n == 2) {
+                      return VStream.fail(new RuntimeException("collect error"));
+                    }
+                    return VStream.of(n);
+                  });
+
+      assertThatThrownBy(() -> VStreamPar.parCollect(stream, 2).run())
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("collect error");
+    }
+
+    @Test
+    @DisplayName("parEvalMap() with concurrency=1 runs sequentially")
+    void parEvalMapConcurrencyOneRunsSequentially() {
+      AtomicInteger maxConcurrency = new AtomicInteger(0);
+      AtomicInteger currentConcurrency = new AtomicInteger(0);
+
+      VStream<Integer> stream = VStream.of(1, 2, 3, 4);
+
+      VStream<Integer> result =
+          VStreamPar.parEvalMap(
+              stream,
+              1,
+              n ->
+                  VTask.of(
+                      () -> {
+                        int current = currentConcurrency.incrementAndGet();
+                        maxConcurrency.updateAndGet(max -> Math.max(max, current));
+                        Thread.sleep(10);
+                        currentConcurrency.decrementAndGet();
+                        return n * 2;
+                      }));
+
+      assertThatVStream(result).producesElements(2, 4, 6, 8);
+      assertThat(maxConcurrency.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("parEvalFlatMap() handles single element stream")
+    void parEvalFlatMapSingleElement() {
+      VStream<Integer> stream = VStream.of(42);
+
+      VStream<Integer> result = VStreamPar.parEvalFlatMap(stream, 2, n -> VStream.of(n, n + 1));
+
+      assertThatVStream(result).producesElements(42, 43);
+    }
+
+    @Test
+    @DisplayName("parEvalFlatMap() handles empty source stream")
+    void parEvalFlatMapEmptySource() {
+      VStream<Integer> stream = VStream.empty();
+
+      VStream<Integer> result = VStreamPar.parEvalFlatMap(stream, 2, n -> VStream.of(n));
+
+      assertThatVStream(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("parCollect() with single element")
+    void parCollectSingleElement() {
+      VStream<Integer> stream = VStream.of(42);
+
+      assertThat(VStreamPar.parCollect(stream, 5).run()).containsExactly(42);
+    }
+
+    @Test
+    @DisplayName("parCollect() with batch size larger than stream")
+    void parCollectBatchSizeLargerThanStream() {
+      VStream<Integer> stream = VStream.of(1, 2, 3);
+
+      assertThat(VStreamPar.parCollect(stream, 100).run()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("parEvalMap() handles large batch crossing multiple iterations")
+    void parEvalMapMultipleBatches() {
+      VStream<Integer> stream = VStream.fromList(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+
+      VStream<Integer> result = VStreamPar.parEvalMap(stream, 3, n -> VTask.succeed(n * 2));
+
+      assertThatVStream(result).producesElements(2, 4, 6, 8, 10, 12, 14, 16, 18, 20);
+    }
+
+    @Test
+    @DisplayName("merge(VStream, VStream) delegates to merge(List)")
+    void mergeTwoStreamsDelegatesToList() {
+      VStream<String> first = VStream.of("a", "b");
+      VStream<String> second = VStream.of("c", "d");
+
+      List<String> result = VStreamPar.merge(first, second).toList().run();
+
+      assertThat(result).containsExactlyInAnyOrder("a", "b", "c", "d");
+    }
   }
 }

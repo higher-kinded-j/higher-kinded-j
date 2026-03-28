@@ -85,7 +85,13 @@ public enum Operation {
   MAP_TWELFTH("mapTwelfth"),
   MAP_ERROR("mapError"),
   MAP_WRITTEN("mapWritten"),
-  MAP_T("mapT");
+  MAP_T("mapT"),
+  LISTEN("listen"),
+  PASS("pass"),
+  LOCAL("local"),
+  FROM_RUNNABLE("fromRunnable"),
+  AND_THEN("andThen"),
+  COMPOSE("compose");
 
   Operation(String label) {
     this.label = label;

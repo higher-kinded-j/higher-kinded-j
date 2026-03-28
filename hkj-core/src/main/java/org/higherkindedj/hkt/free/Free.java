@@ -64,7 +64,8 @@ public sealed interface Free<F extends WitnessArity<?>, A>
    * @param <A> The final result type
    */
   record FlatMapped<F extends WitnessArity<?>, X, A>(
-      Free<F, X> sub, Function<X, Free<F, A>> continuation) implements Free<F, A> {}
+      Free<F, X> sub, Function<? super X, ? extends Free<F, A>> continuation)
+      implements Free<F, A> {}
 
   /**
    * Creates a Free monad from a pure value.
@@ -122,7 +123,7 @@ public sealed interface Free<F extends WitnessArity<?>, A>
    * @param <B> The result type
    * @return A new Free monad representing the sequence
    */
-  default <B> Free<F, B> flatMap(Function<A, Free<F, B>> f) {
+  default <B> Free<F, B> flatMap(Function<? super A, ? extends Free<F, B>> f) {
     return new FlatMapped<>(this, f);
   }
 

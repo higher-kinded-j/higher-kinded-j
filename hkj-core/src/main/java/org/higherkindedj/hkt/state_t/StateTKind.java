@@ -38,9 +38,7 @@ import org.jspecify.annotations.Nullable;
  *       type of the computation encapsulated by the {@code StateT}.
  * </ul>
  *
- * <p>The nested {@code WitnessS} and {@code WitnessF} classes are alternative, less commonly used
- * witness types that fix only one of the {@code S} or {@code F} parameters, respectively. The
- * primary witness for HKT usage is {@link Witness Witness&lt;S, F&gt;}.
+ * <p>The primary witness for HKT usage is {@link Witness Witness&lt;S, F&gt;}.
  *
  * @param <S> The type of the state threaded through the computations. This parameter is part of the
  *     primary witness type {@link Witness Witness&lt;S, F&gt;}.
@@ -72,30 +70,6 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
     // Private constructor to prevent instantiation of the witness type itself.
     // Its purpose is purely for type-level representation.
     private Witness() {}
-  }
-
-  /**
-   * An alternative witness type for {@code StateT}, capturing only the State type {@code S}. This
-   * could be useful in very specific generic contexts where {@code F} and {@code A} might be fixed
-   * or inferred differently. However, {@link Witness Witness&lt;S, F&gt;} is the standard witness
-   * for HKT operations.
-   *
-   * @param <S> The state type.
-   */
-  final class WitnessS<S> implements WitnessArity<TypeArity.Unary> {
-    private WitnessS() {}
-  }
-
-  /**
-   * An alternative witness type for {@code StateT}, capturing only the underlying monad witness
-   * {@code F}. This could be useful in very specific generic contexts where {@code S} and {@code A}
-   * might be fixed or inferred differently. However, {@link Witness Witness&lt;S, F&gt;} is the
-   * standard witness for HKT operations.
-   *
-   * @param <F> The higher-kinded type witness for the underlying monad.
-   */
-  final class WitnessF<F> implements WitnessArity<TypeArity.Unary> {
-    private WitnessF() {}
   }
 
   /**

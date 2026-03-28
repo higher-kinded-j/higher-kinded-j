@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.vstream;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -14,6 +13,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.FList;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -115,26 +115,17 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
     // Materialise the stream to a list
     List<A> elements = stream.toList().run();
 
-    // Start with empty list in applicative context
-    Kind<G, List<B>> result = applicative.of(new ArrayList<>());
+    // Use an immutable cons-list for O(1) prepend per step.
+    // This is safe with multi-branch applicatives (e.g., List) since FList is immutable.
+    Kind<G, FList<B>> result = applicative.of(new FList.Nil<>());
 
-    // Process each element, accumulating in applicative context
     for (A a : elements) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
-      result =
-          applicative.map2(
-              result,
-              effectOfB,
-              (list, b) -> {
-                @SuppressWarnings("unchecked")
-                B bValue = (B) b;
-                list.add(bValue);
-                return list;
-              });
+      result = applicative.map2(result, effectOfB, (flist, b) -> flist.cons((B) b)); // O(1) prepend
     }
 
-    // Convert list to VStream and wrap
-    return applicative.map(list -> VSTREAM.widen(VStream.fromList(list)), result);
+    // Reverse the cons-list to restore original order, convert to List, then to VStream
+    return applicative.map(flist -> VSTREAM.widen(VStream.fromList(flist.toList())), result);
   }
 
   /**
