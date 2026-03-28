@@ -40,7 +40,7 @@ class TransformerValidatorTest {
       assertThatNullPointerException()
           .isThrownBy(
               () -> Validation.transformer().requireOuterMonad(null, StateT.class, CONSTRUCTION))
-          .withMessage("Transformer cannot be null for StateT construction");
+          .withMessage("Outer Monad cannot be null for StateT construction");
     }
 
     @Test
@@ -203,10 +203,10 @@ class TransformerValidatorTest {
     @Test
     @DisplayName("should generate correct null parameter message for transformer")
     void shouldGenerateCorrectNullParameterMessageForTransformer() {
-      var context = new TransformerValidator.DomainContext("Transformer", "StateT construction");
+      var context = new TransformerValidator.DomainContext("Outer Monad", "StateT construction");
 
       assertThat(context.nullParameterMessage())
-          .isEqualTo("Transformer cannot be null for StateT construction");
+          .isEqualTo("Outer Monad cannot be null for StateT construction");
     }
 
     @Test

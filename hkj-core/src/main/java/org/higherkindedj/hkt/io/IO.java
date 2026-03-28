@@ -6,7 +6,6 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
@@ -220,7 +219,7 @@ public interface IO<A> extends IOKind<A> {
    * @throws NullPointerException if runnable is null
    */
   static IO<Unit> fromRunnable(Runnable runnable) {
-    Objects.requireNonNull(runnable, "runnable cannot be null");
+    Validation.function().require(runnable, "runnable", FROM_RUNNABLE);
     return IO.delay(
         () -> {
           runnable.run();

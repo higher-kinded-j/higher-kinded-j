@@ -69,6 +69,16 @@ final class Nothing<T> implements Maybe<T>, MaybeKind<T> {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    return obj instanceof Nothing<?>;
+  }
+
+  @Override
+  public int hashCode() {
+    return 0;
+  }
+
+  @Override
   public String toString() {
     return "Nothing";
   }

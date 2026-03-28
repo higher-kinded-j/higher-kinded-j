@@ -27,7 +27,11 @@ public enum ListKindHelper implements ListConverterOps {
    * @param <A> The element type of the list.
    * @param list The list.
    */
-  record ListHolder<A>(List<A> list) implements ListKind<A> {}
+  record ListHolder<A>(List<A> list) implements ListKind<A> {
+    ListHolder {
+      Validation.kind().requireForWiden(list, LIST_CLASS);
+    }
+  }
 
   /**
    * Widens a standard {@link java.util.List} into its higher-kinded representation, {@code

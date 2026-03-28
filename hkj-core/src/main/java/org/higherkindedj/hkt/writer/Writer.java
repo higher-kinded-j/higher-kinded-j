@@ -51,7 +51,7 @@ import org.jspecify.annotations.Nullable;
  */
 public record Writer<W, A>(W log, @Nullable A value) {
 
-  private static Class<Writer> WRITER_CLASS = Writer.class;
+  private static final Class<Writer> WRITER_CLASS = Writer.class;
 
   /**
    * Compact constructor for {@link Writer}. Ensures that the log component {@code W} is never

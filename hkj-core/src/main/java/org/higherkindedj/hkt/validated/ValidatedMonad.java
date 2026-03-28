@@ -35,7 +35,7 @@ import org.higherkindedj.hkt.util.validation.*;
  */
 public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E> {
 
-  private Class<ValidatedMonad> VALIDATED_MONAD_CLASS = ValidatedMonad.class;
+  private static final Class<ValidatedMonad> VALIDATED_MONAD_CLASS = ValidatedMonad.class;
 
   private final Semigroup<E> semigroup;
 

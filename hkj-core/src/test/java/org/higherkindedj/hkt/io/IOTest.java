@@ -75,7 +75,8 @@ class IOTest {
     void fromRunnableWithNullThrows() {
       assertThatThrownBy(() -> IO.fromRunnable(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("runnable cannot be null");
+          .hasMessageContaining("runnable")
+          .hasMessageContaining("cannot be null");
     }
 
     @Test

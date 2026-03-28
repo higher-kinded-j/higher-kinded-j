@@ -86,6 +86,9 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
       Monad<F> outerMonad, Kind<F, A> fa) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);
     Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
+    // outerMonad is not operationally needed here (unlike OptionalT/EitherT/MaybeT which must map
+    // over fa to wrap the inner value). The parameter is retained for API consistency across all
+    // transformer liftF signatures, and validated to catch caller errors early.
     return new ReaderT<>(r -> fa);
   }
 

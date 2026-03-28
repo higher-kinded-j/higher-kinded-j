@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * A natural transformation from functor F to functor G.
@@ -82,6 +85,7 @@ public interface NaturalTransformation<
    */
   default <H extends WitnessArity<TypeArity.Unary>> NaturalTransformation<F, H> andThen(
       NaturalTransformation<G, H> after) {
+    Validation.function().require(after, "after", AND_THEN);
     return new NaturalTransformation<>() {
       @Override
       public <A> Kind<H, A> apply(Kind<F, A> fa) {
@@ -102,6 +106,7 @@ public interface NaturalTransformation<
    */
   default <E extends WitnessArity<TypeArity.Unary>> NaturalTransformation<E, G> compose(
       NaturalTransformation<E, F> before) {
+    Validation.function().require(before, "before", COMPOSE);
     return new NaturalTransformation<>() {
       @Override
       public <A> Kind<G, A> apply(Kind<E, A> ea) {

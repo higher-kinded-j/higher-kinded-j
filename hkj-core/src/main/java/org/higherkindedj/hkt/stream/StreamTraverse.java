@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.FList;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -271,30 +272,21 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
 
     Stream<A> streamA = STREAM.narrow(ta);
 
-    // Collect stream to list to enable sequential processing
-    // We need to materialize because we're building up an applicative result
-    // and Stream's single-use nature prevents us from iterating multiple times
-    var elements = streamA.collect(Collectors.toList());
+    // Collect stream to list to enable sequential processing.
+    // Stream's single-use nature prevents iterating multiple times.
+    var elements = streamA.toList();
 
-    // Start with empty stream in applicative context
-    Kind<G, Stream.Builder<B>> result = applicative.of(Stream.builder());
+    // Use an immutable cons-list for O(1) prepend per step.
+    // This is safe with multi-branch applicatives (e.g., List) since FList is immutable.
+    Kind<G, FList<B>> result = applicative.of(new FList.Nil<>());
 
-    // Process each element, accumulating in applicative context
     for (A a : elements) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
-      result =
-          applicative.map2(
-              result,
-              effectOfB,
-              (builder, b) -> {
-                // Add element to the builder
-                builder.add((B) b);
-                return builder;
-              });
+      result = applicative.map2(result, effectOfB, (flist, b) -> flist.cons((B) b)); // O(1) prepend
     }
 
-    // Convert builder to stream and wrap
-    return applicative.map(builder -> STREAM.widen(builder.build()), result);
+    // Reverse the cons-list to restore original order, convert to Stream, and widen
+    return applicative.map(flist -> STREAM.widen(flist.toStream()), result);
   }
 
   /**

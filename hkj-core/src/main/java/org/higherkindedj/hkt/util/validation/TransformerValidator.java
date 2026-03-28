@@ -48,7 +48,7 @@ public enum TransformerValidator {
     String transformerName = transformerClass.getSimpleName();
     String context = transformerName + " " + methodName;
 
-    var domainContext = DomainContext.transformer(context);
+    var domainContext = new DomainContext("Outer Monad", context);
     return Objects.requireNonNull(monad, domainContext.nullParameterMessage());
   }
 
