@@ -5,6 +5,7 @@ package org.higherkindedj.spring.web.returnvalue;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,7 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
   private final int failureStatus;
   private final boolean includeExceptionDetails;
   private final long timeoutMillis;
+  private final @Nullable HkjMetricsService metricsService;
 
   /**
    * Creates a new VTaskPathReturnValueHandler with the specified settings.
@@ -87,17 +89,20 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
    * @param failureStatus the HTTP status code for failures (default 500)
    * @param includeExceptionDetails whether to include exception details in error responses
    * @param timeoutMillis timeout for VTask operations in milliseconds (0 = no timeout)
+   * @param metricsService the metrics service for recording VTask invocations (may be null)
    */
   public VTaskPathReturnValueHandler(
       JsonMapper jsonMapper,
       int failureStatus,
       boolean includeExceptionDetails,
-      long timeoutMillis) {
+      long timeoutMillis,
+      @Nullable HkjMetricsService metricsService) {
     this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.failureStatus = failureStatus;
     this.includeExceptionDetails = includeExceptionDetails;
     this.timeoutMillis = timeoutMillis;
+    this.metricsService = metricsService;
   }
 
   @Override
@@ -144,15 +149,26 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
         });
 
     // Execute the VTask asynchronously on a virtual thread
+    long startTime = System.currentTimeMillis();
     vtaskPath
         .runAsync()
         .whenComplete(
             (result, throwable) -> {
+              long durationMillis = System.currentTimeMillis() - startTime;
               try {
                 if (throwable != null) {
                   log.error("VTaskPath failed", throwable);
+                  Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                  if (metricsService != null) {
+                    metricsService.recordVTaskError(cause.getClass().getSimpleName());
+                    metricsService.recordVTaskDuration(durationMillis);
+                  }
                   writeFailureResponse(throwable, response);
                 } else {
+                  if (metricsService != null) {
+                    metricsService.recordVTaskSuccess();
+                    metricsService.recordVTaskDuration(durationMillis);
+                  }
                   writeSuccessResponse(result, response);
                 }
                 deferredResult.setResult(null);
