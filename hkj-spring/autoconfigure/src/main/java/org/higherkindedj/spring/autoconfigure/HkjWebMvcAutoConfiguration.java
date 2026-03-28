@@ -5,6 +5,7 @@ package org.higherkindedj.spring.autoconfigure;
 import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.higherkindedj.spring.web.returnvalue.CompletableFuturePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.IOPathReturnValueHandler;
@@ -13,6 +14,8 @@ import org.higherkindedj.spring.web.returnvalue.TryPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.VStreamPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.VTaskPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -82,11 +85,14 @@ public class HkjWebMvcAutoConfiguration {
    *
    * @param properties The HKJ configuration properties
    * @param jsonMapper The Jackson 3.x JsonMapper bean for JSON serialization
+   * @param metricsService The metrics service for recording handler invocations (may be null)
    * @return WebMvcRegistrations that customize the handler adapter
    */
   @Bean
   public WebMvcRegistrations hkjWebMvcRegistrations(
-      HkjProperties properties, JsonMapper jsonMapper) {
+      HkjProperties properties,
+      JsonMapper jsonMapper,
+      @Autowired(required = false) @Nullable HkjMetricsService metricsService) {
     return new WebMvcRegistrations() {
       @Override
       public RequestMappingHandlerAdapter getRequestMappingHandlerAdapter() {
@@ -154,7 +160,8 @@ public class HkjWebMvcAutoConfiguration {
                       jsonMapper,
                       webConfig.getVtaskFailureStatus(),
                       webConfig.isVtaskIncludeExceptionDetails(),
-                      vtConfig.getDefaultTimeoutMs()));
+                      vtConfig.getDefaultTimeoutMs(),
+                      metricsService));
             }
 
             if (webConfig.isVstreamPathEnabled()) {
@@ -163,7 +170,8 @@ public class HkjWebMvcAutoConfiguration {
                       jsonMapper,
                       webConfig.getVstreamFailureStatus(),
                       webConfig.isVstreamIncludeExceptionDetails(),
-                      vtConfig.getStreamTimeoutMs()));
+                      vtConfig.getStreamTimeoutMs(),
+                      metricsService));
             }
 
             newHandlers.addAll(originalHandlers);

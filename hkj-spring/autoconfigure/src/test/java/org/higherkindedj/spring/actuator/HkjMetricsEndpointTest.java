@@ -621,7 +621,8 @@ class HkjMetricsEndpointTest {
       assertThat(config.keySet()).containsExactly("web", "jackson");
 
       Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      assertThat(metrics.keySet()).containsExactly("either", "validated", "eitherT");
+      assertThat(metrics.keySet())
+          .containsExactly("either", "validated", "eitherT", "vtask", "vstream");
 
       Map<String, Object> either = (Map<String, Object>) metrics.get("either");
       assertThat(either.keySet())

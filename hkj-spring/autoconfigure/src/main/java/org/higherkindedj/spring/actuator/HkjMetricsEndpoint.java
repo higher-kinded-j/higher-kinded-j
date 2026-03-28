@@ -4,6 +4,7 @@ package org.higherkindedj.spring.actuator;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.DoubleSupplier;
 import org.higherkindedj.spring.autoconfigure.HkjProperties;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
@@ -17,7 +18,7 @@ import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
  *
  * <ul>
  *   <li>HKJ configuration (enabled features, settings)
- *   <li>Handler invocation counts (Either, Validated, EitherT)
+ *   <li>Handler invocation counts (Either, Validated, EitherT, VTask, VStream)
  *   <li>Success/error ratios
  *   <li>Jackson serialization settings
  * </ul>
@@ -100,6 +101,8 @@ public class HkjMetricsEndpoint {
       metrics.put("either", getEitherMetrics());
       metrics.put("validated", getValidatedMetrics());
       metrics.put("eitherT", getEitherTMetrics());
+      metrics.put("vtask", getVTaskMetrics());
+      metrics.put("vstream", getVStreamMetrics());
       result.put("metrics", metrics);
     } else {
       result.put("metrics", Map.of("enabled", false));
@@ -116,6 +119,8 @@ public class HkjMetricsEndpoint {
     web.put("validationPathEnabled", properties.getWeb().isValidationPathEnabled());
     web.put("ioPathEnabled", properties.getWeb().isIoPathEnabled());
     web.put("completableFuturePathEnabled", properties.getWeb().isCompletableFuturePathEnabled());
+    web.put("vtaskPathEnabled", properties.getWeb().isVtaskPathEnabled());
+    web.put("vstreamPathEnabled", properties.getWeb().isVstreamPathEnabled());
     web.put("defaultErrorStatus", properties.getWeb().getDefaultErrorStatus());
     return web;
   }
@@ -129,18 +134,24 @@ public class HkjMetricsEndpoint {
     return jackson;
   }
 
-  private Map<String, Object> getEitherMetrics() {
-    Map<String, Object> either = new LinkedHashMap<>();
-    double successCount = metricsService.getEitherSuccessCount();
-    double errorCount = metricsService.getEitherErrorCount();
+  private Map<String, Object> getSuccessErrorMetrics(
+      DoubleSupplier successSupplier, DoubleSupplier errorSupplier) {
+    Map<String, Object> metrics = new LinkedHashMap<>();
+    double successCount = successSupplier.getAsDouble();
+    double errorCount = errorSupplier.getAsDouble();
     double totalCount = successCount + errorCount;
 
-    either.put("successCount", (long) successCount);
-    either.put("errorCount", (long) errorCount);
-    either.put("totalCount", (long) totalCount);
-    either.put("successRate", totalCount > 0 ? successCount / totalCount : 0.0);
+    metrics.put("successCount", (long) successCount);
+    metrics.put("errorCount", (long) errorCount);
+    metrics.put("totalCount", (long) totalCount);
+    metrics.put("successRate", totalCount > 0 ? successCount / totalCount : 0.0);
 
-    return either;
+    return metrics;
+  }
+
+  private Map<String, Object> getEitherMetrics() {
+    return getSuccessErrorMetrics(
+        metricsService::getEitherSuccessCount, metricsService::getEitherErrorCount);
   }
 
   private Map<String, Object> getValidatedMetrics() {
@@ -158,16 +169,17 @@ public class HkjMetricsEndpoint {
   }
 
   private Map<String, Object> getEitherTMetrics() {
-    Map<String, Object> eitherT = new LinkedHashMap<>();
-    double successCount = metricsService.getEitherTSuccessCount();
-    double errorCount = metricsService.getEitherTErrorCount();
-    double totalCount = successCount + errorCount;
+    return getSuccessErrorMetrics(
+        metricsService::getEitherTSuccessCount, metricsService::getEitherTErrorCount);
+  }
 
-    eitherT.put("successCount", (long) successCount);
-    eitherT.put("errorCount", (long) errorCount);
-    eitherT.put("totalCount", (long) totalCount);
-    eitherT.put("successRate", totalCount > 0 ? successCount / totalCount : 0.0);
+  private Map<String, Object> getVTaskMetrics() {
+    return getSuccessErrorMetrics(
+        metricsService::getVTaskSuccessCount, metricsService::getVTaskErrorCount);
+  }
 
-    return eitherT;
+  private Map<String, Object> getVStreamMetrics() {
+    return getSuccessErrorMetrics(
+        metricsService::getVStreamSuccessCount, metricsService::getVStreamErrorCount);
   }
 }

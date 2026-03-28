@@ -5,9 +5,11 @@ package org.higherkindedj.spring.web.returnvalue;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,6 +82,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
   private final int failureStatus;
   private final boolean includeExceptionDetails;
   private final long timeoutMillis;
+  private final @Nullable HkjMetricsService metricsService;
 
   /**
    * Creates a new VStreamPathReturnValueHandler with the specified settings.
@@ -88,17 +91,20 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
    * @param failureStatus the HTTP status code for stream failures (default 500)
    * @param includeExceptionDetails whether to include exception details in error events
    * @param timeoutMillis timeout for the entire stream in milliseconds (0 = no timeout)
+   * @param metricsService the metrics service for recording VStream invocations (may be null)
    */
   public VStreamPathReturnValueHandler(
       JsonMapper jsonMapper,
       int failureStatus,
       boolean includeExceptionDetails,
-      long timeoutMillis) {
+      long timeoutMillis,
+      @Nullable HkjMetricsService metricsService) {
     this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.failureStatus = failureStatus;
     this.includeExceptionDetails = includeExceptionDetails;
     this.timeoutMillis = timeoutMillis;
+    this.metricsService = metricsService;
   }
 
   @Override
@@ -153,6 +159,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
         .name("hkj-vstream-handler")
         .start(
             () -> {
+              AtomicLong elementCount = new AtomicLong(0);
               try {
                 response.setStatus(HttpStatus.OK.value());
                 response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
@@ -164,15 +171,24 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 PrintWriter writer = response.getWriter();
                 VStream<?> stream = streamPath.run();
 
-                pullAndWrite(stream, writer);
+                pullAndWrite(stream, writer, elementCount);
 
                 // Send completion event
                 writer.write("event: complete\ndata: {\"done\":true}\n\n");
                 writer.flush();
 
+                if (metricsService != null) {
+                  metricsService.recordVStreamSuccess();
+                  metricsService.recordVStreamElements(elementCount.get());
+                }
+
                 deferredResult.setResult(null);
               } catch (Exception e) {
                 log.error("VStreamPath streaming failed", e);
+                if (metricsService != null) {
+                  metricsService.recordVStreamError(e.getClass().getSimpleName());
+                  metricsService.recordVStreamElements(elementCount.get());
+                }
                 try {
                   writeErrorEvent(response, e);
                 } catch (Exception writeError) {
@@ -188,7 +204,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
   }
 
   @SuppressWarnings("preview")
-  private void pullAndWrite(VStream<?> stream, PrintWriter writer) {
+  private void pullAndWrite(VStream<?> stream, PrintWriter writer, AtomicLong elementCount) {
     VStream<?> current = stream;
     while (true) {
       VTask<? extends VStream.Step<?>> pullTask = current.pull();
@@ -200,6 +216,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
             String json = objectWriter.writeValueAsString(emit.value());
             writer.write("data: " + json + "\n\n");
             writer.flush();
+            elementCount.incrementAndGet();
           } catch (Exception e) {
             throw new RuntimeException("Failed to serialize stream element", e);
           }
