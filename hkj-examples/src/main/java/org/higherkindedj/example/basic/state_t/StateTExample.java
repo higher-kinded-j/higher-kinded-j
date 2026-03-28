@@ -136,6 +136,8 @@ public class StateTExample {
     // Output: true
     System.out.println(
         "Is empty from small initial (state 5 for combined): " + combinedEmptyResult.isEmpty());
+
+    mapTExample();
   }
 
   public static <S, F extends WitnessArity<TypeArity.Unary>> Kind<StateTKind.Witness<S, F>, S> get(
