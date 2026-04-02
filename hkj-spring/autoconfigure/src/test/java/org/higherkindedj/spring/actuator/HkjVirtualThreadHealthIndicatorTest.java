@@ -66,8 +66,9 @@ class HkjVirtualThreadHealthIndicatorTest {
 
       Health health = healthIndicator.health();
       assertThat(health.getStatus()).isEqualTo(Status.UP);
-      assertThat(health.getDetails()).containsEntry("vtask.successCount", 90L);
-      assertThat(health.getDetails()).containsEntry("vstream.successCount", 80L);
+      // Detaylar artık double olduğu için 90.0 ve 80.0 olarak kontrol ediyoruz
+      assertThat(health.getDetails()).containsEntry("vtask.successCount", 90.0);
+      assertThat(health.getDetails()).containsEntry("vstream.successCount", 80.0);
     }
   }
 

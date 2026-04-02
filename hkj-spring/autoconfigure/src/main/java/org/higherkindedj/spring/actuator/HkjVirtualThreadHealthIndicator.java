@@ -43,6 +43,7 @@ public class HkjVirtualThreadHealthIndicator implements HealthIndicator {
     }
 
     try {
+      // MetricsService metotları zaten double döndüğü için doğrudan kullanıyoruz.
       double vTaskSuccess = metricsService.getVTaskSuccessCount();
       double vTaskError = metricsService.getVTaskErrorCount();
       double vStreamSuccess = metricsService.getVStreamSuccessCount();
@@ -57,13 +58,13 @@ public class HkjVirtualThreadHealthIndicator implements HealthIndicator {
       Health.Builder builder = (vTaskDegraded || vStreamDegraded) ? Health.down() : Health.up();
 
       return builder
-              .withDetail("vtask.successCount", (long) vTaskSuccess)
-              .withDetail("vtask.errorCount", (long) vTaskError)
-              .withDetail("vtask.totalCount", (long) (vTaskSuccess + vTaskError))
+              .withDetail("vtask.successCount", vTaskSuccess)
+              .withDetail("vtask.errorCount", vTaskError)
+              .withDetail("vtask.totalCount", vTaskSuccess + vTaskError)
               .withDetail("vtask.successRate", vTaskSuccessRate)
-              .withDetail("vstream.successCount", (long) vStreamSuccess)
-              .withDetail("vstream.errorCount", (long) vStreamError)
-              .withDetail("vstream.totalCount", (long) (vStreamSuccess + vStreamError))
+              .withDetail("vstream.successCount", vStreamSuccess)
+              .withDetail("vstream.errorCount", vStreamError)
+              .withDetail("vstream.totalCount", vStreamSuccess + vStreamError)
               .withDetail("vstream.successRate", vStreamSuccessRate)
               .build();
     } catch (Exception e) {

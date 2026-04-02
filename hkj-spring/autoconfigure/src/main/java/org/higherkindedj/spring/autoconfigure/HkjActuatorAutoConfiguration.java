@@ -34,6 +34,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  *   <li>{@link HkjMetricsService} - Micrometer metrics for HKJ handlers
  *   <li>{@link HkjMetricsEndpoint} - Custom actuator endpoint at /actuator/hkj
  *   <li>{@link HkjAsyncHealthIndicator} - Health indicator for async executor
+ *   <li>{@link HkjVirtualThreadHealthIndicator} - Health indicator for virtual threads
  * </ul>
  *
  * <p>Configuration properties:
@@ -42,6 +43,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  *   <li>hkj.actuator.metrics-enabled - Enable/disable metrics (default: true)
  *   <li>management.endpoint.hkj.enabled - Enable/disable custom endpoint (default: true)
  *   <li>management.health.hkj-async.enabled - Enable/disable health indicator (default: true)
+ *   <li>management.health.hkj-virtual-threads.enabled - Enable/disable virtual thread health (default: true)
  * </ul>
  */
 @AutoConfiguration(after = HkjAutoConfiguration.class)
@@ -122,7 +124,8 @@ public class HkjActuatorAutoConfiguration {
           name = "management.health.hkj-virtual-threads.enabled",
           havingValue = "true",
           matchIfMissing = true)
-  public HkjVirtualThreadHealthIndicator hkjVirtualThreadHealthIndicator(HkjMetricsService metricsService) {
+  public HkjVirtualThreadHealthIndicator hkjVirtualThreadHealthIndicator(
+          HkjMetricsService metricsService) {
     return new HkjVirtualThreadHealthIndicator(metricsService);
   }
 }
