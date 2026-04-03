@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.free;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
@@ -125,6 +126,89 @@ public sealed interface Free<F extends WitnessArity<?>, A>
    */
   default <B> Free<F, B> flatMap(Function<? super A, ? extends Free<F, B>> f) {
     return new FlatMapped<>(this, f);
+  }
+
+  /**
+   * Translates a Free program from functor F to functor G using a natural transformation, requiring
+   * a Functor instance for G to map over suspended computations.
+   *
+   * <p>This rebuilds the Free structure, replacing every {@code Suspend} node's instruction from F
+   * with the corresponding instruction in G. The program's structure (Pure, FlatMapped chains) is
+   * preserved.
+   *
+   * <p>The implementation is stack-safe: {@code FlatMapped} nodes are not recursively traversed
+   * during translation. Instead, translation of continuations is deferred into new {@code
+   * FlatMapped} nodes, so the work happens lazily during subsequent {@code foldMap} interpretation.
+   *
+   * <p>This is the primary mechanism for lifting single-effect programs into combined-effect
+   * programs via {@link org.higherkindedj.hkt.inject.Inject}:
+   *
+   * <pre>{@code
+   * Free<ConsoleOpKind.Witness, String> consoleProgram = ...;
+   * Inject<ConsoleOpKind.Witness, AppEffects> inject = ...;
+   * Functor<AppEffects> functor = ...;
+   * Free<AppEffects, String> combined = Free.translate(consoleProgram, inject::inject, functor);
+   * }</pre>
+   *
+   * @param program The Free program to translate. Must not be null.
+   * @param nat The natural transformation from F to G. Must not be null.
+   * @param functorG The Functor instance for the target type G. Must not be null.
+   * @param <F> The source functor type
+   * @param <G> The target functor type
+   * @param <A> The result type
+   * @return A new Free program in functor G with the same structure
+   */
+  @SuppressWarnings("unchecked")
+  static <F extends WitnessArity<?>, G extends WitnessArity<TypeArity.Unary>, A>
+      Free<G, A> translate(Free<F, A> program, Natural<F, G> nat, Functor<G> functorG) {
+    Objects.requireNonNull(program, "program must not be null");
+    Objects.requireNonNull(nat, "nat must not be null");
+    Objects.requireNonNull(functorG, "functorG must not be null");
+    return translateTrampoline(program, nat, functorG).run();
+  }
+
+  /**
+   * Stack-safe translate implementation using {@link Trampoline}.
+   *
+   * <p>Uses {@code Trampoline.defer} to avoid stack overflow on deeply nested or left-associated
+   * {@code FlatMapped} chains. The {@code FlatMapped} case defers sub-program translation through
+   * the trampoline, ensuring left-associated chains do not consume stack frames proportional to
+   * depth.
+   *
+   * <p>The {@code Suspend} case calls {@code translateTrampoline(...).run()} inside {@code
+   * functorG.map}, which is not fully stack-safe for hypothetical deeply nested {@code Suspend}
+   * chains with a strict functor. In practice this is not reachable: {@code Free.liftF} always
+   * wraps a {@code Pure} inside the {@code Suspend}, so nested {@code Suspend} without intervening
+   * {@code FlatMapped} nodes does not occur through the public API. Deep program chains use {@code
+   * FlatMapped}, which is fully trampolined.
+   */
+  @SuppressWarnings("unchecked")
+  private static <F extends WitnessArity<?>, G extends WitnessArity<TypeArity.Unary>, A>
+      Trampoline<Free<G, A>> translateTrampoline(
+          Free<F, A> program, Natural<F, G> nat, Functor<G> functorG) {
+    return switch (program) {
+      case Pure<F, A> p -> Trampoline.done(new Pure<G, A>(p.value()));
+      case Suspend<F, A> s -> {
+        Kind<G, Free<F, A>> translated = nat.apply(s.computation());
+        Kind<G, Free<G, A>> fullyTranslated =
+            functorG.map(inner -> translateTrampoline(inner, nat, functorG).run(), translated);
+        yield Trampoline.done(new Suspend<>(fullyTranslated));
+      }
+      case FlatMapped<F, ?, A> fm -> {
+        var rawFm = (FlatMapped<F, Object, A>) fm;
+        yield Trampoline.defer(
+            () ->
+                translateTrampoline(rawFm.sub(), nat, functorG)
+                    .map(
+                        translatedSub ->
+                            new FlatMapped<>(
+                                translatedSub,
+                                x ->
+                                    translateTrampoline(
+                                            rawFm.continuation().apply(x), nat, functorG)
+                                        .run())));
+      }
+    };
   }
 
   /**

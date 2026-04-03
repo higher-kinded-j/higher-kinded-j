@@ -77,6 +77,7 @@ tasks.jacocoTestReport {
               exclude(
                   "**/StateTupleLenses.class", // Exclude the example package
                   "**/*Kind.class",
+                  "**/*Kind\$Witness.class", // Witness inner classes (phantom type markers)
                   "**/FunctionKind.Witness.class",
                   "**/*Holder*.class"
               )
