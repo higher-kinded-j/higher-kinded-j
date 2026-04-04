@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.higherkindedj.spring.actuator.HkjAsyncHealthIndicator;
 import org.higherkindedj.spring.actuator.HkjMetricsEndpoint;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
+import org.higherkindedj.spring.actuator.HkjVirtualThreadHealthIndicator;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -33,6 +34,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  *   <li>{@link HkjMetricsService} - Micrometer metrics for HKJ handlers
  *   <li>{@link HkjMetricsEndpoint} - Custom actuator endpoint at /actuator/hkj
  *   <li>{@link HkjAsyncHealthIndicator} - Health indicator for async executor
+ *   <li>{@link HkjVirtualThreadHealthIndicator} - Health indicator for virtual threads
  * </ul>
  *
  * <p>Configuration properties:
@@ -41,6 +43,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  *   <li>hkj.actuator.metrics-enabled - Enable/disable metrics (default: true)
  *   <li>management.endpoint.hkj.enabled - Enable/disable custom endpoint (default: true)
  *   <li>management.health.hkj-async.enabled - Enable/disable health indicator (default: true)
+ *   <li>management.health.hkj-virtual-threads.enabled - Enable/disable virtual thread health
+ *       (default: true)
  * </ul>
  */
 @AutoConfiguration(after = HkjAutoConfiguration.class)
@@ -103,5 +107,29 @@ public class HkjActuatorAutoConfiguration {
   @ConditionalOnBean(name = "hkjAsyncExecutor")
   public HkjAsyncHealthIndicator hkjAsyncHealthIndicator(ThreadPoolTaskExecutor executor) {
     return new HkjAsyncHealthIndicator(executor);
+  }
+
+  /**
+   * Creates the Virtual Thread health indicator.
+   *
+   * <p>Monitors the success and error rates of Virtual Thread based operations.
+   *
+   * <p>Enabled by default. Disable with: {@code
+   * management.health.hkj-virtual-threads.enabled=false}
+   *
+   * @param metricsService the metrics service used to retrieve operation counts
+   * @param properties the HKJ configuration properties
+   * @return the virtual thread health indicator
+   */
+  @Bean(name = "hkjVirtualThreadHealthIndicator")
+  @ConditionalOnBean(HkjMetricsService.class)
+  @ConditionalOnProperty(
+      name = "management.health.hkj-virtual-threads.enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  public HkjVirtualThreadHealthIndicator hkjVirtualThreadHealthIndicator(
+      HkjMetricsService metricsService, HkjProperties properties) {
+    return new HkjVirtualThreadHealthIndicator(
+        metricsService, properties.getVirtualThreads().getHealthErrorThreshold());
   }
 }
