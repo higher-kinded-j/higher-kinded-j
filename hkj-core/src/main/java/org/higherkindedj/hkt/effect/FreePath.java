@@ -17,6 +17,8 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.free.Free;
+import org.higherkindedj.hkt.free.FreeKind;
+import org.higherkindedj.hkt.free.FreeKindHelper;
 
 /**
  * A fluent path wrapper for {@link Free} monad computations.
@@ -170,6 +172,19 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A> implemen
    */
   public Free<F, A> toFree() {
     return free;
+  }
+
+  /**
+   * Returns the underlying computation as a {@link Kind} at the {@code FreeKind.Witness<F>} level.
+   *
+   * <p>This is useful for integration with the HKT monad infrastructure, such as {@link
+   * org.higherkindedj.hkt.free.FreeMonad FreeMonad} and {@link
+   * org.higherkindedj.hkt.expression.ForPath ForPath} comprehensions.
+   *
+   * @return the widened Kind representation of the underlying Free monad
+   */
+  public Kind<FreeKind.Witness<F>, A> runKind() {
+    return FreeKindHelper.FREE.widen(free);
   }
 
   /**

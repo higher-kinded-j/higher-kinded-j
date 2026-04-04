@@ -826,11 +826,56 @@ class ForComprehensionGeneratorTest {
     }
 
     @Test
-    @DisplayName("All 9 path types should generate steps for each arity")
+    @DisplayName("FreePathSteps should have monad and functor instance fields")
+    void freePathStepsMonadAndFunctorFields() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps2");
+
+      assertThat(source).contains("private final Monad<FreeKind.Witness<F>> monad;");
+      assertThat(source).contains("private final Functor<F> functor;");
+      assertThat(source).contains("F extends WitnessArity<TypeArity.Unary>");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps from() should use runKind pattern")
+    void freePathStepsFromUsesRunKind() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source).contains("next.apply(t).runKind()");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps yield should return FreePath<F, R>")
+    void freePathStepsYieldReturnType() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source).contains("FreePath<F, R>");
+      assertThat(source).contains("FreePath.of(FreeKindHelper.FREE.narrow(result), functor)");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps should not be filterable")
+    void freePathStepsNotFilterable() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source).doesNotContain("when(");
+      assertThat(source).doesNotContain("match(");
+      assertThat(source).doesNotContain("Predicate<");
+    }
+
+    @Test
+    @DisplayName("All 10 path types should generate steps for each arity")
     void allPathTypesGenerateSteps() throws IOException {
       Compilation compilation = compile(packageInfoSource());
 
-      // All 9 path types should generate steps from arity 2 through 8
+      // All 10 path types should generate steps from arity 2 through 8
       String[] prefixes = {
         "MaybePathSteps",
         "OptionalPathSteps",
@@ -840,6 +885,7 @@ class ForComprehensionGeneratorTest {
         "VTaskPathSteps",
         "IdPathSteps",
         "NonDetPathSteps",
+        "FreePathSteps",
         "GenericPathSteps"
       };
 

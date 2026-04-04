@@ -7,7 +7,7 @@ import java.io.Writer;
 import javax.annotation.processing.ProcessingEnvironment;
 
 /**
- * Generates {@code *PathStepsN} classes for all 9 ForPath effect types.
+ * Generates {@code *PathStepsN} classes for all 10 ForPath effect types.
  *
  * <p>Each path type follows the same structural pattern as the hand-written ForPath inner classes
  * but is generated as a top-level public final class with a package-private constructor.
@@ -39,8 +39,9 @@ final class ForPathStepGenerator {
    * Returns the value type parameters for a descriptor, avoiding collision with extra type params.
    */
   private static String[] valueParams(PathTypeDescriptor desc) {
-    if ("E".equals(desc.extraTypeParamName) && !desc.isGeneric) return EITHER_VALUE_PARAMS;
-    if (desc.isGeneric) return GENERIC_VALUE_PARAMS;
+    if ("E".equals(desc.extraTypeParamName) && !desc.isGeneric && !desc.isFree)
+      return EITHER_VALUE_PARAMS;
+    if (desc.isGeneric || desc.isFree) return GENERIC_VALUE_PARAMS;
     return TYPE_PARAMS;
   }
 
@@ -58,11 +59,12 @@ final class ForPathStepGenerator {
       String kindHelperField, // e.g. "MaybeKindHelper.MAYBE"
       String pathFactoryExpr, // e.g. "Path.maybe" -- will be combined with narrow/runKind
       boolean filterable, // true for Maybe, Optional, NonDet
-      boolean hasExtraTypeParam, // true for Either (E) and Generic (F)
-      String extraTypeParamName, // "E" for Either, "F" for Generic, null otherwise
-      String extraTypeParamBound, // null for Either (unbounded), bound for Generic
+      boolean hasExtraTypeParam, // true for Either (E), Generic (F), and Free (F)
+      String extraTypeParamName, // "E" for Either, "F" for Generic/Free, null otherwise
+      String extraTypeParamBound, // null for Either (unbounded), bound for Generic/Free
       boolean isGeneric, // true only for Generic (uses runKind, instance monad)
       boolean isNonDet, // true only for NonDet (uses NonDetPath.of)
+      boolean isFree, // true only for Free (uses runKind, instance monad + functor)
       int currentMaxArity // current hand-written max arity
       ) {}
 
@@ -82,6 +84,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
+        false,
         1),
     new PathTypeDescriptor(
         "OptionalPath",
@@ -96,6 +99,7 @@ final class ForPathStepGenerator {
         false,
         null,
         null,
+        false,
         false,
         false,
         1),
@@ -114,6 +118,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
+        false,
         1),
     new PathTypeDescriptor(
         "TryPath",
@@ -128,6 +133,7 @@ final class ForPathStepGenerator {
         false,
         null,
         null,
+        false,
         false,
         false,
         1),
@@ -146,6 +152,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
+        false,
         1),
     new PathTypeDescriptor(
         "VTaskPath",
@@ -160,6 +167,7 @@ final class ForPathStepGenerator {
         false,
         null,
         null,
+        false,
         false,
         false,
         1),
@@ -178,6 +186,7 @@ final class ForPathStepGenerator {
         null,
         false,
         false,
+        false,
         1),
     new PathTypeDescriptor(
         "NonDetPath",
@@ -192,6 +201,24 @@ final class ForPathStepGenerator {
         false,
         null,
         null,
+        false,
+        true,
+        false,
+        1),
+    new PathTypeDescriptor(
+        "FreePath",
+        "FreePathSteps",
+        "FreeKind.Witness<F>",
+        "FreeMonad",
+        null,
+        false,
+        "FreeKindHelper.FREE",
+        "FreePath.of",
+        false,
+        true,
+        "F",
+        "F extends WitnessArity<TypeArity.Unary>",
+        false,
         false,
         true,
         1),
@@ -209,6 +236,7 @@ final class ForPathStepGenerator {
         "F",
         "F extends WitnessArity<TypeArity.Unary>",
         true,
+        false,
         false,
         1),
   };
@@ -327,15 +355,18 @@ final class ForPathStepGenerator {
 
     // HKT imports
     sb.append("import org.higherkindedj.hkt.Kind;\n");
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("import org.higherkindedj.hkt.Monad;\n");
     } else if (!terminal) {
       sb.append("import org.higherkindedj.hkt.Monad;\n");
     }
+    if (desc.isFree) {
+      sb.append("import org.higherkindedj.hkt.Functor;\n");
+    }
     if (!terminal) {
       sb.append("import org.higherkindedj.hkt.Traverse;\n");
     }
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("import org.higherkindedj.hkt.TypeArity;\n");
       sb.append("import org.higherkindedj.hkt.WitnessArity;\n");
     } else if (!terminal) {
@@ -344,7 +375,12 @@ final class ForPathStepGenerator {
     }
 
     // Path effect imports
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      sb.append("import org.higherkindedj.hkt.effect.FreePath;\n");
+      sb.append("import org.higherkindedj.hkt.free.FreeKind;\n");
+      sb.append("import org.higherkindedj.hkt.free.FreeKindHelper;\n");
+      sb.append("import org.higherkindedj.hkt.free.FreeMonad;\n");
+    } else if (desc.isGeneric) {
       sb.append("import org.higherkindedj.hkt.effect.GenericPath;\n");
     } else if (desc.isNonDet) {
       sb.append("import org.higherkindedj.hkt.effect.NonDetPath;\n");
@@ -353,8 +389,8 @@ final class ForPathStepGenerator {
       sb.append("import org.higherkindedj.hkt.effect.Path;\n");
     }
 
-    // Monad/KindHelper imports (for non-Generic)
-    if (!desc.isGeneric) {
+    // Monad/KindHelper imports (for non-Generic, non-Free)
+    if (!desc.isGeneric && !desc.isFree) {
       appendMonadKindHelperImports(sb, desc);
     }
 
@@ -427,7 +463,7 @@ final class ForPathStepGenerator {
 
   private static void appendClassTypeParams(StringBuilder sb, PathTypeDescriptor desc, int n) {
     String[] vp = valueParams(desc);
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("F extends WitnessArity<TypeArity.Unary>");
       for (int i = 0; i < n; i++) {
         sb.append(", ").append(vp[i]);
@@ -460,10 +496,14 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void appendFields(StringBuilder sb, PathTypeDescriptor desc, int n) {
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      // Instance monad and functor fields for Free
+      sb.append("  private final Monad<FreeKind.Witness<F>> monad;\n");
+      sb.append("  private final Functor<F> functor;\n");
+    } else if (desc.isGeneric) {
       // Instance monad field
       sb.append("  private final Monad<F> monad;\n");
-    } else if (desc.hasExtraTypeParam && !desc.isGeneric) {
+    } else if (desc.hasExtraTypeParam && !desc.isGeneric && !desc.isFree) {
       // Either: no static field, uses private static method
       // Nothing here for field; monad() method added below
     } else if (desc.isStaticMonad) {
@@ -490,7 +530,7 @@ final class ForPathStepGenerator {
     sb.append(">> computation;\n\n");
 
     // Either: private static monad() helper method
-    if (desc.hasExtraTypeParam && !desc.isGeneric) {
+    if (desc.hasExtraTypeParam && !desc.isGeneric && !desc.isFree) {
       sb.append("  private static <E> EitherMonad<E> monad() {\n");
       sb.append("    return EitherMonad.instance();\n");
       sb.append("  }\n\n");
@@ -504,13 +544,18 @@ final class ForPathStepGenerator {
   private static void appendConstructor(
       StringBuilder sb, PathTypeDescriptor desc, String className, int n) {
     sb.append("  ").append(className).append("(");
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      sb.append("Monad<FreeKind.Witness<F>> monad, Functor<F> functor, ");
+    } else if (desc.isGeneric) {
       sb.append("Monad<F> monad, ");
     }
     sb.append("Kind<").append(desc.witnessType).append(", Tuple").append(n).append("<");
     appendValueTypeParams(sb, desc, n);
     sb.append(">> computation) {\n");
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      sb.append("    this.monad = monad;\n");
+      sb.append("    this.functor = functor;\n");
+    } else if (desc.isGeneric) {
       sb.append("    this.monad = monad;\n");
     }
     sb.append("    this.computation = computation;\n");
@@ -539,7 +584,7 @@ final class ForPathStepGenerator {
     if (needsLocalMonad(desc)) {
       sb.append("    EitherMonad<E> m = monad();\n");
       appendFromBody(sb, desc, n, next, nextType, "m");
-    } else if (desc.isGeneric) {
+    } else if (desc.isGeneric || desc.isFree) {
       appendFromBody(sb, desc, n, next, nextType, "monad");
     } else {
       appendFromBody(sb, desc, n, next, nextType, "MONAD");
@@ -547,9 +592,7 @@ final class ForPathStepGenerator {
 
     // Return
     sb.append("    return new ").append(nextClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
   }
@@ -574,7 +617,7 @@ final class ForPathStepGenerator {
 
     // The widen/runKind expression
     sb.append("                ");
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("next.apply(t).runKind()");
     } else {
       sb.append(desc.kindHelperField).append(".widen(next.apply(t).run())");
@@ -616,9 +659,7 @@ final class ForPathStepGenerator {
 
     // Return
     sb.append("    return new ").append(nextClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
   }
@@ -670,9 +711,7 @@ final class ForPathStepGenerator {
         .append(".zero(),\n");
     sb.append("            computation);\n");
     sb.append("    return new ").append(className).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
   }
@@ -716,9 +755,7 @@ final class ForPathStepGenerator {
     sb.append("            this.computation);\n");
 
     sb.append("    return new ").append(nextClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
   }
@@ -764,7 +801,7 @@ final class ForPathStepGenerator {
     }
     sb.append("> ").append(targetClassName).append("<");
     // Type args for target class
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("F");
       for (int i = 0; i < targetArity; i++) {
         sb.append(", ").append(vp[i]);
@@ -812,7 +849,7 @@ final class ForPathStepGenerator {
     // map arguments: widen(fI.apply(t).run())
     for (int i = 0; i < k; i++) {
       sb.append("                ");
-      if (desc.isGeneric) {
+      if (desc.isGeneric || desc.isFree) {
         sb.append("f").append(i + 1).append(".apply(t).runKind()");
       } else {
         sb.append(desc.kindHelperField).append(".widen(f").append(i + 1).append(".apply(t).run())");
@@ -839,9 +876,7 @@ final class ForPathStepGenerator {
 
     // Return
     sb.append("    return new ").append(targetClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("next);\n");
     sb.append("  }\n\n");
   }
@@ -864,7 +899,7 @@ final class ForPathStepGenerator {
         .append(nextClassName)
         .append("<");
     // Type args for next class: extra params + value params + Kind<TT, TR>
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("F");
       for (int i = 0; i < n; i++) {
         sb.append(", ").append(vp[i]);
@@ -909,9 +944,7 @@ final class ForPathStepGenerator {
         .append(", f, extractor.apply(t))),\n");
     sb.append("            computation);\n");
     sb.append("    return new ").append(nextClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
 
@@ -919,7 +952,7 @@ final class ForPathStepGenerator {
     sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TR> ")
         .append(nextClassName)
         .append("<");
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("F");
       for (int i = 0; i < n; i++) {
         sb.append(", ").append(vp[i]);
@@ -967,9 +1000,7 @@ final class ForPathStepGenerator {
         .append(", extractor.apply(t))),\n");
     sb.append("            computation);\n");
     sb.append("    return new ").append(nextClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
 
@@ -977,7 +1008,7 @@ final class ForPathStepGenerator {
     sb.append("  public <TT extends WitnessArity<TypeArity.Unary>, TC, TR> ")
         .append(nextClassName)
         .append("<");
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("F");
       for (int i = 0; i < n; i++) {
         sb.append(", ").append(vp[i]);
@@ -1034,9 +1065,7 @@ final class ForPathStepGenerator {
     sb.append("            },\n");
     sb.append("            computation);\n");
     sb.append("    return new ").append(nextClassName).append("<>(");
-    if (desc.isGeneric) {
-      sb.append("monad, ");
-    }
+    appendConstructorArgs(sb, desc);
     sb.append("newComp);\n");
     sb.append("  }\n\n");
   }
@@ -1102,7 +1131,9 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void appendReturnPath(StringBuilder sb, PathTypeDescriptor desc) {
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      sb.append("    return FreePath.of(FreeKindHelper.FREE.narrow(result), functor);\n");
+    } else if (desc.isGeneric) {
       sb.append("    return GenericPath.of(result, monad);\n");
     } else if (desc.isNonDet) {
       sb.append("    return NonDetPath.of(")
@@ -1123,7 +1154,9 @@ final class ForPathStepGenerator {
 
   /** Gets the return type for yield methods, e.g. "MaybePath<R>" or "EitherPath<E, R>". */
   private static String yieldReturnType(PathTypeDescriptor desc) {
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      return "FreePath<F, R>";
+    } else if (desc.isGeneric) {
       return "GenericPath<F, R>";
     } else if (desc.hasExtraTypeParam) {
       return desc.pathTypeName + "<" + desc.extraTypeParamName + ", R>";
@@ -1134,7 +1167,9 @@ final class ForPathStepGenerator {
 
   /** Gets the path type for from() parameter, e.g. "MaybePath<G>" or "EitherPath<E, G>". */
   private static String fromReturnPathType(PathTypeDescriptor desc, String nextType) {
-    if (desc.isGeneric) {
+    if (desc.isFree) {
+      return "FreePath<F, " + nextType + ">";
+    } else if (desc.isGeneric) {
       return "GenericPath<F, " + nextType + ">";
     } else if (desc.hasExtraTypeParam) {
       return desc.pathTypeName + "<" + desc.extraTypeParamName + ", " + nextType + ">";
@@ -1153,7 +1188,7 @@ final class ForPathStepGenerator {
     if (needsLocalMonad(desc)) {
       sb.append("    EitherMonad<E> m = monad();\n");
       return "m";
-    } else if (desc.isGeneric) {
+    } else if (desc.isGeneric || desc.isFree) {
       return "monad";
     } else {
       return "MONAD";
@@ -1163,18 +1198,29 @@ final class ForPathStepGenerator {
   /** Returns the monad reference string without emitting code. */
   private static String monadRef(PathTypeDescriptor desc) {
     if (needsLocalMonad(desc)) return "m";
-    if (desc.isGeneric) return "monad";
+    if (desc.isGeneric || desc.isFree) return "monad";
     return "MONAD";
   }
 
   private static boolean needsLocalMonad(PathTypeDescriptor desc) {
-    return desc.hasExtraTypeParam && !desc.isGeneric;
+    return desc.hasExtraTypeParam && !desc.isGeneric && !desc.isFree;
+  }
+
+  /**
+   * Appends constructor args prefix for the next step class (e.g. "monad, " or "monad, functor, ").
+   */
+  private static void appendConstructorArgs(StringBuilder sb, PathTypeDescriptor desc) {
+    if (desc.isFree) {
+      sb.append("monad, functor, ");
+    } else if (desc.isGeneric) {
+      sb.append("monad, ");
+    }
   }
 
   /** Appends the type args for the next step class reference. */
   private static void appendNextClassTypeArgs(StringBuilder sb, PathTypeDescriptor desc, int next) {
     String[] vp = valueParams(desc);
-    if (desc.isGeneric) {
+    if (desc.isGeneric || desc.isFree) {
       sb.append("F");
       for (int i = 0; i < next; i++) {
         sb.append(", ").append(vp[i]);
