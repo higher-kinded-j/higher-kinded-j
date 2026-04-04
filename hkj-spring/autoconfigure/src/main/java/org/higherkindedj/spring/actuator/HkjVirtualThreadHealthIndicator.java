@@ -8,8 +8,26 @@ import org.springframework.boot.health.contributor.HealthIndicator;
 /**
  * Health indicator for VTask and VStream virtual thread operations.
  *
- * <p>Monitors error rates for virtual thread based computations to ensure system stability.
- * Health is determined by comparing the failure rate against a configurable threshold.
+ * <p>Monitors error rates for virtual thread based computations to ensure system stability. Health
+ * is determined by comparing the failure rate against a configurable threshold.
+ *
+ * <p>Example health response:
+ *
+ * <pre>{@code
+ * {
+ * "status": "UP",
+ * "details": {
+ * "vtask.successCount": 100.0,
+ * "vtask.errorCount": 0.0,
+ * "vtask.totalCount": 100.0,
+ * "vtask.successRate": 1.0,
+ * "vstream.successCount": 50.0,
+ * "vstream.errorCount": 5.0,
+ * "vstream.totalCount": 55.0,
+ * "vstream.successRate": 0.909
+ * }
+ * }
+ * }</pre>
  */
 public class HkjVirtualThreadHealthIndicator implements HealthIndicator {
 
@@ -43,7 +61,6 @@ public class HkjVirtualThreadHealthIndicator implements HealthIndicator {
     }
 
     try {
-      // MetricsService metotları zaten double döndüğü için doğrudan kullanıyoruz.
       double vTaskSuccess = metricsService.getVTaskSuccessCount();
       double vTaskError = metricsService.getVTaskErrorCount();
       double vStreamSuccess = metricsService.getVStreamSuccessCount();
@@ -58,15 +75,15 @@ public class HkjVirtualThreadHealthIndicator implements HealthIndicator {
       Health.Builder builder = (vTaskDegraded || vStreamDegraded) ? Health.down() : Health.up();
 
       return builder
-              .withDetail("vtask.successCount", vTaskSuccess)
-              .withDetail("vtask.errorCount", vTaskError)
-              .withDetail("vtask.totalCount", vTaskSuccess + vTaskError)
-              .withDetail("vtask.successRate", vTaskSuccessRate)
-              .withDetail("vstream.successCount", vStreamSuccess)
-              .withDetail("vstream.errorCount", vStreamError)
-              .withDetail("vstream.totalCount", vStreamSuccess + vStreamError)
-              .withDetail("vstream.successRate", vStreamSuccessRate)
-              .build();
+          .withDetail("vtask.successCount", vTaskSuccess)
+          .withDetail("vtask.errorCount", vTaskError)
+          .withDetail("vtask.totalCount", vTaskSuccess + vTaskError)
+          .withDetail("vtask.successRate", vTaskSuccessRate)
+          .withDetail("vstream.successCount", vStreamSuccess)
+          .withDetail("vstream.errorCount", vStreamError)
+          .withDetail("vstream.totalCount", vStreamSuccess + vStreamError)
+          .withDetail("vstream.successRate", vStreamSuccessRate)
+          .build();
     } catch (Exception e) {
       return Health.down().withDetail("error", e.getMessage()).build();
     }

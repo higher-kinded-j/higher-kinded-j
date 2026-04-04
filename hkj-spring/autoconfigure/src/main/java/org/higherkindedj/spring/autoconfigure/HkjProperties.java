@@ -1164,6 +1164,9 @@ public class HkjProperties {
      */
     private long streamTimeoutMs = 60000;
 
+    /** Error rate threshold for virtual thread health indicator (0.0 to 1.0). Default: 0.5 */
+    private double healthErrorThreshold = 0.5;
+
     /** Creates a new VirtualThreads configuration with default values. */
     public VirtualThreads() {}
 
@@ -1201,6 +1204,24 @@ public class HkjProperties {
      */
     public void setStreamTimeoutMs(long streamTimeoutMs) {
       this.streamTimeoutMs = streamTimeoutMs;
+    }
+
+    /**
+     * Returns the health error threshold.
+     *
+     * @return the health error threshold
+     */
+    public double getHealthErrorThreshold() {
+      return healthErrorThreshold;
+    }
+
+    /**
+     * Sets the health error threshold.
+     *
+     * @param healthErrorThreshold the health error threshold
+     */
+    public void setHealthErrorThreshold(double healthErrorThreshold) {
+      this.healthErrorThreshold = healthErrorThreshold;
     }
   }
 }
