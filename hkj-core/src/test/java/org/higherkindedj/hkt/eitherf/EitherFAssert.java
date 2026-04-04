@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.eitherf;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.higherkindedj.hkt.Kind;
@@ -84,7 +85,9 @@ public class EitherFAssert<F extends WitnessArity<?>, G extends WitnessArity<?>,
    * @return This assertion object for method chaining
    */
   public EitherFAssert<F, G, A> hasLeftSatisfying(Consumer<Kind<F, A>> requirements) {
+    Objects.requireNonNull(requirements, "requirements must not be null");
     isLeft();
+    // Safe: isLeft() verified above; sealed interface guarantees Left type
     @SuppressWarnings("unchecked")
     EitherF.Left<F, G, A> left = (EitherF.Left<F, G, A>) actual;
     requirements.accept(left.value());
@@ -99,7 +102,9 @@ public class EitherFAssert<F extends WitnessArity<?>, G extends WitnessArity<?>,
    * @return This assertion object for method chaining
    */
   public EitherFAssert<F, G, A> hasRightSatisfying(Consumer<Kind<G, A>> requirements) {
+    Objects.requireNonNull(requirements, "requirements must not be null");
     isRight();
+    // Safe: isRight() verified above; sealed interface guarantees Right type
     @SuppressWarnings("unchecked")
     EitherF.Right<F, G, A> right = (EitherF.Right<F, G, A>) actual;
     requirements.accept(right.value());

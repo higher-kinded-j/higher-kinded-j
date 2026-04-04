@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
 import net.jqwik.api.*;
@@ -11,8 +12,16 @@ import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.trymonad.TryKind;
+import org.higherkindedj.hkt.trymonad.TryMonad;
 
 /**
  * Property-based tests for FreePath using jQwik.
@@ -226,5 +235,99 @@ class FreePathPropertyTest {
     FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, MaybeMonad.INSTANCE);
 
     assertThat(path.functor()).isEqualTo(MaybeMonad.INSTANCE);
+  }
+
+  // ===== Error Recovery Properties =====
+
+  // Id -> Try interpreter that succeeds
+  private static final Natural<IdKind.Witness, TryKind.Witness> SUCCESS_TRY_INTERPRETER =
+      new Natural<>() {
+        @Override
+        public <A> Kind<TryKind.Witness, A> apply(Kind<IdKind.Witness, A> fa) {
+          A value = IdKindHelper.ID.narrow(fa).value();
+          return TRY.widen(Try.success(value));
+        }
+      };
+
+  // Id -> Try interpreter that always fails
+  private static final Natural<IdKind.Witness, TryKind.Witness> FAILING_TRY_INTERPRETER =
+      new Natural<>() {
+        @Override
+        public <A> Kind<TryKind.Witness, A> apply(Kind<IdKind.Witness, A> fa) {
+          return TryMonad.INSTANCE.raiseError(new RuntimeException("test failure"));
+        }
+      };
+
+  @Property
+  @Label("recover on success is a no-op")
+  void recoverOnSuccessIsIdentity(@ForAll @IntRange(min = -100, max = 100) int value) {
+    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> recovered = path.recover(_ -> -999);
+
+    GenericPath<TryKind.Witness, Integer> result =
+        recovered.foldMap(SUCCESS_TRY_INTERPRETER, TryMonad.INSTANCE);
+    Try<Integer> tryResult = TRY.narrow(result.runKind());
+
+    assertThat(tryResult.isSuccess()).isTrue();
+    assertThat(tryResult.orElse(null)).isEqualTo(value);
+  }
+
+  @Property
+  @Label("recover on failure produces fallback value")
+  void recoverOnFailureProducesFallback(@ForAll @IntRange(min = -100, max = 100) int fallback) {
+    FreePath<IdKind.Witness, Integer> path = FreePath.liftF(Id.of(42), IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> recovered = path.recover(_ -> fallback);
+
+    GenericPath<TryKind.Witness, Integer> result =
+        recovered.foldMap(FAILING_TRY_INTERPRETER, TryMonad.INSTANCE);
+    Try<Integer> tryResult = TRY.narrow(result.runKind());
+
+    assertThat(tryResult.isSuccess()).isTrue();
+    assertThat(tryResult.orElse(null)).isEqualTo(fallback);
+  }
+
+  @Property
+  @Label("attempt on success produces Right")
+  void attemptOnSuccessProducesRight(@ForAll @IntRange(min = -100, max = 100) int value) {
+    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, IdMonad.instance());
+    FreePath<IdKind.Witness, Either<Throwable, Integer>> attempted = path.attempt();
+
+    GenericPath<TryKind.Witness, Either<Throwable, Integer>> result =
+        attempted.foldMap(SUCCESS_TRY_INTERPRETER, TryMonad.INSTANCE);
+    Try<Either<Throwable, Integer>> tryResult = TRY.narrow(result.runKind());
+
+    assertThat(tryResult.isSuccess()).isTrue();
+    assertThat(tryResult.orElse(null).isRight()).isTrue();
+    assertThat(tryResult.orElse(null).getRight()).isEqualTo(value);
+  }
+
+  @Property
+  @Label("attempt on failure produces Left")
+  void attemptOnFailureProducesLeft(@ForAll @IntRange(min = -100, max = 100) int value) {
+    FreePath<IdKind.Witness, Integer> path = FreePath.liftF(Id.of(value), IdMonad.instance());
+    FreePath<IdKind.Witness, Either<Throwable, Integer>> attempted = path.attempt();
+
+    GenericPath<TryKind.Witness, Either<Throwable, Integer>> result =
+        attempted.foldMap(FAILING_TRY_INTERPRETER, TryMonad.INSTANCE);
+    Try<Either<Throwable, Integer>> tryResult = TRY.narrow(result.runKind());
+
+    assertThat(tryResult.isSuccess()).isTrue();
+    assertThat(tryResult.orElse(null).isLeft()).isTrue();
+    assertThat(tryResult.orElse(null).getLeft()).isInstanceOf(RuntimeException.class);
+  }
+
+  @Property
+  @Label("orElse on success preserves original value")
+  void orElseOnSuccessPreservesValue(@ForAll @IntRange(min = -100, max = 100) int value) {
+    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> withFallback =
+        path.orElse(() -> FreePath.pure(-999, IdMonad.instance()));
+
+    GenericPath<TryKind.Witness, Integer> result =
+        withFallback.foldMap(SUCCESS_TRY_INTERPRETER, TryMonad.INSTANCE);
+    Try<Integer> tryResult = TRY.narrow(result.runKind());
+
+    assertThat(tryResult.isSuccess()).isTrue();
+    assertThat(tryResult.orElse(null)).isEqualTo(value);
   }
 }

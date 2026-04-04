@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.error;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -42,7 +44,7 @@ public sealed interface ErrorOp<E, A> permits ErrorOp.Raise {
    */
   record Raise<E, A>(E error) implements ErrorOp<E, A> {
     public Raise {
-      Objects.requireNonNull(error, "error must not be null");
+      Validation.function().require(error, "error", CONSTRUCTION);
     }
   }
 }

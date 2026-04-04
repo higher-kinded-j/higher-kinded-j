@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.free.Free;
 
 /**
@@ -298,6 +299,23 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A> implemen
           Objects.requireNonNull(fb, "fallback must not return null");
           return fb;
         });
+  }
+
+  /**
+   * Captures the outcome of this FreePath as an {@link Either}, where a {@link Either.Left Left}
+   * contains the error and a {@link Either.Right Right} contains the successful value.
+   *
+   * <p>During interpretation, if the target monad is a {@link org.higherkindedj.hkt.MonadError
+   * MonadError}, any error is captured as a {@code Left}. If the target monad is not a {@code
+   * MonadError}, the result is always a {@code Right} (the handler is silently ignored).
+   *
+   * @return A new FreePath producing {@code Either<Throwable, A>}
+   */
+  public FreePath<F, Either<Throwable, A>> attempt() {
+    // Map the success path to Right
+    FreePath<F, Either<Throwable, A>> rightPath = this.map(Either::right);
+    // Handle errors by wrapping them in Left
+    return rightPath.handleError(Throwable.class, e -> FreePath.pure(Either.left(e), functor));
   }
 
   // ===== Object Methods =====

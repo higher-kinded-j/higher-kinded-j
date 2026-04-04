@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.eitherf;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -61,7 +62,7 @@ public sealed interface EitherF<F extends WitnessArity<?>, G extends WitnessArit
 
     /** Creates a Left wrapping an instruction from effect algebra F. */
     public Left {
-      requireNonNull(value, "Left value must not be null");
+      Validation.function().require(value, "value", LEFT);
     }
   }
 
@@ -78,7 +79,7 @@ public sealed interface EitherF<F extends WitnessArity<?>, G extends WitnessArit
 
     /** Creates a Right wrapping an instruction from effect algebra G. */
     public Right {
-      requireNonNull(value, "Right value must not be null");
+      Validation.function().require(value, "value", RIGHT);
     }
   }
 
@@ -94,8 +95,8 @@ public sealed interface EitherF<F extends WitnessArity<?>, G extends WitnessArit
   default <B> B fold(
       Function<? super Kind<F, A>, ? extends B> onLeft,
       Function<? super Kind<G, A>, ? extends B> onRight) {
-    requireNonNull(onLeft, "onLeft must not be null");
-    requireNonNull(onRight, "onRight must not be null");
+    Validation.function().require(onLeft, "onLeft", FOLD);
+    Validation.function().require(onRight, "onRight", FOLD);
     return switch (this) {
       case Left<F, G, A> l -> onLeft.apply(l.value());
       case Right<F, G, A> r -> onRight.apply(r.value());

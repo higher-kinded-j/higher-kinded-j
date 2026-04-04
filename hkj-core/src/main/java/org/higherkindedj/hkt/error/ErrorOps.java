@@ -2,12 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.error;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.LIFT_F;
+
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.inject.Inject;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -46,7 +49,7 @@ public final class ErrorOps {
    */
   @SuppressWarnings("unchecked")
   public static <E, A> Free<ErrorOpKind.Witness<E>, A> raise(E error) {
-    Objects.requireNonNull(error, "error must not be null");
+    Validation.function().require(error, "error", LIFT_F);
     ErrorOp<E, A> op = new ErrorOp.Raise<>(error);
     return Free.liftF(ErrorOpKindHelper.ERROR_OP.widen(op), (ErrorOpFunctor<E>) FUNCTOR);
   }
@@ -76,8 +79,8 @@ public final class ErrorOps {
     private final Functor<G> functorG;
 
     Bound(Inject<ErrorOpKind.Witness<E>, G> inject, Functor<G> functorG) {
-      this.inject = Objects.requireNonNull(inject, "inject must not be null");
-      this.functorG = Objects.requireNonNull(functorG, "functorG must not be null");
+      this.inject = Validation.function().require(inject, "inject", CONSTRUCTION);
+      this.functorG = Validation.function().require(functorG, "functorG", CONSTRUCTION);
     }
 
     /**

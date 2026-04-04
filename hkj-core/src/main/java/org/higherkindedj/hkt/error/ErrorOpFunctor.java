@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.error;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -38,8 +39,8 @@ public final class ErrorOpFunctor<E> implements Functor<ErrorOpKind.Witness<E>> 
   @SuppressWarnings("unchecked")
   public <A, B> Kind<ErrorOpKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ErrorOpKind.Witness<E>, A> fa) {
-    requireNonNull(f, "map function must not be null");
-    requireNonNull(fa, "Kind argument must not be null");
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
     // Raise<E, A> -> Raise<E, B>: the error is the same, only the phantom type changes.
     ErrorOp<E, A> op = ErrorOpKindHelper.ERROR_OP.narrow(fa);
     return (Kind<ErrorOpKind.Witness<E>, B>)
