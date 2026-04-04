@@ -152,6 +152,23 @@ class FreeTranslateTest {
       Identity<Integer> id = IDENTITY.narrow(result);
       assertThat(id.value()).isEqualTo(21); // 10 * 2 + 1
     }
+
+    @Test
+    @DisplayName("translate preserves HandleError structure")
+    void translatePreservesHandleError() {
+      Free<IdentityKind.Witness, String> program =
+          Free.<IdentityKind.Witness, String>pure("test")
+              .handleError(RuntimeException.class, e -> Free.pure("recovered"));
+
+      Free<IdentityKind.Witness, String> translated =
+          Free.translate(program, Natural.identity(), identityMonad);
+
+      FreeAssert.assertThatFree(translated).isHandleError();
+
+      Kind<IdentityKind.Witness, String> result =
+          translated.foldMap(Natural.identity(), identityMonad);
+      assertThat(IDENTITY.<String>narrow(result).value()).isEqualTo("test");
+    }
   }
 
   @Nested

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -23,7 +24,8 @@ import org.jspecify.annotations.Nullable;
  * @see Functor
  * @see FreeKind
  */
-public class FreeFunctor<F extends WitnessArity<?>> implements Functor<FreeKind.Witness<F>> {
+public class FreeFunctor<F extends WitnessArity<TypeArity.Unary>>
+    implements Functor<FreeKind.Witness<F>> {
 
   /**
    * Creates a new FreeFunctor instance. Note: Unlike some other functors in this codebase, Free

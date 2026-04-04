@@ -19,6 +19,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.resilience;
   exports org.higherkindedj.hkt.either;
   exports org.higherkindedj.hkt.eitherf;
+  exports org.higherkindedj.hkt.error;
   exports org.higherkindedj.hkt.inject;
   exports org.higherkindedj.hkt.either_t;
   exports org.higherkindedj.hkt.exception;
