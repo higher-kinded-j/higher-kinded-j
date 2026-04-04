@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.free.FreeAssert;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
@@ -207,6 +208,50 @@ class FreePathRecoveryTest {
       FreePath<IdentityKind.Witness, String> path = FreePath.pure("hello", identityMonad);
 
       assertThatThrownBy(() -> path.recover(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("attempt on success produces Right")
+    void attemptOnSuccessProducesRight() {
+      FreePath<IdentityKind.Witness, String> path = FreePath.pure("hello", identityMonad);
+
+      FreePath<IdentityKind.Witness, Either<Throwable, String>> attempted = path.attempt();
+
+      Kind<IdentityKind.Witness, Either<Throwable, String>> result =
+          attempted.toFree().foldMap(Natural.identity(), identityMonad);
+      Either<Throwable, String> either = IDENTITY.<Either<Throwable, String>>narrow(result).value();
+      assertThat(either.isRight()).isTrue();
+      assertThat(either.getRight()).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName("attempt on failure produces Left")
+    void attemptOnFailureProducesLeft() {
+      FreePath<IdentityKind.Witness, String> path =
+          FreePath.liftF(IDENTITY.widen(new Identity<>("request")), identityMonad);
+
+      FreePath<IdentityKind.Witness, Either<Throwable, String>> attempted = path.attempt();
+
+      Kind<TryKind.Witness, Either<Throwable, String>> result =
+          attempted.toFree().foldMap(failingInterp, tryMonad);
+
+      Try<Either<Throwable, String>> tryResult = TRY.narrow(result);
+      assertThat(tryResult.isSuccess()).isTrue();
+      Either<Throwable, String> either = tryResult.orElse(null);
+      assertThat(either).isNotNull();
+      assertThat(either.isLeft()).isTrue();
+      assertThat(either.getLeft()).isInstanceOf(RuntimeException.class);
+      assertThat(either.getLeft().getMessage()).isEqualTo("service down");
+    }
+
+    @Test
+    @DisplayName("attempt wraps underlying Free with map then HandleError")
+    void attemptWrapsWithMapAndHandleError() {
+      FreePath<IdentityKind.Witness, String> path = FreePath.pure("hello", identityMonad);
+      FreePath<IdentityKind.Witness, Either<Throwable, String>> attempted = path.attempt();
+
+      // The outer structure is HandleError (wrapping the mapped pure)
+      FreeAssert.assertThatFree(attempted.toFree()).isHandleError();
     }
   }
 }

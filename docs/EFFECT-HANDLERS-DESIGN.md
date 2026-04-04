@@ -1034,16 +1034,17 @@ All deliverables implemented, tested, and passing. Spotless clean.
 - JaCoCo config updated to exclude `**/*Kind$Witness.class` globally — Witness
   inner classes are phantom type markers with unreachable constructors.
 
-### Phase 2: Error Handling — NOT STARTED
+### Phase 2: Error Handling — COMPLETE
 
-| Deliverable | Files | Location |
-|---|---|---|
-| `Free.HandleError` + `Free.Ap` constructors | Edit to `Free.java` | `hkj-core/.../free/` |
-| `foldMap` HandleError/Ap cases | Edit to `Free.java` | `hkj-core/.../free/` |
-| `ErrorOp<E, A>` effect algebra (hand-written) | 4-5 files (Op, Kind, Helper, Functor, Ops) | `hkj-core/.../error/` or `.../free/` |
-| `StateOp<S, A>` optics-native state effect (hand-written) | 5-6 files (Op, Kind, Helper, Functor, Ops, interpreters) | `hkj-core/.../state/` |
-| `FreePath` error recovery methods | Edit to `FreePath.java` | `hkj-core/.../effect/` |
-| Unit tests for error handling + StateOp | Test files | `hkj-core/src/test/` |
+| Deliverable | Status | Files | Location |
+|---|---|---|---|
+| `Free.HandleError` + `Free.Ap` constructors | Done | Edit to `Free.java` | `hkj-core/.../free/` |
+| `foldMap` HandleError/Ap cases | Done | Edit to `Free.java` | `hkj-core/.../free/` |
+| `ErrorOp<E, A>` effect algebra (hand-written) | Done | 5 files (Op, Kind, Helper, Functor, Ops) | `hkj-core/.../error/` |
+| `StateOp<S, A>` optics-native state effect (hand-written) | Done | 7 files (Op, Kind, Helper, Functor, Ops, 2 interpreters) | `hkj-core/.../state_op/` |
+| `FreePath` error recovery methods | Done | Edit to `FreePath.java` | `hkj-core/.../effect/` |
+| `FreeAssert` custom assertion | Done | 1 file | `hkj-core/src/test/` |
+| Unit tests for error handling + StateOp | Done | Test files | `hkj-core/src/test/` |
 
 ### Phase 3: ForPath Enhancements — NOT STARTED
 
@@ -1743,52 +1744,65 @@ Additional deliverables (not in original plan):
 **Definition of done**: All tests green; `./gradlew :hkj-core:test` passes;
 Spotless formatting clean. **MET.**
 
-### Phase 2: Error Handling (HandleError + ErrorOp + FreePath recovery)
+### Phase 2: Error Handling (HandleError + ErrorOp + StateOp + FreePath recovery) — COMPLETE
 
 **Prerequisites**: Phase 1 complete (for EitherF composition of ErrorOp)
 
-**Deliverables and order**:
+**Status**: All deliverables implemented and passing.
+
+**Deliverables completed**:
 
 ```
-2.1  Free.HandleError + Free.Ap      — two new sealed permits entries + records
-                                       (edit Free.java)
-2.2  interpretFree HandleError/Ap    — edit both interpretFree and
-                                       interpretFreeNatural; Ap delegates to
-                                       FreeAp.foldMap (edit Free.java)
-2.3  ErrorOp.java                    — hand-written sealed interface with Raise
+2.1  Free.HandleError + Free.Ap      — DONE: two new sealed permits entries + records
+                                       (edit Free.java); null validation in constructors
+2.2  interpretFree HandleError/Ap    — DONE: edit both interpretFree and
+                                       interpretFreeNatural; HandleError delegates to
+                                       MonadError when available, silently ignored
+                                       otherwise; Ap delegates to FreeAp.foldMap
+2.3  ErrorOp.java                    — DONE: hand-written sealed interface with Raise
                                        (not generated; has two type params E, A)
-2.4  ErrorOpKind, ErrorOpKindHelper, — HKT plumbing for ErrorOp (hand-written;
-     ErrorOpFunctor, ErrorOps          4 files, following established pattern)
-2.5  StateOp.java                    — hand-written sealed interface with View,
+2.4  ErrorOpKind, ErrorOpKindHelper, — DONE: HKT plumbing for ErrorOp (hand-written;
+     ErrorOpFunctor, ErrorOps          5 files in hkt/error/, following established
+                                       pattern)
+2.5  StateOp.java                    — DONE: hand-written sealed interface with View,
                                        Over, Assign, Preview, TraverseOver,
                                        GetState (two type params S, A)
-2.6  StateOpKind, StateOpKindHelper, — HKT plumbing for StateOp (hand-written;
-     StateOpFunctor, StateOps          5 files, following established pattern;
-                                       includes Bound<S, G> with optic-
+2.6  StateOpKind, StateOpKindHelper, — DONE: HKT plumbing for StateOp (hand-written;
+     StateOpFunctor, StateOps          4 files in hkt/state_op/, following established
+                                       pattern; includes Bound<S, G> with optic-
                                        parameterised methods)
-2.7  StateOpInterpreter<S>           — interprets into State<S, A> monad
-2.8  IOStateOpInterpreter<S>         — interprets into IO with AtomicReference
-2.9  FreePath error methods          — handleError, recover, attempt, orElse
+2.7  StateOpInterpreter<S>           — DONE: interprets into State<S, A> monad;
+                                       dispatches View/Over/Assign/Preview/
+                                       TraverseOver/GetState via pattern matching
+2.8  IOStateOpInterpreter<S>         — DONE: interprets into IO with AtomicReference
+                                       for thread-safe mutable state
+2.9  FreePath error methods          — DONE: handleError, recover, attempt, orElse
                                        (edit FreePath.java)
-2.10 FreeAssert.java                 — custom AssertJ assertion for Free
-                                       (including isHandleError)
+2.10 FreeAssert.java                 — DONE: custom AssertJ assertion for Free
+                                       (including isHandleError, isAp)
 
-Tests:
-2.T1 FreeHandleErrorTest.java       — HandleError with MonadError target,
+Tests completed:
+2.T1 FreeHandleErrorTest.java       — DONE: HandleError with MonadError target,
                                        HandleError ignored with Id target,
                                        typed vs catch-all, nested recovery
-2.T2 FreeMonadLawsTest.java         — verify existing monad laws still hold
-                                       with HandleError present
-2.T3 ErrorOpTest.java               — Raise interpreted into MonadError
-2.T4 StateOpTest.java               — View, Over, Assign with real optics;
-                                       preview with Prism; traverseOver;
-                                       modifyF pattern
-2.T5 StateOpPropertyTest.java       — jQwik: view/over round-trip through
-                                       Lens; assign then view idempotence
-2.T6 FreePathRecoveryTest.java      — handleError, recover, attempt, orElse
+2.T2 FreeMonadLawsTest.java         — DONE: existing monad laws verified
+2.T3 ErrorOpTest.java               — DONE: Raise interpreted into MonadError,
+                                       KindHelper, Functor, Bound tests
+2.T4 StateOpTest.java               — DONE: View, Over, Assign with real optics;
+                                       Preview with Prism; TraverseOver;
+                                       chained operations; both State and IO
+                                       interpreters; Bound tests
+2.T5 StateOpPropertyTest.java       — DONE: jQwik: GetPut, PutGet, PutPut laws;
+                                       over identity; independent lenses
+2.T6 FreePathRecoveryTest.java      — DONE: handleError, recover, attempt, orElse
                                        on FreePath
-2.T7 FreePathPropertyTest.java      — jQwik: recovery idempotence,
-                                       handler application
+2.T7 FreePathPropertyTest.java      — DONE: jQwik: recovery idempotence,
+                                       handler application, attempt properties
+
+Additional deliverables (not in original plan):
+- StateOp package (hkt/state_op/) with package-info.java
+- module-info.java: exports state_op package
+- Architecture rules updated for StateOpFunctor
 ```
 
 **Definition of done**: All tests green; existing Free tests still pass;

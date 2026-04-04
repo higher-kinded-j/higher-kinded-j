@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.inject;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.eitherf.EitherF;
 import org.higherkindedj.hkt.eitherf.EitherFKind;
 import org.higherkindedj.hkt.eitherf.EitherFKindHelper;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -89,7 +91,7 @@ public final class InjectInstances {
    */
   public static <F extends WitnessArity<?>, G extends WitnessArity<?>, H extends WitnessArity<?>>
       Inject<H, EitherFKind.Witness<F, G>> injectRightThen(Inject<H, G> inner) {
-    Objects.requireNonNull(inner, "inner Inject must not be null");
+    Validation.function().require(inner, "inner", CONSTRUCTION);
     return new Inject<>() {
       @Override
       public <A> Kind<EitherFKind.Witness<F, G>, A> inject(Kind<H, A> fa) {

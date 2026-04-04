@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.eitherf;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -48,7 +49,7 @@ public enum EitherFKindHelper {
    */
   public <F extends WitnessArity<?>, G extends WitnessArity<?>, A>
       Kind<EitherFKind.Witness<F, G>, A> widen(EitherF<F, G, A> eitherF) {
-    requireNonNull(eitherF, "Cannot widen null EitherF");
+    Validation.kind().requireForWiden(eitherF, EitherF.class);
     return new EitherFHolder<>(eitherF);
   }
 
@@ -66,7 +67,7 @@ public enum EitherFKindHelper {
   @SuppressWarnings("unchecked")
   public <F extends WitnessArity<?>, G extends WitnessArity<?>, A> EitherF<F, G, A> narrow(
       Kind<EitherFKind.Witness<F, G>, A> kind) {
-    requireNonNull(kind, "Cannot narrow null Kind for EitherF");
+    Validation.kind().requireNonNull(kind, FROM_KIND);
     return ((EitherFHolder<F, G, A>) kind).value();
   }
 }

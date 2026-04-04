@@ -110,6 +110,8 @@ class PackageStructureRules {
         .haveSimpleNameNotContaining("IOException") // Standard Java exception
         .and()
         .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
+        .and()
+        .haveSimpleNameNotContaining("IOStateOp") // IOStateOpInterpreter is in state_op package
         .should()
         .resideInAPackage("..io..")
         .allowEmptyShould(true)
@@ -129,6 +131,8 @@ class PackageStructureRules {
         .haveSimpleNameStartingWith("State")
         .and()
         .haveSimpleNameNotContaining("StateT") // Transformer is separate
+        .and()
+        .haveSimpleNameNotContaining("StateOp") // Effect algebra is in state_op package
         .and()
         .resideInAPackage("..hkt..")
         .should()

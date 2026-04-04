@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.eitherf;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -38,8 +40,8 @@ public final class EitherFFunctor<
    * @param functorG The functor instance for the right effect algebra. Must not be null.
    */
   public EitherFFunctor(Functor<F> functorF, Functor<G> functorG) {
-    this.functorF = requireNonNull(functorF, "functorF must not be null");
-    this.functorG = requireNonNull(functorG, "functorG must not be null");
+    this.functorF = Validation.function().require(functorF, "functorF", CONSTRUCTION);
+    this.functorG = Validation.function().require(functorG, "functorG", CONSTRUCTION);
   }
 
   /**
@@ -57,8 +59,8 @@ public final class EitherFFunctor<
   @Override
   public <A, B> Kind<EitherFKind.Witness<F, G>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherFKind.Witness<F, G>, A> fa) {
-    requireNonNull(f, "map function must not be null");
-    requireNonNull(fa, "Kind argument must not be null");
+    Validation.function().require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
 
     EitherF<F, G, A> eitherF = EitherFKindHelper.EITHERF.narrow(fa);
     EitherF<F, G, B> mapped =

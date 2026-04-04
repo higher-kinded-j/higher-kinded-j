@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.eitherf;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -46,8 +47,8 @@ public final class Interpreters {
    */
   public static <F extends WitnessArity<?>, G extends WitnessArity<?>, M extends WitnessArity<?>>
       Natural<EitherFKind.Witness<F, G>, M> combine(Natural<F, M> interpF, Natural<G, M> interpG) {
-    requireNonNull(interpF, "interpF must not be null");
-    requireNonNull(interpG, "interpG must not be null");
+    Validation.function().require(interpF, "interpF", CONSTRUCTION);
+    Validation.function().require(interpG, "interpG", CONSTRUCTION);
     return new Natural<>() {
       @Override
       public <A> Kind<M, A> apply(Kind<EitherFKind.Witness<F, G>, A> fa) {
@@ -78,9 +79,9 @@ public final class Interpreters {
           M extends WitnessArity<?>>
       Natural<EitherFKind.Witness<F, EitherFKind.Witness<G, H>>, M> combine(
           Natural<F, M> interpF, Natural<G, M> interpG, Natural<H, M> interpH) {
-    requireNonNull(interpF, "interpF must not be null");
-    requireNonNull(interpG, "interpG must not be null");
-    requireNonNull(interpH, "interpH must not be null");
+    Validation.function().require(interpF, "interpF", CONSTRUCTION);
+    Validation.function().require(interpG, "interpG", CONSTRUCTION);
+    Validation.function().require(interpH, "interpH", CONSTRUCTION);
     Natural<EitherFKind.Witness<G, H>, M> innerCombined = combine(interpG, interpH);
     return combine(interpF, innerCombined);
   }
@@ -112,10 +113,10 @@ public final class Interpreters {
           Natural<G, M> interpG,
           Natural<H, M> interpH,
           Natural<I, M> interpI) {
-    requireNonNull(interpF, "interpF must not be null");
-    requireNonNull(interpG, "interpG must not be null");
-    requireNonNull(interpH, "interpH must not be null");
-    requireNonNull(interpI, "interpI must not be null");
+    Validation.function().require(interpF, "interpF", CONSTRUCTION);
+    Validation.function().require(interpG, "interpG", CONSTRUCTION);
+    Validation.function().require(interpH, "interpH", CONSTRUCTION);
+    Validation.function().require(interpI, "interpI", CONSTRUCTION);
     Natural<EitherFKind.Witness<G, EitherFKind.Witness<H, I>>, M> innerCombined =
         combine(interpG, interpH, interpI);
     return combine(interpF, innerCombined);

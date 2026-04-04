@@ -2,9 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.error;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -30,7 +31,7 @@ public enum ErrorOpKindHelper {
    * @return The widened Kind representation
    */
   public <E, A> Kind<ErrorOpKind.Witness<E>, A> widen(ErrorOp<E, A> op) {
-    requireNonNull(op, "Cannot widen null ErrorOp");
+    Validation.kind().requireForWiden(op, ErrorOp.class);
     return new ErrorOpHolder<>(op);
   }
 
@@ -44,7 +45,7 @@ public enum ErrorOpKindHelper {
    */
   @SuppressWarnings("unchecked")
   public <E, A> ErrorOp<E, A> narrow(Kind<ErrorOpKind.Witness<E>, A> kind) {
-    requireNonNull(kind, "Cannot narrow null Kind for ErrorOp");
+    Validation.kind().requireNonNull(kind, FROM_KIND);
     return ((ErrorOpHolder<E, A>) kind).op();
   }
 }
