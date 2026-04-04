@@ -168,7 +168,16 @@ class ForComprehensionGoldenFileTest {
         new GoldenTestCase(
             "GenericPathSteps9 (generic witness Phase 1c)",
             "org.higherkindedj.hkt.expression.GenericPathSteps9",
-            "GenericPathSteps9.java.golden"));
+            "GenericPathSteps9.java.golden"),
+        // FreePath steps (Phase 3 - effect handler ForPath enhancements)
+        new GoldenTestCase(
+            "FreePathSteps6 (free witness, extra type param + functor)",
+            "org.higherkindedj.hkt.expression.FreePathSteps6",
+            "FreePathSteps6.java.golden"),
+        new GoldenTestCase(
+            "FreePathSteps9 (free witness Phase 3)",
+            "org.higherkindedj.hkt.expression.FreePathSteps9",
+            "FreePathSteps9.java.golden"));
   }
 
   // =============================================================================
