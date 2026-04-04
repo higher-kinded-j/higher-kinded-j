@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -20,7 +21,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <F> The functor type representing the instruction set
  */
-public class FreeMonad<F extends WitnessArity<?>> extends FreeFunctor<F>
+public class FreeMonad<F extends WitnessArity<TypeArity.Unary>> extends FreeFunctor<F>
     implements Monad<FreeKind.Witness<F>> {
 
   /**

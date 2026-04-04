@@ -46,6 +46,8 @@ class PackageStructureRules {
         .and()
         .haveSimpleNameNotContaining("EitherT") // Transformer is separate
         .and()
+        .haveSimpleNameNotContaining("EitherF") // EitherF sum type is in eitherf package
+        .and()
         .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
         .and()
         .resideInAPackage("..hkt..")

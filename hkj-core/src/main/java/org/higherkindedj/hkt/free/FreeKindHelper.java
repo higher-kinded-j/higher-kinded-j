@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.free;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -30,7 +31,8 @@ public enum FreeKindHelper {
    * @param <F> The functor type
    * @param <A> The result type
    */
-  record FreeHolder<F extends WitnessArity<?>, A>(Free<F, A> free) implements FreeKind<F, A> {}
+  record FreeHolder<F extends WitnessArity<TypeArity.Unary>, A>(Free<F, A> free)
+      implements FreeKind<F, A> {}
 
   /**
    * Widens a concrete Free type to its Kind representation.
@@ -42,7 +44,8 @@ public enum FreeKindHelper {
    * @param <A> The result type
    * @return The Kind representation of the Free instance
    */
-  public <F extends WitnessArity<?>, A> Kind<FreeKind.Witness<F>, A> widen(Free<F, A> free) {
+  public <F extends WitnessArity<TypeArity.Unary>, A> Kind<FreeKind.Witness<F>, A> widen(
+      Free<F, A> free) {
     return new FreeHolder<>(free);
   }
 
@@ -58,7 +61,7 @@ public enum FreeKindHelper {
    * @throws ClassCastException if the Kind is not a FreeHolder
    */
   @SuppressWarnings("unchecked")
-  public <F extends WitnessArity<?>, A> Free<F, A> narrow(
+  public <F extends WitnessArity<TypeArity.Unary>, A> Free<F, A> narrow(
       @Nullable Kind<FreeKind.Witness<F>, A> kind) {
     return Validation.kind()
         .narrowWithPattern(kind, Free.class, FreeHolder.class, holder -> holder.free());

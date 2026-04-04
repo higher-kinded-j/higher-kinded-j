@@ -242,6 +242,64 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A> implemen
     return via(_ -> supplier.get());
   }
 
+  // ===== Error Recovery =====
+
+  /**
+   * Wraps this FreePath with typed error recovery. During interpretation, if the target monad is a
+   * {@link org.higherkindedj.hkt.MonadError MonadError}, the handler is invoked when an error of
+   * the specified type occurs. If the target monad is not a {@code MonadError}, the handler is
+   * silently ignored.
+   *
+   * @param errorType The class of errors to catch
+   * @param handler The recovery function, returning a new FreePath
+   * @param <E> The error type
+   * @return A new FreePath with error recovery
+   */
+  public <E> FreePath<F, A> handleError(
+      Class<E> errorType, Function<? super E, ? extends FreePath<F, A>> handler) {
+    Objects.requireNonNull(errorType, "errorType must not be null");
+    Objects.requireNonNull(handler, "handler must not be null");
+    Free<F, A> recovered =
+        free.handleError(
+            errorType,
+            e -> {
+              FreePath<F, A> result = handler.apply(e);
+              Objects.requireNonNull(result, "handler must not return null");
+              return result.toFree();
+            });
+    return new FreePath<>(recovered, functor);
+  }
+
+  /**
+   * Wraps this FreePath with catch-all error recovery using {@link Throwable}. During
+   * interpretation, if the target monad is a {@link org.higherkindedj.hkt.MonadError MonadError}
+   * with {@code Throwable} error type, the handler is invoked on any failure.
+   *
+   * @param handler The recovery function, mapping the error to a pure value
+   * @return A new FreePath with error recovery
+   */
+  public FreePath<F, A> recover(Function<? super Throwable, ? extends A> handler) {
+    Objects.requireNonNull(handler, "handler must not be null");
+    return handleError(Throwable.class, e -> FreePath.pure(handler.apply(e), functor));
+  }
+
+  /**
+   * Wraps this FreePath with a fallback program that is used if this one fails.
+   *
+   * @param fallback Supplier of the fallback FreePath
+   * @return A new FreePath that falls back on error
+   */
+  public FreePath<F, A> orElse(Supplier<? extends FreePath<F, A>> fallback) {
+    Objects.requireNonNull(fallback, "fallback must not be null");
+    return handleError(
+        Throwable.class,
+        _ -> {
+          FreePath<F, A> fb = fallback.get();
+          Objects.requireNonNull(fb, "fallback must not return null");
+          return fb;
+        });
+  }
+
   // ===== Object Methods =====
 
   @Override

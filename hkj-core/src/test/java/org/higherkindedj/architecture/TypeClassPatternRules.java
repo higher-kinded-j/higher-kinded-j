@@ -65,7 +65,8 @@ class TypeClassPatternRules {
           "TryApplicative",
           "OptionalFunctor",
           "CompletableFutureFunctor",
-          "CompletableFutureApplicative");
+          "CompletableFutureApplicative",
+          "EitherFFunctor"); // Requires two sub-functor instances via constructor
 
   private static final Set<String> PARAMETERIZED_TYPE_CLASSES =
       Set.of(
@@ -90,7 +91,8 @@ class TypeClassPatternRules {
           "ConstFunctor",
           "ConstApplicative",
           "ReaderTMonadReader",
-          "StateTMonadState");
+          "StateTMonadState",
+          "EitherFFunctor"); // Requires two sub-functor instances via constructor
 
   private static JavaClasses productionClasses;
 
