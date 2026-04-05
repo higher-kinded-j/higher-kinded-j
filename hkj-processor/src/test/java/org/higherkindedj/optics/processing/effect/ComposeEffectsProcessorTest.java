@@ -80,7 +80,10 @@ class ComposeEffectsProcessorTest {
     @DisplayName("Should generate Support class for 2-effect composition")
     void generatesSupportFor2Effects() throws IOException {
       Compilation compilation = compile(twoEffectComposition());
-      assertThat(compilation.errors()).isEmpty();
+      if (!compilation.errors().isEmpty()) {
+        org.junit.jupiter.api.Assertions.fail("Compilation errors: "
+            + compilation.errors().stream().map(d -> d.getMessage(null)).toList());
+      }
 
       String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
 
