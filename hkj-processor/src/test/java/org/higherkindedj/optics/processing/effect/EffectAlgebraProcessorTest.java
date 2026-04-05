@@ -96,22 +96,8 @@ class EffectAlgebraProcessorTest {
     @Test
     @DisplayName("Should generate Kind interface with Witness class")
     void generatesKindInterface() throws IOException {
-      Compilation compilation;
-      try {
-        compilation = compile(simpleEffectAlgebra());
-      } catch (RuntimeException e) {
-        // Unwrap to find root cause
-        Throwable cause = e;
-        while (cause.getCause() != null) cause = cause.getCause();
-        throw new AssertionError("Compilation crashed: " + cause.getClass().getName()
-            + ": " + cause.getMessage(), cause);
-      }
-      assertThat(compilation.errors())
-          .as("Compilation errors: %s",
-              compilation.errors().stream()
-                  .map(d -> d.getMessage(null))
-                  .toList())
-          .isEmpty();
+      Compilation compilation = compile(simpleEffectAlgebra());
+      assertThat(compilation.errors()).isEmpty();
 
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKind");
 
@@ -488,12 +474,7 @@ class EffectAlgebraProcessorTest {
     @DisplayName("All 5 files should be generated for valid algebra")
     void allFilesGenerated() {
       Compilation compilation = compile(simpleEffectAlgebra());
-      assertThat(compilation.errors())
-          .as("Compilation errors: %s",
-              compilation.errors().stream()
-                  .map(d -> d.getMessage(null))
-                  .toList())
-          .isEmpty();
+      assertThat(compilation.errors()).isEmpty();
 
       assertThat(compilation.generatedSourceFile("test.pkg.ConsoleOpKind")).isPresent();
       assertThat(compilation.generatedSourceFile("test.pkg.ConsoleOpKindHelper")).isPresent();

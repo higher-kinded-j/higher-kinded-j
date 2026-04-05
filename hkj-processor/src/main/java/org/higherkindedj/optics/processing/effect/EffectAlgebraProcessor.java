@@ -415,7 +415,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                 MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addField(
                 FieldSpec.builder(
-                        ParameterizedTypeName.get(functorClass),
+                        functorClass,
                         "FUNCTOR",
                         Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                     .initializer("$T.instance()", functorClass)
