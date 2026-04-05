@@ -8,7 +8,6 @@ import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.AddImport;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.J;
-import org.openrewrite.java.tree.JavaType;
 
 /**
  * Recipe that migrates direct {@code Free<F, A>} usage to the {@code FreePath<F, A>} fluent API.

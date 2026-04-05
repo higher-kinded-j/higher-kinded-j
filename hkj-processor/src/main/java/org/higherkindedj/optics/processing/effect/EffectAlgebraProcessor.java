@@ -16,7 +16,6 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
@@ -65,8 +64,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
   private static final ClassName NULL_MARKED =
       ClassName.get("org.jspecify.annotations", "NullMarked");
-  private static final ClassName FUNCTION =
-      ClassName.get("java.util.function", "Function");
+  private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
   @Override
@@ -102,7 +100,8 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
           generateOps(packageName, baseName, typeElement, permits);
           generateInterpreter(packageName, baseName, typeElement, permits);
         } catch (Exception e) {
-          error("Failed to generate code: " + e.getClass().getName() + ": " + e.getMessage(),
+          error(
+              "Failed to generate code: " + e.getClass().getName() + ": " + e.getMessage(),
               element);
         }
       }
@@ -125,9 +124,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     for (TypeMirror mirror : permitted) {
       Element permitElement = processingEnv.getTypeUtils().asElement(mirror);
       if (permitElement == null || permitElement.getKind() != ElementKind.RECORD) {
-        error(
-            "Permit must be a record type: " + mirror,
-            sealedInterface);
+        error("Permit must be a record type: " + mirror, sealedInterface);
         return null;
       }
       TypeElement permitType = (TypeElement) permitElement;
@@ -155,23 +152,23 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     // Kind<*Kind.Witness, A> interface
     TypeVariableName typeA = TypeVariableName.get("A");
-    ParameterizedTypeName kindSuper =
-        ParameterizedTypeName.get(KIND, witnessClass, typeA);
+    ParameterizedTypeName kindSuper = ParameterizedTypeName.get(KIND, witnessClass, typeA);
 
     TypeSpec witnessType =
         TypeSpec.classBuilder("Witness")
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(
                 ParameterizedTypeName.get(
-                    WITNESS_ARITY,
-                    ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")))
+                    WITNESS_ARITY, ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")))
             .addMethod(
                 MethodSpec.constructorBuilder()
                     .addModifiers(Modifier.PRIVATE)
                     .addStatement(
                         "throw new $T($S)", UnsupportedOperationException.class, "Witness class")
                     .build())
-            .addJavadoc("Phantom type marker (witness type) for the {@code $L<?>} type constructor.\n", baseName)
+            .addJavadoc(
+                "Phantom type marker (witness type) for the {@code $L<?>} type constructor.\n",
+                baseName)
             .build();
 
     TypeSpec kindType =
@@ -185,7 +182,8 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addJavadoc(
                 "Kind interface marker for {@link $L $L<A>} in Higher-Kinded-J.\n\n"
                     + "@param <A> The result type (the varying parameter)\n",
-                baseName, baseName)
+                baseName,
+                baseName)
             .build();
 
     JavaFile.builder(packageName, kindType)
@@ -228,8 +226,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addTypeVariable(typeA)
             .addParameter(ParameterizedTypeName.get(sourceClass, typeA), "value")
             .returns(ParameterizedTypeName.get(KIND, witnessClass, typeA))
-            .addStatement(
-                "$T.kind().requireForWiden(value, $T.class)", VALIDATION, sourceClass)
+            .addStatement("$T.kind().requireForWiden(value, $T.class)", VALIDATION, sourceClass)
             .addStatement("return new $L<>(value)", holderName)
             .addJavadoc(
                 "Widens a concrete {@code $L<A>} into its Kind representation.\n\n"
@@ -248,18 +245,17 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                     .build())
             .addModifiers(Modifier.PUBLIC)
             .addTypeVariable(typeA)
-            .addParameter(
-                ParameterizedTypeName.get(KIND, witnessClass, typeA), "kind")
+            .addParameter(ParameterizedTypeName.get(KIND, witnessClass, typeA), "kind")
             .returns(ParameterizedTypeName.get(sourceClass, typeA))
-            .addStatement(
-                "$T.kind().requireNonNull(kind, $T.FROM_KIND)", VALIDATION, OPERATION)
+            .addStatement("$T.kind().requireNonNull(kind, $T.FROM_KIND)", VALIDATION, OPERATION)
             .addStatement("return (($L<A>) kind).value()", holderName)
             .addJavadoc(
                 "Narrows a Kind representation back to concrete {@code $L<A>}.\n\n"
                     + "@param kind The Kind representation. Must not be null.\n"
                     + "@param <A> The result type\n"
                     + "@return The concrete $L\n",
-                baseName, baseName)
+                baseName,
+                baseName)
             .build();
 
     TypeSpec helperType =
@@ -274,7 +270,10 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addJavadoc(
                 "Helper for converting between concrete {@link $L} and its HKT representation "
                     + "{@link $L}.\n\n@see $L\n@see $LKind\n",
-                baseName, kindName, baseName, baseName)
+                baseName,
+                kindName,
+                baseName,
+                baseName)
             .build();
 
     JavaFile.builder(packageName, helperType)
@@ -316,17 +315,14 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                     WildcardTypeName.supertypeOf(typeA),
                     WildcardTypeName.subtypeOf(typeB)),
                 "f")
-            .addParameter(
-                ParameterizedTypeName.get(KIND, witnessClass, typeA), "fa")
+            .addParameter(ParameterizedTypeName.get(KIND, witnessClass, typeA), "fa")
             .returns(ParameterizedTypeName.get(KIND, witnessClass, typeB))
             .addStatement("$T.function().require(f, $S, $T.MAP)", VALIDATION, "f", OPERATION)
             .addStatement("$T.kind().requireNonNull(fa, $T.MAP)", VALIDATION, OPERATION)
-            .addStatement(
-                "$T<A> op = $T.$L.narrow(fa)", sourceClass, helperClass, singletonName);
+            .addStatement("$T<A> op = $T.$L.narrow(fa)", sourceClass, helperClass, singletonName);
 
     if (hasMapK) {
-      mapBuilder.addStatement(
-          "return $T.$L.widen(op.mapK(f))", helperClass, singletonName);
+      mapBuilder.addStatement("return $T.$L.widen(op.mapK(f))", helperClass, singletonName);
     } else {
       // Cast-through for simple effect algebras without continuation-passing
       mapBuilder
@@ -356,13 +352,12 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                 FieldSpec.builder(
                         ClassName.get(packageName, functorName),
                         "INSTANCE",
-                        Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                        Modifier.PRIVATE,
+                        Modifier.STATIC,
+                        Modifier.FINAL)
                     .initializer("new $L()", functorName)
                     .build())
-            .addMethod(
-                MethodSpec.constructorBuilder()
-                    .addModifiers(Modifier.PRIVATE)
-                    .build())
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addMethod(
                 MethodSpec.methodBuilder("instance")
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
@@ -373,7 +368,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addMethod(mapMethod)
             .addJavadoc(
                 "Functor instance for {@link $L}.\n\n@see $L\n@see $LKind\n",
-                baseName, baseName, baseName);
+                baseName,
+                baseName,
+                baseName);
 
     JavaFile.builder(packageName, functorBuilder.build())
         .addFileComment("Generated by hkj-processor. Do not edit.")
@@ -403,13 +400,10 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addAnnotation(NULL_MARKED)
             .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(
-                MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addField(
                 FieldSpec.builder(
-                        functorClass,
-                        "FUNCTOR",
-                        Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                        functorClass, "FUNCTOR", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                     .initializer("$T.instance()", functorClass)
                     .build())
             .addMethod(
@@ -421,40 +415,57 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     // Static factory method per permit
     for (TypeElement permit : permits) {
-      opsBuilder.addMethod(generateOpsMethod(permit, baseName, packageName, sourceClass,
-          helperClass, singletonName, witnessClass));
+      opsBuilder.addMethod(
+          generateOpsMethod(
+              permit,
+              baseName,
+              packageName,
+              sourceClass,
+              helperClass,
+              singletonName,
+              witnessClass));
     }
 
     // Bound inner class
-    opsBuilder.addType(generateBoundClass(permits, baseName, packageName, sourceClass,
-        helperClass, singletonName, witnessClass, functorClass));
+    opsBuilder.addType(
+        generateBoundClass(
+            permits,
+            baseName,
+            packageName,
+            sourceClass,
+            helperClass,
+            singletonName,
+            witnessClass,
+            functorClass));
 
     // boundTo factory method
-    TypeVariableName typeG = TypeVariableName.get("G",
-        ParameterizedTypeName.get(WITNESS_ARITY,
-            ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
+    TypeVariableName typeG =
+        TypeVariableName.get(
+            "G",
+            ParameterizedTypeName.get(
+                WITNESS_ARITY, ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
     opsBuilder.addMethod(
         MethodSpec.methodBuilder("boundTo")
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addTypeVariable(typeG)
-            .addParameter(
-                ParameterizedTypeName.get(INJECT, witnessClass, typeG), "inject")
-            .addParameter(
-                ParameterizedTypeName.get(FUNCTOR, typeG), "functorG")
-            .returns(ParameterizedTypeName.get(
-                ClassName.get(packageName, opsName, "Bound"), typeG))
+            .addParameter(ParameterizedTypeName.get(INJECT, witnessClass, typeG), "inject")
+            .addParameter(ParameterizedTypeName.get(FUNCTOR, typeG), "functorG")
+            .returns(ParameterizedTypeName.get(ClassName.get(packageName, opsName, "Bound"), typeG))
             .addStatement("return new Bound<>(inject, functorG)")
-            .addJavadoc("Creates a Bound instance for combined-effect programs.\n\n"
-                + "@param inject The Inject instance for embedding into the combined effect type\n"
-                + "@param functorG The Functor for the combined effect type\n"
-                + "@param <G> The combined effect type\n"
-                + "@return A Bound instance\n")
+            .addJavadoc(
+                "Creates a Bound instance for combined-effect programs.\n\n"
+                    + "@param inject The Inject instance for embedding into the combined effect type\n"
+                    + "@param functorG The Functor for the combined effect type\n"
+                    + "@param <G> The combined effect type\n"
+                    + "@return A Bound instance\n")
             .build());
 
     opsBuilder.addJavadoc(
         "Smart constructors for {@link $L} operations, lifting them into the Free monad.\n\n"
             + "@see $L\n@see $LKind\n",
-        baseName, baseName, baseName);
+        baseName,
+        baseName,
+        baseName);
 
     JavaFile.builder(packageName, opsBuilder.build())
         .addFileComment("Generated by hkj-processor. Do not edit.")
@@ -494,15 +505,12 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       constructorArgs.append(components.get(i).getSimpleName());
     }
 
-    ClassName permitClass = ClassName.get(packageName, baseName,
-        permit.getSimpleName().toString());
+    ClassName permitClass = ClassName.get(packageName, baseName, permit.getSimpleName().toString());
 
     builder.addStatement(
-        "$T<A> op = new $T<>($L)",
-        sourceClass, permitClass, constructorArgs.toString());
+        "$T<A> op = new $T<>($L)", sourceClass, permitClass, constructorArgs.toString());
     builder.addStatement(
-        "return $T.liftF($T.$L.widen(op), functor())",
-        FREE, helperClass, singletonName);
+        "return $T.liftF($T.$L.widen(op), functor())", FREE, helperClass, singletonName);
 
     builder.addJavadoc(
         "Lifts a {@code $L} into a Free program.\n\n"
@@ -523,9 +531,11 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       ClassName witnessClass,
       ClassName functorClass) {
 
-    TypeVariableName typeG = TypeVariableName.get("G",
-        ParameterizedTypeName.get(WITNESS_ARITY,
-            ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
+    TypeVariableName typeG =
+        TypeVariableName.get(
+            "G",
+            ParameterizedTypeName.get(
+                WITNESS_ARITY, ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
 
     TypeSpec.Builder boundBuilder =
         TypeSpec.classBuilder("Bound")
@@ -533,28 +543,32 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addTypeVariable(typeG)
             .addField(
                 ParameterizedTypeName.get(INJECT, witnessClass, typeG),
-                "inject", Modifier.PRIVATE, Modifier.FINAL)
+                "inject",
+                Modifier.PRIVATE,
+                Modifier.FINAL)
             .addField(
                 ParameterizedTypeName.get(FUNCTOR, typeG),
-                "functorG", Modifier.PRIVATE, Modifier.FINAL);
+                "functorG",
+                Modifier.PRIVATE,
+                Modifier.FINAL);
 
     // Constructor
     boundBuilder.addMethod(
         MethodSpec.constructorBuilder()
-            .addParameter(
-                ParameterizedTypeName.get(INJECT, witnessClass, typeG), "inject")
-            .addParameter(
-                ParameterizedTypeName.get(FUNCTOR, typeG), "functorG")
+            .addParameter(ParameterizedTypeName.get(INJECT, witnessClass, typeG), "inject")
+            .addParameter(ParameterizedTypeName.get(FUNCTOR, typeG), "functorG")
             .addStatement(
                 "this.inject = $T.requireNonNull(inject, $S)", OBJECTS, "inject must not be null")
             .addStatement(
                 "this.functorG = $T.requireNonNull(functorG, $S)",
-                OBJECTS, "functorG must not be null")
+                OBJECTS,
+                "functorG must not be null")
             .build());
 
     // Bound method per permit
     for (TypeElement permit : permits) {
-      boundBuilder.addMethod(generateBoundMethod(permit, baseName, packageName, witnessClass, typeG));
+      boundBuilder.addMethod(
+          generateBoundMethod(permit, baseName, packageName, witnessClass, typeG));
     }
 
     boundBuilder.addJavadoc(
@@ -577,9 +591,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     TypeVariableName typeA = TypeVariableName.get("A");
 
     MethodSpec.Builder builder =
-        MethodSpec.methodBuilder(methodName)
-            .addModifiers(Modifier.PUBLIC)
-            .addTypeVariable(typeA);
+        MethodSpec.methodBuilder(methodName).addModifiers(Modifier.PUBLIC).addTypeVariable(typeA);
 
     // Add parameters for record components
     for (RecordComponentElement component : components) {
@@ -597,9 +609,12 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     builder.addStatement(
         "$T<$T, A> standalone = $L.$L($L)",
-        FREE, witnessClass, opsName, methodName, args.toString());
-    builder.addStatement(
-        "return $T.translate(standalone, inject::inject, functorG)", FREE);
+        FREE,
+        witnessClass,
+        opsName,
+        methodName,
+        args.toString());
+    builder.addStatement("return $T.translate(standalone, inject::inject, functorG)", FREE);
 
     builder.addJavadoc(
         "Lifts a {@code $L} into the combined effect type.\n\n"
@@ -625,9 +640,11 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     ClassName sourceClass = ClassName.get(packageName, baseName);
     ClassName helperClass = ClassName.get(packageName, helperName);
 
-    TypeVariableName typeM = TypeVariableName.get("M",
-        ParameterizedTypeName.get(WITNESS_ARITY,
-            ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
+    TypeVariableName typeM =
+        TypeVariableName.get(
+            "M",
+            ParameterizedTypeName.get(
+                WITNESS_ARITY, ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
     TypeVariableName typeA = TypeVariableName.get("A");
 
     TypeSpec.Builder interpreterBuilder =
@@ -636,14 +653,13 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
             .addTypeVariable(typeM)
-            .addSuperinterface(
-                ParameterizedTypeName.get(NATURAL, witnessClass, typeM));
+            .addSuperinterface(ParameterizedTypeName.get(NATURAL, witnessClass, typeM));
 
     // Abstract handle method per permit
     for (TypeElement permit : permits) {
       String handleName = "handle" + permit.getSimpleName();
-      ClassName permitClass = ClassName.get(packageName, baseName,
-          permit.getSimpleName().toString());
+      ClassName permitClass =
+          ClassName.get(packageName, baseName, permit.getSimpleName().toString());
 
       interpreterBuilder.addMethod(
           MethodSpec.methodBuilder(handleName)
@@ -666,24 +682,24 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addAnnotation(Override.class)
             .addModifiers(Modifier.PUBLIC)
             .addTypeVariable(typeA)
-            .addParameter(
-                ParameterizedTypeName.get(KIND, witnessClass, typeA), "fa")
+            .addParameter(ParameterizedTypeName.get(KIND, witnessClass, typeA), "fa")
             .returns(ParameterizedTypeName.get(KIND, typeM, typeA))
-            .addStatement(
-                "$T.kind().requireNonNull(fa, $T.FROM_KIND)", VALIDATION, OPERATION)
-            .addStatement(
-                "$T<A> op = $T.$L.narrow(fa)",
-                sourceClass, helperClass, singletonName);
+            .addStatement("$T.kind().requireNonNull(fa, $T.FROM_KIND)", VALIDATION, OPERATION)
+            .addStatement("$T<A> op = $T.$L.narrow(fa)", sourceClass, helperClass, singletonName);
 
     // Build switch expression
     StringBuilder switchBlock = new StringBuilder();
     switchBlock.append("return switch (op) {\n");
     for (TypeElement permit : permits) {
       String handleName = "handle" + permit.getSimpleName();
-      ClassName permitClass = ClassName.get(packageName, baseName,
-          permit.getSimpleName().toString());
-      switchBlock.append("      case $").append(permit.getSimpleName()).append("<A> p -> ")
-          .append(handleName).append("(p);\n");
+      ClassName permitClass =
+          ClassName.get(packageName, baseName, permit.getSimpleName().toString());
+      switchBlock
+          .append("      case $")
+          .append(permit.getSimpleName())
+          .append("<A> p -> ")
+          .append(handleName)
+          .append("(p);\n");
     }
     switchBlock.append("    }");
 
@@ -691,8 +707,8 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     applyBuilder.addCode("return switch (op) {\n");
     for (TypeElement permit : permits) {
       String handleName = "handle" + permit.getSimpleName();
-      ClassName permitClass = ClassName.get(packageName, baseName,
-          permit.getSimpleName().toString());
+      ClassName permitClass =
+          ClassName.get(packageName, baseName, permit.getSimpleName().toString());
       applyBuilder.addCode("  case $T<A> p -> $L(p);\n", permitClass, handleName);
     }
     applyBuilder.addCode("};\n");
@@ -705,7 +721,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             + "method dispatches via pattern matching.\n\n"
             + "@param <M> The target monad type\n"
             + "@see $L\n@see $LKind\n",
-        baseName, baseName, baseName);
+        baseName,
+        baseName,
+        baseName);
 
     JavaFile.builder(packageName, interpreterBuilder.build())
         .addFileComment("Generated by hkj-processor. Do not edit.")
@@ -720,7 +738,11 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
   private String resolveTargetPackage(TypeElement typeElement, EffectAlgebra annotation) {
     String targetPackage = annotation.targetPackage();
     if (targetPackage.isEmpty()) {
-      return processingEnv.getElementUtils().getPackageOf(typeElement).getQualifiedName().toString();
+      return processingEnv
+          .getElementUtils()
+          .getPackageOf(typeElement)
+          .getQualifiedName()
+          .toString();
     }
     return targetPackage;
   }

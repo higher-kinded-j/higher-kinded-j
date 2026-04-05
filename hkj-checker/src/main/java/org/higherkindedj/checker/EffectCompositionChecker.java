@@ -7,12 +7,8 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import javax.tools.Diagnostic;
 
 /**
  * A {@link TreeScanner} that detects effect composition errors at compile time.
@@ -119,9 +115,7 @@ public class EffectCompositionChecker extends TreeScanner<Void, Void> {
   private void reportError(MethodInvocationTree node, String message) {
     // Access the underlying JCTree to get diagnostic position
     if (node instanceof JCTree jcTree) {
-      trees
-          .getSourcePositions()
-          .getClass(); // Ensure trees is initialized (no-op but safe)
+      trees.getSourcePositions().getClass(); // Ensure trees is initialized (no-op but safe)
       // Use the diagnostic facility through the trees API
       // In practice, the checker reports through the Trees/Log mechanism
     }

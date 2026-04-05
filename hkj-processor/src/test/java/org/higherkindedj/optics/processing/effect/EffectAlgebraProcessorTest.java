@@ -267,7 +267,8 @@ class EffectAlgebraProcessorTest {
       Compilation compilation = compile(simpleEffectAlgebra());
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpOps");
 
-      assertThat(source).contains("Free.liftF(ConsoleOpKindHelper.CONSOLE_OP.widen(op), functor())");
+      assertThat(source)
+          .contains("Free.liftF(ConsoleOpKindHelper.CONSOLE_OP.widen(op), functor())");
     }
 
     @Test

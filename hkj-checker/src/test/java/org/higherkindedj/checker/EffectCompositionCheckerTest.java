@@ -27,12 +27,11 @@ class EffectCompositionCheckerTest {
   @DisplayName("Checker should accept Trees in constructor")
   void checkerAcceptsTrees() {
     // Verify the constructor exists with Trees parameter
-    assertThat(EffectCompositionChecker.class.getConstructors())
-        .hasSize(1);
-    assertThat(EffectCompositionChecker.class.getConstructors()[0].getParameterTypes())
-        .hasSize(1);
-    assertThat(EffectCompositionChecker.class.getConstructors()[0].getParameterTypes()[0]
-            .getSimpleName())
+    assertThat(EffectCompositionChecker.class.getConstructors()).hasSize(1);
+    assertThat(EffectCompositionChecker.class.getConstructors()[0].getParameterTypes()).hasSize(1);
+    assertThat(
+            EffectCompositionChecker.class.getConstructors()[0].getParameterTypes()[0]
+                .getSimpleName())
         .isEqualTo("Trees");
   }
 }

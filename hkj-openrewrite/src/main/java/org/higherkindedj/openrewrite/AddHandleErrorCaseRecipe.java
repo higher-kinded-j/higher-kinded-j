@@ -14,8 +14,8 @@ import org.openrewrite.java.tree.J;
  * pattern-match Free monad variants (Pure, Suspend, FlatMapped).
  *
  * <p>When the Free monad is extended with error handling via {@code Free.HandleError}, existing
- * interpreters need to add corresponding cases. This recipe detects switch expressions that match on
- * Free variants and adds the missing cases with boilerplate handling.
+ * interpreters need to add corresponding cases. This recipe detects switch expressions that match
+ * on Free variants and adds the missing cases with boilerplate handling.
  *
  * <h2>Before</h2>
  *
