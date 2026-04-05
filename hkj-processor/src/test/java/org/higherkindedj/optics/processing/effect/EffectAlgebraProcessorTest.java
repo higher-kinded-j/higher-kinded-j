@@ -100,9 +100,10 @@ class EffectAlgebraProcessorTest {
       String allDiags = compilation.diagnostics().stream()
           .map(d -> "[" + d.getKind() + "] " + d.getMessage(null))
           .reduce("", (a, b) -> a + "\n" + b);
-      assertThat(compilation.status().toString())
-          .as("status (diags: %s)", allDiags)
-          .isEqualTo("SUCCESS");
+      if (compilation.errors().size() > 0) {
+        org.junit.jupiter.api.Assertions.fail(
+            "Compilation had " + compilation.errors().size() + " error(s):" + allDiags);
+      }
 
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKind");
 
