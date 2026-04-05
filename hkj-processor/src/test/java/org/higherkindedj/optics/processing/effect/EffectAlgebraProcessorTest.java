@@ -97,7 +97,9 @@ class EffectAlgebraProcessorTest {
     @DisplayName("Should generate Kind interface with Witness class")
     void generatesKindInterface() throws IOException {
       Compilation compilation = compile(simpleEffectAlgebra());
-      assertThat(compilation.errors()).isEmpty();
+      assertThat(compilation.errors())
+          .as("errors: %s", compilation.errors().stream().map(d -> d.getMessage(null)).toList())
+          .isEmpty();
 
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKind");
 
