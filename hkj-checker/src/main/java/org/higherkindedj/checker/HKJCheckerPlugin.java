@@ -62,6 +62,7 @@ public class HKJCheckerPlugin implements Plugin {
               var compilationUnit = event.getCompilationUnit();
               if (compilationUnit != null) {
                 new PathTypeMismatchChecker(trees).scan(compilationUnit, null);
+                new EffectCompositionChecker(trees).scan(compilationUnit, null);
               }
             }
           }

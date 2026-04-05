@@ -20,6 +20,8 @@ module org.higherkindedj.processor {
       org.higherkindedj.optics.processing.TraversalProcessor,
       org.higherkindedj.optics.processing.ImportOpticsProcessor,
       org.higherkindedj.optics.processing.effect.PathProcessor,
+      org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor,
+      org.higherkindedj.optics.processing.effect.ComposeEffectsProcessor,
       org.higherkindedj.optics.processing.ForComprehensionProcessor;
 
   // It exports the SPI so the plugins module can implement it.
