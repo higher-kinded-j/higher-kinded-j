@@ -96,7 +96,16 @@ class EffectAlgebraProcessorTest {
     @Test
     @DisplayName("Should generate Kind interface with Witness class")
     void generatesKindInterface() throws IOException {
-      Compilation compilation = compile(simpleEffectAlgebra());
+      Compilation compilation;
+      try {
+        compilation = compile(simpleEffectAlgebra());
+      } catch (RuntimeException e) {
+        // Unwrap to find root cause
+        Throwable cause = e;
+        while (cause.getCause() != null) cause = cause.getCause();
+        throw new AssertionError("Compilation crashed: " + cause.getClass().getName()
+            + ": " + cause.getMessage(), cause);
+      }
       assertThat(compilation.errors()).isEmpty();
 
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKind");

@@ -101,8 +101,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
           generateFunctor(packageName, baseName, typeElement);
           generateOps(packageName, baseName, typeElement, permits);
           generateInterpreter(packageName, baseName, typeElement, permits);
-        } catch (IOException e) {
-          error("Failed to generate code: " + e.getMessage(), element);
+        } catch (Exception e) {
+          error("Failed to generate code: " + e.getClass().getName() + ": " + e.getMessage(),
+              element);
         }
       }
     }
