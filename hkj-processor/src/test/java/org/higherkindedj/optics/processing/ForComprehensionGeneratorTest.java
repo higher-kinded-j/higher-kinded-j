@@ -914,7 +914,8 @@ class ForComprehensionGeneratorTest {
       assertThat(source).contains("par(");
       assertThat(source).contains("MONAD.map2(");
       // Combiner lambda should build tuple from existing + new
-      assertThat(source).contains("(r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2)");
+      assertThat(source)
+          .contains("(r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2)");
     }
 
     @Test
@@ -1011,8 +1012,10 @@ class ForComprehensionGeneratorTest {
       assertThat(source).contains("traverse(");
       assertThat(source).contains("Traverse<TT> traversable");
       assertThat(source).contains("traversable.traverse(MONAD, f, extractor.apply(t))");
-      assertThat(source).contains("Objects.requireNonNull(traversable, \"traversable must not be null\")");
-      assertThat(source).contains("Objects.requireNonNull(extractor, \"extractor must not be null\")");
+      assertThat(source)
+          .contains("Objects.requireNonNull(traversable, \"traversable must not be null\")");
+      assertThat(source)
+          .contains("Objects.requireNonNull(extractor, \"extractor must not be null\")");
       assertThat(source).contains("Objects.requireNonNull(f, \"function must not be null\")");
     }
 
@@ -1036,7 +1039,8 @@ class ForComprehensionGeneratorTest {
 
       assertThat(source).contains("flatTraverse(");
       assertThat(source).contains("Monad<TT> innerMonad");
-      assertThat(source).contains("Objects.requireNonNull(innerMonad, \"innerMonad must not be null\")");
+      assertThat(source)
+          .contains("Objects.requireNonNull(innerMonad, \"innerMonad must not be null\")");
       assertThat(source).contains("innerMonad.flatMap(Function.identity(), ttb)");
     }
 
@@ -1048,7 +1052,8 @@ class ForComprehensionGeneratorTest {
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
 
       // traverse, sequence, flatTraverse should all build tuples with t._1()..t._6() + new value
-      assertThat(source).contains("tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), tb)");
+      assertThat(source)
+          .contains("tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), tb)");
     }
 
     @Test
@@ -1204,7 +1209,9 @@ class ForComprehensionGeneratorTest {
 
       // GENERIC_VALUE_PARAMS = A, B, C, D, E, G, H, I, J, K, L, M (skips F)
       // Arity 8 uses: F (extra, bounded), A, B, C, D, E, G, H
-      assertThat(source).contains("GenericPathSteps8<F extends WitnessArity<TypeArity.Unary>, A, B, C, D, E, G, H");
+      assertThat(source)
+          .contains(
+              "GenericPathSteps8<F extends WitnessArity<TypeArity.Unary>, A, B, C, D, E, G, H");
     }
 
     @Test
@@ -1215,7 +1222,8 @@ class ForComprehensionGeneratorTest {
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps8");
 
       // Free also uses GENERIC_VALUE_PARAMS (skips F)
-      assertThat(source).contains("FreePathSteps8<F extends WitnessArity<TypeArity.Unary>, A, B, C, D, E, G, H");
+      assertThat(source)
+          .contains("FreePathSteps8<F extends WitnessArity<TypeArity.Unary>, A, B, C, D, E, G, H");
     }
 
     // -----------------------------------------------------------------------
@@ -1290,7 +1298,9 @@ class ForComprehensionGeneratorTest {
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
 
       // let() uses map: MONAD.map(t -> Tuple.of(..., f.apply(t)), computation)
-      assertThat(source).contains("MONAD.map(\n            t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), f.apply(t))");
+      assertThat(source)
+          .contains(
+              "MONAD.map(\n            t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), f.apply(t))");
     }
 
     @Test
@@ -1466,7 +1476,8 @@ class ForComprehensionGeneratorTest {
       String source =
           getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
 
-      assertThat(source).contains("FreePathSteps6(Monad<FreeKind.Witness<F>> monad, Functor<F> functor,");
+      assertThat(source)
+          .contains("FreePathSteps6(Monad<FreeKind.Witness<F>> monad, Functor<F> functor,");
       assertThat(source).contains("this.monad = monad;");
       assertThat(source).contains("this.functor = functor;");
       assertThat(source).contains("this.computation = computation;");

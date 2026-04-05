@@ -1078,19 +1078,43 @@ All deliverables implemented, tested, and passing. Spotless clean.
   in the generator: witness type `FreeKind.Witness<F>`, `runKind()` extraction,
   `FreePath.of(narrow, functor)` yield, and dual constructor args.
 
-### Phase 4: Code Generation — NOT STARTED
+### Phase 4: Code Generation — COMPLETE
 
-| Deliverable | Files | Location |
-|---|---|---|
-| `@EffectAlgebra` annotation | 1 file | `hkj-annotations/` |
-| `@ComposeEffects` + `@Handles` annotations | 2 files | `hkj-annotations/` |
-| `EffectAlgebraProcessor` | 1 file | `hkj-processor/` |
-| `ComposeEffectsProcessor` (generates Support class, Inject instances, BoundSet) | 1 file | `hkj-processor/` |
-| Generated Kind, KindHelper, Functor, Ops, Interpreter | Per annotated type | User's project |
-| Generated `*Support` class with Inject instances and BoundSet | Per @ComposeEffects type | User's project |
-| `EffectCompositionChecker` — extend HKJCheckerPlugin | 1-2 files | `hkj-checker/` |
-| OpenRewrite migration recipes (HandleError, FreePath, Inject) | 3-4 files | `hkj-openrewrite/` |
-| Processor + checker + recipe tests | Test files | `hkj-processor/src/test/`, `hkj-checker/src/test/`, `hkj-openrewrite/src/test/` |
+| Deliverable | Status | Files | Location |
+|---|---|---|---|
+| `@EffectAlgebra` annotation | Done | `EffectAlgebra.java` | `hkj-annotations/.../effect/annotation/` |
+| `@ComposeEffects` annotation | Done | `ComposeEffects.java` | `hkj-annotations/.../effect/annotation/` |
+| `@Handles` annotation | Done | `Handles.java` | `hkj-annotations/.../effect/annotation/` |
+| `EffectAlgebraProcessor` | Done | `EffectAlgebraProcessor.java` | `hkj-processor/.../effect/` |
+| `ComposeEffectsProcessor` (with `@Handles` validation) | Done | `ComposeEffectsProcessor.java` | `hkj-processor/.../effect/` |
+| Generated Kind, KindHelper, Functor, Ops+Bound, Interpreter | Done | Per annotated type | User's project |
+| Generated `*Support` class with Inject instances, BoundSet, functor() | Done | Per @ComposeEffects type | User's project |
+| `EffectCompositionChecker` — extend HKJCheckerPlugin | Done | `EffectCompositionChecker.java` | `hkj-checker/` |
+| OpenRewrite migration recipes (HandleError, FreePath, Inject) | Done | 3 recipe files + YAML | `hkj-openrewrite/` |
+| Processor tests | Done | `EffectAlgebraProcessorTest.java`, `EffectAlgebraIntegrationTest.java` | `hkj-processor/src/test/` |
+| ComposeEffects + Handles tests | Done | `ComposeEffectsProcessorTest.java` | `hkj-processor/src/test/` |
+| Checker tests | Done | `EffectCompositionCheckerTest.java` | `hkj-checker/src/test/` |
+| Recipe tests | Done | 3 test files | `hkj-openrewrite/src/test/` |
+
+**Implementation notes:**
+
+- `EffectAlgebraProcessor` generates five classes per `@EffectAlgebra` annotated sealed
+  interface: Kind (marker interface with Witness), KindHelper (enum singleton with
+  widen/narrow), Functor (auto-detects mapK for continuation-passing vs cast-through),
+  Ops (static Free.liftF factories + Bound inner class for composed effects), and
+  Interpreter (abstract Natural implementation with switch dispatch).
+- `ComposeEffectsProcessor` generates a `*Support` class with static inject factory
+  methods (using CodeBlock-based InjectInstances chaining for 2-4 effects), a composed
+  `functor()` method (nested EitherFFunctor construction), and a `BoundSet` record.
+- `@Handles` validation cross-references sealed permits against `handle*` methods on the
+  interpreter class; missing handlers produce errors, extra handlers produce warnings.
+- `EffectCompositionChecker` validates `Interpreters.combine()` arity (2-4 arguments)
+  and is registered in `HKJCheckerPlugin` alongside `PathTypeMismatchChecker`.
+- OpenRewrite recipes (`AddHandleErrorCaseRecipe`, `ConvertRawFreeToFreePathRecipe`,
+  `DetectInjectBoilerplateRecipe`) detect migration patterns and mark them with TODO
+  comments. Configured via `hkj-effect-algebra-migration.yml`.
+- The arity migration YAML was renamed from `hkj-v2-migration.yml` to
+  `hkj-arity-migration.yml` to accurately reflect its scope (0.2.x to 0.3.0).
 
 ### Phase 5: Worked Example + Documentation — NOT STARTED
 

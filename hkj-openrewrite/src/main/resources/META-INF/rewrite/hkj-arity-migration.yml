@@ -1,22 +1,24 @@
-# Higher-Kinded-J v2.0 Migration Recipes
-# These recipes help migrate code from v1.x to v2.0 embedded kind system
+# Higher-Kinded-J Arity Migration Recipes (0.2.x -> 0.3.0)
+# These recipes add WitnessArity bounds to witness types and type parameters,
+# introduced when the type arity system was added in version 0.3.0.
 #
 # Usage:
 #   rewrite {
-#     activeRecipe("org.higherkindedj.openrewrite.UpgradeToV2")
+#     activeRecipe("org.higherkindedj.openrewrite.AddArityBounds")
 #   }
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
-name: org.higherkindedj.openrewrite.UpgradeToV2
-displayName: Upgrade Higher-Kinded-J to v2.0
+name: org.higherkindedj.openrewrite.AddArityBounds
+displayName: Add WitnessArity bounds (0.2.x to 0.3.0)
 description: >
-  Migrates Higher-Kinded-J code from v1.x to v2.0, adding WitnessArity bounds
-  to witness types and type parameters that use Kind.
+  Migrates Higher-Kinded-J code from 0.2.x to 0.3.0 by adding WitnessArity
+  bounds to witness types and type parameters that use Kind. This was required
+  when the type arity system (WitnessArity, TypeArity) was introduced.
 tags:
   - higher-kinded-j
   - migration
-  - hkt
+  - arity
 recipeList:
   - org.higherkindedj.openrewrite.AddWitnessArityImports
   - org.higherkindedj.openrewrite.AddWitnessArityToWitness
@@ -28,7 +30,7 @@ name: org.higherkindedj.openrewrite.AddWitnessArityImports
 displayName: Add WitnessArity and TypeArity imports
 description: >
   Adds imports for org.higherkindedj.hkt.WitnessArity and
-  org.higherkindedj.hkt.TypeArity to files that need them.
+  org.higherkindedj.hkt.TypeArity to files that reference them.
 tags:
   - higher-kinded-j
   - imports

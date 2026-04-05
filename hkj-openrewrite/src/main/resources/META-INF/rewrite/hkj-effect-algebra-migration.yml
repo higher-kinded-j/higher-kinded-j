@@ -1,0 +1,25 @@
+# Higher-Kinded-J Effect Algebra Migration Recipes
+# These recipes help migrate effect algebra code to use @EffectAlgebra
+# and @ComposeEffects generated infrastructure.
+#
+# Usage:
+#   rewrite {
+#     activeRecipe("org.higherkindedj.openrewrite.EffectAlgebraMigration")
+#   }
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.EffectAlgebraMigration
+displayName: Effect algebra migration helpers
+description: >
+  Recipes for migrating effect algebra code: adds missing HandleError/Ap cases
+  to Free switch expressions, converts raw Free usage to FreePath API, and
+  detects manual Inject boilerplate that could use @ComposeEffects.
+tags:
+  - higher-kinded-j
+  - effects
+  - migration
+recipeList:
+  - org.higherkindedj.openrewrite.AddHandleErrorCaseRecipe
+  - org.higherkindedj.openrewrite.ConvertRawFreeToFreePathRecipe
+  - org.higherkindedj.openrewrite.DetectInjectBoilerplateRecipe

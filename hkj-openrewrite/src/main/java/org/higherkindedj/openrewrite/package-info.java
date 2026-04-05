@@ -1,15 +1,15 @@
-// Copyright (c) 2025 Magnus Smith
+// Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 /**
- * OpenRewrite recipes for migrating Higher-Kinded-J code to v2.0.
+ * OpenRewrite recipes for Higher-Kinded-J code migrations.
  *
- * <p>This package contains recipes that help automate the migration from Higher-Kinded-J v1.x to
- * v2.0, which introduces the embedded kind system with {@code WitnessArity} and {@code TypeArity}.
+ * <h2>Arity Migration (0.2.x to 0.3.0)</h2>
  *
- * <h2>Available Recipes</h2>
+ * <p>Recipes that automate the migration from 0.2.x to 0.3.0, which introduced the type arity
+ * system with {@code WitnessArity} and {@code TypeArity}.
  *
  * <ul>
- *   <li>{@code org.higherkindedj.openrewrite.UpgradeToV2} - Complete migration recipe
+ *   <li>{@code org.higherkindedj.openrewrite.AddArityBounds} - Complete arity migration recipe
  *   <li>{@code org.higherkindedj.openrewrite.AddWitnessArityImports} - Adds required imports
  *   <li>{@code org.higherkindedj.openrewrite.AddWitnessArityToWitness} - Adds WitnessArity to
  *       witness classes
@@ -17,9 +17,22 @@
  *       parameters
  * </ul>
  *
- * <h2>Usage</h2>
+ * <h2>Effect Algebra Migration</h2>
  *
- * <p>Add to your build.gradle.kts:
+ * <p>Recipes that help migrate effect algebra code to use {@code @EffectAlgebra} and
+ * {@code @ComposeEffects} generated infrastructure.
+ *
+ * <ul>
+ *   <li>{@code org.higherkindedj.openrewrite.EffectAlgebraMigration} - Complete effect migration
+ *   <li>{@code org.higherkindedj.openrewrite.AddHandleErrorCaseRecipe} - Detects Free switches
+ *       missing HandleError/Ap cases
+ *   <li>{@code org.higherkindedj.openrewrite.ConvertRawFreeToFreePathRecipe} - Detects raw Free
+ *       usage for FreePath migration
+ *   <li>{@code org.higherkindedj.openrewrite.DetectInjectBoilerplateRecipe} - Detects manual Inject
+ *       construction
+ * </ul>
+ *
+ * <h2>Usage</h2>
  *
  * <pre>{@code
  * plugins {
@@ -27,11 +40,11 @@
  * }
  *
  * dependencies {
- *     rewrite("io.github.higher-kinded-j:hkj-openrewrite:2.0.0")
+ *     rewrite("io.github.higher-kinded-j:hkj-openrewrite:0.3.0")
  * }
  *
  * rewrite {
- *     activeRecipe("org.higherkindedj.openrewrite.UpgradeToV2")
+ *     activeRecipe("org.higherkindedj.openrewrite.AddArityBounds")
  * }
  * }</pre>
  *

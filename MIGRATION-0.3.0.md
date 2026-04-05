@@ -143,7 +143,7 @@ dependencies {
 }
 
 rewrite {
-    activeRecipe("org.higherkindedj.openrewrite.UpgradeToV2")
+    activeRecipe("org.higherkindedj.openrewrite.AddArityBounds")
 }
 ```
 
@@ -166,7 +166,7 @@ Add the OpenRewrite plugin to your `pom.xml`:
             <version>5.45.0</version>
             <configuration>
                 <activeRecipes>
-                    <recipe>org.higherkindedj.openrewrite.UpgradeToV2</recipe>
+                    <recipe>org.higherkindedj.openrewrite.AddArityBounds</recipe>
                 </activeRecipes>
             </configuration>
             <dependencies>
@@ -191,7 +191,7 @@ mvn rewrite:run
 
 | Recipe | Description |
 |--------|-------------|
-| `org.higherkindedj.openrewrite.UpgradeToV2` | **Composite recipe** - runs all migration recipes |
+| `org.higherkindedj.openrewrite.AddArityBounds` | **Composite recipe** - runs all arity migration recipes |
 | `org.higherkindedj.openrewrite.AddWitnessArityToWitness` | Adds `WitnessArity` to witness classes |
 | `org.higherkindedj.openrewrite.AddArityBoundsToTypeParameters` | Adds bounds to generic type parameters |
 | `org.higherkindedj.openrewrite.AddWitnessArityImports` | Adds required imports |
