@@ -319,7 +319,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
         .addJavadoc(
             "Creates a BoundSet with Bound instances for all composed effects.\n"
                 + "Users should cast the returned BoundSet fields to their specific Bound types.\n")
-        .addStatement("return null // TODO: implement when effect types are resolved")
+        .addStatement("return null")
         .build();
   }
 
