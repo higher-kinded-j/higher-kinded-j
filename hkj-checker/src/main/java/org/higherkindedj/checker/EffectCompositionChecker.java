@@ -7,8 +7,11 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree;
 import java.util.List;
+import java.util.Set;
+import javax.tools.Diagnostic;
 
 /**
  * A {@link TreeScanner} that detects effect composition errors at compile time.
@@ -16,12 +19,12 @@ import java.util.List;
  * <p>This checker validates:
  *
  * <ul>
- *   <li><b>FreePath chain consistency</b> — the effect type {@code F} must match across {@code
- *       .via()}, {@code .then()}, {@code .zipWith()} chains on FreePath
  *   <li><b>Interpreters.combine() arity matching</b> — the number of interpreter arguments must
- *       match the arity of the EitherF nesting
- *   <li><b>boundTo() type safety</b> — the Inject type parameter must match the composed effect
- *       type
+ *       match the valid arity range (2-4) for EitherF nesting
+ *   <li><b>boundTo() type safety</b> — validates that boundTo() calls provide the required Inject
+ *       and Functor arguments
+ *   <li><b>FreePath chain consistency</b> — delegates to {@link PathTypeMismatchChecker} for
+ *       FreePath (one of 27 registered Path types)
  * </ul>
  *
  * <p>Follows a <b>no false positives</b> policy: if a type cannot be resolved, the check is
@@ -31,11 +34,17 @@ import java.util.List;
  */
 public class EffectCompositionChecker extends TreeScanner<Void, Void> {
 
-  /** Methods on Interpreters that we check arity for. */
+  /** Methods we check on Interpreters class. */
   private static final String COMBINE_METHOD = "combine";
+
+  /** Methods we check on Ops classes. */
+  private static final String BOUND_TO_METHOD = "boundTo";
 
   /** The class name for Interpreters. */
   private static final String INTERPRETERS_CLASS = "Interpreters";
+
+  /** Known Ops class suffixes — used for boundTo() checking. */
+  private static final Set<String> OPS_SUFFIXES = Set.of("Ops", "ErrorOps", "StateOps");
 
   private final Trees trees;
 
@@ -53,6 +62,8 @@ public class EffectCompositionChecker extends TreeScanner<Void, Void> {
     String methodName = extractMethodName(node);
     if (COMBINE_METHOD.equals(methodName)) {
       checkCombineArity(node);
+    } else if (BOUND_TO_METHOD.equals(methodName)) {
+      checkBoundToArgs(node);
     }
     return super.visitMethodInvocation(node, unused);
   }
@@ -63,14 +74,8 @@ public class EffectCompositionChecker extends TreeScanner<Void, Void> {
    */
   private void checkCombineArity(MethodInvocationTree node) {
     // Verify this is a call on Interpreters class
-    ExpressionTree methodSelect = node.getMethodSelect();
-    if (methodSelect instanceof MemberSelectTree memberSelect) {
-      String receiverStr = memberSelect.getExpression().toString();
-      if (!receiverStr.endsWith(INTERPRETERS_CLASS)) {
-        return; // Not Interpreters.combine(), skip
-      }
-    } else {
-      return; // Not a member select (e.g. static import), skip for safety
+    if (!isCallOnClass(node, INTERPRETERS_CLASS)) {
+      return;
     }
 
     List<? extends ExpressionTree> args = node.getArguments();
@@ -87,22 +92,50 @@ public class EffectCompositionChecker extends TreeScanner<Void, Void> {
   }
 
   /**
-   * Checks FreePath chain consistency — ensures the effect type F matches across chain operations.
-   * This is an extension point for future checks.
+   * Checks that boundTo() is called with exactly 2 arguments (Inject and Functor). This validates
+   * the calling convention for Ops.boundTo().
    */
-  private void checkFreePathChainConsistency(MethodInvocationTree node) {
-    // FreePath is already registered in PathTypeRegistry (one of 27 known Path types).
-    // The existing PathTypeMismatchChecker handles basic Path type consistency.
-    // This method provides a hook for more specific effect-type (F parameter) checking.
+  private void checkBoundToArgs(MethodInvocationTree node) {
+    List<? extends ExpressionTree> args = node.getArguments();
+    int argCount = args.size();
 
-    // Current implementation: silently skip (no false positives policy).
-    // Full type-argument resolution for FreePath<F, A> requires deeper javac integration
-    // that would be added incrementally.
+    if (argCount != 2) {
+      // Only report if we can confirm this is an Ops-style boundTo
+      if (isLikelyOpsBoundTo(node)) {
+        reportError(
+            node,
+            String.format(
+                "boundTo() requires exactly 2 arguments (Inject and Functor), got %d.", argCount));
+      }
+    }
   }
 
   // =========================================================================
   // Helpers
   // =========================================================================
+
+  /** Checks whether the method invocation is on the given class name. */
+  private boolean isCallOnClass(MethodInvocationTree node, String className) {
+    ExpressionTree methodSelect = node.getMethodSelect();
+    if (methodSelect instanceof MemberSelectTree memberSelect) {
+      String receiverStr = memberSelect.getExpression().toString();
+      return receiverStr.equals(className) || receiverStr.endsWith("." + className);
+    }
+    return false;
+  }
+
+  /**
+   * Heuristic check: is this boundTo() call likely on an Ops class? We check the receiver ends with
+   * "Ops" or is a known Ops class name.
+   */
+  private boolean isLikelyOpsBoundTo(MethodInvocationTree node) {
+    ExpressionTree methodSelect = node.getMethodSelect();
+    if (methodSelect instanceof MemberSelectTree memberSelect) {
+      String receiverStr = memberSelect.getExpression().toString();
+      return receiverStr.endsWith("Ops");
+    }
+    return false;
+  }
 
   private String extractMethodName(MethodInvocationTree node) {
     ExpressionTree methodSelect = node.getMethodSelect();
@@ -113,13 +146,6 @@ public class EffectCompositionChecker extends TreeScanner<Void, Void> {
   }
 
   private void reportError(MethodInvocationTree node, String message) {
-    // Access the underlying JCTree to get diagnostic position
-    if (node instanceof JCTree jcTree) {
-      trees.getSourcePositions().getClass(); // Ensure trees is initialized (no-op but safe)
-      // Use the diagnostic facility through the trees API
-      // In practice, the checker reports through the Trees/Log mechanism
-    }
-    // The error message is formatted for display
-    System.err.println("warning: [HKJChecker] " + message);
+    trees.printMessage(Diagnostic.Kind.ERROR, message, node, null);
   }
 }

@@ -5,36 +5,24 @@ package org.higherkindedj.openrewrite;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
-import org.openrewrite.java.AddImport;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.J;
 
 /**
- * Recipe that migrates direct {@code Free<F, A>} usage to the {@code FreePath<F, A>} fluent API.
+ * Recipe that detects direct {@code Free.liftF()} and {@code Free.suspend()} calls that could be
+ * migrated to the {@code FreePath} fluent API or generated {@code *Ops} smart constructors.
  *
  * <p>The FreePath API provides a more ergonomic and type-safe way to compose Free monad programs.
- * This recipe identifies common patterns of direct Free construction and suggests conversion to
- * FreePath equivalents.
+ * This recipe identifies common patterns of direct Free construction and marks them for migration.
  *
- * <h2>Pattern: Free.suspend → FreePath.from</h2>
+ * <h2>Detection Patterns</h2>
  *
- * <pre>{@code
- * // Before
- * Free<F, A> program = Free.suspend(op).flatMap(a -> Free.suspend(op2));
+ * <ul>
+ *   <li>{@code Free.liftF(kindHelper.widen(op), functor)} — should use generated Ops methods
+ *   <li>{@code Free.suspend(fa)} — should use FreePath.from() or generated Ops methods
+ * </ul>
  *
- * // After
- * FreePath<F, A> program = FreePath.from(op).then(() -> FreePath.from(op2)).yield(a -> a);
- * }</pre>
- *
- * <h2>Pattern: Free.liftF → FreePath smart constructors</h2>
- *
- * <pre>{@code
- * // Before
- * Free<F, A> program = Free.liftF(widened, functor);
- *
- * // After (using generated Ops class)
- * Free<F, A> program = FooOps.bar(args);
- * }</pre>
+ * <p>Detected calls are annotated with a TODO comment indicating the migration opportunity.
  *
  * @see org.higherkindedj.hkt.free.Free
  * @see org.higherkindedj.hkt.effect.FreePath
@@ -44,9 +32,6 @@ public class ConvertRawFreeToFreePathRecipe extends Recipe {
   /** Creates a new instance of this recipe. */
   public ConvertRawFreeToFreePathRecipe() {}
 
-  private static final String FREE_FQN = "org.higherkindedj.hkt.free.Free";
-  private static final String FREE_PATH_FQN = "org.higherkindedj.hkt.effect.FreePath";
-
   @Override
   public String getDisplayName() {
     return "Convert raw Free monad usage to FreePath API";
@@ -54,9 +39,9 @@ public class ConvertRawFreeToFreePathRecipe extends Recipe {
 
   @Override
   public String getDescription() {
-    return "Migrates direct Free<F, A> construction and composition to the FreePath<F, A> "
-        + "fluent API. FreePath provides better ergonomics, type safety, and integration "
-        + "with the ForPath comprehension builder.";
+    return "Detects direct Free.liftF() and Free.suspend() calls that could be replaced with "
+        + "FreePath fluent API or generated *Ops smart constructors. Marks detected usages "
+        + "with TODO comments for manual migration.";
   }
 
   @Override
@@ -68,20 +53,28 @@ public class ConvertRawFreeToFreePathRecipe extends Recipe {
           J.MethodInvocation method, ExecutionContext ctx) {
         J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
 
-        // Detect Free.liftF calls
-        if (isFreeLiftF(mi)) {
-          // Add import for FreePath as a hint
-          doAfterVisit(new AddImport<>(FREE_PATH_FQN, null, false));
+        if (isFreeLiftFOrSuspend(mi)) {
+          // Mark with a TODO comment for migration
+          return mi.withPrefix(
+              mi.getPrefix()
+                  .withComments(
+                      java.util.List.of(
+                          new org.openrewrite.java.tree.TextComment(
+                              false,
+                              " TODO: Consider using generated *Ops methods or FreePath API instead of raw Free",
+                              "",
+                              org.openrewrite.marker.Markers.EMPTY))));
         }
 
         return mi;
       }
 
-      private boolean isFreeLiftF(J.MethodInvocation mi) {
+      private boolean isFreeLiftFOrSuspend(J.MethodInvocation mi) {
         if (mi.getSelect() == null) return false;
         String selectStr = mi.getSelect().toString();
         String methodName = mi.getSimpleName();
-        return "Free".equals(selectStr) && "liftF".equals(methodName);
+        return "Free".equals(selectStr)
+            && ("liftF".equals(methodName) || "suspend".equals(methodName));
       }
     };
   }
