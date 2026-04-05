@@ -97,13 +97,7 @@ class EffectAlgebraProcessorTest {
     @DisplayName("Should generate Kind interface with Witness class")
     void generatesKindInterface() throws IOException {
       Compilation compilation = compile(simpleEffectAlgebra());
-      String allDiags = compilation.diagnostics().stream()
-          .map(d -> "[" + d.getKind() + "] " + d.getMessage(null))
-          .reduce("", (a, b) -> a + "\n" + b);
-      if (compilation.errors().size() > 0) {
-        org.junit.jupiter.api.Assertions.fail(
-            "Compilation had " + compilation.errors().size() + " error(s):" + allDiags);
-      }
+      assertThat(compilation.errors()).isEmpty();
 
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKind");
 

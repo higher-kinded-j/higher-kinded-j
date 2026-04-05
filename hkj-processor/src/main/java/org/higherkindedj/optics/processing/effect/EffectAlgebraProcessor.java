@@ -357,11 +357,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                         ClassName.get(packageName, functorName),
                         "INSTANCE",
                         Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                    .addAnnotation(
-                        AnnotationSpec.builder(SuppressWarnings.class)
-                            .addMember("value", "$S", "rawtypes")
-                            .build())
-                    .initializer("new $L<>()", functorName)
+                    .initializer("new $L()", functorName)
                     .build())
             .addMethod(
                 MethodSpec.constructorBuilder()
@@ -369,13 +365,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                     .build())
             .addMethod(
                 MethodSpec.methodBuilder("instance")
-                    .addAnnotation(
-                        AnnotationSpec.builder(SuppressWarnings.class)
-                            .addMember("value", "$S", "unchecked")
-                            .build())
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                     .returns(ClassName.get(packageName, functorName))
-                    .addStatement("return ($L) INSTANCE", functorName)
+                    .addStatement("return INSTANCE")
                     .addJavadoc("Returns the singleton Functor instance.\n")
                     .build())
             .addMethod(mapMethod)
@@ -424,11 +416,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                 MethodSpec.methodBuilder("functor")
                     .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                     .returns(functorClass)
-                    .addStatement("return ($T) FUNCTOR", functorClass)
-                    .addAnnotation(
-                        AnnotationSpec.builder(SuppressWarnings.class)
-                            .addMember("value", "$S", "unchecked")
-                            .build())
+                    .addStatement("return FUNCTOR")
                     .build());
 
     // Static factory method per permit
