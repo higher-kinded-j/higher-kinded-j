@@ -296,20 +296,34 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
                 WITNESS_ARITY,
                 ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
 
-    TypeSpec.Builder recordBuilder =
-        TypeSpec.recordBuilder("BoundSet")
-            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+    TypeSpec.Builder classBuilder =
+        TypeSpec.classBuilder("BoundSet")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(typeF)
             .addJavadoc(
-                "Convenience record holding Bound instances for all composed effects.\n\n"
+                "Convenience holder for Bound instances of all composed effects.\n\n"
                     + "@param <F> The composed effect witness type\n");
 
-    // Add a record component per effect (type is Object since we don't know the specific Bound type)
+    // Add a field per effect
+    MethodSpec.Builder ctorBuilder = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
     for (String name : effectNames) {
-      recordBuilder.addRecordComponent(ClassName.OBJECT, name);
+      classBuilder.addField(ClassName.OBJECT, name, Modifier.PRIVATE, Modifier.FINAL);
+      ctorBuilder.addParameter(ClassName.OBJECT, name);
+      ctorBuilder.addStatement("this.$L = $L", name, name);
+    }
+    classBuilder.addMethod(ctorBuilder.build());
+
+    // Add getter per effect
+    for (String name : effectNames) {
+      classBuilder.addMethod(
+          MethodSpec.methodBuilder(name)
+              .addModifiers(Modifier.PUBLIC)
+              .returns(ClassName.OBJECT)
+              .addStatement("return $L", name)
+              .build());
     }
 
-    return recordBuilder.build();
+    return classBuilder.build();
   }
 
   private MethodSpec generateCreateBoundsMethod(List<String> effectNames, int arity) {

@@ -209,12 +209,27 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     TypeVariableName typeA = TypeVariableName.get("A");
 
-    // Holder record
+    // Holder record — JavaPoet doesn't have recordBuilder, so emit as raw code block
+    // The record is: record FooHolder<A>(Foo<A> value) implements FooKind<A> {}
+    // We add it as a type member via a classBuilder that mimics a record
     TypeSpec holderType =
-        TypeSpec.recordBuilder(holderName)
-            .addRecordComponent(ParameterizedTypeName.get(sourceClass, typeA), "value")
+        TypeSpec.classBuilder(holderName)
+            .addModifiers(Modifier.STATIC)
             .addTypeVariable(typeA)
             .addSuperinterface(ParameterizedTypeName.get(kindClass, typeA))
+            .addField(ParameterizedTypeName.get(sourceClass, typeA), "value",
+                Modifier.PRIVATE, Modifier.FINAL)
+            .addMethod(
+                MethodSpec.constructorBuilder()
+                    .addParameter(ParameterizedTypeName.get(sourceClass, typeA), "value")
+                    .addStatement("this.value = value")
+                    .build())
+            .addMethod(
+                MethodSpec.methodBuilder("value")
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(ParameterizedTypeName.get(sourceClass, typeA))
+                    .addStatement("return value")
+                    .build())
             .build();
 
     // widen method
