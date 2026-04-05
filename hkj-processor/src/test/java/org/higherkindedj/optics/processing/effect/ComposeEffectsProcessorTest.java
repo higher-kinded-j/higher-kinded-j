@@ -35,7 +35,7 @@ class ComposeEffectsProcessorTest {
 
         @ComposeEffects
         public record AppEffects(
-            String console,
+            Integer console,
             String db
         ) {}
         """);
@@ -51,9 +51,9 @@ class ComposeEffectsProcessorTest {
 
         @ComposeEffects
         public record TripleEffects(
-            String console,
+            Integer console,
             String db,
-            String logging
+            Long logging
         ) {}
         """);
   }
@@ -80,10 +80,7 @@ class ComposeEffectsProcessorTest {
     @DisplayName("Should generate Support class for 2-effect composition")
     void generatesSupportFor2Effects() throws IOException {
       Compilation compilation = compile(twoEffectComposition());
-      if (!compilation.errors().isEmpty()) {
-        org.junit.jupiter.api.Assertions.fail("Compilation errors: "
-            + compilation.errors().stream().map(d -> d.getMessage(null)).toList());
-      }
+      assertThat(compilation.errors()).isEmpty();
 
       String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
 
