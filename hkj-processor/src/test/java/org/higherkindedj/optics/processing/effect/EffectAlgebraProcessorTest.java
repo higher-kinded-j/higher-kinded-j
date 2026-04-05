@@ -144,9 +144,8 @@ class EffectAlgebraProcessorTest {
       Compilation compilation = compile(simpleEffectAlgebra());
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKindHelper");
 
-      assertThat(source).contains("class ConsoleOpHolder<A>");
+      assertThat(source).contains("record ConsoleOpHolder<A>(ConsoleOp<A> value)");
       assertThat(source).contains("implements ConsoleOpKind<A>");
-      assertThat(source).contains("ConsoleOp<A> value");
     }
 
     @Test

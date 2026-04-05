@@ -130,7 +130,7 @@ class ComposeEffectsProcessorTest {
       Compilation compilation = compile(twoEffectComposition());
       String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
 
-      assertThat(source).contains("class BoundSet<F");
+      assertThat(source).contains("record BoundSet<F");
       assertThat(source).contains("Object console");
       assertThat(source).contains("Object db");
     }
