@@ -97,11 +97,12 @@ class EffectAlgebraProcessorTest {
     @DisplayName("Should generate Kind interface with Witness class")
     void generatesKindInterface() throws IOException {
       Compilation compilation = compile(simpleEffectAlgebra());
-      System.out.println("DIAG: error count = " + compilation.errors().size());
-      System.out.println("DIAG: status = " + compilation.status());
-      compilation.diagnostics().forEach(d ->
-          System.out.println("DIAG [" + d.getKind() + "]: " + d.getMessage(null)));
-      assertThat(compilation.status().toString()).isEqualTo("SUCCESS");
+      String allDiags = compilation.diagnostics().stream()
+          .map(d -> "[" + d.getKind() + "] " + d.getMessage(null))
+          .reduce("", (a, b) -> a + "\n" + b);
+      assertThat(compilation.status().toString())
+          .as("status (diags: %s)", allDiags)
+          .isEqualTo("SUCCESS");
 
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpKind");
 
