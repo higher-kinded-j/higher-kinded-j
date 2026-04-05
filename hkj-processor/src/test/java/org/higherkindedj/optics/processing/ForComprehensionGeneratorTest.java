@@ -897,6 +897,707 @@ class ForComprehensionGeneratorTest {
         }
       }
     }
+
+    // -----------------------------------------------------------------------
+    // par() method tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps6 should have par() method with 2 parallel bindings")
+    void maybePathStepsPar2() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // par(f1, f2) should produce MaybePathSteps8
+      assertThat(source).contains("MaybePathSteps8<");
+      assertThat(source).contains("par(");
+      assertThat(source).contains("MONAD.map2(");
+      // Combiner lambda should build tuple from existing + new
+      assertThat(source)
+          .contains("(r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), r1, r2)");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps6 par() should use widen pattern for each parallel arg")
+    void maybePathStepsParWidenPattern() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // Each parallel binding should be widened
+      assertThat(source).contains("MaybeKindHelper.MAYBE.widen(f1.apply(t).run())");
+      assertThat(source).contains("MaybeKindHelper.MAYBE.widen(f2.apply(t).run())");
+    }
+
+    @Test
+    @DisplayName("GenericPathSteps par() should use runKind pattern")
+    void genericPathStepsParUsesRunKind() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps6");
+
+      assertThat(source).contains("f1.apply(t).runKind()");
+      assertThat(source).contains("f2.apply(t).runKind()");
+    }
+
+    @Test
+    @DisplayName("EitherPathSteps par() should use local monad variable")
+    void eitherPathStepsParLocalMonad() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.EitherPathSteps6");
+
+      // par() for Either should create local monad variable
+      assertThat(source).contains("EitherMonad<E> m = monad();");
+      assertThat(source).contains("m.flatMap(");
+      assertThat(source).contains("m.map2(");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps2 should have par() with k=2,3,4 overloads")
+    void maybePathSteps2ParOverloads() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps2");
+
+      // k=2 targets arity 4, k=3 targets arity 5, k=4 targets arity 6
+      assertThat(source).contains("MONAD.map2(");
+      assertThat(source).contains("MONAD.map3(");
+      assertThat(source).contains("MONAD.map4(");
+      // Combiner for k=3
+      assertThat(source).contains("(r1, r2, r3) -> Tuple.of(t._1(), t._2(), r1, r2, r3)");
+      // Combiner for k=4
+      assertThat(source).contains("(r1, r2, r3, r4) -> Tuple.of(t._1(), t._2(), r1, r2, r3, r4)");
+    }
+
+    @Test
+    @DisplayName("High arity par() should not exceed arity 12")
+    void highArityParDoesNotExceed12() throws IOException {
+      // MaybePathSteps8 is terminal at maxArity=8, but par() generation
+      // is based on n + k <= 12 regardless of terminal status
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps8");
+
+      // At arity 8, par(k=2)=10, par(k=3)=11, par(k=4)=12 all valid
+      assertThat(source).contains("MONAD.map2(");
+      assertThat(source).contains("MONAD.map3(");
+      assertThat(source).contains("MONAD.map4(");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps par() should pass monad instance")
+    void freePathStepsParMonadInstance() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source).contains("monad.flatMap(");
+      assertThat(source).contains("monad.map2(");
+      assertThat(source).contains("f1.apply(t).runKind()");
+    }
+
+    // -----------------------------------------------------------------------
+    // traverse/sequence/flatTraverse tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps6 should have traverse() method")
+    void maybePathStepsTraverse() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("traverse(");
+      assertThat(source).contains("Traverse<TT> traversable");
+      assertThat(source).contains("traversable.traverse(MONAD, f, extractor.apply(t))");
+      assertThat(source)
+          .contains("Objects.requireNonNull(traversable, \"traversable must not be null\")");
+      assertThat(source)
+          .contains("Objects.requireNonNull(extractor, \"extractor must not be null\")");
+      assertThat(source).contains("Objects.requireNonNull(f, \"function must not be null\")");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps6 should have sequence() method")
+    void maybePathStepsSequence() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("sequence(");
+      assertThat(source).contains("traversable.sequenceA(MONAD, extractor.apply(t))");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps6 should have flatTraverse() method")
+    void maybePathStepsFlatTraverse() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("flatTraverse(");
+      assertThat(source).contains("Monad<TT> innerMonad");
+      assertThat(source)
+          .contains("Objects.requireNonNull(innerMonad, \"innerMonad must not be null\")");
+      assertThat(source).contains("innerMonad.flatMap(Function.identity(), ttb)");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps6 traverse() should build tuple with existing fields")
+    void traverseTupleBuilding() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // traverse, sequence, flatTraverse should all build tuples with t._1()..t._6() + new value
+      assertThat(source)
+          .contains("tb -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), tb)");
+    }
+
+    @Test
+    @DisplayName("GenericPathSteps traverse() should use instance monad")
+    void genericPathStepsTraverseUsesInstanceMonad() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps6");
+
+      assertThat(source).contains("traversable.traverse(monad, f, extractor.apply(t))");
+      assertThat(source).contains("traversable.sequenceA(monad, extractor.apply(t))");
+    }
+
+    @Test
+    @DisplayName("EitherPathSteps traverse() should use local monad variable")
+    void eitherPathStepsTraverseLocalMonad() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.EitherPathSteps6");
+
+      assertThat(source).contains("traversable.traverse(m, f, extractor.apply(t))");
+      assertThat(source).contains("traversable.sequenceA(m, extractor.apply(t))");
+    }
+
+    @Test
+    @DisplayName("Terminal path steps should NOT have traverse/sequence/flatTraverse")
+    void terminalPathStepsNoTraverse() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps8");
+
+      assertThat(source).doesNotContain("traverse(");
+      assertThat(source).doesNotContain("sequence(");
+      assertThat(source).doesNotContain("flatTraverse(");
+      assertThat(source).doesNotContain("Traverse<");
+    }
+
+    // -----------------------------------------------------------------------
+    // Terminal filterable: when() but NOT match()
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Terminal filterable path step should have when() but NOT match()")
+    void terminalFilterableHasWhenButNotMatch() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps8");
+
+      // Terminal filterable: when() YES, match() NO
+      assertThat(source).contains("when(");
+      assertThat(source).contains("Predicate<Tuple8<");
+      assertThat(source).doesNotContain("match(");
+      assertThat(source).doesNotContain("Optional<");
+    }
+
+    @Test
+    @DisplayName("Terminal NonDetPathSteps should have when() but NOT match()")
+    void terminalNonDetHasWhenButNotMatch() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps8");
+
+      assertThat(source).contains("when(");
+      assertThat(source).doesNotContain("match(");
+    }
+
+    // -----------------------------------------------------------------------
+    // Yield variants: null check, tuple overload, spread function type
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Path steps yield should have null check with YIELD_NULL_MSG")
+    void pathStepsYieldNullCheck() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("Objects.requireNonNull(");
+      assertThat(source).contains("The yield function must not return null.");
+    }
+
+    @Test
+    @DisplayName("Path steps yield should have tuple function overload")
+    void pathStepsYieldTupleOverload() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // Yield with Function<Tuple6<...>, R>
+      assertThat(source).contains("yield(Function<Tuple6<");
+      // The tuple overload uses f.apply(t) directly
+      assertThat(source).contains("Objects.requireNonNull(f.apply(t),");
+    }
+
+    @Test
+    @DisplayName("Arity 2 path step yield spread should use BiFunction")
+    void arity2YieldSpreadUsesBiFunction() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps2");
+
+      assertThat(source).contains("yield(BiFunction<");
+      assertThat(source).contains("import java.util.function.BiFunction;");
+    }
+
+    @Test
+    @DisplayName("Arity 3+ path step yield spread should use FunctionN")
+    void arity3PlusYieldSpreadUsesFunctionN() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("yield(Function6<");
+      assertThat(source).doesNotContain("yield(BiFunction<");
+    }
+
+    @Test
+    @DisplayName("Yield spread should apply individual tuple accessors")
+    void yieldSpreadAppliesToAccessors() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // spread yield: f.apply(t._1(), t._2(), ..., t._6())
+      assertThat(source).contains("f.apply(t._1(), t._2(), t._3(), t._4(), t._5(), t._6())");
+    }
+
+    // -----------------------------------------------------------------------
+    // Collision avoidance tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("EitherPathSteps should skip E and M in value params")
+    void eitherPathStepsSkipsEandM() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.EitherPathSteps8");
+
+      // EITHER_VALUE_PARAMS = A, B, C, D, F, G, H, I, J, K, L, N (skips E and M)
+      // Arity 8 uses params: E (extra), A, B, C, D, F, G, H, I
+      assertThat(source).contains("EitherPathSteps8<E, A, B, C, D, F, G, H");
+      // Should NOT have M as a type param (would collide with local monad var 'm')
+      assertThat(source).doesNotContain(", M>");
+      assertThat(source).doesNotContain(", M,");
+    }
+
+    @Test
+    @DisplayName("GenericPathSteps should skip F in value params")
+    void genericPathStepsSkipsF() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps8");
+
+      // GENERIC_VALUE_PARAMS = A, B, C, D, E, G, H, I, J, K, L, M (skips F)
+      // Arity 8 uses: F (extra, bounded), A, B, C, D, E, G, H
+      assertThat(source)
+          .contains(
+              "GenericPathSteps8<F extends WitnessArity<TypeArity.Unary>, A, B, C, D, E, G, H");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps should skip F in value params (same as Generic)")
+    void freePathStepsSkipsF() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps8");
+
+      // Free also uses GENERIC_VALUE_PARAMS (skips F)
+      assertThat(source)
+          .contains("FreePathSteps8<F extends WitnessArity<TypeArity.Unary>, A, B, C, D, E, G, H");
+    }
+
+    // -----------------------------------------------------------------------
+    // when() body tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps when() should use zero() pattern")
+    void maybePathStepsWhenBodyZeroPattern() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("predicate.test(t) ? MONAD.of(t) : MONAD.zero()");
+    }
+
+    @Test
+    @DisplayName("NonDetPathSteps when() should use MONAD reference")
+    void nonDetPathStepsWhenUsesMonad() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps6");
+
+      assertThat(source).contains("predicate.test(t) ? MONAD.of(t) : MONAD.zero()");
+      assertThat(source).contains("MONAD.flatMap(");
+    }
+
+    // -----------------------------------------------------------------------
+    // match() body tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps match() should use orElseGet with zero")
+    void maybePathStepsMatchBodyOrElseGet() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains(".orElseGet(MONAD::zero)");
+      assertThat(source).contains("Objects.requireNonNull(matcher, \"matcher must not be null\")");
+    }
+
+    @Test
+    @DisplayName("NonDetPathSteps match() should use MONAD::zero")
+    void nonDetPathStepsMatchOrElseGet() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps6");
+
+      assertThat(source).contains(".orElseGet(MONAD::zero)");
+    }
+
+    @Test
+    @DisplayName("OptionalPathSteps match() should use MONAD::zero")
+    void optionalPathStepsMatchOrElseGet() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.OptionalPathSteps6");
+
+      assertThat(source).contains(".orElseGet(MONAD::zero)");
+    }
+
+    // -----------------------------------------------------------------------
+    // let() body tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps let() should use map (not flatMap)")
+    void maybePathStepsLetUsesMap() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // let() uses map: MONAD.map(t -> Tuple.of(..., f.apply(t)), computation)
+      assertThat(source)
+          .contains(
+              "MONAD.map(\n            t -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), f.apply(t))");
+    }
+
+    @Test
+    @DisplayName("EitherPathSteps let() should use local monad variable with map")
+    void eitherPathStepsLetUsesLocalMonadMap() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.EitherPathSteps6");
+
+      // Either let() uses local monad: m.map(...)
+      assertThat(source).contains("m.map(");
+    }
+
+    // -----------------------------------------------------------------------
+    // from() tuple construction detail
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps from() should use flatMap wrapping map for tuple building")
+    void maybePathStepsFromTupleConstruction() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // from() uses flatMap(t -> map(g -> Tuple.of(t._1(), ..., t._6(), g), widen(next...)))
+      assertThat(source).contains("MONAD.flatMap(");
+      assertThat(source).contains("t -> MONAD.map(");
+    }
+
+    // -----------------------------------------------------------------------
+    // Import specifics
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("MaybePathSteps2 should import BiFunction (arity 2)")
+    void maybePathSteps2ImportsBiFunction() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps2");
+
+      assertThat(source).contains("import java.util.function.BiFunction;");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps6 should NOT import BiFunction (arity > 2)")
+    void maybePathSteps6NoBiFunction() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).doesNotContain("import java.util.function.BiFunction;");
+    }
+
+    @Test
+    @DisplayName("Non-terminal path steps should import Traverse")
+    void nonTerminalImportsTraverse() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.Traverse;");
+      assertThat(source).contains("import org.higherkindedj.hkt.TypeArity;");
+      assertThat(source).contains("import org.higherkindedj.hkt.WitnessArity;");
+    }
+
+    @Test
+    @DisplayName("Terminal non-generic/non-free path steps should NOT import Traverse or Monad")
+    void terminalStaticMonadNoTraverseOrMonadImport() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps8");
+
+      assertThat(source).doesNotContain("import org.higherkindedj.hkt.Traverse;");
+      assertThat(source).doesNotContain("import org.higherkindedj.hkt.Monad;");
+    }
+
+    @Test
+    @DisplayName("Filterable path steps should import Predicate and Optional")
+    void filterableImportsPredicateAndOptional() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("import java.util.Optional;");
+      assertThat(source).contains("import java.util.function.Predicate;");
+    }
+
+    @Test
+    @DisplayName("Non-filterable path steps should NOT import Predicate or Optional")
+    void nonFilterableNoPredicateOrOptionalImport() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.TryPathSteps6");
+
+      assertThat(source).doesNotContain("import java.util.Optional;");
+      assertThat(source).doesNotContain("import java.util.function.Predicate;");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps should import Functor")
+    void freePathStepsImportsFunctor() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.Functor;");
+    }
+
+    @Test
+    @DisplayName("GenericPathSteps should import Monad but NOT Functor")
+    void genericPathStepsImportsMonadNotFunctor() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps6");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.Monad;");
+      assertThat(source).doesNotContain("import org.higherkindedj.hkt.Functor;");
+    }
+
+    @Test
+    @DisplayName("Tuple imports should cover up to N+4 for par() methods")
+    void tupleImportsCoverParTargetArity() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      // Arity 6: should import Tuple6 through Tuple10 (6+4)
+      assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple6;");
+      assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple7;");
+      assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple8;");
+      assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple9;");
+      assertThat(source).contains("import org.higherkindedj.hkt.tuple.Tuple10;");
+    }
+
+    // -----------------------------------------------------------------------
+    // NonDetPath, static MONAD, Free/Generic constructor args
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("NonDetPath yield should use narrow() pattern")
+    void nonDetPathYieldUsesNarrow() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps6");
+
+      assertThat(source).contains("NonDetPath.of(ListKindHelper.LIST.narrow(result))");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps should have static MONAD field")
+    void maybePathStepsStaticMonadField() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("private static final MaybeMonad MONAD = MaybeMonad.INSTANCE;");
+    }
+
+    @Test
+    @DisplayName("IdPathSteps should have static MONAD field from factory")
+    void idPathStepsStaticMonadField() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.IdPathSteps6");
+
+      assertThat(source).contains("private static final IdMonad MONAD = IdMonad.instance();");
+    }
+
+    @Test
+    @DisplayName("FreePathSteps constructor should take monad and functor")
+    void freePathStepsConstructorArgs() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source)
+          .contains("FreePathSteps6(Monad<FreeKind.Witness<F>> monad, Functor<F> functor,");
+      assertThat(source).contains("this.monad = monad;");
+      assertThat(source).contains("this.functor = functor;");
+      assertThat(source).contains("this.computation = computation;");
+    }
+
+    @Test
+    @DisplayName("GenericPathSteps constructor should take monad")
+    void genericPathStepsConstructorArgs() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps6");
+
+      assertThat(source).contains("GenericPathSteps6(Monad<F> monad,");
+      assertThat(source).contains("this.monad = monad;");
+      assertThat(source).contains("this.computation = computation;");
+    }
+
+    @Test
+    @DisplayName("Free from() should pass monad and functor to next constructor")
+    void freeFromPassesMonadAndFunctor() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps6");
+
+      assertThat(source).contains("return new FreePathSteps7<>(monad, functor, newComp);");
+    }
+
+    @Test
+    @DisplayName("Generic from() should pass monad to next constructor")
+    void genericFromPassesMonad() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps6");
+
+      assertThat(source).contains("return new GenericPathSteps7<>(monad, newComp);");
+    }
+
+    @Test
+    @DisplayName("MaybePath yield should use Path.maybe factory with narrow")
+    void maybePathYieldUsesPathFactory() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("return Path.maybe(MaybeKindHelper.MAYBE.narrow(result));");
+    }
+
+    @Test
+    @DisplayName("EitherPath yield should use Path.either factory with narrow")
+    void eitherPathYieldUsesPathFactory() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.EitherPathSteps6");
+
+      assertThat(source).contains("return Path.either(EitherKindHelper.EITHER.narrow(result));");
+    }
+
+    @Test
+    @DisplayName("EitherPathSteps should not have static MONAD field (uses helper method)")
+    void eitherPathStepsNoStaticMonadField() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.EitherPathSteps6");
+
+      assertThat(source).doesNotContain("private static final EitherMonad MONAD");
+      assertThat(source).contains("private static <E> EitherMonad<E> monad()");
+    }
+
+    @Test
+    @DisplayName("GenericPath yield should use GenericPath.of with result and monad")
+    void genericPathYieldUsesGenericPathOf() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps6");
+
+      assertThat(source).contains("return GenericPath.of(result, monad);");
+    }
+
+    @Test
+    @DisplayName("NonDetPathSteps should import NonDetPath (not Path)")
+    void nonDetPathImportsNonDetPath() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.NonDetPathSteps6");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.effect.NonDetPath;");
+      assertThat(source).doesNotContain("import org.higherkindedj.hkt.effect.Path;");
+    }
+
+    @Test
+    @DisplayName("MaybePathSteps should import both MaybePath and Path")
+    void maybePathImportsMaybePathAndPath() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.MaybePathSteps6");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.effect.MaybePath;");
+      assertThat(source).contains("import org.higherkindedj.hkt.effect.Path;");
+    }
+
+    @Test
+    @DisplayName("Terminal GenericPathSteps should still import Monad (instance monad)")
+    void terminalGenericStillImportsMonad() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.GenericPathSteps8");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.Monad;");
+    }
+
+    @Test
+    @DisplayName("Terminal FreePathSteps should still import Monad and Functor")
+    void terminalFreeStillImportsMonadAndFunctor() throws IOException {
+      Compilation compilation = compile(packageInfoSource());
+      String source =
+          getGeneratedSource(compilation, "org.higherkindedj.hkt.expression.FreePathSteps8");
+
+      assertThat(source).contains("import org.higherkindedj.hkt.Monad;");
+      assertThat(source).contains("import org.higherkindedj.hkt.Functor;");
+    }
   }
 
   // ===========================================================================
