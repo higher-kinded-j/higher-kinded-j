@@ -23,10 +23,21 @@ import org.jspecify.annotations.NullMarked;
  * <h2>Standard instances</h2>
  *
  * <ul>
- *   <li>{@link #injectLeft()} — inject into the left of an EitherF
- *   <li>{@link #injectRight()} — inject into the right of an EitherF
- *   <li>{@link #injectRightThen(Inject)} — inject into the right, then delegate to another Inject
+ *   <li>{@link #injectLeft()}: inject into the left of an EitherF
+ *   <li>{@link #injectRight()}: inject into the right of an EitherF
+ *   <li>{@link #injectRightThen(Inject)}: inject into the right, then delegate to another Inject
  * </ul>
+ *
+ * <h2>Composition example (4 effects)</h2>
+ *
+ * <p>For {@code EitherF<F, EitherF<G, EitherF<H, I>>>}:
+ *
+ * <pre>{@code
+ * Inject<F, Composed> injectF = injectLeft();                              // Left
+ * Inject<G, Composed> injectG = injectRightThen(injectLeft());             // Right > Left
+ * Inject<H, Composed> injectH = injectRightThen(injectRightThen(injectLeft()));  // Right > Right > Left
+ * Inject<I, Composed> injectI = injectRightThen(injectRightThen(injectRight())); // Right > Right > Right
+ * }</pre>
  *
  * @see Inject
  * @see EitherF

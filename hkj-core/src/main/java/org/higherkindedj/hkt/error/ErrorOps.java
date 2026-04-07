@@ -25,7 +25,7 @@ import org.jspecify.annotations.NullMarked;
  * <p>For combined-effect use via {@link Bound}:
  *
  * <pre>{@code
- * ErrorOps.Bound<BusinessError, AppEffects> errors = ErrorOps.boundTo(errorInject);
+ * ErrorOps.Bound<BusinessError, AppEffects> errors = ErrorOps.boundTo(errorInject, appFunctor);
  * Free<AppEffects, Void> combined = errors.raise(new NotFoundError());
  * }</pre>
  *

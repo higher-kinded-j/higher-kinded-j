@@ -16,7 +16,7 @@
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [EnhancedOpticsIntegrationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/EnhancedOpticsIntegrationExample.java) -- Phase 6 features
+- [EnhancedOpticsIntegrationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/EnhancedOpticsIntegrationExample.java)
 - [ForStateExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForStateExample.java) -- ForState basics
 ~~~
 

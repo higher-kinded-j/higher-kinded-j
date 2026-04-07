@@ -41,7 +41,8 @@ public final class ErrorOpFunctor<E> implements Functor<ErrorOpKind.Witness<E>> 
       Function<? super A, ? extends B> f, Kind<ErrorOpKind.Witness<E>, A> fa) {
     Validation.function().require(f, "f", MAP);
     Validation.kind().requireNonNull(fa, MAP);
-    // Raise<E, A> -> Raise<E, B>: the error is the same, only the phantom type changes.
+    // Safe cast: A is phantom in ErrorOp.Raise (the record holds only the error E, never a
+    // value of type A). Changing A to B has no runtime effect — the data is unchanged.
     ErrorOp<E, A> op = ErrorOpKindHelper.ERROR_OP.narrow(fa);
     return (Kind<ErrorOpKind.Witness<E>, B>)
         ErrorOpKindHelper.ERROR_OP.widen((ErrorOp<E, B>) (ErrorOp<?, B>) op);

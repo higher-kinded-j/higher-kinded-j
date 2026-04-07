@@ -39,9 +39,27 @@ public final class EitherFFunctor<
    * @param functorF The functor instance for the left effect algebra. Must not be null.
    * @param functorG The functor instance for the right effect algebra. Must not be null.
    */
-  public EitherFFunctor(Functor<F> functorF, Functor<G> functorG) {
+  private EitherFFunctor(Functor<F> functorF, Functor<G> functorG) {
     this.functorF = Validation.function().require(functorF, "functorF", CONSTRUCTION);
     this.functorG = Validation.function().require(functorG, "functorG", CONSTRUCTION);
+  }
+
+  /**
+   * Creates an EitherFFunctor from two sub-functor instances.
+   *
+   * <p>Unlike the {@code instance()} factories on stateless type class instances (which return a
+   * cached singleton), this method creates a new instance each time because EitherFFunctor holds
+   * references to its sub-functors.
+   *
+   * @param functorF The functor instance for the left effect algebra. Must not be null.
+   * @param functorG The functor instance for the right effect algebra. Must not be null.
+   * @param <F> The witness type for the left effect algebra
+   * @param <G> The witness type for the right effect algebra
+   * @return a new EitherFFunctor
+   */
+  public static <F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>>
+      EitherFFunctor<F, G> of(Functor<F> functorF, Functor<G> functorG) {
+    return new EitherFFunctor<>(functorF, functorG);
   }
 
   /**

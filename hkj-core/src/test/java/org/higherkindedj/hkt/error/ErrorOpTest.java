@@ -172,7 +172,7 @@ class ErrorOpTest {
               EitherFKind.Witness<ErrorOpKind.Witness<String>, IdentityKind.Witness>>
           inject = InjectInstances.injectLeft();
 
-      var functor = new EitherFFunctor<>(ErrorOpFunctor.<String>instance(), IdentityMonad.INSTANCE);
+      var functor = EitherFFunctor.of(ErrorOpFunctor.<String>instance(), IdentityMonad.INSTANCE);
 
       ErrorOps.Bound<String, EitherFKind.Witness<ErrorOpKind.Witness<String>, IdentityKind.Witness>>
           bound = ErrorOps.boundTo(inject, functor);
@@ -188,7 +188,7 @@ class ErrorOpTest {
               EitherFKind.Witness<ErrorOpKind.Witness<String>, IdentityKind.Witness>>
           inject = InjectInstances.injectLeft();
 
-      var functor = new EitherFFunctor<>(ErrorOpFunctor.<String>instance(), IdentityMonad.INSTANCE);
+      var functor = EitherFFunctor.of(ErrorOpFunctor.<String>instance(), IdentityMonad.INSTANCE);
 
       var bound =
           ErrorOps

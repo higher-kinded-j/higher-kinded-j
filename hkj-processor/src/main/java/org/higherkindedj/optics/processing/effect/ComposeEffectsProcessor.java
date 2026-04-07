@@ -98,21 +98,24 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
         continue;
       }
 
-      // Check for duplicates
-      Set<String> seen = new HashSet<>();
+      // Check for duplicates using proper type comparison
+      List<RecordComponentElement> seenComponents = new ArrayList<>();
       boolean hasDuplicates = false;
       for (RecordComponentElement comp : components) {
-        String typeName = comp.asType().toString();
-        if (!seen.add(typeName)) {
-          error(
-              "Duplicate effect algebra type: "
-                  + typeName
-                  + " (field '"
-                  + comp.getSimpleName()
-                  + "'). Each effect algebra may only appear once.",
-              comp);
-          hasDuplicates = true;
+        for (RecordComponentElement prev : seenComponents) {
+          if (processingEnv.getTypeUtils().isSameType(comp.asType(), prev.asType())) {
+            error(
+                "Duplicate effect algebra type: "
+                    + comp.asType()
+                    + " (field '"
+                    + comp.getSimpleName()
+                    + "'). Each effect algebra may only appear once.",
+                comp);
+            hasDuplicates = true;
+            break;
+          }
         }
+        seenComponents.add(comp);
       }
       if (hasDuplicates) continue;
 
@@ -262,8 +265,8 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
                     + "@return The composed Functor instance\n");
 
     // Build nested EitherFFunctor construction
-    // For 2: new EitherFFunctor<>(functor1, functor2)
-    // For 3: new EitherFFunctor<>(functor1, new EitherFFunctor<>(functor2, functor3))
+    // For 2: EitherFFunctor.of(functor1, functor2)
+    // For 3: EitherFFunctor.of(functor1, EitherFFunctor.of(functor2, functor3))
     // We need the individual functors as parameters
     for (int i = 0; i < arity; i++) {
       builder.addParameter(FUNCTOR, effectNames.get(i) + "Functor");
@@ -271,13 +274,13 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
 
     if (arity == 2) {
       builder.addStatement(
-          "return new $T<>($LFunctor, $LFunctor)",
+          "return $T.of($LFunctor, $LFunctor)",
           EITHERF_FUNCTOR,
           effectNames.get(0),
           effectNames.get(1));
     } else if (arity == 3) {
       builder.addStatement(
-          "return new $T<>($LFunctor, new $T<>($LFunctor, $LFunctor))",
+          "return $T.of($LFunctor, $T.of($LFunctor, $LFunctor))",
           EITHERF_FUNCTOR,
           effectNames.get(0),
           EITHERF_FUNCTOR,
@@ -285,7 +288,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
           effectNames.get(2));
     } else { // arity == 4
       builder.addStatement(
-          "return new $T<>($LFunctor, new $T<>($LFunctor, new $T<>($LFunctor, $LFunctor)))",
+          "return $T.of($LFunctor, $T.of($LFunctor, $T.of($LFunctor, $LFunctor)))",
           EITHERF_FUNCTOR,
           effectNames.get(0),
           EITHERF_FUNCTOR,

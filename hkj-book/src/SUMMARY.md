@@ -43,6 +43,7 @@
     - [Context vs ConfigContext](effect/context_vs_config.md)
   - [Advanced Topics](effect/advanced_topics.md)
   - [Production Readiness](effect/production_readiness.md)
+  - [Effect Handlers](effect/effect_handlers.md)
 
 - [Resilience Patterns](resilience/ch_intro.md)
   - [Retry](resilience/retry.md)
@@ -98,6 +99,7 @@
     - [Alerts and Resilience](examples/market_alerts.md)
     - [Quick Reference](examples/market_reference.md)
   - [Portfolio Risk Analysis](examples/examples_portfolio_risk.md)
+  - [Payment Processing](examples/payment_processing.md)
 
 - [Optics I: Fundamentals](optics/ch1_intro.md)
   - [What Are Optics?](optics/optics_intro.md)
@@ -206,6 +208,7 @@
   - [Trampoline](monads/trampoline_monad.md)
   - [Free](monads/free_monad.md)
   - [Free Applicative](monads/free_applicative.md)
+  - [EitherF](monads/eitherf.md)
   - [Coyoneda](monads/coyoneda.md)
   - [Try](monads/try_monad.md)
   - [Validated](monads/validated_monad.md)
