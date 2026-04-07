@@ -540,7 +540,7 @@ class StateOpTest {
         INJECT = InjectInstances.injectLeft();
 
     private static final EitherFFunctor<StateOpKind.Witness<Person>, IdentityKind.Witness> FUNCTOR =
-        new EitherFFunctor<>(StateOpFunctor.<Person>instance(), IdentityMonad.INSTANCE);
+        EitherFFunctor.of(StateOpFunctor.<Person>instance(), IdentityMonad.INSTANCE);
 
     private final StateOps.Bound<
             Person, EitherFKind.Witness<StateOpKind.Witness<Person>, IdentityKind.Witness>>

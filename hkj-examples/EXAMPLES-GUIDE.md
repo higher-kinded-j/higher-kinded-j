@@ -403,6 +403,14 @@ A virtual threads capstone demonstrating a complete concurrent data pipeline wit
 |---------|-------------|-------------|---------------|
 | [MarketDataDemo.java](src/main/java/org/higherkindedj/example/market/runner/MarketDataDemo.java) | Complete market data pipeline with VStream, Par, and CircuitBreaker | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.market.runner.MarketDataDemo` | [Market Data Pipeline](https://higher-kinded-j.github.io/latest/examples/examples_market_data.html) |
 
+### Payment Processing
+
+Demonstrates algebraic effect handlers: same program, four interpretations (production, testing, quoting, high-risk decline).
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [PaymentProcessingExample.java](src/main/java/org/higherkindedj/example/payment/PaymentProcessingExample.java) | Payment processing with Free monad effect handlers | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.payment.PaymentProcessingExample` | [Payment Processing](https://higher-kinded-j.github.io/latest/examples/payment_processing.html) |
+
 ### Configuration Audit
 
 Demonstrates optics for auditing and transforming complex configuration structures.

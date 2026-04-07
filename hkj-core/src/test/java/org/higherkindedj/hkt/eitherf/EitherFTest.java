@@ -267,7 +267,7 @@ class EitherFTest {
           inject = InjectInstances.injectLeft();
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          new EitherFFunctor<>(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
 
       Natural<IdentityKind.Witness, EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>>
           nat = inject::inject;

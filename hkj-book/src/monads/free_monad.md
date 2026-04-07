@@ -354,6 +354,19 @@ Tagless Final achieves similar goals (multiple interpreters, testability) withou
 Choose **Free** when you need program inspection/optimisation. Choose **Tagless Final** when you want less boilerplate and better performance.
 ~~~
 
+~~~admonish warning title="Monad Transformer Limitation"
+`foldMap` uses an eager optimisation for `Suspend` nodes: when the target monad evaluates
+strictly (e.g. `Id`-based transformers like `WriterT<Id, W, A>`), the interpreter extracts
+the inner Free value and recurses directly, **discarding the monadic context** returned by
+the natural transformation. This means accumulated state in the transformer layer (such as
+`WriterT` log entries or `StateT` modifications) is silently lost.
+
+**Workarounds:**
+- Use a lazy outer monad (e.g. `WriterT<IO, W, A>`) so the non-eager path is taken
+- Use mutable recording interpreters targeting `Id` for audit trails
+- Target `IO` and compose effects outside the Free interpreter
+~~~
+
 ~~~admonish important title="Key Points"
 - `Free<F, A>` turns any instruction set `F` into a monad — programs become composable data structures.
 - **`foldMap`** is the engine: it walks the program tree, transforms each instruction via a natural transformation, and sequences results in a target monad. Stack-safe via Trampoline.

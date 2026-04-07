@@ -300,7 +300,7 @@ boolean empty = OpticOps.querying(team)
 ## Part 2.5: Validation-Aware Modifications
 
 ~~~admonish tip title="Core Types Integration"
-This section demonstrates **Phase 2** of the optics core types integration, which brings validation-aware modifications directly into `OpticOps`. These methods integrate seamlessly with higher-kinded-j's core types (`Either`, `Maybe`, `Validated`) to provide type-safe, composable validation workflows.
+This section demonstrates optics core types integration, which brings validation-aware modifications directly into `OpticOps`. These methods integrate seamlessly with higher-kinded-j's core types (`Either`, `Maybe`, `Validated`) to provide type-safe, composable validation workflows.
 ~~~
 
 ~~~admonish title="Comprehensive Example"

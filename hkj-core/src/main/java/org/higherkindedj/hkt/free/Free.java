@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.free;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
@@ -14,6 +16,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.trampoline.Trampoline;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Free monad for creating Domain-Specific Languages (DSLs).
@@ -88,9 +91,9 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
       Free<F, A> program, Function<? super E, ? extends Free<F, A>> handler, Class<E> errorType)
       implements Free<F, A> {
     public HandleError {
-      Objects.requireNonNull(program, "program must not be null");
-      Objects.requireNonNull(handler, "handler must not be null");
-      Objects.requireNonNull(errorType, "errorType must not be null");
+      Validation.function().require(program, "program", CONSTRUCTION);
+      Validation.function().require(handler, "handler", CONSTRUCTION);
+      Validation.function().require(errorType, "errorType", CONSTRUCTION);
     }
   }
 
@@ -111,7 +114,7 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
   record Ap<F extends WitnessArity<TypeArity.Unary>, A>(FreeAp<F, A> applicative)
       implements Free<F, A> {
     public Ap {
-      Objects.requireNonNull(applicative, "applicative must not be null");
+      Validation.function().require(applicative, "applicative", CONSTRUCTION);
     }
   }
 
@@ -224,9 +227,9 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
   @SuppressWarnings("unchecked")
   static <F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A>
       Free<G, A> translate(Free<F, A> program, Natural<F, G> nat, Functor<G> functorG) {
-    Objects.requireNonNull(program, "program must not be null");
-    Objects.requireNonNull(nat, "nat must not be null");
-    Objects.requireNonNull(functorG, "functorG must not be null");
+    Validation.function().require(program, "program", FROM_KIND);
+    Validation.function().require(nat, "nat", FROM_KIND);
+    Validation.function().require(functorG, "functorG", FROM_KIND);
     return translateTrampoline(program, nat, functorG).run();
   }
 
@@ -318,6 +321,14 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
    * composability and practical utility of the library's abstractions whilst ensuring stack-safe
    * execution for deeply nested Free structures.
    *
+   * <p><b>Monad transformer limitation:</b> The internal interpreter uses an eager optimisation for
+   * {@code Suspend} nodes: when the target monad evaluates strictly (e.g. {@code Id}-based
+   * transformers like {@code WriterT<Id, W, A>}), the interpreter extracts the inner {@code Free}
+   * value and recurses directly, discarding the monadic context returned by the natural
+   * transformation. This means side effects accumulated in the transformer layer (such as {@code
+   * WriterT} log entries) are lost. Programs targeting monad transformers that accumulate state
+   * should use a lazy outer monad (e.g. {@code IO}) or use mutable recording interpreters instead.
+   *
    * <h2>Example Usage</h2>
    *
    * <pre>{@code
@@ -357,6 +368,14 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
    *
    * <p>This is a stack-safe interpreter that uses the {@link Trampoline} monad internally to ensure
    * stack safety during Free structure traversal.
+   *
+   * <p><b>Monad transformer limitation:</b> The internal interpreter uses an eager optimisation for
+   * {@code Suspend} nodes: when the target monad evaluates strictly (e.g. {@code Id}-based
+   * transformers like {@code WriterT<Id, W, A>}), the interpreter extracts the inner {@code Free}
+   * value and recurses directly, discarding the monadic context returned by the natural
+   * transformation. This means side effects accumulated in the transformer layer (such as {@code
+   * WriterT} log entries) are lost. Programs targeting monad transformers that accumulate state
+   * should use a lazy outer monad (e.g. {@code IO}) or use mutable recording interpreters instead.
    *
    * @param transform The transformation function from F to M (natural transformation as function)
    * @param monad The monad instance for M

@@ -52,7 +52,7 @@ class FreeTranslateTest {
               };
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          new EitherFFunctor<>(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
 
       Free<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, String> translated =
           Free.translate(pure, nat, functor);
@@ -81,7 +81,7 @@ class FreeTranslateTest {
               };
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          new EitherFFunctor<>(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
 
       Free<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> translated =
           Free.translate(program, nat, functor);
@@ -129,7 +129,7 @@ class FreeTranslateTest {
               };
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          new EitherFFunctor<>(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
 
       Free<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> translated =
           Free.translate(program, nat, functor);

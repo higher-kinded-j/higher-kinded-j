@@ -27,7 +27,7 @@ class EitherFFunctorTest {
 
   @BeforeEach
   void setUp() {
-    functor = new EitherFFunctor<>(IdentityMonad.INSTANCE, MaybeMonad.INSTANCE);
+    functor = EitherFFunctor.of(IdentityMonad.INSTANCE, MaybeMonad.INSTANCE);
   }
 
   private Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> leftKind(
@@ -170,7 +170,7 @@ class EitherFFunctorTest {
     @Test
     @DisplayName("Constructor rejects null functorF")
     void constructorRejectsNullFunctorF() {
-      assertThatThrownBy(() -> new EitherFFunctor<>(null, MaybeMonad.INSTANCE))
+      assertThatThrownBy(() -> EitherFFunctor.of(null, MaybeMonad.INSTANCE))
           .isInstanceOf(NullPointerException.class);
     }
 
@@ -179,7 +179,7 @@ class EitherFFunctorTest {
     void constructorRejectsNullFunctorG() {
       assertThatThrownBy(
               () ->
-                  new EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness>(
+                  EitherFFunctor.<IdentityKind.Witness, MaybeKind.Witness>of(
                       IdentityMonad.INSTANCE, null))
           .isInstanceOf(NullPointerException.class);
     }

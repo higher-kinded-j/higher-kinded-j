@@ -31,4 +31,10 @@ module org.higherkindedj.examples {
   exports org.higherkindedj.example.order.service;
   exports org.higherkindedj.example.order.service.impl;
   exports org.higherkindedj.example.order.workflow;
+
+  // Export Payment Processing packages for testing
+  exports org.higherkindedj.example.payment.model;
+  exports org.higherkindedj.example.payment.effect;
+  exports org.higherkindedj.example.payment.interpreter;
+  exports org.higherkindedj.example.payment.service;
 }
