@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see EffectAlgebra
- * @see org.higherkindedj.hkt.Natural
+ * @see "org.higherkindedj.hkt.Natural"
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)

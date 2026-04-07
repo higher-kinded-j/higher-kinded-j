@@ -36,8 +36,8 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see EffectAlgebra
- * @see org.higherkindedj.hkt.inject.Inject
- * @see org.higherkindedj.hkt.eitherf.EitherF
+ * @see "org.higherkindedj.hkt.inject.Inject"
+ * @see "org.higherkindedj.hkt.eitherf.EitherF"
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)

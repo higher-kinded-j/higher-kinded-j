@@ -42,9 +42,9 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
- * @see org.higherkindedj.hkt.Kind
- * @see org.higherkindedj.hkt.Functor
- * @see org.higherkindedj.hkt.free.Free
+ * @see "org.higherkindedj.hkt.Kind"
+ * @see "org.higherkindedj.hkt.Functor"
+ * @see "org.higherkindedj.hkt.free.Free"
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
