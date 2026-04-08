@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.0) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.1) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,44 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### v0.4.1 -- 8 April 2026
+
+**Effect Handlers, Spring Observability, and Monad Transformer Enhancements**
+
+This release introduces algebraic effect handlers with annotation-driven code generation, delivers a complete payment processing example with four interpretation modes, adds FreePath for-comprehension support, extends Spring Boot integration with VTask/VStream metrics and virtual thread health monitoring, adds `mapT` to all monad transformers, and includes significant bug fixes for stack safety, traverse performance, and resilience patterns.
+
+- [`@EffectAlgebra`](effect/effect_handlers.md) - Annotation processor generating five classes per sealed interface: Kind marker + Witness, KindHelper, Functor (auto-detects `mapK` for CPS vs cast-through), Ops (smart constructors + `Bound` inner class), and abstract interpreter skeleton with exhaustive `switch` dispatch
+- [`@ComposeEffects`](effect/effect_handlers.md#composing-effects) - Annotation processor generating composition infrastructure for 2-4 effect algebras: `Inject` factory methods via right-nested `EitherF`, composed `Functor`, `BoundSet` record, and `interpret()` bridge method
+- [`@Handles`](effect/effect_handlers.md#interpreting-programs) - Compile-time validation that interpreter classes handle all operations in an effect algebra; reports missing handlers as errors and extra handlers as warnings
+- [EitherF](monads/eitherf.md) - Sum type for composing effect algebras via right-nesting, with `Inject` for embedding operations, `Free.translate` for program transformation, and `Interpreters.combine()` for 2-4 effect dispatch
+- [HandleError](effect/effect_handlers.md#error-recovery) -- `Free.HandleError` wraps sub-programs with typed error recovery; delegates to `MonadError.handleErrorWith` when available, silently ignored otherwise. Supports subclass matching via `Class<E>` token
+- [ErrorOp](monads/eitherf.md) - Effect algebra for typed error raising within Free programs, with `ErrorOps.raise()` smart constructor and `Bound<E, G>` for composed effects
+- [StateOp](effect/effect_handlers.md) - Optics-native state effect algebra with 6 operations (`View`, `Over`, `Assign`, `Preview`, `TraverseOver`, `GetState`), CPS for correct functor mapping, and `StateOpInterpreter`/`IOStateOpInterpreter` interpreters
+- [ProgramAnalyser](effect/effect_handlers.md#program-analysis) - Static analysis of Free program trees: counts instructions (`Suspend`), recovery points (`HandleError`), parallel scopes (`Ap`), and opaque regions (`FlatMapped`). All counts are lower bounds.
+- [Payment Processing](examples/payment_processing.md) - Complete worked example with 4 effect algebras, 13 interpreters across production (`IO`), testing (`Id`), quote (fee estimation), and audit (`WriterT`) modes; 12 tests and 6 tutorials
+- [Effect Handlers Introduction](effect/effect_handlers_intro.md) - Motivational documentation covering the DI gap, programs-as-data, DOP connection, terminology bridge mapping FP concepts to Java equivalents, and when-to-use guidance
+- [FreePath For-Comprehensions](functional/for_comprehension.md) - FreePath as the 10th path type in the `ForPath` system, with `from()`, `let()`, `focus()`, `par()`, `traverse()`, `sequence()`, `flatTraverse()`, and `yield()` steps
+- [FreePath.attempt()](effect/path_free.md) - Captures outcome as `Either<Throwable, A>`, mapping success to `Right` and handling errors as `Left`
+- [mapT](transformers/ch_intro.md) - New method on all 6 monad transformers (`EitherT`, `MaybeT`, `OptionalT`, `WriterT`, `ReaderT`, `StateT`) for transforming the outer monad layer without unwrapping. Custom AssertJ assertions added for `WriterT`, `ReaderT`, and `StateT`
+- [VTask/VStream Metrics](spring/spring_boot_integration.md) - `HkjMetricsService` records success/error counts and execution duration for `VTaskPathReturnValueHandler` and element counts for `VStreamPathReturnValueHandler`; metrics exposed via `/actuator/hkj` endpoint
+- [Virtual Thread Health Indicator](spring/spring_boot_integration.md) - Spring Boot health indicator monitoring virtual thread availability with configurable threshold
+- [OpenRewrite Recipes](tooling/ch_intro.md) - `AddHandleErrorCaseRecipe` for missing `HandleError`/`Ap` switch cases, `ConvertRawFreeToFreePathRecipe` for `FreePath` migration, `DetectInjectBoilerplateRecipe` for `@ComposeEffects` adoption
+- [FList](monads/ch_intro.md) - Lightweight immutable cons-list replacing O(n^2) `LinkedList` copy in `ListTraverse`, `StreamTraverse`, and `VStreamTraverse` with O(n) cons accumulation
+- Free.foldMap stack safety: added trampolining to prevent `StackOverflowError` on deep program chains
+- FreeAp.foldMap stack safety: added trampolining for deep applicative trees
+- CircuitBreaker: reset failure count on success in `HALF_OPEN` state
+- ConstBifunctor: fix NPE in `second()` by applying function to second element
+- IO.raceIO: fix `ClassCastException` in `firstVTaskSuccess` for checked exceptions
+- Lazy: add reentrant-call detection to prevent infinite recursion
+- Bulkhead: add permit-release guard to prevent negative permits
+- VStreamPar.merge: join background producer thread on close to prevent thread leak
+- VStreamThrottle: replace dual `AtomicLong` with `AtomicReference<WindowState>` CAS loop
+- Free `F` parameter tightened from `WitnessArity<?>` to `WitnessArity<TypeArity.Unary>` across the entire hierarchy, eliminating raw type usage
+- Additional edge case tests for `NavigatorClassGenerator`, `FocusProcessor`, and `ForPathStepGenerator`
+- [JMH Benchmarks](benchmarks.md) -- 7 new benchmarks for EitherF dispatch, Free.translate, HandleError overhead, ProgramAnalyser traversal, and program construction cost
+
+---
 
 ### v0.4.0 -- 22 March 2026
 

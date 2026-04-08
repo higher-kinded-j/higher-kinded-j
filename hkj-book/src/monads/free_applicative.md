@@ -357,4 +357,4 @@ Use Free Applicative when your computations are independent; use Free Monad when
 ---
 
 **Previous:** [Free](free_monad.md)
-**Next:** [Coyoneda](coyoneda.md)
+**Next:** [EitherF](eitherf.md)

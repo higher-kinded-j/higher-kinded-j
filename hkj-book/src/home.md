@@ -16,7 +16,7 @@
 
 ---
 
-Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **Effect Path API**, and type-safe immutable data navigation through the **Focus DSL**. Each is powerful alone. Together, they form a unified approach to building robust applications, where effects and structure compose seamlessly.
+Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **[Effect Path API](effect/effect_path_overview.md)**, and type-safe immutable data navigation through the **[Focus DSL](optics/focus_dsl.md)**. Each is powerful alone. Together, they form a unified approach to building robust applications, where effects and structure compose seamlessly. For services that need multiple execution modes, **[Effect Handlers](effect/effect_handlers_intro.md)** let you define domain operations as data and interpret them differently for production, testing, or audit.
 
 No more pyramids of nested checks. No more scattered validation logic. Just clean, flat pipelines that read like the business logic they represent.
 
@@ -130,6 +130,15 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 * **[SPI-aware container types](optics/focus_containers.md)** with automatic `AffinePath` and `TraversalPath` generation via cardinality-based widening, supporting 23 container types across JDK, Apache Commons, Eclipse Collections, Guava, Vavr, and HKJ native types
 * **Effect integration** bridging optics with the Effect Path API
 
+### [Effect Handlers](effect/effect_handlers_intro.md)
+
+For services with complex domain workflows, Higher-Kinded-J provides algebraic-effect-style programming via Free monads and interpreters. Define your domain operations as sealed interfaces with record variants, then write different interpreters for production, testing, dry-run, or audit modes:
+
+* **[`@EffectAlgebra`](effect/effect_handlers.md)** generates boilerplate (Functor, smart constructors, interpreter skeleton)
+* **[`@ComposeEffects`](effect/effect_handlers.md#composing-effects)** composes multiple operation types into a single program
+* **Mock-free testing** via `Id` monad interpreters
+* **[Program inspection](effect/effect_handlers.md#program-analysis)** with `ProgramAnalyser` before any side effects execute
+
 ---
 
 ## Why Higher-Kinded-J?
@@ -155,6 +164,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | **Fluent API** | ✓ | ✗ | ✗ | ✗ |
 | **Modern Java (21+)** | ✓ | ✗ | ✗ | ✗ |
 | **Virtual Threads** | ✓ | ✗ | ✗ | ✗ |
+| **Effect Handlers / Free Monads** | ✓ | ✗ | ✗ | ✗ |
 
 ^1^ *Derive4J generates getters/setters but requires Functional Java for actual optic classes*
 
@@ -283,6 +293,11 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 7. **[Spec Interfaces](optics/optics_spec_interfaces.md):** Jackson, JOOQ, and complex external types
 8. **[Focus DSL Bridging](optics/focus_external_bridging.md):** Seamless navigation into Immutables, Lombok, AutoValue
 9. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
+
+### Effect Handlers
+1. **[Effect Handlers Introduction](effect/effect_handlers_intro.md):** Motivation, terminology, and when to use
+2. **[Effect Handler Reference](effect/effect_handlers.md):** Defining, composing, and interpreting effects
+3. **[Payment Processing Example](examples/payment_processing.md):** Complete worked example with four interpreters
 
 ### Foundations (Reference)
 These sections document the underlying machinery. Most users can start with Effect Paths directly.

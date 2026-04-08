@@ -296,5 +296,5 @@ Practice Coyoneda in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/
 
 ---
 
-**Previous:** [Free Applicative](free_applicative.md)
+**Previous:** [EitherF](eitherf.md)
 **Next:** [Try](try_monad.md)

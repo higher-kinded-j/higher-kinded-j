@@ -45,6 +45,8 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 - **[Advanced Topics](advanced_topics.md)** – Stack-safe recursion, DSL building with Free structures, resource management, parallel execution, and resilience patterns.
 
 - **[Production Readiness](production_readiness.md)** – Stack traces, allocation overhead, and stack safety. The honest answers to the questions senior engineers ask before adopting a library.
+
+- **[Effect Handlers](effect_handlers_intro.md)** – Algebraic-effect-style programming via Free monads and interpreters. For services that need multiple execution modes (production, test, audit, dry-run), effect handlers let you define domain operations as data and interpret them differently without changing business logic.
 ~~~
 
 ~~~admonish note title="Compile-Time Safety"
@@ -89,6 +91,7 @@ See [Compile-Time Checks](../tooling/compile_checks.md) for setup.
 11. [Advanced Effects](advanced_effects.md) - Reader, State, and Writer patterns
 12. [Advanced Topics](advanced_topics.md) - Stack-safety, DSLs, resources, parallelism, resilience
 13. [Production Readiness](production_readiness.md) - Stack traces, allocation overhead, and stack safety
+14. [Effect Handlers](effect_handlers_intro.md) - Domain operations as data, multiple interpretation modes
 
 ---
 

@@ -171,6 +171,22 @@ A cross-ecosystem navigation example demonstrating:
 
 **[Portfolio Risk Analysis Deep Dive →](examples_portfolio_risk.md)**
 
+### Payment Processing
+
+A comprehensive effect handlers example demonstrating:
+
+- **Effect algebras** with `@EffectAlgebra` for payment, fraud, ledger, and notification operations
+- **Effect composition** via `@ComposeEffects` and `EitherF` right-nesting
+- **Four interpretation modes**: production (`IO`), testing (`Id`), quote (fee estimation), and high-risk decline
+- **Mock-free testing** with pure `Id` monad interpreters
+- **Program inspection** with `ProgramAnalyser` before any side effects execute
+
+~~~admonish example title="See the Code"
+[org.higherkindedj.example.payment](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/payment)
+~~~
+
+**[Payment Processing Deep Dive →](payment_processing.md)**
+
 ---
 
 ## Complete Examples Reference
@@ -185,6 +201,7 @@ For a comprehensive listing of all examples with run commands, see the [Examples
 2. [Draughts Game](examples_draughts.md) – Pure functional game development
 3. [Market Data Pipeline](examples_market_data.md) – Virtual threads capstone with concurrent streaming
 4. [Portfolio Risk Analysis](examples_portfolio_risk.md) – Cross-ecosystem container navigation with Focus DSL
+5. [Payment Processing](payment_processing.md) – Effect handlers with four interpretation modes
 
 ---
 
