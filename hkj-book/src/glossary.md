@@ -1732,7 +1732,7 @@ record ReadLine<A>(Function<String, A> k) implements ConsoleOp<A> {
 
 ### Free Monad
 
-**Definition:** A data structure (`Free<F, A>`) that represents a program as a tree of instructions. Three main node types: `Pure` (return a value), `Suspend` (an instruction to execute), and `FlatMapped` (sequence two programs). Because the program is data, it can be inspected, transformed, and interpreted in different ways.
+**Definition:** A data structure (`Free<F, A>`) that represents a program as a tree of instructions. There are five main node types: `Pure` (return a value), `Suspend` (an instruction to execute), `FlatMapped` (sequence two programs), `HandleError` (error recovery), and `Ap` (applicative sub-expression). Because the program is data, it can be inspected, transformed, and interpreted in different ways.
 
 **Example:**
 ```java
