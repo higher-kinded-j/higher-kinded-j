@@ -43,7 +43,8 @@
     - [Context vs ConfigContext](effect/context_vs_config.md)
   - [Advanced Topics](effect/advanced_topics.md)
   - [Production Readiness](effect/production_readiness.md)
-  - [Effect Handlers](effect/effect_handlers.md)
+  - [Effect Handlers](effect/effect_handlers_intro.md)
+    - [Effect Handler Reference](effect/effect_handlers.md)
 
 - [Resilience Patterns](resilience/ch_intro.md)
   - [Retry](resilience/retry.md)

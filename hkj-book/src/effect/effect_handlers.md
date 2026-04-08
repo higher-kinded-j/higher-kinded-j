@@ -1,8 +1,18 @@
-# Effect Handlers
+# Effect Handler Reference
 
 Algebraic-effect-style programming via Free monads and interpreters.
 
 ---
+
+~~~admonish note title="Start Here"
+New to effect handlers? Read the [introduction](effect_handlers_intro.md) first
+for motivation, terminology, and how this fits alongside the Effect Path API and Optics.
+~~~
+
+~~~admonish example title="See It in Action"
+The [Payment Processing example](../examples/payment_processing.md) demonstrates a complete
+workflow with four interpretation modes: production, testing, quote, and high-risk decline.
+~~~
 
 ~~~admonish info title="What You'll Learn"
 - How to define effect algebras with `@EffectAlgebra`
@@ -31,6 +41,12 @@ An effect algebra is a sealed interface where each permitted record represents a
 Operations use continuation-passing style (CPS): a `Function` parameter maps the natural result
 type to `A`, enabling proper type inference at call sites.
 
+~~~admonish tip title="CPS in Java Terms"
+Each record carries a `Function` that transforms the operation's result, just like
+`CompletableFuture.thenApply` chains a transformation onto a value that does not exist yet.
+See the [terminology bridge](effect_handlers_intro.md#terminology-bridge-fp-concepts-in-java-terms) for more.
+~~~
+
 ```java
 @EffectAlgebra
 public sealed interface ConsoleOp<A>
@@ -53,6 +69,12 @@ public sealed interface ConsoleOp<A>
   }
 }
 ```
+
+~~~admonish tip title="What Does mapK Do?"
+The `mapK` method composes the continuation function with a new transformation. The generated
+Functor delegates to `mapK` rather than using unsafe casts. Think of it as `Stream.map` applied
+to a single instruction rather than a collection.
+~~~
 
 The `@EffectAlgebra` processor generates:
 
@@ -93,8 +115,9 @@ Free<ComposedType, String> program =
 
 ## Interpreting Programs
 
-Each interpreter extends the generated abstract skeleton and applies the operation's
-continuation `op.k()` to the computed result:
+Each interpreter is a *natural transformation*: a function that converts DSL instructions into
+actions in a target monad. Interpreters extend the generated abstract skeleton and apply the
+operation's continuation `op.k()` to the computed result:
 
 ```java
 public class IOConsoleInterpreter extends ConsoleOpInterpreter<IOKind.Witness> {
@@ -154,20 +177,13 @@ analysis.hasOpaqueRegions(); // FlatMapped continuations present
 
 All counts are **lower bounds**: `FlatMapped` continuations are opaque functions that cannot be inspected without a value.
 
-## Key Advantages Over DI
-
-| Feature | Effect Handlers | Dependency Injection |
-|---|---|---|
-| Program inspection | Yes (ProgramAnalyser) | No |
-| Exhaustive checking | Yes (@Handles) | No |
-| Multiple interpretations | Built-in (foldMap) | Manual wiring |
-| Compositional decoration | Yes (interpreter wrapping) | Limited (AOP) |
-| Mock-free testing | Yes (Id monad) | Requires framework |
-
----
-
-## See Also
-
+~~~admonish tip title="See Also"
+- [Effect Handlers Introduction](effect_handlers_intro.md): motivation, terminology, and comparison with dependency injection
 - [EitherF](../monads/eitherf.md): how effects are composed
 - [FreePath](path_free.md): fluent API for Free monad programs
 - [Payment Processing](../examples/payment_processing.md): complete worked example
+~~~
+
+---
+
+**Previous:** [Effect Handlers Introduction](effect_handlers_intro.md)

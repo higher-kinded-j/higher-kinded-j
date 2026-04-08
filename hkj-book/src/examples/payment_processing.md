@@ -23,6 +23,12 @@ the same payment program and prints the results.
 [View source on GitHub](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/payment/PaymentProcessingExample.java)
 ~~~
 
+~~~admonish tip title="New to Effect Handlers?"
+If this is your first encounter with effect handlers, start with the
+[Effect Handlers introduction](../effect/effect_handlers_intro.md) for
+motivation and terminology. This example assumes familiarity with the core concepts.
+~~~
+
 ---
 
 ## The Problem
