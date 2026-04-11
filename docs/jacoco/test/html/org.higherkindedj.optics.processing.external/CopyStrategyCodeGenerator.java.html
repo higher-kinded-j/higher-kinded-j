@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CopyStrategyCodeGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.external</a> &gt; <span class="el_source">CopyStrategyCodeGenerator.java</span></div><h1>CopyStrategyCodeGenerator.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.external;
+
+import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.TypeName;
+import java.util.Locale;
+import javax.lang.model.type.TypeMirror;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
+
+/**
+ * Generates code for lens setter lambdas based on copy strategy annotations.
+ *
+ * &lt;p&gt;This generator creates the setter function {@code (S, A) -&gt; S} for lenses based on the
+ * specified copy strategy:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code @ViaBuilder} - uses builder pattern: {@code s.toBuilder().field(a).build()}
+ *   &lt;li&gt;{@code @Wither} - uses wither method: {@code s.withField(a)}
+ *   &lt;li&gt;{@code @ViaConstructor} - uses constructor: {@code new S(s.f1(), a, s.f3())}
+ *   &lt;li&gt;{@code @ViaCopyAndSet} - uses copy and set: {@code S copy = new S(s); copy.setField(a);
+ *       return copy;}
+ * &lt;/ul&gt;
+ */
+public class CopyStrategyCodeGenerator {
+
+  /** Creates a new CopyStrategyCodeGenerator. */
+<span class="fc" id="L29">  public CopyStrategyCodeGenerator() {}</span>
+
+  /**
+   * Generates the setter lambda code block for a lens.
+   *
+   * @param strategy the copy strategy kind
+   * @param info the parsed annotation values
+   * @param fieldName the field name (derived from optic method name)
+   * @param sourceType the source type S
+   * @param focusType the focus type A
+   * @return the generated code block for the setter lambda
+   */
+  public CodeBlock generateSetterLambda(
+      CopyStrategyKind strategy,
+      CopyStrategyInfo info,
+      String fieldName,
+      TypeMirror sourceType,
+      TypeMirror focusType) {
+
+<span class="fc bfc" id="L48" title="All 5 branches covered.">    return switch (strategy) {</span>
+<span class="fc" id="L49">      case VIA_BUILDER -&gt; generateBuilderSetter(info, fieldName, sourceType);</span>
+<span class="fc" id="L50">      case WITHER -&gt; generateWitherSetter(info, sourceType);</span>
+<span class="fc" id="L51">      case VIA_CONSTRUCTOR -&gt; generateConstructorSetter(info, fieldName, sourceType);</span>
+<span class="fc" id="L52">      case VIA_COPY_AND_SET -&gt; generateCopyAndSetSetter(info, sourceType);</span>
+<span class="fc" id="L53">      case NONE -&gt; throw new IllegalArgumentException(&quot;No copy strategy specified for lens&quot;);</span>
+    };
+  }
+
+  /**
+   * Generates a builder-pattern setter lambda.
+   *
+   * &lt;p&gt;Generated code: {@code (source, newValue) -&gt; source.toBuilder().field(newValue).build()}
+   *
+   * @param info the @ViaBuilder annotation values
+   * @param fieldName the field name
+   * @param sourceType the source type
+   * @return the code block
+   */
+  private CodeBlock generateBuilderSetter(
+      CopyStrategyInfo info, String fieldName, TypeMirror sourceType) {
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    String toBuilder = info.toBuilder().isEmpty() ? &quot;toBuilder&quot; : info.toBuilder();</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">    String setter = info.setter().isEmpty() ? fieldName : info.setter();</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">    String build = info.build().isEmpty() ? &quot;build&quot; : info.build();</span>
+
+<span class="fc" id="L74">    return CodeBlock.of(</span>
+        &quot;(source, newValue) -&gt; source.$L().$L(newValue).$L()&quot;, toBuilder, setter, build);
+  }
+
+  /**
+   * Generates a wither-pattern setter lambda.
+   *
+   * &lt;p&gt;Generated code: {@code (source, newValue) -&gt; source.withField(newValue)}
+   *
+   * @param info the @Wither annotation values
+   * @param sourceType the source type
+   * @return the code block
+   */
+  private CodeBlock generateWitherSetter(CopyStrategyInfo info, TypeMirror sourceType) {
+<span class="fc" id="L88">    String witherMethod = info.witherMethod();</span>
+<span class="fc" id="L89">    return CodeBlock.of(&quot;(source, newValue) -&gt; source.$L(newValue)&quot;, witherMethod);</span>
+  }
+
+  /**
+   * Generates a constructor-pattern setter lambda.
+   *
+   * &lt;p&gt;Generated code: {@code (source, newValue) -&gt; new Type(source.f1(), newValue, source.f3())}
+   *
+   * &lt;p&gt;This generates a statement lambda that calls the constructor. If parameter order is not
+   * specified, a simplified version is generated that may need manual adjustment.
+   *
+   * @param info the @ViaConstructor annotation values
+   * @param fieldName the field name being set
+   * @param sourceType the source type
+   * @return the code block
+   */
+  private CodeBlock generateConstructorSetter(
+      CopyStrategyInfo info, String fieldName, TypeMirror sourceType) {
+
+<span class="fc" id="L108">    TypeName sourceTypeName = TypeName.get(sourceType);</span>
+<span class="fc" id="L109">    String[] parameterOrder = info.parameterOrder();</span>
+
+<span class="fc bfc" id="L111" title="All 2 branches covered.">    if (parameterOrder.length == 0) {</span>
+      // No parameter order specified - generate a simplified version
+      // The user may need to add parameterOrder if this doesn't work
+<span class="fc" id="L114">      return CodeBlock.of(</span>
+          &quot;(source, newValue) -&gt; {\n&quot;
+              + &quot;  // TODO: Specify parameterOrder in @ViaConstructor if this doesn't compile\n&quot;
+              + &quot;  throw new $T(\&quot;@ViaConstructor requires parameterOrder for field: $L\&quot;);\n&quot;
+              + &quot;}&quot;,
+          UnsupportedOperationException.class,
+          fieldName);
+    }
+
+    // Build constructor call with proper argument substitution
+<span class="fc" id="L124">    CodeBlock.Builder constructorArgs = CodeBlock.builder();</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">    for (int i = 0; i &lt; parameterOrder.length; i++) {</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">      if (i &gt; 0) {</span>
+<span class="fc" id="L127">        constructorArgs.add(&quot;, &quot;);</span>
+      }
+<span class="fc" id="L129">      String param = parameterOrder[i];</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">      if (param.equals(fieldName)) {</span>
+<span class="fc" id="L131">        constructorArgs.add(&quot;newValue&quot;);</span>
+      } else {
+        // Assume getter method matches parameter name
+<span class="fc" id="L134">        constructorArgs.add(&quot;source.$L()&quot;, param);</span>
+      }
+    }
+
+<span class="fc" id="L138">    return CodeBlock.of(</span>
+<span class="fc" id="L139">        &quot;(source, newValue) -&gt; new $T($L)&quot;, sourceTypeName, constructorArgs.build());</span>
+  }
+
+  /**
+   * Generates a copy-and-set setter lambda.
+   *
+   * &lt;p&gt;Generated code:
+   *
+   * &lt;pre&gt;{@code
+   * (source, newValue) -&gt; {
+   *   Type copy = new Type(source);
+   *   copy.setField(newValue);
+   *   return copy;
+   * }
+   * }&lt;/pre&gt;
+   *
+   * @param info the @ViaCopyAndSet annotation values
+   * @param sourceType the source type
+   * @return the code block
+   */
+  private CodeBlock generateCopyAndSetSetter(CopyStrategyInfo info, TypeMirror sourceType) {
+<span class="fc" id="L160">    TypeName sourceTypeName = TypeName.get(sourceType);</span>
+<span class="fc" id="L161">    String setter = info.setter();</span>
+
+    // If copyConstructor is specified, use that type; otherwise use source type
+<span class="fc bfc" id="L164" title="All 2 branches covered.">    if (!info.copyConstructor().isEmpty()) {</span>
+      // Complex case with different copy constructor type - not commonly needed
+<span class="fc" id="L166">      return CodeBlock.of(</span>
+          &quot;(source, newValue) -&gt; {\n&quot;
+              + &quot;  $T copy = new $T(source);\n&quot;
+              + &quot;  copy.$L(newValue);\n&quot;
+              + &quot;  return copy;\n&quot;
+              + &quot;}&quot;,
+          sourceTypeName,
+          sourceTypeName,
+          setter);
+    }
+
+<span class="fc" id="L177">    return CodeBlock.of(</span>
+        &quot;(source, newValue) -&gt; {\n&quot;
+            + &quot;  $T copy = new $T(source);\n&quot;
+            + &quot;  copy.$L(newValue);\n&quot;
+            + &quot;  return copy;\n&quot;
+            + &quot;}&quot;,
+        sourceTypeName,
+        sourceTypeName,
+        setter);
+  }
+
+  /**
+   * Generates the getter lambda code block for a lens.
+   *
+   * @param fieldName the field name (used to derive getter method)
+   * @param sourceType the source type S
+   * @return the generated code block for the getter lambda
+   */
+  public CodeBlock generateGetterLambda(String fieldName, TypeMirror sourceType) {
+    // Default to record-style accessor (fieldName)
+<span class="fc" id="L197">    return CodeBlock.of(&quot;source -&gt; source.$L()&quot;, fieldName);</span>
+  }
+
+  /**
+   * Generates the getter lambda code block for a lens with copy strategy info.
+   *
+   * &lt;p&gt;If the copy strategy specifies an explicit getter, use it. Otherwise, fall back to using the
+   * field name (record-style accessor).
+   *
+   * @param fieldName the field name (used to derive getter method if not specified)
+   * @param info the copy strategy info (may contain explicit getter)
+   * @param sourceType the source type S
+   * @return the generated code block for the getter lambda
+   */
+  public CodeBlock generateGetterLambda(
+      String fieldName, CopyStrategyInfo info, TypeMirror sourceType) {
+<span class="fc bfc" id="L213" title="All 2 branches covered.">    String getter = info.getter().isEmpty() ? fieldName : info.getter();</span>
+<span class="fc" id="L214">    return CodeBlock.of(&quot;source -&gt; source.$L()&quot;, getter);</span>
+  }
+
+  /**
+   * Determines the getter method name for a field.
+   *
+   * @param fieldName the field name
+   * @return the most likely getter method name
+   */
+  public String getterMethodName(String fieldName) {
+    // Default to record-style accessor
+<span class="fc" id="L225">    return fieldName;</span>
+  }
+
+  /**
+   * Determines the JavaBean-style getter method name for a field.
+   *
+   * @param fieldName the field name
+   * @return the JavaBean getter method name
+   */
+  public String javaBeanGetterMethodName(String fieldName) {
+<span class="fc" id="L235">    return &quot;get&quot; + capitalise(fieldName);</span>
+  }
+
+  private String capitalise(String s) {
+<span class="pc bpc" id="L239" title="1 of 4 branches missed.">    if (s == null || s.isEmpty()) {</span>
+<span class="fc" id="L240">      return s;</span>
+    }
+<span class="fc" id="L242">    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KindFieldInfo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.kind</a> &gt; <span class="el_source">KindFieldInfo.java</span></div><h1>KindFieldInfo.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.kind;
+
+import com.palantir.javapoet.TypeName;
+import org.higherkindedj.optics.annotations.KindSemantics;
+
+/**
+ * Contains the analysis results for a {@code Kind&lt;F, A&gt;} field.
+ *
+ * &lt;p&gt;This record is produced by {@link KindFieldAnalyser} and consumed by the Focus processor to
+ * generate appropriate traversal code.
+ *
+ * @param witnessType the fully qualified name of the witness type (e.g., &quot;ListKind.Witness&quot;)
+ * @param elementType the TypeName of the element type within the Kind
+ * @param traverseExpression the code expression to obtain the Traverse instance
+ * @param semantics the cardinality semantics determining path type
+ * @param isParameterised whether the witness type has type parameters (e.g., EitherKind.Witness)
+ * @param witnessTypeArgs type arguments for parameterised witness types (may be empty)
+ */
+<span class="fc" id="L21">public record KindFieldInfo(</span>
+    String witnessType,
+    TypeName elementType,
+    String traverseExpression,
+    KindSemantics semantics,
+    boolean isParameterised,
+    String witnessTypeArgs) {
+
+  /**
+   * Creates a KindFieldInfo for a non-parameterised witness type.
+   *
+   * @param witnessType the witness type name
+   * @param elementType the element type
+   * @param traverseExpression the traverse instance expression
+   * @param semantics the cardinality semantics
+   * @return a new KindFieldInfo
+   */
+  public static KindFieldInfo of(
+      String witnessType,
+      TypeName elementType,
+      String traverseExpression,
+      KindSemantics semantics) {
+<span class="fc" id="L43">    return new KindFieldInfo(witnessType, elementType, traverseExpression, semantics, false, &quot;&quot;);</span>
+  }
+
+  /**
+   * Creates a KindFieldInfo for a parameterised witness type.
+   *
+   * @param witnessType the witness type name
+   * @param elementType the element type
+   * @param traverseExpression the traverse instance expression
+   * @param semantics the cardinality semantics
+   * @param witnessTypeArgs the type arguments string
+   * @return a new KindFieldInfo
+   */
+  public static KindFieldInfo parameterised(
+      String witnessType,
+      TypeName elementType,
+      String traverseExpression,
+      KindSemantics semantics,
+      String witnessTypeArgs) {
+<span class="fc" id="L62">    return new KindFieldInfo(</span>
+        witnessType, elementType, traverseExpression, semantics, true, witnessTypeArgs);
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

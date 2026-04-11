@@ -1,0 +1,782 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EffectAlgebraProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.effect</a> &gt; <span class="el_source">EffectAlgebraProcessor.java</span></div><h1>EffectAlgebraProcessor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.effect;
+
+import com.google.auto.service.AutoService;
+import com.palantir.javapoet.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.*;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
+import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+/**
+ * Annotation processor for {@link EffectAlgebra @EffectAlgebra} that generates HKT boilerplate for
+ * sealed effect algebra interfaces.
+ *
+ * &lt;p&gt;For each annotated sealed interface {@code FooOp&lt;A&gt;}, generates:
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;{@code FooOpKind} — Kind marker interface with inner {@code Witness} class
+ *   &lt;li&gt;{@code FooOpKindHelper} — Enum singleton with {@code widen()}/{@code narrow()} methods
+ *   &lt;li&gt;{@code FooOpFunctor} — {@code Functor&lt;Witness&gt;} implementation
+ *   &lt;li&gt;{@code FooOpOps} — Smart constructors plus {@code Bound} inner class
+ *   &lt;li&gt;{@code FooOpInterpreter} — Abstract interpreter skeleton
+ * &lt;/ol&gt;
+ *
+ * @see EffectAlgebra
+ */
+@AutoService(Processor.class)
+@SupportedAnnotationTypes(&quot;org.higherkindedj.hkt.effect.annotation.EffectAlgebra&quot;)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class EffectAlgebraProcessor extends AbstractProcessor {
+
+  /** Creates a new EffectAlgebraProcessor. */
+<span class="fc" id="L45">  public EffectAlgebraProcessor() {}</span>
+
+  // -------------------------------------------------------------------------
+  // Common type references
+  // -------------------------------------------------------------------------
+
+<span class="fc" id="L51">  private static final ClassName KIND = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;Kind&quot;);</span>
+<span class="fc" id="L52">  private static final ClassName FUNCTOR = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;Functor&quot;);</span>
+<span class="fc" id="L53">  private static final ClassName NATURAL = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;Natural&quot;);</span>
+<span class="fc" id="L54">  private static final ClassName TYPE_ARITY = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;TypeArity&quot;);</span>
+<span class="fc" id="L55">  private static final ClassName WITNESS_ARITY =</span>
+<span class="fc" id="L56">      ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;WitnessArity&quot;);</span>
+<span class="fc" id="L57">  private static final ClassName FREE = ClassName.get(&quot;org.higherkindedj.hkt.free&quot;, &quot;Free&quot;);</span>
+<span class="fc" id="L58">  private static final ClassName INJECT = ClassName.get(&quot;org.higherkindedj.hkt.inject&quot;, &quot;Inject&quot;);</span>
+<span class="fc" id="L59">  private static final ClassName VALIDATION =</span>
+<span class="fc" id="L60">      ClassName.get(&quot;org.higherkindedj.hkt.util.validation&quot;, &quot;Validation&quot;);</span>
+<span class="fc" id="L61">  private static final ClassName OPERATION =</span>
+<span class="fc" id="L62">      ClassName.get(&quot;org.higherkindedj.hkt.util.validation&quot;, &quot;Operation&quot;);</span>
+<span class="fc" id="L63">  private static final ClassName GENERATED =</span>
+<span class="fc" id="L64">      ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+<span class="fc" id="L65">  private static final ClassName NULL_MARKED =</span>
+<span class="fc" id="L66">      ClassName.get(&quot;org.jspecify.annotations&quot;, &quot;NullMarked&quot;);</span>
+<span class="fc" id="L67">  private static final ClassName FUNCTION = ClassName.get(&quot;java.util.function&quot;, &quot;Function&quot;);</span>
+<span class="fc" id="L68">  private static final ClassName OBJECTS = ClassName.get(&quot;java.util&quot;, &quot;Objects&quot;);</span>
+
+  @Override
+  public boolean process(Set&lt;? extends TypeElement&gt; annotations, RoundEnvironment roundEnv) {
+<span class="fc bfc" id="L72" title="All 2 branches covered.">    for (TypeElement annotation : annotations) {</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">      for (Element element : roundEnv.getElementsAnnotatedWith(annotation)) {</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        if (element.getKind() != ElementKind.INTERFACE) {</span>
+<span class="fc" id="L75">          error(</span>
+              &quot;@EffectAlgebra can only annotate sealed interfaces, but found &quot;
+<span class="fc" id="L77">                  + element.getKind().toString().toLowerCase(Locale.ROOT),</span>
+              element);
+<span class="fc" id="L79">          continue;</span>
+        }
+<span class="fc" id="L81">        TypeElement typeElement = (TypeElement) element;</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (!typeElement.getModifiers().contains(Modifier.SEALED)) {</span>
+<span class="fc" id="L83">          error(</span>
+              &quot;@EffectAlgebra can only annotate sealed interfaces. &quot;
+                  + &quot;Add the 'sealed' modifier to &quot;
+<span class="fc" id="L86">                  + typeElement.getSimpleName(),</span>
+              element);
+<span class="fc" id="L88">          continue;</span>
+        }
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (typeElement.getTypeParameters().size() != 1) {</span>
+<span class="fc" id="L91">          error(</span>
+              &quot;Effect algebra must have exactly one type parameter &lt;A&gt; (the result type), &quot;
+                  + &quot;found &quot;
+<span class="fc" id="L94">                  + typeElement.getTypeParameters().size(),</span>
+              element);
+<span class="fc" id="L96">          continue;</span>
+        }
+
+        // Validate all permits are records with no extra type params
+<span class="fc" id="L100">        List&lt;TypeElement&gt; permits = getPermittedRecords(typeElement);</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (permits == null) continue; // errors already reported</span>
+
+        try {
+<span class="fc" id="L104">          EffectAlgebra ann = typeElement.getAnnotation(EffectAlgebra.class);</span>
+<span class="fc" id="L105">          String packageName = resolveTargetPackage(typeElement, ann);</span>
+<span class="fc" id="L106">          String baseName = typeElement.getSimpleName().toString();</span>
+<span class="fc" id="L107">          ClassName sourceClass = ClassName.get(typeElement);</span>
+
+<span class="fc" id="L109">          generateKind(packageName, baseName, sourceClass);</span>
+<span class="fc" id="L110">          generateKindHelper(packageName, baseName, sourceClass);</span>
+<span class="fc" id="L111">          generateFunctor(packageName, baseName, sourceClass, typeElement);</span>
+<span class="fc" id="L112">          generateOps(packageName, baseName, sourceClass, permits);</span>
+<span class="fc" id="L113">          generateInterpreter(packageName, baseName, sourceClass, permits);</span>
+<span class="nc" id="L114">        } catch (Exception e) {</span>
+<span class="nc" id="L115">          error(</span>
+              &quot;Failed to generate code for &quot;
+<span class="nc" id="L117">                  + typeElement.getQualifiedName()</span>
+                  + &quot;: &quot;
+<span class="nc" id="L119">                  + e.getClass().getName()</span>
+                  + &quot;: &quot;
+<span class="nc" id="L121">                  + e.getMessage(),</span>
+              element);
+<span class="fc" id="L123">        }</span>
+<span class="fc" id="L124">      }</span>
+<span class="fc" id="L125">    }</span>
+<span class="fc" id="L126">    return true;</span>
+  }
+
+  // =========================================================================
+  // Validation
+  // =========================================================================
+
+  private List&lt;TypeElement&gt; getPermittedRecords(TypeElement sealedInterface) {
+<span class="fc" id="L134">    List&lt;? extends TypeMirror&gt; permitted = sealedInterface.getPermittedSubclasses();</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">    if (permitted.isEmpty()) {</span>
+<span class="nc" id="L136">      error(&quot;Sealed interface has no permitted subtypes&quot;, sealedInterface);</span>
+<span class="nc" id="L137">      return null;</span>
+    }
+
+<span class="fc" id="L140">    List&lt;TypeElement&gt; permits = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">    for (TypeMirror mirror : permitted) {</span>
+<span class="fc" id="L142">      Element permitElement = processingEnv.getTypeUtils().asElement(mirror);</span>
+<span class="pc bpc" id="L143" title="1 of 4 branches missed.">      if (permitElement == null || permitElement.getKind() != ElementKind.RECORD) {</span>
+<span class="fc" id="L144">        error(&quot;Permit must be a record type: &quot; + mirror, sealedInterface);</span>
+<span class="fc" id="L145">        return null;</span>
+      }
+<span class="fc" id="L147">      TypeElement permitType = (TypeElement) permitElement;</span>
+      // Check for extra type params beyond the parent's &lt;A&gt;
+<span class="fc" id="L149">      int parentParamCount = sealedInterface.getTypeParameters().size();</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">      if (permitType.getTypeParameters().size() &gt; parentParamCount) {</span>
+<span class="fc" id="L151">        error(</span>
+<span class="fc" id="L152">            &quot;Permit &quot; + permitType.getSimpleName() + &quot; has extra type parameters beyond &lt;A&gt;&quot;,</span>
+            permitType);
+<span class="fc" id="L154">        return null;</span>
+      }
+<span class="fc" id="L156">      permits.add(permitType);</span>
+<span class="fc" id="L157">    }</span>
+<span class="fc" id="L158">    return permits;</span>
+  }
+
+  // =========================================================================
+  // 1. Generate *Kind.java
+  // =========================================================================
+
+  private void generateKind(String packageName, String baseName, ClassName sourceClass)
+      throws IOException {
+<span class="fc" id="L167">    String kindName = baseName + &quot;Kind&quot;;</span>
+<span class="fc" id="L168">    ClassName witnessClass = ClassName.get(packageName, kindName, &quot;Witness&quot;);</span>
+
+    // Kind&lt;*Kind.Witness, A&gt; interface
+<span class="fc" id="L171">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+<span class="fc" id="L172">    ParameterizedTypeName kindSuper = ParameterizedTypeName.get(KIND, witnessClass, typeA);</span>
+
+<span class="fc" id="L174">    TypeSpec witnessType =</span>
+<span class="fc" id="L175">        TypeSpec.classBuilder(&quot;Witness&quot;)</span>
+<span class="fc" id="L176">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)</span>
+<span class="fc" id="L177">            .addSuperinterface(</span>
+<span class="fc" id="L178">                ParameterizedTypeName.get(</span>
+<span class="fc" id="L179">                    WITNESS_ARITY, ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;TypeArity&quot;, &quot;Unary&quot;)))</span>
+<span class="fc" id="L180">            .addMethod(</span>
+<span class="fc" id="L181">                MethodSpec.constructorBuilder()</span>
+<span class="fc" id="L182">                    .addModifiers(Modifier.PRIVATE)</span>
+<span class="fc" id="L183">                    .addStatement(</span>
+                        &quot;throw new $T($S)&quot;, UnsupportedOperationException.class, &quot;Witness class&quot;)
+<span class="fc" id="L185">                    .build())</span>
+<span class="fc" id="L186">            .addJavadoc(</span>
+                &quot;Phantom type marker (witness type) for the {@code $L&lt;?&gt;} type constructor.\n&quot;,
+                baseName)
+<span class="fc" id="L189">            .build();</span>
+
+<span class="fc" id="L191">    TypeSpec kindType =</span>
+<span class="fc" id="L192">        TypeSpec.interfaceBuilder(kindName)</span>
+<span class="fc" id="L193">            .addAnnotation(NULL_MARKED)</span>
+<span class="fc" id="L194">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L195">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L196">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L197">            .addSuperinterface(kindSuper)</span>
+<span class="fc" id="L198">            .addType(witnessType)</span>
+<span class="fc" id="L199">            .addJavadoc(</span>
+                &quot;Kind interface marker for {@link $L $L&lt;A&gt;} in Higher-Kinded-J.\n\n&quot;
+                    + &quot;@param &lt;A&gt; The result type (the varying parameter)\n&quot;,
+                baseName,
+                baseName)
+<span class="fc" id="L204">            .build();</span>
+
+<span class="fc" id="L206">    JavaFile.builder(packageName, kindType)</span>
+<span class="fc" id="L207">        .addFileComment(&quot;Generated by hkj-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L208">        .build()</span>
+<span class="fc" id="L209">        .writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L210">  }</span>
+
+  // =========================================================================
+  // 2. Generate *KindHelper.java
+  // =========================================================================
+
+  private void generateKindHelper(String packageName, String baseName, ClassName sourceClass)
+      throws IOException {
+<span class="fc" id="L218">    String kindName = baseName + &quot;Kind&quot;;</span>
+<span class="fc" id="L219">    String helperName = baseName + &quot;KindHelper&quot;;</span>
+<span class="fc" id="L220">    String holderName = baseName + &quot;Holder&quot;;</span>
+<span class="fc" id="L221">    String singletonName = toUpperSnakeCase(baseName);</span>
+<span class="fc" id="L222">    ClassName kindClass = ClassName.get(packageName, kindName);</span>
+<span class="fc" id="L223">    ClassName witnessClass = ClassName.get(packageName, kindName, &quot;Witness&quot;);</span>
+
+<span class="fc" id="L225">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+
+    // Holder record: record FooHolder&lt;A&gt;(Foo&lt;A&gt; value) implements FooKind&lt;A&gt; {}
+<span class="fc" id="L228">    TypeSpec holderType =</span>
+<span class="fc" id="L229">        TypeSpec.recordBuilder(holderName)</span>
+<span class="fc" id="L230">            .recordConstructor(</span>
+<span class="fc" id="L231">                MethodSpec.constructorBuilder()</span>
+<span class="fc" id="L232">                    .addParameter(ParameterizedTypeName.get(sourceClass, typeA), &quot;value&quot;)</span>
+<span class="fc" id="L233">                    .build())</span>
+<span class="fc" id="L234">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L235">            .addSuperinterface(ParameterizedTypeName.get(kindClass, typeA))</span>
+<span class="fc" id="L236">            .build();</span>
+
+    // widen method
+<span class="fc" id="L239">    MethodSpec widenMethod =</span>
+<span class="fc" id="L240">        MethodSpec.methodBuilder(&quot;widen&quot;)</span>
+<span class="fc" id="L241">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L242">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L243">            .addParameter(ParameterizedTypeName.get(sourceClass, typeA), &quot;value&quot;)</span>
+<span class="fc" id="L244">            .returns(ParameterizedTypeName.get(KIND, witnessClass, typeA))</span>
+<span class="fc" id="L245">            .addStatement(&quot;$T.kind().requireForWiden(value, $T.class)&quot;, VALIDATION, sourceClass)</span>
+<span class="fc" id="L246">            .addStatement(&quot;return new $L&lt;&gt;(value)&quot;, holderName)</span>
+<span class="fc" id="L247">            .addJavadoc(</span>
+                &quot;Widens a concrete {@code $L&lt;A&gt;} into its Kind representation.\n\n&quot;
+                    + &quot;@param value The concrete instance. Must not be null.\n&quot;
+                    + &quot;@param &lt;A&gt; The result type\n&quot;
+                    + &quot;@return The widened Kind representation\n&quot;,
+                baseName)
+<span class="fc" id="L253">            .build();</span>
+
+    // narrow method
+<span class="fc" id="L256">    MethodSpec narrowMethod =</span>
+<span class="fc" id="L257">        MethodSpec.methodBuilder(&quot;narrow&quot;)</span>
+<span class="fc" id="L258">            .addAnnotation(</span>
+<span class="fc" id="L259">                AnnotationSpec.builder(SuppressWarnings.class)</span>
+<span class="fc" id="L260">                    .addMember(&quot;value&quot;, &quot;$S&quot;, &quot;unchecked&quot;)</span>
+<span class="fc" id="L261">                    .build())</span>
+<span class="fc" id="L262">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L263">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L264">            .addParameter(ParameterizedTypeName.get(KIND, witnessClass, typeA), &quot;kind&quot;)</span>
+<span class="fc" id="L265">            .returns(ParameterizedTypeName.get(sourceClass, typeA))</span>
+<span class="fc" id="L266">            .addStatement(&quot;$T.kind().requireNonNull(kind, $T.FROM_KIND)&quot;, VALIDATION, OPERATION)</span>
+<span class="fc" id="L267">            .addStatement(&quot;return (($L&lt;A&gt;) kind).value()&quot;, holderName)</span>
+<span class="fc" id="L268">            .addJavadoc(</span>
+                &quot;Narrows a Kind representation back to concrete {@code $L&lt;A&gt;}.\n\n&quot;
+                    + &quot;@param kind The Kind representation. Must not be null.\n&quot;
+                    + &quot;@param &lt;A&gt; The result type\n&quot;
+                    + &quot;@return The concrete $L\n&quot;,
+                baseName,
+                baseName)
+<span class="fc" id="L275">            .build();</span>
+
+<span class="fc" id="L277">    TypeSpec helperType =</span>
+<span class="fc" id="L278">        TypeSpec.enumBuilder(helperName)</span>
+<span class="fc" id="L279">            .addAnnotation(NULL_MARKED)</span>
+<span class="fc" id="L280">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L281">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L282">            .addEnumConstant(singletonName)</span>
+<span class="fc" id="L283">            .addType(holderType)</span>
+<span class="fc" id="L284">            .addMethod(widenMethod)</span>
+<span class="fc" id="L285">            .addMethod(narrowMethod)</span>
+<span class="fc" id="L286">            .addJavadoc(</span>
+                &quot;Helper for converting between concrete {@link $L} and its HKT representation &quot;
+                    + &quot;{@link $L}.\n\n@see $L\n@see $LKind\n&quot;,
+                baseName,
+                kindName,
+                baseName,
+                baseName)
+<span class="fc" id="L293">            .build();</span>
+
+<span class="fc" id="L295">    JavaFile.builder(packageName, helperType)</span>
+<span class="fc" id="L296">        .addFileComment(&quot;Generated by hkj-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L297">        .build()</span>
+<span class="fc" id="L298">        .writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L299">  }</span>
+
+  // =========================================================================
+  // 3. Generate *Functor.java
+  // =========================================================================
+
+  private void generateFunctor(
+      String packageName, String baseName, ClassName sourceClass, TypeElement sourceElement)
+      throws IOException {
+<span class="fc" id="L308">    String kindName = baseName + &quot;Kind&quot;;</span>
+<span class="fc" id="L309">    String helperName = baseName + &quot;KindHelper&quot;;</span>
+<span class="fc" id="L310">    String functorName = baseName + &quot;Functor&quot;;</span>
+<span class="fc" id="L311">    String singletonName = toUpperSnakeCase(baseName);</span>
+<span class="fc" id="L312">    ClassName witnessClass = ClassName.get(packageName, kindName, &quot;Witness&quot;);</span>
+<span class="fc" id="L313">    ClassName helperClass = ClassName.get(packageName, helperName);</span>
+
+<span class="fc" id="L315">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+<span class="fc" id="L316">    TypeVariableName typeB = TypeVariableName.get(&quot;B&quot;);</span>
+
+    // Check if the sealed interface has a mapK method
+<span class="fc" id="L319">    boolean hasMapK = hasMapKMethod(sourceElement);</span>
+
+    // Build map method body
+<span class="fc" id="L322">    MethodSpec.Builder mapBuilder =</span>
+<span class="fc" id="L323">        MethodSpec.methodBuilder(&quot;map&quot;)</span>
+<span class="fc" id="L324">            .addAnnotation(Override.class)</span>
+<span class="fc" id="L325">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L326">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L327">            .addTypeVariable(typeB)</span>
+<span class="fc" id="L328">            .addParameter(</span>
+<span class="fc" id="L329">                ParameterizedTypeName.get(</span>
+                    FUNCTION,
+<span class="fc" id="L331">                    WildcardTypeName.supertypeOf(typeA),</span>
+<span class="fc" id="L332">                    WildcardTypeName.subtypeOf(typeB)),</span>
+                &quot;f&quot;)
+<span class="fc" id="L334">            .addParameter(ParameterizedTypeName.get(KIND, witnessClass, typeA), &quot;fa&quot;)</span>
+<span class="fc" id="L335">            .returns(ParameterizedTypeName.get(KIND, witnessClass, typeB))</span>
+<span class="fc" id="L336">            .addStatement(&quot;$T.function().require(f, $S, $T.MAP)&quot;, VALIDATION, &quot;f&quot;, OPERATION)</span>
+<span class="fc" id="L337">            .addStatement(&quot;$T.kind().requireNonNull(fa, $T.MAP)&quot;, VALIDATION, OPERATION)</span>
+<span class="fc" id="L338">            .addStatement(&quot;$T&lt;A&gt; op = $T.$L.narrow(fa)&quot;, sourceClass, helperClass, singletonName);</span>
+
+<span class="fc bfc" id="L340" title="All 2 branches covered.">    if (hasMapK) {</span>
+<span class="fc" id="L341">      mapBuilder.addStatement(&quot;return $T.$L.widen(op.mapK(f))&quot;, helperClass, singletonName);</span>
+    } else {
+      // Cast-through for simple effect algebras without continuation-passing
+<span class="fc" id="L344">      mapBuilder</span>
+<span class="fc" id="L345">          .addAnnotation(</span>
+<span class="fc" id="L346">              AnnotationSpec.builder(SuppressWarnings.class)</span>
+<span class="fc" id="L347">                  .addMember(&quot;value&quot;, &quot;$S&quot;, &quot;unchecked&quot;)</span>
+<span class="fc" id="L348">                  .build())</span>
+<span class="fc" id="L349">          .addStatement(</span>
+              &quot;return ($T) $T.$L.widen(($T) ($T) op)&quot;,
+<span class="fc" id="L351">              ParameterizedTypeName.get(KIND, witnessClass, typeB),</span>
+              helperClass,
+              singletonName,
+<span class="fc" id="L354">              ParameterizedTypeName.get(sourceClass, typeB),</span>
+<span class="fc" id="L355">              ParameterizedTypeName.get(sourceClass, WildcardTypeName.subtypeOf(typeB)));</span>
+    }
+
+<span class="fc" id="L358">    MethodSpec mapMethod = mapBuilder.build();</span>
+
+    // Instance field + factory
+<span class="fc" id="L361">    TypeSpec.Builder functorBuilder =</span>
+<span class="fc" id="L362">        TypeSpec.classBuilder(functorName)</span>
+<span class="fc" id="L363">            .addAnnotation(NULL_MARKED)</span>
+<span class="fc" id="L364">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L365">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L366">            .addSuperinterface(ParameterizedTypeName.get(FUNCTOR, witnessClass))</span>
+<span class="fc" id="L367">            .addField(</span>
+<span class="fc" id="L368">                FieldSpec.builder(</span>
+<span class="fc" id="L369">                        ClassName.get(packageName, functorName),</span>
+                        &quot;INSTANCE&quot;,
+                        Modifier.PRIVATE,
+                        Modifier.STATIC,
+                        Modifier.FINAL)
+<span class="fc" id="L374">                    .initializer(&quot;new $L()&quot;, functorName)</span>
+<span class="fc" id="L375">                    .build())</span>
+<span class="fc" id="L376">            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())</span>
+<span class="fc" id="L377">            .addMethod(</span>
+<span class="fc" id="L378">                MethodSpec.methodBuilder(&quot;instance&quot;)</span>
+<span class="fc" id="L379">                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L380">                    .returns(ClassName.get(packageName, functorName))</span>
+<span class="fc" id="L381">                    .addStatement(&quot;return INSTANCE&quot;)</span>
+<span class="fc" id="L382">                    .addJavadoc(&quot;Returns the singleton Functor instance.\n&quot;)</span>
+<span class="fc" id="L383">                    .build())</span>
+<span class="fc" id="L384">            .addMethod(mapMethod)</span>
+<span class="fc" id="L385">            .addJavadoc(</span>
+                &quot;Functor instance for {@link $L}.\n\n@see $L\n@see $LKind\n&quot;,
+                baseName,
+                baseName,
+                baseName);
+
+<span class="fc" id="L391">    JavaFile.builder(packageName, functorBuilder.build())</span>
+<span class="fc" id="L392">        .addFileComment(&quot;Generated by hkj-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L393">        .build()</span>
+<span class="fc" id="L394">        .writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L395">  }</span>
+
+  // =========================================================================
+  // 4. Generate *Ops.java
+  // =========================================================================
+
+  private void generateOps(
+      String packageName, String baseName, ClassName sourceClass, List&lt;TypeElement&gt; permits)
+      throws IOException {
+<span class="fc" id="L404">    String kindName = baseName + &quot;Kind&quot;;</span>
+<span class="fc" id="L405">    String helperName = baseName + &quot;KindHelper&quot;;</span>
+<span class="fc" id="L406">    String functorName = baseName + &quot;Functor&quot;;</span>
+<span class="fc" id="L407">    String opsName = baseName + &quot;Ops&quot;;</span>
+<span class="fc" id="L408">    String singletonName = toUpperSnakeCase(baseName);</span>
+<span class="fc" id="L409">    ClassName witnessClass = ClassName.get(packageName, kindName, &quot;Witness&quot;);</span>
+<span class="fc" id="L410">    ClassName helperClass = ClassName.get(packageName, helperName);</span>
+<span class="fc" id="L411">    ClassName functorClass = ClassName.get(packageName, functorName);</span>
+
+<span class="fc" id="L413">    TypeSpec.Builder opsBuilder =</span>
+<span class="fc" id="L414">        TypeSpec.classBuilder(opsName)</span>
+<span class="fc" id="L415">            .addAnnotation(NULL_MARKED)</span>
+<span class="fc" id="L416">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L417">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L418">            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())</span>
+<span class="fc" id="L419">            .addField(</span>
+<span class="fc" id="L420">                FieldSpec.builder(</span>
+                        functorClass, &quot;FUNCTOR&quot;, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+<span class="fc" id="L422">                    .initializer(&quot;$T.instance()&quot;, functorClass)</span>
+<span class="fc" id="L423">                    .build())</span>
+<span class="fc" id="L424">            .addMethod(</span>
+<span class="fc" id="L425">                MethodSpec.methodBuilder(&quot;functor&quot;)</span>
+<span class="fc" id="L426">                    .addModifiers(Modifier.PRIVATE, Modifier.STATIC)</span>
+<span class="fc" id="L427">                    .returns(functorClass)</span>
+<span class="fc" id="L428">                    .addStatement(&quot;return FUNCTOR&quot;)</span>
+<span class="fc" id="L429">                    .build());</span>
+
+    // Static factory method per permit
+<span class="fc bfc" id="L432" title="All 2 branches covered.">    for (TypeElement permit : permits) {</span>
+<span class="fc" id="L433">      opsBuilder.addMethod(</span>
+<span class="fc" id="L434">          generateOpsMethod(</span>
+              permit,
+              baseName,
+              packageName,
+              sourceClass,
+              helperClass,
+              singletonName,
+              witnessClass));
+<span class="fc" id="L442">    }</span>
+
+    // Bound inner class
+<span class="fc" id="L445">    opsBuilder.addType(</span>
+<span class="fc" id="L446">        generateBoundClass(</span>
+            permits,
+            baseName,
+            packageName,
+            sourceClass,
+            helperClass,
+            singletonName,
+            witnessClass,
+            functorClass));
+
+    // boundTo factory method
+<span class="fc" id="L457">    TypeVariableName typeG =</span>
+<span class="fc" id="L458">        TypeVariableName.get(</span>
+            &quot;G&quot;,
+<span class="fc" id="L460">            ParameterizedTypeName.get(</span>
+<span class="fc" id="L461">                WITNESS_ARITY, ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;TypeArity&quot;, &quot;Unary&quot;)));</span>
+<span class="fc" id="L462">    opsBuilder.addMethod(</span>
+<span class="fc" id="L463">        MethodSpec.methodBuilder(&quot;boundTo&quot;)</span>
+<span class="fc" id="L464">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L465">            .addTypeVariable(typeG)</span>
+<span class="fc" id="L466">            .addParameter(ParameterizedTypeName.get(INJECT, witnessClass, typeG), &quot;inject&quot;)</span>
+<span class="fc" id="L467">            .addParameter(ParameterizedTypeName.get(FUNCTOR, typeG), &quot;functorG&quot;)</span>
+<span class="fc" id="L468">            .returns(ParameterizedTypeName.get(ClassName.get(packageName, opsName, &quot;Bound&quot;), typeG))</span>
+<span class="fc" id="L469">            .addStatement(&quot;return new Bound&lt;&gt;(inject, functorG)&quot;)</span>
+<span class="fc" id="L470">            .addJavadoc(</span>
+                &quot;Creates a Bound instance for combined-effect programs.\n\n&quot;
+                    + &quot;@param inject The Inject instance for embedding into the combined effect type\n&quot;
+                    + &quot;@param functorG The Functor for the combined effect type\n&quot;
+                    + &quot;@param &lt;G&gt; The combined effect type\n&quot;
+                    + &quot;@return A Bound instance\n&quot;)
+<span class="fc" id="L476">            .build());</span>
+
+<span class="fc" id="L478">    opsBuilder.addJavadoc(</span>
+        &quot;Smart constructors for {@link $L} operations, lifting them into the Free monad.\n\n&quot;
+            + &quot;@see $L\n@see $LKind\n&quot;,
+        baseName,
+        baseName,
+        baseName);
+
+<span class="fc" id="L485">    JavaFile.builder(packageName, opsBuilder.build())</span>
+<span class="fc" id="L486">        .addFileComment(&quot;Generated by hkj-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L487">        .build()</span>
+<span class="fc" id="L488">        .writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L489">  }</span>
+
+  private MethodSpec generateOpsMethod(
+      TypeElement permit,
+      String baseName,
+      String packageName,
+      ClassName sourceClass,
+      ClassName helperClass,
+      String singletonName,
+      ClassName witnessClass) {
+<span class="fc" id="L499">    String methodName = permitToMethodName(permit);</span>
+<span class="fc" id="L500">    List&lt;? extends RecordComponentElement&gt; components = permit.getRecordComponents();</span>
+<span class="fc" id="L501">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+
+<span class="fc" id="L503">    MethodSpec.Builder builder =</span>
+<span class="fc" id="L504">        MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L505">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L506">            .addTypeVariable(typeA);</span>
+
+    // Add parameters for all record components
+<span class="fc bfc" id="L509" title="All 2 branches covered.">    for (RecordComponentElement component : components) {</span>
+<span class="fc" id="L510">      builder.addParameter(TypeName.get(component.asType()), component.getSimpleName().toString());</span>
+<span class="fc" id="L511">    }</span>
+
+    // Return type: Free&lt;Witness, A&gt;
+<span class="fc" id="L514">    builder.returns(ParameterizedTypeName.get(FREE, witnessClass, typeA));</span>
+
+    // Build constructor call
+<span class="fc" id="L517">    StringBuilder constructorArgs = new StringBuilder();</span>
+<span class="fc bfc" id="L518" title="All 2 branches covered.">    for (int i = 0; i &lt; components.size(); i++) {</span>
+<span class="fc bfc" id="L519" title="All 2 branches covered.">      if (i &gt; 0) constructorArgs.append(&quot;, &quot;);</span>
+<span class="fc" id="L520">      constructorArgs.append(components.get(i).getSimpleName());</span>
+    }
+
+<span class="fc" id="L523">    ClassName permitClass = sourceClass.nestedClass(permit.getSimpleName().toString());</span>
+
+<span class="fc" id="L525">    builder.addStatement(</span>
+<span class="fc" id="L526">        &quot;$T&lt;A&gt; op = new $T&lt;&gt;($L)&quot;, sourceClass, permitClass, constructorArgs.toString());</span>
+<span class="fc" id="L527">    builder.addStatement(</span>
+        &quot;return $T.liftF($T.$L.widen(op), functor())&quot;, FREE, helperClass, singletonName);
+
+<span class="fc" id="L530">    builder.addJavadoc(</span>
+        &quot;Lifts a {@code $L} into a Free program.\n\n&quot;
+            + &quot;@param &lt;A&gt; The result type\n&quot;
+            + &quot;@return A Free program wrapping the operation\n&quot;,
+<span class="fc" id="L534">        permit.getSimpleName());</span>
+
+<span class="fc" id="L536">    return builder.build();</span>
+  }
+
+  private TypeSpec generateBoundClass(
+      List&lt;TypeElement&gt; permits,
+      String baseName,
+      String packageName,
+      ClassName sourceClass,
+      ClassName helperClass,
+      String singletonName,
+      ClassName witnessClass,
+      ClassName functorClass) {
+
+<span class="fc" id="L549">    TypeVariableName typeG =</span>
+<span class="fc" id="L550">        TypeVariableName.get(</span>
+            &quot;G&quot;,
+<span class="fc" id="L552">            ParameterizedTypeName.get(</span>
+<span class="fc" id="L553">                WITNESS_ARITY, ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;TypeArity&quot;, &quot;Unary&quot;)));</span>
+
+<span class="fc" id="L555">    TypeSpec.Builder boundBuilder =</span>
+<span class="fc" id="L556">        TypeSpec.classBuilder(&quot;Bound&quot;)</span>
+<span class="fc" id="L557">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)</span>
+<span class="fc" id="L558">            .addTypeVariable(typeG)</span>
+<span class="fc" id="L559">            .addField(</span>
+<span class="fc" id="L560">                ParameterizedTypeName.get(INJECT, witnessClass, typeG),</span>
+                &quot;inject&quot;,
+                Modifier.PRIVATE,
+                Modifier.FINAL)
+<span class="fc" id="L564">            .addField(</span>
+<span class="fc" id="L565">                ParameterizedTypeName.get(FUNCTOR, typeG),</span>
+                &quot;functorG&quot;,
+                Modifier.PRIVATE,
+                Modifier.FINAL);
+
+    // Constructor
+<span class="fc" id="L571">    boundBuilder.addMethod(</span>
+<span class="fc" id="L572">        MethodSpec.constructorBuilder()</span>
+<span class="fc" id="L573">            .addParameter(ParameterizedTypeName.get(INJECT, witnessClass, typeG), &quot;inject&quot;)</span>
+<span class="fc" id="L574">            .addParameter(ParameterizedTypeName.get(FUNCTOR, typeG), &quot;functorG&quot;)</span>
+<span class="fc" id="L575">            .addStatement(</span>
+                &quot;this.inject = $T.requireNonNull(inject, $S)&quot;, OBJECTS, &quot;inject must not be null&quot;)
+<span class="fc" id="L577">            .addStatement(</span>
+                &quot;this.functorG = $T.requireNonNull(functorG, $S)&quot;,
+                OBJECTS,
+                &quot;functorG must not be null&quot;)
+<span class="fc" id="L581">            .build());</span>
+
+    // Bound method per permit
+<span class="fc bfc" id="L584" title="All 2 branches covered.">    for (TypeElement permit : permits) {</span>
+<span class="fc" id="L585">      boundBuilder.addMethod(</span>
+<span class="fc" id="L586">          generateBoundMethod(permit, baseName, packageName, witnessClass, typeG));</span>
+<span class="fc" id="L587">    }</span>
+
+<span class="fc" id="L589">    boundBuilder.addJavadoc(</span>
+        &quot;Bound instance for using $L in combined-effect programs.\n\n&quot;
+            + &quot;@param &lt;G&gt; The combined effect type\n&quot;,
+        baseName);
+
+<span class="fc" id="L594">    return boundBuilder.build();</span>
+  }
+
+  private MethodSpec generateBoundMethod(
+      TypeElement permit,
+      String baseName,
+      String packageName,
+      ClassName witnessClass,
+      TypeVariableName typeG) {
+<span class="fc" id="L603">    String methodName = permitToMethodName(permit);</span>
+<span class="fc" id="L604">    String opsName = baseName + &quot;Ops&quot;;</span>
+<span class="fc" id="L605">    List&lt;? extends RecordComponentElement&gt; components = permit.getRecordComponents();</span>
+<span class="fc" id="L606">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+
+<span class="fc" id="L608">    MethodSpec.Builder builder =</span>
+<span class="fc" id="L609">        MethodSpec.methodBuilder(methodName).addModifiers(Modifier.PUBLIC).addTypeVariable(typeA);</span>
+
+    // Add parameters for record components
+<span class="fc bfc" id="L612" title="All 2 branches covered.">    for (RecordComponentElement component : components) {</span>
+<span class="fc" id="L613">      builder.addParameter(TypeName.get(component.asType()), component.getSimpleName().toString());</span>
+<span class="fc" id="L614">    }</span>
+
+<span class="fc" id="L616">    builder.returns(ParameterizedTypeName.get(FREE, typeG, typeA));</span>
+
+    // Build args for standalone call
+<span class="fc" id="L619">    StringBuilder args = new StringBuilder();</span>
+<span class="fc bfc" id="L620" title="All 2 branches covered.">    for (int i = 0; i &lt; components.size(); i++) {</span>
+<span class="fc bfc" id="L621" title="All 2 branches covered.">      if (i &gt; 0) args.append(&quot;, &quot;);</span>
+<span class="fc" id="L622">      args.append(components.get(i).getSimpleName());</span>
+    }
+
+<span class="fc" id="L625">    builder.addStatement(</span>
+        &quot;$T&lt;$T, A&gt; standalone = $L.$L($L)&quot;,
+        FREE,
+        witnessClass,
+        opsName,
+        methodName,
+<span class="fc" id="L631">        args.toString());</span>
+<span class="fc" id="L632">    builder.addStatement(&quot;return $T.translate(standalone, inject::inject, functorG)&quot;, FREE);</span>
+
+<span class="fc" id="L634">    builder.addJavadoc(</span>
+        &quot;Lifts a {@code $L} into the combined effect type.\n\n&quot;
+            + &quot;@param &lt;A&gt; The result type\n&quot;
+            + &quot;@return A Free program in the combined effect type\n&quot;,
+<span class="fc" id="L638">        permit.getSimpleName());</span>
+
+<span class="fc" id="L640">    return builder.build();</span>
+  }
+
+  // =========================================================================
+  // 5. Generate *Interpreter.java
+  // =========================================================================
+
+  private void generateInterpreter(
+      String packageName, String baseName, ClassName sourceClass, List&lt;TypeElement&gt; permits)
+      throws IOException {
+<span class="fc" id="L650">    String kindName = baseName + &quot;Kind&quot;;</span>
+<span class="fc" id="L651">    String helperName = baseName + &quot;KindHelper&quot;;</span>
+<span class="fc" id="L652">    String interpreterName = baseName + &quot;Interpreter&quot;;</span>
+<span class="fc" id="L653">    String singletonName = toUpperSnakeCase(baseName);</span>
+<span class="fc" id="L654">    ClassName witnessClass = ClassName.get(packageName, kindName, &quot;Witness&quot;);</span>
+<span class="fc" id="L655">    ClassName helperClass = ClassName.get(packageName, helperName);</span>
+
+<span class="fc" id="L657">    TypeVariableName typeM =</span>
+<span class="fc" id="L658">        TypeVariableName.get(</span>
+            &quot;M&quot;,
+<span class="fc" id="L660">            ParameterizedTypeName.get(</span>
+<span class="fc" id="L661">                WITNESS_ARITY, ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;TypeArity&quot;, &quot;Unary&quot;)));</span>
+<span class="fc" id="L662">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+
+<span class="fc" id="L664">    TypeSpec.Builder interpreterBuilder =</span>
+<span class="fc" id="L665">        TypeSpec.classBuilder(interpreterName)</span>
+<span class="fc" id="L666">            .addAnnotation(NULL_MARKED)</span>
+<span class="fc" id="L667">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L668">            .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)</span>
+<span class="fc" id="L669">            .addTypeVariable(typeM)</span>
+<span class="fc" id="L670">            .addSuperinterface(ParameterizedTypeName.get(NATURAL, witnessClass, typeM));</span>
+
+    // Abstract handle method per permit
+<span class="fc bfc" id="L673" title="All 2 branches covered.">    for (TypeElement permit : permits) {</span>
+<span class="fc" id="L674">      String handleName = &quot;handle&quot; + permit.getSimpleName();</span>
+<span class="fc" id="L675">      ClassName permitClass = sourceClass.nestedClass(permit.getSimpleName().toString());</span>
+
+<span class="fc" id="L677">      interpreterBuilder.addMethod(</span>
+<span class="fc" id="L678">          MethodSpec.methodBuilder(handleName)</span>
+<span class="fc" id="L679">              .addModifiers(Modifier.PROTECTED, Modifier.ABSTRACT)</span>
+<span class="fc" id="L680">              .addTypeVariable(typeA)</span>
+<span class="fc" id="L681">              .addParameter(ParameterizedTypeName.get(permitClass, typeA), &quot;op&quot;)</span>
+<span class="fc" id="L682">              .returns(ParameterizedTypeName.get(KIND, typeM, typeA))</span>
+<span class="fc" id="L683">              .addJavadoc(</span>
+                  &quot;Handles a {@code $L} operation.\n\n&quot;
+                      + &quot;@param op The operation to handle\n&quot;
+                      + &quot;@param &lt;A&gt; The result type\n&quot;
+                      + &quot;@return The interpreted result in the target monad\n&quot;,
+<span class="fc" id="L688">                  permit.getSimpleName())</span>
+<span class="fc" id="L689">              .build());</span>
+<span class="fc" id="L690">    }</span>
+
+    // apply() method with switch dispatch
+<span class="fc" id="L693">    MethodSpec.Builder applyBuilder =</span>
+<span class="fc" id="L694">        MethodSpec.methodBuilder(&quot;apply&quot;)</span>
+<span class="fc" id="L695">            .addAnnotation(Override.class)</span>
+<span class="fc" id="L696">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L697">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L698">            .addParameter(ParameterizedTypeName.get(KIND, witnessClass, typeA), &quot;fa&quot;)</span>
+<span class="fc" id="L699">            .returns(ParameterizedTypeName.get(KIND, typeM, typeA))</span>
+<span class="fc" id="L700">            .addStatement(&quot;$T.kind().requireNonNull(fa, $T.FROM_KIND)&quot;, VALIDATION, OPERATION)</span>
+<span class="fc" id="L701">            .addStatement(&quot;$T&lt;A&gt; op = $T.$L.narrow(fa)&quot;, sourceClass, helperClass, singletonName);</span>
+
+    // Build switch expression using addCode
+<span class="fc" id="L704">    applyBuilder.addCode(&quot;return switch (op) {\n&quot;);</span>
+<span class="fc bfc" id="L705" title="All 2 branches covered.">    for (TypeElement permit : permits) {</span>
+<span class="fc" id="L706">      String handleName = &quot;handle&quot; + permit.getSimpleName();</span>
+<span class="fc" id="L707">      ClassName permitClass = sourceClass.nestedClass(permit.getSimpleName().toString());</span>
+<span class="fc" id="L708">      applyBuilder.addCode(&quot;  case $T&lt;A&gt; p -&gt; $L(p);\n&quot;, permitClass, handleName);</span>
+<span class="fc" id="L709">    }</span>
+<span class="fc" id="L710">    applyBuilder.addCode(&quot;};\n&quot;);</span>
+
+<span class="fc" id="L712">    interpreterBuilder.addMethod(applyBuilder.build());</span>
+
+<span class="fc" id="L714">    interpreterBuilder.addJavadoc(</span>
+        &quot;Abstract interpreter skeleton for {@link $L}.\n\n&quot;
+            + &quot;&lt;p&gt;Subclasses must implement a handler for each sealed permit. The {@link #apply}\n&quot;
+            + &quot;method dispatches via pattern matching.\n\n&quot;
+            + &quot;@param &lt;M&gt; The target monad type\n&quot;
+            + &quot;@see $L\n@see $LKind\n&quot;,
+        baseName,
+        baseName,
+        baseName);
+
+<span class="fc" id="L724">    JavaFile.builder(packageName, interpreterBuilder.build())</span>
+<span class="fc" id="L725">        .addFileComment(&quot;Generated by hkj-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L726">        .build()</span>
+<span class="fc" id="L727">        .writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L728">  }</span>
+
+  // =========================================================================
+  // Helpers
+  // =========================================================================
+
+  private String resolveTargetPackage(TypeElement typeElement, EffectAlgebra annotation) {
+<span class="fc" id="L735">    String targetPackage = annotation.targetPackage();</span>
+<span class="fc bfc" id="L736" title="All 2 branches covered.">    if (targetPackage.isEmpty()) {</span>
+<span class="fc" id="L737">      return processingEnv</span>
+<span class="fc" id="L738">          .getElementUtils()</span>
+<span class="fc" id="L739">          .getPackageOf(typeElement)</span>
+<span class="fc" id="L740">          .getQualifiedName()</span>
+<span class="fc" id="L741">          .toString();</span>
+    }
+<span class="fc" id="L743">    return targetPackage;</span>
+  }
+
+  private boolean hasMapKMethod(TypeElement sealedInterface) {
+<span class="fc bfc" id="L747" title="All 2 branches covered.">    for (Element enclosed : sealedInterface.getEnclosedElements()) {</span>
+<span class="fc bfc" id="L748" title="All 2 branches covered.">      if (enclosed.getKind() == ElementKind.METHOD</span>
+<span class="pc bpc" id="L749" title="1 of 2 branches missed.">          &amp;&amp; enclosed.getSimpleName().toString().equals(&quot;mapK&quot;)) {</span>
+<span class="fc" id="L750">        return true;</span>
+      }
+<span class="fc" id="L752">    }</span>
+<span class="fc" id="L753">    return false;</span>
+  }
+
+  /** Converts a permit record name to a method name (lowercase first letter). */
+  private String permitToMethodName(TypeElement permit) {
+<span class="fc" id="L758">    String name = permit.getSimpleName().toString();</span>
+<span class="fc" id="L759">    return name.substring(0, 1).toLowerCase(Locale.ROOT) + name.substring(1);</span>
+  }
+
+  /** Converts a class name like &quot;FooOp&quot; to &quot;FOO_OP&quot; for enum singleton naming. */
+  private static String toUpperSnakeCase(String name) {
+<span class="fc" id="L764">    StringBuilder sb = new StringBuilder();</span>
+<span class="fc bfc" id="L765" title="All 2 branches covered.">    for (int i = 0; i &lt; name.length(); i++) {</span>
+<span class="fc" id="L766">      char c = name.charAt(i);</span>
+<span class="fc bfc" id="L767" title="All 4 branches covered.">      if (Character.isUpperCase(c) &amp;&amp; i &gt; 0) {</span>
+        // Only add underscore if previous char is lowercase
+<span class="fc bfc" id="L769" title="All 2 branches covered.">        if (Character.isLowerCase(name.charAt(i - 1))) {</span>
+<span class="fc" id="L770">          sb.append('_');</span>
+        }
+      }
+<span class="fc" id="L773">      sb.append(Character.toUpperCase(c));</span>
+    }
+<span class="fc" id="L775">    return sb.toString();</span>
+  }
+
+  private void error(String msg, Element element) {
+<span class="fc" id="L779">    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, element);</span>
+<span class="fc" id="L780">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

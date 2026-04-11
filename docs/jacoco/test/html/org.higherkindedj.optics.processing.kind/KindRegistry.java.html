@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KindRegistry.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.kind</a> &gt; <span class="el_source">KindRegistry.java</span></div><h1>KindRegistry.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.kind;
+
+import java.util.Map;
+import java.util.Optional;
+import org.higherkindedj.optics.annotations.KindSemantics;
+
+/**
+ * Registry of known Kind witness types and their corresponding Traverse instances.
+ *
+ * &lt;p&gt;This registry provides the mapping between Higher-Kinded-J library witness types and their
+ * Traverse implementations. The Focus processor uses this registry to automatically generate
+ * appropriate {@code traverseOver()} calls for recognised Kind fields.
+ *
+ * &lt;h2&gt;Supported Types&lt;/h2&gt;
+ *
+ * &lt;table border=&quot;1&quot;&gt;
+ *   &lt;caption&gt;Library Type Mappings&lt;/caption&gt;
+ *   &lt;tr&gt;&lt;th&gt;Witness Type&lt;/th&gt;&lt;th&gt;Traverse Instance&lt;/th&gt;&lt;th&gt;Semantics&lt;/th&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;ListKind.Witness&lt;/td&gt;&lt;td&gt;ListTraverse.INSTANCE&lt;/td&gt;&lt;td&gt;ZERO_OR_MORE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;MaybeKind.Witness&lt;/td&gt;&lt;td&gt;MaybeTraverse.INSTANCE&lt;/td&gt;&lt;td&gt;ZERO_OR_ONE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;OptionalKind.Witness&lt;/td&gt;&lt;td&gt;OptionalTraverse.INSTANCE&lt;/td&gt;&lt;td&gt;ZERO_OR_ONE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;StreamKind.Witness&lt;/td&gt;&lt;td&gt;StreamTraverse.INSTANCE&lt;/td&gt;&lt;td&gt;ZERO_OR_MORE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;TryKind.Witness&lt;/td&gt;&lt;td&gt;TryTraverse.INSTANCE&lt;/td&gt;&lt;td&gt;ZERO_OR_ONE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;IdKind.Witness&lt;/td&gt;&lt;td&gt;IdTraverse.INSTANCE&lt;/td&gt;&lt;td&gt;EXACTLY_ONE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;EitherKind.Witness&lt;/td&gt;&lt;td&gt;EitherTraverse.instance()&lt;/td&gt;&lt;td&gt;ZERO_OR_ONE&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;tr&gt;&lt;td&gt;ValidatedKind.Witness&lt;/td&gt;&lt;td&gt;ValidatedTraverse.instance()&lt;/td&gt;&lt;td&gt;ZERO_OR_ONE&lt;/td&gt;&lt;/tr&gt;
+ * &lt;/table&gt;
+ *
+ * &lt;h2&gt;Extensibility&lt;/h2&gt;
+ *
+ * &lt;p&gt;For custom Kind types not in this registry, users can annotate fields with {@link
+ * org.higherkindedj.optics.annotations.TraverseField} to provide explicit Traverse configuration.
+ *
+ * @see KindFieldAnalyser
+ * @see org.higherkindedj.optics.annotations.TraverseField
+ */
+public final class KindRegistry {
+
+  /** Base package for Higher-Kinded-J HKT types. */
+  public static final String HKT_PACKAGE = &quot;org.higherkindedj.hkt&quot;;
+
+  /** The Kind interface fully qualified name. */
+  public static final String KIND_INTERFACE = HKT_PACKAGE + &quot;.Kind&quot;;
+
+  /**
+   * Represents a registered Kind type mapping.
+   *
+   * @param traverseExpression the code to obtain the Traverse instance
+   * @param semantics the cardinality semantics
+   * @param isParameterised whether this witness type requires type parameters
+   */
+<span class="fc" id="L54">  public record KindMapping(</span>
+      String traverseExpression, KindSemantics semantics, boolean isParameterised) {
+
+    /** Creates a mapping for a non-parameterised type with an INSTANCE field. */
+    static KindMapping instance(String traverseClass, KindSemantics semantics) {
+<span class="fc" id="L59">      return new KindMapping(traverseClass + &quot;.INSTANCE&quot;, semantics, false);</span>
+    }
+
+    /** Creates a mapping for a parameterised type with a factory method. */
+    static KindMapping factory(String traverseClass, KindSemantics semantics) {
+<span class="fc" id="L64">      return new KindMapping(traverseClass + &quot;.instance()&quot;, semantics, true);</span>
+    }
+  }
+
+  /**
+   * Map from witness type qualified name to its Traverse mapping.
+   *
+   * &lt;p&gt;The keys are the fully qualified names of the Witness inner classes, without the type
+   * parameters.
+   */
+<span class="fc" id="L74">  private static final Map&lt;String, KindMapping&gt; KNOWN_KINDS =</span>
+<span class="fc" id="L75">      Map.ofEntries(</span>
+          // List - zero or more elements
+<span class="fc" id="L77">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.list.ListKind.Witness&quot;,
+<span class="fc" id="L79">              KindMapping.instance(HKT_PACKAGE + &quot;.list.ListTraverse&quot;, KindSemantics.ZERO_OR_MORE)),</span>
+
+          // Maybe - zero or one element
+<span class="fc" id="L82">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.maybe.MaybeKind.Witness&quot;,
+<span class="fc" id="L84">              KindMapping.instance(</span>
+                  HKT_PACKAGE + &quot;.maybe.MaybeTraverse&quot;, KindSemantics.ZERO_OR_ONE)),
+
+          // Optional - zero or one element
+<span class="fc" id="L88">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.optional.OptionalKind.Witness&quot;,
+<span class="fc" id="L90">              KindMapping.instance(</span>
+                  HKT_PACKAGE + &quot;.optional.OptionalTraverse&quot;, KindSemantics.ZERO_OR_ONE)),
+
+          // Stream - zero or more elements
+<span class="fc" id="L94">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.stream.StreamKind.Witness&quot;,
+<span class="fc" id="L96">              KindMapping.instance(</span>
+                  HKT_PACKAGE + &quot;.stream.StreamTraverse&quot;, KindSemantics.ZERO_OR_MORE)),
+
+          // Try - zero or one element (success case)
+<span class="fc" id="L100">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.trymonad.TryKind.Witness&quot;,
+<span class="fc" id="L102">              KindMapping.instance(</span>
+                  HKT_PACKAGE + &quot;.trymonad.TryTraverse&quot;, KindSemantics.ZERO_OR_ONE)),
+
+          // Id - exactly one element
+<span class="fc" id="L106">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.id.IdKind.Witness&quot;,
+<span class="fc" id="L108">              KindMapping.instance(HKT_PACKAGE + &quot;.id.IdTraverse&quot;, KindSemantics.EXACTLY_ONE)),</span>
+
+          // Either - zero or one element (right-biased, parameterised)
+<span class="fc" id="L111">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.either.EitherKind.Witness&quot;,
+<span class="fc" id="L113">              KindMapping.factory(</span>
+                  HKT_PACKAGE + &quot;.either.EitherTraverse&quot;, KindSemantics.ZERO_OR_ONE)),
+
+          // Validated - zero or one element (valid case, parameterised)
+<span class="fc" id="L117">          Map.entry(</span>
+              HKT_PACKAGE + &quot;.validated.ValidatedKind.Witness&quot;,
+<span class="fc" id="L119">              KindMapping.factory(</span>
+                  HKT_PACKAGE + &quot;.validated.ValidatedTraverse&quot;, KindSemantics.ZERO_OR_ONE)));
+
+  private KindRegistry() {
+    // Utility class
+  }
+
+  /**
+   * Looks up a mapping for the given witness type.
+   *
+   * @param witnessQualifiedName the fully qualified name of the witness type, without type
+   *     parameters
+   * @return an Optional containing the mapping if found, empty otherwise
+   */
+  public static Optional&lt;KindMapping&gt; lookup(String witnessQualifiedName) {
+<span class="fc" id="L134">    return Optional.ofNullable(KNOWN_KINDS.get(witnessQualifiedName));</span>
+  }
+
+  /**
+   * Checks if a qualified name refers to the Kind interface.
+   *
+   * @param qualifiedName the type's qualified name
+   * @return true if this is the Kind interface
+   */
+  public static boolean isKindInterface(String qualifiedName) {
+<span class="fc" id="L144">    return KIND_INTERFACE.equals(qualifiedName);</span>
+  }
+
+  /**
+   * Checks if a witness type is from the Higher-Kinded-J library.
+   *
+   * @param witnessQualifiedName the witness type's qualified name
+   * @return true if this is a library witness type
+   */
+  public static boolean isLibraryWitness(String witnessQualifiedName) {
+<span class="fc" id="L154">    return witnessQualifiedName.startsWith(HKT_PACKAGE + &quot;.&quot;);</span>
+  }
+
+  /**
+   * Extracts the base witness type name from a potentially parameterised type.
+   *
+   * &lt;p&gt;For example, &quot;org.higherkindedj.hkt.either.EitherKind.Witness&amp;lt;String&amp;gt;&quot; becomes
+   * &quot;org.higherkindedj.hkt.either.EitherKind.Witness&quot;.
+   *
+   * @param witnessType the full witness type string
+   * @return the base type without parameters
+   */
+  public static String extractBaseWitnessType(String witnessType) {
+<span class="fc" id="L167">    int angleBracket = witnessType.indexOf('&lt;');</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">    if (angleBracket &gt; 0) {</span>
+<span class="fc" id="L169">      return witnessType.substring(0, angleBracket);</span>
+    }
+<span class="fc" id="L171">    return witnessType;</span>
+  }
+
+  /**
+   * Extracts type arguments from a parameterised witness type.
+   *
+   * &lt;p&gt;For example, &quot;EitherKind.Witness&amp;lt;String&amp;gt;&quot; returns &quot;String&quot;.
+   *
+   * @param witnessType the full witness type string
+   * @return the type arguments, or empty string if none
+   */
+  public static String extractWitnessTypeArgs(String witnessType) {
+<span class="fc" id="L183">    int start = witnessType.indexOf('&lt;');</span>
+<span class="fc" id="L184">    int end = witnessType.lastIndexOf('&gt;');</span>
+<span class="fc bfc" id="L185" title="All 4 branches covered.">    if (start &gt; 0 &amp;&amp; end &gt; start) {</span>
+<span class="fc" id="L186">      return witnessType.substring(start + 1, end);</span>
+    }
+<span class="fc" id="L188">    return &quot;&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

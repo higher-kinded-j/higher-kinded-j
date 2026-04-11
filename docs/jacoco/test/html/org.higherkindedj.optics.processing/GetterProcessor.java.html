@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetterProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing</a> &gt; <span class="el_source">GetterProcessor.java</span></div><h1>GetterProcessor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing;
+
+import com.google.auto.service.AutoService;
+import com.palantir.javapoet.*;
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.RecordComponentElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.tools.Diagnostic;
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.annotations.GenerateGetters;
+
+/** Annotation processor that generates Getter optics for record types. */
+@AutoService(Processor.class)
+@SupportedAnnotationTypes(&quot;org.higherkindedj.optics.annotations.GenerateGetters&quot;)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class GetterProcessor extends AbstractProcessor {
+
+  /** Creates a new GetterProcessor. */
+<span class="fc" id="L34">  public GetterProcessor() {}</span>
+
+  @Override
+  public boolean process(Set&lt;? extends TypeElement&gt; annotations, RoundEnvironment roundEnv) {
+<span class="fc bfc" id="L38" title="All 2 branches covered.">    for (TypeElement annotation : annotations) {</span>
+<span class="fc" id="L39">      Set&lt;? extends Element&gt; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">      for (Element element : annotatedElements) {</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if (element.getKind() != ElementKind.RECORD) {</span>
+<span class="fc" id="L42">          error(&quot;The @GenerateGetters annotation can only be applied to records.&quot;, element);</span>
+<span class="fc" id="L43">          continue;</span>
+        }
+        try {
+<span class="fc" id="L46">          generateGettersFile((TypeElement) element);</span>
+<span class="nc" id="L47">        } catch (IOException e) {</span>
+<span class="nc" id="L48">          error(&quot;Could not generate getters file: &quot; + e.getMessage(), element);</span>
+<span class="fc" id="L49">        }</span>
+<span class="fc" id="L50">      }</span>
+<span class="fc" id="L51">    }</span>
+<span class="fc" id="L52">    return true;</span>
+  }
+
+  private void generateGettersFile(TypeElement recordElement) throws IOException {
+<span class="fc" id="L56">    String recordName = recordElement.getSimpleName().toString();</span>
+<span class="fc" id="L57">    String defaultPackage =</span>
+<span class="fc" id="L58">        processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();</span>
+
+    // Check for custom target package in annotation
+<span class="fc" id="L61">    GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);</span>
+<span class="fc" id="L62">    String targetPackage = annotation.targetPackage();</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span>
+
+<span class="fc" id="L65">    String gettersClassName = recordName + &quot;Getters&quot;;</span>
+
+<span class="fc" id="L67">    final ClassName generatedAnnotation =</span>
+<span class="fc" id="L68">        ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+
+<span class="fc" id="L70">    TypeSpec.Builder gettersClassBuilder =</span>
+<span class="fc" id="L71">        TypeSpec.classBuilder(gettersClassName)</span>
+<span class="fc" id="L72">            .addAnnotation(generatedAnnotation)</span>
+<span class="fc" id="L73">            .addJavadoc(</span>
+<span class="fc" id="L74">                &quot;Generated getters for {@link $T}. Do not edit.&quot;, ClassName.get(recordElement))</span>
+<span class="fc" id="L75">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L76">            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());</span>
+
+<span class="fc" id="L78">    List&lt;? extends RecordComponentElement&gt; components = recordElement.getRecordComponents();</span>
+<span class="fc" id="L79">    TypeName recordTypeName = getParameterizedTypeName(recordElement);</span>
+
+<span class="fc bfc" id="L81" title="All 2 branches covered.">    for (RecordComponentElement component : components) {</span>
+<span class="fc" id="L82">      gettersClassBuilder.addMethod(createGetterMethod(component, recordElement, recordTypeName));</span>
+<span class="fc" id="L83">    }</span>
+
+<span class="fc bfc" id="L85" title="All 2 branches covered.">    for (RecordComponentElement component : components) {</span>
+<span class="fc" id="L86">      gettersClassBuilder.addMethod(createGetMethod(component, recordElement, recordTypeName));</span>
+<span class="fc" id="L87">    }</span>
+
+<span class="fc" id="L89">    JavaFile javaFile =</span>
+<span class="fc" id="L90">        JavaFile.builder(packageName, gettersClassBuilder.build())</span>
+<span class="fc" id="L91">            .addFileComment(&quot;Generated by hkj-optics-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L92">            .build();</span>
+
+<span class="fc" id="L94">    javaFile.writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L95">  }</span>
+
+  private TypeName getParameterizedTypeName(TypeElement typeElement) {
+<span class="fc" id="L98">    List&lt;? extends TypeParameterElement&gt; typeParameters = typeElement.getTypeParameters();</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">    if (typeParameters.isEmpty()) {</span>
+<span class="fc" id="L100">      return ClassName.get(typeElement);</span>
+    } else {
+<span class="fc" id="L102">      List&lt;TypeVariableName&gt; typeVars = typeParameters.stream().map(TypeVariableName::get).toList();</span>
+<span class="fc" id="L103">      return ParameterizedTypeName.get(</span>
+<span class="fc" id="L104">          ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));</span>
+    }
+  }
+
+  private MethodSpec createGetterMethod(
+      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
+
+<span class="fc" id="L111">    String componentName = component.getSimpleName().toString();</span>
+<span class="fc" id="L112">    TypeName componentTypeName = TypeName.get(component.asType());</span>
+
+<span class="fc" id="L114">    ParameterizedTypeName getterTypeName =</span>
+<span class="fc" id="L115">        ParameterizedTypeName.get(</span>
+<span class="fc" id="L116">            ClassName.get(Getter.class), recordTypeName, componentTypeName.box());</span>
+
+<span class="fc" id="L118">    MethodSpec.Builder methodBuilder =</span>
+<span class="fc" id="L119">        MethodSpec.methodBuilder(componentName)</span>
+<span class="fc" id="L120">            .addJavadoc(</span>
+                &quot;Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n&quot;
+                    + &quot;@return A non-null {@code Getter&lt;$T, $T&gt;}.&quot;,
+                Getter.class,
+<span class="fc" id="L124">                component.getSimpleName(),</span>
+                recordTypeName,
+                recordTypeName,
+<span class="fc" id="L127">                componentTypeName.box())</span>
+<span class="fc" id="L128">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L129">            .returns(getterTypeName);</span>
+
+<span class="fc bfc" id="L131" title="All 2 branches covered.">    for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {</span>
+<span class="fc" id="L132">      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span>
+<span class="fc" id="L133">    }</span>
+
+<span class="fc" id="L135">    methodBuilder.addStatement(&quot;return $T.of($T::$L)&quot;, Getter.class, recordTypeName, componentName);</span>
+
+<span class="fc" id="L137">    return methodBuilder.build();</span>
+  }
+
+  private MethodSpec createGetMethod(
+      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
+
+<span class="fc" id="L143">    String componentName = component.getSimpleName().toString();</span>
+<span class="fc" id="L144">    TypeName componentTypeName = TypeName.get(component.asType());</span>
+<span class="fc" id="L145">    String methodName = &quot;get&quot; + capitalise(componentName);</span>
+<span class="fc" id="L146">    String gettersClassName = recordElement.getSimpleName().toString() + &quot;Getters&quot;;</span>
+
+<span class="fc" id="L148">    MethodSpec.Builder methodBuilder =</span>
+<span class="fc" id="L149">        MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L150">            .addJavadoc(</span>
+                &quot;Gets the {@code $L} field from a {@link $T}.\n&quot;
+                    + &quot;&lt;p&gt;This is a convenience method that uses the {@link #$L()} getter.\n\n&quot;
+                    + &quot;@param source The {@code $T} instance.\n&quot;
+                    + &quot;@return The value of the {@code $L} field.&quot;,
+                componentName,
+                recordTypeName,
+                componentName,
+                recordTypeName,
+                componentName)
+<span class="fc" id="L160">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L161">            .returns(componentTypeName)</span>
+<span class="fc" id="L162">            .addParameter(recordTypeName, &quot;source&quot;);</span>
+
+<span class="fc" id="L164">    List&lt;? extends TypeParameterElement&gt; typeParameters = recordElement.getTypeParameters();</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">    for (TypeParameterElement typeParam : typeParameters) {</span>
+<span class="fc" id="L166">      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span>
+<span class="fc" id="L167">    }</span>
+
+<span class="fc" id="L169">    String typeArguments =</span>
+<span class="fc" id="L170">        typeParameters.stream()</span>
+<span class="fc" id="L171">            .map(p -&gt; p.getSimpleName().toString())</span>
+<span class="fc" id="L172">            .collect(Collectors.joining(&quot;, &quot;));</span>
+
+<span class="fc bfc" id="L174" title="All 2 branches covered.">    if (typeArguments.isEmpty()) {</span>
+<span class="fc" id="L175">      methodBuilder.addStatement(&quot;return $L().get(source)&quot;, componentName);</span>
+    } else {
+<span class="fc" id="L177">      methodBuilder.addStatement(</span>
+          &quot;return $L.&lt;$L&gt;$L().get(source)&quot;, gettersClassName, typeArguments, componentName);
+    }
+
+<span class="fc" id="L181">    return methodBuilder.build();</span>
+  }
+
+  private String capitalise(String s) {
+<span class="pc bpc" id="L185" title="2 of 4 branches missed.">    if (s == null || s.isEmpty()) {</span>
+<span class="nc" id="L186">      return s;</span>
+    }
+<span class="fc" id="L188">    return s.substring(0, 1).toUpperCase() + s.substring(1);</span>
+  }
+
+  private void error(String msg, Element e) {
+<span class="fc" id="L192">    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span>
+<span class="fc" id="L193">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

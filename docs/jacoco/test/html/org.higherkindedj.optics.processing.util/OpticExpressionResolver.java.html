@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpticExpressionResolver.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.util</a> &gt; <span class="el_source">OpticExpressionResolver.java</span></div><h1>OpticExpressionResolver.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.util;
+
+import com.palantir.javapoet.ClassName;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+/**
+ * Resolves optic expressions from SPI generators into JavaPoet-compatible format.
+ *
+ * &lt;p&gt;Replaces simple class names with {@code $T} placeholders and appends the corresponding {@link
+ * ClassName} objects to an args list, so that JavaPoet generates proper import statements.
+ *
+ * &lt;p&gt;The replacement is word-boundary-aware: a simple name like {@code &quot;List&quot;} will not match
+ * inside a longer identifier like {@code &quot;ImmutableList&quot;}.
+ */
+public final class OpticExpressionResolver {
+
+  private OpticExpressionResolver() {}
+
+  /**
+   * Resolves an optic expression by replacing simple class names from required imports with {@code
+   * $T} placeholders and appending the corresponding {@link ClassName} objects to the args list.
+   *
+   * &lt;p&gt;Imports are sorted by the position of their simple name in the expression so that positional
+   * {@code $T} placeholders are appended to {@code args} in left-to-right order.
+   *
+   * &lt;p&gt;Replacements use word-boundary matching to avoid incorrectly substituting substrings (e.g.,
+   * {@code &quot;List&quot;} inside {@code &quot;ImmutableList&quot;}).
+   *
+   * @param opticExpr the optic expression string (e.g., {@code &quot;Affines.eitherRight()&quot;})
+   * @param requiredImports the set of fully qualified class names referenced in the expression
+   * @param args the mutable list to which {@link ClassName} objects are appended
+   * @return the resolved expression with simple names replaced by {@code $T}
+   */
+  public static String resolve(String opticExpr, Set&lt;String&gt; requiredImports, List&lt;Object&gt; args) {
+    // Sort imports by the position of their simple name in the expression so that
+    // positional $T placeholders are appended to args in left-to-right order.
+<span class="fc" id="L42">    List&lt;String&gt; sorted =</span>
+<span class="fc" id="L43">        requiredImports.stream()</span>
+<span class="fc" id="L44">            .sorted(</span>
+<span class="fc" id="L45">                Comparator.comparingInt(</span>
+                    fqcn -&gt; {
+<span class="fc" id="L47">                      String simple = fqcn.substring(fqcn.lastIndexOf('.') + 1);</span>
+<span class="fc" id="L48">                      return opticExpr.indexOf(simple);</span>
+                    }))
+<span class="fc" id="L50">            .toList();</span>
+
+<span class="fc" id="L52">    String resolved = opticExpr;</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">    for (String fqcn : sorted) {</span>
+<span class="fc" id="L54">      int lastDot = fqcn.lastIndexOf('.');</span>
+<span class="fc" id="L55">      String simpleName = fqcn.substring(lastDot + 1);</span>
+<span class="fc" id="L56">      String pkg = fqcn.substring(0, lastDot);</span>
+      // Use word-boundary matching so that e.g. &quot;List&quot; does not match inside &quot;ImmutableList&quot;.
+<span class="fc" id="L58">      resolved =</span>
+<span class="fc" id="L59">          Pattern.compile(&quot;(?&lt;![A-Za-z0-9_])&quot; + Pattern.quote(simpleName) + &quot;(?![A-Za-z0-9_])&quot;)</span>
+<span class="fc" id="L60">              .matcher(resolved)</span>
+<span class="fc" id="L61">              .replaceFirst(&quot;\\$T&quot;);</span>
+<span class="fc" id="L62">      args.add(ClassName.get(pkg, simpleName));</span>
+<span class="fc" id="L63">    }</span>
+<span class="fc" id="L64">    return resolved;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

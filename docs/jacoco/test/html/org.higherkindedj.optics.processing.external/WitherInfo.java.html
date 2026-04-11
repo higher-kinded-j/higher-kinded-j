@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WitherInfo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.external</a> &gt; <span class="el_source">WitherInfo.java</span></div><h1>WitherInfo.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.external;
+
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeMirror;
+
+/**
+ * Information about a wither method detected on a class.
+ *
+ * &lt;p&gt;A wither method follows the pattern {@code withX(T newValue)} that returns a new instance of
+ * the class with the specified field updated. This is the immutable update pattern used by types
+ * like {@link java.time.LocalDate}.
+ *
+ * @param fieldName the derived field name (from &quot;withFieldName&quot; → &quot;fieldName&quot;)
+ * @param witherMethodName the full name of the wither method (e.g., &quot;withYear&quot;)
+ * @param parameterType the type of the wither method's parameter
+ * @param witherMethod the executable element representing the wither method
+ * @param getterMethodName the name of the corresponding getter method (e.g., &quot;getYear&quot; or &quot;year&quot;)
+ */
+<span class="fc" id="L21">public record WitherInfo(</span>
+    String fieldName,
+    String witherMethodName,
+    TypeMirror parameterType,
+    ExecutableElement witherMethod,
+    String getterMethodName) {
+
+  /**
+   * Creates a WitherInfo from a detected wither method.
+   *
+   * @param witherMethod the wither method element
+   * @param fieldName the derived field name
+   * @param getterMethodName the corresponding getter method name
+   * @return a new WitherInfo for the method
+   */
+  public static WitherInfo of(
+      ExecutableElement witherMethod, String fieldName, String getterMethodName) {
+<span class="fc" id="L38">    return new WitherInfo(</span>
+        fieldName,
+<span class="fc" id="L40">        witherMethod.getSimpleName().toString(),</span>
+<span class="fc" id="L41">        witherMethod.getParameters().getFirst().asType(),</span>
+        witherMethod,
+        getterMethodName);
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

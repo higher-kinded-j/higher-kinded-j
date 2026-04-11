@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SpecInterfaceGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.external</a> &gt; <span class="el_source">SpecInterfaceGenerator.java</span></div><h1>SpecInterfaceGenerator.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.external;
+
+import com.palantir.javapoet.AnnotationSpec;
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.JavaFile;
+import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.ParameterizedTypeName;
+import com.palantir.javapoet.TypeName;
+import com.palantir.javapoet.TypeSpec;
+import com.palantir.javapoet.TypeVariableName;
+import java.io.IOException;
+import java.util.List;
+import javax.annotation.processing.Filer;
+import javax.annotation.processing.Messager;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticMethodInfo;
+
+/**
+ * Generates concrete utility classes from spec interface analyses.
+ *
+ * &lt;p&gt;This generator creates a final utility class with static methods that implement the optics
+ * defined in the spec interface. For each abstract method, it generates the appropriate optic using
+ * the configured copy strategy, prism hint, or traversal hint.
+ *
+ * &lt;p&gt;Default methods from the spec interface are copied unchanged to the generated class, converted
+ * to static methods.
+ */
+public class SpecInterfaceGenerator {
+
+<span class="fc" id="L44">  private static final ClassName GENERATED_ANNOTATION =</span>
+<span class="fc" id="L45">      ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+
+  private final Filer filer;
+  private final Messager messager;
+  private final CopyStrategyCodeGenerator copyStrategyGenerator;
+  private final PrismCodeGenerator prismGenerator;
+  private final TraversalCodeGenerator traversalGenerator;
+
+  /**
+   * Creates a new SpecInterfaceGenerator.
+   *
+   * @param filer the filer for writing generated files
+   * @param messager the messager for reporting diagnostics
+   */
+<span class="fc" id="L59">  public SpecInterfaceGenerator(Filer filer, Messager messager) {</span>
+<span class="fc" id="L60">    this.filer = filer;</span>
+<span class="fc" id="L61">    this.messager = messager;</span>
+<span class="fc" id="L62">    this.copyStrategyGenerator = new CopyStrategyCodeGenerator();</span>
+<span class="fc" id="L63">    this.prismGenerator = new PrismCodeGenerator();</span>
+<span class="fc" id="L64">    this.traversalGenerator = new TraversalCodeGenerator();</span>
+<span class="fc" id="L65">  }</span>
+
+  /**
+   * Generates a utility class from a spec interface analysis.
+   *
+   * &lt;p&gt;The generated class name is determined as follows:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;If the interface name ends with &quot;Spec&quot;, the suffix is removed (e.g., PersonOpticsSpec →
+   *       PersonOptics)
+   *   &lt;li&gt;Otherwise, &quot;Impl&quot; is appended (e.g., PersonOptics → PersonOpticsImpl)
+   * &lt;/ul&gt;
+   *
+   * @param analysis the spec interface analysis
+   * @param targetPackage the target package for the generated class
+   */
+  public void generate(SpecAnalysis analysis, String targetPackage) {
+<span class="fc" id="L82">    TypeElement specInterface = analysis.specInterface();</span>
+<span class="fc" id="L83">    String className = deriveGeneratedClassName(specInterface.getSimpleName().toString());</span>
+
+<span class="fc" id="L85">    TypeSpec.Builder classBuilder =</span>
+<span class="fc" id="L86">        TypeSpec.classBuilder(className)</span>
+<span class="fc" id="L87">            .addAnnotation(GENERATED_ANNOTATION)</span>
+<span class="fc" id="L88">            .addJavadoc(</span>
+                &quot;Generated optics for {@link $T}. Do not edit.\n\n&quot;
+                    + &quot;&lt;p&gt;Generated from spec interface {@link $T}.&quot;,
+<span class="fc" id="L91">                analysis.sourceTypeElement(),</span>
+                specInterface)
+<span class="fc" id="L93">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L94">            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());</span>
+
+    // Generate optic methods for abstract methods
+<span class="fc bfc" id="L97" title="All 2 branches covered.">    for (OpticMethodInfo opticMethod : analysis.opticMethods()) {</span>
+<span class="fc" id="L98">      MethodSpec method =</span>
+<span class="fc" id="L99">          generateOpticMethod(</span>
+<span class="fc" id="L100">              opticMethod, analysis.sourceType(), analysis.sourceTypeElement(), className);</span>
+<span class="fc" id="L101">      classBuilder.addMethod(method);</span>
+<span class="fc" id="L102">    }</span>
+
+    // Copy default methods (converted to static)
+<span class="fc bfc" id="L105" title="All 2 branches covered.">    for (ExecutableElement defaultMethod : analysis.defaultMethods()) {</span>
+<span class="fc" id="L106">      MethodSpec method = copyDefaultMethod(defaultMethod, analysis.sourceType());</span>
+<span class="fc" id="L107">      classBuilder.addMethod(method);</span>
+<span class="fc" id="L108">    }</span>
+
+<span class="fc" id="L110">    writeFile(targetPackage, classBuilder.build());</span>
+<span class="fc" id="L111">  }</span>
+
+  /**
+   * Generates a static method for an optic definition.
+   *
+   * @param opticMethod the optic method info
+   * @param sourceType the source type S
+   * @param sourceTypeElement the source type element
+   * @param className the generated class name
+   * @return the generated method spec
+   */
+  private MethodSpec generateOpticMethod(
+      OpticMethodInfo opticMethod,
+      TypeMirror sourceType,
+      TypeElement sourceTypeElement,
+      String className) {
+
+<span class="fc" id="L128">    String methodName = opticMethod.methodName();</span>
+<span class="fc" id="L129">    TypeMirror focusType = opticMethod.focusType();</span>
+<span class="fc" id="L130">    OpticKind opticKind = opticMethod.opticKind();</span>
+
+    // Build return type
+<span class="fc" id="L133">    TypeName returnType = buildOpticReturnType(opticKind, sourceType, focusType);</span>
+
+<span class="fc" id="L135">    MethodSpec.Builder methodBuilder =</span>
+<span class="fc" id="L136">        MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L137">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L138">            .returns(returnType)</span>
+<span class="fc" id="L139">            .addJavadoc(</span>
+                &quot;Creates a {@link $T} for the {@code $L} property of a {@link $T}.\n\n&quot;
+                    + &quot;@return A non-null optic instance.&quot;,
+<span class="fc" id="L142">                getOpticClass(opticKind),</span>
+                methodName,
+<span class="fc" id="L144">                TypeName.get(sourceType));</span>
+
+    // Add @SuppressWarnings(&quot;unchecked&quot;) for THROUGH_FIELD traversals
+    // This is needed because container subtypes (e.g., ArrayList) are composed with
+    // supertype traversals (e.g., Traversal&lt;List, A&gt;) using an unchecked cast
+<span class="fc bfc" id="L149" title="All 2 branches covered.">    if (opticKind == OpticKind.TRAVERSAL</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        &amp;&amp; opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD) {</span>
+<span class="fc" id="L151">      methodBuilder.addAnnotation(</span>
+<span class="fc" id="L152">          AnnotationSpec.builder(SuppressWarnings.class)</span>
+<span class="fc" id="L153">              .addMember(&quot;value&quot;, &quot;$S&quot;, &quot;unchecked&quot;)</span>
+<span class="fc" id="L154">              .build());</span>
+    }
+
+    // Add type parameters if source type has them
+<span class="fc bfc" id="L158" title="All 2 branches covered.">    for (TypeParameterElement typeParam : sourceTypeElement.getTypeParameters()) {</span>
+<span class="fc" id="L159">      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span>
+<span class="fc" id="L160">    }</span>
+
+    // Generate method body based on optic kind
+<span class="fc" id="L163">    CodeBlock body = generateOpticBody(opticMethod, sourceType, focusType, className);</span>
+<span class="fc" id="L164">    methodBuilder.addCode(body);</span>
+
+<span class="fc" id="L166">    return methodBuilder.build();</span>
+  }
+
+  /**
+   * Generates the method body for an optic method.
+   *
+   * @param opticMethod the optic method info
+   * @param sourceType the source type
+   * @param focusType the focus type
+   * @param className the generated class name
+   * @return the code block for the method body
+   */
+  private CodeBlock generateOpticBody(
+      OpticMethodInfo opticMethod, TypeMirror sourceType, TypeMirror focusType, String className) {
+
+<span class="fc bfc" id="L181" title="All 4 branches covered.">    return switch (opticMethod.opticKind()) {</span>
+<span class="fc" id="L182">      case LENS -&gt; generateLensBody(opticMethod, sourceType, focusType);</span>
+<span class="fc" id="L183">      case PRISM -&gt; generatePrismBody(opticMethod, sourceType, focusType);</span>
+<span class="fc" id="L184">      case TRAVERSAL -&gt; generateTraversalBody(opticMethod, sourceType, focusType, className);</span>
+      case AFFINE, ISO, GETTER, FOLD -&gt;
+          // These would need additional implementation
+<span class="fc" id="L187">          CodeBlock.of(</span>
+              &quot;throw new $T(\&quot;$L optics are not yet supported in spec interfaces\&quot;);\n&quot;,
+              UnsupportedOperationException.class,
+<span class="fc" id="L190">              opticMethod.opticKind());</span>
+    };
+  }
+
+  /**
+   * Generates the body for a lens method.
+   *
+   * @param opticMethod the optic method info
+   * @param sourceType the source type
+   * @param focusType the focus type
+   * @return the code block
+   */
+  private CodeBlock generateLensBody(
+      OpticMethodInfo opticMethod, TypeMirror sourceType, TypeMirror focusType) {
+
+<span class="fc" id="L205">    String fieldName = opticMethod.methodName();</span>
+<span class="fc" id="L206">    CopyStrategyInfo copyStrategyInfo = opticMethod.copyStrategyInfo();</span>
+
+<span class="fc" id="L208">    CodeBlock getterLambda =</span>
+<span class="fc" id="L209">        copyStrategyGenerator.generateGetterLambda(fieldName, copyStrategyInfo, sourceType);</span>
+<span class="fc" id="L210">    CodeBlock setterLambda =</span>
+<span class="fc" id="L211">        copyStrategyGenerator.generateSetterLambda(</span>
+<span class="fc" id="L212">            opticMethod.copyStrategy(), copyStrategyInfo, fieldName, sourceType, focusType);</span>
+
+<span class="fc" id="L214">    return CodeBlock.builder()</span>
+<span class="fc" id="L215">        .add(&quot;return $T.of(\n&quot;, Lens.class)</span>
+<span class="fc" id="L216">        .indent()</span>
+<span class="fc" id="L217">        .add(&quot;$L,\n&quot;, getterLambda)</span>
+<span class="fc" id="L218">        .add(&quot;$L&quot;, setterLambda)</span>
+<span class="fc" id="L219">        .unindent()</span>
+<span class="fc" id="L220">        .add(&quot;);\n&quot;)</span>
+<span class="fc" id="L221">        .build();</span>
+  }
+
+  /**
+   * Generates the body for a prism method.
+   *
+   * @param opticMethod the optic method info
+   * @param sourceType the source type
+   * @param focusType the focus type
+   * @return the code block
+   */
+  private CodeBlock generatePrismBody(
+      OpticMethodInfo opticMethod, TypeMirror sourceType, TypeMirror focusType) {
+
+<span class="fc" id="L235">    return prismGenerator.generatePrismReturnStatement(</span>
+<span class="fc" id="L236">        opticMethod.prismHint(), opticMethod.prismHintInfo(), sourceType, focusType);</span>
+  }
+
+  /**
+   * Generates the body for a traversal method.
+   *
+   * @param opticMethod the optic method info
+   * @param sourceType the source type
+   * @param focusType the focus type
+   * @param className the generated class name
+   * @return the code block
+   */
+  private CodeBlock generateTraversalBody(
+      OpticMethodInfo opticMethod, TypeMirror sourceType, TypeMirror focusType, String className) {
+
+<span class="fc" id="L251">    return traversalGenerator.generateTraversalReturnStatement(</span>
+<span class="fc" id="L252">        opticMethod.traversalHint(),</span>
+<span class="fc" id="L253">        opticMethod.traversalHintInfo(),</span>
+        sourceType,
+        focusType,
+        className);
+  }
+
+  /**
+   * Copies a default method from the spec interface, converting it to a static method.
+   *
+   * &lt;p&gt;Note: The method body is copied as-is. Users must use explicit class-qualified references
+   * (e.g., {@code PersonOptics.name()}) in their default method implementations.
+   *
+   * @param defaultMethod the default method to copy
+   * @param sourceType the source type
+   * @return the generated static method
+   */
+  private MethodSpec copyDefaultMethod(ExecutableElement defaultMethod, TypeMirror sourceType) {
+<span class="fc" id="L270">    String methodName = defaultMethod.getSimpleName().toString();</span>
+
+<span class="fc" id="L272">    MethodSpec.Builder methodBuilder =</span>
+<span class="fc" id="L273">        MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L274">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L275">            .returns(TypeName.get(defaultMethod.getReturnType()))</span>
+<span class="fc" id="L276">            .addJavadoc(</span>
+                &quot;Copied from spec interface default method.\n\n&quot; + &quot;@return The optic instance.&quot;);
+
+    // Copy type parameters
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">    for (TypeParameterElement typeParam : defaultMethod.getTypeParameters()) {</span>
+<span class="nc" id="L281">      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span>
+<span class="nc" id="L282">    }</span>
+
+    // Copy parameters (default methods shouldn't have parameters for optics, but handle anyway)
+<span class="fc" id="L285">    defaultMethod</span>
+<span class="fc" id="L286">        .getParameters()</span>
+<span class="fc" id="L287">        .forEach(</span>
+            param -&gt;
+<span class="fc" id="L289">                methodBuilder.addParameter(</span>
+<span class="fc" id="L290">                    TypeName.get(param.asType()), param.getSimpleName().toString()));</span>
+
+    // For default methods, we cannot easily copy the body in annotation processing
+    // The user is expected to use explicit static references like PersonOptics.name()
+    // We generate a placeholder that throws - in practice, the user should override
+    // or the spec interface compilation will handle this
+<span class="fc" id="L296">    methodBuilder.addCode(</span>
+        &quot;// Default method body cannot be copied during annotation processing.\n&quot;
+            + &quot;// Ensure the spec interface is compiled and this class is regenerated.\n&quot;
+            + &quot;throw new $T(\&quot;Default method '$L' requires manual implementation or spec recompilation\&quot;);\n&quot;,
+        UnsupportedOperationException.class,
+        methodName);
+
+<span class="fc" id="L303">    return methodBuilder.build();</span>
+  }
+
+  /**
+   * Builds the parameterised return type for an optic method.
+   *
+   * @param opticKind the kind of optic
+   * @param sourceType the source type
+   * @param focusType the focus type
+   * @return the parameterised type name
+   */
+  private TypeName buildOpticReturnType(
+      OpticKind opticKind, TypeMirror sourceType, TypeMirror focusType) {
+
+<span class="fc" id="L317">    TypeName sourceTypeName = getParameterisedTypeName(sourceType);</span>
+<span class="fc" id="L318">    TypeName focusTypeName = TypeName.get(focusType).box();</span>
+<span class="fc" id="L319">    ClassName opticClass = getOpticClass(opticKind);</span>
+
+<span class="fc" id="L321">    return ParameterizedTypeName.get(opticClass, sourceTypeName, focusTypeName);</span>
+  }
+
+  /**
+   * Gets the class name for an optic kind.
+   *
+   * @param opticKind the optic kind
+   * @return the class name
+   */
+  private ClassName getOpticClass(OpticKind opticKind) {
+<span class="fc bfc" id="L331" title="All 7 branches covered.">    return switch (opticKind) {</span>
+<span class="fc" id="L332">      case LENS -&gt; ClassName.get(Lens.class);</span>
+<span class="fc" id="L333">      case PRISM -&gt; ClassName.get(Prism.class);</span>
+<span class="fc" id="L334">      case TRAVERSAL -&gt; ClassName.get(Traversal.class);</span>
+<span class="fc" id="L335">      case AFFINE -&gt; ClassName.get(&quot;org.higherkindedj.optics&quot;, &quot;Affine&quot;);</span>
+<span class="fc" id="L336">      case ISO -&gt; ClassName.get(&quot;org.higherkindedj.optics&quot;, &quot;Iso&quot;);</span>
+<span class="fc" id="L337">      case GETTER -&gt; ClassName.get(&quot;org.higherkindedj.optics&quot;, &quot;Getter&quot;);</span>
+<span class="fc" id="L338">      case FOLD -&gt; ClassName.get(&quot;org.higherkindedj.optics&quot;, &quot;Fold&quot;);</span>
+    };
+  }
+
+  /**
+   * Gets the parameterised type name for a type mirror.
+   *
+   * @param typeMirror the type mirror
+   * @return the type name, parameterised if the type has type arguments
+   */
+  private TypeName getParameterisedTypeName(TypeMirror typeMirror) {
+<span class="pc bpc" id="L349" title="1 of 2 branches missed.">    if (typeMirror instanceof DeclaredType declaredType) {</span>
+<span class="fc" id="L350">      List&lt;? extends TypeMirror&gt; typeArgs = declaredType.getTypeArguments();</span>
+<span class="fc bfc" id="L351" title="All 2 branches covered.">      if (!typeArgs.isEmpty()) {</span>
+<span class="fc" id="L352">        TypeElement typeElement = (TypeElement) declaredType.asElement();</span>
+<span class="fc" id="L353">        TypeName[] typeArgNames = typeArgs.stream().map(TypeName::get).toArray(TypeName[]::new);</span>
+<span class="fc" id="L354">        return ParameterizedTypeName.get(ClassName.get(typeElement), typeArgNames);</span>
+      }
+    }
+<span class="fc" id="L357">    return TypeName.get(typeMirror);</span>
+  }
+
+  /**
+   * Derives the generated class name from the spec interface name.
+   *
+   * &lt;p&gt;If the interface name ends with &quot;Spec&quot;, that suffix is removed. Otherwise, &quot;Impl&quot; is
+   * appended to avoid naming conflicts with the source interface.
+   *
+   * @param interfaceName the spec interface simple name
+   * @return the generated class name
+   */
+  private String deriveGeneratedClassName(String interfaceName) {
+<span class="fc bfc" id="L370" title="All 2 branches covered.">    if (interfaceName.endsWith(&quot;Spec&quot;)) {</span>
+<span class="fc" id="L371">      return interfaceName.substring(0, interfaceName.length() - 4);</span>
+    }
+<span class="fc" id="L373">    return interfaceName + &quot;Impl&quot;;</span>
+  }
+
+  private void writeFile(String packageName, TypeSpec typeSpec) {
+    try {
+<span class="fc" id="L378">      JavaFile.builder(packageName, typeSpec)</span>
+<span class="fc" id="L379">          .addFileComment(&quot;Generated by hkj-optics-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L380">          .build()</span>
+<span class="fc" id="L381">          .writeTo(filer);</span>
+<span class="nc" id="L382">    } catch (IOException e) {</span>
+<span class="nc" id="L383">      messager.printMessage(</span>
+<span class="nc" id="L384">          Diagnostic.Kind.ERROR, &quot;Could not write generated file: &quot; + e.getMessage());</span>
+<span class="fc" id="L385">    }</span>
+<span class="fc" id="L386">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

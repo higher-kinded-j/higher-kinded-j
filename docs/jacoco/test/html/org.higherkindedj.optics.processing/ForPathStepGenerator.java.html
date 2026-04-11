@@ -1,0 +1,1241 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ForPathStepGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing</a> &gt; <span class="el_source">ForPathStepGenerator.java</span></div><h1>ForPathStepGenerator.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing;
+
+import java.io.IOException;
+import java.io.Writer;
+import javax.annotation.processing.ProcessingEnvironment;
+
+/**
+ * Generates {@code *PathStepsN} classes for all 10 ForPath effect types.
+ *
+ * &lt;p&gt;Each path type follows the same structural pattern as the hand-written ForPath inner classes
+ * but is generated as a top-level public final class with a package-private constructor.
+ */
+final class ForPathStepGenerator {
+
+  private static final String PACKAGE = &quot;org.higherkindedj.hkt.expression&quot;;
+<span class="fc" id="L18">  private static final String[] TYPE_PARAMS = {</span>
+    &quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;, &quot;H&quot;, &quot;I&quot;, &quot;J&quot;, &quot;K&quot;, &quot;L&quot;
+  };
+
+  private static final String YIELD_NULL_MSG = &quot;The yield function must not return null.&quot;;
+
+  // Value type params for types with extra type param that would collide.
+  // Either has extra E, so skip E: A, B, C, D, F, G, H, I, J, K, L, N
+  // Note: M is skipped because 'm' is used as the local monad variable name in generated code,
+  // which would collide with the lambda parameter derived from M.toLowerCase().
+<span class="fc" id="L28">  private static final String[] EITHER_VALUE_PARAMS = {</span>
+    &quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;F&quot;, &quot;G&quot;, &quot;H&quot;, &quot;I&quot;, &quot;J&quot;, &quot;K&quot;, &quot;L&quot;, &quot;N&quot;
+  };
+  // Generic has extra F, so skip F: A, B, C, D, E, G, H, I, J, K, L, M
+<span class="fc" id="L32">  private static final String[] GENERIC_VALUE_PARAMS = {</span>
+    &quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;G&quot;, &quot;H&quot;, &quot;I&quot;, &quot;J&quot;, &quot;K&quot;, &quot;L&quot;, &quot;M&quot;
+  };
+
+  private ForPathStepGenerator() {}
+
+  /**
+   * Returns the value type parameters for a descriptor, avoiding collision with extra type params.
+   */
+  private static String[] valueParams(PathTypeDescriptor desc) {
+<span class="pc bpc" id="L42" title="2 of 6 branches missed.">    if (&quot;E&quot;.equals(desc.extraTypeParamName) &amp;&amp; !desc.isGeneric &amp;&amp; !desc.isFree)</span>
+<span class="fc" id="L43">      return EITHER_VALUE_PARAMS;</span>
+<span class="fc bfc" id="L44" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) return GENERIC_VALUE_PARAMS;</span>
+<span class="fc" id="L45">    return TYPE_PARAMS;</span>
+  }
+
+  // =========================================================================
+  // Descriptor for each path type
+  // =========================================================================
+
+<span class="fc" id="L52">  private record PathTypeDescriptor(</span>
+      String pathTypeName, // e.g. &quot;MaybePath&quot;
+      String stepsPrefix, // e.g. &quot;MaybePathSteps&quot;
+      String witnessType, // e.g. &quot;MaybeKind.Witness&quot;
+      String monadType, // e.g. &quot;MaybeMonad&quot;
+      String monadAccess, // e.g. &quot;MaybeMonad.INSTANCE&quot; or &quot;EitherMonad.instance()&quot;
+      boolean isStaticMonad, // true if monad is static field
+      String kindHelperField, // e.g. &quot;MaybeKindHelper.MAYBE&quot;
+      String pathFactoryExpr, // e.g. &quot;Path.maybe&quot; -- will be combined with narrow/runKind
+      boolean filterable, // true for Maybe, Optional, NonDet
+      boolean hasExtraTypeParam, // true for Either (E), Generic (F), and Free (F)
+      String extraTypeParamName, // &quot;E&quot; for Either, &quot;F&quot; for Generic/Free, null otherwise
+      String extraTypeParamBound, // null for Either (unbounded), bound for Generic/Free
+      boolean isGeneric, // true only for Generic (uses runKind, instance monad)
+      boolean isNonDet, // true only for NonDet (uses NonDetPath.of)
+      boolean isFree, // true only for Free (uses runKind, instance monad + functor)
+      int currentMaxArity // current hand-written max arity
+      ) {}
+
+<span class="fc" id="L71">  private static final PathTypeDescriptor[] PATH_TYPES = {</span>
+    new PathTypeDescriptor(
+        &quot;MaybePath&quot;,
+        &quot;MaybePathSteps&quot;,
+        &quot;MaybeKind.Witness&quot;,
+        &quot;MaybeMonad&quot;,
+        &quot;MaybeMonad.INSTANCE&quot;,
+        true,
+        &quot;MaybeKindHelper.MAYBE&quot;,
+        &quot;Path.maybe&quot;,
+        true,
+        false,
+        null,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;OptionalPath&quot;,
+        &quot;OptionalPathSteps&quot;,
+        &quot;OptionalKind.Witness&quot;,
+        &quot;OptionalMonad&quot;,
+        &quot;OptionalMonad.INSTANCE&quot;,
+        true,
+        &quot;OptionalKindHelper.OPTIONAL&quot;,
+        &quot;Path.optional&quot;,
+        true,
+        false,
+        null,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;EitherPath&quot;,
+        &quot;EitherPathSteps&quot;,
+        &quot;EitherKind.Witness&lt;E&gt;&quot;,
+        &quot;EitherMonad&quot;,
+        &quot;EitherMonad.instance()&quot;,
+        false,
+        &quot;EitherKindHelper.EITHER&quot;,
+        &quot;Path.either&quot;,
+        false,
+        true,
+        &quot;E&quot;,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;TryPath&quot;,
+        &quot;TryPathSteps&quot;,
+        &quot;TryKind.Witness&quot;,
+        &quot;TryMonad&quot;,
+        &quot;TryMonad.INSTANCE&quot;,
+        true,
+        &quot;TryKindHelper.TRY&quot;,
+        &quot;Path.tryPath&quot;,
+        false,
+        false,
+        null,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;IOPath&quot;,
+        &quot;IOPathSteps&quot;,
+        &quot;IOKind.Witness&quot;,
+        &quot;IOMonad&quot;,
+        &quot;IOMonad.INSTANCE&quot;,
+        true,
+        &quot;IOKindHelper.IO_OP&quot;,
+        &quot;Path.ioPath&quot;,
+        false,
+        false,
+        null,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;VTaskPath&quot;,
+        &quot;VTaskPathSteps&quot;,
+        &quot;VTaskKind.Witness&quot;,
+        &quot;VTaskMonad&quot;,
+        &quot;VTaskMonad.INSTANCE&quot;,
+        true,
+        &quot;VTaskKindHelper.VTASK&quot;,
+        &quot;Path.vtaskPath&quot;,
+        false,
+        false,
+        null,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;IdPath&quot;,
+        &quot;IdPathSteps&quot;,
+        &quot;IdKind.Witness&quot;,
+        &quot;IdMonad&quot;,
+        &quot;IdMonad.instance()&quot;,
+        false,
+        &quot;IdKindHelper.ID&quot;,
+        &quot;Path.idPath&quot;,
+        false,
+        false,
+        null,
+        null,
+        false,
+        false,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;NonDetPath&quot;,
+        &quot;NonDetPathSteps&quot;,
+        &quot;ListKind.Witness&quot;,
+        &quot;ListMonad&quot;,
+        &quot;ListMonad.INSTANCE&quot;,
+        true,
+        &quot;ListKindHelper.LIST&quot;,
+        &quot;NonDetPath.of&quot;,
+        true,
+        false,
+        null,
+        null,
+        false,
+        true,
+        false,
+        1),
+    new PathTypeDescriptor(
+        &quot;FreePath&quot;,
+        &quot;FreePathSteps&quot;,
+        &quot;FreeKind.Witness&lt;F&gt;&quot;,
+        &quot;FreeMonad&quot;,
+        null,
+        false,
+        &quot;FreeKindHelper.FREE&quot;,
+        &quot;FreePath.of&quot;,
+        false,
+        true,
+        &quot;F&quot;,
+        &quot;F extends WitnessArity&lt;TypeArity.Unary&gt;&quot;,
+        false,
+        false,
+        true,
+        1),
+    new PathTypeDescriptor(
+        &quot;GenericPath&quot;,
+        &quot;GenericPathSteps&quot;,
+        &quot;F&quot;,
+        &quot;Monad&quot;,
+        null,
+        false,
+        null,
+        &quot;GenericPath.of&quot;,
+        false,
+        true,
+        &quot;F&quot;,
+        &quot;F extends WitnessArity&lt;TypeArity.Unary&gt;&quot;,
+        true,
+        false,
+        false,
+        1),
+  };
+
+  // =========================================================================
+  // Entry point
+  // =========================================================================
+
+  static void generate(int minArity, int maxArity, ProcessingEnvironment processingEnv)
+      throws IOException {
+<span class="fc bfc" id="L250" title="All 2 branches covered.">    for (PathTypeDescriptor desc : PATH_TYPES) {</span>
+      // Always generate from the next arity after the hand-written max, regardless of minArity.
+      // Each path type has its own current max arity (e.g. Maybe=5, Optional=3, Either=3).
+<span class="fc" id="L253">      int startArity = desc.currentMaxArity + 1;</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">      for (int n = startArity; n &lt;= maxArity; n++) {</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        boolean terminal = (n == maxArity);</span>
+<span class="fc" id="L256">        generatePathSteps(desc, n, terminal, processingEnv);</span>
+      }
+    }
+<span class="fc" id="L259">  }</span>
+
+  // =========================================================================
+  // Generate a single *PathStepsN class
+  // =========================================================================
+
+  private static void generatePathSteps(
+      PathTypeDescriptor desc, int n, boolean terminal, ProcessingEnvironment processingEnv)
+      throws IOException {
+<span class="fc" id="L268">    String className = desc.stepsPrefix + n;</span>
+<span class="fc" id="L269">    String qualifiedName = PACKAGE + &quot;.&quot; + className;</span>
+
+<span class="fc" id="L271">    StringBuilder sb = new StringBuilder();</span>
+
+    // Header
+<span class="fc" id="L274">    sb.append(&quot;// Generated by hkj-processor. Do not edit.\n&quot;);</span>
+<span class="fc" id="L275">    sb.append(&quot;package &quot;).append(PACKAGE).append(&quot;;\n\n&quot;);</span>
+
+    // Imports
+<span class="fc" id="L278">    appendImports(sb, desc, n, terminal);</span>
+
+    // Class javadoc
+<span class="fc" id="L281">    sb.append(&quot;/** Step &quot;)</span>
+<span class="fc" id="L282">        .append(n)</span>
+<span class="fc" id="L283">        .append(&quot; in a &quot;)</span>
+<span class="fc" id="L284">        .append(desc.pathTypeName)</span>
+<span class="fc" id="L285">        .append(&quot; comprehension. */\n&quot;);</span>
+<span class="fc" id="L286">    sb.append(&quot;@Generated\n&quot;);</span>
+
+    // Class declaration
+<span class="fc" id="L289">    sb.append(&quot;public final class &quot;).append(className);</span>
+<span class="fc" id="L290">    sb.append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L291">    appendClassTypeParams(sb, desc, n);</span>
+<span class="fc" id="L292">    sb.append(&quot;&gt; {\n\n&quot;);</span>
+
+    // Fields
+<span class="fc" id="L295">    appendFields(sb, desc, n);</span>
+
+    // Constructor
+<span class="fc" id="L298">    appendConstructor(sb, desc, className, n);</span>
+
+    // from(), let(), focus() -- only if not terminal
+<span class="fc bfc" id="L301" title="All 2 branches covered.">    if (!terminal) {</span>
+<span class="fc" id="L302">      appendFromMethod(sb, desc, n);</span>
+<span class="fc" id="L303">      appendLetMethod(sb, desc, n);</span>
+<span class="fc" id="L304">      appendFocusMethod(sb, desc, n);</span>
+    }
+
+    // when() -- only for filterable
+<span class="fc bfc" id="L308" title="All 2 branches covered.">    if (desc.filterable) {</span>
+<span class="fc" id="L309">      appendWhenMethod(sb, desc, className, n);</span>
+    }
+
+    // match() -- only for filterable and not terminal
+<span class="fc bfc" id="L313" title="All 4 branches covered.">    if (desc.filterable &amp;&amp; !terminal) {</span>
+<span class="fc" id="L314">      appendMatchMethod(sb, desc, n);</span>
+    }
+
+    // par() methods
+<span class="fc" id="L318">    appendParMethods(sb, desc, n, terminal);</span>
+
+    // traverse/sequence/flatTraverse -- only if not terminal
+<span class="fc bfc" id="L321" title="All 2 branches covered.">    if (!terminal) {</span>
+<span class="fc" id="L322">      appendTraverseMethods(sb, desc, n);</span>
+    }
+
+    // yield spread function
+<span class="fc" id="L326">    appendYieldSpread(sb, desc, n);</span>
+
+    // yield Function&lt;TupleN, R&gt;
+<span class="fc" id="L329">    appendYieldTuple(sb, desc, n);</span>
+
+<span class="fc" id="L331">    sb.append(&quot;}\n&quot;);</span>
+
+<span class="fc" id="L333">    Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();</span>
+<span class="fc" id="L334">    writer.write(sb.toString());</span>
+<span class="fc" id="L335">    writer.close();</span>
+<span class="fc" id="L336">  }</span>
+
+  // =========================================================================
+  // Imports
+  // =========================================================================
+
+  private static void appendImports(
+      StringBuilder sb, PathTypeDescriptor desc, int n, boolean terminal) {
+<span class="fc" id="L344">    sb.append(&quot;import java.util.Objects;\n&quot;);</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">    if (desc.filterable) {</span>
+<span class="fc" id="L346">      sb.append(&quot;import java.util.Optional;\n&quot;);</span>
+    }
+<span class="fc" id="L348">    sb.append(&quot;import java.util.function.Function;\n&quot;);</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">    if (n == 2) {</span>
+<span class="fc" id="L350">      sb.append(&quot;import java.util.function.BiFunction;\n&quot;);</span>
+    }
+<span class="fc bfc" id="L352" title="All 2 branches covered.">    if (desc.filterable) {</span>
+<span class="fc" id="L353">      sb.append(&quot;import java.util.function.Predicate;\n&quot;);</span>
+    }
+
+    // HKT imports
+<span class="fc" id="L357">    sb.append(&quot;import org.higherkindedj.hkt.Kind;\n&quot;);</span>
+<span class="fc bfc" id="L358" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L359">      sb.append(&quot;import org.higherkindedj.hkt.Monad;\n&quot;);</span>
+<span class="fc bfc" id="L360" title="All 2 branches covered.">    } else if (!terminal) {</span>
+<span class="fc" id="L361">      sb.append(&quot;import org.higherkindedj.hkt.Monad;\n&quot;);</span>
+    }
+<span class="fc bfc" id="L363" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L364">      sb.append(&quot;import org.higherkindedj.hkt.Functor;\n&quot;);</span>
+    }
+<span class="fc bfc" id="L366" title="All 2 branches covered.">    if (!terminal) {</span>
+<span class="fc" id="L367">      sb.append(&quot;import org.higherkindedj.hkt.Traverse;\n&quot;);</span>
+    }
+<span class="fc bfc" id="L369" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L370">      sb.append(&quot;import org.higherkindedj.hkt.TypeArity;\n&quot;);</span>
+<span class="fc" id="L371">      sb.append(&quot;import org.higherkindedj.hkt.WitnessArity;\n&quot;);</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">    } else if (!terminal) {</span>
+<span class="fc" id="L373">      sb.append(&quot;import org.higherkindedj.hkt.TypeArity;\n&quot;);</span>
+<span class="fc" id="L374">      sb.append(&quot;import org.higherkindedj.hkt.WitnessArity;\n&quot;);</span>
+    }
+
+    // Path effect imports
+<span class="fc bfc" id="L378" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L379">      sb.append(&quot;import org.higherkindedj.hkt.effect.FreePath;\n&quot;);</span>
+<span class="fc" id="L380">      sb.append(&quot;import org.higherkindedj.hkt.free.FreeKind;\n&quot;);</span>
+<span class="fc" id="L381">      sb.append(&quot;import org.higherkindedj.hkt.free.FreeKindHelper;\n&quot;);</span>
+<span class="fc" id="L382">      sb.append(&quot;import org.higherkindedj.hkt.free.FreeMonad;\n&quot;);</span>
+<span class="fc bfc" id="L383" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L384">      sb.append(&quot;import org.higherkindedj.hkt.effect.GenericPath;\n&quot;);</span>
+<span class="fc bfc" id="L385" title="All 2 branches covered.">    } else if (desc.isNonDet) {</span>
+<span class="fc" id="L386">      sb.append(&quot;import org.higherkindedj.hkt.effect.NonDetPath;\n&quot;);</span>
+    } else {
+<span class="fc" id="L388">      sb.append(&quot;import org.higherkindedj.hkt.effect.&quot;).append(desc.pathTypeName).append(&quot;;\n&quot;);</span>
+<span class="fc" id="L389">      sb.append(&quot;import org.higherkindedj.hkt.effect.Path;\n&quot;);</span>
+    }
+
+    // Monad/KindHelper imports (for non-Generic, non-Free)
+<span class="fc bfc" id="L393" title="All 4 branches covered.">    if (!desc.isGeneric &amp;&amp; !desc.isFree) {</span>
+<span class="fc" id="L394">      appendMonadKindHelperImports(sb, desc);</span>
+    }
+
+    // Function imports
+<span class="fc bfc" id="L398" title="All 2 branches covered.">    if (n &gt;= 3) {</span>
+<span class="fc" id="L399">      sb.append(&quot;import org.higherkindedj.hkt.function.Function&quot;).append(n).append(&quot;;\n&quot;);</span>
+    }
+
+    // Tuple imports - include up to TupleN+4 for par() methods
+<span class="fc" id="L403">    sb.append(&quot;import org.higherkindedj.hkt.tuple.Tuple;\n&quot;);</span>
+<span class="fc" id="L404">    int maxTuple = Math.min(n + 4, 12); // par() can target up to n+4, max 12</span>
+<span class="fc bfc" id="L405" title="All 2 branches covered.">    for (int i = n; i &lt;= maxTuple; i++) {</span>
+<span class="fc" id="L406">      sb.append(&quot;import org.higherkindedj.hkt.tuple.Tuple&quot;).append(i).append(&quot;;\n&quot;);</span>
+    }
+
+<span class="fc" id="L409">    sb.append(&quot;import org.higherkindedj.optics.annotations.Generated;\n&quot;);</span>
+<span class="fc" id="L410">    sb.append(&quot;\n&quot;);</span>
+<span class="fc" id="L411">  }</span>
+
+  private static void appendMonadKindHelperImports(StringBuilder sb, PathTypeDescriptor desc) {
+    // Determine the witness/monad/helper packages based on the path type
+<span class="pc bpc" id="L415" title="1 of 9 branches missed.">    switch (desc.stepsPrefix) {</span>
+      case &quot;MaybePathSteps&quot; -&gt; {
+<span class="fc" id="L417">        sb.append(&quot;import org.higherkindedj.hkt.maybe.MaybeKind;\n&quot;);</span>
+<span class="fc" id="L418">        sb.append(&quot;import org.higherkindedj.hkt.maybe.MaybeKindHelper;\n&quot;);</span>
+<span class="fc" id="L419">        sb.append(&quot;import org.higherkindedj.hkt.maybe.MaybeMonad;\n&quot;);</span>
+<span class="fc" id="L420">      }</span>
+      case &quot;OptionalPathSteps&quot; -&gt; {
+<span class="fc" id="L422">        sb.append(&quot;import org.higherkindedj.hkt.optional.OptionalKind;\n&quot;);</span>
+<span class="fc" id="L423">        sb.append(&quot;import org.higherkindedj.hkt.optional.OptionalKindHelper;\n&quot;);</span>
+<span class="fc" id="L424">        sb.append(&quot;import org.higherkindedj.hkt.optional.OptionalMonad;\n&quot;);</span>
+<span class="fc" id="L425">      }</span>
+      case &quot;EitherPathSteps&quot; -&gt; {
+<span class="fc" id="L427">        sb.append(&quot;import org.higherkindedj.hkt.either.EitherKind;\n&quot;);</span>
+<span class="fc" id="L428">        sb.append(&quot;import org.higherkindedj.hkt.either.EitherKindHelper;\n&quot;);</span>
+<span class="fc" id="L429">        sb.append(&quot;import org.higherkindedj.hkt.either.EitherMonad;\n&quot;);</span>
+<span class="fc" id="L430">      }</span>
+      case &quot;TryPathSteps&quot; -&gt; {
+<span class="fc" id="L432">        sb.append(&quot;import org.higherkindedj.hkt.trymonad.TryKind;\n&quot;);</span>
+<span class="fc" id="L433">        sb.append(&quot;import org.higherkindedj.hkt.trymonad.TryKindHelper;\n&quot;);</span>
+<span class="fc" id="L434">        sb.append(&quot;import org.higherkindedj.hkt.trymonad.TryMonad;\n&quot;);</span>
+<span class="fc" id="L435">      }</span>
+      case &quot;IOPathSteps&quot; -&gt; {
+<span class="fc" id="L437">        sb.append(&quot;import org.higherkindedj.hkt.io.IOKind;\n&quot;);</span>
+<span class="fc" id="L438">        sb.append(&quot;import org.higherkindedj.hkt.io.IOKindHelper;\n&quot;);</span>
+<span class="fc" id="L439">        sb.append(&quot;import org.higherkindedj.hkt.io.IOMonad;\n&quot;);</span>
+<span class="fc" id="L440">      }</span>
+      case &quot;VTaskPathSteps&quot; -&gt; {
+<span class="fc" id="L442">        sb.append(&quot;import org.higherkindedj.hkt.vtask.VTaskKind;\n&quot;);</span>
+<span class="fc" id="L443">        sb.append(&quot;import org.higherkindedj.hkt.vtask.VTaskKindHelper;\n&quot;);</span>
+<span class="fc" id="L444">        sb.append(&quot;import org.higherkindedj.hkt.vtask.VTaskMonad;\n&quot;);</span>
+<span class="fc" id="L445">      }</span>
+      case &quot;IdPathSteps&quot; -&gt; {
+<span class="fc" id="L447">        sb.append(&quot;import org.higherkindedj.hkt.id.IdKind;\n&quot;);</span>
+<span class="fc" id="L448">        sb.append(&quot;import org.higherkindedj.hkt.id.IdKindHelper;\n&quot;);</span>
+<span class="fc" id="L449">        sb.append(&quot;import org.higherkindedj.hkt.id.IdMonad;\n&quot;);</span>
+<span class="fc" id="L450">      }</span>
+      case &quot;NonDetPathSteps&quot; -&gt; {
+<span class="fc" id="L452">        sb.append(&quot;import org.higherkindedj.hkt.list.ListKind;\n&quot;);</span>
+<span class="fc" id="L453">        sb.append(&quot;import org.higherkindedj.hkt.list.ListKindHelper;\n&quot;);</span>
+<span class="fc" id="L454">        sb.append(&quot;import org.higherkindedj.hkt.list.ListMonad;\n&quot;);</span>
+<span class="fc" id="L455">      }</span>
+      default -&gt; {}
+    }
+<span class="fc" id="L458">  }</span>
+
+  // =========================================================================
+  // Class type parameters
+  // =========================================================================
+
+  private static void appendClassTypeParams(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L465">    String[] vp = valueParams(desc);</span>
+<span class="fc bfc" id="L466" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L467">      sb.append(&quot;F extends WitnessArity&lt;TypeArity.Unary&gt;&quot;);</span>
+<span class="fc bfc" id="L468" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L469">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc bfc" id="L471" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+      // Either: E, A, B, C, ...
+<span class="fc" id="L473">      sb.append(desc.extraTypeParamName);</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L475">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+    } else {
+<span class="fc bfc" id="L478" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L479" title="All 2 branches covered.">        if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L480">        sb.append(vp[i]);</span>
+      }
+    }
+<span class="fc" id="L483">  }</span>
+
+  /** Appends only the value type params (A, B, C, ...) for use in TupleN&lt;&gt; references. */
+  private static void appendValueTypeParams(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L487">    String[] vp = valueParams(desc);</span>
+<span class="fc bfc" id="L488" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L489" title="All 2 branches covered.">      if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L490">      sb.append(vp[i]);</span>
+    }
+<span class="fc" id="L492">  }</span>
+
+  // =========================================================================
+  // Fields
+  // =========================================================================
+
+  private static void appendFields(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc bfc" id="L499" title="All 2 branches covered.">    if (desc.isFree) {</span>
+      // Instance monad and functor fields for Free
+<span class="fc" id="L501">      sb.append(&quot;  private final Monad&lt;FreeKind.Witness&lt;F&gt;&gt; monad;\n&quot;);</span>
+<span class="fc" id="L502">      sb.append(&quot;  private final Functor&lt;F&gt; functor;\n&quot;);</span>
+<span class="fc bfc" id="L503" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+      // Instance monad field
+<span class="fc" id="L505">      sb.append(&quot;  private final Monad&lt;F&gt; monad;\n&quot;);</span>
+<span class="pc bpc" id="L506" title="2 of 6 branches missed.">    } else if (desc.hasExtraTypeParam &amp;&amp; !desc.isGeneric &amp;&amp; !desc.isFree) {</span>
+      // Either: no static field, uses private static method
+      // Nothing here for field; monad() method added below
+<span class="fc bfc" id="L509" title="All 2 branches covered.">    } else if (desc.isStaticMonad) {</span>
+<span class="fc" id="L510">      sb.append(&quot;  private static final &quot;)</span>
+<span class="fc" id="L511">          .append(desc.monadType)</span>
+<span class="fc" id="L512">          .append(&quot; MONAD = &quot;)</span>
+<span class="fc" id="L513">          .append(desc.monadAccess)</span>
+<span class="fc" id="L514">          .append(&quot;;\n&quot;);</span>
+    } else {
+      // Id: static final from factory method
+<span class="fc" id="L517">      sb.append(&quot;  private static final &quot;)</span>
+<span class="fc" id="L518">          .append(desc.monadType)</span>
+<span class="fc" id="L519">          .append(&quot; MONAD = &quot;)</span>
+<span class="fc" id="L520">          .append(desc.monadAccess)</span>
+<span class="fc" id="L521">          .append(&quot;;\n&quot;);</span>
+    }
+
+<span class="fc" id="L524">    sb.append(&quot;  private final Kind&lt;&quot;)</span>
+<span class="fc" id="L525">        .append(desc.witnessType)</span>
+<span class="fc" id="L526">        .append(&quot;, Tuple&quot;)</span>
+<span class="fc" id="L527">        .append(n)</span>
+<span class="fc" id="L528">        .append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L529">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L530">    sb.append(&quot;&gt;&gt; computation;\n\n&quot;);</span>
+
+    // Either: private static monad() helper method
+<span class="fc bfc" id="L533" title="All 6 branches covered.">    if (desc.hasExtraTypeParam &amp;&amp; !desc.isGeneric &amp;&amp; !desc.isFree) {</span>
+<span class="fc" id="L534">      sb.append(&quot;  private static &lt;E&gt; EitherMonad&lt;E&gt; monad() {\n&quot;);</span>
+<span class="fc" id="L535">      sb.append(&quot;    return EitherMonad.instance();\n&quot;);</span>
+<span class="fc" id="L536">      sb.append(&quot;  }\n\n&quot;);</span>
+    }
+<span class="fc" id="L538">  }</span>
+
+  // =========================================================================
+  // Constructor
+  // =========================================================================
+
+  private static void appendConstructor(
+      StringBuilder sb, PathTypeDescriptor desc, String className, int n) {
+<span class="fc" id="L546">    sb.append(&quot;  &quot;).append(className).append(&quot;(&quot;);</span>
+<span class="fc bfc" id="L547" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L548">      sb.append(&quot;Monad&lt;FreeKind.Witness&lt;F&gt;&gt; monad, Functor&lt;F&gt; functor, &quot;);</span>
+<span class="fc bfc" id="L549" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L550">      sb.append(&quot;Monad&lt;F&gt; monad, &quot;);</span>
+    }
+<span class="fc" id="L552">    sb.append(&quot;Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L553">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L554">    sb.append(&quot;&gt;&gt; computation) {\n&quot;);</span>
+<span class="fc bfc" id="L555" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L556">      sb.append(&quot;    this.monad = monad;\n&quot;);</span>
+<span class="fc" id="L557">      sb.append(&quot;    this.functor = functor;\n&quot;);</span>
+<span class="fc bfc" id="L558" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L559">      sb.append(&quot;    this.monad = monad;\n&quot;);</span>
+    }
+<span class="fc" id="L561">    sb.append(&quot;    this.computation = computation;\n&quot;);</span>
+<span class="fc" id="L562">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L563">  }</span>
+
+  // =========================================================================
+  // from() method
+  // =========================================================================
+
+  private static void appendFromMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L570">    String[] vp = valueParams(desc);</span>
+<span class="fc" id="L571">    int next = n + 1;</span>
+<span class="fc" id="L572">    String nextType = vp[n];</span>
+<span class="fc" id="L573">    String nextClassName = desc.stepsPrefix + next;</span>
+
+    // Method signature
+<span class="fc" id="L576">    sb.append(&quot;  public &lt;&quot;).append(nextType).append(&quot;&gt; &quot;).append(nextClassName).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L577">    appendNextClassTypeArgs(sb, desc, next);</span>
+<span class="fc" id="L578">    sb.append(&quot;&gt; from(\n&quot;);</span>
+<span class="fc" id="L579">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L580">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L581">    sb.append(&quot;&gt;, &quot;).append(fromReturnPathType(desc, nextType)).append(&quot;&gt; next) {\n&quot;);</span>
+
+    // Method body
+<span class="fc bfc" id="L584" title="All 2 branches covered.">    if (needsLocalMonad(desc)) {</span>
+<span class="fc" id="L585">      sb.append(&quot;    EitherMonad&lt;E&gt; m = monad();\n&quot;);</span>
+<span class="fc" id="L586">      appendFromBody(sb, desc, n, next, nextType, &quot;m&quot;);</span>
+<span class="fc bfc" id="L587" title="All 4 branches covered.">    } else if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L588">      appendFromBody(sb, desc, n, next, nextType, &quot;monad&quot;);</span>
+    } else {
+<span class="fc" id="L590">      appendFromBody(sb, desc, n, next, nextType, &quot;MONAD&quot;);</span>
+    }
+
+    // Return
+<span class="fc" id="L594">    sb.append(&quot;    return new &quot;).append(nextClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L595">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L596">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L597">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L598">  }</span>
+
+  private static void appendFromBody(
+      StringBuilder sb,
+      PathTypeDescriptor desc,
+      int n,
+      int next,
+      String nextType,
+      String monadVar) {
+<span class="fc" id="L607">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(next).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L608">    appendValueTypeParams(sb, desc, next);</span>
+<span class="fc" id="L609">    sb.append(&quot;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L610">    sb.append(&quot;        &quot;).append(monadVar).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L611">    sb.append(&quot;            t -&gt; &quot;).append(monadVar).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L612">    sb.append(&quot;                &quot;).append(nextType.toLowerCase()).append(&quot; -&gt; Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L613" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L614">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc" id="L616">    sb.append(nextType.toLowerCase()).append(&quot;),\n&quot;);</span>
+
+    // The widen/runKind expression
+<span class="fc" id="L619">    sb.append(&quot;                &quot;);</span>
+<span class="fc bfc" id="L620" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L621">      sb.append(&quot;next.apply(t).runKind()&quot;);</span>
+    } else {
+<span class="fc" id="L623">      sb.append(desc.kindHelperField).append(&quot;.widen(next.apply(t).run())&quot;);</span>
+    }
+<span class="fc" id="L625">    sb.append(&quot;),\n&quot;);</span>
+<span class="fc" id="L626">    sb.append(&quot;            computation);\n&quot;);</span>
+<span class="fc" id="L627">  }</span>
+
+  // =========================================================================
+  // let() method
+  // =========================================================================
+
+  private static void appendLetMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L634">    String[] vp = valueParams(desc);</span>
+<span class="fc" id="L635">    int next = n + 1;</span>
+<span class="fc" id="L636">    String nextType = vp[n];</span>
+<span class="fc" id="L637">    String nextClassName = desc.stepsPrefix + next;</span>
+
+    // Method signature
+<span class="fc" id="L640">    sb.append(&quot;  public &lt;&quot;).append(nextType).append(&quot;&gt; &quot;).append(nextClassName).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L641">    appendNextClassTypeArgs(sb, desc, next);</span>
+<span class="fc" id="L642">    sb.append(&quot;&gt; let(\n&quot;);</span>
+<span class="fc" id="L643">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L644">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L645">    sb.append(&quot;&gt;, &quot;).append(nextType).append(&quot;&gt; f) {\n&quot;);</span>
+
+    // Method body
+<span class="fc" id="L648">    String m = monadVar(desc, sb);</span>
+<span class="fc" id="L649">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(next).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L650">    appendValueTypeParams(sb, desc, next);</span>
+<span class="fc" id="L651">    sb.append(&quot;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L652">    sb.append(&quot;        &quot;).append(m).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L653">    sb.append(&quot;            t -&gt; Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L654" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L655">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc" id="L657">    sb.append(&quot;f.apply(t)),\n&quot;);</span>
+<span class="fc" id="L658">    sb.append(&quot;            computation);\n&quot;);</span>
+
+    // Return
+<span class="fc" id="L661">    sb.append(&quot;    return new &quot;).append(nextClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L662">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L663">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L664">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L665">  }</span>
+
+  // =========================================================================
+  // focus() method (non-terminal only)
+  // =========================================================================
+
+  private static void appendFocusMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L672">    String[] vp = valueParams(desc);</span>
+<span class="fc" id="L673">    int next = n + 1;</span>
+<span class="fc" id="L674">    String nextType = vp[n];</span>
+<span class="fc" id="L675">    String nextClassName = desc.stepsPrefix + next;</span>
+
+    // Method signature
+<span class="fc" id="L678">    sb.append(&quot;  public &lt;&quot;).append(nextType).append(&quot;&gt; &quot;).append(nextClassName).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L679">    appendNextClassTypeArgs(sb, desc, next);</span>
+<span class="fc" id="L680">    sb.append(&quot;&gt; focus(\n&quot;);</span>
+<span class="fc" id="L681">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L682">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L683">    sb.append(&quot;&gt;, &quot;).append(nextType).append(&quot;&gt; extractor) {\n&quot;);</span>
+<span class="fc" id="L684">    sb.append(&quot;    Objects.requireNonNull(extractor, \&quot;extractor must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L685">    sb.append(&quot;    return let(extractor);\n&quot;);</span>
+<span class="fc" id="L686">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L687">  }</span>
+
+  // =========================================================================
+  // when() method (filterable only)
+  // =========================================================================
+
+  private static void appendWhenMethod(
+      StringBuilder sb, PathTypeDescriptor desc, String className, int n) {
+<span class="fc" id="L695">    sb.append(&quot;  public &quot;).append(className).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L696">    appendClassTypeParams(sb, desc, n);</span>
+<span class="fc" id="L697">    sb.append(&quot;&gt; when(\n&quot;);</span>
+<span class="fc" id="L698">    sb.append(&quot;      Predicate&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L699">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L700">    sb.append(&quot;&gt;&gt; predicate) {\n&quot;);</span>
+
+<span class="fc" id="L702">    String m = monadVar(desc, sb);</span>
+<span class="fc" id="L703">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L704">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L705">    sb.append(&quot;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L706">    sb.append(&quot;        &quot;).append(m).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L707">    sb.append(&quot;            t -&gt; predicate.test(t) ? &quot;)</span>
+<span class="fc" id="L708">        .append(m)</span>
+<span class="fc" id="L709">        .append(&quot;.of(t) : &quot;)</span>
+<span class="fc" id="L710">        .append(m)</span>
+<span class="fc" id="L711">        .append(&quot;.zero(),\n&quot;);</span>
+<span class="fc" id="L712">    sb.append(&quot;            computation);\n&quot;);</span>
+<span class="fc" id="L713">    sb.append(&quot;    return new &quot;).append(className).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L714">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L715">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L716">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L717">  }</span>
+
+  // =========================================================================
+  // match() method (filterable + non-terminal)
+  // =========================================================================
+
+  private static void appendMatchMethod(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L724">    String[] vp = valueParams(desc);</span>
+<span class="fc" id="L725">    int next = n + 1;</span>
+<span class="fc" id="L726">    String nextType = vp[n];</span>
+<span class="fc" id="L727">    String nextClassName = desc.stepsPrefix + next;</span>
+
+<span class="fc" id="L729">    sb.append(&quot;  public &lt;&quot;).append(nextType).append(&quot;&gt; &quot;).append(nextClassName).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L730">    appendNextClassTypeArgs(sb, desc, next);</span>
+<span class="fc" id="L731">    sb.append(&quot;&gt; match(\n&quot;);</span>
+<span class="fc" id="L732">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L733">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L734">    sb.append(&quot;&gt;, Optional&lt;&quot;).append(nextType).append(&quot;&gt;&gt; matcher) {\n&quot;);</span>
+<span class="fc" id="L735">    sb.append(&quot;    Objects.requireNonNull(matcher, \&quot;matcher must not be null\&quot;);\n&quot;);</span>
+
+<span class="fc" id="L737">    String m = monadVar(desc, sb);</span>
+<span class="fc" id="L738">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(next).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L739">    appendValueTypeParams(sb, desc, next);</span>
+<span class="fc" id="L740">    sb.append(&quot;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L741">    sb.append(&quot;        &quot;).append(m).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L742">    sb.append(&quot;            t -&gt;\n&quot;);</span>
+<span class="fc" id="L743">    sb.append(&quot;                matcher\n&quot;);</span>
+<span class="fc" id="L744">    sb.append(&quot;                    .apply(t)\n&quot;);</span>
+<span class="fc" id="L745">    sb.append(&quot;                    .map(&quot;)</span>
+<span class="fc" id="L746">        .append(nextType.toLowerCase())</span>
+<span class="fc" id="L747">        .append(&quot; -&gt; &quot;)</span>
+<span class="fc" id="L748">        .append(m)</span>
+<span class="fc" id="L749">        .append(&quot;.of(Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L750" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L751">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc" id="L753">    sb.append(nextType.toLowerCase()).append(&quot;)))\n&quot;);</span>
+<span class="fc" id="L754">    sb.append(&quot;                    .orElseGet(&quot;).append(m).append(&quot;::zero),\n&quot;);</span>
+<span class="fc" id="L755">    sb.append(&quot;            this.computation);\n&quot;);</span>
+
+<span class="fc" id="L757">    sb.append(&quot;    return new &quot;).append(nextClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L758">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L759">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L760">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L761">  }</span>
+
+  // =========================================================================
+  // par() methods
+  // =========================================================================
+
+  /**
+   * Generates par() methods on a path step class. For step N, generates par() with K parallel
+   * bindings where N + K &lt;= 12 (the maximum arity). K ranges from 2 to 4.
+   */
+  private static void appendParMethods(
+      StringBuilder sb, PathTypeDescriptor desc, int n, boolean terminal) {
+    // par() requires at least N+2 target arity, so skip if we'd exceed 12
+<span class="fc bfc" id="L774" title="All 2 branches covered.">    for (int k = 2; k &lt;= 4; k++) {</span>
+<span class="fc" id="L775">      int targetArity = n + k;</span>
+<span class="fc bfc" id="L776" title="All 2 branches covered.">      if (targetArity &gt; 12) break;</span>
+<span class="fc" id="L777">      appendParMethod(sb, desc, n, k, targetArity);</span>
+    }
+<span class="fc" id="L779">  }</span>
+
+  /**
+   * Generates a single par() method that adds k parallel bindings to step n, producing step
+   * targetArity.
+   */
+  private static void appendParMethod(
+      StringBuilder sb, PathTypeDescriptor desc, int n, int k, int targetArity) {
+<span class="fc" id="L787">    String[] vp = valueParams(desc);</span>
+<span class="fc" id="L788">    String targetClassName = desc.stepsPrefix + targetArity;</span>
+
+    // New type parameters for the parallel bindings
+<span class="fc" id="L791">    String[] newTypes = new String[k];</span>
+<span class="fc bfc" id="L792" title="All 2 branches covered.">    for (int i = 0; i &lt; k; i++) {</span>
+<span class="fc" id="L793">      newTypes[i] = vp[n + i];</span>
+    }
+
+    // Method signature
+<span class="fc" id="L797">    sb.append(&quot;  public &lt;&quot;);</span>
+<span class="fc bfc" id="L798" title="All 2 branches covered.">    for (int i = 0; i &lt; k; i++) {</span>
+<span class="fc bfc" id="L799" title="All 2 branches covered.">      if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L800">      sb.append(newTypes[i]);</span>
+    }
+<span class="fc" id="L802">    sb.append(&quot;&gt; &quot;).append(targetClassName).append(&quot;&lt;&quot;);</span>
+    // Type args for target class
+<span class="fc bfc" id="L804" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L805">      sb.append(&quot;F&quot;);</span>
+<span class="fc bfc" id="L806" title="All 2 branches covered.">      for (int i = 0; i &lt; targetArity; i++) {</span>
+<span class="fc" id="L807">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc bfc" id="L809" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L810">      sb.append(desc.extraTypeParamName);</span>
+<span class="fc bfc" id="L811" title="All 2 branches covered.">      for (int i = 0; i &lt; targetArity; i++) {</span>
+<span class="fc" id="L812">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+    } else {
+<span class="fc bfc" id="L815" title="All 2 branches covered.">      for (int i = 0; i &lt; targetArity; i++) {</span>
+<span class="fc bfc" id="L816" title="All 2 branches covered.">        if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L817">        sb.append(vp[i]);</span>
+      }
+    }
+<span class="fc" id="L820">    sb.append(&quot;&gt; par(\n&quot;);</span>
+
+    // Parameters: Function&lt;TupleN&lt;...&gt;, PathType&lt;NewTypeI&gt;&gt; fI
+<span class="fc bfc" id="L823" title="All 2 branches covered.">    for (int i = 0; i &lt; k; i++) {</span>
+<span class="fc" id="L824">      sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L825">      appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L826">      sb.append(&quot;&gt;, &quot;);</span>
+<span class="fc" id="L827">      sb.append(fromReturnPathType(desc, newTypes[i]));</span>
+<span class="fc" id="L828">      sb.append(&quot;&gt; f&quot;).append(i + 1);</span>
+<span class="fc bfc" id="L829" title="All 2 branches covered.">      if (i &lt; k - 1) sb.append(&quot;,\n&quot;);</span>
+    }
+<span class="fc" id="L831">    sb.append(&quot;) {\n&quot;);</span>
+
+    // Body: flatMap over current computation, then mapK to combine parallel results
+<span class="fc" id="L834">    String m = monadRef(desc);</span>
+<span class="fc bfc" id="L835" title="All 2 branches covered.">    if (needsLocalMonad(desc)) {</span>
+<span class="fc" id="L836">      sb.append(&quot;    EitherMonad&lt;E&gt; m = monad();\n&quot;);</span>
+    }
+
+<span class="fc" id="L839">    sb.append(&quot;    Kind&lt;&quot;)</span>
+<span class="fc" id="L840">        .append(desc.witnessType)</span>
+<span class="fc" id="L841">        .append(&quot;, Tuple&quot;)</span>
+<span class="fc" id="L842">        .append(targetArity)</span>
+<span class="fc" id="L843">        .append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L844">    appendValueTypeParams(sb, desc, targetArity);</span>
+<span class="fc" id="L845">    sb.append(&quot;&gt;&gt; next =\n&quot;);</span>
+<span class="fc" id="L846">    sb.append(&quot;        &quot;).append(m).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L847">    sb.append(&quot;            t -&gt; &quot;).append(m).append(&quot;.map&quot;).append(k).append(&quot;(\n&quot;);</span>
+
+    // map arguments: widen(fI.apply(t).run())
+<span class="fc bfc" id="L850" title="All 2 branches covered.">    for (int i = 0; i &lt; k; i++) {</span>
+<span class="fc" id="L851">      sb.append(&quot;                &quot;);</span>
+<span class="fc bfc" id="L852" title="All 4 branches covered.">      if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L853">        sb.append(&quot;f&quot;).append(i + 1).append(&quot;.apply(t).runKind()&quot;);</span>
+      } else {
+<span class="fc" id="L855">        sb.append(desc.kindHelperField).append(&quot;.widen(f&quot;).append(i + 1).append(&quot;.apply(t).run())&quot;);</span>
+      }
+<span class="fc" id="L857">      sb.append(&quot;,\n&quot;);</span>
+    }
+
+    // combiner: (r1, r2, ...) -&gt; Tuple.of(t._1(), ..., t._N(), r1, r2, ...)
+<span class="fc" id="L861">    sb.append(&quot;                (&quot;);</span>
+<span class="fc bfc" id="L862" title="All 2 branches covered.">    for (int i = 0; i &lt; k; i++) {</span>
+<span class="fc bfc" id="L863" title="All 2 branches covered.">      if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L864">      sb.append(&quot;r&quot;).append(i + 1);</span>
+    }
+<span class="fc" id="L866">    sb.append(&quot;) -&gt; Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L867" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L868">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc bfc" id="L870" title="All 2 branches covered.">    for (int i = 0; i &lt; k; i++) {</span>
+<span class="fc bfc" id="L871" title="All 2 branches covered.">      if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L872">      sb.append(&quot;r&quot;).append(i + 1);</span>
+    }
+<span class="fc" id="L874">    sb.append(&quot;)),\n&quot;);</span>
+<span class="fc" id="L875">    sb.append(&quot;            this.computation);\n&quot;);</span>
+
+    // Return
+<span class="fc" id="L878">    sb.append(&quot;    return new &quot;).append(targetClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L879">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L880">    sb.append(&quot;next);\n&quot;);</span>
+<span class="fc" id="L881">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L882">  }</span>
+
+  // =========================================================================
+  // traverse/sequence/flatTraverse methods (non-terminal only)
+  // =========================================================================
+
+  /**
+   * Generates traverse(), sequence(), and flatTraverse() methods on a ForPath step class. Uses TT,
+   * TC, TR as type parameter names to avoid collision with class-level value type params.
+   */
+  private static void appendTraverseMethods(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L893">    String[] vp = valueParams(desc);</span>
+<span class="fc" id="L894">    int next = n + 1;</span>
+<span class="fc" id="L895">    String nextClassName = desc.stepsPrefix + next;</span>
+
+    // traverse()
+<span class="fc" id="L898">    sb.append(&quot;  public &lt;TT extends WitnessArity&lt;TypeArity.Unary&gt;, TC, TR&gt; &quot;)</span>
+<span class="fc" id="L899">        .append(nextClassName)</span>
+<span class="fc" id="L900">        .append(&quot;&lt;&quot;);</span>
+    // Type args for next class: extra params + value params + Kind&lt;TT, TR&gt;
+<span class="fc bfc" id="L902" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L903">      sb.append(&quot;F&quot;);</span>
+<span class="fc bfc" id="L904" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L905">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc" id="L907">      sb.append(&quot;, Kind&lt;TT, TR&gt;&quot;);</span>
+<span class="fc bfc" id="L908" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L909">      sb.append(desc.extraTypeParamName);</span>
+<span class="fc bfc" id="L910" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L911">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc" id="L913">      sb.append(&quot;, Kind&lt;TT, TR&gt;&quot;);</span>
+    } else {
+<span class="fc bfc" id="L915" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L916">        sb.append(vp[i]).append(&quot;, &quot;);</span>
+      }
+<span class="fc" id="L918">      sb.append(&quot;Kind&lt;TT, TR&gt;&quot;);</span>
+    }
+<span class="fc" id="L920">    sb.append(&quot;&gt; traverse(\n&quot;);</span>
+<span class="fc" id="L921">    sb.append(&quot;      Traverse&lt;TT&gt; traversable,\n&quot;);</span>
+<span class="fc" id="L922">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L923">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L924">    sb.append(&quot;&gt;, Kind&lt;TT, TC&gt;&gt; extractor,\n&quot;);</span>
+<span class="fc" id="L925">    sb.append(&quot;      Function&lt;TC, Kind&lt;&quot;).append(desc.witnessType).append(&quot;, TR&gt;&gt; f) {\n&quot;);</span>
+<span class="fc" id="L926">    sb.append(&quot;    Objects.requireNonNull(traversable, \&quot;traversable must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L927">    sb.append(&quot;    Objects.requireNonNull(extractor, \&quot;extractor must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L928">    sb.append(&quot;    Objects.requireNonNull(f, \&quot;function must not be null\&quot;);\n&quot;);</span>
+
+<span class="fc" id="L930">    String m = monadVar(desc, sb);</span>
+<span class="fc" id="L931">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(next).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L932">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L933">    sb.append(&quot;, Kind&lt;TT, TR&gt;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L934">    sb.append(&quot;        &quot;).append(m).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L935">    sb.append(&quot;            t -&gt;\n&quot;);</span>
+<span class="fc" id="L936">    sb.append(&quot;                &quot;).append(m).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L937">    sb.append(&quot;                    tb -&gt; Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L938" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L939">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc" id="L941">    sb.append(&quot;tb),\n&quot;);</span>
+<span class="fc" id="L942">    sb.append(&quot;                    traversable.traverse(&quot;)</span>
+<span class="fc" id="L943">        .append(m)</span>
+<span class="fc" id="L944">        .append(&quot;, f, extractor.apply(t))),\n&quot;);</span>
+<span class="fc" id="L945">    sb.append(&quot;            computation);\n&quot;);</span>
+<span class="fc" id="L946">    sb.append(&quot;    return new &quot;).append(nextClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L947">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L948">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L949">    sb.append(&quot;  }\n\n&quot;);</span>
+
+    // sequence()
+<span class="fc" id="L952">    sb.append(&quot;  public &lt;TT extends WitnessArity&lt;TypeArity.Unary&gt;, TR&gt; &quot;)</span>
+<span class="fc" id="L953">        .append(nextClassName)</span>
+<span class="fc" id="L954">        .append(&quot;&lt;&quot;);</span>
+<span class="fc bfc" id="L955" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L956">      sb.append(&quot;F&quot;);</span>
+<span class="fc bfc" id="L957" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L958">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc" id="L960">      sb.append(&quot;, Kind&lt;TT, TR&gt;&quot;);</span>
+<span class="fc bfc" id="L961" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L962">      sb.append(desc.extraTypeParamName);</span>
+<span class="fc bfc" id="L963" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L964">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc" id="L966">      sb.append(&quot;, Kind&lt;TT, TR&gt;&quot;);</span>
+    } else {
+<span class="fc bfc" id="L968" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L969">        sb.append(vp[i]).append(&quot;, &quot;);</span>
+      }
+<span class="fc" id="L971">      sb.append(&quot;Kind&lt;TT, TR&gt;&quot;);</span>
+    }
+<span class="fc" id="L973">    sb.append(&quot;&gt; sequence(\n&quot;);</span>
+<span class="fc" id="L974">    sb.append(&quot;      Traverse&lt;TT&gt; traversable,\n&quot;);</span>
+<span class="fc" id="L975">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L976">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L977">    sb.append(&quot;&gt;, Kind&lt;TT, Kind&lt;&quot;).append(desc.witnessType).append(&quot;, TR&gt;&gt;&gt; extractor) {\n&quot;);</span>
+<span class="fc" id="L978">    sb.append(&quot;    Objects.requireNonNull(traversable, \&quot;traversable must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L979">    sb.append(&quot;    Objects.requireNonNull(extractor, \&quot;extractor must not be null\&quot;);\n&quot;);</span>
+
+    // Re-declare monad variable for sequence (monadVar may have already emitted it for traverse,
+    // but these are separate methods in the generated code)
+<span class="fc" id="L983">    String m2 = monadRef(desc);</span>
+<span class="fc bfc" id="L984" title="All 2 branches covered.">    if (needsLocalMonad(desc)) {</span>
+<span class="fc" id="L985">      sb.append(&quot;    EitherMonad&lt;E&gt; m = monad();\n&quot;);</span>
+    }
+<span class="fc" id="L987">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(next).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L988">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L989">    sb.append(&quot;, Kind&lt;TT, TR&gt;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L990">    sb.append(&quot;        &quot;).append(m2).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L991">    sb.append(&quot;            t -&gt;\n&quot;);</span>
+<span class="fc" id="L992">    sb.append(&quot;                &quot;).append(m2).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L993">    sb.append(&quot;                    tb -&gt; Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L994" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L995">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc" id="L997">    sb.append(&quot;tb),\n&quot;);</span>
+<span class="fc" id="L998">    sb.append(&quot;                    traversable.sequenceA(&quot;)</span>
+<span class="fc" id="L999">        .append(m2)</span>
+<span class="fc" id="L1000">        .append(&quot;, extractor.apply(t))),\n&quot;);</span>
+<span class="fc" id="L1001">    sb.append(&quot;            computation);\n&quot;);</span>
+<span class="fc" id="L1002">    sb.append(&quot;    return new &quot;).append(nextClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L1003">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L1004">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L1005">    sb.append(&quot;  }\n\n&quot;);</span>
+
+    // flatTraverse()
+<span class="fc" id="L1008">    sb.append(&quot;  public &lt;TT extends WitnessArity&lt;TypeArity.Unary&gt;, TC, TR&gt; &quot;)</span>
+<span class="fc" id="L1009">        .append(nextClassName)</span>
+<span class="fc" id="L1010">        .append(&quot;&lt;&quot;);</span>
+<span class="fc bfc" id="L1011" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L1012">      sb.append(&quot;F&quot;);</span>
+<span class="fc bfc" id="L1013" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L1014">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc" id="L1016">      sb.append(&quot;, Kind&lt;TT, TR&gt;&quot;);</span>
+<span class="fc bfc" id="L1017" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L1018">      sb.append(desc.extraTypeParamName);</span>
+<span class="fc bfc" id="L1019" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L1020">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc" id="L1022">      sb.append(&quot;, Kind&lt;TT, TR&gt;&quot;);</span>
+    } else {
+<span class="fc bfc" id="L1024" title="All 2 branches covered.">      for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L1025">        sb.append(vp[i]).append(&quot;, &quot;);</span>
+      }
+<span class="fc" id="L1027">      sb.append(&quot;Kind&lt;TT, TR&gt;&quot;);</span>
+    }
+<span class="fc" id="L1029">    sb.append(&quot;&gt; flatTraverse(\n&quot;);</span>
+<span class="fc" id="L1030">    sb.append(&quot;      Traverse&lt;TT&gt; traversable,\n&quot;);</span>
+<span class="fc" id="L1031">    sb.append(&quot;      Monad&lt;TT&gt; innerMonad,\n&quot;);</span>
+<span class="fc" id="L1032">    sb.append(&quot;      Function&lt;Tuple&quot;).append(n).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L1033">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L1034">    sb.append(&quot;&gt;, Kind&lt;TT, TC&gt;&gt; extractor,\n&quot;);</span>
+<span class="fc" id="L1035">    sb.append(&quot;      Function&lt;TC, Kind&lt;&quot;)</span>
+<span class="fc" id="L1036">        .append(desc.witnessType)</span>
+<span class="fc" id="L1037">        .append(&quot;, Kind&lt;TT, TR&gt;&gt;&gt; f) {\n&quot;);</span>
+<span class="fc" id="L1038">    sb.append(&quot;    Objects.requireNonNull(traversable, \&quot;traversable must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L1039">    sb.append(&quot;    Objects.requireNonNull(innerMonad, \&quot;innerMonad must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L1040">    sb.append(&quot;    Objects.requireNonNull(extractor, \&quot;extractor must not be null\&quot;);\n&quot;);</span>
+<span class="fc" id="L1041">    sb.append(&quot;    Objects.requireNonNull(f, \&quot;function must not be null\&quot;);\n&quot;);</span>
+
+<span class="fc" id="L1043">    String m3 = monadRef(desc);</span>
+<span class="fc bfc" id="L1044" title="All 2 branches covered.">    if (needsLocalMonad(desc)) {</span>
+<span class="fc" id="L1045">      sb.append(&quot;    EitherMonad&lt;E&gt; m = monad();\n&quot;);</span>
+    }
+<span class="fc" id="L1047">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, Tuple&quot;).append(next).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L1048">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L1049">    sb.append(&quot;, Kind&lt;TT, TR&gt;&gt;&gt; newComp =\n&quot;);</span>
+<span class="fc" id="L1050">    sb.append(&quot;        &quot;).append(m3).append(&quot;.flatMap(\n&quot;);</span>
+<span class="fc" id="L1051">    sb.append(&quot;            t -&gt; {\n&quot;);</span>
+<span class="fc" id="L1052">    sb.append(&quot;              Kind&lt;&quot;)</span>
+<span class="fc" id="L1053">        .append(desc.witnessType)</span>
+<span class="fc" id="L1054">        .append(&quot;, Kind&lt;TT, Kind&lt;TT, TR&gt;&gt;&gt; traversed =\n&quot;);</span>
+<span class="fc" id="L1055">    sb.append(&quot;                  traversable.traverse(&quot;)</span>
+<span class="fc" id="L1056">        .append(m3)</span>
+<span class="fc" id="L1057">        .append(&quot;, f, extractor.apply(t));\n&quot;);</span>
+<span class="fc" id="L1058">    sb.append(&quot;              return &quot;).append(m3).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L1059">    sb.append(&quot;                  ttb -&gt; Tuple.of(&quot;);</span>
+<span class="fc bfc" id="L1060" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L1061">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;(), &quot;);</span>
+    }
+<span class="fc" id="L1063">    sb.append(&quot;innerMonad.flatMap(Function.identity(), ttb)),\n&quot;);</span>
+<span class="fc" id="L1064">    sb.append(&quot;                  traversed);\n&quot;);</span>
+<span class="fc" id="L1065">    sb.append(&quot;            },\n&quot;);</span>
+<span class="fc" id="L1066">    sb.append(&quot;            computation);\n&quot;);</span>
+<span class="fc" id="L1067">    sb.append(&quot;    return new &quot;).append(nextClassName).append(&quot;&lt;&gt;(&quot;);</span>
+<span class="fc" id="L1068">    appendConstructorArgs(sb, desc);</span>
+<span class="fc" id="L1069">    sb.append(&quot;newComp);\n&quot;);</span>
+<span class="fc" id="L1070">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L1071">  }</span>
+
+  // =========================================================================
+  // yield with spread function
+  // =========================================================================
+
+  private static void appendYieldSpread(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L1078">    String funcType = spreadFunctionType(n);</span>
+<span class="fc" id="L1079">    String returnType = yieldReturnType(desc);</span>
+
+<span class="fc" id="L1081">    sb.append(&quot;  public &lt;R&gt; &quot;).append(returnType).append(&quot; yield(&quot;).append(funcType).append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L1082">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L1083">    sb.append(&quot;, R&gt; f) {\n&quot;);</span>
+
+<span class="fc" id="L1085">    String m = monadVar(desc, sb);</span>
+<span class="fc" id="L1086">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, R&gt; result =\n&quot;);</span>
+<span class="fc" id="L1087">    sb.append(&quot;        &quot;).append(m).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L1088">    sb.append(&quot;            t -&gt; Objects.requireNonNull(\n&quot;);</span>
+<span class="fc" id="L1089">    sb.append(&quot;                f.apply(&quot;);</span>
+<span class="fc bfc" id="L1090" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L1091" title="All 2 branches covered.">      if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L1092">      sb.append(&quot;t._&quot;).append(i + 1).append(&quot;()&quot;);</span>
+    }
+<span class="fc" id="L1094">    sb.append(&quot;),\n&quot;);</span>
+<span class="fc" id="L1095">    sb.append(&quot;                \&quot;&quot;).append(YIELD_NULL_MSG).append(&quot;\&quot;),\n&quot;);</span>
+<span class="fc" id="L1096">    sb.append(&quot;            computation);\n&quot;);</span>
+
+<span class="fc" id="L1098">    appendReturnPath(sb, desc);</span>
+<span class="fc" id="L1099">    sb.append(&quot;  }\n\n&quot;);</span>
+<span class="fc" id="L1100">  }</span>
+
+  // =========================================================================
+  // yield with Function&lt;TupleN, R&gt;
+  // =========================================================================
+
+  private static void appendYieldTuple(StringBuilder sb, PathTypeDescriptor desc, int n) {
+<span class="fc" id="L1107">    String returnType = yieldReturnType(desc);</span>
+
+<span class="fc" id="L1109">    sb.append(&quot;  public &lt;R&gt; &quot;)</span>
+<span class="fc" id="L1110">        .append(returnType)</span>
+<span class="fc" id="L1111">        .append(&quot; yield(Function&lt;Tuple&quot;)</span>
+<span class="fc" id="L1112">        .append(n)</span>
+<span class="fc" id="L1113">        .append(&quot;&lt;&quot;);</span>
+<span class="fc" id="L1114">    appendValueTypeParams(sb, desc, n);</span>
+<span class="fc" id="L1115">    sb.append(&quot;&gt;, R&gt; f) {\n&quot;);</span>
+
+<span class="fc" id="L1117">    String m = monadVar(desc, sb);</span>
+<span class="fc" id="L1118">    sb.append(&quot;    Kind&lt;&quot;).append(desc.witnessType).append(&quot;, R&gt; result =\n&quot;);</span>
+<span class="fc" id="L1119">    sb.append(&quot;        &quot;).append(m).append(&quot;.map(\n&quot;);</span>
+<span class="fc" id="L1120">    sb.append(&quot;            t -&gt; Objects.requireNonNull(f.apply(t), \&quot;&quot;)</span>
+<span class="fc" id="L1121">        .append(YIELD_NULL_MSG)</span>
+<span class="fc" id="L1122">        .append(&quot;\&quot;),\n&quot;);</span>
+<span class="fc" id="L1123">    sb.append(&quot;            computation);\n&quot;);</span>
+
+<span class="fc" id="L1125">    appendReturnPath(sb, desc);</span>
+<span class="fc" id="L1126">    sb.append(&quot;  }\n&quot;);</span>
+<span class="fc" id="L1127">  }</span>
+
+  // =========================================================================
+  // Return path expression in yield
+  // =========================================================================
+
+  private static void appendReturnPath(StringBuilder sb, PathTypeDescriptor desc) {
+<span class="fc bfc" id="L1134" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L1135">      sb.append(&quot;    return FreePath.of(FreeKindHelper.FREE.narrow(result), functor);\n&quot;);</span>
+<span class="fc bfc" id="L1136" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L1137">      sb.append(&quot;    return GenericPath.of(result, monad);\n&quot;);</span>
+<span class="fc bfc" id="L1138" title="All 2 branches covered.">    } else if (desc.isNonDet) {</span>
+<span class="fc" id="L1139">      sb.append(&quot;    return NonDetPath.of(&quot;)</span>
+<span class="fc" id="L1140">          .append(desc.kindHelperField)</span>
+<span class="fc" id="L1141">          .append(&quot;.narrow(result));\n&quot;);</span>
+    } else {
+<span class="fc" id="L1143">      sb.append(&quot;    return &quot;)</span>
+<span class="fc" id="L1144">          .append(desc.pathFactoryExpr)</span>
+<span class="fc" id="L1145">          .append(&quot;(&quot;)</span>
+<span class="fc" id="L1146">          .append(desc.kindHelperField)</span>
+<span class="fc" id="L1147">          .append(&quot;.narrow(result));\n&quot;);</span>
+    }
+<span class="fc" id="L1149">  }</span>
+
+  // =========================================================================
+  // Helper methods
+  // =========================================================================
+
+  /** Gets the return type for yield methods, e.g. &quot;MaybePath&lt;R&gt;&quot; or &quot;EitherPath&lt;E, R&gt;&quot;. */
+  private static String yieldReturnType(PathTypeDescriptor desc) {
+<span class="fc bfc" id="L1157" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L1158">      return &quot;FreePath&lt;F, R&gt;&quot;;</span>
+<span class="fc bfc" id="L1159" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L1160">      return &quot;GenericPath&lt;F, R&gt;&quot;;</span>
+<span class="fc bfc" id="L1161" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L1162">      return desc.pathTypeName + &quot;&lt;&quot; + desc.extraTypeParamName + &quot;, R&gt;&quot;;</span>
+    } else {
+<span class="fc" id="L1164">      return desc.pathTypeName + &quot;&lt;R&gt;&quot;;</span>
+    }
+  }
+
+  /** Gets the path type for from() parameter, e.g. &quot;MaybePath&lt;G&gt;&quot; or &quot;EitherPath&lt;E, G&gt;&quot;. */
+  private static String fromReturnPathType(PathTypeDescriptor desc, String nextType) {
+<span class="fc bfc" id="L1170" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L1171">      return &quot;FreePath&lt;F, &quot; + nextType + &quot;&gt;&quot;;</span>
+<span class="fc bfc" id="L1172" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L1173">      return &quot;GenericPath&lt;F, &quot; + nextType + &quot;&gt;&quot;;</span>
+<span class="fc bfc" id="L1174" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L1175">      return desc.pathTypeName + &quot;&lt;&quot; + desc.extraTypeParamName + &quot;, &quot; + nextType + &quot;&gt;&quot;;</span>
+    } else {
+<span class="fc" id="L1177">      return desc.pathTypeName + &quot;&lt;&quot; + nextType + &quot;&gt;&quot;;</span>
+    }
+  }
+
+  private static String spreadFunctionType(int n) {
+<span class="fc bfc" id="L1182" title="All 2 branches covered.">    if (n == 2) return &quot;BiFunction&quot;;</span>
+<span class="fc" id="L1183">    return &quot;Function&quot; + n;</span>
+  }
+
+  /** Returns a reference to the monad, and emits a local variable if needed (for Either). */
+  private static String monadVar(PathTypeDescriptor desc, StringBuilder sb) {
+<span class="fc bfc" id="L1188" title="All 2 branches covered.">    if (needsLocalMonad(desc)) {</span>
+<span class="fc" id="L1189">      sb.append(&quot;    EitherMonad&lt;E&gt; m = monad();\n&quot;);</span>
+<span class="fc" id="L1190">      return &quot;m&quot;;</span>
+<span class="fc bfc" id="L1191" title="All 4 branches covered.">    } else if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L1192">      return &quot;monad&quot;;</span>
+    } else {
+<span class="fc" id="L1194">      return &quot;MONAD&quot;;</span>
+    }
+  }
+
+  /** Returns the monad reference string without emitting code. */
+  private static String monadRef(PathTypeDescriptor desc) {
+<span class="fc bfc" id="L1200" title="All 2 branches covered.">    if (needsLocalMonad(desc)) return &quot;m&quot;;</span>
+<span class="fc bfc" id="L1201" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) return &quot;monad&quot;;</span>
+<span class="fc" id="L1202">    return &quot;MONAD&quot;;</span>
+  }
+
+  private static boolean needsLocalMonad(PathTypeDescriptor desc) {
+<span class="fc bfc" id="L1206" title="All 6 branches covered.">    return desc.hasExtraTypeParam &amp;&amp; !desc.isGeneric &amp;&amp; !desc.isFree;</span>
+  }
+
+  /**
+   * Appends constructor args prefix for the next step class (e.g. &quot;monad, &quot; or &quot;monad, functor, &quot;).
+   */
+  private static void appendConstructorArgs(StringBuilder sb, PathTypeDescriptor desc) {
+<span class="fc bfc" id="L1213" title="All 2 branches covered.">    if (desc.isFree) {</span>
+<span class="fc" id="L1214">      sb.append(&quot;monad, functor, &quot;);</span>
+<span class="fc bfc" id="L1215" title="All 2 branches covered.">    } else if (desc.isGeneric) {</span>
+<span class="fc" id="L1216">      sb.append(&quot;monad, &quot;);</span>
+    }
+<span class="fc" id="L1218">  }</span>
+
+  /** Appends the type args for the next step class reference. */
+  private static void appendNextClassTypeArgs(StringBuilder sb, PathTypeDescriptor desc, int next) {
+<span class="fc" id="L1222">    String[] vp = valueParams(desc);</span>
+<span class="fc bfc" id="L1223" title="All 4 branches covered.">    if (desc.isGeneric || desc.isFree) {</span>
+<span class="fc" id="L1224">      sb.append(&quot;F&quot;);</span>
+<span class="fc bfc" id="L1225" title="All 2 branches covered.">      for (int i = 0; i &lt; next; i++) {</span>
+<span class="fc" id="L1226">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+<span class="fc bfc" id="L1228" title="All 2 branches covered.">    } else if (desc.hasExtraTypeParam) {</span>
+<span class="fc" id="L1229">      sb.append(desc.extraTypeParamName);</span>
+<span class="fc bfc" id="L1230" title="All 2 branches covered.">      for (int i = 0; i &lt; next; i++) {</span>
+<span class="fc" id="L1231">        sb.append(&quot;, &quot;).append(vp[i]);</span>
+      }
+    } else {
+<span class="fc bfc" id="L1234" title="All 2 branches covered.">      for (int i = 0; i &lt; next; i++) {</span>
+<span class="fc bfc" id="L1235" title="All 2 branches covered.">        if (i &gt; 0) sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L1236">        sb.append(vp[i]);</span>
+      }
+    }
+<span class="fc" id="L1239">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

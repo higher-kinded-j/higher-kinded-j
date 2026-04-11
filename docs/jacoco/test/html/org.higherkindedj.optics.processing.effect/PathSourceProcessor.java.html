@@ -1,0 +1,748 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PathSourceProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.effect</a> &gt; <span class="el_source">PathSourceProcessor.java</span></div><h1>PathSourceProcessor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.effect;
+
+import com.google.auto.service.AutoService;
+import com.palantir.javapoet.*;
+import java.io.IOException;
+import java.util.*;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.*;
+import javax.lang.model.type.MirroredTypeException;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
+import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+/**
+ * Annotation processor that generates Path wrapper classes for custom effect types.
+ *
+ * &lt;p&gt;This processor handles {@link PathSource} annotations on types and generates corresponding
+ * Path classes with fluent composition methods.
+ *
+ * &lt;h2&gt;Generated Code Structure&lt;/h2&gt;
+ *
+ * &lt;p&gt;For a type {@code ApiResult} annotated with {@code @PathSource}, the processor generates
+ * {@code ApiResultPath} with:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Factory methods (of, pure)
+ *   &lt;li&gt;Composition methods (map, peek, via, then, zipWith)
+ *   &lt;li&gt;Error recovery methods if errorType is specified
+ *   &lt;li&gt;Conversion methods to other path types
+ * &lt;/ul&gt;
+ *
+ * @see PathSource
+ */
+@AutoService(Processor.class)
+@SupportedAnnotationTypes(&quot;org.higherkindedj.hkt.effect.annotation.PathSource&quot;)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class PathSourceProcessor extends AbstractProcessor {
+
+  /** Creates a new PathSourceProcessor. */
+<span class="fc" id="L47">  public PathSourceProcessor() {}</span>
+
+<span class="fc" id="L49">  private static final ClassName OBJECTS = ClassName.get(&quot;java.util&quot;, &quot;Objects&quot;);</span>
+<span class="fc" id="L50">  private static final ClassName FUNCTION = ClassName.get(&quot;java.util.function&quot;, &quot;Function&quot;);</span>
+<span class="fc" id="L51">  private static final ClassName CONSUMER = ClassName.get(&quot;java.util.function&quot;, &quot;Consumer&quot;);</span>
+<span class="fc" id="L52">  private static final ClassName SUPPLIER = ClassName.get(&quot;java.util.function&quot;, &quot;Supplier&quot;);</span>
+<span class="fc" id="L53">  private static final ClassName BI_FUNCTION = ClassName.get(&quot;java.util.function&quot;, &quot;BiFunction&quot;);</span>
+
+<span class="fc" id="L55">  private static final ClassName GENERATED =</span>
+<span class="fc" id="L56">      ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+
+  // Capability interfaces
+<span class="fc" id="L59">  private static final ClassName COMPOSABLE =</span>
+<span class="fc" id="L60">      ClassName.get(&quot;org.higherkindedj.hkt.effect.capability&quot;, &quot;Composable&quot;);</span>
+<span class="fc" id="L61">  private static final ClassName COMBINABLE =</span>
+<span class="fc" id="L62">      ClassName.get(&quot;org.higherkindedj.hkt.effect.capability&quot;, &quot;Combinable&quot;);</span>
+<span class="fc" id="L63">  private static final ClassName CHAINABLE =</span>
+<span class="fc" id="L64">      ClassName.get(&quot;org.higherkindedj.hkt.effect.capability&quot;, &quot;Chainable&quot;);</span>
+<span class="fc" id="L65">  private static final ClassName RECOVERABLE =</span>
+<span class="fc" id="L66">      ClassName.get(&quot;org.higherkindedj.hkt.effect.capability&quot;, &quot;Recoverable&quot;);</span>
+
+  // HKT types
+<span class="fc" id="L69">  private static final ClassName KIND = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;Kind&quot;);</span>
+<span class="fc" id="L70">  private static final ClassName MONAD = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;Monad&quot;);</span>
+<span class="fc" id="L71">  private static final ClassName MONAD_ERROR = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;MonadError&quot;);</span>
+
+  @Override
+  public boolean process(Set&lt;? extends TypeElement&gt; annotations, RoundEnvironment roundEnv) {
+<span class="fc bfc" id="L75" title="All 2 branches covered.">    for (TypeElement annotation : annotations) {</span>
+<span class="fc" id="L76">      Set&lt;? extends Element&gt; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">      for (Element element : annotatedElements) {</span>
+<span class="fc bfc" id="L78" title="All 4 branches covered.">        if (element.getKind() != ElementKind.CLASS &amp;&amp; element.getKind() != ElementKind.INTERFACE) {</span>
+<span class="fc" id="L79">          error(&quot;@PathSource can only be applied to classes or interfaces.&quot;, element);</span>
+<span class="fc" id="L80">          continue;</span>
+        }
+        try {
+<span class="fc" id="L83">          generatePathClass((TypeElement) element);</span>
+<span class="nc" id="L84">        } catch (IOException e) {</span>
+<span class="nc" id="L85">          error(&quot;Could not generate Path class: &quot; + e.getMessage(), element);</span>
+<span class="fc" id="L86">        }</span>
+<span class="fc" id="L87">      }</span>
+<span class="fc" id="L88">    }</span>
+<span class="fc" id="L89">    return true;</span>
+  }
+
+  private void generatePathClass(TypeElement sourceElement) throws IOException {
+<span class="fc" id="L93">    String sourceName = sourceElement.getSimpleName().toString();</span>
+<span class="fc" id="L94">    String defaultPackage =</span>
+<span class="fc" id="L95">        processingEnv.getElementUtils().getPackageOf(sourceElement).getQualifiedName().toString();</span>
+
+<span class="fc" id="L97">    PathSource annotation = sourceElement.getAnnotation(PathSource.class);</span>
+
+    // Get annotation values
+<span class="fc" id="L100">    String targetPackage = annotation.targetPackage();</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span>
+<span class="fc" id="L102">    String suffix = annotation.suffix();</span>
+<span class="fc" id="L103">    String pathClassName = sourceName + suffix;</span>
+<span class="fc" id="L104">    PathSource.Capability capability = annotation.capability();</span>
+
+    // Get witness type (using MirroredTypeException pattern)
+<span class="fc" id="L107">    TypeMirror witnessTypeMirror = getWitnessType(annotation);</span>
+<span class="fc" id="L108">    TypeName witnessType = TypeName.get(witnessTypeMirror);</span>
+
+    // Get error type if specified
+<span class="fc" id="L111">    TypeMirror errorTypeMirror = getErrorType(annotation);</span>
+<span class="fc" id="L112">    TypeName errorType = TypeName.get(errorTypeMirror);</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">    boolean hasErrorType = !errorType.toString().equals(&quot;java.lang.Void&quot;);</span>
+
+<span class="fc" id="L115">    ClassName sourceClassName = ClassName.get(sourceElement);</span>
+
+    // Type variable for the value type
+<span class="fc" id="L118">    TypeVariableName typeA = TypeVariableName.get(&quot;A&quot;);</span>
+
+    // Build the path class
+<span class="fc" id="L121">    TypeSpec.Builder classBuilder =</span>
+<span class="fc" id="L122">        TypeSpec.classBuilder(pathClassName)</span>
+<span class="fc" id="L123">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L124">            .addJavadoc(</span>
+                &quot;Generated Path wrapper for {@link $T}.\n\n&quot;
+                    + &quot;&lt;p&gt;Provides fluent composition methods for working with $L values.\n\n&quot;
+                    + &quot;&lt;p&gt;Do not edit - generated by PathSourceProcessor.\n&quot;,
+                sourceClassName,
+                sourceName)
+<span class="fc" id="L130">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L131">            .addTypeVariable(typeA);</span>
+
+    // Add the appropriate interface implementations based on capability
+<span class="fc" id="L134">    List&lt;TypeName&gt; interfaces = determineInterfaces(capability, hasErrorType, errorType, typeA);</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">    for (TypeName iface : interfaces) {</span>
+<span class="fc" id="L136">      classBuilder.addSuperinterface(iface);</span>
+<span class="fc" id="L137">    }</span>
+
+    // Add the wrapped value field
+<span class="fc" id="L140">    ParameterizedTypeName kindType = ParameterizedTypeName.get(KIND, witnessType, typeA);</span>
+<span class="fc" id="L141">    classBuilder.addField(</span>
+<span class="fc" id="L142">        FieldSpec.builder(kindType, &quot;kind&quot;, Modifier.PRIVATE, Modifier.FINAL).build());</span>
+
+    // Add monad field
+<span class="fc" id="L145">    ParameterizedTypeName monadType = ParameterizedTypeName.get(MONAD, witnessType);</span>
+<span class="fc" id="L146">    classBuilder.addField(</span>
+<span class="fc" id="L147">        FieldSpec.builder(monadType, &quot;monad&quot;, Modifier.PRIVATE, Modifier.FINAL).build());</span>
+
+    // Add monadError field if recoverable
+<span class="pc bpc" id="L150" title="1 of 4 branches missed.">    if (hasErrorType &amp;&amp; isRecoverable(capability)) {</span>
+<span class="fc" id="L151">      ParameterizedTypeName monadErrorType =</span>
+<span class="fc" id="L152">          ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);</span>
+<span class="fc" id="L153">      classBuilder.addField(</span>
+<span class="fc" id="L154">          FieldSpec.builder(monadErrorType, &quot;monadError&quot;, Modifier.PRIVATE, Modifier.FINAL)</span>
+<span class="fc" id="L155">              .build());</span>
+    }
+
+    // Add constructor
+<span class="fc" id="L159">    classBuilder.addMethod(</span>
+<span class="fc" id="L160">        buildConstructor(kindType, monadType, hasErrorType, capability, witnessType, errorType));</span>
+
+    // Add factory methods
+<span class="fc" id="L163">    classBuilder.addMethod(</span>
+<span class="fc" id="L164">        buildOfFactory(</span>
+            pathClassName,
+            kindType,
+            monadType,
+            hasErrorType,
+            capability,
+            witnessType,
+            errorType,
+            typeA));
+<span class="fc" id="L173">    classBuilder.addMethod(</span>
+<span class="fc" id="L174">        buildPureFactory(</span>
+            pathClassName, monadType, hasErrorType, capability, witnessType, errorType, typeA));
+
+    // Add run() method
+<span class="fc" id="L178">    classBuilder.addMethod(buildRunMethod(kindType));</span>
+
+    // Add runKind() method
+<span class="fc" id="L181">    classBuilder.addMethod(buildRunKindMethod(kindType));</span>
+
+    // Determine if monadError should be passed to constructor
+<span class="pc bpc" id="L184" title="1 of 4 branches missed.">    boolean includeMonadError = hasErrorType &amp;&amp; isRecoverable(capability);</span>
+
+    // Add Composable methods: map, peek
+<span class="fc" id="L187">    classBuilder.addMethod(buildMapMethod(pathClassName, witnessType, typeA, includeMonadError));</span>
+<span class="fc" id="L188">    classBuilder.addMethod(buildPeekMethod(pathClassName, kindType, typeA));</span>
+
+    // Add Chainable methods if applicable: via, then, flatMap
+<span class="fc bfc" id="L191" title="All 2 branches covered.">    if (isChainable(capability)) {</span>
+<span class="fc" id="L192">      classBuilder.addMethod(buildViaMethod(pathClassName, witnessType, typeA, includeMonadError));</span>
+<span class="fc" id="L193">      classBuilder.addMethod(buildThenMethod(pathClassName, typeA));</span>
+<span class="fc" id="L194">      classBuilder.addMethod(buildFlatMapMethod(pathClassName, typeA));</span>
+    }
+
+    // Add Combinable methods if applicable: zipWith
+<span class="fc bfc" id="L198" title="All 2 branches covered.">    if (isCombinable(capability)) {</span>
+<span class="fc" id="L199">      classBuilder.addMethod(</span>
+<span class="fc" id="L200">          buildZipWithMethod(pathClassName, witnessType, typeA, includeMonadError));</span>
+    }
+
+    // Add Recoverable methods if applicable: recover, recoverWith, mapError
+<span class="pc bpc" id="L204" title="1 of 4 branches missed.">    if (hasErrorType &amp;&amp; isRecoverable(capability)) {</span>
+<span class="fc" id="L205">      classBuilder.addMethod(buildRecoverMethod(pathClassName, errorType, typeA));</span>
+<span class="fc" id="L206">      classBuilder.addMethod(buildRecoverWithMethod(pathClassName, errorType, typeA));</span>
+<span class="fc" id="L207">      classBuilder.addMethod(buildMapErrorMethod(pathClassName, errorType, typeA));</span>
+    }
+
+    // Add equals, hashCode, toString
+<span class="fc" id="L211">    classBuilder.addMethod(buildEqualsMethod(pathClassName, typeA));</span>
+<span class="fc" id="L212">    classBuilder.addMethod(buildHashCodeMethod());</span>
+<span class="fc" id="L213">    classBuilder.addMethod(buildToStringMethod(sourceName));</span>
+
+    // Write the file
+<span class="fc" id="L216">    JavaFile javaFile =</span>
+<span class="fc" id="L217">        JavaFile.builder(packageName, classBuilder.build())</span>
+<span class="fc" id="L218">            .addFileComment(&quot;Generated by PathSourceProcessor. Do not edit.&quot;)</span>
+<span class="fc" id="L219">            .build();</span>
+
+<span class="fc" id="L221">    javaFile.writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L222">  }</span>
+
+  private TypeMirror getWitnessType(PathSource annotation) {
+    try {
+<span class="nc" id="L226">      annotation.witness();</span>
+<span class="nc" id="L227">      throw new AssertionError(&quot;Should have thrown MirroredTypeException&quot;);</span>
+<span class="fc" id="L228">    } catch (MirroredTypeException e) {</span>
+<span class="fc" id="L229">      return e.getTypeMirror();</span>
+    }
+  }
+
+  private TypeMirror getErrorType(PathSource annotation) {
+    try {
+<span class="nc" id="L235">      annotation.errorType();</span>
+<span class="nc" id="L236">      throw new AssertionError(&quot;Should have thrown MirroredTypeException&quot;);</span>
+<span class="fc" id="L237">    } catch (MirroredTypeException e) {</span>
+<span class="fc" id="L238">      return e.getTypeMirror();</span>
+    }
+  }
+
+  private List&lt;TypeName&gt; determineInterfaces(
+      PathSource.Capability capability,
+      boolean hasErrorType,
+      TypeName errorType,
+      TypeVariableName typeA) {
+<span class="fc" id="L247">    List&lt;TypeName&gt; interfaces = new ArrayList&lt;&gt;();</span>
+
+    // Note: Chainable is sealed, so generated classes implement Combinable instead
+    // but still provide via/flatMap/then methods
+<span class="pc bpc" id="L251" title="1 of 4 branches missed.">    switch (capability) {</span>
+<span class="fc" id="L252">      case COMPOSABLE -&gt; interfaces.add(ParameterizedTypeName.get(COMPOSABLE, typeA));</span>
+      case COMBINABLE, CHAINABLE, EFFECTFUL -&gt;
+<span class="fc" id="L254">          interfaces.add(ParameterizedTypeName.get(COMBINABLE, typeA));</span>
+      case RECOVERABLE, ACCUMULATING -&gt; {
+<span class="fc" id="L256">        interfaces.add(ParameterizedTypeName.get(COMBINABLE, typeA));</span>
+        // Note: Recoverable is also sealed, so we don't implement it
+        // but still provide recover/recoverWith/mapError methods
+      }
+    }
+
+<span class="fc" id="L262">    return interfaces;</span>
+  }
+
+  private boolean isChainable(PathSource.Capability capability) {
+<span class="fc bfc" id="L266" title="All 8 branches covered.">    return capability == PathSource.Capability.CHAINABLE</span>
+        || capability == PathSource.Capability.RECOVERABLE
+        || capability == PathSource.Capability.EFFECTFUL
+        || capability == PathSource.Capability.ACCUMULATING;
+  }
+
+  private boolean isCombinable(PathSource.Capability capability) {
+<span class="fc bfc" id="L273" title="All 2 branches covered.">    return capability != PathSource.Capability.COMPOSABLE;</span>
+  }
+
+  private boolean isRecoverable(PathSource.Capability capability) {
+<span class="pc bpc" id="L277" title="1 of 4 branches missed.">    return capability == PathSource.Capability.RECOVERABLE</span>
+        || capability == PathSource.Capability.ACCUMULATING;
+  }
+
+  private MethodSpec buildConstructor(
+      ParameterizedTypeName kindType,
+      ParameterizedTypeName monadType,
+      boolean hasErrorType,
+      PathSource.Capability capability,
+      TypeName witnessType,
+      TypeName errorType) {
+    MethodSpec.Builder builder =
+<span class="fc" id="L289">        MethodSpec.constructorBuilder()</span>
+<span class="fc" id="L290">            .addModifiers(Modifier.PRIVATE)</span>
+<span class="fc" id="L291">            .addParameter(kindType, &quot;kind&quot;)</span>
+<span class="fc" id="L292">            .addParameter(monadType, &quot;monad&quot;)</span>
+<span class="fc" id="L293">            .addStatement(</span>
+                &quot;this.kind = $T.requireNonNull(kind, $S)&quot;, OBJECTS, &quot;kind must not be null&quot;)
+<span class="fc" id="L295">            .addStatement(</span>
+                &quot;this.monad = $T.requireNonNull(monad, $S)&quot;, OBJECTS, &quot;monad must not be null&quot;);
+
+<span class="pc bpc" id="L298" title="1 of 4 branches missed.">    if (hasErrorType &amp;&amp; isRecoverable(capability)) {</span>
+<span class="fc" id="L299">      ParameterizedTypeName monadErrorType =</span>
+<span class="fc" id="L300">          ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);</span>
+<span class="fc" id="L301">      builder.addParameter(monadErrorType, &quot;monadError&quot;);</span>
+<span class="fc" id="L302">      builder.addStatement(</span>
+          &quot;this.monadError = $T.requireNonNull(monadError, $S)&quot;,
+          OBJECTS,
+          &quot;monadError must not be null&quot;);
+    }
+
+<span class="fc" id="L308">    return builder.build();</span>
+  }
+
+  private MethodSpec buildOfFactory(
+      String pathClassName,
+      ParameterizedTypeName kindType,
+      ParameterizedTypeName monadType,
+      boolean hasErrorType,
+      PathSource.Capability capability,
+      TypeName witnessType,
+      TypeName errorType,
+      TypeVariableName typeA) {
+<span class="fc" id="L320">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L322">    MethodSpec.Builder builder =</span>
+<span class="fc" id="L323">        MethodSpec.methodBuilder(&quot;of&quot;)</span>
+<span class="fc" id="L324">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L325">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L326">            .returns(ParameterizedTypeName.get(pathClass, typeA))</span>
+<span class="fc" id="L327">            .addParameter(kindType, &quot;kind&quot;)</span>
+<span class="fc" id="L328">            .addParameter(monadType, &quot;monad&quot;)</span>
+<span class="fc" id="L329">            .addJavadoc(</span>
+                &quot;Creates a new $L wrapping the given Kind value.\n\n&quot;
+                    + &quot;@param kind the Kind value to wrap; must not be null\n&quot;
+                    + &quot;@param monad the Monad instance; must not be null\n&quot;
+                    + &quot;@param &lt;A&gt; the value type\n&quot;
+                    + &quot;@return a new $L\n&quot;,
+                pathClassName,
+                pathClassName);
+
+<span class="pc bpc" id="L338" title="1 of 4 branches missed.">    if (hasErrorType &amp;&amp; isRecoverable(capability)) {</span>
+<span class="fc" id="L339">      ParameterizedTypeName monadErrorType =</span>
+<span class="fc" id="L340">          ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);</span>
+<span class="fc" id="L341">      builder.addParameter(monadErrorType, &quot;monadError&quot;);</span>
+<span class="fc" id="L342">      builder.addJavadoc(&quot;@param monadError the MonadError instance; must not be null\n&quot;);</span>
+<span class="fc" id="L343">      builder.addStatement(&quot;return new $L&lt;&gt;(kind, monad, monadError)&quot;, pathClassName);</span>
+<span class="fc" id="L344">    } else {</span>
+<span class="fc" id="L345">      builder.addStatement(&quot;return new $L&lt;&gt;(kind, monad)&quot;, pathClassName);</span>
+    }
+
+<span class="fc" id="L348">    return builder.build();</span>
+  }
+
+  private MethodSpec buildPureFactory(
+      String pathClassName,
+      ParameterizedTypeName monadType,
+      boolean hasErrorType,
+      PathSource.Capability capability,
+      TypeName witnessType,
+      TypeName errorType,
+      TypeVariableName typeA) {
+<span class="fc" id="L359">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L361">    MethodSpec.Builder builder =</span>
+<span class="fc" id="L362">        MethodSpec.methodBuilder(&quot;pure&quot;)</span>
+<span class="fc" id="L363">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L364">            .addTypeVariable(typeA)</span>
+<span class="fc" id="L365">            .returns(ParameterizedTypeName.get(pathClass, typeA))</span>
+<span class="fc" id="L366">            .addParameter(typeA, &quot;value&quot;)</span>
+<span class="fc" id="L367">            .addParameter(monadType, &quot;monad&quot;)</span>
+<span class="fc" id="L368">            .addJavadoc(</span>
+                &quot;Creates a new $L containing the given value.\n\n&quot;
+                    + &quot;@param value the value to wrap\n&quot;
+                    + &quot;@param monad the Monad instance; must not be null\n&quot;
+                    + &quot;@param &lt;A&gt; the value type\n&quot;
+                    + &quot;@return a new $L\n&quot;,
+                pathClassName,
+                pathClassName);
+
+<span class="pc bpc" id="L377" title="1 of 4 branches missed.">    if (hasErrorType &amp;&amp; isRecoverable(capability)) {</span>
+<span class="fc" id="L378">      ParameterizedTypeName monadErrorType =</span>
+<span class="fc" id="L379">          ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);</span>
+<span class="fc" id="L380">      builder.addParameter(monadErrorType, &quot;monadError&quot;);</span>
+<span class="fc" id="L381">      builder.addJavadoc(&quot;@param monadError the MonadError instance; must not be null\n&quot;);</span>
+<span class="fc" id="L382">      builder.addStatement(&quot;return new $L&lt;&gt;(monad.of(value), monad, monadError)&quot;, pathClassName);</span>
+<span class="fc" id="L383">    } else {</span>
+<span class="fc" id="L384">      builder.addStatement(&quot;return new $L&lt;&gt;(monad.of(value), monad)&quot;, pathClassName);</span>
+    }
+
+<span class="fc" id="L387">    return builder.build();</span>
+  }
+
+  private MethodSpec buildRunMethod(ParameterizedTypeName kindType) {
+<span class="fc" id="L391">    return MethodSpec.methodBuilder(&quot;run&quot;)</span>
+<span class="fc" id="L392">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L393">        .returns(kindType)</span>
+<span class="fc" id="L394">        .addJavadoc(&quot;Returns the underlying Kind value.\n\n@return the wrapped Kind\n&quot;)</span>
+<span class="fc" id="L395">        .addStatement(&quot;return kind&quot;)</span>
+<span class="fc" id="L396">        .build();</span>
+  }
+
+  private MethodSpec buildRunKindMethod(ParameterizedTypeName kindType) {
+<span class="fc" id="L400">    return MethodSpec.methodBuilder(&quot;runKind&quot;)</span>
+<span class="fc" id="L401">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L402">        .returns(kindType)</span>
+<span class="fc" id="L403">        .addJavadoc(</span>
+            &quot;Returns the underlying Kind value (alias for run).\n\n@return the wrapped Kind\n&quot;)
+<span class="fc" id="L405">        .addStatement(&quot;return kind&quot;)</span>
+<span class="fc" id="L406">        .build();</span>
+  }
+
+  private MethodSpec buildMapMethod(
+      String pathClassName,
+      TypeName witnessType,
+      TypeVariableName typeA,
+      boolean includeMonadError) {
+<span class="fc" id="L414">    TypeVariableName typeB = TypeVariableName.get(&quot;B&quot;);</span>
+<span class="fc" id="L415">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+    String constructorArgs =
+<span class="fc bfc" id="L418" title="All 2 branches covered.">        includeMonadError</span>
+<span class="fc" id="L419">            ? &quot;return new $L&lt;&gt;(monad.map(mapper, kind), monad, monadError)&quot;</span>
+<span class="fc" id="L420">            : &quot;return new $L&lt;&gt;(monad.map(mapper, kind), monad)&quot;;</span>
+
+<span class="fc" id="L422">    return MethodSpec.methodBuilder(&quot;map&quot;)</span>
+<span class="fc" id="L423">        .addAnnotation(Override.class)</span>
+<span class="fc" id="L424">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L425">        .addTypeVariable(typeB)</span>
+<span class="fc" id="L426">        .returns(ParameterizedTypeName.get(pathClass, typeB))</span>
+<span class="fc" id="L427">        .addParameter(</span>
+<span class="fc" id="L428">            ParameterizedTypeName.get(</span>
+<span class="fc" id="L429">                FUNCTION, WildcardTypeName.supertypeOf(typeA), WildcardTypeName.subtypeOf(typeB)),</span>
+            &quot;mapper&quot;)
+<span class="fc" id="L431">        .addJavadoc(</span>
+            &quot;Transforms the value using the given function.\n\n&quot;
+                + &quot;@param mapper the transformation function; must not be null\n&quot;
+                + &quot;@param &lt;B&gt; the result type\n&quot;
+                + &quot;@return a new $L with the transformed value\n&quot;,
+            pathClassName)
+<span class="fc" id="L437">        .addStatement(&quot;$T.requireNonNull(mapper, $S)&quot;, OBJECTS, &quot;mapper must not be null&quot;)</span>
+<span class="fc" id="L438">        .addStatement(constructorArgs, pathClassName)</span>
+<span class="fc" id="L439">        .build();</span>
+  }
+
+  private MethodSpec buildPeekMethod(
+      String pathClassName, ParameterizedTypeName kindType, TypeVariableName typeA) {
+<span class="fc" id="L444">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L446">    return MethodSpec.methodBuilder(&quot;peek&quot;)</span>
+<span class="fc" id="L447">        .addAnnotation(Override.class)</span>
+<span class="fc" id="L448">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L449">        .returns(ParameterizedTypeName.get(pathClass, typeA))</span>
+<span class="fc" id="L450">        .addParameter(</span>
+<span class="fc" id="L451">            ParameterizedTypeName.get(CONSUMER, WildcardTypeName.supertypeOf(typeA)), &quot;consumer&quot;)</span>
+<span class="fc" id="L452">        .addJavadoc(</span>
+            &quot;Performs an action on the value without transforming it.\n\n&quot;
+                + &quot;@param consumer the action to perform; must not be null\n&quot;
+                + &quot;@return this path unchanged\n&quot;)
+<span class="fc" id="L456">        .addStatement(&quot;$T.requireNonNull(consumer, $S)&quot;, OBJECTS, &quot;consumer must not be null&quot;)</span>
+<span class="fc" id="L457">        .addStatement(&quot;monad.map(a -&gt; { consumer.accept(a); return a; }, kind)&quot;)</span>
+<span class="fc" id="L458">        .addStatement(&quot;return this&quot;)</span>
+<span class="fc" id="L459">        .build();</span>
+  }
+
+  private MethodSpec buildViaMethod(
+      String pathClassName,
+      TypeName witnessType,
+      TypeVariableName typeA,
+      boolean includeMonadError) {
+<span class="fc" id="L467">    TypeVariableName typeB = TypeVariableName.get(&quot;B&quot;);</span>
+<span class="fc" id="L468">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+    String constructorArgs =
+<span class="fc bfc" id="L471" title="All 2 branches covered.">        includeMonadError</span>
+<span class="fc" id="L472">            ? &quot;return new $L&lt;&gt;(result, monad, monadError)&quot;</span>
+<span class="fc" id="L473">            : &quot;return new $L&lt;&gt;(result, monad)&quot;;</span>
+
+<span class="fc" id="L475">    return MethodSpec.methodBuilder(&quot;via&quot;)</span>
+<span class="fc" id="L476">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L477">        .addTypeVariable(typeB)</span>
+<span class="fc" id="L478">        .returns(ParameterizedTypeName.get(pathClass, typeB))</span>
+<span class="fc" id="L479">        .addParameter(</span>
+<span class="fc" id="L480">            ParameterizedTypeName.get(</span>
+                FUNCTION,
+<span class="fc" id="L482">                WildcardTypeName.supertypeOf(typeA),</span>
+<span class="fc" id="L483">                WildcardTypeName.subtypeOf(ParameterizedTypeName.get(pathClass, typeB))),</span>
+            &quot;mapper&quot;)
+<span class="fc" id="L485">        .addJavadoc(</span>
+            &quot;Chains a dependent computation.\n\n&quot;
+                + &quot;@param mapper the function producing the next path; must not be null\n&quot;
+                + &quot;@param &lt;B&gt; the result type\n&quot;
+                + &quot;@return a new $L with the chained result\n&quot;,
+            pathClassName)
+<span class="fc" id="L491">        .addStatement(&quot;$T.requireNonNull(mapper, $S)&quot;, OBJECTS, &quot;mapper must not be null&quot;)</span>
+<span class="fc" id="L492">        .addCode(</span>
+<span class="fc" id="L493">            CodeBlock.builder()</span>
+<span class="fc" id="L494">                .add(&quot;@SuppressWarnings(\&quot;unchecked\&quot;)\n&quot;)</span>
+<span class="fc" id="L495">                .addStatement(</span>
+                    &quot;$T&lt;$T, $T&gt; result = monad.flatMap(a -&gt; {\n&quot;
+                        + &quot;  $L&lt;$T&gt; next = mapper.apply(a);\n&quot;
+                        + &quot;  if (next == null) {\n&quot;
+                        + &quot;    throw new $T($S);\n&quot;
+                        + &quot;  }\n&quot;
+                        + &quot;  return next.kind;\n&quot;
+                        + &quot;}, kind)&quot;,
+                    KIND,
+                    witnessType,
+                    typeB,
+                    pathClassName,
+                    typeB,
+                    NullPointerException.class,
+                    &quot;mapper must not return null&quot;)
+<span class="fc" id="L510">                .build())</span>
+<span class="fc" id="L511">        .addStatement(constructorArgs, pathClassName)</span>
+<span class="fc" id="L512">        .build();</span>
+  }
+
+  private MethodSpec buildThenMethod(String pathClassName, TypeVariableName typeA) {
+<span class="fc" id="L516">    TypeVariableName typeB = TypeVariableName.get(&quot;B&quot;);</span>
+<span class="fc" id="L517">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L519">    return MethodSpec.methodBuilder(&quot;then&quot;)</span>
+<span class="fc" id="L520">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L521">        .addTypeVariable(typeB)</span>
+<span class="fc" id="L522">        .returns(ParameterizedTypeName.get(pathClass, typeB))</span>
+<span class="fc" id="L523">        .addParameter(</span>
+<span class="fc" id="L524">            ParameterizedTypeName.get(</span>
+<span class="fc" id="L525">                SUPPLIER, WildcardTypeName.subtypeOf(ParameterizedTypeName.get(pathClass, typeB))),</span>
+            &quot;supplier&quot;)
+<span class="fc" id="L527">        .addJavadoc(</span>
+            &quot;Sequences a computation, discarding this path's value.\n\n&quot;
+                + &quot;@param supplier the supplier of the next path; must not be null\n&quot;
+                + &quot;@param &lt;B&gt; the result type\n&quot;
+                + &quot;@return a new $L with the sequenced result\n&quot;,
+            pathClassName)
+<span class="fc" id="L533">        .addStatement(&quot;$T.requireNonNull(supplier, $S)&quot;, OBJECTS, &quot;supplier must not be null&quot;)</span>
+<span class="fc" id="L534">        .addStatement(&quot;return via(ignored -&gt; supplier.get())&quot;)</span>
+<span class="fc" id="L535">        .build();</span>
+  }
+
+  private MethodSpec buildFlatMapMethod(String pathClassName, TypeVariableName typeA) {
+<span class="fc" id="L539">    TypeVariableName typeB = TypeVariableName.get(&quot;B&quot;);</span>
+<span class="fc" id="L540">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L542">    return MethodSpec.methodBuilder(&quot;flatMap&quot;)</span>
+<span class="fc" id="L543">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L544">        .addTypeVariable(typeB)</span>
+<span class="fc" id="L545">        .returns(ParameterizedTypeName.get(pathClass, typeB))</span>
+<span class="fc" id="L546">        .addParameter(</span>
+<span class="fc" id="L547">            ParameterizedTypeName.get(</span>
+                FUNCTION,
+<span class="fc" id="L549">                WildcardTypeName.supertypeOf(typeA),</span>
+<span class="fc" id="L550">                WildcardTypeName.subtypeOf(ParameterizedTypeName.get(pathClass, typeB))),</span>
+            &quot;mapper&quot;)
+<span class="fc" id="L552">        .addJavadoc(</span>
+            &quot;Alias for {@link #via}.\n\n&quot;
+                + &quot;@param mapper the function producing the next path; must not be null\n&quot;
+                + &quot;@param &lt;B&gt; the result type\n&quot;
+                + &quot;@return a new $L with the chained result\n&quot;,
+            pathClassName)
+<span class="fc" id="L558">        .addStatement(&quot;return via(mapper)&quot;)</span>
+<span class="fc" id="L559">        .build();</span>
+  }
+
+  private MethodSpec buildZipWithMethod(
+      String pathClassName,
+      TypeName witnessType,
+      TypeVariableName typeA,
+      boolean includeMonadError) {
+<span class="fc" id="L567">    TypeVariableName typeB = TypeVariableName.get(&quot;B&quot;);</span>
+<span class="fc" id="L568">    TypeVariableName typeC = TypeVariableName.get(&quot;C&quot;);</span>
+<span class="fc" id="L569">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+    String constructorArgs =
+<span class="fc bfc" id="L572" title="All 2 branches covered.">        includeMonadError</span>
+<span class="fc" id="L573">            ? &quot;return new $L&lt;&gt;(result, monad, monadError)&quot;</span>
+<span class="fc" id="L574">            : &quot;return new $L&lt;&gt;(result, monad)&quot;;</span>
+
+<span class="fc" id="L576">    return MethodSpec.methodBuilder(&quot;zipWith&quot;)</span>
+<span class="fc" id="L577">        .addAnnotation(Override.class)</span>
+<span class="fc" id="L578">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L579">        .addTypeVariable(typeB)</span>
+<span class="fc" id="L580">        .addTypeVariable(typeC)</span>
+<span class="fc" id="L581">        .returns(ParameterizedTypeName.get(pathClass, typeC))</span>
+<span class="fc" id="L582">        .addParameter(ParameterizedTypeName.get(COMBINABLE, typeB), &quot;other&quot;)</span>
+<span class="fc" id="L583">        .addParameter(</span>
+<span class="fc" id="L584">            ParameterizedTypeName.get(</span>
+                BI_FUNCTION,
+<span class="fc" id="L586">                WildcardTypeName.supertypeOf(typeA),</span>
+<span class="fc" id="L587">                WildcardTypeName.supertypeOf(typeB),</span>
+<span class="fc" id="L588">                WildcardTypeName.subtypeOf(typeC)),</span>
+            &quot;combiner&quot;)
+<span class="fc" id="L590">        .addJavadoc(</span>
+            &quot;Combines this path with another using a binary function.\n\n&quot;
+                + &quot;@param other the other path; must not be null\n&quot;
+                + &quot;@param combiner the combining function; must not be null\n&quot;
+                + &quot;@param &lt;B&gt; the other path's value type\n&quot;
+                + &quot;@param &lt;C&gt; the result type\n&quot;
+                + &quot;@return a new $L with the combined result\n&quot;,
+            pathClassName)
+<span class="fc" id="L598">        .addStatement(&quot;$T.requireNonNull(other, $S)&quot;, OBJECTS, &quot;other must not be null&quot;)</span>
+<span class="fc" id="L599">        .addStatement(&quot;$T.requireNonNull(combiner, $S)&quot;, OBJECTS, &quot;combiner must not be null&quot;)</span>
+<span class="fc" id="L600">        .addCode(</span>
+<span class="fc" id="L601">            CodeBlock.builder()</span>
+<span class="fc" id="L602">                .beginControlFlow(&quot;if (!(other instanceof $L&lt;?&gt; otherPath))&quot;, pathClassName)</span>
+<span class="fc" id="L603">                .addStatement(</span>
+                    &quot;throw new $T($S + other.getClass())&quot;,
+                    IllegalArgumentException.class,
+                    &quot;Cannot zipWith non-&quot; + pathClassName + &quot;: &quot;)
+<span class="fc" id="L607">                .endControlFlow()</span>
+<span class="fc" id="L608">                .add(&quot;@SuppressWarnings(\&quot;unchecked\&quot;)\n&quot;)</span>
+<span class="fc" id="L609">                .addStatement(</span>
+                    &quot;$L&lt;$T&gt; typedOther = ($L&lt;$T&gt;) otherPath&quot;,
+                    pathClassName,
+                    typeB,
+                    pathClassName,
+                    typeB)
+<span class="fc" id="L615">                .build())</span>
+<span class="fc" id="L616">        .addStatement(</span>
+            &quot;$T&lt;$T, $T&gt; result = monad.flatMap(a -&gt; monad.map(b -&gt; combiner.apply(a, b), typedOther.kind), kind)&quot;,
+            KIND,
+            witnessType,
+            typeC)
+<span class="fc" id="L621">        .addStatement(constructorArgs, pathClassName)</span>
+<span class="fc" id="L622">        .build();</span>
+  }
+
+  private MethodSpec buildRecoverMethod(
+      String pathClassName, TypeName errorType, TypeVariableName typeA) {
+<span class="fc" id="L627">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L629">    return MethodSpec.methodBuilder(&quot;recover&quot;)</span>
+<span class="fc" id="L630">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L631">        .returns(ParameterizedTypeName.get(pathClass, typeA))</span>
+<span class="fc" id="L632">        .addParameter(</span>
+<span class="fc" id="L633">            ParameterizedTypeName.get(</span>
+                FUNCTION,
+<span class="fc" id="L635">                WildcardTypeName.supertypeOf(errorType),</span>
+<span class="fc" id="L636">                WildcardTypeName.subtypeOf(typeA)),</span>
+            &quot;recovery&quot;)
+<span class="fc" id="L638">        .addJavadoc(</span>
+            &quot;Recovers from an error by providing an alternative value.\n\n&quot;
+                + &quot;@param recovery the function to produce a recovery value; must not be null\n&quot;
+                + &quot;@return a new $L with the recovered value\n&quot;,
+            pathClassName)
+<span class="fc" id="L643">        .addStatement(&quot;$T.requireNonNull(recovery, $S)&quot;, OBJECTS, &quot;recovery must not be null&quot;)</span>
+<span class="fc" id="L644">        .addStatement(</span>
+            &quot;return new $L&lt;&gt;(monadError.handleErrorWith(kind, e -&gt; monad.of(recovery.apply(e))), monad, monadError)&quot;,
+            pathClassName)
+<span class="fc" id="L647">        .build();</span>
+  }
+
+  private MethodSpec buildRecoverWithMethod(
+      String pathClassName, TypeName errorType, TypeVariableName typeA) {
+<span class="fc" id="L652">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L654">    return MethodSpec.methodBuilder(&quot;recoverWith&quot;)</span>
+<span class="fc" id="L655">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L656">        .returns(ParameterizedTypeName.get(pathClass, typeA))</span>
+<span class="fc" id="L657">        .addParameter(</span>
+<span class="fc" id="L658">            ParameterizedTypeName.get(</span>
+                FUNCTION,
+<span class="fc" id="L660">                WildcardTypeName.supertypeOf(errorType),</span>
+<span class="fc" id="L661">                WildcardTypeName.subtypeOf(ParameterizedTypeName.get(pathClass, typeA))),</span>
+            &quot;recovery&quot;)
+<span class="fc" id="L663">        .addJavadoc(</span>
+            &quot;Recovers from an error by providing an alternative path.\n\n&quot;
+                + &quot;@param recovery the function to produce a recovery path; must not be null\n&quot;
+                + &quot;@return a new $L with the recovered result\n&quot;,
+            pathClassName)
+<span class="fc" id="L668">        .addStatement(&quot;$T.requireNonNull(recovery, $S)&quot;, OBJECTS, &quot;recovery must not be null&quot;)</span>
+<span class="fc" id="L669">        .addCode(</span>
+<span class="fc" id="L670">            CodeBlock.builder()</span>
+<span class="fc" id="L671">                .add(&quot;@SuppressWarnings(\&quot;unchecked\&quot;)\n&quot;)</span>
+<span class="fc" id="L672">                .addStatement(</span>
+                    &quot;var result = monadError.handleErrorWith(kind, e -&gt; {\n&quot;
+                        + &quot;  $L&lt;$T&gt; recovered = recovery.apply(e);\n&quot;
+                        + &quot;  if (recovered == null) {\n&quot;
+                        + &quot;    throw new $T($S);\n&quot;
+                        + &quot;  }\n&quot;
+                        + &quot;  return recovered.kind;\n&quot;
+                        + &quot;})&quot;,
+                    pathClassName,
+                    typeA,
+                    NullPointerException.class,
+                    &quot;recovery must not return null&quot;)
+<span class="fc" id="L684">                .build())</span>
+<span class="fc" id="L685">        .addStatement(&quot;return new $L&lt;&gt;(result, monad, monadError)&quot;, pathClassName)</span>
+<span class="fc" id="L686">        .build();</span>
+  }
+
+  private MethodSpec buildMapErrorMethod(
+      String pathClassName, TypeName errorType, TypeVariableName typeA) {
+<span class="fc" id="L691">    ClassName pathClass = ClassName.get(&quot;&quot;, pathClassName);</span>
+
+<span class="fc" id="L693">    return MethodSpec.methodBuilder(&quot;mapError&quot;)</span>
+<span class="fc" id="L694">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L695">        .returns(ParameterizedTypeName.get(pathClass, typeA))</span>
+<span class="fc" id="L696">        .addParameter(</span>
+<span class="fc" id="L697">            ParameterizedTypeName.get(</span>
+                FUNCTION,
+<span class="fc" id="L699">                WildcardTypeName.supertypeOf(errorType),</span>
+<span class="fc" id="L700">                WildcardTypeName.subtypeOf(errorType)),</span>
+            &quot;mapper&quot;)
+<span class="fc" id="L702">        .addJavadoc(</span>
+            &quot;Transforms an error using the given function.\n\n&quot;
+                + &quot;@param mapper the error transformation function; must not be null\n&quot;
+                + &quot;@return a new $L with the transformed error\n&quot;,
+            pathClassName)
+<span class="fc" id="L707">        .addStatement(&quot;$T.requireNonNull(mapper, $S)&quot;, OBJECTS, &quot;mapper must not be null&quot;)</span>
+<span class="fc" id="L708">        .addStatement(</span>
+            &quot;return new $L&lt;&gt;(monadError.handleErrorWith(kind, e -&gt; monadError.raiseError(mapper.apply(e))), monad, monadError)&quot;,
+            pathClassName)
+<span class="fc" id="L711">        .build();</span>
+  }
+
+  private MethodSpec buildEqualsMethod(String pathClassName, TypeVariableName typeA) {
+<span class="fc" id="L715">    return MethodSpec.methodBuilder(&quot;equals&quot;)</span>
+<span class="fc" id="L716">        .addAnnotation(Override.class)</span>
+<span class="fc" id="L717">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L718">        .returns(boolean.class)</span>
+<span class="fc" id="L719">        .addParameter(Object.class, &quot;obj&quot;)</span>
+<span class="fc" id="L720">        .addStatement(&quot;if (this == obj) return true&quot;)</span>
+<span class="fc" id="L721">        .addStatement(&quot;if (!(obj instanceof $L&lt;?&gt; other)) return false&quot;, pathClassName)</span>
+<span class="fc" id="L722">        .addStatement(&quot;return kind.equals(other.kind)&quot;)</span>
+<span class="fc" id="L723">        .build();</span>
+  }
+
+  private MethodSpec buildHashCodeMethod() {
+<span class="fc" id="L727">    return MethodSpec.methodBuilder(&quot;hashCode&quot;)</span>
+<span class="fc" id="L728">        .addAnnotation(Override.class)</span>
+<span class="fc" id="L729">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L730">        .returns(int.class)</span>
+<span class="fc" id="L731">        .addStatement(&quot;return kind.hashCode()&quot;)</span>
+<span class="fc" id="L732">        .build();</span>
+  }
+
+  private MethodSpec buildToStringMethod(String sourceName) {
+<span class="fc" id="L736">    return MethodSpec.methodBuilder(&quot;toString&quot;)</span>
+<span class="fc" id="L737">        .addAnnotation(Override.class)</span>
+<span class="fc" id="L738">        .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L739">        .returns(String.class)</span>
+<span class="fc" id="L740">        .addStatement(&quot;return $S + kind + $S&quot;, sourceName + &quot;Path(&quot;, &quot;)&quot;)</span>
+<span class="fc" id="L741">        .build();</span>
+  }
+
+  private void error(String message, Element element) {
+<span class="fc" id="L745">    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);</span>
+<span class="fc" id="L746">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,979 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FocusProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing</a> &gt; <span class="el_source">FocusProcessor.java</span></div><h1>FocusProcessor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing;
+
+import com.google.auto.service.AutoService;
+import com.palantir.javapoet.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.processing.*;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.RecordComponentElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateFocus;
+import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
+import org.higherkindedj.optics.processing.kind.KindFieldInfo;
+import org.higherkindedj.optics.processing.spi.Cardinality;
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
+
+/**
+ * Annotation processor for {@link GenerateFocus} that generates Focus DSL utility classes.
+ *
+ * &lt;p&gt;For each annotated record, this processor generates a companion class with the suffix &quot;Focus&quot;
+ * containing static methods that return {@code FocusPath} instances for each record component.
+ *
+ * &lt;h2&gt;Supported Field Types&lt;/h2&gt;
+ *
+ * &lt;p&gt;The processor automatically handles various field types with appropriate path widening:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Standard fields&lt;/b&gt; - Generate {@code FocusPath}
+ *   &lt;li&gt;&lt;b&gt;Optional/Maybe fields&lt;/b&gt; - Generate {@code AffinePath} via {@code .some()}
+ *   &lt;li&gt;&lt;b&gt;Collection fields&lt;/b&gt; (List, Set) - Generate {@code TraversalPath} via {@code .each()}
+ *   &lt;li&gt;&lt;b&gt;Kind&amp;lt;F, A&amp;gt; fields&lt;/b&gt; - Generate appropriate path via {@code .traverseOver()}
+ * &lt;/ul&gt;
+ *
+ * &lt;h2&gt;Kind Field Support&lt;/h2&gt;
+ *
+ * &lt;p&gt;The processor recognises {@code Kind&lt;F, A&gt;} fields from the Higher-Kinded-J library and
+ * automatically generates traversal code. For custom Kind types, use the {@link
+ * org.higherkindedj.optics.annotations.TraverseField} annotation.
+ *
+ * &lt;h2&gt;Generated Code Structure&lt;/h2&gt;
+ *
+ * &lt;p&gt;For a record like:
+ *
+ * &lt;pre&gt;{@code
+ * @GenerateFocus
+ * record Team(String name, Kind&lt;ListKind.Witness, Member&gt; members) {}
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;The processor generates:
+ *
+ * &lt;pre&gt;{@code
+ * @Generated
+ * public final class TeamFocus {
+ *     private TeamFocus() {}
+ *
+ *     public static FocusPath&lt;Team, String&gt; name() {
+ *         return FocusPath.of(Lens.of(...));
+ *     }
+ *
+ *     public static TraversalPath&lt;Team, Member&gt; members() {
+ *         return FocusPath.of(Lens.of(...))
+ *             .&lt;ListKind.Witness, Member&gt;traverseOver(ListTraverse.INSTANCE);
+ *     }
+ * }
+ * }&lt;/pre&gt;
+ *
+ * @see org.higherkindedj.optics.annotations.TraverseField
+ * @see org.higherkindedj.optics.annotations.KindSemantics
+ */
+@AutoService(Processor.class)
+@SupportedAnnotationTypes(&quot;org.higherkindedj.optics.annotations.GenerateFocus&quot;)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class FocusProcessor extends AbstractProcessor {
+
+  /** Creates a new FocusProcessor. */
+<span class="fc" id="L96">  public FocusProcessor() {}</span>
+
+<span class="fc" id="L98">  private final List&lt;TraversableGenerator&gt; traversableGenerators = new ArrayList&lt;&gt;();</span>
+
+  @Override
+  public synchronized void init(ProcessingEnvironment processingEnv) {
+<span class="fc" id="L102">    super.init(processingEnv);</span>
+<span class="fc" id="L103">    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())</span>
+<span class="fc" id="L104">        .forEach(traversableGenerators::add);</span>
+    // Sort by priority descending so highest-priority generators are checked first
+<span class="fc" id="L106">    traversableGenerators.sort(Comparator.comparingInt(TraversableGenerator::priority).reversed());</span>
+<span class="fc" id="L107">  }</span>
+
+  /** ClassName for FocusPath (in hkj-core, not available at processor compile time). */
+<span class="fc" id="L110">  private static final ClassName FOCUS_PATH_CLASS =</span>
+<span class="fc" id="L111">      ClassName.get(&quot;org.higherkindedj.optics.focus&quot;, &quot;FocusPath&quot;);</span>
+
+  /** ClassName for AffinePath (for Optional field widening). */
+<span class="fc" id="L114">  private static final ClassName AFFINE_PATH_CLASS =</span>
+<span class="fc" id="L115">      ClassName.get(&quot;org.higherkindedj.optics.focus&quot;, &quot;AffinePath&quot;);</span>
+
+  /** ClassName for TraversalPath (for collection field widening). */
+<span class="fc" id="L118">  private static final ClassName TRAVERSAL_PATH_CLASS =</span>
+<span class="fc" id="L119">      ClassName.get(&quot;org.higherkindedj.optics.focus&quot;, &quot;TraversalPath&quot;);</span>
+
+  /** Optional types that widen to AffinePath via .some(). */
+<span class="fc" id="L122">  private static final Set&lt;String&gt; OPTIONAL_TYPES =</span>
+<span class="fc" id="L123">      Set.of(&quot;java.util.Optional&quot;, &quot;org.higherkindedj.hkt.maybe.Maybe&quot;);</span>
+
+  /** Collection types that widen to TraversalPath via .each(). */
+<span class="fc" id="L126">  private static final Set&lt;String&gt; COLLECTION_TYPES =</span>
+<span class="fc" id="L127">      Set.of(&quot;java.util.List&quot;, &quot;java.util.Set&quot;, &quot;java.util.Collection&quot;);</span>
+
+  @Override
+  public boolean process(Set&lt;? extends TypeElement&gt; annotations, RoundEnvironment roundEnv) {
+    // First pass: collect all @GenerateFocus annotated types for navigator resolution
+<span class="fc" id="L132">    Set&lt;String&gt; navigableTypes = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L133">    Set&lt;? extends Element&gt; allAnnotated = roundEnv.getElementsAnnotatedWith(GenerateFocus.class);</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">    for (Element element : allAnnotated) {</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">      if (element.getKind() == ElementKind.RECORD) {</span>
+<span class="fc" id="L136">        TypeElement typeElement = (TypeElement) element;</span>
+<span class="fc" id="L137">        navigableTypes.add(typeElement.getQualifiedName().toString());</span>
+      }
+<span class="fc" id="L139">    }</span>
+
+    // Second pass: generate Focus classes
+<span class="fc bfc" id="L142" title="All 2 branches covered.">    for (TypeElement annotation : annotations) {</span>
+<span class="fc" id="L143">      Set&lt;? extends Element&gt; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">      for (Element element : annotatedElements) {</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        if (element.getKind() != ElementKind.RECORD) {</span>
+<span class="fc" id="L146">          error(&quot;The @GenerateFocus annotation can only be applied to records.&quot;, element);</span>
+<span class="fc" id="L147">          continue;</span>
+        }
+        try {
+<span class="fc" id="L150">          generateFocusFile((TypeElement) element, navigableTypes);</span>
+<span class="nc" id="L151">        } catch (IOException e) {</span>
+<span class="nc" id="L152">          error(&quot;Could not generate focus file: &quot; + e.getMessage(), element);</span>
+<span class="fc" id="L153">        }</span>
+<span class="fc" id="L154">      }</span>
+<span class="fc" id="L155">    }</span>
+<span class="fc" id="L156">    return true;</span>
+  }
+
+  private void generateFocusFile(TypeElement recordElement, Set&lt;String&gt; navigableTypes)
+      throws IOException {
+<span class="fc" id="L161">    String recordName = recordElement.getSimpleName().toString();</span>
+<span class="fc" id="L162">    String defaultPackage =</span>
+<span class="fc" id="L163">        processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();</span>
+
+    // Check for annotation attributes
+<span class="fc" id="L166">    GenerateFocus annotation = recordElement.getAnnotation(GenerateFocus.class);</span>
+<span class="fc" id="L167">    String targetPackage = annotation.targetPackage();</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span>
+<span class="fc" id="L169">    boolean generateNavigators = annotation.generateNavigators();</span>
+<span class="fc" id="L170">    boolean widenCollections = annotation.widenCollections();</span>
+<span class="fc" id="L171">    int maxNavigatorDepth = annotation.maxNavigatorDepth();</span>
+<span class="fc" id="L172">    String[] includeFields = annotation.includeFields();</span>
+<span class="fc" id="L173">    String[] excludeFields = annotation.excludeFields();</span>
+
+<span class="fc" id="L175">    String focusClassName = recordName + &quot;Focus&quot;;</span>
+
+<span class="fc" id="L177">    final ClassName generatedAnnotation =</span>
+<span class="fc" id="L178">        ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+
+    String navigatorNote =
+<span class="fc bfc" id="L181" title="All 2 branches covered.">        generateNavigators</span>
+<span class="fc" id="L182">            ? &quot;\n\n&lt;p&gt;This class includes navigator classes for fluent cross-type navigation.&quot;</span>
+<span class="fc" id="L183">            : &quot;&quot;;</span>
+
+<span class="fc" id="L185">    TypeSpec.Builder focusClassBuilder =</span>
+<span class="fc" id="L186">        TypeSpec.classBuilder(focusClassName)</span>
+<span class="fc" id="L187">            .addAnnotation(generatedAnnotation)</span>
+<span class="fc" id="L188">            .addJavadoc(</span>
+                &quot;Generated Focus DSL paths for {@link $T}.\n\n&quot;
+                    + &quot;&lt;p&gt;This class provides type-safe navigation paths for accessing and modifying\n&quot;
+                    + &quot;fields within {@code $L} instances using the Focus DSL.$L\n\n&quot;
+                    + &quot;&lt;p&gt;Do not edit this file; it is automatically generated.&quot;,
+<span class="fc" id="L193">                ClassName.get(recordElement),</span>
+                recordName,
+                navigatorNote)
+<span class="fc" id="L196">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L197">            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());</span>
+
+<span class="fc" id="L199">    List&lt;? extends RecordComponentElement&gt; components = recordElement.getRecordComponents();</span>
+<span class="fc" id="L200">    TypeName recordTypeName = getParameterizedTypeName(recordElement);</span>
+
+    // Create navigator generator if enabled
+<span class="fc" id="L203">    NavigatorClassGenerator navigatorGenerator = null;</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">    if (generateNavigators) {</span>
+<span class="fc" id="L205">      navigatorGenerator =</span>
+          new NavigatorClassGenerator(
+              processingEnv,
+              navigableTypes,
+              maxNavigatorDepth,
+              includeFields,
+              excludeFields,
+              traversableGenerators);
+    }
+
+    // Generate FocusPath methods for each component
+<span class="fc bfc" id="L216" title="All 2 branches covered.">    for (RecordComponentElement component : components) {</span>
+<span class="fc" id="L217">      MethodSpec method = null;</span>
+
+      // Try to create a navigator method if navigators are enabled
+<span class="fc bfc" id="L220" title="All 2 branches covered.">      if (navigatorGenerator != null) {</span>
+<span class="fc" id="L221">        method =</span>
+<span class="fc" id="L222">            navigatorGenerator.createNavigatorMethod(</span>
+                component, recordElement, components, recordTypeName);
+      }
+
+      // Fall back to standard FocusPath method if no navigator method was created
+<span class="fc bfc" id="L227" title="All 2 branches covered.">      if (method == null) {</span>
+<span class="fc" id="L228">        method =</span>
+<span class="fc" id="L229">            createFocusPathMethod(</span>
+                component, recordElement, components, recordTypeName, widenCollections);
+      }
+
+<span class="fc" id="L233">      focusClassBuilder.addMethod(method);</span>
+<span class="fc" id="L234">    }</span>
+
+    // Generate navigator inner classes if enabled
+<span class="fc bfc" id="L237" title="All 2 branches covered.">    if (navigatorGenerator != null) {</span>
+<span class="fc" id="L238">      navigatorGenerator.generateNavigators(focusClassBuilder, recordElement, 0);</span>
+    }
+
+<span class="fc" id="L241">    JavaFile javaFile =</span>
+<span class="fc" id="L242">        JavaFile.builder(packageName, focusClassBuilder.build())</span>
+<span class="fc" id="L243">            .addFileComment(&quot;Generated by hkj-optics-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L244">            .build();</span>
+
+<span class="fc" id="L246">    javaFile.writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L247">  }</span>
+
+  private TypeName getParameterizedTypeName(TypeElement typeElement) {
+<span class="fc" id="L250">    List&lt;? extends TypeParameterElement&gt; typeParameters = typeElement.getTypeParameters();</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">    if (typeParameters.isEmpty()) {</span>
+<span class="fc" id="L252">      return ClassName.get(typeElement);</span>
+    } else {
+<span class="fc" id="L254">      List&lt;TypeVariableName&gt; typeVars = typeParameters.stream().map(TypeVariableName::get).toList();</span>
+<span class="fc" id="L255">      return ParameterizedTypeName.get(</span>
+<span class="fc" id="L256">          ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));</span>
+    }
+  }
+
+  private MethodSpec createFocusPathMethod(
+      RecordComponentElement component,
+      TypeElement recordElement,
+      List&lt;? extends RecordComponentElement&gt; allComponents,
+      TypeName recordTypeName,
+      boolean widenCollections) {
+
+<span class="fc" id="L267">    String componentName = component.getSimpleName().toString();</span>
+<span class="fc" id="L268">    TypeMirror componentType = component.asType();</span>
+<span class="fc" id="L269">    TypeName componentTypeName = TypeName.get(componentType);</span>
+
+    // Detect path type widening based on field type and annotations
+<span class="fc" id="L272">    PathTypeInfo pathTypeInfo = analyseFieldType(component, componentType, widenCollections);</span>
+
+    // Determine return type and inner type based on widening
+<span class="fc" id="L275">    ClassName pathClass = pathTypeInfo.pathClass;</span>
+    TypeName innerTypeName =
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        pathTypeInfo.innerType != null ? pathTypeInfo.innerType : componentTypeName.box();</span>
+<span class="fc" id="L278">    ParameterizedTypeName returnTypeName =</span>
+<span class="fc" id="L279">        ParameterizedTypeName.get(pathClass, recordTypeName, innerTypeName);</span>
+
+<span class="fc" id="L281">    String pathDescription = getPathDescription(pathTypeInfo);</span>
+<span class="fc" id="L282">    String getMethodName = getPathGetMethod(pathTypeInfo);</span>
+
+<span class="fc" id="L284">    MethodSpec.Builder methodBuilder =</span>
+<span class="fc" id="L285">        MethodSpec.methodBuilder(componentName)</span>
+<span class="fc" id="L286">            .addJavadoc(</span>
+                &quot;Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n&quot;
+                    + &quot;&lt;p&gt;The returned path can be composed with other optics for deep navigation:\n&quot;
+                    + &quot;&lt;pre&gt;{@code\n&quot;
+                    + &quot;$L.$L().$L(instance);  // Get the $L value\n&quot;
+                    + &quot;$L.$L().set(newValue, instance);  // Set the $L value\n&quot;
+                    + &quot;$L.$L().modify(fn, instance);  // Transform the $L value\n&quot;
+                    + &quot;}&lt;/pre&gt;\n\n&quot;
+                    + &quot;@return A non-null {@code $L&lt;$T, $T&gt;}.&quot;,
+                pathClass,
+                componentName,
+                recordTypeName,
+<span class="fc" id="L298">                recordElement.getSimpleName() + &quot;Focus&quot;,</span>
+                componentName,
+                getMethodName,
+                componentName,
+<span class="fc" id="L302">                recordElement.getSimpleName() + &quot;Focus&quot;,</span>
+                componentName,
+                componentName,
+<span class="fc" id="L305">                recordElement.getSimpleName() + &quot;Focus&quot;,</span>
+                componentName,
+                componentName,
+                pathDescription,
+                recordTypeName,
+                innerTypeName)
+<span class="fc" id="L311">            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L312">            .returns(returnTypeName);</span>
+
+    // Add type parameters if the record is generic
+<span class="fc bfc" id="L315" title="All 2 branches covered.">    for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {</span>
+<span class="fc" id="L316">      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));</span>
+<span class="fc" id="L317">    }</span>
+
+    // Build the constructor arguments for the setter lambda
+<span class="fc" id="L320">    String constructorArgs =</span>
+<span class="fc" id="L321">        allComponents.stream()</span>
+<span class="fc" id="L322">            .map(</span>
+                c -&gt;
+<span class="fc bfc" id="L324" title="All 2 branches covered.">                    c.getSimpleName().toString().equals(componentName)</span>
+<span class="fc" id="L325">                        ? &quot;newValue&quot;</span>
+<span class="fc" id="L326">                        : &quot;source.&quot; + c.getSimpleName() + &quot;()&quot;)</span>
+<span class="fc" id="L327">            .collect(Collectors.joining(&quot;, &quot;));</span>
+
+    // Generate code based on path type widening
+<span class="fc" id="L330">    String baseLens =</span>
+<span class="fc" id="L331">        String.format(</span>
+            &quot;$T.of($T.of($T::%s, (source, newValue) -&gt; new $T(%s)))&quot;,
+            componentName, constructorArgs);
+
+<span class="fc bfc" id="L335" title="All 10 branches covered.">    switch (pathTypeInfo.wideningType) {</span>
+      case OPTIONAL -&gt;
+<span class="fc" id="L337">          methodBuilder.addStatement(</span>
+              &quot;return &quot; + baseLens + &quot;.some()&quot;,
+              FOCUS_PATH_CLASS,
+              Lens.class,
+              recordTypeName,
+              recordTypeName);
+      case COLLECTION -&gt;
+<span class="fc" id="L344">          methodBuilder.addStatement(</span>
+              &quot;return &quot; + baseLens + &quot;.each()&quot;,
+              FOCUS_PATH_CLASS,
+              Lens.class,
+              recordTypeName,
+              recordTypeName);
+      case NULLABLE -&gt;
+<span class="fc" id="L351">          methodBuilder.addStatement(</span>
+              &quot;return &quot; + baseLens + &quot;.nullable()&quot;,
+              FOCUS_PATH_CLASS,
+              Lens.class,
+              recordTypeName,
+              recordTypeName);
+      case KIND_EXACTLY_ONE -&gt; {
+        // Kind with exactly-one semantics (e.g., IdKind): AffinePath via
+        // traverseOver().headOption()
+        // Note: Although IdKind always contains exactly one element, traverseOver() returns
+        // TraversalPath, so we narrow via headOption() to get AffinePath. This is type-safe.
+<span class="fc" id="L362">        KindFieldInfo kindInfo = pathTypeInfo.kindInfo();</span>
+<span class="fc" id="L363">        String traverseOverCall = buildTraverseOverCall(kindInfo);</span>
+<span class="fc" id="L364">        methodBuilder.addStatement(</span>
+            &quot;return &quot; + baseLens + traverseOverCall + &quot;.headOption()&quot;,
+            FOCUS_PATH_CLASS,
+            Lens.class,
+            recordTypeName,
+            recordTypeName);
+<span class="fc" id="L370">      }</span>
+      case KIND_ZERO_OR_ONE -&gt; {
+        // Kind with zero-or-one semantics: AffinePath via traverseOver().headOption()
+<span class="fc" id="L373">        KindFieldInfo kindInfo = pathTypeInfo.kindInfo();</span>
+<span class="fc" id="L374">        String traverseOverCall = buildTraverseOverCall(kindInfo);</span>
+<span class="fc" id="L375">        methodBuilder.addStatement(</span>
+            &quot;return &quot; + baseLens + traverseOverCall + &quot;.headOption()&quot;,
+            FOCUS_PATH_CLASS,
+            Lens.class,
+            recordTypeName,
+            recordTypeName);
+<span class="fc" id="L381">      }</span>
+      case KIND_ZERO_OR_MORE -&gt; {
+        // Kind with zero-or-more semantics: TraversalPath via traverseOver()
+<span class="fc" id="L384">        KindFieldInfo kindInfo = pathTypeInfo.kindInfo();</span>
+<span class="fc" id="L385">        String traverseOverCall = buildTraverseOverCall(kindInfo);</span>
+<span class="fc" id="L386">        methodBuilder.addStatement(</span>
+            &quot;return &quot; + baseLens + traverseOverCall,
+            FOCUS_PATH_CLASS,
+            Lens.class,
+            recordTypeName,
+            recordTypeName);
+<span class="fc" id="L392">      }</span>
+      case SPI_ZERO_OR_ONE -&gt; {
+        // SPI-registered zero-or-one type: AffinePath via .some(opticExpr)
+<span class="fc" id="L395">        TraversableGenerator gen = pathTypeInfo.spiGenerator();</span>
+<span class="fc" id="L396">        String opticExpr = gen.generateOpticExpression();</span>
+<span class="fc" id="L397">        List&lt;Object&gt; args =</span>
+<span class="fc" id="L398">            new ArrayList&lt;&gt;(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));</span>
+<span class="fc" id="L399">        String resolvedExpr =</span>
+<span class="fc" id="L400">            OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);</span>
+<span class="fc" id="L401">        methodBuilder.addStatement(</span>
+<span class="fc" id="L402">            &quot;return &quot; + baseLens + &quot;.some(&quot; + resolvedExpr + &quot;)&quot;, args.toArray());</span>
+<span class="fc" id="L403">      }</span>
+      case SPI_ZERO_OR_MORE -&gt; {
+        // SPI-registered zero-or-more type: TraversalPath via .each(opticExpr)
+<span class="fc" id="L406">        TraversableGenerator gen = pathTypeInfo.spiGenerator();</span>
+<span class="fc" id="L407">        String opticExpr = gen.generateOpticExpression();</span>
+<span class="fc" id="L408">        List&lt;Object&gt; args =</span>
+<span class="fc" id="L409">            new ArrayList&lt;&gt;(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));</span>
+<span class="fc" id="L410">        String resolvedExpr =</span>
+<span class="fc" id="L411">            OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);</span>
+<span class="fc" id="L412">        methodBuilder.addStatement(</span>
+<span class="fc" id="L413">            &quot;return &quot; + baseLens + &quot;.each(&quot; + resolvedExpr + &quot;)&quot;, args.toArray());</span>
+<span class="fc" id="L414">      }</span>
+      case NESTED -&gt; {
+        // Nested container type: composed widening chain
+<span class="fc" id="L417">        List&lt;Object&gt; args =</span>
+<span class="fc" id="L418">            new ArrayList&lt;&gt;(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));</span>
+<span class="fc" id="L419">        String chainExpr = buildWideningChainExpression(pathTypeInfo.wideningChain(), args);</span>
+<span class="fc" id="L420">        methodBuilder.addStatement(&quot;return &quot; + baseLens + chainExpr, args.toArray());</span>
+<span class="fc" id="L421">      }</span>
+      default -&gt;
+<span class="fc" id="L423">          methodBuilder.addStatement(</span>
+              &quot;return &quot; + baseLens, FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName);
+    }
+
+<span class="fc" id="L427">    return methodBuilder.build();</span>
+  }
+
+  /**
+   * Builds the traverseOver() method call string for a Kind field.
+   *
+   * @param kindInfo the Kind field information
+   * @return the traverseOver call string including type parameters
+   */
+  private String buildTraverseOverCall(KindFieldInfo kindInfo) {
+    // Build witness type with any type arguments
+<span class="fc" id="L438">    String witnessType = kindInfo.witnessType();</span>
+<span class="pc bpc" id="L439" title="1 of 4 branches missed.">    if (kindInfo.isParameterised() &amp;&amp; !kindInfo.witnessTypeArgs().isEmpty()) {</span>
+<span class="fc" id="L440">      witnessType = witnessType + &quot;&lt;&quot; + kindInfo.witnessTypeArgs() + &quot;&gt;&quot;;</span>
+    }
+
+    // Get element type as string
+<span class="fc" id="L444">    String elementType = kindInfo.elementType().toString();</span>
+
+    // Build the traverseOver call with explicit type parameters for Java's type inference
+<span class="fc" id="L447">    return String.format(</span>
+<span class="fc" id="L448">        &quot;.&lt;%s, %s&gt;traverseOver(%s)&quot;, witnessType, elementType, kindInfo.traverseExpression());</span>
+  }
+
+  /**
+   * Builds the chained widening expression for a nested container.
+   *
+   * &lt;p&gt;For example, {@code Optional&lt;List&lt;String&gt;&gt;} produces {@code .some().each()}, and {@code
+   * Either&lt;E, Map&lt;K, V&gt;&gt;} produces {@code
+   * .some(Affines.eitherRight()).each(EachInstances.mapValuesEach())}.
+   *
+   * @param chain the list of widening steps
+   * @param args the mutable list of JavaPoet arguments (for SPI import resolution)
+   * @return the chained expression string
+   */
+  private String buildWideningChainExpression(List&lt;WideningStep&gt; chain, List&lt;Object&gt; args) {
+<span class="fc" id="L463">    StringBuilder sb = new StringBuilder();</span>
+<span class="fc bfc" id="L464" title="All 2 branches covered.">    for (int i = 0; i &lt; chain.size(); i++) {</span>
+<span class="fc" id="L465">      WideningStep step = chain.get(i);</span>
+      // Check if the next step requires argument type matching (SPI with parameters).
+      // If so, the current no-arg step needs a type witness to help Java's type inference.
+<span class="fc" id="L468">      boolean nextStepNeedsTypeWitness =</span>
+<span class="fc bfc" id="L469" title="All 4 branches covered.">          i + 1 &lt; chain.size() &amp;&amp; isParameterisedStep(chain.get(i + 1));</span>
+<span class="pc bpc" id="L470" title="5 of 8 branches missed.">      switch (step.type()) {</span>
+        case OPTIONAL -&gt; {
+<span class="pc bpc" id="L472" title="1 of 4 branches missed.">          if (nextStepNeedsTypeWitness &amp;&amp; step.innerTypeMirror() != null) {</span>
+<span class="fc" id="L473">            sb.append(&quot;.&lt;$T&gt;some()&quot;);</span>
+<span class="fc" id="L474">            args.add(TypeName.get(step.innerTypeMirror()));</span>
+          } else {
+<span class="fc" id="L476">            sb.append(&quot;.some()&quot;);</span>
+          }
+<span class="fc" id="L478">        }</span>
+        case COLLECTION -&gt; {
+<span class="pc bpc" id="L480" title="1 of 4 branches missed.">          if (nextStepNeedsTypeWitness &amp;&amp; step.innerTypeMirror() != null) {</span>
+<span class="fc" id="L481">            sb.append(&quot;.&lt;$T&gt;each()&quot;);</span>
+<span class="fc" id="L482">            args.add(TypeName.get(step.innerTypeMirror()));</span>
+          } else {
+<span class="fc" id="L484">            sb.append(&quot;.each()&quot;);</span>
+          }
+<span class="fc" id="L486">        }</span>
+<span class="nc" id="L487">        case NULLABLE -&gt; sb.append(&quot;.nullable()&quot;);</span>
+        case SPI_ZERO_OR_ONE -&gt; {
+<span class="fc" id="L489">          TraversableGenerator gen = step.spiGenerator();</span>
+<span class="fc" id="L490">          String opticExpr = gen.generateOpticExpression();</span>
+<span class="fc" id="L491">          String resolvedExpr =</span>
+<span class="fc" id="L492">              OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);</span>
+<span class="fc" id="L493">          sb.append(&quot;.some(&quot;).append(resolvedExpr).append(&quot;)&quot;);</span>
+<span class="fc" id="L494">        }</span>
+        case SPI_ZERO_OR_MORE -&gt; {
+<span class="nc" id="L496">          TraversableGenerator gen = step.spiGenerator();</span>
+<span class="nc" id="L497">          String opticExpr = gen.generateOpticExpression();</span>
+<span class="nc" id="L498">          String resolvedExpr =</span>
+<span class="nc" id="L499">              OpticExpressionResolver.resolve(opticExpr, gen.getRequiredImports(), args);</span>
+<span class="nc" id="L500">          sb.append(&quot;.each(&quot;).append(resolvedExpr).append(&quot;)&quot;);</span>
+<span class="nc" id="L501">        }</span>
+        case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE -&gt; {
+<span class="nc" id="L503">          KindFieldInfo kindInfo = step.kindInfo();</span>
+<span class="nc" id="L504">          sb.append(buildTraverseOverCall(kindInfo)).append(&quot;.headOption()&quot;);</span>
+<span class="nc" id="L505">        }</span>
+        case KIND_ZERO_OR_MORE -&gt; {
+<span class="nc" id="L507">          KindFieldInfo kindInfo = step.kindInfo();</span>
+<span class="nc" id="L508">          sb.append(buildTraverseOverCall(kindInfo));</span>
+<span class="nc" id="L509">        }</span>
+        default -&gt; {
+          // NONE or NESTED should not appear in a chain
+        }
+      }
+    }
+<span class="fc" id="L515">    return sb.toString();</span>
+  }
+
+  /** Returns true if this widening step requires argument type matching (has parameters). */
+  private static boolean isParameterisedStep(WideningStep step) {
+<span class="fc bfc" id="L520" title="All 2 branches covered.">    return step.type() == WideningType.SPI_ZERO_OR_ONE</span>
+<span class="pc bpc" id="L521" title="1 of 2 branches missed.">        || step.type() == WideningType.SPI_ZERO_OR_MORE;</span>
+  }
+
+  /** Represents the type of path widening to apply. */
+<span class="fc" id="L525">  private enum WideningType {</span>
+    /** No widening - standard FocusPath. */
+<span class="fc" id="L527">    NONE,</span>
+    /** Optional/Maybe types - AffinePath via .some(). */
+<span class="fc" id="L529">    OPTIONAL,</span>
+    /** Collection types - TraversalPath via .each(). */
+<span class="fc" id="L531">    COLLECTION,</span>
+    /** Nullable types - AffinePath via .nullable(). */
+<span class="fc" id="L533">    NULLABLE,</span>
+    /** Kind types with EXACTLY_ONE semantics - AffinePath via .traverseOver().headOption(). */
+<span class="fc" id="L535">    KIND_EXACTLY_ONE,</span>
+    /** Kind types with ZERO_OR_ONE semantics - AffinePath via .traverseOver().headOption(). */
+<span class="fc" id="L537">    KIND_ZERO_OR_ONE,</span>
+    /** Kind types with ZERO_OR_MORE semantics - TraversalPath via .traverseOver(). */
+<span class="fc" id="L539">    KIND_ZERO_OR_MORE,</span>
+    /** SPI-registered zero-or-one type - AffinePath via .some(affine). */
+<span class="fc" id="L541">    SPI_ZERO_OR_ONE,</span>
+    /** SPI-registered zero-or-more type - TraversalPath via .each(each). */
+<span class="fc" id="L543">    SPI_ZERO_OR_MORE,</span>
+    /** Nested container type - composed widening chain. */
+<span class="fc" id="L545">    NESTED</span>
+  }
+
+  /**
+   * Represents a single widening step in a nested container chain.
+   *
+   * @param type the widening type for this step
+   * @param kindInfo Kind field info if this step is a Kind type (may be null)
+   * @param spiGenerator SPI generator if this step is an SPI type (may be null)
+   * @param innerTypeMirror the type produced by unwrapping this container (may be null)
+   */
+<span class="fc" id="L556">  private record WideningStep(</span>
+      WideningType type,
+      KindFieldInfo kindInfo,
+      TraversableGenerator spiGenerator,
+      TypeMirror innerTypeMirror) {}
+
+  /** Maximum recursion depth for nested container analysis. */
+  private static final int MAX_NESTING_DEPTH = 3;
+
+  /** Holds information about path type analysis. */
+<span class="fc" id="L566">  private record PathTypeInfo(</span>
+      ClassName pathClass,
+      TypeName innerType,
+      WideningType wideningType,
+      List&lt;WideningStep&gt; wideningChain,
+      KindFieldInfo kindInfo,
+      TraversableGenerator spiGenerator) {
+
+    /** Creates a PathTypeInfo without Kind info or SPI generator. */
+    static PathTypeInfo of(ClassName pathClass, TypeName innerType, WideningType wideningType) {
+<span class="fc" id="L576">      return new PathTypeInfo(pathClass, innerType, wideningType, List.of(), null, null);</span>
+    }
+
+    /** Creates a PathTypeInfo for a Kind field. */
+    static PathTypeInfo forKind(ClassName pathClass, KindFieldInfo kindInfo) {
+<span class="fc" id="L581">      WideningType widening =</span>
+<span class="fc bfc" id="L582" title="All 3 branches covered.">          switch (kindInfo.semantics()) {</span>
+<span class="fc" id="L583">            case EXACTLY_ONE -&gt; WideningType.KIND_EXACTLY_ONE;</span>
+<span class="fc" id="L584">            case ZERO_OR_ONE -&gt; WideningType.KIND_ZERO_OR_ONE;</span>
+<span class="fc" id="L585">            case ZERO_OR_MORE -&gt; WideningType.KIND_ZERO_OR_MORE;</span>
+          };
+<span class="fc" id="L587">      return new PathTypeInfo(</span>
+<span class="fc" id="L588">          pathClass, kindInfo.elementType(), widening, List.of(), kindInfo, null);</span>
+    }
+
+    /** Creates a PathTypeInfo for an SPI-detected field. */
+    static PathTypeInfo forSpi(
+        ClassName pathClass,
+        TypeName innerType,
+        WideningType wideningType,
+        TraversableGenerator generator) {
+<span class="fc" id="L597">      return new PathTypeInfo(pathClass, innerType, wideningType, List.of(), null, generator);</span>
+    }
+
+    /** Creates a PathTypeInfo for a nested container with a widening chain. */
+    static PathTypeInfo forNested(
+        ClassName pathClass, TypeName innerType, List&lt;WideningStep&gt; chain) {
+<span class="fc" id="L603">      return new PathTypeInfo(pathClass, innerType, WideningType.NESTED, chain, null, null);</span>
+    }
+  }
+
+  /** Analyses a field type and annotations to determine path widening. */
+  private PathTypeInfo analyseFieldType(
+      RecordComponentElement component, TypeMirror type, boolean widenCollections) {
+    // Check for @Nullable annotation on the field first
+<span class="fc" id="L611">    boolean isNullable = NullableAnnotations.hasNullableAnnotation(component);</span>
+
+<span class="fc bfc" id="L613" title="All 2 branches covered.">    if (type.getKind() != TypeKind.DECLARED) {</span>
+      // Primitive and array types: no SPI widening in FocusProcessor (arrays remain FocusPath).
+      // Users can manually call .each(EachInstances.arrayEach()) for array traversal.
+<span class="fc bfc" id="L616" title="All 2 branches covered.">      if (isNullable) {</span>
+<span class="fc" id="L617">        return PathTypeInfo.of(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);</span>
+      }
+<span class="fc" id="L619">      return PathTypeInfo.of(FOCUS_PATH_CLASS, null, WideningType.NONE);</span>
+    }
+
+<span class="fc" id="L622">    DeclaredType declaredType = (DeclaredType) type;</span>
+<span class="fc" id="L623">    TypeElement typeElement = (TypeElement) declaredType.asElement();</span>
+<span class="fc" id="L624">    String qualifiedName = typeElement.getQualifiedName().toString();</span>
+
+    // Check for Optional types (takes precedence over @Nullable)
+<span class="fc bfc" id="L627" title="All 2 branches covered.">    if (OPTIONAL_TYPES.contains(qualifiedName)) {</span>
+<span class="fc" id="L628">      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);</span>
+<span class="fc" id="L629">      Optional&lt;PathTypeInfo&gt; nested =</span>
+<span class="fc" id="L630">          analyseNestedContainer(</span>
+              new WideningStep(WideningType.OPTIONAL, null, null, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+<span class="fc bfc" id="L634" title="All 2 branches covered.">      if (nested.isPresent()) {</span>
+<span class="fc" id="L635">        return nested.get();</span>
+      }
+<span class="fc" id="L637">      TypeName innerType = extractTypeArgument(declaredType);</span>
+<span class="fc" id="L638">      return PathTypeInfo.of(AFFINE_PATH_CLASS, innerType, WideningType.OPTIONAL);</span>
+    }
+
+    // Check for Collection types (takes precedence over @Nullable)
+<span class="fc bfc" id="L642" title="All 2 branches covered.">    if (COLLECTION_TYPES.contains(qualifiedName)) {</span>
+<span class="fc" id="L643">      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);</span>
+<span class="fc" id="L644">      Optional&lt;PathTypeInfo&gt; nested =</span>
+<span class="fc" id="L645">          analyseNestedContainer(</span>
+              new WideningStep(WideningType.COLLECTION, null, null, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+<span class="fc bfc" id="L649" title="All 2 branches covered.">      if (nested.isPresent()) {</span>
+<span class="fc" id="L650">        return nested.get();</span>
+      }
+<span class="fc" id="L652">      TypeName innerType = extractTypeArgument(declaredType);</span>
+<span class="fc" id="L653">      return PathTypeInfo.of(TRAVERSAL_PATH_CLASS, innerType, WideningType.COLLECTION);</span>
+    }
+
+    // Check for Kind&lt;F, A&gt; types
+<span class="fc" id="L657">    KindFieldAnalyser kindAnalyser = new KindFieldAnalyser(processingEnv);</span>
+<span class="fc" id="L658">    Optional&lt;KindFieldInfo&gt; kindInfo = kindAnalyser.analyse(component);</span>
+<span class="fc bfc" id="L659" title="All 2 branches covered.">    if (kindInfo.isPresent()) {</span>
+<span class="fc" id="L660">      KindFieldInfo info = kindInfo.get();</span>
+      // Note: EXACTLY_ONE also returns AffinePath because traverseOver() returns
+      // TraversalPath and we narrow via headOption(). This is a safe type downgrade.
+<span class="fc" id="L663">      ClassName pathClass =</span>
+<span class="fc bfc" id="L664" title="All 2 branches covered.">          switch (info.semantics()) {</span>
+<span class="fc" id="L665">            case EXACTLY_ONE, ZERO_OR_ONE -&gt; AFFINE_PATH_CLASS;</span>
+<span class="fc" id="L666">            case ZERO_OR_MORE -&gt; TRAVERSAL_PATH_CLASS;</span>
+          };
+<span class="fc" id="L668">      return PathTypeInfo.forKind(pathClass, info);</span>
+    }
+
+    // Consult SPI generators for container types (e.g. Either, Try, Validated, Map).
+    // ZERO_OR_ONE types are always widened to AffinePath.
+    // ZERO_OR_MORE types are only widened to TraversalPath when widenCollections is enabled;
+    // otherwise they remain FocusPath for backwards compatibility.
+    // Generators are pre-sorted by priority descending; highest-priority match wins.
+    // Only equal-priority conflicts emit a warning.
+<span class="fc" id="L677">    TraversableGenerator matchedGenerator = findSpiGenerator(type, component);</span>
+<span class="fc bfc" id="L678" title="All 4 branches covered.">    if (matchedGenerator != null &amp;&amp; matchedGenerator.getCardinality() == Cardinality.ZERO_OR_ONE) {</span>
+<span class="fc" id="L679">      int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();</span>
+<span class="fc" id="L680">      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);</span>
+<span class="fc" id="L681">      Optional&lt;PathTypeInfo&gt; nested =</span>
+<span class="fc" id="L682">          analyseNestedContainer(</span>
+              new WideningStep(
+                  WideningType.SPI_ZERO_OR_ONE, null, matchedGenerator, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+<span class="fc bfc" id="L687" title="All 2 branches covered.">      if (nested.isPresent()) {</span>
+<span class="fc" id="L688">        return nested.get();</span>
+      }
+<span class="fc" id="L690">      TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);</span>
+<span class="fc" id="L691">      return PathTypeInfo.forSpi(</span>
+          AFFINE_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_ONE, matchedGenerator);
+    }
+
+    // When widenCollections is enabled, also widen ZERO_OR_MORE SPI types to TraversalPath
+<span class="fc bfc" id="L696" title="All 4 branches covered.">    if (widenCollections</span>
+        &amp;&amp; matchedGenerator != null
+<span class="pc bpc" id="L698" title="1 of 2 branches missed.">        &amp;&amp; matchedGenerator.getCardinality() == Cardinality.ZERO_OR_MORE) {</span>
+<span class="fc" id="L699">      int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();</span>
+<span class="fc" id="L700">      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);</span>
+<span class="fc" id="L701">      Optional&lt;PathTypeInfo&gt; nested =</span>
+<span class="fc" id="L702">          analyseNestedContainer(</span>
+              new WideningStep(
+                  WideningType.SPI_ZERO_OR_MORE, null, matchedGenerator, innerTypeMirror),
+              innerTypeMirror,
+              widenCollections);
+<span class="pc bpc" id="L707" title="1 of 2 branches missed.">      if (nested.isPresent()) {</span>
+<span class="nc" id="L708">        return nested.get();</span>
+      }
+<span class="fc" id="L710">      TypeName innerType = extractTypeArgumentAt(declaredType, typeArgIndex);</span>
+<span class="fc" id="L711">      return PathTypeInfo.forSpi(</span>
+          TRAVERSAL_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_MORE, matchedGenerator);
+    }
+
+    // Check for @Nullable annotation (after Kind and SPI checks)
+<span class="fc bfc" id="L716" title="All 2 branches covered.">    if (isNullable) {</span>
+<span class="fc" id="L717">      return PathTypeInfo.of(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);</span>
+    }
+
+<span class="fc" id="L720">    return PathTypeInfo.of(FOCUS_PATH_CLASS, null, WideningType.NONE);</span>
+  }
+
+  /**
+   * Finds the highest-priority SPI generator that supports the given type.
+   *
+   * @param type the type to check
+   * @param component the record component for diagnostic messages (may be null)
+   * @return the matched generator, or null if none found
+   */
+  private TraversableGenerator findSpiGenerator(TypeMirror type, Element component) {
+<span class="fc" id="L731">    TraversableGenerator matchedGenerator = null;</span>
+<span class="fc bfc" id="L732" title="All 2 branches covered.">    for (TraversableGenerator generator : traversableGenerators) {</span>
+<span class="fc bfc" id="L733" title="All 2 branches covered.">      if (generator.supports(type)) {</span>
+<span class="pc bpc" id="L734" title="3 of 4 branches missed.">        if (matchedGenerator != null &amp;&amp; matchedGenerator.priority() == generator.priority()) {</span>
+<span class="nc bnc" id="L735" title="All 2 branches missed.">          if (component != null) {</span>
+<span class="nc" id="L736">            processingEnv</span>
+<span class="nc" id="L737">                .getMessager()</span>
+<span class="nc" id="L738">                .printMessage(</span>
+                    Diagnostic.Kind.WARNING,
+                    &quot;Multiple TraversableGenerator SPI providers with equal priority (&quot;
+<span class="nc" id="L741">                        + generator.priority()</span>
+                        + &quot;) support type &quot;
+                        + type
+                        + &quot;: &quot;
+<span class="nc" id="L745">                        + matchedGenerator.getClass().getName()</span>
+                        + &quot; and &quot;
+<span class="nc" id="L747">                        + generator.getClass().getName()</span>
+                        + &quot;. Using the first match.&quot;,
+                    component);
+          }
+<span class="pc bpc" id="L751" title="1 of 2 branches missed.">        } else if (matchedGenerator == null) {</span>
+<span class="fc" id="L752">          matchedGenerator = generator;</span>
+        }
+      }
+<span class="fc" id="L755">    }</span>
+<span class="fc" id="L756">    return matchedGenerator;</span>
+  }
+
+  /**
+   * Analyses whether an inner type contains nested containers and, if so, builds the full widening
+   * chain starting with the given outer step.
+   *
+   * @param outerStep the widening step for the outermost container
+   * @param innerTypeMirror the inner type to check for further nesting
+   * @param widenCollections whether to widen ZERO_OR_MORE SPI types
+   * @return a PathTypeInfo for the nested chain, or empty if no nesting was found
+   */
+  private Optional&lt;PathTypeInfo&gt; analyseNestedContainer(
+      WideningStep outerStep, TypeMirror innerTypeMirror, boolean widenCollections) {
+<span class="fc bfc" id="L770" title="All 2 branches covered.">    if (innerTypeMirror == null) {</span>
+<span class="fc" id="L771">      return Optional.empty();</span>
+    }
+<span class="fc" id="L773">    List&lt;WideningStep&gt; innerChain = analyseNestedType(innerTypeMirror, widenCollections, 1);</span>
+<span class="fc bfc" id="L774" title="All 2 branches covered.">    if (innerChain.isEmpty()) {</span>
+<span class="fc" id="L775">      return Optional.empty();</span>
+    }
+<span class="fc" id="L777">    List&lt;WideningStep&gt; fullChain = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L778">    fullChain.add(outerStep);</span>
+<span class="fc" id="L779">    fullChain.addAll(innerChain);</span>
+<span class="fc" id="L780">    TypeName deepInnerType = resolveDeepInnerType(innerTypeMirror, innerChain);</span>
+<span class="fc" id="L781">    ClassName pathClass = computeComposedPathClass(fullChain);</span>
+<span class="fc" id="L782">    return Optional.of(PathTypeInfo.forNested(pathClass, deepInnerType, fullChain));</span>
+  }
+
+  /**
+   * Recursively analyses a type to detect nested container patterns. Returns a list of widening
+   * steps for the inner containers, or an empty list if the type is not a recognised container.
+   *
+   * @param type the type to analyse
+   * @param widenCollections whether to widen ZERO_OR_MORE SPI types
+   * @param depth current recursion depth
+   * @return list of widening steps for nested containers
+   */
+  private List&lt;WideningStep&gt; analyseNestedType(
+      TypeMirror type, boolean widenCollections, int depth) {
+<span class="fc bfc" id="L796" title="All 4 branches covered.">    if (depth &gt;= MAX_NESTING_DEPTH || type.getKind() != TypeKind.DECLARED) {</span>
+<span class="fc" id="L797">      return List.of();</span>
+    }
+
+<span class="fc" id="L800">    DeclaredType declaredType = (DeclaredType) type;</span>
+<span class="fc" id="L801">    TypeElement typeElement = (TypeElement) declaredType.asElement();</span>
+<span class="fc" id="L802">    String qualifiedName = typeElement.getQualifiedName().toString();</span>
+
+    // Check for Optional types
+<span class="fc bfc" id="L805" title="All 2 branches covered.">    if (OPTIONAL_TYPES.contains(qualifiedName)) {</span>
+<span class="fc" id="L806">      List&lt;WideningStep&gt; steps = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L807">      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);</span>
+<span class="fc" id="L808">      steps.add(new WideningStep(WideningType.OPTIONAL, null, null, innerTypeMirror));</span>
+<span class="pc bpc" id="L809" title="1 of 2 branches missed.">      if (innerTypeMirror != null) {</span>
+<span class="fc" id="L810">        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));</span>
+      }
+<span class="fc" id="L812">      return steps;</span>
+    }
+
+    // Check for Collection types
+<span class="fc bfc" id="L816" title="All 2 branches covered.">    if (COLLECTION_TYPES.contains(qualifiedName)) {</span>
+<span class="fc" id="L817">      List&lt;WideningStep&gt; steps = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L818">      TypeMirror innerTypeMirror = getFirstTypeArgument(declaredType);</span>
+<span class="fc" id="L819">      steps.add(new WideningStep(WideningType.COLLECTION, null, null, innerTypeMirror));</span>
+<span class="pc bpc" id="L820" title="1 of 2 branches missed.">      if (innerTypeMirror != null) {</span>
+<span class="fc" id="L821">        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));</span>
+      }
+<span class="fc" id="L823">      return steps;</span>
+    }
+
+    // Check for SPI types
+<span class="fc" id="L827">    TraversableGenerator gen = findSpiGenerator(type, null);</span>
+<span class="pc bpc" id="L828" title="1 of 4 branches missed.">    if (gen != null &amp;&amp; gen.getCardinality() == Cardinality.ZERO_OR_ONE) {</span>
+<span class="fc" id="L829">      List&lt;WideningStep&gt; steps = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L830">      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, gen.getFocusTypeArgumentIndex());</span>
+<span class="fc" id="L831">      steps.add(new WideningStep(WideningType.SPI_ZERO_OR_ONE, null, gen, innerTypeMirror));</span>
+<span class="pc bpc" id="L832" title="1 of 2 branches missed.">      if (innerTypeMirror != null) {</span>
+<span class="fc" id="L833">        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));</span>
+      }
+<span class="fc" id="L835">      return steps;</span>
+    }
+<span class="pc bpc" id="L837" title="3 of 6 branches missed.">    if (widenCollections &amp;&amp; gen != null &amp;&amp; gen.getCardinality() == Cardinality.ZERO_OR_MORE) {</span>
+<span class="nc" id="L838">      List&lt;WideningStep&gt; steps = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L839">      TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, gen.getFocusTypeArgumentIndex());</span>
+<span class="nc" id="L840">      steps.add(new WideningStep(WideningType.SPI_ZERO_OR_MORE, null, gen, innerTypeMirror));</span>
+<span class="nc bnc" id="L841" title="All 2 branches missed.">      if (innerTypeMirror != null) {</span>
+<span class="nc" id="L842">        steps.addAll(analyseNestedType(innerTypeMirror, widenCollections, depth + 1));</span>
+      }
+<span class="nc" id="L844">      return steps;</span>
+    }
+
+<span class="fc" id="L847">    return List.of();</span>
+  }
+
+  /**
+   * Computes the final path class by composing the widening lattice across a chain.
+   *
+   * &lt;p&gt;The widening lattice: Focus + Affine = Affine, Focus + Traversal = Traversal, Affine +
+   * Traversal = Traversal.
+   */
+  private ClassName computeComposedPathClass(List&lt;WideningStep&gt; chain) {
+<span class="fc" id="L857">    boolean hasTraversal = false;</span>
+<span class="fc" id="L858">    boolean hasAffine = false;</span>
+<span class="fc bfc" id="L859" title="All 2 branches covered.">    for (WideningStep step : chain) {</span>
+<span class="pc bpc" id="L860" title="1 of 3 branches missed.">      switch (step.type()) {</span>
+<span class="fc" id="L861">        case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -&gt; hasTraversal = true;</span>
+        case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -&gt;
+<span class="fc" id="L863">            hasAffine = true;</span>
+        default -&gt; {}
+      }
+<span class="fc" id="L866">    }</span>
+<span class="fc bfc" id="L867" title="All 2 branches covered.">    if (hasTraversal) return TRAVERSAL_PATH_CLASS;</span>
+<span class="pc bpc" id="L868" title="1 of 2 branches missed.">    if (hasAffine) return AFFINE_PATH_CLASS;</span>
+<span class="nc" id="L869">    return FOCUS_PATH_CLASS;</span>
+  }
+
+  /**
+   * Resolves the deepest inner type by walking through the nested container chain.
+   *
+   * @param typeMirror the type at the current nesting level
+   * @param chain the remaining widening steps
+   * @return the innermost type name
+   */
+  private TypeName resolveDeepInnerType(TypeMirror typeMirror, List&lt;WideningStep&gt; chain) {
+<span class="pc bpc" id="L880" title="2 of 4 branches missed.">    if (chain.isEmpty() || typeMirror.getKind() != TypeKind.DECLARED) {</span>
+<span class="nc" id="L881">      return TypeName.get(typeMirror).box();</span>
+    }
+
+<span class="fc" id="L884">    DeclaredType declaredType = (DeclaredType) typeMirror;</span>
+<span class="fc" id="L885">    WideningStep step = chain.getFirst();</span>
+
+<span class="fc" id="L887">    int typeArgIndex = 0;</span>
+<span class="fc bfc" id="L888" title="All 2 branches covered.">    if (step.spiGenerator() != null) {</span>
+<span class="fc" id="L889">      typeArgIndex = step.spiGenerator().getFocusTypeArgumentIndex();</span>
+    }
+
+<span class="fc" id="L892">    TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);</span>
+<span class="pc bpc" id="L893" title="1 of 2 branches missed.">    if (innerTypeMirror == null) {</span>
+<span class="nc" id="L894">      return ClassName.get(Object.class);</span>
+    }
+
+<span class="fc bfc" id="L897" title="All 2 branches covered.">    if (chain.size() == 1) {</span>
+      // Resolve wildcard bounds on the innermost type
+<span class="fc" id="L899">      TypeMirror resolved = ProcessorUtils.resolveWildcard(innerTypeMirror);</span>
+<span class="pc bpc" id="L900" title="1 of 2 branches missed.">      return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);</span>
+    }
+
+<span class="fc" id="L903">    return resolveDeepInnerType(innerTypeMirror, chain.subList(1, chain.size()));</span>
+  }
+
+  /** Gets the first type argument of a declared type, or null if none. */
+  private TypeMirror getFirstTypeArgument(DeclaredType declaredType) {
+<span class="fc" id="L908">    return getTypeArgumentAt(declaredType, 0);</span>
+  }
+
+  /** Gets the type argument at the given index, or null if out of bounds. */
+  private TypeMirror getTypeArgumentAt(DeclaredType declaredType, int index) {
+<span class="fc" id="L913">    List&lt;? extends TypeMirror&gt; args = declaredType.getTypeArguments();</span>
+<span class="pc bpc" id="L914" title="1 of 4 branches missed.">    if (args.isEmpty() || index &gt;= args.size()) {</span>
+<span class="fc" id="L915">      return null;</span>
+    }
+<span class="fc" id="L917">    TypeMirror arg = args.get(index);</span>
+    // Resolve wildcard bounds
+<span class="fc" id="L919">    TypeMirror resolved = ProcessorUtils.resolveWildcard(arg);</span>
+<span class="fc bfc" id="L920" title="All 2 branches covered.">    return resolved != null ? resolved : null;</span>
+  }
+
+  /** Extracts the first type argument from a parameterised type. */
+  private TypeName extractTypeArgument(DeclaredType declaredType) {
+<span class="fc" id="L925">    return extractTypeArgumentAt(declaredType, 0);</span>
+  }
+
+  /** Extracts the type argument at the given index from a parameterised type. */
+  private TypeName extractTypeArgumentAt(DeclaredType declaredType, int index) {
+<span class="fc" id="L930">    List&lt;? extends TypeMirror&gt; typeArgs = declaredType.getTypeArguments();</span>
+<span class="pc bpc" id="L931" title="1 of 4 branches missed.">    if (typeArgs.isEmpty() || index &gt;= typeArgs.size()) {</span>
+<span class="fc" id="L932">      return ClassName.get(Object.class);</span>
+    }
+<span class="fc" id="L934">    TypeMirror typeArg = typeArgs.get(index);</span>
+    // Resolve wildcard bounds: ? extends T → T, ? super T / ? → Object
+<span class="fc" id="L936">    TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArg);</span>
+<span class="fc bfc" id="L937" title="All 2 branches covered.">    if (resolved == null) {</span>
+<span class="fc" id="L938">      return ClassName.get(Object.class);</span>
+    }
+<span class="fc" id="L940">    return TypeName.get(resolved).box();</span>
+  }
+
+  /** Gets the path class description for Javadoc. */
+  private String getPathDescription(PathTypeInfo info) {
+<span class="fc bfc" id="L945" title="All 2 branches covered.">    if (info.wideningType == WideningType.NESTED) {</span>
+<span class="fc" id="L946">      ClassName pathClass = info.pathClass();</span>
+<span class="fc bfc" id="L947" title="All 2 branches covered.">      if (pathClass.equals(TRAVERSAL_PATH_CLASS)) return &quot;TraversalPath&quot;;</span>
+<span class="pc bpc" id="L948" title="1 of 2 branches missed.">      if (pathClass.equals(AFFINE_PATH_CLASS)) return &quot;AffinePath&quot;;</span>
+<span class="nc" id="L949">      return &quot;FocusPath&quot;;</span>
+    }
+<span class="pc bpc" id="L951" title="1 of 4 branches missed.">    return switch (info.wideningType) {</span>
+<span class="fc" id="L952">      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -&gt; &quot;AffinePath&quot;;</span>
+<span class="fc" id="L953">      case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -&gt; &quot;TraversalPath&quot;;</span>
+<span class="fc" id="L954">      case NONE -&gt; &quot;FocusPath&quot;;</span>
+<span class="nc" id="L955">      case NESTED -&gt; &quot;FocusPath&quot;; // handled above, unreachable</span>
+    };
+  }
+
+  /** Gets the appropriate get method name for Javadoc examples. */
+  private String getPathGetMethod(PathTypeInfo info) {
+<span class="fc bfc" id="L961" title="All 2 branches covered.">    if (info.wideningType == WideningType.NESTED) {</span>
+<span class="fc" id="L962">      ClassName pathClass = info.pathClass();</span>
+<span class="fc bfc" id="L963" title="All 2 branches covered.">      if (pathClass.equals(TRAVERSAL_PATH_CLASS)) return &quot;getAll&quot;;</span>
+<span class="pc bpc" id="L964" title="1 of 2 branches missed.">      if (pathClass.equals(AFFINE_PATH_CLASS)) return &quot;getOptional&quot;;</span>
+<span class="nc" id="L965">      return &quot;get&quot;;</span>
+    }
+<span class="pc bpc" id="L967" title="1 of 4 branches missed.">    return switch (info.wideningType) {</span>
+<span class="fc" id="L968">      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE, SPI_ZERO_OR_ONE -&gt; &quot;getOptional&quot;;</span>
+<span class="fc" id="L969">      case COLLECTION, KIND_ZERO_OR_MORE, SPI_ZERO_OR_MORE -&gt; &quot;getAll&quot;;</span>
+<span class="fc" id="L970">      case NONE -&gt; &quot;get&quot;;</span>
+<span class="nc" id="L971">      case NESTED -&gt; &quot;get&quot;; // handled above, unreachable</span>
+    };
+  }
+
+  private void error(String msg, Element e) {
+<span class="fc" id="L976">    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span>
+<span class="fc" id="L977">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

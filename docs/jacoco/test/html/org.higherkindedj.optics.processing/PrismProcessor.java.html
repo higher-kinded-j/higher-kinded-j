@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PrismProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing</a> &gt; <span class="el_source">PrismProcessor.java</span></div><h1>PrismProcessor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing;
+
+import com.google.auto.service.AutoService;
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.JavaFile;
+import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.ParameterizedTypeName;
+import com.palantir.javapoet.TypeSpec;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.tools.Diagnostic;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.annotations.GeneratePrisms;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
+
+/**
+ * An annotation processor that generates a companion 'Prisms' class for any sealed interface or
+ * enum annotated with {@link GeneratePrisms}.
+ *
+ * &lt;p&gt;For a sealed interface {@code Shape} with implementations {@code Circle} and {@code Square},
+ * this processor will generate a final class {@code ShapePrisms} containing static factory methods
+ * to create a {@link Prism} for each subtype (e.g., {@code ShapePrisms.circle()}, {@code
+ * ShapePrisms.square()}).
+ */
+@AutoService(Processor.class)
+@SupportedAnnotationTypes(&quot;org.higherkindedj.optics.annotations.GeneratePrisms&quot;)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class PrismProcessor extends AbstractProcessor {
+
+  /** Creates a new PrismProcessor. */
+<span class="fc" id="L47">  public PrismProcessor() {}</span>
+
+  /**
+   * {@inheritDoc}
+   *
+   * &lt;p&gt;This implementation scans for types annotated with {@link GeneratePrisms}, validates that
+   * they are sealed interfaces or enums, and triggers the generation of the corresponding prisms
+   * companion class.
+   */
+  @Override
+  public boolean process(Set&lt;? extends TypeElement&gt; annotations, RoundEnvironment roundEnv) {
+<span class="fc bfc" id="L58" title="All 2 branches covered.">    for (TypeElement annotation : annotations) {</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">      for (Element element : roundEnv.getElementsAnnotatedWith(annotation)) {</span>
+<span class="fc bfc" id="L60" title="All 4 branches covered.">        if (element.getKind() != ElementKind.INTERFACE &amp;&amp; element.getKind() != ElementKind.ENUM) {</span>
+<span class="fc" id="L61">          error(</span>
+              &quot;The @GeneratePrisms annotation can only be applied to sealed interfaces or enums.&quot;,
+              element);
+<span class="fc" id="L64">          continue;</span>
+        }
+        try {
+<span class="fc" id="L67">          generatePrismsFile((TypeElement) element);</span>
+<span class="nc" id="L68">        } catch (IOException e) {</span>
+<span class="nc" id="L69">          error(&quot;Could not generate prisms file: &quot; + e.getMessage(), element);</span>
+<span class="fc" id="L70">        }</span>
+<span class="fc" id="L71">      }</span>
+<span class="fc" id="L72">    }</span>
+<span class="fc" id="L73">    return true;</span>
+  }
+
+  /**
+   * Generates the complete '...Prisms' companion class file for a given sum type.
+   *
+   * @param sumTypeElement The {@link TypeElement} representing the sealed interface or enum.
+   * @throws IOException if the generated file cannot be written.
+   */
+  private void generatePrismsFile(TypeElement sumTypeElement) throws IOException {
+<span class="fc" id="L83">    String sumTypeName = sumTypeElement.getSimpleName().toString();</span>
+<span class="fc" id="L84">    String defaultPackage =</span>
+<span class="fc" id="L85">        processingEnv.getElementUtils().getPackageOf(sumTypeElement).getQualifiedName().toString();</span>
+
+    // Check for custom target package in annotation
+<span class="fc" id="L88">    GeneratePrisms annotation = sumTypeElement.getAnnotation(GeneratePrisms.class);</span>
+<span class="fc" id="L89">    String targetPackage = annotation.targetPackage();</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span>
+
+<span class="fc" id="L92">    String prismsClassName = sumTypeName + &quot;Prisms&quot;;</span>
+
+    // Define the ClassName for your custom @Generated annotation
+<span class="fc" id="L95">    final ClassName generatedAnnotation =</span>
+<span class="fc" id="L96">        ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+
+<span class="fc" id="L98">    TypeSpec.Builder prismsClassBuilder =</span>
+<span class="fc" id="L99">        TypeSpec.classBuilder(prismsClassName)</span>
+            // Add the @Generated annotation to the class
+<span class="fc" id="L101">            .addAnnotation(generatedAnnotation)</span>
+<span class="fc" id="L102">            .addJavadoc(</span>
+<span class="fc" id="L103">                &quot;Generated optics for {@link $T}. Do not edit.&quot;, ClassName.get(sumTypeElement))</span>
+<span class="fc" id="L104">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)</span>
+<span class="fc" id="L105">            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());</span>
+
+    // Handle Sealed Interfaces
+<span class="fc bfc" id="L108" title="All 2 branches covered.">    if (sumTypeElement.getModifiers().contains(Modifier.SEALED)) {</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">      for (var permittedSubclass : sumTypeElement.getPermittedSubclasses()) {</span>
+<span class="fc" id="L110">        var subtypeElement =</span>
+<span class="fc" id="L111">            (TypeElement) processingEnv.getTypeUtils().asElement(permittedSubclass);</span>
+<span class="fc" id="L112">        prismsClassBuilder.addMethod(createPrismMethodForSubtype(sumTypeElement, subtypeElement));</span>
+<span class="fc" id="L113">      }</span>
+    }
+    // Handle Enums
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">    else if (sumTypeElement.getKind() == ElementKind.ENUM) {</span>
+<span class="fc" id="L117">      List&lt;VariableElement&gt; enumConstants =</span>
+<span class="fc" id="L118">          sumTypeElement.getEnclosedElements().stream()</span>
+<span class="fc bfc" id="L119" title="All 2 branches covered.">              .filter(e -&gt; e.getKind() == ElementKind.ENUM_CONSTANT)</span>
+<span class="fc" id="L120">              .map(VariableElement.class::cast)</span>
+<span class="fc" id="L121">              .collect(Collectors.toList());</span>
+
+<span class="fc bfc" id="L123" title="All 2 branches covered.">      for (VariableElement enumConstant : enumConstants) {</span>
+<span class="fc" id="L124">        prismsClassBuilder.addMethod(createPrismMethodForEnum(sumTypeElement, enumConstant));</span>
+<span class="fc" id="L125">      }</span>
+    }
+
+<span class="fc" id="L128">    JavaFile.builder(packageName, prismsClassBuilder.build())</span>
+<span class="fc" id="L129">        .addFileComment(&quot;Generated by hkj-optics-processor. Do not edit.&quot;)</span>
+<span class="fc" id="L130">        .build()</span>
+<span class="fc" id="L131">        .writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L132">  }</span>
+
+  /**
+   * Creates the {@link MethodSpec} for a static factory method that generates a {@link Prism} for a
+   * specific subtype of a sealed interface.
+   *
+   * @param sumType The parent sealed interface element.
+   * @param subtype The specific permitted subclass to create the prism for.
+   * @return A complete {@code MethodSpec} for the prism factory method.
+   */
+  private MethodSpec createPrismMethodForSubtype(TypeElement sumType, TypeElement subtype) {
+<span class="fc" id="L143">    String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());</span>
+<span class="fc" id="L144">    ClassName sumTypeName = ClassName.get(sumType);</span>
+<span class="fc" id="L145">    ClassName subTypeName = ClassName.get(subtype);</span>
+
+<span class="fc" id="L147">    ParameterizedTypeName prismTypeName =</span>
+<span class="fc" id="L148">        ParameterizedTypeName.get(ClassName.get(Prism.class), sumTypeName, subTypeName);</span>
+
+<span class="fc" id="L150">    return MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L151">        .addJavadoc(</span>
+            &quot;Creates a {@link $T} that focuses on the {@link $T} subtype of the {@link $T} sum&quot;
+                + &quot; type.\n\n&quot;
+                + &quot;@return A non-null {@code Prism&lt;$T, $T&gt;}.&quot;,
+            Prism.class,
+            subTypeName,
+            sumTypeName,
+            sumTypeName,
+            subTypeName)
+<span class="fc" id="L160">        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L161">        .returns(prismTypeName)</span>
+<span class="fc" id="L162">        .addStatement(</span>
+            &quot;return $T.of(source -&gt; source instanceof $T ? $T.of(($T) source) : $T.empty(), value&quot;
+                + &quot; -&gt; value)&quot;,
+            Prism.class,
+            subTypeName,
+            Optional.class,
+            subTypeName,
+            Optional.class)
+<span class="fc" id="L170">        .build();</span>
+  }
+
+  /**
+   * Creates the {@link MethodSpec} for a static factory method that generates a {@link Prism} for a
+   * specific enum constant.
+   *
+   * @param enumType The parent enum element.
+   * @param enumConstant The specific enum constant to create the prism for.
+   * @return A complete {@code MethodSpec} for the prism factory method.
+   */
+  private MethodSpec createPrismMethodForEnum(TypeElement enumType, VariableElement enumConstant) {
+<span class="fc" id="L182">    String methodName = ProcessorUtils.toCamelCase(enumConstant.getSimpleName().toString());</span>
+<span class="fc" id="L183">    ClassName enumClassName = ClassName.get(enumType);</span>
+
+<span class="fc" id="L185">    ParameterizedTypeName prismTypeName =</span>
+<span class="fc" id="L186">        ParameterizedTypeName.get(ClassName.get(Prism.class), enumClassName, enumClassName);</span>
+
+<span class="fc" id="L188">    return MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L189">        .addJavadoc(</span>
+            &quot;Creates a {@link $T} that focuses on the {@code $L} constant of the {@link $T}&quot;
+                + &quot; enum.\n\n&quot;
+                + &quot;@return A non-null {@code Prism&lt;$T, $T&gt;}.&quot;,
+            Prism.class,
+<span class="fc" id="L194">            enumConstant.getSimpleName(),</span>
+            enumClassName,
+            enumClassName,
+            enumClassName)
+<span class="fc" id="L198">        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)</span>
+<span class="fc" id="L199">        .returns(prismTypeName)</span>
+<span class="fc" id="L200">        .addStatement(</span>
+            &quot;return $T.of(source -&gt; source == $T.$L ? $T.of(source) : $T.empty(), value -&gt; value)&quot;,
+            Prism.class,
+            enumClassName,
+<span class="fc" id="L204">            enumConstant.getSimpleName(),</span>
+            Optional.class,
+            Optional.class)
+<span class="fc" id="L207">        .build();</span>
+  }
+
+  /**
+   * A utility method for reporting a processing error linked to a specific code element.
+   *
+   * @param msg The error message to report.
+   * @param e The element to which the error should be attached.
+   */
+  private void error(String msg, Element e) {
+<span class="fc" id="L217">    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);</span>
+<span class="fc" id="L218">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

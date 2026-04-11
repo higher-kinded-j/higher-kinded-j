@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TraversalCodeGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.external</a> &gt; <span class="el_source">TraversalCodeGenerator.java</span></div><h1>TraversalCodeGenerator.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.external;
+
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.CodeBlock;
+import javax.lang.model.type.TypeMirror;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
+import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+
+/**
+ * Generates code for traversal optics based on traversal hint annotations.
+ *
+ * &lt;p&gt;This generator creates traversal code based on the specified hint:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code @TraverseWith} - uses an explicit traversal reference
+ *   &lt;li&gt;{@code @ThroughField} - composes a lens to a field with a traversal for the field's
+ *       container type
+ * &lt;/ul&gt;
+ */
+public class TraversalCodeGenerator {
+
+  /** Creates a new TraversalCodeGenerator. */
+<span class="fc" id="L25">  public TraversalCodeGenerator() {}</span>
+
+  // Standard traversal references - these must match actual method names in Traversals class
+  private static final String LIST_TRAVERSAL = &quot;org.higherkindedj.optics.util.Traversals.forList()&quot;;
+  private static final String SET_TRAVERSAL = &quot;org.higherkindedj.optics.util.Traversals.forSet()&quot;;
+  private static final String OPTIONAL_TRAVERSAL =
+      &quot;org.higherkindedj.optics.util.Traversals.forOptional()&quot;;
+  private static final String ARRAY_TRAVERSAL =
+      &quot;org.higherkindedj.optics.util.Traversals.forArray()&quot;;
+  private static final String MAP_VALUES_TRAVERSAL =
+      &quot;org.higherkindedj.optics.util.Traversals.forMapValues()&quot;;
+
+  /**
+   * Generates the traversal code block.
+   *
+   * @param hintKind the traversal hint kind
+   * @param info the parsed annotation values
+   * @param sourceType the source type S
+   * @param focusType the focus type A
+   * @param specClassName the name of the spec class (for field lens references)
+   * @return the generated code block for creating the traversal
+   */
+  public CodeBlock generateTraversalCode(
+      TraversalHintKind hintKind,
+      TraversalHintInfo info,
+      TypeMirror sourceType,
+      TypeMirror focusType,
+      String specClassName) {
+
+<span class="fc bfc" id="L54" title="All 3 branches covered.">    return switch (hintKind) {</span>
+<span class="fc" id="L55">      case TRAVERSE_WITH -&gt; generateTraverseWithCode(info);</span>
+<span class="fc" id="L56">      case THROUGH_FIELD -&gt; generateThroughFieldCode(info, specClassName);</span>
+<span class="fc" id="L57">      case NONE -&gt; throw new IllegalArgumentException(&quot;No traversal hint specified&quot;);</span>
+    };
+  }
+
+  /**
+   * Generates code using an explicit traversal reference.
+   *
+   * &lt;p&gt;Generated code: {@code org.higherkindedj.optics.Traversals.list()}
+   *
+   * @param info the @TraverseWith annotation values
+   * @return the code block
+   */
+  private CodeBlock generateTraverseWithCode(TraversalHintInfo info) {
+<span class="fc" id="L70">    String traversalReference = info.traversalReference();</span>
+
+    // Parse the reference to generate proper code
+    // The reference could be:
+    // - A method call: &quot;org.package.Class.method()&quot;
+    // - A field reference: &quot;org.package.Class.INSTANCE&quot;
+<span class="fc bfc" id="L76" title="All 2 branches covered.">    if (traversalReference.endsWith(&quot;()&quot;)) {</span>
+      // Method call
+<span class="fc" id="L78">      return CodeBlock.of(&quot;$L&quot;, traversalReference);</span>
+    } else {
+      // Field reference
+<span class="fc" id="L81">      return CodeBlock.of(&quot;$L&quot;, traversalReference);</span>
+    }
+  }
+
+  /**
+   * Generates code composing a field lens with a container traversal.
+   *
+   * &lt;p&gt;Generated code: {@code SpecClass.fieldName().andThen((Traversal) Traversals.forList())}
+   *
+   * &lt;p&gt;Note: The traversal is now auto-detected by {@code SpecInterfaceAnalyser} if not explicitly
+   * specified, so the traversal parameter should always be populated.
+   *
+   * &lt;p&gt;The unchecked cast is necessary because the lens may focus on a container subtype (e.g.,
+   * ArrayList) while the traversal is typed for the supertype (e.g., List). Java's invariant
+   * generics require this cast, but it's safe at runtime because subtypes can be traversed using
+   * the supertype's traversal.
+   *
+   * @param info the @ThroughField annotation values
+   * @param specClassName the name of the spec class
+   * @return the code block
+   */
+  private CodeBlock generateThroughFieldCode(TraversalHintInfo info, String specClassName) {
+<span class="fc" id="L103">    String fieldName = info.fieldName();</span>
+<span class="fc" id="L104">    String traversal = info.fieldTraversal();</span>
+
+    // Traversal should always be populated by SpecInterfaceAnalyser (either explicit or
+    // auto-detected)
+<span class="fc bfc" id="L108" title="All 2 branches covered.">    if (traversal.isEmpty()) {</span>
+<span class="fc" id="L109">      throw new IllegalStateException(</span>
+          &quot;Traversal not specified for @ThroughField(field = \&quot;&quot;
+              + fieldName
+              + &quot;\&quot;). &quot;
+              + &quot;This should have been auto-detected by SpecInterfaceAnalyser.&quot;);
+    }
+
+    // Use unchecked cast for container subtypes (e.g., ArrayList for List)
+<span class="fc" id="L117">    return CodeBlock.of(</span>
+        &quot;$L.$L().andThen(($T) $L)&quot;,
+        specClassName,
+        fieldName,
+<span class="fc" id="L121">        ClassName.get(&quot;org.higherkindedj.optics&quot;, &quot;Traversal&quot;),</span>
+        traversal);
+  }
+
+  /**
+   * Generates the return statement for a traversal method.
+   *
+   * @param hintKind the traversal hint kind
+   * @param info the parsed annotation values
+   * @param sourceType the source type S
+   * @param focusType the focus type A
+   * @param specClassName the name of the spec class
+   * @return the code block for the return statement
+   */
+  public CodeBlock generateTraversalReturnStatement(
+      TraversalHintKind hintKind,
+      TraversalHintInfo info,
+      TypeMirror sourceType,
+      TypeMirror focusType,
+      String specClassName) {
+
+<span class="fc" id="L142">    return CodeBlock.builder()</span>
+<span class="fc" id="L143">        .add(&quot;return &quot;)</span>
+<span class="fc" id="L144">        .add(generateTraversalCode(hintKind, info, sourceType, focusType, specClassName))</span>
+<span class="fc" id="L145">        .add(&quot;;&quot;)</span>
+<span class="fc" id="L146">        .build();</span>
+  }
+
+  /**
+   * Returns the standard traversal reference for a container type.
+   *
+   * @param containerKind the kind of container
+   * @return the traversal reference string
+   */
+  public String getStandardTraversal(ContainerType.Kind containerKind) {
+<span class="fc bfc" id="L156" title="All 5 branches covered.">    return switch (containerKind) {</span>
+<span class="fc" id="L157">      case LIST -&gt; LIST_TRAVERSAL;</span>
+<span class="fc" id="L158">      case SET -&gt; SET_TRAVERSAL;</span>
+<span class="fc" id="L159">      case OPTIONAL -&gt; OPTIONAL_TRAVERSAL;</span>
+<span class="fc" id="L160">      case ARRAY -&gt; ARRAY_TRAVERSAL;</span>
+<span class="fc" id="L161">      case MAP -&gt; MAP_VALUES_TRAVERSAL;</span>
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

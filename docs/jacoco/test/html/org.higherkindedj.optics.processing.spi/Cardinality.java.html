@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Cardinality.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.spi</a> &gt; <span class="el_source">Cardinality.java</span></div><h1>Cardinality.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.spi;
+
+/**
+ * Describes the cardinality of elements within a traversable container type.
+ *
+ * &lt;p&gt;This enum is used by {@link TraversableGenerator} implementations to indicate how many
+ * elements a container type can hold, which determines the appropriate path type used in the Focus
+ * DSL:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #ZERO_OR_ONE} → {@code AffinePath} (optional navigation)
+ *   &lt;li&gt;{@link #ZERO_OR_MORE} → {@code TraversalPath} (collection navigation)
+ * &lt;/ul&gt;
+ *
+ * @see TraversableGenerator#getCardinality()
+ * @since 0.3.8
+ */
+<span class="fc" id="L20">public enum Cardinality {</span>
+  /**
+   * The container holds zero or one element.
+   *
+   * &lt;p&gt;Examples: {@code Optional&lt;T&gt;}, {@code Maybe&lt;T&gt;}, {@code Either&lt;L, R&gt;}, {@code Try&lt;T&gt;},
+   * {@code Validated&lt;E, A&gt;}.
+   *
+   * &lt;p&gt;Maps to {@code AffinePath} in the Focus DSL.
+   */
+<span class="fc" id="L29">  ZERO_OR_ONE,</span>
+
+  /**
+   * The container holds zero or more elements.
+   *
+   * &lt;p&gt;Examples: {@code List&lt;T&gt;}, {@code Set&lt;T&gt;}, {@code Map&lt;K, V&gt;}, arrays, and third-party
+   * collection types from Eclipse Collections, Guava, Vavr, and Apache Commons.
+   *
+   * &lt;p&gt;Maps to {@code TraversalPath} in the Focus DSL.
+   */
+<span class="fc" id="L39">  ZERO_OR_MORE</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

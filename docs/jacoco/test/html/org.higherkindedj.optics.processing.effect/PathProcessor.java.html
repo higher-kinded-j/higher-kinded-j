@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PathProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-processor</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.processing.effect</a> &gt; <span class="el_source">PathProcessor.java</span></div><h1>PathProcessor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing.effect;
+
+import com.google.auto.service.AutoService;
+import com.palantir.javapoet.*;
+import java.io.IOException;
+import java.util.*;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
+import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+/**
+ * Annotation processor that generates Path bridge classes for service interfaces.
+ *
+ * &lt;p&gt;This processor handles {@link GeneratePathBridge} annotations on interfaces and generates
+ * companion classes that wrap service methods returning effect types (Optional, Either, Try, etc.)
+ * into corresponding Path types.
+ *
+ * &lt;h2&gt;Generated Code Structure&lt;/h2&gt;
+ *
+ * &lt;p&gt;For an interface {@code UserService}, the processor generates {@code UserServicePaths} with:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;A constructor taking the delegate interface
+ *   &lt;li&gt;Methods for each {@link PathVia}-annotated method, returning the appropriate Path type
+ * &lt;/ul&gt;
+ *
+ * @see GeneratePathBridge
+ * @see PathVia
+ */
+@AutoService(Processor.class)
+@SupportedAnnotationTypes(&quot;org.higherkindedj.hkt.effect.annotation.GeneratePathBridge&quot;)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
+public class PathProcessor extends AbstractProcessor {
+
+  /** Creates a new PathProcessor. */
+<span class="fc" id="L47">  public PathProcessor() {}</span>
+
+<span class="fc" id="L49">  private static final ClassName OBJECTS = ClassName.get(&quot;java.util&quot;, &quot;Objects&quot;);</span>
+<span class="fc" id="L50">  private static final ClassName PATH = ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;Path&quot;);</span>
+<span class="fc" id="L51">  private static final ClassName SEMIGROUP = ClassName.get(&quot;org.higherkindedj.hkt&quot;, &quot;Semigroup&quot;);</span>
+<span class="fc" id="L52">  private static final ClassName GENERATED =</span>
+<span class="fc" id="L53">      ClassName.get(&quot;org.higherkindedj.optics.annotations&quot;, &quot;Generated&quot;);</span>
+
+  // Path type class names
+<span class="fc" id="L56">  private static final ClassName MAYBE_PATH =</span>
+<span class="fc" id="L57">      ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;MaybePath&quot;);</span>
+<span class="fc" id="L58">  private static final ClassName EITHER_PATH =</span>
+<span class="fc" id="L59">      ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;EitherPath&quot;);</span>
+<span class="fc" id="L60">  private static final ClassName TRY_PATH =</span>
+<span class="fc" id="L61">      ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;TryPath&quot;);</span>
+<span class="fc" id="L62">  private static final ClassName VALIDATION_PATH =</span>
+<span class="fc" id="L63">      ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;ValidationPath&quot;);</span>
+<span class="fc" id="L64">  private static final ClassName OPTIONAL_PATH =</span>
+<span class="fc" id="L65">      ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;OptionalPath&quot;);</span>
+<span class="fc" id="L66">  private static final ClassName IO_PATH = ClassName.get(&quot;org.higherkindedj.hkt.effect&quot;, &quot;IOPath&quot;);</span>
+
+  @Override
+  public boolean process(Set&lt;? extends TypeElement&gt; annotations, RoundEnvironment roundEnv) {
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    for (TypeElement annotation : annotations) {</span>
+<span class="fc" id="L71">      Set&lt;? extends Element&gt; annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">      for (Element element : annotatedElements) {</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (element.getKind() != ElementKind.INTERFACE) {</span>
+<span class="fc" id="L74">          error(&quot;@GeneratePathBridge can only be applied to interfaces.&quot;, element);</span>
+<span class="fc" id="L75">          continue;</span>
+        }
+        try {
+<span class="fc" id="L78">          generateBridgeClass((TypeElement) element);</span>
+<span class="nc" id="L79">        } catch (IOException e) {</span>
+<span class="nc" id="L80">          error(&quot;Could not generate Path bridge class: &quot; + e.getMessage(), element);</span>
+<span class="fc" id="L81">        }</span>
+<span class="fc" id="L82">      }</span>
+<span class="fc" id="L83">    }</span>
+<span class="fc" id="L84">    return true;</span>
+  }
+
+  private void generateBridgeClass(TypeElement interfaceElement) throws IOException {
+<span class="fc" id="L88">    String interfaceName = interfaceElement.getSimpleName().toString();</span>
+<span class="fc" id="L89">    String defaultPackage =</span>
+        processingEnv
+<span class="fc" id="L91">            .getElementUtils()</span>
+<span class="fc" id="L92">            .getPackageOf(interfaceElement)</span>
+<span class="fc" id="L93">            .getQualifiedName()</span>
+<span class="fc" id="L94">            .toString();</span>
+
+<span class="fc" id="L96">    GeneratePathBridge annotation = interfaceElement.getAnnotation(GeneratePathBridge.class);</span>
+<span class="fc" id="L97">    String targetPackage = annotation.targetPackage();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;</span>
+<span class="fc" id="L99">    String suffix = annotation.suffix();</span>
+<span class="fc" id="L100">    String bridgeClassName = interfaceName + suffix;</span>
+
+<span class="fc" id="L102">    ClassName interfaceClassName = ClassName.get(interfaceElement);</span>
+
+    // Build the bridge class
+<span class="fc" id="L105">    TypeSpec.Builder classBuilder =</span>
+<span class="fc" id="L106">        TypeSpec.classBuilder(bridgeClassName)</span>
+<span class="fc" id="L107">            .addAnnotation(GENERATED)</span>
+<span class="fc" id="L108">            .addJavadoc(</span>
+                &quot;Generated Path bridge for {@link $T}.\n\n&lt;p&gt;Do not edit.\n&quot;, interfaceClassName)
+<span class="fc" id="L110">            .addModifiers(Modifier.PUBLIC, Modifier.FINAL);</span>
+
+    // Add delegate field
+<span class="fc" id="L113">    classBuilder.addField(</span>
+<span class="fc" id="L114">        FieldSpec.builder(interfaceClassName, &quot;delegate&quot;, Modifier.PRIVATE, Modifier.FINAL)</span>
+<span class="fc" id="L115">            .build());</span>
+
+    // Add constructor
+<span class="fc" id="L118">    classBuilder.addMethod(</span>
+<span class="fc" id="L119">        MethodSpec.constructorBuilder()</span>
+<span class="fc" id="L120">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L121">            .addParameter(interfaceClassName, &quot;delegate&quot;)</span>
+<span class="fc" id="L122">            .addJavadoc(</span>
+                &quot;Creates a new Path bridge wrapping the given delegate.\n\n&quot;
+                    + &quot;@param delegate the service to wrap; must not be null\n&quot;)
+<span class="fc" id="L125">            .addStatement(</span>
+                &quot;this.delegate = $T.requireNonNull(delegate, $S)&quot;,
+                OBJECTS,
+                &quot;delegate must not be null&quot;)
+<span class="fc" id="L129">            .build());</span>
+
+    // Process @PathVia methods
+<span class="fc bfc" id="L132" title="All 2 branches covered.">    for (Element enclosed : interfaceElement.getEnclosedElements()) {</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">      if (enclosed.getKind() == ElementKind.METHOD) {</span>
+<span class="fc" id="L134">        ExecutableElement method = (ExecutableElement) enclosed;</span>
+<span class="fc" id="L135">        PathVia pathVia = method.getAnnotation(PathVia.class);</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        if (pathVia != null) {</span>
+<span class="fc" id="L137">          MethodSpec bridgeMethod = createBridgeMethod(method, pathVia);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">          if (bridgeMethod != null) {</span>
+<span class="fc" id="L139">            classBuilder.addMethod(bridgeMethod);</span>
+          }
+        }
+      }
+<span class="fc" id="L143">    }</span>
+
+    // Write the file
+<span class="fc" id="L146">    JavaFile javaFile =</span>
+<span class="fc" id="L147">        JavaFile.builder(packageName, classBuilder.build())</span>
+<span class="fc" id="L148">            .addFileComment(&quot;Generated by PathProcessor. Do not edit.&quot;)</span>
+<span class="fc" id="L149">            .build();</span>
+
+<span class="fc" id="L151">    javaFile.writeTo(processingEnv.getFiler());</span>
+<span class="fc" id="L152">  }</span>
+
+  private MethodSpec createBridgeMethod(ExecutableElement method, PathVia pathVia) {
+    String methodName =
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        pathVia.name().isEmpty() ? method.getSimpleName().toString() : pathVia.name();</span>
+<span class="fc" id="L157">    String doc = pathVia.doc();</span>
+
+<span class="fc" id="L159">    TypeMirror returnType = method.getReturnType();</span>
+<span class="fc" id="L160">    PathTypeMapping mapping = determinePathType(returnType);</span>
+
+<span class="fc bfc" id="L162" title="All 2 branches covered.">    if (mapping == null) {</span>
+<span class="fc" id="L163">      error(</span>
+          &quot;Unsupported return type for @PathVia: &quot;
+              + returnType
+              + &quot;. Supported types: Optional, Maybe, Either, Try, Validated, IO.&quot;,
+          method);
+<span class="fc" id="L168">      return null;</span>
+    }
+
+<span class="fc" id="L171">    MethodSpec.Builder methodBuilder =</span>
+<span class="fc" id="L172">        MethodSpec.methodBuilder(methodName)</span>
+<span class="fc" id="L173">            .addModifiers(Modifier.PUBLIC)</span>
+<span class="fc" id="L174">            .returns(mapping.pathType());</span>
+
+    // Add documentation
+<span class="fc bfc" id="L177" title="All 2 branches covered.">    if (!doc.isEmpty()) {</span>
+<span class="fc" id="L178">      methodBuilder.addJavadoc(&quot;$L\n\n&quot;, doc);</span>
+    }
+<span class="fc" id="L180">    methodBuilder.addJavadoc(</span>
+        &quot;@return Path-wrapped result from {@link $L#$L}\n&quot;,
+<span class="fc" id="L182">        method.getEnclosingElement().getSimpleName(),</span>
+<span class="fc" id="L183">        method.getSimpleName());</span>
+
+    // Copy parameters
+<span class="fc" id="L186">    List&lt;String&gt; paramNames = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">    for (VariableElement param : method.getParameters()) {</span>
+<span class="fc" id="L188">      String paramName = param.getSimpleName().toString();</span>
+<span class="fc" id="L189">      paramNames.add(paramName);</span>
+<span class="fc" id="L190">      methodBuilder.addParameter(TypeName.get(param.asType()), paramName);</span>
+<span class="fc" id="L191">    }</span>
+
+    // Add Semigroup parameter for Validated types
+<span class="fc bfc" id="L194" title="All 2 branches covered.">    if (mapping.requiresSemigroup()) {</span>
+<span class="fc" id="L195">      methodBuilder.addParameter(</span>
+<span class="fc" id="L196">          ParameterizedTypeName.get(SEMIGROUP, mapping.errorType()), &quot;semigroup&quot;);</span>
+<span class="fc" id="L197">      paramNames.add(&quot;semigroup&quot;);</span>
+    }
+
+    // Build the method body
+<span class="fc" id="L201">    String delegateCall =</span>
+        &quot;delegate.&quot;
+<span class="fc" id="L203">            + method.getSimpleName()</span>
+            + &quot;(&quot;
+<span class="fc" id="L205">            + String.join(&quot;, &quot;, paramNames.subList(0, method.getParameters().size()))</span>
+            + &quot;)&quot;;
+
+<span class="fc bfc" id="L208" title="All 2 branches covered.">    if (mapping.requiresSemigroup()) {</span>
+<span class="fc" id="L209">      methodBuilder.addStatement(</span>
+<span class="fc" id="L210">          &quot;return $T.$L($L, semigroup)&quot;, PATH, mapping.factoryMethod(), delegateCall);</span>
+    } else {
+<span class="fc" id="L212">      methodBuilder.addStatement(&quot;return $T.$L($L)&quot;, PATH, mapping.factoryMethod(), delegateCall);</span>
+    }
+
+<span class="fc" id="L215">    return methodBuilder.build();</span>
+  }
+
+  private PathTypeMapping determinePathType(TypeMirror returnType) {
+<span class="pc bpc" id="L219" title="1 of 2 branches missed.">    if (!(returnType instanceof DeclaredType declaredType)) {</span>
+<span class="nc" id="L220">      return null;</span>
+    }
+
+<span class="fc" id="L223">    Element typeElement = declaredType.asElement();</span>
+<span class="fc" id="L224">    String typeName = typeElement.getSimpleName().toString();</span>
+    String qualifiedName =
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">        typeElement instanceof TypeElement te ? te.getQualifiedName().toString() : typeName;</span>
+
+<span class="fc" id="L228">    List&lt;? extends TypeMirror&gt; typeArgs = declaredType.getTypeArguments();</span>
+
+<span class="fc bfc" id="L230" title="All 7 branches covered.">    return switch (qualifiedName) {</span>
+      case &quot;java.util.Optional&quot; -&gt; {
+        TypeName valueType =
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span>
+<span class="fc" id="L234">        yield new PathTypeMapping(</span>
+<span class="fc" id="L235">            ParameterizedTypeName.get(OPTIONAL_PATH, valueType), &quot;optional&quot;, false, null);</span>
+      }
+      case &quot;org.higherkindedj.hkt.maybe.Maybe&quot; -&gt; {
+        TypeName valueType =
+<span class="pc bpc" id="L239" title="1 of 2 branches missed.">            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span>
+<span class="fc" id="L240">        yield new PathTypeMapping(</span>
+<span class="fc" id="L241">            ParameterizedTypeName.get(MAYBE_PATH, valueType), &quot;maybe&quot;, false, null);</span>
+      }
+      case &quot;org.higherkindedj.hkt.either.Either&quot; -&gt; {
+        TypeName errorType =
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">            typeArgs.size() &gt;= 1 ? TypeName.get(typeArgs.get(0)) : ClassName.get(Object.class);</span>
+        TypeName valueType =
+<span class="pc bpc" id="L247" title="1 of 2 branches missed.">            typeArgs.size() &gt;= 2 ? TypeName.get(typeArgs.get(1)) : ClassName.get(Object.class);</span>
+<span class="fc" id="L248">        yield new PathTypeMapping(</span>
+<span class="fc" id="L249">            ParameterizedTypeName.get(EITHER_PATH, errorType, valueType), &quot;either&quot;, false, null);</span>
+      }
+      case &quot;org.higherkindedj.hkt.trymonad.Try&quot; -&gt; {
+        TypeName valueType =
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span>
+<span class="fc" id="L254">        yield new PathTypeMapping(</span>
+<span class="fc" id="L255">            ParameterizedTypeName.get(TRY_PATH, valueType), &quot;tryPath&quot;, false, null);</span>
+      }
+      case &quot;org.higherkindedj.hkt.validated.Validated&quot; -&gt; {
+        TypeName errorType =
+<span class="pc bpc" id="L259" title="1 of 2 branches missed.">            typeArgs.size() &gt;= 1 ? TypeName.get(typeArgs.get(0)) : ClassName.get(Object.class);</span>
+        TypeName valueType =
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">            typeArgs.size() &gt;= 2 ? TypeName.get(typeArgs.get(1)) : ClassName.get(Object.class);</span>
+<span class="fc" id="L262">        yield new PathTypeMapping(</span>
+<span class="fc" id="L263">            ParameterizedTypeName.get(VALIDATION_PATH, errorType, valueType),</span>
+            &quot;validated&quot;,
+            true,
+            errorType);
+      }
+      case &quot;org.higherkindedj.hkt.io.IO&quot; -&gt; {
+        TypeName valueType =
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">            typeArgs.isEmpty() ? ClassName.get(Object.class) : TypeName.get(typeArgs.get(0));</span>
+<span class="fc" id="L271">        yield new PathTypeMapping(ParameterizedTypeName.get(IO_PATH, valueType), &quot;io&quot;, false, null);</span>
+      }
+<span class="fc" id="L273">      default -&gt; null;</span>
+    };
+  }
+
+  private void error(String message, Element element) {
+<span class="fc" id="L278">    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);</span>
+<span class="fc" id="L279">  }</span>
+
+  /**
+   * Represents the mapping from a source type to a Path type.
+   *
+   * @param pathType the Path type to use
+   * @param factoryMethod the Path factory method name
+   * @param requiresSemigroup whether a Semigroup parameter is needed
+   * @param errorType the error type (for Validated)
+   */
+<span class="fc" id="L289">  private record PathTypeMapping(</span>
+      TypeName pathType, String factoryMethod, boolean requiresSemigroup, TypeName errorType) {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>
