@@ -228,5 +228,24 @@ class HKJPluginTest {
       assertThat(ext.getChecks()).isNotNull();
       assertThat(ext.getChecks().getPathTypeMismatch().get()).isTrue();
     }
+
+    @Test
+    @DisplayName("skills defaults to false")
+    void plugin_skillsDefaultsToFalse() {
+      applyPlugin();
+      HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
+
+      assertThat(ext.getSkills().get()).isFalse();
+    }
+
+    @Test
+    @DisplayName("registers hkjInstallSkills task in hkj group")
+    void plugin_registersHKJInstallSkillsTask() {
+      applyPlugin();
+
+      Task installTask = project.getTasks().findByName("hkjInstallSkills");
+      assertThat(installTask).isNotNull();
+      assertThat(installTask.getGroup()).isEqualTo("hkj");
+    }
   }
 }

@@ -49,10 +49,12 @@ public class HKJPlugin implements Plugin<Project> {
     extension.getVersion().convention(readPluginVersion());
     extension.getPreview().convention(true);
     extension.getSpring().convention(false);
+    extension.getSkills().convention(false);
     extension.getChecks().getPathTypeMismatch().convention(true);
 
     project.afterEvaluate(p -> configure(p, extension));
 
+    registerInstallSkillsTask(project, extension);
     registerDiagnosticsTask(project, extension);
   }
 
@@ -165,6 +167,20 @@ public class HKJPlugin implements Plugin<Project> {
             + "Please set hkj.version explicitly in your build script.");
   }
 
+  private void registerInstallSkillsTask(Project project, HKJExtension extension) {
+    var installTask = project.getTasks().register("hkjInstallSkills", HKJInstallSkillsTask.class);
+
+    // When skills = true, wire the install task into the build lifecycle
+    project.afterEvaluate(
+        p -> {
+          if (Boolean.TRUE.equals(extension.getSkills().get())) {
+            p.getTasks()
+                .named("classes")
+                .configure(classesTask -> classesTask.dependsOn(installTask));
+          }
+        });
+  }
+
   private void registerDiagnosticsTask(Project project, HKJExtension extension) {
     project
         .getTasks()
@@ -178,6 +194,7 @@ public class HKJPlugin implements Plugin<Project> {
                     String version = extension.getVersion().get();
                     boolean preview = Boolean.TRUE.equals(extension.getPreview().get());
                     boolean spring = Boolean.TRUE.equals(extension.getSpring().get());
+                    boolean skills = Boolean.TRUE.equals(extension.getSkills().get());
                     boolean checks =
                         Boolean.TRUE.equals(extension.getChecks().getPathTypeMismatch().get());
 
@@ -216,6 +233,9 @@ public class HKJPlugin implements Plugin<Project> {
                         .append("\n");
                     sb.append("  Spring integration: ")
                         .append(spring ? "enabled" : "disabled")
+                        .append("\n");
+                    sb.append("  Claude Code skills: ")
+                        .append(skills ? "enabled" : "disabled")
                         .append("\n");
                     sb.append("  Compile-time checks:\n");
                     sb.append("    Path type mismatch: ")

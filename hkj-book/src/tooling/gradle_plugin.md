@@ -99,6 +99,7 @@ hkj {
     version = "0.3.7-SNAPSHOT"       // HKJ library version (default: plugin version)
     preview = true           // add --enable-preview flags (default: true)
     spring = false           // add hkj-spring-boot-starter (default: false)
+    skills = false           // install Claude Code skills (default: false)
     checks {
         pathTypeMismatch = true   // enable compile-time Path type checking (default: true)
     }
@@ -112,6 +113,7 @@ hkj {
 | `version` | Plugin version | Version of HKJ libraries to use |
 | `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks |
 | `spring` | `false` | Adds `hkj-spring-boot-starter` to implementation dependencies |
+| `skills` | `false` | Installs Claude Code skills into `.claude/skills/` during build |
 | `checks.pathTypeMismatch` | `true` | Enables compile-time Path type mismatch detection |
 
 With default settings, the plugin adds:
@@ -138,6 +140,28 @@ This adds `hkj-spring-boot-starter` to the `implementation` configuration, which
 
 ~~~admonish tip title="See Also"
 - [Spring Boot Integration](../spring/spring_boot_integration.md) - Full guide to using HKJ with Spring Boot
+~~~
+
+---
+
+## Claude Code Skills
+
+Install six Claude Code skills that provide contextual, in-editor guidance for HKJ:
+
+```gradle
+hkj {
+    skills = true
+}
+```
+
+This runs the `hkjInstallSkills` task during every build, copying skill files into `.claude/skills/`. You can also run the task manually:
+
+```bash
+./gradlew hkjInstallSkills
+```
+
+~~~admonish tip title="See Also"
+- [Claude Code Skills](claude_code_skills.md) - Full reference for the six bundled skills
 ~~~
 
 ---
@@ -226,11 +250,12 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
     <version>0.3.7-SNAPSHOT</version>   <!-- HKJ library version (default: plugin version) -->
     <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
     <spring>false</spring>               <!-- add hkj-spring-boot-starter (default: false) -->
+    <skills>false</skills>               <!-- install Claude Code skills (default: false) -->
     <pathTypeMismatch>true</pathTypeMismatch>  <!-- enable compile-time checks (default: true) -->
 </configuration>
 ```
 
-Run diagnostics with: `mvn hkj:diagnostics`
+Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
 
 ### Manual Maven Setup
 
@@ -292,6 +317,7 @@ See the [Quickstart](../quickstart.md) page for a complete Maven configuration i
 ~~~admonish info title="Key Takeaways"
 * **One line** (Gradle) or a short plugin block (Maven) replaces extensive build configuration
 * **Sensible defaults** enable preview features and compile-time checks out of the box
+* **Claude Code skills** bring contextual HKJ guidance directly into your editor
 * **Everything is optional** and can be disabled or overridden through DSL/configuration
 * **The BOM** manages versions across all HKJ modules for both Gradle and Maven
 ~~~
