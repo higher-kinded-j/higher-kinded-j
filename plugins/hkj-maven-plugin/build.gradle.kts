@@ -18,6 +18,38 @@ dependencies {
     testImplementation(libs.maven.plugin.api)
 }
 
+// Bundle Claude Code skill files so the plugin can install them into consumer projects
+val bundleSkills = tasks.register("bundleSkills") {
+    val skillsSourceDir = rootProject.layout.projectDirectory.dir(".claude/skills")
+    val outputDir = layout.buildDirectory.dir("generated/resources/hkj-skills")
+    inputs.dir(skillsSourceDir).optional()
+    outputs.dir(outputDir)
+    doLast {
+        val srcDir = skillsSourceDir.asFile
+        val outDir = outputDir.get().asFile.resolve("META-INF/hkj-skills")
+        outDir.mkdirs()
+        val manifest = mutableListOf<String>()
+        if (srcDir.exists()) {
+            srcDir.walkTopDown()
+                .filter { it.isFile && it.name.endsWith(".md") }
+                .forEach { file ->
+                    val relativePath = file.relativeTo(srcDir).path
+                    if (relativePath.startsWith("hkj-")) {
+                        val targetFile = outDir.resolve(relativePath)
+                        targetFile.parentFile.mkdirs()
+                        file.copyTo(targetFile, overwrite = true)
+                        manifest.add(relativePath)
+                    }
+                }
+        }
+        outDir.resolve("manifest.txt").writeText(manifest.sorted().joinToString("\n") + "\n")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(bundleSkills)
+}
+
 // Maven plugin classes must not use --enable-preview so they can load in any Java 25+ JVM
 tasks.withType<JavaCompile>().configureEach {
     doFirst {

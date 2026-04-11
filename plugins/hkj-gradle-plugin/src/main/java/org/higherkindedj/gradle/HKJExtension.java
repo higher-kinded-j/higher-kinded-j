@@ -15,6 +15,7 @@ import org.gradle.api.provider.Property;
  *     version = "0.3.7-SNAPSHOT"
  *     preview = true
  *     spring = false
+ *     skills = false
  *     checks {
  *         pathTypeMismatch = true
  *     }
@@ -55,6 +56,14 @@ public abstract class HKJExtension {
    * @return the spring integration property
    */
   public abstract Property<Boolean> getSpring();
+
+  /**
+   * Whether to install Claude Code skills into the project's .claude/skills/ directory. Defaults to
+   * false. When enabled, the {@code hkjInstallSkills} task runs automatically during the build.
+   *
+   * @return the skills property
+   */
+  public abstract Property<Boolean> getSkills();
 
   /**
    * Compile-time check configuration.

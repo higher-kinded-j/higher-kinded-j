@@ -296,6 +296,109 @@ class HKJPluginFunctionalTest {
   }
 
   @Test
+  @DisplayName("diagnostics task reflects skills enabled")
+  void diagnostics_task_reflectsSkillsEnabled() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+            skills = true
+        }
+
+        repositories {
+            mavenCentral()
+        }
+        """);
+
+    BuildResult result = runner("hkjDiagnostics").build();
+    String output = result.getOutput();
+
+    assertThat(output).contains("Claude Code skills: enabled");
+  }
+
+  @Test
+  @DisplayName("diagnostics task reflects skills disabled by default")
+  void diagnostics_task_reflectsSkillsDisabledByDefault() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+        }
+
+        repositories {
+            mavenCentral()
+        }
+        """);
+
+    BuildResult result = runner("hkjDiagnostics").build();
+    String output = result.getOutput();
+
+    assertThat(output).contains("Claude Code skills: disabled");
+  }
+
+  @Test
+  @DisplayName("hkjInstallSkills task is registered")
+  void installSkillsTask_isRegistered() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        repositories {
+            mavenCentral()
+        }
+        """);
+
+    BuildResult result = runner("tasks", "--all").build();
+    assertThat(result.getOutput()).contains("hkjInstallSkills");
+  }
+
+  @Test
+  @DisplayName("hkjInstallSkills task installs skills into .claude/skills/")
+  void installSkillsTask_installsSkills() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        repositories {
+            mavenCentral()
+        }
+        """);
+
+    BuildResult result = runner("hkjInstallSkills").build();
+    String output = result.getOutput();
+
+    // The task should complete and report installed files
+    assertThat(output).contains("Installed");
+    assertThat(output).contains("HKJ Claude Code skill files");
+
+    // Verify skill files were actually created
+    Path skillsDir = testProjectDir.resolve(".claude/skills");
+    assertThat(skillsDir).isDirectory();
+    assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
+    assertThat(skillsDir.resolve("hkj-optics/SKILL.md")).isRegularFile();
+    assertThat(skillsDir.resolve("hkj-effects/SKILL.md")).isRegularFile();
+    assertThat(skillsDir.resolve("hkj-bridge/SKILL.md")).isRegularFile();
+    assertThat(skillsDir.resolve("hkj-spring/SKILL.md")).isRegularFile();
+    assertThat(skillsDir.resolve("hkj-arch/SKILL.md")).isRegularFile();
+  }
+
+  @Test
   @DisplayName("all options combined configures correctly")
   void allOptionsCombined() throws IOException {
     writeBuildFile(
@@ -309,6 +412,7 @@ class HKJPluginFunctionalTest {
             version = '0.3.0'
             preview = false
             spring = true
+            skills = true
             checks {
                 pathTypeMismatch = false
             }
@@ -325,6 +429,7 @@ class HKJPluginFunctionalTest {
     assertThat(output).contains("Version:            0.3.0");
     assertThat(output).contains("Preview features:   disabled");
     assertThat(output).contains("Spring integration: enabled");
+    assertThat(output).contains("Claude Code skills: enabled");
     assertThat(output).contains("Path type mismatch: disabled");
     assertThat(output).contains("hkj-spring-boot-starter:0.3.0");
     assertThat(output).doesNotContain("hkj-checker");

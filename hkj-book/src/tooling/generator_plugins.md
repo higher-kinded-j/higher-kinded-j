@@ -329,4 +329,4 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 **Previous:** [Diagnostics](diagnostics.md)
-**Next:** [Spring Boot Integration](../spring/spring_boot_integration.md)
+**Next:** [Claude Code Skills](claude_code_skills.md)

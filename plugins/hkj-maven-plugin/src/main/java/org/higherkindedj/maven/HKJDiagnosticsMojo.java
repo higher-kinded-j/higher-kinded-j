@@ -35,7 +35,7 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
     if (hkjPlugin != null) {
       config = HKJConfiguration.fromPlugin(hkjPlugin, project);
     } else {
-      config = new HKJConfiguration(project.getVersion(), true, false, true);
+      config = new HKJConfiguration(project.getVersion(), true, false, false, true);
     }
 
     List<String> depsAdded = new ArrayList<>();
@@ -68,6 +68,9 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
         .append("\n");
     sb.append("  Spring integration: ")
         .append(config.spring() ? "enabled" : "disabled")
+        .append("\n");
+    sb.append("  Claude Code skills: ")
+        .append(config.skills() ? "enabled" : "disabled")
         .append("\n");
     sb.append("  Compile-time checks:\n");
     sb.append("    Path type mismatch: ")
