@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.higherkindedj.spring.web.returnvalue.CompletableFuturePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.FreePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.IOPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.MaybePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.TryPathReturnValueHandler;
@@ -20,6 +21,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.webmvc.autoconfigure.WebMvcRegistrations;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.servlet.DispatcherServlet;
@@ -92,6 +94,7 @@ public class HkjWebMvcAutoConfiguration {
   public WebMvcRegistrations hkjWebMvcRegistrations(
       HkjProperties properties,
       JsonMapper jsonMapper,
+      ApplicationContext applicationContext,
       @Autowired(required = false) @Nullable HkjMetricsService metricsService) {
     return new WebMvcRegistrations() {
       @Override
@@ -172,6 +175,16 @@ public class HkjWebMvcAutoConfiguration {
                       webConfig.isVstreamIncludeExceptionDetails(),
                       vtConfig.getStreamTimeoutMs(),
                       metricsService));
+            }
+
+            // FreePath handler (effect boundary interpretation)
+            if (webConfig.isFreePathEnabled()) {
+              newHandlers.add(
+                  new FreePathReturnValueHandler(
+                      jsonMapper,
+                      webConfig.getFreePathFailureStatus(),
+                      webConfig.isFreePathIncludeExceptionDetails(),
+                      applicationContext));
             }
 
             newHandlers.addAll(originalHandlers);

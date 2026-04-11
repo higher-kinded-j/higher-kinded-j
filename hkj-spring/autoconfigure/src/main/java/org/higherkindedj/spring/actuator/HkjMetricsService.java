@@ -69,6 +69,11 @@ public class HkjMetricsService {
   private final Counter vstreamSuccessCounter;
   private final Counter vstreamErrorCounter;
 
+  // Effect boundary metrics
+  private final Counter effectBoundarySuccessCounter;
+  private final Counter effectBoundaryErrorCounter;
+  private final Timer effectBoundaryDurationTimer;
+
   /**
    * Creates a new HkjMetricsService with the given MeterRegistry.
    *
@@ -151,6 +156,24 @@ public class HkjMetricsService {
         Counter.builder("hkj.vstream.invocations")
             .description("Number of VStream return value handler invocations")
             .tag("result", "error")
+            .register(meterRegistry);
+
+    // Initialize effect boundary counters and timer
+    this.effectBoundarySuccessCounter =
+        Counter.builder("hkj.effect.boundary.invocations")
+            .description("Number of EffectBoundary invocations")
+            .tag("result", "success")
+            .register(meterRegistry);
+
+    this.effectBoundaryErrorCounter =
+        Counter.builder("hkj.effect.boundary.invocations")
+            .description("Number of EffectBoundary invocations")
+            .tag("result", "error")
+            .register(meterRegistry);
+
+    this.effectBoundaryDurationTimer =
+        Timer.builder("hkj.effect.boundary.duration")
+            .description("Duration of EffectBoundary program execution")
             .register(meterRegistry);
   }
 
@@ -286,6 +309,52 @@ public class HkjMetricsService {
    */
   public void recordVStreamElements(long elementCount) {
     meterRegistry.summary("hkj.vstream.elements").record(elementCount);
+  }
+
+  /** Records a successful EffectBoundary execution. */
+  public void recordEffectBoundarySuccess() {
+    effectBoundarySuccessCounter.increment();
+  }
+
+  /**
+   * Records a failed EffectBoundary execution.
+   *
+   * @param errorType the class name of the exception
+   */
+  public void recordEffectBoundaryError(String errorType) {
+    effectBoundaryErrorCounter.increment();
+    Counter.builder("hkj.effect.boundary.errors")
+        .description("Distribution of EffectBoundary error types")
+        .tag("error_type", errorType)
+        .register(meterRegistry)
+        .increment();
+  }
+
+  /**
+   * Records the duration of an EffectBoundary execution.
+   *
+   * @param durationMillis the duration in milliseconds
+   */
+  public void recordEffectBoundaryDuration(long durationMillis) {
+    effectBoundaryDurationTimer.record(durationMillis, TimeUnit.MILLISECONDS);
+  }
+
+  /**
+   * Gets the current count of EffectBoundary success invocations.
+   *
+   * @return the count
+   */
+  public double getEffectBoundarySuccessCount() {
+    return effectBoundarySuccessCounter.count();
+  }
+
+  /**
+   * Gets the current count of EffectBoundary error invocations.
+   *
+   * @return the count
+   */
+  public double getEffectBoundaryErrorCount() {
+    return effectBoundaryErrorCounter.count();
   }
 
   /**

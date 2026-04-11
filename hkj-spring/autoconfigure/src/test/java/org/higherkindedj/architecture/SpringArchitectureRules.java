@@ -240,7 +240,7 @@ class SpringArchitectureRules {
   void spring_classes_should_follow_naming_convention() {
     classes()
         .that()
-        .resideInAPackage("..autoconfigure..")
+        .resideInAPackage("org.higherkindedj.spring.autoconfigure")
         .and()
         .haveSimpleNameNotEndingWith("Test")
         .and()
@@ -249,6 +249,35 @@ class SpringArchitectureRules {
         .areNotMemberClasses()
         .should()
         .haveSimpleNameStartingWith("Hkj")
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /** Effect boundary classes should be in the effect package. */
+  @Test
+  @DisplayName("EffectBoundary classes should be in effect package")
+  void effectBoundary_classes_should_be_in_effect_package() {
+    classes()
+        .that()
+        .haveSimpleNameContaining("EffectBoundary")
+        .and()
+        .resideInAPackage("..autoconfigure..")
+        .should()
+        .resideInAPackage("..effect..")
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /** Effect boundary should not depend on security or actuator. */
+  @Test
+  @DisplayName("Effect boundary should not depend on security or actuator")
+  void effect_boundary_should_not_depend_on_security_or_actuator() {
+    noClasses()
+        .that()
+        .resideInAPackage("..autoconfigure.effect..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage("..security..", "..actuator..")
         .allowEmptyShould(true)
         .check(classes);
   }

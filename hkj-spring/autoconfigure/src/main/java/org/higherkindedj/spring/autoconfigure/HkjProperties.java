@@ -43,6 +43,7 @@ public class HkjProperties {
   private Actuator actuator = new Actuator();
   private Security security = new Security();
   private VirtualThreads virtualThreads = new VirtualThreads();
+  private EffectConfig effectBoundary = new EffectConfig();
 
   /** Creates a new HkjProperties with default values. */
   public HkjProperties() {}
@@ -174,6 +175,24 @@ public class HkjProperties {
   }
 
   /**
+   * Returns the effect boundary configuration.
+   *
+   * @return the effect boundary configuration
+   */
+  public EffectConfig getEffectBoundary() {
+    return effectBoundary;
+  }
+
+  /**
+   * Sets the effect boundary configuration.
+   *
+   * @param effectBoundary the effect boundary configuration
+   */
+  public void setEffectBoundary(EffectConfig effectBoundary) {
+    this.effectBoundary = effectBoundary;
+  }
+
+  /**
    * Web/MVC configuration properties for Effect Path API handlers.
    *
    * <p>Spring Boot 4.0.1+ uses Effect Path API handlers exclusively. For Spring Boot 3.5.7, use
@@ -204,6 +223,9 @@ public class HkjProperties {
     /** Enable VStreamPath return value handler (SSE streaming on virtual threads). Default: true */
     private boolean vstreamPathEnabled = true;
 
+    /** Enable FreePath return value handler (effect boundary interpretation). Default: true */
+    private boolean freePathEnabled = true;
+
     /**
      * Default HTTP status code for Left values when error type is unknown. Default: 400 (Bad
      * Request)
@@ -231,6 +253,11 @@ public class HkjProperties {
     /** HTTP status code for VStreamPath failures. Default: 500 (Internal Server Error) */
     private int vstreamFailureStatus = 500;
 
+    /**
+     * HTTP status code for FreePath interpretation failures. Default: 500 (Internal Server Error)
+     */
+    private int freePathFailureStatus = 500;
+
     /** Include exception details in TryPath failure responses. Default: false (production safe) */
     private boolean tryIncludeExceptionDetails = false;
 
@@ -250,6 +277,9 @@ public class HkjProperties {
 
     /** Include exception details in VStreamPath error events. Default: false (production safe) */
     private boolean vstreamIncludeExceptionDetails = false;
+
+    /** Include exception details in FreePath failure responses. Default: false (production safe) */
+    private boolean freePathIncludeExceptionDetails = false;
 
     /**
      * Custom error status code mappings.
@@ -649,6 +679,60 @@ public class HkjProperties {
      */
     public void setVstreamIncludeExceptionDetails(boolean vstreamIncludeExceptionDetails) {
       this.vstreamIncludeExceptionDetails = vstreamIncludeExceptionDetails;
+    }
+
+    /**
+     * Returns whether FreePath handler is enabled.
+     *
+     * @return whether FreePath handler is enabled
+     */
+    public boolean isFreePathEnabled() {
+      return freePathEnabled;
+    }
+
+    /**
+     * Sets whether FreePath handler is enabled.
+     *
+     * @param freePathEnabled whether FreePath handler is enabled
+     */
+    public void setFreePathEnabled(boolean freePathEnabled) {
+      this.freePathEnabled = freePathEnabled;
+    }
+
+    /**
+     * Returns the HTTP status code for FreePath failures.
+     *
+     * @return the HTTP status code for FreePath failures
+     */
+    public int getFreePathFailureStatus() {
+      return freePathFailureStatus;
+    }
+
+    /**
+     * Sets the HTTP status code for FreePath failures.
+     *
+     * @param freePathFailureStatus the HTTP status code for FreePath failures
+     */
+    public void setFreePathFailureStatus(int freePathFailureStatus) {
+      this.freePathFailureStatus = freePathFailureStatus;
+    }
+
+    /**
+     * Returns whether FreePath responses include exception details.
+     *
+     * @return whether FreePath responses include exception details
+     */
+    public boolean isFreePathIncludeExceptionDetails() {
+      return freePathIncludeExceptionDetails;
+    }
+
+    /**
+     * Sets whether FreePath responses include exception details.
+     *
+     * @param freePathIncludeExceptionDetails whether FreePath responses include exception details
+     */
+    public void setFreePathIncludeExceptionDetails(boolean freePathIncludeExceptionDetails) {
+      this.freePathIncludeExceptionDetails = freePathIncludeExceptionDetails;
     }
 
     /**
@@ -1222,6 +1306,99 @@ public class HkjProperties {
      */
     public void setHealthErrorThreshold(double healthErrorThreshold) {
       this.healthErrorThreshold = healthErrorThreshold;
+    }
+  }
+
+  /**
+   * Effect boundary configuration properties.
+   *
+   * <p>Configure via application.yml:
+   *
+   * <pre>
+   * hkj:
+   *   effect-boundary:
+   *     enabled: true
+   *     startup-validation: true
+   *     interpreter-selection:
+   *       payment-gateway: stripe
+   *       fraud-check: ml-model
+   * </pre>
+   */
+  public static class EffectConfig {
+
+    /** Enable EffectBoundary auto-configuration. Default: true */
+    private boolean enabled = true;
+
+    /** Fail fast at startup if any declared effect has no matching interpreter. Default: true */
+    private boolean startupValidation = true;
+
+    /**
+     * Configuration-driven interpreter selection by qualifier.
+     *
+     * <p>Maps effect algebra names (kebab-case) to interpreter qualifier names. When set, the
+     * registrar selects the interpreter matching the configured qualifier instead of using
+     * auto-discovery.
+     *
+     * <p>Example: {@code payment-gateway: stripe} selects the interpreter annotated with
+     * {@code @Interpreter(value = PaymentGatewayOp.class, qualifier = "stripe")}.
+     */
+    private Map<String, String> interpreterSelection = new HashMap<>();
+
+    /** Creates a new EffectConfig with default values. */
+    public EffectConfig() {}
+
+    /**
+     * Returns whether EffectBoundary auto-configuration is enabled.
+     *
+     * @return whether enabled
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Sets whether EffectBoundary auto-configuration is enabled.
+     *
+     * @param enabled whether enabled
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    /**
+     * Returns whether startup validation is enabled.
+     *
+     * @return whether startup validation is enabled
+     */
+    public boolean isStartupValidation() {
+      return startupValidation;
+    }
+
+    /**
+     * Sets whether startup validation is enabled.
+     *
+     * @param startupValidation whether startup validation is enabled
+     */
+    public void setStartupValidation(boolean startupValidation) {
+      this.startupValidation = startupValidation;
+    }
+
+    /**
+     * Returns the interpreter selection map.
+     *
+     * @return the interpreter selection map
+     */
+    public Map<String, String> getInterpreterSelection() {
+      return interpreterSelection;
+    }
+
+    /**
+     * Sets the interpreter selection map.
+     *
+     * @param interpreterSelection the interpreter selection map
+     */
+    public void setInterpreterSelection(Map<String, String> interpreterSelection) {
+      this.interpreterSelection = interpreterSelection;
     }
   }
 }

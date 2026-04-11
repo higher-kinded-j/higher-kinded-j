@@ -3,3 +3,5 @@ org.higherkindedj.spring.autoconfigure.HkjJacksonAutoConfiguration
 org.higherkindedj.spring.autoconfigure.HkjWebMvcAutoConfiguration
 org.higherkindedj.spring.autoconfigure.HkjActuatorAutoConfiguration
 org.higherkindedj.spring.autoconfigure.HkjSecurityAutoConfiguration
+org.higherkindedj.spring.autoconfigure.effect.EffectBoundaryAutoConfiguration
+org.higherkindedj.spring.autoconfigure.test.EffectTestAutoConfiguration
