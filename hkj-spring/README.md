@@ -134,64 +134,47 @@ hkj-spring/
 │   ├── HkjAutoConfiguration
 │   ├── HkjWebMvcAutoConfiguration
 │   ├── HkjProperties
-│   └── web/returnvalue/
-│       ├── EitherPathReturnValueHandler
-│       ├── MaybePathReturnValueHandler
-│       ├── TryPathReturnValueHandler
-│       ├── ValidationPathReturnValueHandler
-│       ├── IOPathReturnValueHandler
-│       ├── CompletableFuturePathReturnValueHandler
-│       ├── VTaskPathReturnValueHandler     # Virtual thread async
-│       ├── VStreamPathReturnValueHandler   # Virtual thread SSE streaming
-│       └── ErrorStatusCodeMapper
+│   ├── web/returnvalue/
+│   │   ├── EitherPathReturnValueHandler
+│   │   ├── MaybePathReturnValueHandler
+│   │   ├── TryPathReturnValueHandler
+│   │   ├── ValidationPathReturnValueHandler
+│   │   ├── IOPathReturnValueHandler
+│   │   ├── CompletableFuturePathReturnValueHandler
+│   │   ├── VTaskPathReturnValueHandler     # Virtual thread async
+│   │   ├── VStreamPathReturnValueHandler   # Virtual thread SSE streaming
+│   │   ├── FreePathReturnValueHandler      # Effect boundary interpretation
+│   │   └── ErrorStatusCodeMapper
+│   ├── effect/
+│   │   ├── EnableEffectBoundary            # Auto-wire interpreters
+│   │   ├── Interpreter                     # Interpreter stereotype
+│   │   └── EffectBoundaryRegistrar         # Bean discovery and registration
+│   └── actuator/
+│       ├── HkjMetricsService
+│       └── ObservableEffectBoundary        # Metrics-wrapped boundary
 ├── starter/           # Dependency aggregator
-└── example/           # Working example application
+├── example/           # Path handlers example (Level 0)
+└── effect-example/    # EffectBoundary example (Level 1+)
 ```
 
-## Example Application
+## Example Applications
 
-See `hkj-spring/example/` for a complete working example.
+Two example applications demonstrate different integration levels:
 
-### Running the Example
+### [Path Handlers Example](example/) — Level 0
+
+Returns `EitherPath`, `MaybePath`, `IOPath`, `VTaskPath`, and `VStreamPath` directly from controllers. Zero configuration needed.
 
 ```bash
-./gradlew :hkj-spring:example:bootRun
+./gradlew :hkj-spring:example:bootRun     # Port 8080
 ```
 
-### Try These Endpoints
+### [Effect Boundary Example](effect-example/) — Level 1+
+
+Composes multiple effect algebras into Free monad programs, interpreted at a clean boundary using `EffectBoundary`. Shows `@Interpreter`, `@EffectTest`, and `ObservableEffectBoundary` metrics.
 
 ```bash
-# Get user by ID - EitherPath (200 OK)
-curl http://localhost:8080/api/users/1
-
-# Get non-existent user - EitherPath (404 Not Found)
-curl http://localhost:8080/api/users/999
-
-# Get user optional - MaybePath (200 OK or 404)
-curl http://localhost:8080/api/users/1/optional
-
-# Create user with validation - ValidationPath
-curl -X POST http://localhost:8080/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","firstName":"Test","lastName":"User"}'
-
-# Config with deferred IO - IOPath
-curl http://localhost:8080/api/config
-
-# Async user fetch - CompletableFuturePath
-curl http://localhost:8080/api/users/1/async
-
-# Virtual thread user fetch - VTaskPath
-curl http://localhost:8080/api/vt/users/1
-
-# Structured concurrency enrichment - VTaskPath with Scope
-curl http://localhost:8080/api/vt/users/1/enriched
-
-# Stream users as SSE - VStreamPath
-curl -N http://localhost:8080/api/vt/users/stream
-
-# Stream tick events - VStreamPath
-curl -N http://localhost:8080/api/vt/ticks?count=5
+./gradlew :hkj-spring:effect-example:bootRun     # Port 8081
 ```
 
 ## How It Works
@@ -421,13 +404,14 @@ class UserControllerTest {
 
 ## Requirements
 
-- Java 21+
+- Java 25+
 - Spring Boot 4.0.3+
 - higher-kinded-j core library
 
 ## Related Documentation
 
 - [Configuration Reference](CONFIGURATION.md)
+- [EffectBoundary Reference](EFFECT_BOUNDARY.md)
 - [Jackson Serialization](JACKSON_SERIALIZATION.md)
 - [Security Integration](SECURITY.md)
 - [Actuator Support](ACTUATOR.md)

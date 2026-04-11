@@ -23,7 +23,8 @@ include(
     // Spring Boot integration modules
     "hkj-spring:autoconfigure",
     "hkj-spring:starter",
-    "hkj-spring:example"
+    "hkj-spring:example",
+    "hkj-spring:effect-example"
 )
 
 // Remap plugin modules to plugins/ subdirectory

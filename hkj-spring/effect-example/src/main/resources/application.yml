@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: hkj-effect-example
+
+server:
+  port: 8081
+
+logging:
+  level:
+    org.higherkindedj: DEBUG
+
+# Higher-Kinded-J Effect Boundary Configuration
+hkj:
+  web:
+    # Enable IOPath handler (used by OrderController)
+    io-path-enabled: true
+    io-failure-status: 500
+    io-include-exception-details: true
+
+    # Enable FreePath handler (for Level 2 adoption)
+    free-path-enabled: true
+    free-path-failure-status: 500
+    free-path-include-exception-details: true
+
+  effect-boundary:
+    enabled: true
+    startup-validation: true
+
+  actuator:
+    metrics-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,hkj

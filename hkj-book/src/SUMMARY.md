@@ -160,6 +160,7 @@
 - [Integration Guides](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)
+  - [EffectBoundary Integration](spring/effect_boundary_integration.md)
 
 - [Foundations: Higher-Kinded Types](hkts/ch_intro.md)
   - [HKT Introduction](hkts/hkt_introduction.md)

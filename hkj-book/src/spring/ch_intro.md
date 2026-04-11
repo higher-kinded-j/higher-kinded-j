@@ -12,6 +12,8 @@ Functional error handling clarifies thought. When a method returns `Either<Domai
 
 This chapter bridges functional programming and enterprise Java. The `hkj-spring-boot-starter` allows Spring controllers to return `Either`, `Validated`, `CompletableFuturePath`, `VTaskPath`, and `VStreamPath` directly. The framework handles the translation to HTTP responses: `Right` becomes 200 OK; `Left` becomes the appropriate error status. Validation errors accumulate properly. Async operations compose cleanly. Virtual thread operations run without thread pool configuration, and SSE streaming works without WebFlux or Reactor.
 
+For applications that compose multiple effects, `EffectBoundary` bridges Free monad programs into the existing handler ecosystem. `@EnableEffectBoundary` auto-discovers `@Interpreter` beans, combines them, and registers an `EffectBoundary` that interprets programs and returns `IOPath` or `FreePath`, which the existing handlers convert to HTTP responses.
+
 The integration is non-invasive. Existing exception-based endpoints continue to work. Migration can proceed incrementally. But as more of your codebase adopts functional error handling, a subtle shift occurs. Errors become data. Control flow becomes explicit. The language of your code begins to clarify your thought rather than corrupt it.
 
 ---
@@ -52,9 +54,12 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
 | `Either` return types | Typed errors in controller signatures |
 | `Validated` return types | Accumulate all validation errors |
 | `CompletableFuturePath` return types | Async operations with typed errors |
-| `VTaskPath` return types | Virtual thread async via DeferredResult — no thread pool needed |
-| `VStreamPath` return types | SSE streaming on virtual threads — no WebFlux/Reactor needed |
-| Automatic status mapping | Error types → HTTP status codes |
+| `VTaskPath` return types | Virtual thread async via DeferredResult, no thread pool needed |
+| `VStreamPath` return types | SSE streaming on virtual threads, no WebFlux/Reactor needed |
+| `FreePath` return types | Composable effect programs interpreted at the boundary |
+| `EffectBoundary` | Auto-wired interpret-and-execute for Free monad programs |
+| `@Interpreter` beans | Spring-managed interpreters with DI and profile switching |
+| Automatic status mapping | Error types to HTTP status codes |
 | JSON serialisation | Configurable output formats |
 | Actuator integration | Metrics for functional operations |
 | Security integration | Functional authentication patterns |
@@ -70,14 +75,16 @@ If you use Spring's dependency injection and wonder how `ReaderPath` compares, s
 ~~~admonish info title="In This Chapter"
 - **Spring Boot Integration** – Configure Spring to accept Either, Validated, CompletableFuturePath, VTaskPath, and VStreamPath as controller return types. The framework automatically maps Right to 200 OK and Left to appropriate error statuses. VTaskPath provides virtual thread async, VStreamPath provides SSE streaming.
 - **Migration Guide** – A practical path from exception-based error handling to functional types. Start with one endpoint, prove the pattern, then expand incrementally.
+- **EffectBoundary Integration** – Compose multiple effect algebras into a single program and interpret them at a clean boundary. `@EnableEffectBoundary` auto-discovers `@Interpreter` beans, combines them, and bridges Free monads into the existing *Path handler ecosystem. Progressive adoption from a single `@Bean` to full auto-wiring.
 ~~~
 
 ---
 
 ## Chapter Contents
 
-1. [Spring Boot Integration](spring_boot_integration.md) - Using Either, Validated, and EitherT in controllers
+1. [Spring Boot Integration](spring_boot_integration.md) - Using Either, Validated, and *Path types in controllers
 2. [Migrating to Functional Errors](migrating_to_functional_errors.md) - Moving from exceptions to functional error handling
+3. [EffectBoundary Integration](effect_boundary_integration.md) - Composable effects with auto-wired interpreters
 
 ---
 
