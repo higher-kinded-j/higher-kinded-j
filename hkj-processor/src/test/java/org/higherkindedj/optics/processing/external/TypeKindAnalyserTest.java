@@ -921,5 +921,105 @@ class TypeKindAnalyserTest {
       assertThat(result).isPresent();
       assertThat(result.get().kind()).isEqualTo(ContainerType.Kind.LIST);
     }
+
+    @Test
+    @DisplayName("should return empty for raw List field (no type arguments)")
+    void shouldReturnEmptyForRawListField() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.RawList",
+              """
+              package com.test;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public record RawList(List items) {}
+              """);
+
+      var result = detectContainerType("com.test.RawList", "items", source);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty for raw Set field (no type arguments)")
+    void shouldReturnEmptyForRawSetField() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.RawSet",
+              """
+              package com.test;
+
+              import java.util.Set;
+
+              @SuppressWarnings("rawtypes")
+              public record RawSet(Set items) {}
+              """);
+
+      var result = detectContainerType("com.test.RawSet", "items", source);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty for raw Optional field (no type arguments)")
+    void shouldReturnEmptyForRawOptionalField() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.RawOpt",
+              """
+              package com.test;
+
+              import java.util.Optional;
+
+              @SuppressWarnings("rawtypes")
+              public record RawOpt(Optional value) {}
+              """);
+
+      var result = detectContainerType("com.test.RawOpt", "value", source);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty for raw Map field (no type arguments)")
+    void shouldReturnEmptyForRawMapField() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.RawMap",
+              """
+              package com.test;
+
+              import java.util.Map;
+
+              @SuppressWarnings("rawtypes")
+              public record RawMap(Map data) {}
+              """);
+
+      var result = detectContainerType("com.test.RawMap", "data", source);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty for unrecognised container type (Queue)")
+    void shouldReturnEmptyForUnrecognisedContainerType() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithQueue",
+              """
+              package com.test;
+
+              import java.util.Queue;
+              import java.util.LinkedList;
+
+              public record WithQueue(Queue<String> tasks) {}
+              """);
+
+      var result = detectContainerType("com.test.WithQueue", "tasks", source);
+
+      assertThat(result).isEmpty();
+    }
   }
 }

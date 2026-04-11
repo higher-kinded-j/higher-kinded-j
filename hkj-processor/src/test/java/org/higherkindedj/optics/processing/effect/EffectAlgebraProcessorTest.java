@@ -601,4 +601,63 @@ class EffectAlgebraProcessorTest {
       assertThat(source).contains("handleGetCount(");
     }
   }
+
+  // ===========================================================================
+  // Additional Coverage Tests
+  // ===========================================================================
+
+  @Nested
+  @DisplayName("Additional Coverage")
+  class AdditionalCoverage {
+
+    @Test
+    @DisplayName("Algebra without mapK method should still generate functor with cast-through")
+    void algebraWithoutMapKShouldGenerateCastThrough() throws IOException {
+      // The simple algebra (ConsoleOp) does not declare mapK
+      // This covers the hasMapKMethod false-path (line 749)
+      Compilation compilation = compile(simpleEffectAlgebra());
+      assertThat(compilation.errors()).isEmpty();
+
+      String functorSource = getGeneratedSource(compilation, "test.pkg.ConsoleOpFunctor");
+      // Without mapK, functor uses cast-through pattern
+      assertThat(functorSource).contains("map(");
+    }
+
+    @Test
+    @DisplayName("Algebra with mapK should delegate to mapK in functor")
+    void algebraWithMapKShouldDelegateInFunctor() throws IOException {
+      // The mapK algebra (CounterOp) declares mapK
+      // This covers the hasMapKMethod true-path (line 749)
+      Compilation compilation = compile(mapKEffectAlgebra());
+      assertThat(compilation.errors()).isEmpty();
+
+      String functorSource = getGeneratedSource(compilation, "test.pkg.CounterOpFunctor");
+      assertThat(functorSource).contains("mapK");
+    }
+
+    @Test
+    @DisplayName("Sealed interface with only one permit should generate correctly")
+    void singlePermitShouldGenerateCorrectly() throws IOException {
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.SingleOp",
+              """
+              package test.pkg;
+              import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+              @EffectAlgebra
+              public sealed interface SingleOp<A> permits SingleOp.DoWork {
+                  record DoWork<A>(String task, A result) implements SingleOp<A> {}
+              }
+              """);
+
+      Compilation compilation = compile(source);
+      assertThat(compilation.errors()).isEmpty();
+
+      // All 5 files should be generated even for single-permit algebras
+      assertThat(compilation.generatedSourceFile("test.pkg.SingleOpKind")).isPresent();
+      assertThat(compilation.generatedSourceFile("test.pkg.SingleOpOps")).isPresent();
+      assertThat(compilation.generatedSourceFile("test.pkg.SingleOpInterpreter")).isPresent();
+    }
+  }
 }

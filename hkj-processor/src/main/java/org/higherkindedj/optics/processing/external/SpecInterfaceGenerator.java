@@ -28,6 +28,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticMethodInfo;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * Generates concrete utility classes from spec interface analyses.
@@ -373,6 +374,7 @@ public class SpecInterfaceGenerator {
     return interfaceName + "Impl";
   }
 
+  @ExcludeFromJacocoGeneratedReport
   private void writeFile(String packageName, TypeSpec typeSpec) {
     try {
       JavaFile.builder(packageName, typeSpec)

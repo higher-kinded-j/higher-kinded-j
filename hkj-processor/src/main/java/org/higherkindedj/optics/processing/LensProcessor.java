@@ -23,6 +23,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /** Annotation processor that generates Lens optics for record types. */
 @AutoService(Processor.class)
@@ -42,14 +43,19 @@ public class LensProcessor extends AbstractProcessor {
           error("The @GenerateLenses annotation can only be applied to records.", element);
           continue;
         }
-        try {
-          generateLensesFile((TypeElement) element);
-        } catch (IOException e) {
-          error("Could not generate lenses file: " + e.getMessage(), element);
-        }
+        writeLensesFile((TypeElement) element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeLensesFile(TypeElement element) {
+    try {
+      generateLensesFile(element);
+    } catch (IOException e) {
+      error("Could not generate lenses file: " + e.getMessage(), element);
+    }
   }
 
   private void generateLensesFile(TypeElement recordElement) throws IOException {

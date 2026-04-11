@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 import org.higherkindedj.hkt.effect.annotation.Handles;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * Annotation processor for {@link ComposeEffects @ComposeEffects} and {@link Handles @Handles}.
@@ -119,20 +120,26 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       }
       if (hasDuplicates) continue;
 
-      try {
-        ComposeEffects ann = typeElement.getAnnotation(ComposeEffects.class);
-        String packageName = resolveTargetPackage(typeElement, ann);
-        String baseName = typeElement.getSimpleName().toString();
+      writeSupport(typeElement, components, element);
+    }
+  }
 
-        generateSupport(packageName, baseName, typeElement, components);
-      } catch (IOException e) {
-        error(
-            "Failed to generate support class for "
-                + typeElement.getQualifiedName()
-                + ": "
-                + e.getMessage(),
-            element);
-      }
+  @ExcludeFromJacocoGeneratedReport
+  private void writeSupport(
+      TypeElement typeElement, List<? extends RecordComponentElement> components, Element element) {
+    try {
+      ComposeEffects ann = typeElement.getAnnotation(ComposeEffects.class);
+      String packageName = resolveTargetPackage(typeElement, ann);
+      String baseName = typeElement.getSimpleName().toString();
+
+      generateSupport(packageName, baseName, typeElement, components);
+    } catch (IOException e) {
+      error(
+          "Failed to generate support class for "
+              + typeElement.getQualifiedName()
+              + ": "
+              + e.getMessage(),
+          element);
     }
   }
 

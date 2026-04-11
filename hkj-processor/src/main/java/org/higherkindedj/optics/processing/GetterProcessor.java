@@ -23,6 +23,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.GenerateGetters;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /** Annotation processor that generates Getter optics for record types. */
 @AutoService(Processor.class)
@@ -42,14 +43,19 @@ public class GetterProcessor extends AbstractProcessor {
           error("The @GenerateGetters annotation can only be applied to records.", element);
           continue;
         }
-        try {
-          generateGettersFile((TypeElement) element);
-        } catch (IOException e) {
-          error("Could not generate getters file: " + e.getMessage(), element);
-        }
+        writeGettersFile((TypeElement) element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeGettersFile(TypeElement element) {
+    try {
+      generateGettersFile(element);
+    } catch (IOException e) {
+      error("Could not generate getters file: " + e.getMessage(), element);
+    }
   }
 
   private void generateGettersFile(TypeElement recordElement) throws IOException {

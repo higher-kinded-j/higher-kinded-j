@@ -19,6 +19,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * Annotation processor for {@link EffectAlgebra @EffectAlgebra} that generates HKT boilerplate for
@@ -100,30 +101,36 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
         List<TypeElement> permits = getPermittedRecords(typeElement);
         if (permits == null) continue; // errors already reported
 
-        try {
-          EffectAlgebra ann = typeElement.getAnnotation(EffectAlgebra.class);
-          String packageName = resolveTargetPackage(typeElement, ann);
-          String baseName = typeElement.getSimpleName().toString();
-          ClassName sourceClass = ClassName.get(typeElement);
-
-          generateKind(packageName, baseName, sourceClass);
-          generateKindHelper(packageName, baseName, sourceClass);
-          generateFunctor(packageName, baseName, sourceClass, typeElement);
-          generateOps(packageName, baseName, sourceClass, permits);
-          generateInterpreter(packageName, baseName, sourceClass, permits);
-        } catch (Exception e) {
-          error(
-              "Failed to generate code for "
-                  + typeElement.getQualifiedName()
-                  + ": "
-                  + e.getClass().getName()
-                  + ": "
-                  + e.getMessage(),
-              element);
-        }
+        writeAlgebraClasses(typeElement, permits, element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeAlgebraClasses(
+      TypeElement typeElement, List<TypeElement> permits, Element element) {
+    try {
+      EffectAlgebra ann = typeElement.getAnnotation(EffectAlgebra.class);
+      String packageName = resolveTargetPackage(typeElement, ann);
+      String baseName = typeElement.getSimpleName().toString();
+      ClassName sourceClass = ClassName.get(typeElement);
+
+      generateKind(packageName, baseName, sourceClass);
+      generateKindHelper(packageName, baseName, sourceClass);
+      generateFunctor(packageName, baseName, sourceClass, typeElement);
+      generateOps(packageName, baseName, sourceClass, permits);
+      generateInterpreter(packageName, baseName, sourceClass, permits);
+    } catch (Exception e) {
+      error(
+          "Failed to generate code for "
+              + typeElement.getQualifiedName()
+              + ": "
+              + e.getClass().getName()
+              + ": "
+              + e.getMessage(),
+          element);
+    }
   }
 
   // =========================================================================

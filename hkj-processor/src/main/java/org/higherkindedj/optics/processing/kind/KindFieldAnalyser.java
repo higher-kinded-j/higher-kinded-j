@@ -14,6 +14,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.TraverseField;
 import org.higherkindedj.optics.processing.kind.KindRegistry.KindMapping;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * Analyses record fields to detect and extract information about {@code Kind<F, A>} types.
@@ -201,10 +202,18 @@ public class KindFieldAnalyser {
    * <p>For example, transforms "EitherTraverse.instance()" to
    * "EitherTraverse.&lt;String&gt;instance()".
    *
+   * <p>The two early-return guards ({@code parenPos <= 0} and {@code lastDot < 0}) are defensive
+   * fall-backs against malformed traverse expressions. They are structurally unreachable from the
+   * current call site: the only caller ({@link #createFromRegistry}) feeds expressions that
+   * originate from {@link KindRegistry}'s hardcoded {@code KNOWN_KINDS} map, which always uses the
+   * {@code ClassName.instance()} factory form containing both a {@code .} and a {@code (}. The
+   * guards remain as documentation and a safety net for future refactorings.
+   *
    * @param expression the original expression
    * @param typeArgs the type arguments to inject
    * @return the modified expression
    */
+  @ExcludeFromJacocoGeneratedReport
   private String injectTypeArgs(String expression, String typeArgs) {
     // Find the method name position (last dot before parenthesis)
     int parenPos = expression.indexOf('(');

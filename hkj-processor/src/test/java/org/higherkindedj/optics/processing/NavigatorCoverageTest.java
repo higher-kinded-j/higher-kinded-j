@@ -839,4 +839,180 @@ class NavigatorCoverageTest {
           compilation, "com.example.AffineOuterFocus", "TraversalPath<S, String> tags()");
     }
   }
+
+  @Nested
+  @DisplayName("TraversalPath Navigator via SPI Container")
+  class TraversalPathNavigator {
+
+    @Test
+    @DisplayName("should generate TraversalPath navigator for Map wrapping navigable record")
+    void shouldGenerateTraversalNavigatorForMapField() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Entry",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Entry(String title, int priority) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Registry",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Registry(String name, Map<String, Entry> entries) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // Map<String, Entry> with SPI ZERO_OR_MORE generates a TRAVERSAL navigator
+      // This triggers: addTraversalPathDelegateMethods (lines 582-663),
+      // getDelegateMethodNames TRAVERSAL case (line 670),
+      // TRAVERSAL pathKindDescription (line 364),
+      // and SPI ZERO_OR_MORE → PathKind.TRAVERSAL (line 315)
+      // Map<String, Entry> with SPI ZERO_OR_MORE generates a TRAVERSAL navigator.
+      // Navigator class name derives from field name: entries → EntriesNavigator
+      assertGeneratedCodeContains(
+          compilation, "com.example.RegistryFocus", "EntriesNavigator<Registry> entries()");
+      // TraversalPath delegates: getAll, setAll, modifyAll, count, isEmpty
+      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "getAll");
+      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "setAll");
+      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "modifyAll");
+      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "count");
+      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "isEmpty");
+    }
+
+    @Test
+    @DisplayName("should generate TraversalPath delegate toPath method in traversal navigator")
+    void shouldGenerateTraversalToPathMethod() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Item",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Item(String label) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Container",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Container(Map<String, Item> items) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // TraversalPath navigator should have toPath() returning TraversalPath
+      assertGeneratedCodeContains(compilation, "com.example.ContainerFocus", "toPath()");
+      assertGeneratedCodeContains(compilation, "com.example.ContainerFocus", "TraversalPath");
+    }
+  }
+
+  @Nested
+  @DisplayName("Navigator wrapInNavigator branch")
+  class WrapInNavigator {
+
+    @Test
+    @DisplayName("should wrap in navigator for SPI ZERO_OR_MORE field with navigable inner type")
+    void shouldWrapInNavigatorForSpiTraversalField() {
+      final JavaFileObject leafSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Leaf",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Leaf(String text) {}
+              """);
+
+      final JavaFileObject midSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Mid",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Mid(String id, Map<String, Leaf> children) {}
+              """);
+
+      final JavaFileObject rootSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Root",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3)
+              public record Root(String name, Mid mid) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(leafSource, midSource, rootSource);
+
+      assertThat(compilation).succeeded();
+
+      // Root → Mid navigator (FOCUS path kind)
+      assertGeneratedCodeContains(compilation, "com.example.RootFocus", "MidNavigator<Root> mid()");
+
+      // Mid has Map<String, Leaf> which is SPI ZERO_OR_MORE wrapping navigable Leaf.
+      // Navigator class name derives from field name: children → ChildrenNavigator
+      assertGeneratedCodeContains(compilation, "com.example.MidFocus", "ChildrenNavigator");
+    }
+  }
+
+  @Nested
+  @DisplayName("TraversalPath field name collision in navigator")
+  class TraversalFieldNameCollision {
+
+    @Test
+    @DisplayName(
+        "should skip fields colliding with TraversalPath delegates getAll/setAll/modifyAll/count/isEmpty")
+    void shouldSkipFieldsCollidingWithTraversalDelegates() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Inner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Inner(String getAll, String data) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.MapOuter",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record MapOuter(Map<String, Inner> items) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+
+      // 'getAll' collides with TraversalPath delegate, 'data' should still be generated
+      assertGeneratedCodeContains(compilation, "com.example.MapOuterFocus", "data()");
+    }
+  }
 }
