@@ -34,7 +34,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Conversion rules:
  *
  * <ul>
- *   <li>{@code Right<A>} → HTTP 200 OK with value as JSON body
+ *   <li>{@code Right<A>} → HTTP 200 OK with value as JSON body (or the status declared by {@link
+ *       org.springframework.web.bind.annotation.ResponseStatus @ResponseStatus} on the handler
+ *       method/class)
  *   <li>{@code Left<E>} → HTTP 4xx/5xx with error as JSON body
  * </ul>
  *
@@ -110,6 +112,9 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
       return;
     }
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Fold to HTTP response
     either.fold(
         error -> {
@@ -117,7 +122,7 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
           return null;
         },
         value -> {
-          writeSuccessResponse(value, response);
+          writeSuccessResponse(value, response, successStatus);
           return null;
         });
   }
@@ -162,12 +167,15 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
    *
    * @param value the success value
    * @param response the HTTP response
+   * @param status the HTTP status code to set
    */
-  private void writeSuccessResponse(Object value, HttpServletResponse response) {
+  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

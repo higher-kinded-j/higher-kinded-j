@@ -25,7 +25,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Conversion rules:
  *
  * <ul>
- *   <li>{@code Just<A>} → HTTP 200 OK with value as JSON body
+ *   <li>{@code Just<A>} → HTTP 200 OK with value as JSON body (or the status declared by {@link
+ *       org.springframework.web.bind.annotation.ResponseStatus @ResponseStatus} on the handler
+ *       method/class)
  *   <li>{@code Nothing} → HTTP 404 Not Found (configurable)
  * </ul>
  *
@@ -81,7 +83,9 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
     // Extract underlying Maybe and convert to HTTP response
     var maybe = path.run();
     if (maybe.isJust()) {
-      writeJustResponse(maybe.get(), response);
+      int successStatus =
+          SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+      writeJustResponse(maybe.get(), response, successStatus);
     } else {
       writeNothingResponse(response);
     }
@@ -109,12 +113,15 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
    *
    * @param value the value
    * @param response the HTTP response
+   * @param status the HTTP status code to set
    */
-  private void writeJustResponse(Object value, HttpServletResponse response) {
+  private void writeJustResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

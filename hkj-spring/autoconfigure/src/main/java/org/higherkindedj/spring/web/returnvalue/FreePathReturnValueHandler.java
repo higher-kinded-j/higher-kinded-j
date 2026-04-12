@@ -111,11 +111,14 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
       }
     }
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Interpret the program via the boundary
     Try<?> result = boundary.runSafe(freePath.toFree());
     result.fold(
         value -> {
-          writeSuccessResponse(value, response);
+          writeSuccessResponse(value, response, successStatus);
           return null;
         },
         throwable -> {
@@ -152,11 +155,13 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
     }
   }
 
-  private void writeSuccessResponse(Object value, HttpServletResponse response) {
+  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

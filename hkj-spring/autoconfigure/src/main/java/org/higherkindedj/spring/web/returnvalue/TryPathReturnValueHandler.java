@@ -89,11 +89,14 @@ public class TryPathReturnValueHandler implements HandlerMethodReturnValueHandle
       return;
     }
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Extract underlying Try and convert to HTTP response
     path.run()
         .fold(
             value -> {
-              writeSuccessResponse(value, response);
+              writeSuccessResponse(value, response, successStatus);
               return null;
             },
             throwable -> {
@@ -141,12 +144,15 @@ public class TryPathReturnValueHandler implements HandlerMethodReturnValueHandle
    *
    * @param value the success value
    * @param response the HTTP response
+   * @param status the HTTP status code to set
    */
-  private void writeSuccessResponse(Object value, HttpServletResponse response) {
+  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

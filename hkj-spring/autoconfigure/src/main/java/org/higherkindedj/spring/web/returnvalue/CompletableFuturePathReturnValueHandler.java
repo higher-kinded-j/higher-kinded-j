@@ -129,6 +129,9 @@ public class CompletableFuturePathReturnValueHandler
           }
         });
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Execute the CompletableFuture asynchronously
     path.run()
         .whenComplete(
@@ -138,7 +141,7 @@ public class CompletableFuturePathReturnValueHandler
                   log.error("CompletableFuturePath failed", throwable);
                   writeFailureResponse(throwable, response);
                 } else {
-                  writeSuccessResponse(result, response);
+                  writeSuccessResponse(result, response, successStatus);
                 }
                 deferredResult.setResult(null);
               } catch (Exception e) {
@@ -215,12 +218,15 @@ public class CompletableFuturePathReturnValueHandler
    *
    * @param value the result value
    * @param response the HTTP response
+   * @param status the HTTP status code to set
    */
-  private void writeSuccessResponse(Object value, HttpServletResponse response) {
+  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

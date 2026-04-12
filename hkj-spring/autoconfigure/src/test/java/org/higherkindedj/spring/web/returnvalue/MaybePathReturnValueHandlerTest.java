@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.ModelAndViewContainer;
 import tools.jackson.databind.json.JsonMapper;
@@ -229,6 +231,57 @@ class MaybePathReturnValueHandlerTest {
     }
   }
 
+  @Nested
+  @DisplayName("@ResponseStatus Tests")
+  class ResponseStatusTests {
+
+    private MethodParameter methodParamFor(String methodName) throws Exception {
+      Method method = SampleController.class.getDeclaredMethod(methodName);
+      return new MethodParameter(method, -1);
+    }
+
+    @Test
+    @DisplayName("Should honor @ResponseStatus(CREATED) on POST handler")
+    void shouldHonorCreatedStatus() throws Exception {
+      MethodParameter rt = methodParamFor("createUser");
+      TestUser user = new TestUser("1", "a@b.com");
+      MaybePath<TestUser> path = Path.just(user);
+
+      handler.handleReturnValue(path, rt, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.CREATED.value());
+      verify(response).setContentType(MediaType.APPLICATION_JSON_VALUE);
+    }
+
+    @Test
+    @DisplayName("Should honor @ResponseStatus(NO_CONTENT) on DELETE handler and skip body")
+    void shouldHonorNoContentStatus() throws Exception {
+      MethodParameter rt = methodParamFor("deleteUser");
+      MaybePath<String> path = Path.just("deleted");
+
+      handler.handleReturnValue(path, rt, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.NO_CONTENT.value());
+      verify(response, never()).setContentType(anyString());
+
+      printWriter.flush();
+      assertThat(stringWriter.toString()).isEmpty();
+    }
+  }
+
   // Test DTOs
   record TestUser(String id, String email) {}
+
+  @SuppressWarnings("unused")
+  static class SampleController {
+    @ResponseStatus(HttpStatus.CREATED)
+    public MaybePath<TestUser> createUser() {
+      return Path.just(new TestUser("1", "a@b.com"));
+    }
+
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public MaybePath<String> deleteUser() {
+      return Path.just("deleted");
+    }
+  }
 }
