@@ -62,6 +62,14 @@ class HKJConfigurationTest {
 
       assertThat(config.pathTypeMismatch()).isTrue();
     }
+
+    @Test
+    @DisplayName("skills defaults to false")
+    void skillsDefaultsToFalse() {
+      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin, project);
+
+      assertThat(config.skills()).isFalse();
+    }
   }
 
   @Nested
@@ -114,6 +122,18 @@ class HKJConfigurationTest {
       HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
 
       assertThat(result.pathTypeMismatch()).isFalse();
+    }
+
+    @Test
+    @DisplayName("reads skills enabled")
+    void readsSkillsEnabled() {
+      Xpp3Dom config = new Xpp3Dom("configuration");
+      addChild(config, "skills", "true");
+      plugin.setConfiguration(config);
+
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+
+      assertThat(result.skills()).isTrue();
     }
 
     @Test

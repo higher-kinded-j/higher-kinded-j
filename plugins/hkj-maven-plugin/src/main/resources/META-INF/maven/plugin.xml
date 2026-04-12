@@ -34,5 +34,31 @@
                 <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
             </configuration>
         </mojo>
+        <mojo>
+            <goal>install-skills</goal>
+            <description>Installs HKJ Claude Code skills into the project's .claude/skills/ directory</description>
+            <requiresDirectInvocation>false</requiresDirectInvocation>
+            <requiresProject>true</requiresProject>
+            <requiresReports>false</requiresReports>
+            <aggregator>false</aggregator>
+            <requiresOnline>false</requiresOnline>
+            <inheritedByDefault>true</inheritedByDefault>
+            <implementation>org.higherkindedj.maven.HKJInstallSkillsMojo</implementation>
+            <language>java</language>
+            <instantiationStrategy>per-lookup</instantiationStrategy>
+            <threadSafe>true</threadSafe>
+            <parameters>
+                <parameter>
+                    <name>project</name>
+                    <type>org.apache.maven.project.MavenProject</type>
+                    <required>true</required>
+                    <editable>false</editable>
+                    <description>The Maven project</description>
+                </parameter>
+            </parameters>
+            <configuration>
+                <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
+            </configuration>
+        </mojo>
     </mojos>
 </plugin>

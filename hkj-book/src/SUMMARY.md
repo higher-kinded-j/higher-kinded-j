@@ -156,6 +156,7 @@
   - [Compile-Time Checks](tooling/compile_checks.md)
   - [Diagnostics](tooling/diagnostics.md)
   - [Traversal Generator Plugins](tooling/generator_plugins.md)
+  - [Claude Code Skills](tooling/claude_code_skills.md)
 
 - [Integration Guides](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
