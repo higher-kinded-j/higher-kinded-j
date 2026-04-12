@@ -103,6 +103,12 @@ class HKJPluginFunctionalTest {
     assertThat(output).contains("hkj-checker:0.3.0");
     assertThat(output).contains("--enable-preview");
     assertThat(output).contains("-Xplugin:HKJChecker");
+    // Regression: both annotation processor classpaths must be reported so users
+    // can see that compileTestJava has the checker/processor available too.
+    assertThat(output)
+        .contains("testAnnotationProcessor: io.github.higher-kinded-j:hkj-processor-plugins:0.3.0");
+    assertThat(output)
+        .contains("testAnnotationProcessor: io.github.higher-kinded-j:hkj-checker:0.3.0");
   }
 
   @Test
@@ -213,6 +219,10 @@ class HKJPluginFunctionalTest {
     assertThat(output).contains("Path type mismatch: disabled");
     assertThat(output).doesNotContain("hkj-checker");
     assertThat(output).doesNotContain("-Xplugin:HKJChecker");
+    // hkj-processor-plugins is always registered on both configurations, even when
+    // the checker is disabled.
+    assertThat(output)
+        .contains("testAnnotationProcessor: io.github.higher-kinded-j:hkj-processor-plugins:0.3.0");
   }
 
   @Test
@@ -293,6 +303,71 @@ class HKJPluginFunctionalTest {
 
     assertThat(output).contains("io.github.higher-kinded-j:hkj-processor-plugins:0.3.0");
     assertThat(output).doesNotContain("hkj-checker");
+  }
+
+  @Test
+  @DisplayName("dependencies task lists checker in testAnnotationProcessor")
+  void dependencies_listsCheckerDependency_onTestAnnotationProcessor() throws IOException {
+    // Regression test for the "plug-in not found: HKJChecker" error during compileTestJava.
+    // Because -Xplugin:HKJChecker is added to every JavaCompile task, the checker JAR must
+    // be registered on testAnnotationProcessor too, otherwise javac cannot load the plugin
+    // when compiling test sources.
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+        }
+
+        repositories {
+            mavenCentral()
+        }
+        """);
+
+    BuildResult result =
+        runner("dependencies", "--configuration", "testAnnotationProcessor").build();
+    String output = result.getOutput();
+
+    assertThat(output).contains("io.github.higher-kinded-j:hkj-checker:0.3.0");
+    assertThat(output).contains("io.github.higher-kinded-j:hkj-processor-plugins:0.3.0");
+  }
+
+  @Test
+  @DisplayName("dependencies task lists checker on a custom source set's processor classpath")
+  void dependencies_listsCheckerDependency_onCustomSourceSet() throws IOException {
+    // Custom source sets (integrationTest, functionalTest, etc.) also receive
+    // -Xplugin:HKJChecker on their JavaCompile task, so their annotation processor
+    // configuration must carry the checker and processor-plugins JARs too.
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+        }
+
+        sourceSets {
+            integrationTest {}
+        }
+
+        repositories {
+            mavenCentral()
+        }
+        """);
+
+    BuildResult result =
+        runner("dependencies", "--configuration", "integrationTestAnnotationProcessor").build();
+    String output = result.getOutput();
+
+    assertThat(output).contains("io.github.higher-kinded-j:hkj-checker:0.3.0");
+    assertThat(output).contains("io.github.higher-kinded-j:hkj-processor-plugins:0.3.0");
   }
 
   @Test
