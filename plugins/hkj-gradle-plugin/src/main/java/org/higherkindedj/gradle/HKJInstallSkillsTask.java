@@ -27,7 +27,8 @@ import org.gradle.work.DisableCachingByDefault;
  * project's {@code .claude/skills/} directory) and the copy cost is negligible compared to the
  * overhead of a cache lookup.
  */
-@DisableCachingByDefault(because = "Writes to project directory, not build output; copy cost is negligible")
+@DisableCachingByDefault(
+    because = "Writes to project directory, not build output; copy cost is negligible")
 public abstract class HKJInstallSkillsTask extends DefaultTask {
 
   private static final String MANIFEST_RESOURCE = "/META-INF/hkj-skills/manifest.txt";
