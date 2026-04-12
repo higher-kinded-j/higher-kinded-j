@@ -172,8 +172,22 @@ POST /api/users
 
 ## Testing
 
+> **`@WebMvcTest` excludes third-party auto-configurations.** The
+> hkj-spring-boot-starter's auto-configs (`HkjJacksonAutoConfiguration`,
+> `HkjWebMvcAutoConfiguration`) are loaded via
+> `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`,
+> which `@WebMvcTest` intentionally trims. Without `@ImportAutoConfiguration`,
+> MockMvc will see a raw `Either` POJO with no status-code mapping and the
+> assertions below will fail. Importing the three auto-configs restores the
+> production rendering contract inside the slice.
+
 ```java
 @WebMvcTest(UserController.class)
+@ImportAutoConfiguration({
+    HkjAutoConfiguration.class,
+    HkjJacksonAutoConfiguration.class,
+    HkjWebMvcAutoConfiguration.class
+})
 class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -212,6 +226,11 @@ class UserControllerTest {
     }
 }
 ```
+
+> If you prefer full-fidelity over slice isolation, swap the annotations for
+> `@SpringBootTest(classes = HkjSpringExampleApplication.class) +
+> @AutoConfigureMockMvc` — see `UserControllerIntegrationTest` for the full
+> pattern.
 
 ---
 
