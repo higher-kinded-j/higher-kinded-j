@@ -23,6 +23,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.GenerateSetters;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /** Annotation processor that generates Setter optics for record types. */
 @AutoService(Processor.class)
@@ -42,14 +43,19 @@ public class SetterProcessor extends AbstractProcessor {
           error("The @GenerateSetters annotation can only be applied to records.", element);
           continue;
         }
-        try {
-          generateSettersFile((TypeElement) element);
-        } catch (IOException e) {
-          error("Could not generate setters file: " + e.getMessage(), element);
-        }
+        writeSettersFile((TypeElement) element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeSettersFile(TypeElement element) {
+    try {
+      generateSettersFile(element);
+    } catch (IOException e) {
+      error("Could not generate setters file: " + e.getMessage(), element);
+    }
   }
 
   private void generateSettersFile(TypeElement recordElement) throws IOException {

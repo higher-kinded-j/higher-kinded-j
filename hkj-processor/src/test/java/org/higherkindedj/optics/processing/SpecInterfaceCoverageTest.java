@@ -980,4 +980,78 @@ class SpecInterfaceCoverageTest {
       assertThat(compilation).succeeded();
     }
   }
+
+  @Nested
+  @DisplayName("ExternalPrismGenerator multi-subtype coverage")
+  class ExternalPrismMultiSubtype {
+
+    @Test
+    @DisplayName("should generate prisms for sealed interface with multiple record subtypes")
+    void shouldGeneratePrismsForMultipleSubtypes() {
+      final var vehicle =
+          JavaFileObjects.forSourceString(
+              "com.external.Vehicle",
+              """
+              package com.external;
+              public sealed interface Vehicle permits Vehicle.Car, Vehicle.Truck, Vehicle.Bike {
+                  record Car(String make, int doors) implements Vehicle {}
+                  record Truck(String make, double payload) implements Vehicle {}
+                  record Bike(String brand) implements Vehicle {}
+              }
+              """);
+
+      final var importAnnotation =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @org.higherkindedj.optics.annotations.ImportOptics({com.external.Vehicle.class})
+              package com.myapp;
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(vehicle, importAnnotation);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.VehiclePrisms", "Prism<Vehicle, Vehicle.Car> car()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.VehiclePrisms", "Prism<Vehicle, Vehicle.Truck> truck()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.VehiclePrisms", "Prism<Vehicle, Vehicle.Bike> bike()");
+    }
+  }
+
+  @Nested
+  @DisplayName("ExternalLensGenerator traversal coverage")
+  class ExternalLensTraversal {
+
+    @Test
+    @DisplayName("should generate traversal for record with List field via ImportOptics")
+    void shouldGenerateTraversalForListField() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Team",
+              """
+              package com.external;
+              public record Team(String name, java.util.List<String> members) {}
+              """);
+
+      final var importAnnotation =
+          JavaFileObjects.forSourceString(
+              "com.myapp.package-info",
+              """
+              @org.higherkindedj.optics.annotations.ImportOptics({com.external.Team.class})
+              package com.myapp;
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalRecord, importAnnotation);
+
+      assertThat(compilation).succeeded();
+      // Should generate lenses for the record fields
+      assertGeneratedCodeContains(compilation, "com.myapp.TeamLenses", "Lens<Team, String> name()");
+    }
+  }
 }

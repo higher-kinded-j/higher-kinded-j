@@ -1208,4 +1208,141 @@ class ProcessorCoverageTest {
           compilation, "com.generated.CustomPkgTraversals", "Traversal<CustomPkg, String>");
     }
   }
+
+  @Nested
+  @DisplayName("TraversalProcessor with multi-type-arg fields")
+  class TraversalProcessorMultiTypeArg {
+
+    @Test
+    @DisplayName("should generate traversal for Map field (second type argument)")
+    void shouldGenerateTraversalForMapField() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.MapRecord",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              import java.util.Map;
+              @GenerateTraversals
+              public record MapRecord(String name, Map<String, Integer> data) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeeded();
+      // Map traverses the second type argument (value type)
+      assertGeneratedCodeContains(
+          compilation, "com.example.MapRecordTraversals", "Traversal<MapRecord, Integer>");
+    }
+
+    @Test
+    @DisplayName("should generate traversal for Either field (second type argument)")
+    void shouldGenerateTraversalForEitherField() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.EitherRecord",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              import org.higherkindedj.hkt.either.Either;
+              @GenerateTraversals
+              public record EitherRecord(String name, Either<String, Integer> result) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeeded();
+      // Either traverses the second type argument (right value)
+      assertGeneratedCodeContains(
+          compilation, "com.example.EitherRecordTraversals", "Traversal<EitherRecord, Integer>");
+    }
+  }
+
+  @Nested
+  @DisplayName("FocusProcessor nested SPI container widening")
+  class FocusProcessorNestedSpiWidening {
+
+    @Test
+    @DisplayName("should handle Optional<Map<String, String>> with widenCollections=true")
+    void shouldHandleOptionalMapWithWidenCollections() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.NestedSpi",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Optional;
+              import java.util.Map;
+              @GenerateFocus(widenCollections = true)
+              public record NestedSpi(String name, Optional<Map<String, Integer>> config) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeeded();
+      // Optional<Map<...>> with widenCollections produces TraversalPath
+      // (AFFINE.widen(TRAVERSAL) = TRAVERSAL)
+      assertGeneratedCodeContains(
+          compilation, "com.example.NestedSpiFocus", "TraversalPath<NestedSpi, Integer> config()");
+    }
+
+    @Test
+    @DisplayName("should handle Map<String, Optional<String>> with widenCollections=true")
+    void shouldHandleMapOfOptionalWithWidenCollections() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.MapOptSpi",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Optional;
+              import java.util.Map;
+              @GenerateFocus(widenCollections = true)
+              public record MapOptSpi(String name, Map<String, Optional<Integer>> entries) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeeded();
+      // Map<String, Optional<...>> with widenCollections produces TraversalPath
+      // (TRAVERSAL.widen(AFFINE) = TRAVERSAL, so stays traversal)
+      assertGeneratedCodeContains(
+          compilation, "com.example.MapOptSpiFocus", "TraversalPath<MapOptSpi,");
+    }
+
+    @Test
+    @DisplayName("should handle Either<String, String> field with navigator generating SPI path")
+    void shouldHandleEitherFieldInNavigator() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.EitherInner",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.hkt.either.Either;
+              @GenerateFocus(generateNavigators = true)
+              public record EitherInner(String label, Either<String, String> result) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.EitherOuter",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record EitherOuter(String name, EitherInner inner) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      assertThat(compilation).succeeded();
+      // EitherInner has Either<String,String> which is SPI ZERO_OR_ONE → AffinePath
+      assertGeneratedCodeContains(
+          compilation, "com.example.EitherOuterFocus", "AffinePath<S, String> result()");
+    }
+  }
 }

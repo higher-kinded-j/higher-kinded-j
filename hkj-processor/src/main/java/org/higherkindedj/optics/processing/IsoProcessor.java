@@ -23,6 +23,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.annotations.GenerateIsos;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * An annotation processor that generates a container class with static Iso fields for each method
@@ -42,15 +43,20 @@ public final class IsoProcessor extends AbstractProcessor {
     for (final TypeElement annotation : annotations) {
       for (final Element element : roundEnv.getElementsAnnotatedWith(annotation)) {
         if (element.getKind() == ElementKind.METHOD) {
-          try {
-            processMethod((ExecutableElement) element);
-          } catch (final IOException e) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
-          }
+          writeIsoFile((ExecutableElement) element);
         }
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeIsoFile(final ExecutableElement method) {
+    try {
+      processMethod(method);
+    } catch (final IOException e) {
+      processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
+    }
   }
 
   private void processMethod(final ExecutableElement method) throws IOException {

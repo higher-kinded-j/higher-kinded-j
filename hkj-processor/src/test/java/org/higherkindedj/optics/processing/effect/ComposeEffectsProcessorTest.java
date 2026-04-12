@@ -405,6 +405,40 @@ class ComposeEffectsProcessorTest {
     }
 
     @Test
+    @DisplayName("Non-handle methods should be ignored when checking handlers")
+    void nonHandleMethodsShouldBeIgnored() {
+      var algebra =
+          JavaFileObjects.forSourceString(
+              "test.pkg.HelperOp",
+              """
+              package test.pkg;
+
+              public sealed interface HelperOp<A> permits HelperOp.Work {
+                  record Work<A>() implements HelperOp<A> {}
+              }
+              """);
+      var interpreter =
+          JavaFileObjects.forSourceString(
+              "test.pkg.HelperInterpreter",
+              """
+              package test.pkg;
+              import org.higherkindedj.hkt.effect.annotation.Handles;
+
+              @Handles(HelperOp.class)
+              public class HelperInterpreter {
+                  public Object handleWork(HelperOp.Work<?> op) { return null; }
+                  // Non-handle method should be ignored, not flagged as extra
+                  public Object processWork(Object data) { return null; }
+              }
+              """);
+
+      Compilation compilation = compile(algebra, interpreter);
+      // No errors — handleWork covers the one permit
+      assertThat(compilation.errors()).isEmpty();
+      // processWork should NOT produce a warning since it doesn't start with "handle"
+    }
+
+    @Test
     @DisplayName("Custom targetPackage should be used for Support class")
     void customTargetPackage() throws IOException {
       var source =

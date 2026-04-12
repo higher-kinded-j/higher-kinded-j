@@ -123,6 +123,67 @@ class PathProcessorCoverageTest {
     }
 
     @Test
+    @DisplayName("should report error for primitive return type (non-DeclaredType)")
+    void shouldReportErrorForPrimitiveReturnType() {
+      // Primitive types are not DeclaredType, so determinePathType returns null
+      // via the first early-return guard (L225-226).
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.PrimitiveService",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+              import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+              @GeneratePathBridge
+              public interface PrimitiveService {
+
+                  @PathVia
+                  int count();
+              }
+              """);
+
+      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Unsupported return type");
+    }
+
+    @Test
+    @DisplayName("should handle raw Optional return type (defensive Object fallback)")
+    void shouldHandleRawOptionalReturnType() {
+      // A raw Optional has no type arguments, exercising the typeArgOrObject()
+      // fallback to Object. This is the only coverage case for the helper's
+      // out-of-bounds branch.
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.RawService",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+              import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+              @GeneratePathBridge
+              @SuppressWarnings("rawtypes")
+              public interface RawService {
+
+                  @PathVia
+                  Optional findItem();
+              }
+              """);
+
+      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+
+      // Processor accepts raw Optional, falls back to Object value type
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.RawServicePaths", "OptionalPath<Object> findItem()");
+    }
+
+    @Test
     @DisplayName("should report error for @GeneratePathBridge on non-interface")
     void shouldReportErrorOnNonInterface() {
       final var sourceFile =
@@ -308,6 +369,91 @@ class PathProcessorCoverageTest {
           compilation,
           "com.example.ValidatedServicePaths",
           "ValidationPath<String, Integer> validate(Semigroup<String> semigroup)");
+    }
+  }
+
+  @Nested
+  @DisplayName("Non-DeclaredType return type")
+  class NonDeclaredReturnType {
+
+    @Test
+    @DisplayName("should handle interface with non-annotated methods alongside @PathVia")
+    void shouldIgnoreNonAnnotatedMethods() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.MixedService",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+              import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+              @GeneratePathBridge
+              public interface MixedService {
+
+                  @PathVia
+                  Optional<String> findItem();
+
+                  // Non-annotated method should be skipped
+                  String getName();
+              }
+              """);
+
+      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.MixedServicePaths", "OptionalPath<String> findItem()");
+    }
+  }
+
+  @Nested
+  @DisplayName("PathSourceProcessor ACCUMULATING capability")
+  class PathSourceAccumulating {
+
+    @Test
+    @DisplayName("should generate ACCUMULATING path source with monadError field")
+    void shouldGenerateAccumulatingPathSource() {
+      final var witnessSource =
+          JavaFileObjects.forSourceString(
+              "com.example.AccKind",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
+
+              public interface AccKind<A> extends Kind<AccKind.Witness, A> {
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
+              }
+              """);
+
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.AccSvc",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+              @PathSource(
+                  witness = AccKind.Witness.class,
+                  capability = PathSource.Capability.ACCUMULATING,
+                  errorType = String.class
+              )
+              public interface AccSvc<A> {}
+              """);
+
+      var compilation =
+          javac().withProcessors(new PathSourceProcessor()).compile(witnessSource, sourceFile);
+
+      assertThat(compilation).succeeded();
+      // ACCUMULATING capability should generate MonadError field and recover methods
+      assertGeneratedCodeContains(compilation, "com.example.AccSvcPath", "MonadError");
+      assertGeneratedCodeContains(compilation, "com.example.AccSvcPath", "recover(");
+      assertGeneratedCodeContains(compilation, "com.example.AccSvcPath", "mapError(");
     }
   }
 

@@ -179,4 +179,168 @@ class KindFieldAnalyserCoverageTest {
       assertThat(results.get(0)).isEmpty();
     }
   }
+
+  @Nested
+  @DisplayName("Kind field with explicit @TraverseField annotation")
+  class ExplicitTraverseField {
+
+    @Test
+    @DisplayName("should create KindFieldInfo from @TraverseField annotation")
+    void shouldCreateFromAnnotation() {
+      var witnessType =
+          JavaFileObjects.forSourceString(
+              "com.test.MyWitness",
+              """
+              package com.test;
+              public final class MyWitness {}
+              """);
+
+      // Use the real @TraverseField annotation from hkj-annotations on the classpath
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.AnnotatedKindRecord",
+              """
+              package com.test;
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.optics.annotations.TraverseField;
+              import org.higherkindedj.optics.annotations.KindSemantics;
+              public record AnnotatedKindRecord(
+                  @TraverseField(
+                      traverse = "com.test.MyTraverse.INSTANCE",
+                      semantics = KindSemantics.ZERO_OR_MORE
+                  )
+                  Kind<com.test.MyWitness, String> value
+              ) {}
+              """);
+
+      List<Optional<KindFieldInfo>> results =
+          analyseRecord("com.test.AnnotatedKindRecord", KIND_INTERFACE, witnessType, record);
+
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0)).isPresent();
+      assertThat(results.get(0).get().witnessType()).isEqualTo("com.test.MyWitness");
+    }
+  }
+
+  @Nested
+  @DisplayName("Kind field with non-parameterised witness type")
+  class NonParameterisedWitness {
+
+    @Test
+    @DisplayName("should handle Kind field where witness has no type arguments")
+    void shouldHandleSimpleWitness() {
+      var witnessType =
+          JavaFileObjects.forSourceString(
+              "com.test.SimpleW",
+              """
+              package com.test;
+              public final class SimpleW {}
+              """);
+
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.SimpleWRecord",
+              """
+              package com.test;
+              import org.higherkindedj.hkt.Kind;
+              public record SimpleWRecord(Kind<com.test.SimpleW, String> field) {}
+              """);
+
+      List<Optional<KindFieldInfo>> results =
+          analyseRecord("com.test.SimpleWRecord", KIND_INTERFACE, witnessType, record);
+
+      // The witness com.test.SimpleW is not registered in KindRegistry and is not
+      // a library witness, so analyse returns empty
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Library witness not in KindRegistry")
+  class LibraryWitnessNotInRegistry {
+
+    @Test
+    @DisplayName("should emit note when unregistered witness is in org.higherkindedj.hkt.* package")
+    void shouldEmitNoteForUnregisteredLibraryWitness() {
+      // Witness under org.higherkindedj.hkt.* matches isLibraryWitness() === true,
+      // but is not in the KindRegistry known kinds map.
+      // This covers L166-167 (isLibraryWitness true-branch + note() call)
+      // and L234-236 (the note() method body).
+      var fakeKind =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.fake.FakeKind",
+              """
+              package org.higherkindedj.hkt.fake;
+              public final class FakeKind {
+                  public static final class Witness {}
+              }
+              """);
+
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.FakeKindRecord",
+              """
+              package com.test;
+              import org.higherkindedj.hkt.Kind;
+              public record FakeKindRecord(
+                  Kind<org.higherkindedj.hkt.fake.FakeKind.Witness, String> value
+              ) {}
+              """);
+
+      List<Optional<KindFieldInfo>> results =
+          analyseRecord("com.test.FakeKindRecord", KIND_INTERFACE, fakeKind, record);
+
+      // Library-looking but unregistered witness returns empty and emits a NOTE.
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("@TraverseField with parameterised witness")
+  class TraverseFieldParameterisedWitness {
+
+    @Test
+    @DisplayName("should detect isParameterised=true when witness has type arguments")
+    void shouldDetectParameterisedWitness() {
+      // A witness type with its own type parameter (e.g. GenericKind.Witness<E>)
+      // causes extractWitnessTypeArgs to return a non-empty string, triggering
+      // the isParameterised=true branch on L136 of createFromAnnotation.
+      var genericKind =
+          JavaFileObjects.forSourceString(
+              "com.test.GenericKind",
+              """
+              package com.test;
+              public final class GenericKind {
+                  public static final class Witness<E> {}
+              }
+              """);
+
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.GenericKindRecord",
+              """
+              package com.test;
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.optics.annotations.TraverseField;
+              import org.higherkindedj.optics.annotations.KindSemantics;
+              public record GenericKindRecord(
+                  @TraverseField(
+                      traverse = "com.test.GenericTraverse.instance()",
+                      semantics = KindSemantics.ZERO_OR_ONE
+                  )
+                  Kind<com.test.GenericKind.Witness<String>, Integer> value
+              ) {}
+              """);
+
+      List<Optional<KindFieldInfo>> results =
+          analyseRecord("com.test.GenericKindRecord", KIND_INTERFACE, genericKind, record);
+
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0)).isPresent();
+      assertThat(results.get(0).get().isParameterised()).isTrue();
+      assertThat(results.get(0).get().witnessTypeArgs()).isEqualTo("java.lang.String");
+    }
+  }
 }

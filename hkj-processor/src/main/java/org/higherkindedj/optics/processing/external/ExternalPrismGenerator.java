@@ -11,6 +11,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -154,6 +155,7 @@ public class ExternalPrismGenerator {
         .build();
   }
 
+  @ExcludeFromJacocoGeneratedReport
   private void writeFile(String packageName, TypeSpec typeSpec) {
     try {
       JavaFile.builder(packageName, typeSpec)

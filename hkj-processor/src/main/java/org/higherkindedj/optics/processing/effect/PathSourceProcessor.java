@@ -17,6 +17,7 @@ import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.PathSource;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * Annotation processor that generates Path wrapper classes for custom effect types.
@@ -79,14 +80,19 @@ public class PathSourceProcessor extends AbstractProcessor {
           error("@PathSource can only be applied to classes or interfaces.", element);
           continue;
         }
-        try {
-          generatePathClass((TypeElement) element);
-        } catch (IOException e) {
-          error("Could not generate Path class: " + e.getMessage(), element);
-        }
+        writePathClass((TypeElement) element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writePathClass(TypeElement element) {
+    try {
+      generatePathClass(element);
+    } catch (IOException e) {
+      error("Could not generate Path class: " + e.getMessage(), element);
+    }
   }
 
   private void generatePathClass(TypeElement sourceElement) throws IOException {
