@@ -11,6 +11,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
 import org.gradle.api.tasks.testing.Test;
@@ -61,10 +62,19 @@ public class HKJPlugin implements Plugin<Project> {
   private void configure(Project project, HKJExtension extension) {
     String version = extension.getVersion().get();
     DependencyHandler deps = project.getDependencies();
+    SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
 
-    // Always add hkj-core and hkj-processor-plugins
     deps.add("implementation", GROUP_ID + ":hkj-core:" + version);
-    deps.add("annotationProcessor", GROUP_ID + ":hkj-processor-plugins:" + version);
+
+    // Register annotation processors on every source set's processor classpath so that
+    // all JavaCompile tasks (compileJava, compileTestJava, and any custom source sets
+    // such as integrationTest) can load -Xplugin:HKJChecker. Using sourceSets.all(...)
+    // also wires up source sets added after the plugin is configured.
+    sourceSets.all(
+        sourceSet ->
+            deps.add(
+                sourceSet.getAnnotationProcessorConfigurationName(),
+                GROUP_ID + ":hkj-processor-plugins:" + version));
 
     // Preview features
     if (Boolean.TRUE.equals(extension.getPreview().get())) {
@@ -73,7 +83,11 @@ public class HKJPlugin implements Plugin<Project> {
 
     // Compile-time checks
     if (Boolean.TRUE.equals(extension.getChecks().getPathTypeMismatch().get())) {
-      deps.add("annotationProcessor", GROUP_ID + ":hkj-checker:" + version);
+      sourceSets.all(
+          sourceSet ->
+              deps.add(
+                  sourceSet.getAnnotationProcessorConfigurationName(),
+                  GROUP_ID + ":hkj-checker:" + version));
       project
           .getTasks()
           .withType(JavaCompile.class)
@@ -149,6 +163,19 @@ public class HKJPlugin implements Plugin<Project> {
             });
   }
 
+  /** Left-pads {@code label} with trailing spaces so it occupies at least {@code width} chars. */
+  private static String padLabel(String label, int width) {
+    if (label.length() >= width) {
+      return label + " ";
+    }
+    StringBuilder sb = new StringBuilder(width + 1).append(label);
+    while (sb.length() < width) {
+      sb.append(' ');
+    }
+    sb.append(' ');
+    return sb.toString();
+  }
+
   private static String readPluginVersion() {
     Properties props = new Properties();
     try (InputStream in = HKJPlugin.class.getResourceAsStream("/hkj-version.properties")) {
@@ -192,26 +219,46 @@ public class HKJPlugin implements Plugin<Project> {
               task.doLast(
                   t -> {
                     String version = extension.getVersion().get();
-                    boolean preview = Boolean.TRUE.equals(extension.getPreview().get());
-                    boolean spring = Boolean.TRUE.equals(extension.getSpring().get());
-                    boolean skills = Boolean.TRUE.equals(extension.getSkills().get());
-                    boolean checks =
-                        Boolean.TRUE.equals(extension.getChecks().getPathTypeMismatch().get());
+                    boolean preview = extension.getPreview().get();
+                    boolean spring = extension.getSpring().get();
+                    boolean skills = extension.getSkills().get();
+                    boolean checks = extension.getChecks().getPathTypeMismatch().get();
+
+                    SourceSetContainer sourceSets =
+                        project.getExtensions().getByType(SourceSetContainer.class);
+
+                    // Compute padding so labels align with the longest configuration name.
+                    int labelWidth = "implementation:".length();
+                    for (var sourceSet : sourceSets) {
+                      labelWidth =
+                          Math.max(
+                              labelWidth,
+                              sourceSet.getAnnotationProcessorConfigurationName().length() + 1);
+                    }
+                    final int width = labelWidth;
 
                     List<String> depsAdded = new ArrayList<>();
-                    depsAdded.add("implementation:          " + GROUP_ID + ":hkj-core:" + version);
                     depsAdded.add(
-                        "annotationProcessor:     "
-                            + GROUP_ID
-                            + ":hkj-processor-plugins:"
-                            + version);
+                        padLabel("implementation:", width) + GROUP_ID + ":hkj-core:" + version);
+                    sourceSets.forEach(
+                        sourceSet -> {
+                          String label = sourceSet.getAnnotationProcessorConfigurationName() + ":";
+                          depsAdded.add(
+                              padLabel(label, width)
+                                  + GROUP_ID
+                                  + ":hkj-processor-plugins:"
+                                  + version);
+                        });
                     if (checks) {
-                      depsAdded.add(
-                          "annotationProcessor:     " + GROUP_ID + ":hkj-checker:" + version);
+                      for (var sourceSet : sourceSets) {
+                        String label = sourceSet.getAnnotationProcessorConfigurationName() + ":";
+                        depsAdded.add(
+                            padLabel(label, width) + GROUP_ID + ":hkj-checker:" + version);
+                      }
                     }
                     if (spring) {
                       depsAdded.add(
-                          "implementation:          "
+                          padLabel("implementation:", width)
                               + GROUP_ID
                               + ":hkj-spring-boot-starter:"
                               + version);

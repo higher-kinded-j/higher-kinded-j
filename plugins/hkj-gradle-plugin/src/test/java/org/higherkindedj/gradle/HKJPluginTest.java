@@ -11,6 +11,7 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.internal.project.ProjectInternal;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,6 +91,16 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("adds hkj-processor-plugins to testAnnotationProcessor")
+    void plugin_addsProcessorDependency_toTestAnnotationProcessor() {
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(dependencyNotations("testAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-processor-plugins"));
+    }
+
+    @Test
     @DisplayName("adds --enable-preview to JavaCompile tasks when preview is enabled")
     void plugin_addsPreviewFlags_whenEnabled() {
       applyPlugin();
@@ -109,6 +120,19 @@ class HKJPluginTest {
       evaluateProject();
 
       assertThat(dependencyNotations("annotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-checker"));
+    }
+
+    @Test
+    @DisplayName("adds hkj-checker to testAnnotationProcessor when checks are enabled")
+    void plugin_addsCheckerDependency_toTestAnnotationProcessor_whenEnabled() {
+      // Regression test: -Xplugin:HKJChecker is added to all JavaCompile tasks (including
+      // compileTestJava); the checker JAR must also be on testAnnotationProcessor, otherwise
+      // javac fails with "plug-in not found: HKJChecker" when compiling test sources.
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(dependencyNotations("testAnnotationProcessor"))
           .anyMatch(dep -> dep.contains("hkj-checker"));
     }
 
@@ -185,6 +209,8 @@ class HKJPluginTest {
 
       assertThat(dependencyNotations("annotationProcessor"))
           .noneMatch(dep -> dep.contains("hkj-checker"));
+      assertThat(dependencyNotations("testAnnotationProcessor"))
+          .noneMatch(dep -> dep.contains("hkj-checker"));
 
       project
           .getTasks()
@@ -246,6 +272,43 @@ class HKJPluginTest {
       Task installTask = project.getTasks().findByName("hkjInstallSkills");
       assertThat(installTask).isNotNull();
       assertThat(installTask.getGroup()).isEqualTo("hkj");
+    }
+  }
+
+  @Nested
+  @DisplayName("custom source sets")
+  class CustomSourceSets {
+
+    @Test
+    @DisplayName(
+        "registers hkj-processor-plugins and hkj-checker on a custom source set's processor"
+            + " classpath")
+    void plugin_registersProcessors_onCustomSourceSet() {
+      // Because -Xplugin:HKJChecker is applied to every JavaCompile task, any extra source
+      // set (e.g., integrationTest) must also have the checker and processor JARs on its
+      // annotation processor classpath. Using SourceSetContainer.all(...) in the plugin
+      // ensures both existing and newly-created source sets are covered.
+      applyPlugin();
+      project.getExtensions().getByType(SourceSetContainer.class).create("integrationTest");
+      evaluateProject();
+
+      assertThat(dependencyNotations("integrationTestAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-processor-plugins"))
+          .anyMatch(dep -> dep.contains("hkj-checker"));
+    }
+
+    @Test
+    @DisplayName("skips hkj-checker on custom source set when checks are disabled")
+    void plugin_skipsCheckerOnCustomSourceSet_whenDisabled() {
+      applyPlugin();
+      HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
+      ext.getChecks().getPathTypeMismatch().set(false);
+      project.getExtensions().getByType(SourceSetContainer.class).create("integrationTest");
+      evaluateProject();
+
+      assertThat(dependencyNotations("integrationTestAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-processor-plugins"))
+          .noneMatch(dep -> dep.contains("hkj-checker"));
     }
   }
 }
