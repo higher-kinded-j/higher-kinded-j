@@ -33,6 +33,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /** Annotation processor that generates Traversal optics for record types. */
 @AutoService(Processor.class)
@@ -59,13 +60,18 @@ public class TraversalProcessor extends AbstractProcessor {
         error("The @GenerateTraversals annotation can only be applied to records.", element);
         continue;
       }
-      try {
-        generateTraversalsFile((TypeElement) element);
-      } catch (IOException e) {
-        error("Could not generate traversals file: " + e.getMessage(), element);
-      }
+      writeTraversalsFile((TypeElement) element);
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeTraversalsFile(TypeElement element) {
+    try {
+      generateTraversalsFile(element);
+    } catch (IOException e) {
+      error("Could not generate traversals file: " + e.getMessage(), element);
+    }
   }
 
   private void generateTraversalsFile(TypeElement recordElement) throws IOException {

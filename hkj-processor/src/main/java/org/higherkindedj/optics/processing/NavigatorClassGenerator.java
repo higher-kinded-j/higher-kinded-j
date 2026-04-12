@@ -137,16 +137,6 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Determines what path kind a field type introduces.
-   *
-   * @param type the field type to analyse
-   * @return AFFINE for optional types, TRAVERSAL for collection types, FOCUS otherwise
-   */
-  private PathKind getFieldPathKind(TypeMirror type) {
-    return getFieldPathKind(null, type);
-  }
-
-  /**
    * Determines what path kind a field type introduces, considering annotations. Recursively
    * composes path kinds for nested container types (e.g., Optional&lt;List&lt;String&gt;&gt;
    * produces TRAVERSAL).
@@ -201,11 +191,6 @@ public class NavigatorClassGenerator {
           return PathKind.TRAVERSAL.widen(innerKind);
         }
       }
-    }
-
-    // Check for array types
-    if (type.getKind() == TypeKind.ARRAY) {
-      return PathKind.TRAVERSAL;
     }
 
     // Consult TraversableGenerator SPI for additional container types.
@@ -1299,11 +1284,6 @@ public class NavigatorClassGenerator {
       if (COLLECTION_TYPES.contains(qualifiedName)) {
         return ".each()";
       }
-    }
-
-    // Check for array types
-    if (fieldType.getKind() == TypeKind.ARRAY) {
-      return ".each()";
     }
 
     // Consult SPI generators for the optic expression

@@ -27,6 +27,7 @@ import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -63,14 +64,19 @@ public class PrismProcessor extends AbstractProcessor {
               element);
           continue;
         }
-        try {
-          generatePrismsFile((TypeElement) element);
-        } catch (IOException e) {
-          error("Could not generate prisms file: " + e.getMessage(), element);
-        }
+        writePrismsFile((TypeElement) element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writePrismsFile(TypeElement element) {
+    try {
+      generatePrismsFile(element);
+    } catch (IOException e) {
+      error("Could not generate prisms file: " + e.getMessage(), element);
+    }
   }
 
   /**

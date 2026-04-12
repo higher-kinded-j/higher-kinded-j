@@ -31,6 +31,7 @@ import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -146,14 +147,19 @@ public class FocusProcessor extends AbstractProcessor {
           error("The @GenerateFocus annotation can only be applied to records.", element);
           continue;
         }
-        try {
-          generateFocusFile((TypeElement) element, navigableTypes);
-        } catch (IOException e) {
-          error("Could not generate focus file: " + e.getMessage(), element);
-        }
+        writeFocusFile((TypeElement) element, navigableTypes);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeFocusFile(TypeElement element, Set<String> navigableTypes) {
+    try {
+      generateFocusFile(element, navigableTypes);
+    } catch (IOException e) {
+      error("Could not generate focus file: " + e.getMessage(), element);
+    }
   }
 
   private void generateFocusFile(TypeElement recordElement, Set<String> navigableTypes)

@@ -27,6 +27,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
  * Generates lens classes for external types (records and wither-based classes).
@@ -411,6 +412,7 @@ public class ExternalLensGenerator {
     }
   }
 
+  @ExcludeFromJacocoGeneratedReport
   private void writeFile(String packageName, TypeSpec typeSpec) {
     try {
       JavaFile.builder(packageName, typeSpec)

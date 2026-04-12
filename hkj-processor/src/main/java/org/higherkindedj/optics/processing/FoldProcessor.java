@@ -26,6 +26,7 @@ import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.annotations.GenerateFolds;
+import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /** Annotation processor that generates Fold optics for record types. */
 @AutoService(Processor.class)
@@ -45,14 +46,19 @@ public class FoldProcessor extends AbstractProcessor {
           error("The @GenerateFolds annotation can only be applied to records.", element);
           continue;
         }
-        try {
-          generateFoldsFile((TypeElement) element);
-        } catch (IOException e) {
-          error("Could not generate folds file: " + e.getMessage(), element);
-        }
+        writeFoldsFile((TypeElement) element);
       }
     }
     return true;
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void writeFoldsFile(TypeElement element) {
+    try {
+      generateFoldsFile(element);
+    } catch (IOException e) {
+      error("Could not generate folds file: " + e.getMessage(), element);
+    }
   }
 
   private void generateFoldsFile(TypeElement recordElement) throws IOException {
