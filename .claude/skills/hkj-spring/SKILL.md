@@ -261,8 +261,22 @@ Once all endpoints are migrated, remove exception handlers.
 
 ## Testing
 
+> **Heads up — `@WebMvcTest` does not load third-party auto-configurations.**
+> The hkj-spring-boot-starter registers `HkjJacksonAutoConfiguration` (for the
+> `Either` / `Validated` JSON shape) and `HkjWebMvcAutoConfiguration` (for the
+> `*ReturnValueHandler`s and HTTP status-code mapping) via
+> `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
+> `@WebMvcTest` slices those out, so without explicit imports MockMvc sees a
+> raw serialized `Either` and no status mapping. Add the three auto-configs
+> below to restore production behaviour inside the slice.
+
 ```java
 @WebMvcTest(UserController.class)
+@ImportAutoConfiguration({
+    HkjAutoConfiguration.class,           // binds HkjProperties
+    HkjJacksonAutoConfiguration.class,    // HkjJacksonModule → Either/Validated JSON shape
+    HkjWebMvcAutoConfiguration.class      // return-value handlers + status mapping
+})
 class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -288,6 +302,10 @@ class UserControllerTest {
     }
 }
 ```
+
+For full-fidelity tests (all auto-configs, properties, filters, etc.), use
+`@SpringBootTest + @AutoConfigureMockMvc` instead. A working slice-test recipe
+lives at `hkj-spring/example/src/test/java/.../UserControllerWebMvcSliceTest.java`.
 
 ---
 
