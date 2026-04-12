@@ -116,6 +116,9 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
       return;
     }
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Fold to HTTP response
     validated.fold(
         errors -> {
@@ -123,7 +126,7 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
           return null;
         },
         value -> {
-          writeValidResponse(value, response);
+          writeValidResponse(value, response, successStatus);
           return null;
         });
   }
@@ -169,12 +172,15 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
    *
    * @param value the valid value
    * @param response the HTTP response
+   * @param status the HTTP status code to set
    */
-  private void writeValidResponse(Object value, HttpServletResponse response) {
+  private void writeValidResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

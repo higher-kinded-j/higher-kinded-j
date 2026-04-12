@@ -96,12 +96,15 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
       return;
     }
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Execute the deferred IO at the edge and convert result to HTTP response
     ioPath
         .runSafe()
         .fold(
             value -> {
-              writeSuccessResponse(value, response);
+              writeSuccessResponse(value, response, successStatus);
               return null;
             },
             throwable -> {
@@ -149,12 +152,15 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
    *
    * @param value the result of successful IO execution
    * @param response the HTTP response
+   * @param status the HTTP status code to set
    */
-  private void writeSuccessResponse(Object value, HttpServletResponse response) {
+  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }

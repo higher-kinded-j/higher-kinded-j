@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.ModelAndViewContainer;
 import tools.jackson.databind.json.JsonMapper;
@@ -249,6 +251,61 @@ class EitherPathReturnValueHandlerTest {
     }
   }
 
+  @Nested
+  @DisplayName("@ResponseStatus Tests")
+  class ResponseStatusTests {
+
+    private MethodParameter methodParamFor(String methodName) throws Exception {
+      Method method = SampleController.class.getDeclaredMethod(methodName);
+      return new MethodParameter(method, -1);
+    }
+
+    @Test
+    @DisplayName("Should honor @ResponseStatus(CREATED) on POST handler")
+    void shouldHonorCreatedStatus() throws Exception {
+      MethodParameter rt = methodParamFor("createUser");
+      TestUser user = new TestUser("1", "alice@example.com");
+      EitherPath<String, TestUser> path = Path.right(user);
+
+      handler.handleReturnValue(path, rt, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.CREATED.value());
+      verify(response).setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"id\":\"1\"");
+    }
+
+    @Test
+    @DisplayName("Should honor @ResponseStatus(NO_CONTENT) on DELETE handler and skip body")
+    void shouldHonorNoContentStatus() throws Exception {
+      MethodParameter rt = methodParamFor("deleteUser");
+      EitherPath<String, String> path = Path.right("deleted");
+
+      handler.handleReturnValue(path, rt, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.NO_CONTENT.value());
+      verify(response, never()).setContentType(anyString());
+
+      printWriter.flush();
+      assertThat(stringWriter.toString()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should still use error status for Left values even with @ResponseStatus")
+    void shouldUseErrorStatusForLeftValues() throws Exception {
+      MethodParameter rt = methodParamFor("createUser");
+      TestUserNotFoundError error = new TestUserNotFoundError("123");
+      EitherPath<TestUserNotFoundError, TestUser> path = Path.left(error);
+
+      handler.handleReturnValue(path, rt, mavContainer, webRequest);
+
+      // Left maps to 404 via ErrorStatusCodeMapper regardless of method's @ResponseStatus
+      verify(response).setStatus(HttpStatus.NOT_FOUND.value());
+    }
+  }
+
   // Test DTOs
   record TestUser(String id, String email) {}
 
@@ -261,4 +318,17 @@ class EitherPathReturnValueHandlerTest {
   record TestAuthorizationError(String message) {}
 
   record TestAuthenticationError(String message) {}
+
+  @SuppressWarnings("unused")
+  static class SampleController {
+    @ResponseStatus(HttpStatus.CREATED)
+    public EitherPath<String, TestUser> createUser() {
+      return Path.right(new TestUser("1", "a@b.com"));
+    }
+
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public EitherPath<String, String> deleteUser() {
+      return Path.right("deleted");
+    }
+  }
 }

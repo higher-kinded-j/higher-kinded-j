@@ -154,6 +154,9 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
           }
         });
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Execute the VStream on a virtual thread, pulling elements and writing SSE events
     Thread.ofVirtual()
         .name("hkj-vstream-handler")
@@ -161,7 +164,18 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
             () -> {
               AtomicLong elementCount = new AtomicLong(0);
               try {
-                response.setStatus(HttpStatus.OK.value());
+                response.setStatus(successStatus);
+
+                // 204 No Content must not have a body — skip SSE headers and stream execution
+                if (successStatus == HttpStatus.NO_CONTENT.value()) {
+                  if (metricsService != null) {
+                    metricsService.recordVStreamSuccess();
+                    metricsService.recordVStreamElements(0);
+                  }
+                  deferredResult.setResult(null);
+                  return;
+                }
+
                 response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
                 response.setCharacterEncoding("UTF-8");
                 response.setHeader("Cache-Control", "no-cache");

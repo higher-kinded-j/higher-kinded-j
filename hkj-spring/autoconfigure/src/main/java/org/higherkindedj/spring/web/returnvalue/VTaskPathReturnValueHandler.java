@@ -148,6 +148,9 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
           }
         });
 
+    int successStatus =
+        SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
+
     // Execute the VTask asynchronously on a virtual thread
     long startTime = System.currentTimeMillis();
     vtaskPath
@@ -169,7 +172,7 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
                     metricsService.recordVTaskSuccess();
                     metricsService.recordVTaskDuration(durationMillis);
                   }
-                  writeSuccessResponse(result, response);
+                  writeSuccessResponse(result, response, successStatus);
                 }
                 deferredResult.setResult(null);
               } catch (Exception e) {
@@ -226,11 +229,13 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
     }
   }
 
-  private void writeSuccessResponse(Object value, HttpServletResponse response) {
+  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
-      response.setStatus(HttpStatus.OK.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      objectWriter.writeValue(response.getWriter(), value);
+      response.setStatus(status);
+      if (status != HttpStatus.NO_CONTENT.value()) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectWriter.writeValue(response.getWriter(), value);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to write success response", e);
     }
