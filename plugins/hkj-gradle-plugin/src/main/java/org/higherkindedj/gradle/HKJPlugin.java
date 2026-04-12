@@ -163,17 +163,9 @@ public class HKJPlugin implements Plugin<Project> {
             });
   }
 
-  /** Left-pads {@code label} with trailing spaces so it occupies at least {@code width} chars. */
+  /** Left-aligns {@code label} by padding with trailing spaces to at least {@code width} chars. */
   private static String padLabel(String label, int width) {
-    if (label.length() >= width) {
-      return label + " ";
-    }
-    StringBuilder sb = new StringBuilder(width + 1).append(label);
-    while (sb.length() < width) {
-      sb.append(' ');
-    }
-    sb.append(' ');
-    return sb.toString();
+    return String.format("%-" + width + "s ", label);
   }
 
   private static String readPluginVersion() {

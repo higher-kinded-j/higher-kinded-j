@@ -9,6 +9,7 @@ import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
+import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
@@ -90,7 +91,7 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     project.getDependencies().add(dep);
   }
 
-  private void configureCompilerPlugin(MavenProject project, HKJConfiguration config) {
+  void configureCompilerPlugin(MavenProject project, HKJConfiguration config) {
     Plugin compilerPlugin = findOrCreatePlugin(project, COMPILER_PLUGIN_KEY);
     Xpp3Dom pluginConfig = getOrCreateConfiguration(compilerPlugin);
 
@@ -100,18 +101,64 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
       setChildValue(pluginConfig, "enablePreview", "true");
     }
 
-    // Configure annotation processor paths
-    Xpp3Dom annotationProcessorPaths = getOrCreateChild(pluginConfig, "annotationProcessorPaths");
-    addAnnotationProcessorPath(annotationProcessorPaths, "hkj-processor-plugins", config.version());
+    // Always ensure HKJ entries are on the plugin-level annotationProcessorPaths and
+    // compilerArgs. These are the defaults for both the compile and testCompile goals
+    // (testCompile falls back to them when the test-specific overrides aren't set).
+    addHkjProcessorPaths(pluginConfig, "annotationProcessorPaths", config, /* create= */ true);
     if (config.pathTypeMismatch()) {
-      addAnnotationProcessorPath(annotationProcessorPaths, "hkj-checker", config.version());
+      addHkjCompilerArg(pluginConfig, "compilerArgs", /* create= */ true);
     }
 
-    // Configure compiler args
-    if (config.pathTypeMismatch()) {
-      Xpp3Dom compilerArgs = getOrCreateChild(pluginConfig, "compilerArgs");
-      addArgIfMissing(compilerArgs, "-Xplugin:HKJChecker");
+    // Defensively patch any user-declared test-specific overrides. When
+    // <testAnnotationProcessorPaths> / <testCompilerArgs> are set (at the plugin level or
+    // in an execution), the testCompile goal reads from them exclusively instead of the
+    // main annotationProcessorPaths / compilerArgs, so HKJ must be added there too.
+    // Execution-level <annotationProcessorPaths> / <compilerArgs> are also patched because
+    // execution-level configuration overrides the plugin-level values for that execution.
+    applyTestOverrides(pluginConfig, config);
+    for (PluginExecution execution : compilerPlugin.getExecutions()) {
+      if (!(execution.getConfiguration() instanceof Xpp3Dom executionConfig)) {
+        continue;
+      }
+      addHkjProcessorPaths(
+          executionConfig, "annotationProcessorPaths", config, /* create= */ false);
+      if (config.pathTypeMismatch()) {
+        addHkjCompilerArg(executionConfig, "compilerArgs", /* create= */ false);
+      }
+      applyTestOverrides(executionConfig, config);
     }
+  }
+
+  private void applyTestOverrides(Xpp3Dom configNode, HKJConfiguration config) {
+    // Only patch test overrides that already exist - creating them blindly would replace
+    // the fallback to annotationProcessorPaths / compilerArgs and risk clobbering any
+    // user-defined test-only processors or args.
+    addHkjProcessorPaths(configNode, "testAnnotationProcessorPaths", config, /* create= */ false);
+    if (config.pathTypeMismatch()) {
+      addHkjCompilerArg(configNode, "testCompilerArgs", /* create= */ false);
+    }
+  }
+
+  private void addHkjProcessorPaths(
+      Xpp3Dom configNode, String childName, HKJConfiguration config, boolean create) {
+    Xpp3Dom paths =
+        create ? getOrCreateChild(configNode, childName) : configNode.getChild(childName);
+    if (paths == null) {
+      return;
+    }
+    addAnnotationProcessorPath(paths, "hkj-processor-plugins", config.version());
+    if (config.pathTypeMismatch()) {
+      addAnnotationProcessorPath(paths, "hkj-checker", config.version());
+    }
+  }
+
+  private void addHkjCompilerArg(Xpp3Dom configNode, String childName, boolean create) {
+    Xpp3Dom args =
+        create ? getOrCreateChild(configNode, childName) : configNode.getChild(childName);
+    if (args == null) {
+      return;
+    }
+    addArgIfMissing(args, "-Xplugin:HKJChecker");
   }
 
   private void configureSurefirePlugin(MavenProject project, HKJConfiguration config) {
