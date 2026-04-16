@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Test controller for verifying that the {@code hkj.web.either.default-error-status} property
- * governs the HTTP status of {@code Left} values whose class name matches none of the
- * {@code ErrorStatusCodeMapper} heuristics.
+ * governs the HTTP status of {@code Left} values whose class name matches none of the {@code
+ * ErrorStatusCodeMapper} heuristics.
  *
  * <p>Uses a sealed domain-error hierarchy with three variants:
  *

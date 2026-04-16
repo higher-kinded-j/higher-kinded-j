@@ -32,8 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
  *       configured 500
  * </ul>
  *
- * <p>Lives in the example module because {@code @WebMvcTest} requires a {@code
- * @SpringBootApplication} for context bootstrapping, and {@link HkjSpringExampleApplication}
+ * <p>Lives in the example module because {@code @WebMvcTest} requires a
+ * {@code @SpringBootApplication} for context bootstrapping, and {@link HkjSpringExampleApplication}
  * provides one.
  *
  * <p>Property-level binding coverage for both the nested {@code hkj.web.either.default-error-
@@ -74,8 +74,7 @@ class EitherDefaultErrorStatusSliceTest {
   }
 
   @Test
-  @DisplayName(
-      "/api/either-status/persistence → 500 via configured default (no heuristic match)")
+  @DisplayName("/api/either-status/persistence → 500 via configured default (no heuristic match)")
   void persistenceFallsBackToConfiguredDefault() throws Exception {
     mockMvc
         .perform(get("/api/either-status/persistence"))
