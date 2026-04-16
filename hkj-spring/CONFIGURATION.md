@@ -155,20 +155,34 @@ hkj:
     vstream-path-enabled: false  # Disable VStreamPath handler
 ```
 
-### `hkj.web.default-error-status`
+### `hkj.web.either.default-error-status` (alias: `hkj.web.default-error-status`)
 
-Default HTTP status code for Left/Invalid values when the error type is unknown.
+Default HTTP status code returned by the `EitherPathReturnValueHandler` for `Left` values whose
+simple class name matches none of the built-in `ErrorStatusCodeMapper` heuristics (`NotFound`,
+`Validation`/`Invalid`, `Forbidden`/`Authorization`, `Authentication`/`Unauthorized`).
 
 - **Type:** `int`
 - **Default:** `400`
 - **Valid values:** Any HTTP status code (100-599)
 - **Effect:** Used when error class name does not match any known patterns
 
-**Example:**
+The nested form `hkj.web.either.default-error-status` is the preferred path. The flat legacy
+form `hkj.web.default-error-status` is retained as an alias and binds to the same underlying
+value.
+
+**Example (preferred nested form):**
 ```yaml
 hkj:
   web:
-    default-error-status: 500  # Use 500 for unknown errors
+    either:
+      default-error-status: 500  # Use 500 for unmatched Left values
+```
+
+**Example (legacy flat form, still supported):**
+```yaml
+hkj:
+  web:
+    default-error-status: 500
 ```
 
 ### `hkj.web.maybe-nothing-status`

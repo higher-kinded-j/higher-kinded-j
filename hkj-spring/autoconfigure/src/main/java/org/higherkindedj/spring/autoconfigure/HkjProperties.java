@@ -227,10 +227,13 @@ public class HkjProperties {
     private boolean freePathEnabled = true;
 
     /**
-     * Default HTTP status code for Left values when error type is unknown. Default: 400 (Bad
-     * Request)
+     * EitherPath-specific configuration, including default error status for Left values.
+     *
+     * <p>Bound from {@code hkj.web.either.*} properties. The flat {@code
+     * hkj.web.default-error-status} property is preserved as a backward-compatible alias; see
+     * {@link #getDefaultErrorStatus()}.
      */
-    private int defaultErrorStatus = 400;
+    private Either either = new Either();
 
     /** HTTP status code for MaybePath Nothing values. Default: 404 (Not Found) */
     private int maybeNothingStatus = 404;
@@ -412,21 +415,50 @@ public class HkjProperties {
     }
 
     /**
-     * Returns the default error HTTP status code.
+     * Returns the default error HTTP status code for Left values whose class name matches none of
+     * the {@code ErrorStatusCodeMapper} heuristics.
+     *
+     * <p>Reads from the nested {@link Either#getDefaultErrorStatus()}. Both {@code
+     * hkj.web.default-error-status} (flat, legacy) and {@code hkj.web.either.default-error-status}
+     * (nested, preferred) are bound to the same underlying value.
      *
      * @return the default error HTTP status code
      */
     public int getDefaultErrorStatus() {
-      return defaultErrorStatus;
+      return either.getDefaultErrorStatus();
     }
 
     /**
-     * Sets the default error HTTP status code.
+     * Sets the default error HTTP status code. Delegates to {@link
+     * Either#setDefaultErrorStatus(int)} so that both {@code hkj.web.default-error-status} and
+     * {@code hkj.web.either.default-error-status} converge on the same value.
      *
      * @param defaultErrorStatus the default error HTTP status code
      */
     public void setDefaultErrorStatus(int defaultErrorStatus) {
-      this.defaultErrorStatus = defaultErrorStatus;
+      this.either.setDefaultErrorStatus(defaultErrorStatus);
+    }
+
+    /**
+     * Returns the nested EitherPath configuration.
+     *
+     * @return the EitherPath configuration
+     */
+    public Either getEither() {
+      return either;
+    }
+
+    /**
+     * Sets the nested EitherPath configuration. A {@code null} argument is ignored so that the
+     * {@link #getDefaultErrorStatus()} / {@link #setDefaultErrorStatus(int)} delegation cannot
+     * produce a {@link NullPointerException}.
+     *
+     * @param either the EitherPath configuration; ignored if {@code null}
+     */
+    public void setEither(Either either) {
+      if (either != null) {
+        this.either = either;
+      }
     }
 
     /**
@@ -751,6 +783,51 @@ public class HkjProperties {
      */
     public void setErrorStatusMappings(Map<String, Integer> errorStatusMappings) {
       this.errorStatusMappings = errorStatusMappings;
+    }
+
+    /**
+     * EitherPath-specific configuration properties.
+     *
+     * <p>Bound from {@code hkj.web.either.*}. Example:
+     *
+     * <pre>
+     * hkj:
+     *   web:
+     *     either:
+     *       default-error-status: 500
+     * </pre>
+     *
+     * <p>The legacy flat property {@code hkj.web.default-error-status} is bound to the same
+     * underlying value via {@link Web#setDefaultErrorStatus(int)}, so either form works.
+     */
+    public static class Either {
+      /**
+       * Default HTTP status code for Left values when the error type's simple class name matches
+       * none of the {@code ErrorStatusCodeMapper} heuristics (NotFound, Validation/Invalid,
+       * Forbidden/Authorization, Authentication/Unauthorized). Default: 400 (Bad Request).
+       */
+      private int defaultErrorStatus = 400;
+
+      /** Creates a new Either configuration with default values. */
+      public Either() {}
+
+      /**
+       * Returns the default error HTTP status code for unmatched Left values.
+       *
+       * @return the default error HTTP status code
+       */
+      public int getDefaultErrorStatus() {
+        return defaultErrorStatus;
+      }
+
+      /**
+       * Sets the default error HTTP status code for unmatched Left values.
+       *
+       * @param defaultErrorStatus the default error HTTP status code
+       */
+      public void setDefaultErrorStatus(int defaultErrorStatus) {
+        this.defaultErrorStatus = defaultErrorStatus;
+      }
     }
   }
 
