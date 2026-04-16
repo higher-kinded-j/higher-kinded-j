@@ -207,6 +207,40 @@ class HkjWebMvcAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("Should bind nested hkj.web.either.default-error-status (issue #490)")
+    void shouldBindNestedEitherDefaultErrorStatus() {
+      contextRunner
+          .withPropertyValues("hkj.web.either.default-error-status=500")
+          .run(
+              context -> {
+                HkjProperties properties = context.getBean(HkjProperties.class);
+
+                // Nested accessor returns the configured value
+                assertThat(properties.getWeb().getEither().getDefaultErrorStatus()).isEqualTo(500);
+
+                // Legacy flat accessor resolves to the same value
+                assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(500);
+              });
+    }
+
+    @Test
+    @DisplayName("Legacy flat path should still bind and be visible on nested accessor")
+    void legacyFlatPathShouldBindToNestedAccessor() {
+      contextRunner
+          .withPropertyValues("hkj.web.default-error-status=422")
+          .run(
+              context -> {
+                HkjProperties properties = context.getBean(HkjProperties.class);
+
+                // Legacy flat path still works
+                assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(422);
+
+                // And is visible through the nested accessor since both share the same field
+                assertThat(properties.getWeb().getEither().getDefaultErrorStatus()).isEqualTo(422);
+              });
+    }
+
+    @Test
     @DisplayName("Should load error status mappings")
     void shouldLoadErrorStatusMappings() {
       contextRunner

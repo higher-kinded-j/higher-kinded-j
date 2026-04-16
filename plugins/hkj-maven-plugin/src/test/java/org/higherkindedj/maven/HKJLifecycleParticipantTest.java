@@ -4,6 +4,7 @@ package org.higherkindedj.maven;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
 import java.util.List;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Plugin;
@@ -85,7 +86,7 @@ class HKJLifecycleParticipantTest {
     if (child == null) {
       return List.of();
     }
-    return java.util.Arrays.stream(child.getChildren("path"))
+    return Arrays.stream(child.getChildren("path"))
         .map(p -> p.getChild("artifactId").getValue())
         .toList();
   }
@@ -95,7 +96,7 @@ class HKJLifecycleParticipantTest {
     if (child == null) {
       return List.of();
     }
-    return java.util.Arrays.stream(child.getChildren("arg")).map(Xpp3Dom::getValue).toList();
+    return Arrays.stream(child.getChildren("arg")).map(Xpp3Dom::getValue).toList();
   }
 
   @Nested

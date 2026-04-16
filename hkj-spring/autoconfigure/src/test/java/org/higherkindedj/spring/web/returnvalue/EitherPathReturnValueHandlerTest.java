@@ -224,6 +224,24 @@ class EitherPathReturnValueHandlerTest {
 
       verify(response).setStatus(500);
     }
+
+    @Test
+    @DisplayName(
+        "Should route non-heuristic-matching domain errors to the custom default (issue #490)")
+    void shouldRouteUnmatchedDomainErrorsToConfiguredDefault() throws Exception {
+      // Reproduces the scenario from issue #490: a record whose simple name contains none
+      // of the heuristic substrings (NotFound / Validation / Invalid / Forbidden /
+      // Authorization / Authentication / Unauthorized) must fall through to the configured
+      // default status — 500 here — not the hardcoded 400 default.
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(jsonMapper, 500);
+      DuplicateError error = new DuplicateError("x");
+      EitherPath<DuplicateError, TestUser> path = Path.left(error);
+
+      customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(500);
+    }
   }
 
   @Nested
@@ -318,6 +336,9 @@ class EitherPathReturnValueHandlerTest {
   record TestAuthorizationError(String message) {}
 
   record TestAuthenticationError(String message) {}
+
+  /** A domain error whose simple name matches no heuristic substring (issue #490). */
+  record DuplicateError(String id) {}
 
   @SuppressWarnings("unused")
   static class SampleController {
