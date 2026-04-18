@@ -26,7 +26,7 @@ MaybePath<String> nothing = Path.nothing();
 MaybePath<User> user = Path.maybe(repository.findById(id));
 
 // From nullable (null becomes Nothing)
-MaybePath<String> fromNullable = Path.fromNullable(possiblyNull);
+MaybePath<String> fromNullable = Path.maybe(possiblyNull);
 ```
 
 ---

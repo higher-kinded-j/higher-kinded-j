@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Effectful;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
@@ -179,14 +180,20 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
 
   @Override
   public VTaskPath<A> handleErrorWith(
-      Function<? super Throwable, ? extends VTaskPath<A>> recovery) {
+      Function<? super Throwable, ? extends Effectful<A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return new DefaultVTaskPath<>(
         value.recoverWith(
             t -> {
-              VTaskPath<A> fallback = recovery.apply(t);
+              Effectful<A> fallback = recovery.apply(t);
               Objects.requireNonNull(fallback, "recovery must not return null");
-              return fallback.run();
+              // If the fallback is itself a VTaskPath, use its VTask directly so we
+              // preserve virtual-thread execution semantics; otherwise adapt the
+              // arbitrary Effectful<A> by delegating to unsafeRun inside a VTask.
+              if (fallback instanceof VTaskPath<A> vtaskFallback) {
+                return vtaskFallback.run();
+              }
+              return VTask.of(fallback::unsafeRun);
             }));
   }
 

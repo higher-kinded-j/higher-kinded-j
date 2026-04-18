@@ -1,4 +1,4 @@
-# Optics V: Integration and Recipes
+# Integration and Recipes
 
 > *"Anything worth doing is worth doing right."*
 >
@@ -8,7 +8,7 @@
 
 Theory is useful; working code is better.
 
-This chapter brings together everything from the previous four into practical patterns you can apply directly. The capstone example demonstrates a complete validation workflow: composing Lens, Prism, and Traversal to validate permissions nested deep within a form structure. It's the sort of problem that would require dozens of lines of imperative code, handled in a few declarative compositions.
+This section brings together everything from the previous four into practical patterns you can apply directly. The capstone example demonstrates a complete validation workflow: composing Lens, Prism, and Traversal to validate permissions nested deep within a form structure. It's the sort of problem that would require dozens of lines of imperative code, handled in a few declarative compositions.
 
 The integration sections cover how optics work with higher-kinded-j's core types: extending Lenses and Traversals with additional capabilities, using Prisms for Optional, Either, and other standard containers. If you've wondered how to combine optics with the rest of the library, this is where you'll find answers.
 
@@ -108,7 +108,7 @@ All permissions validated. All errors accumulated. Original structure preserved.
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **Composing Optics** – A complete walkthrough building a validation pipeline that composes Lens, Prism, and Traversal to validate deeply nested permissions in a form structure.
 - **Core Type Integration** – How optics work with the library's functional types. Use Prisms to focus on Right values in Either, or Some values in Maybe.
 - **Optics Extensions** – Additional capabilities beyond the basics. Extended Lens operations, Traversal utilities, and convenience methods for common patterns.
@@ -120,7 +120,7 @@ See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [Composing Optics](composing_optics.md) - A complete validation workflow example
 2. [Core Type Integration](core_type_integration.md) - Using optics with Either, Maybe, Validated, and Optional

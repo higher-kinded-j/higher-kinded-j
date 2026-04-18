@@ -252,6 +252,7 @@ public final class IOPath<A> implements Effectful<A> {
    * @return an IOPath that will recover from exceptions
    * @throws NullPointerException if recovery is null
    */
+  @Override
   public IOPath<A> handleError(Function<? super Throwable, ? extends A> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return new IOPath<>(
@@ -266,16 +267,20 @@ public final class IOPath<A> implements Effectful<A> {
   }
 
   /**
-   * Handles exceptions that occur during execution with a recovery IO.
+   * Handles exceptions that occur during execution with a recovery effect.
    *
    * <p>If an exception is thrown during execution, the recovery function is applied to produce an
-   * alternative IOPath.
+   * alternative {@link Effectful} computation whose result is used instead. The recovery function
+   * may return any {@code Effectful<A>} (for example an {@code IOPath<A>} or a {@code
+   * VTaskPath<A>}); the returned value is always an {@code IOPath<A>}.
    *
-   * @param recovery the function to apply if an exception occurs; must not be null
-   * @return an IOPath that will recover from exceptions
+   * @param recovery the function to apply if an exception occurs; must not be null and must not
+   *     return null
+   * @return an IOPath that will recover from exceptions using the provided effectful fallback
    * @throws NullPointerException if recovery is null
    */
-  public IOPath<A> handleErrorWith(Function<? super Throwable, ? extends IOPath<A>> recovery) {
+  @Override
+  public IOPath<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return new IOPath<>(
         IO.delay(
@@ -283,7 +288,7 @@ public final class IOPath<A> implements Effectful<A> {
               try {
                 return this.value.unsafeRunSync();
               } catch (Throwable t) {
-                IOPath<A> fallback = recovery.apply(t);
+                Effectful<A> fallback = recovery.apply(t);
                 Objects.requireNonNull(fallback, "recovery must not return null");
                 return fallback.unsafeRun();
               }
@@ -454,6 +459,7 @@ public final class IOPath<A> implements Effectful<A> {
    * @return an IOPath that runs the finalizer after this computation
    * @throws NullPointerException if finalizer is null
    */
+  @Override
   public IOPath<A> guarantee(Runnable finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
     return new IOPath<>(

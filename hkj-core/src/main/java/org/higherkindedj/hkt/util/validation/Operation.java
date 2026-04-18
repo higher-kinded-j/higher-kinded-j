@@ -27,6 +27,7 @@ public enum Operation {
   FROM_OPTIONAL_LIST("fromOptionalList"),
   LIFT_F("liftF"),
   OF("of"),
+  ATTEMPT("attempt"),
   ASK("ask"),
   ASKS("asks"),
   RUN("run"),

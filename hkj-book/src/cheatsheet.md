@@ -14,7 +14,7 @@
 | Path Type | For | Create | Extract |
 |-----------|-----|--------|---------|
 | `MaybePath<A>` | Absence | `Path.maybe(v)`, `Path.just(v)`, `Path.nothing()` | `.run()` → `Maybe<A>` |
-| `EitherPath<E, A>` | Typed errors | `Path.right(v)`, `Path.left(e)`, `Path.either(e)` | `.run()` → `Either<E, A>` |
+| `EitherPath<E, A>` | Typed errors | `Path.right(v)`, `Path.left(e)`, `Path.either(eitherValue)` | `.run()` → `Either<E, A>` |
 | `TryPath<A>` | Exceptions | `Path.tryOf(() -> ...)`, `Path.success(v)`, `Path.failure(ex)` | `.run()` → `Try<A>` |
 | `ValidationPath<E, A>` | Accumulating errors | `Path.valid(v, sg)`, `Path.invalid(e, sg)` | `.run()` → `Validated<E, A>` |
 | `IOPath<A>` | Deferred side effects | `Path.io(() -> ...)`, `Path.ioPure(v)` | `.unsafeRun()` → `A` |
@@ -71,6 +71,10 @@
 | `.recoverWith(fn)` | Error → new path | MaybePath, EitherPath, TryPath, ValidationPath |
 | `.orElse(supplier)` | Try an alternative path | MaybePath, EitherPath, TryPath, ValidationPath |
 | `.mapError(fn)` | Transform the error type | EitherPath, TryPath, ValidationPath |
+| `.bimap(errFn, okFn)` | Transform error and success together | EitherPath |
+| `.handleError(fn)` | Throwable → recovery value | IOPath, VTaskPath (via `Effectful`) |
+| `.handleErrorWith(fn)` | Throwable → recovery effect | IOPath, VTaskPath (via `Effectful`) |
+| `.guarantee(runnable)` | Run cleanup whether success or failure | IOPath, VTaskPath (via `Effectful`) |
 | `.peekLeft(fn)` | Observe the error without changing it | EitherPath |
 | `.peekFailure(fn)` | Observe the exception without changing it | TryPath |
 

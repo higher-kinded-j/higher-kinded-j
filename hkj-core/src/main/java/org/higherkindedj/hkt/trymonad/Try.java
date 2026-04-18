@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.CheckedSupplier;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -68,8 +69,17 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
   /**
    * Executes a {@link Supplier} that produces a value of type {@code T} and wraps the outcome in a
    * {@code Try}. If the supplier executes successfully, its result (which can be {@code null}) is
-   * wrapped in a {@link Success}. If the supplier throws any {@link Throwable} (including {@link
-   * Error}s and checked/unchecked exceptions), it is caught and wrapped in a {@link Failure}.
+   * wrapped in a {@link Success}. If the supplier throws any {@link Exception}, it is caught and
+   * wrapped in a {@link Failure}.
+   *
+   * <p>In practice this means {@link RuntimeException}: a standard {@link Supplier} cannot declare
+   * checked exceptions in its lambda body, so a checked exception can only reach this method via
+   * unusual mechanisms (reflection, sneaky-throws, or a pre-wrapped {@link RuntimeException}). For
+   * routine interop with checked-throwing APIs, catch the checked exception inside the lambda and
+   * rethrow it as an unchecked exception.
+   *
+   * <p>{@link Error} and other non-{@link Exception} {@link Throwable}s are <b>not</b> caught and
+   * will propagate out of this method.
    *
    * <p>This is the most common way to create a {@code Try} instance from potentially failable code.
    *
@@ -77,12 +87,50 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    *     {@code null}.
    * @param <T> The type of the result produced by the supplier.
    * @return A non-null {@link Success} instance containing the supplier's result if execution is
-   *     normal, or a non-null {@link Failure} instance containing the {@link Throwable} if an
-   *     exception occurs.
+   *     normal, or a non-null {@link Failure} instance containing the caught {@link Exception}.
    * @throws NullPointerException if {@code supplier} is null.
    */
   static <T> Try<T> of(Supplier<? extends T> supplier) {
     Validation.function().require(supplier, "supplier", OF);
+    try {
+      return new Success<>(supplier.get());
+    } catch (Exception e) {
+      return new Failure<>(e);
+    }
+  }
+
+  /**
+   * Executes a {@link CheckedSupplier} whose lambda body may declare and throw a checked {@link
+   * Exception}, wrapping the outcome in a {@code Try}. If the supplier executes successfully, its
+   * result (which can be {@code null}) is wrapped in a {@link Success}; if it throws any {@link
+   * Exception}, checked or unchecked, the exception is caught and wrapped in a {@link Failure}.
+   *
+   * <p>This is the preferred entry point when interoperating with Java APIs that throw checked
+   * exceptions ({@code Files.readString}, {@code Class.forName}, JDBC, reflection, and so on).
+   * Prefer {@link #of(Supplier)} when the lambda only produces a value and cannot declare checked
+   * exceptions.
+   *
+   * <p>{@link Error} and other non-{@link Exception} {@link Throwable}s are <b>not</b> caught and
+   * will propagate out of this method.
+   *
+   * <h2>Example</h2>
+   *
+   * <pre>{@code
+   * Try<String> contents = Try.attempt(() -> Files.readString(Path.of("data.txt")));
+   * // Success("...file contents...") or Failure(NoSuchFileException)
+   * }</pre>
+   *
+   * @param supplier The non-null checked computation to execute. The supplier itself may return
+   *     {@code null}.
+   * @param <T> The type of the result produced by the supplier.
+   * @param <X> The checked-exception type declared by the supplier.
+   * @return A non-null {@link Success} containing the supplier's result if execution is normal, or
+   *     a non-null {@link Failure} containing the caught {@link Exception}.
+   * @throws NullPointerException if {@code supplier} is null.
+   */
+  static <T, X extends Exception> Try<T> attempt(
+      CheckedSupplier<? extends T, ? extends X> supplier) {
+    Validation.function().require(supplier, "supplier", ATTEMPT);
     try {
       return new Success<>(supplier.get());
     } catch (Exception e) {

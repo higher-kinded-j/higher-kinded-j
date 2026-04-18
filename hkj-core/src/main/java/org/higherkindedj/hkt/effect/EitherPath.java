@@ -361,6 +361,39 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
     return new EitherPath<>(value.mapLeft(mapper));
   }
 
+  /**
+   * Transforms both the error and the success values simultaneously, returning a new {@code
+   * EitherPath} whose error type and success type are both rebased.
+   *
+   * <p>A {@code Left(e)} becomes {@code Left(errorMapper.apply(e))} and a {@code Right(a)} becomes
+   * {@code Right(successMapper.apply(a))}. Equivalent to {@code
+   * mapError(errorMapper).map(successMapper)} but expressed in a single call.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * EitherPath<String, Integer> original = Path.right(42);
+   *
+   * EitherPath<Integer, String> transformed = original.bimap(
+   *     String::length,       // Transform error
+   *     n -> "Value: " + n);  // Transform success
+   * }</pre>
+   *
+   * @param errorMapper the function applied to a {@code Left} value
+   * @param successMapper the function applied to a {@code Right} value
+   * @param <E2> the new error type
+   * @param <A2> the new success type
+   * @return a new {@code EitherPath<E2, A2>}
+   * @throws NullPointerException if either mapper is {@code null}
+   */
+  public <E2, A2> EitherPath<E2, A2> bimap(
+      Function<? super E, ? extends E2> errorMapper,
+      Function<? super A, ? extends A2> successMapper) {
+    Objects.requireNonNull(errorMapper, "errorMapper must not be null");
+    Objects.requireNonNull(successMapper, "successMapper must not be null");
+    return new EitherPath<>(value.bimap(errorMapper, successMapper));
+  }
+
   // ===== FocusPath Bridge Methods =====
 
   /**

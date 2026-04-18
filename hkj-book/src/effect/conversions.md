@@ -390,7 +390,7 @@ MaybePath<String> nothing = Path.nothing();
 
 // From nullable
 String nullable = possiblyNullValue();
-MaybePath<String> maybe = Path.fromNullable(nullable);
+MaybePath<String> maybe = Path.maybe(nullable);
 
 // Conditional lifting
 MaybePath<Integer> validated = value > 0

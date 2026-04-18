@@ -38,7 +38,7 @@ The order in which patterns wrap the underlying call determines their behaviour.
     The circuit breaker has an inaccurate picture of service health.
 
     ┌──────────────────┐
-    │ Circuit Breaker   │
+    │ Circuit Breaker  │
     │  ┌──────────────────────────────────┐
     │  │ Retry                            │
     │  │  attempt 1 ──▶ task ──▶ ✗        │

@@ -557,6 +557,91 @@ class EitherPathTest {
     }
 
     @Test
+    @DisplayName("bimap() transforms Left value via errorMapper")
+    void bimapTransformsLeftViaErrorMapper() {
+      EitherPath<String, Integer> path = Path.left("error message");
+
+      EitherPath<Integer, String> result = path.bimap(String::length, n -> "v=" + n);
+
+      assertThat(result.run().isLeft()).isTrue();
+      assertThat(result.run().getLeft()).isEqualTo(13);
+    }
+
+    @Test
+    @DisplayName("bimap() transforms Right value via successMapper")
+    void bimapTransformsRightViaSuccessMapper() {
+      EitherPath<String, Integer> path = Path.right(42);
+
+      EitherPath<Integer, String> result = path.bimap(String::length, n -> "v=" + n);
+
+      assertThat(result.run().isRight()).isTrue();
+      assertThat(result.run().getRight()).isEqualTo("v=42");
+    }
+
+    @Test
+    @DisplayName("bimap() leaves errorMapper unapplied when Right")
+    void bimapDoesNotApplyErrorMapperOnRight() {
+      AtomicBoolean errorMapperCalled = new AtomicBoolean(false);
+      EitherPath<String, Integer> path = Path.right(42);
+
+      path.bimap(
+          e -> {
+            errorMapperCalled.set(true);
+            return e.length();
+          },
+          n -> n + 1);
+
+      assertThat(errorMapperCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("bimap() leaves successMapper unapplied when Left")
+    void bimapDoesNotApplySuccessMapperOnLeft() {
+      AtomicBoolean successMapperCalled = new AtomicBoolean(false);
+      EitherPath<String, Integer> path = Path.left("boom");
+
+      path.bimap(
+          String::length,
+          n -> {
+            successMapperCalled.set(true);
+            return n + 1;
+          });
+
+      assertThat(successMapperCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("bimap() is equivalent to mapError().map()")
+    void bimapIsEquivalentToMapErrorThenMap() {
+      Function<String, Integer> lfn = String::length;
+      Function<Integer, String> rfn = n -> "n=" + n;
+
+      EitherPath<String, Integer> rightPath = Path.right(7);
+      assertThat(rightPath.bimap(lfn, rfn).run()).isEqualTo(rightPath.mapError(lfn).map(rfn).run());
+
+      EitherPath<String, Integer> leftPath = Path.left("failure");
+      assertThat(leftPath.bimap(lfn, rfn).run()).isEqualTo(leftPath.mapError(lfn).map(rfn).run());
+    }
+
+    @Test
+    @DisplayName("bimap() rejects null errorMapper")
+    void bimapRejectsNullErrorMapper() {
+      EitherPath<String, Integer> path = Path.right(1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.bimap(null, Function.identity()))
+          .withMessageContaining("errorMapper");
+    }
+
+    @Test
+    @DisplayName("bimap() rejects null successMapper")
+    void bimapRejectsNullSuccessMapper() {
+      EitherPath<String, Integer> path = Path.right(1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.bimap(Function.identity(), null))
+          .withMessageContaining("successMapper");
+    }
+
+    @Test
     @DisplayName("recoverWith() throws when recovery returns wrong type")
     @SuppressWarnings("unchecked")
     void recoverWithThrowsWhenRecoveryReturnsWrongType() {
