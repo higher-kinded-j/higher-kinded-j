@@ -1,4 +1,4 @@
-# Foundations: Core Types
+# Core Types
 
 > *"Everything was beautiful and nothing hurt."*
 >
@@ -6,25 +6,13 @@
 
 ---
 
-~~~admonish tip title="Prefer Effect Paths for Everyday Use"
-While this chapter documents the underlying core types, **most applications should use the [Effect Path API](../effect/ch_intro.md)** for cleaner composition and unified error handling. Effect Paths like `EitherPath`, `MaybePath`, and `TryPath` wrap these types and provide:
-
-- A consistent API across all effect types (`map`, `via`, `recover`)
-- Seamless integration with the [Focus DSL](../optics/focus_dsl.md)
-- Railway-oriented programming for flat, readable pipelines
-
-Use this chapter as a **reference** for understanding the foundations that power the Effect Path API.
-~~~
-
----
-
 Within a monadic context, certain complexities simply vanish. Null checks disappear inside `Maybe`. Error propagation becomes implicit within `Either`. Asynchronous callbacks flatten into sequential steps with `CompletableFuture`. The mess remains (it must), but the monad contains it, and within that containment, everything is beautiful and nothing hurts.
 
-This chapter surveys the types that Higher-Kinded-J supports: seventeen distinct monads, each representing a different computational context. Some wrap standard Java types (`Optional`, `List`, `CompletableFuture`). Others are library-defined (`Maybe`, `Either`, `IO`, `Validated`). Still others handle advanced concerns like state management (`State`, `Reader`, `Writer`) or stack-safe recursion (`Trampoline`, `Free`).
+This section surveys the types that Higher-Kinded-J supports: seventeen distinct monads, each representing a different computational context. Some wrap standard Java types (`Optional`, `List`, `CompletableFuture`). Others are library-defined (`Maybe`, `Either`, `IO`, `Validated`). Still others handle advanced concerns like state management (`State`, `Reader`, `Writer`) or stack-safe recursion (`Trampoline`, `Free`).
 
 Each type has its purpose. `Id` does nothing, which makes it useful as a baseline. `Maybe` and `Optional` handle absence. `Either` and `Try` handle failure with information. `IO` defers side effects. `Lazy` memoises computations. `Reader` threads configuration. `State` manages mutable state purely. `Writer` accumulates logs. `Validated` gathers all errors rather than stopping at the first.
 
-The art lies in choosing the right context for the problem at hand. Sometimes you need fail-fast semantics; sometimes you need error accumulation. Sometimes laziness helps; sometimes it hinders. This chapter provides the vocabulary. Experience provides the judgement.
+The art lies in choosing the right context for the problem at hand. Sometimes you need fail-fast semantics; sometimes you need error accumulation. Sometimes laziness helps; sometimes it hinders. This section provides the vocabulary. Experience provides the judgement.
 
 ~~~admonish title="Hands On Practice"
 [Tutorial07_RealWorld.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java)
@@ -91,7 +79,7 @@ A rough decision guide:
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **Identity** – The trivial monad that simply wraps a value unchanged. Useful as a baseline for testing and as a placeholder in generic code.
 - **Maybe and Optional** – Two approaches to representing absent values. Maybe is the library's own implementation; Optional wraps Java's `java.util.Optional`.
 - **Either** – Represents computations that can fail with typed error information. Unlike exceptions, the error type is explicit in the signature.
@@ -111,7 +99,7 @@ A rough decision guide:
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [Supported Types](supported-types.md) - Overview of all seventeen monadic types
 2. [CompletableFuture](cf_monad.md) - Asynchronous computation

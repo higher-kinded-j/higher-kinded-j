@@ -62,8 +62,8 @@ What makes Higher-Kinded-J unique is the seamless integration between **Effect P
 
   MaybePath<User>      ────┐         ┌──── FocusPath<User, Address>
   EitherPath<E, User>  ────┤         ├──── AffinePath<User, Email>
-  TryPath<Config>      ────┤         ├──── TraversalPath<Team, Player>
-  IOPath<Data>         ────┤         └────
+  TryPath<Config>      ────┤         └──── TraversalPath<Team, Player>
+  IOPath<Data>         ────┤
   VTaskPath<A>         ────┤
   VStreamPath<A>       ────┤
   ValidationPath<E, A> ────┘

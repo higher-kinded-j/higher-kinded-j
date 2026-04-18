@@ -246,7 +246,7 @@ public class FileProcessor {
     public IOPath<ProcessResult> process(Path path) {
         return Path.io(() -> new BufferedReader(new FileReader(path.toFile())))
             .via(reader -> Path.io(() -> processContent(reader)))
-            .ensuring(() -> {
+            .guarantee(() -> {
                 // Cleanup runs regardless of outcome
                 log.debug("Processing complete: {}", path);
             });
@@ -260,7 +260,7 @@ For true resource safety with acquisition and release:
 public IOPath<Result> withConnection(Function<Connection, Result> action) {
     return Path.io(() -> dataSource.getConnection())
         .via(conn -> Path.io(() -> action.apply(conn))
-            .ensuring(() -> {
+            .guarantee(() -> {
                 try { conn.close(); }
                 catch (SQLException e) { log.warn("Close failed", e); }
             }));

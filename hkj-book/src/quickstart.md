@@ -251,8 +251,9 @@ When you need *all* errors, not just the first, use `ValidationPath`:
 ```java
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 
-Semigroup<List<String>> sg = Semigroup.listSemigroup();
+Semigroup<List<String>> sg = Semigroups.list();
 
 var name = validateName(input.name());       // ValidationPath<List<String>, String>
 var email = validateEmail(input.email());     // ValidationPath<List<String>, String>

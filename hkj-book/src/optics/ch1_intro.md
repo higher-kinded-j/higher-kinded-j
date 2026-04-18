@@ -1,4 +1,4 @@
-# Optics I: Fundamentals
+# Fundamentals
 
 > *"The best way to predict the future is to invent it... The second best way is to fund it. The third best way is to map it."*
 >
@@ -12,51 +12,15 @@ Optics offer a rather more civilised alternative.
 
 At their heart, optics are simply composable, reusable paths through data structures. A Lens focuses on a single field. A Prism handles cases that might not exist. An Iso converts between equivalent representations. None of this is particularly revolutionary in concept (functional programmers have been using these tools for decades), but the practical benefit is considerable: once you've defined a path, you can use it to get, set, or modify values without writing the same tedious reconstruction code repeatedly.
 
-This chapter introduces the fundamental optics: Lens for product types (records with fields), Prism for sum types (sealed interfaces with variants), and Iso for reversible conversions. By the end, you'll understand not only how each works, but when to reach for one over another.
+This section introduces the fundamental optics: Lens for product types (records with fields), Prism for sum types (sealed interfaces with variants), and Iso for reversible conversions. By the end, you'll understand not only how each works, but when to reach for one over another.
 
-The composition rules table at the chapter's end is worth bookmarking. You'll refer to it more often than you might expect.
-
----
-
-## The Optics Hierarchy
-
-Before diving into individual optics, it helps to see how they relate to one another:
-
-```
-                    ┌─────────┐
-                    │  Fold   │  (read-only, zero-or-more)
-                    └────┬────┘
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-         ┌────┴────┐          ┌─────┴─────┐
-         │ Getter  │          │ Traversal │  (read-write, zero-or-more)
-         └────┬────┘          └─────┬─────┘
-              │                     │
-              │               ┌─────┴─────┐
-              │               │           │
-         ┌────┴────┐    ┌─────┴─────┐ ┌───┴───┐
-         │  Lens   │    │  Affine   │ │Setter │
-         └────┬────┘    └─────┬─────┘ └───────┘
-              │         (zero-or-one)
-              │               │
-              │         ┌─────┴─────┐
-              │         │   Prism   │
-              │         └─────┬─────┘
-              │               │
-              └───────┬───────┘
-                 ┌────┴────┐
-                 │   Iso   │  (exactly-one, reversible)
-                 └─────────┘
-```
-
-Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Getter or Fold is expected. An Iso (the most specific optic) can be used as any of the others. Affine sits between Traversal and Prism, representing precisely zero-or-one focus, making it ideal for optional fields.
+The composition rules table at the section's end is worth bookmarking. You'll refer to it more often than you might expect. The [Optics landing page](ch_intro.md) carries the overall optics hierarchy if you need to see where these four fit in relation to Traversals, Folds, Getters, and Setters.
 
 ---
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **Lenses** – Focus on exactly one field within a record. A Lens guarantees the field exists and provides both get and set operations.
 - **Prisms** – Handle sum types (sealed interfaces) where a value might be one of several variants. A Prism can attempt to match a variant and construct new instances.
 - **Affines** – For optional fields that may or may not be present. An Affine targets zero-or-one values, making it perfect for nullable fields or conditional access.
@@ -68,7 +32,7 @@ Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Ge
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [What Are Optics?](optics_intro.md) - Introduction to composable, reusable paths through data
 2. [Lenses](lenses.md) - Focusing on required fields within records

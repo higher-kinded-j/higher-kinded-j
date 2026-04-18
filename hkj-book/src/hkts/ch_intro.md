@@ -1,19 +1,8 @@
-# Foundations: Higher-Kinded Types
+# Higher-Kinded Types
 
 > *"If they can get you asking the wrong questions, they don't have to worry about answers."*
 >
 > – Thomas Pynchon, *Gravity's Rainbow*
-
----
-
-~~~admonish tip title="Start with Effect Paths"
-This chapter documents the machinery that powers Higher-Kinded-J. **Most users can start with the [Effect Path API](../effect/ch_intro.md) directly** without understanding HKTs in detail. The Effect Path API provides a clean, fluent interface that hides this complexity.
-
-Read this chapter when you want to:
-- Understand how the library works internally
-- Write generic code that operates across multiple effect types
-- Extend the library with your own types
-~~~
 
 ---
 
@@ -35,9 +24,9 @@ Think of it as abstraction over *structure*, not just *values*:
     ┌─────────────────────────────────────────────────────────────┐
     │  WITHOUT HKTs                                               │
     │                                                             │
-    │    mapList(List<A>, fn)      → List<B>                     │
-    │    mapOptional(Optional<A>, fn) → Optional<B>              │
-    │    mapFuture(Future<A>, fn)  → Future<B>                   │
+    │    mapList(List<A>, fn)      → List<B>                      │
+    │    mapOptional(Optional<A>, fn) → Optional<B>               │
+    │    mapFuture(Future<A>, fn)  → Future<B>                    │
     │                                                             │
     │    Three methods. Same logic. Different types.              │
     └─────────────────────────────────────────────────────────────┘
@@ -45,9 +34,9 @@ Think of it as abstraction over *structure*, not just *values*:
     ┌─────────────────────────────────────────────────────────────┐
     │  WITH HKTs                                                  │
     │                                                             │
-    │    map(Functor<F>, Kind<F, A>, fn) → Kind<F, B>            │
+    │    map(Functor<F>, Kind<F, A>, fn) → Kind<F, B>             │
     │                                                             │
-    │    One method. Works for List, Optional, Future, and more. │
+    │    One method. Works for List, Optional, Future, and more.  │
     └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -57,7 +46,7 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **The Analogy** – Just as higher-order functions take functions as arguments, higher-kinded types take types as arguments. Understanding this parallel unlocks the entire abstraction.
 - **Core Concepts** – You'll learn how witness types and the `Kind<F, A>` interface work together to simulate HKTs in Java, and how the widen/narrow pattern bridges between concrete types and their Kind representations.
 - **Usage Guide** – Practical patterns for working with `Kind` in real code, including how to write generic methods that work across multiple container types.
@@ -68,7 +57,7 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [HKT Introduction](hkt_introduction.md) - The analogy: higher-kinded types are to types what higher-order functions are to functions
 2. [Concepts](core-concepts.md) - Witness types, Kind interfaces, and the widen/narrow pattern

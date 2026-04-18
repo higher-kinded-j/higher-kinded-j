@@ -47,7 +47,7 @@ model) or `Recoverable` (error handling is on the underlying VStream).
                             │
               ┌─────────────┼─────────────┐
               │             │             │
-   ┌──────────▼──────┐  ┌──▼───────┐  ┌──▼──────────┐
+   ┌──────────▼──────┐  ┌──▼───────┐  ┌───▼──────────┐
    │  Combinable<A>  │  │Chainable │  │ Effectful<A> │
    │  zipWith        │  │ via,then │  │ run, runSafe │
    └─────────────────┘  └──┬───────┘  └──────────────┘

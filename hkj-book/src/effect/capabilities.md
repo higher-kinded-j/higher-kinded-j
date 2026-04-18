@@ -267,20 +267,20 @@ which tells you something about the general state of affairs in software.
 happens until someone signs and executes it.
 
 ```java
-public interface Effectful<A> extends Chainable<A> {
+public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskPath {
     A unsafeRun();
-    Try<A> runSafe();
-    Effectful<A> handleError(Function<? super Throwable, ? extends A> handler);
+    default Try<A> runSafe() { return Try.of(this::unsafeRun); }
+
+    Effectful<A> handleError(Function<? super Throwable, ? extends A> recovery);
     Effectful<A> handleErrorWith(
-        Function<? super Throwable, ? extends Effectful<A>> handler
-    );
-    Effectful<A> ensuring(Runnable cleanup);
+        Function<? super Throwable, ? extends Effectful<A>> recovery);
+    Effectful<A> guarantee(Runnable finalizer);
 }
 ```
 
-Only `IOPath` implements `Effectful`. All other Path types evaluate immediately
-when you call `map` or `via`. With `IOPath`, nothing happens until you call
-`unsafeRun()` or `runSafe()`:
+`IOPath` and `VTaskPath` implement `Effectful`. All other Path types evaluate
+immediately when you call `map` or `via`. With `IOPath`, nothing happens until
+you call `unsafeRun()` or `runSafe()`:
 
 ```java
 IOPath<String> readFile = Path.io(() -> {
@@ -295,13 +295,26 @@ IOPath<Integer> lineCount = readFile.map(s -> s.split("\n").length);
 Integer count = lineCount.unsafeRun();  // "Reading file..." printed
 ```
 
-The `ensuring` method guarantees cleanup runs regardless of success or failure:
+All five methods are defined at the capability level, so code written against
+`Effectful<A>` can recover from errors and run cleanup regardless of which
+concrete implementation it holds:
 
 ```java
+// Works whether `effect` is an IOPath or a VTaskPath
+public static <A> Effectful<A> safeOrDefault(Effectful<A> effect, A fallback) {
+    return effect.handleError(t -> fallback);
+}
+
 IOPath<Data> withCleanup = Path.io(() -> acquireResource())
     .via(resource -> Path.io(() -> useResource(resource)))
-    .ensuring(() -> releaseResource());
+    .guarantee(() -> releaseResource());
 ```
+
+`handleErrorWith` accepts any `Effectful<A>` from its recovery function, so an
+`IOPath` can recover into a `VTaskPath` fallback (or vice versa); the returned
+value keeps the concrete type of the receiver. The concrete `IOPath` /
+`VTaskPath` classes still narrow the return type to their own type, so direct
+callers never lose type information.
 
 The name `unsafeRun` is deliberate. It's a warning: side effects are about to
 happen, referential transparency ends here. Call it at the edge of your system,
