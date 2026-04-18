@@ -12,8 +12,9 @@ package org.higherkindedj.hkt.function;
  * be wrapped in a try/catch before being passed in. {@code CheckedSupplier} removes the need for
  * that boilerplate by allowing the lambda itself to declare {@code throws X}.
  *
- * <p>Primary consumer today is {@link org.higherkindedj.hkt.trymonad.Try#attempt(CheckedSupplier)},
- * which catches any {@link Exception} thrown by {@link #get()} and wraps it in a {@code Failure}.
+ * <p>Primary consumer today is {@code org.higherkindedj.hkt.trymonad.Try#attempt(CheckedSupplier)}
+ * (defined in {@code hkj-core}), which catches any {@link Exception} thrown by {@link #get()} and
+ * wraps it in a {@code Failure}.
  *
  * <h2>Example</h2>
  *
