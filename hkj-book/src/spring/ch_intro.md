@@ -1,4 +1,4 @@
-# Integration Guides
+# Spring Integration
 
 > *"If thought corrupts language, language can also corrupt thought."*
 >

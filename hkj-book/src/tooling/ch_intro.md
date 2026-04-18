@@ -1,5 +1,5 @@
-# Tooling: Build-Time Safety for Higher-Kinded-J
-
+# Tooling
+## _Build-Time Safety for Higher-Kinded-J_
 > _"Make illegal states unrepresentable."_
 > -- Yaron Minsky
 
