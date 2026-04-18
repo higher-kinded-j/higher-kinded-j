@@ -1,5 +1,5 @@
-# Monad Transformers: Combining Effects
-
+# Monad Transformers
+## _Combining Effects_
 > *"You can't just bolt two things together and expect them to work."*
 >
 > – Richard Feynman
