@@ -45,28 +45,41 @@ Now that we understand the structure and benefits of `Try`, let's explore how to
 
 You can create `Try` instances in several ways:
 
-1. **`Try.of(Supplier)`:** Executes a `Supplier` and wraps the result in `Success` or catches any thrown `Throwable` (including `Error` and checked exceptions) and wraps it in `Failure`.
+1. **`Try.of(Supplier)`:** Executes a `Supplier` and wraps the result in `Success`, or catches any `Exception` thrown by the supplier and wraps it in `Failure`. In practice this means `RuntimeException`: a standard `Supplier<T>` cannot declare checked exceptions in its lambda body. `Error` and other non-`Exception` `Throwable`s are **not** caught; they propagate out of `Try.of`. Use `Try.of` when your lambda either produces a pure value or may throw a runtime exception; use `Try.attempt` (below) when interoperating with Java APIs that declare checked exceptions.
 
    ```java
    import org.higherkindedj.hkt.trymonad.Try;
-   import java.io.FileInputStream;
 
    // Success case
    Try<String> successResult = Try.of(() -> "This will succeed"); // Success("This will succeed")
 
-   // Failure case (checked exception)
-   Try<FileInputStream> failureResult = Try.of(() -> new FileInputStream("nonexistent.txt")); // Failure(FileNotFoundException)
-
    // Failure case (runtime exception)
    Try<Integer> divisionResult = Try.of(() -> 10 / 0); // Failure(ArithmeticException)
    ```
-2. **`Try.success(value)`:** Directly creates a `Success` instance holding the given value (which can be null).
+
+2. **`Try.attempt(CheckedSupplier)`:** The preferred entry point when working with Java APIs that throw checked exceptions (`Files.readString`, `Class.forName`, JDBC, reflection, and similar). `CheckedSupplier<T, X extends Exception>` is a `Supplier`-like functional interface whose `get()` declares `throws X`, so the lambda body can throw checked exceptions directly. Any thrown `Exception` (checked or unchecked) is caught and wrapped in `Failure`; `Error`s propagate.
+
+   ```java
+   import org.higherkindedj.hkt.trymonad.Try;
+   import java.nio.file.Files;
+   import java.nio.file.Path;
+
+   // Interop with a checked-throwing API - no manual wrapping needed
+   Try<String> contents = Try.attempt(() -> Files.readString(Path.of("data.txt")));
+   // Success("...contents...") or Failure(NoSuchFileException)
+
+   // Interop with reflection (also checked)
+   Try<Class<?>> loaded = Try.attempt(() -> Class.forName("com.example.Missing"));
+   // Failure(ClassNotFoundException)
+   ```
+
+3. **`Try.success(value)`:** Directly creates a `Success` instance holding the given value (which can be null).
 
    ```java
    Try<String> directSuccess = Try.success("Known value");
    Try<String> successNull = Try.success(null);
    ```
-3. **`Try.failure(throwable)`:** Directly creates a `Failure` instance holding the given non-null `Throwable`.
+4. **`Try.failure(throwable)`:** Directly creates a `Failure` instance holding the given non-null `Throwable`.
 
    ```java
    Try<String> directFailure = Try.failure(new RuntimeException("Something went wrong"));

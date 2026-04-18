@@ -180,6 +180,78 @@ class TryTest extends TryTestBase {
           .isThrownBy(() -> Try.of(null))
           .withMessageContaining("Function supplier for of cannot be null");
     }
+
+    @Test
+    @DisplayName("attempt() should create Success when CheckedSupplier returns a value")
+    void attempt_shouldCreateSuccessWhenCheckedSupplierReturnsValue() {
+      Try<String> result = Try.attempt(() -> "ok");
+      assertThatTry(result).isSuccess().hasValue("ok");
+    }
+
+    @Test
+    @DisplayName("attempt() should create Success(null) when CheckedSupplier returns null")
+    void attempt_shouldCreateSuccessWhenCheckedSupplierReturnsNull() {
+      Try<String> result = Try.attempt(() -> null);
+      assertThatTry(result).isSuccess().hasValue(null);
+    }
+
+    @Test
+    @DisplayName("attempt() should create Failure when CheckedSupplier throws a checked Exception")
+    void attempt_shouldCreateFailureWhenCheckedSupplierThrowsCheckedException() {
+      Try<String> result =
+          Try.attempt(
+              () -> {
+                throw new IOException("boom");
+              });
+      assertThatTry(result).isFailure().hasExceptionOfType(IOException.class);
+    }
+
+    @Test
+    @DisplayName("attempt() should create Failure when CheckedSupplier throws RuntimeException")
+    void attempt_shouldCreateFailureWhenCheckedSupplierThrowsRuntimeException() {
+      Try<String> result =
+          Try.attempt(
+              () -> {
+                throw new IllegalStateException("runtime boom");
+              });
+      assertThatTry(result).isFailure().hasExceptionOfType(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("attempt() should propagate Error when CheckedSupplier throws an Error")
+    void attempt_shouldPropagateErrorWhenCheckedSupplierThrowsError() {
+      assertThatThrownBy(
+              () ->
+                  Try.attempt(
+                      () -> {
+                        throw error;
+                      }))
+          .isInstanceOf(StackOverflowError.class)
+          .isSameAs(error);
+    }
+
+    @Test
+    @DisplayName("attempt() should throw NPE for null supplier")
+    void attempt_shouldThrowNPEForNullSupplier() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Try.attempt(null))
+          .withMessageContaining("Function supplier for attempt cannot be null");
+    }
+
+    @Test
+    @DisplayName("attempt() supports interop with a real checked-throwing API")
+    void attempt_supportsCheckedThrowingApi() {
+      // Stand-in for Files.readString, Class.forName, etc. A plain `Try.of(...)`
+      // would not even compile if this lambda directly called a checked API.
+      Try<String> result = Try.attempt(TryTest::readCheckedResource);
+      assertThatTry(result).isSuccess().hasValue("loaded");
+    }
+  }
+
+  private static String readCheckedResource() throws IOException {
+    // Pretend to do IO. If a resource is missing, throw IOException directly
+    // from the lambda - no wrapper, no sneaky-throws.
+    return "loaded";
   }
 
   @Nested

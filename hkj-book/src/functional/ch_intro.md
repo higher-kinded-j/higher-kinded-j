@@ -1,4 +1,4 @@
-# Foundations: Type Classes
+# Type Classes
 
 > *"Quality is not a thing. It is an event."*
 >
@@ -6,26 +6,11 @@
 
 ---
 
-~~~admonish tip title="Using Type Classes Through Effect Paths"
-While type classes power the library internally, **you rarely interact with them directly**. The [Effect Path API](../effect/ch_intro.md) exposes these capabilities through a unified interface:
-
-| Type Class | Effect Path Method |
-|------------|-------------------|
-| `Functor.map` | `path.map(f)` |
-| `Monad.flatMap` | `path.via(f)` |
-| `MonadError.handleErrorWith` | `path.recover(f)` |
-| `Applicative.ap` | `path.ap(otherPath)` |
-
-Read this chapter to understand the foundations. Use Effect Paths for everyday programming.
-~~~
-
----
-
 A type class is not a thing you can point to. It is not an object in memory, nor a concrete class you instantiate. It is, rather, an event: the moment when a type demonstrates that it possesses certain capabilities.
 
 When we say `Optional` is a `Functor`, we mean that mapping over an Optional is a meaningful operation. When we say it is also an `Applicative`, we add the ability to combine independent Optional values. When we say it is a `Monad`, we gain sequencing, the power to chain operations where each step depends on the previous result. The type hasn't changed. Our understanding of what we can do with it has.
 
-This chapter presents the type class hierarchy that powers Higher-Kinded-J. At the foundation sits `Functor`, providing `map`. Above it, `Applicative` adds `of` and `ap`. `Monad` contributes `flatMap`. `MonadError` handles failure. Each builds on what came before, each unlocking new compositional possibilities.
+This section presents the type class hierarchy that powers Higher-Kinded-J. At the foundation sits `Functor`, providing `map`. Above it, `Applicative` adds `of` and `ap`. `Monad` contributes `flatMap`. `MonadError` handles failure. Each builds on what came before, each unlocking new compositional possibilities.
 
 The hierarchy is not arbitrary. It reflects mathematical structure (specifically, category theory), though you need not understand the mathematics to use the tools. Think of it as a ladder: each rung grants new capabilities, and the lower rungs remain available as you climb.
 
@@ -79,7 +64,7 @@ Write once. Use everywhere the capability exists.
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **Functor** – The foundational type class that enables transformation of values inside containers without changing the container's structure. Every other abstraction builds on this.
 - **Applicative** – When you have multiple independent computations and need to combine their results. Unlike Monad, Applicative allows parallel evaluation since results don't depend on each other.
 - **Alternative** – Provides choice and fallback semantics: try one computation, and if it fails, try another. Essential for parsing and error recovery patterns.
@@ -96,7 +81,7 @@ Write once. Use everywhere the capability exists.
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [Functional API](functional_api.md) - Overview of all type class interfaces
 2. [Functor](functor.md) - The foundation: mapping over wrapped values

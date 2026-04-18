@@ -1,4 +1,4 @@
-# Optics II: Collections
+# Collections
 
 > *"The world is full of abandoned meanings."*
 >
@@ -14,7 +14,7 @@ Traversals operate on zero-or-more values, typically the elements of a collectio
 
 Folds are Traversal's read-only cousin. If you need to query, search, aggregate, or summarise without modification, a Fold makes your intent explicit. This matters more than it might seem: code that cannot accidentally modify data is code that behaves predictably at three in the morning when something has gone wrong.
 
-This chapter covers both, along with Getters and Setters (the asymmetric specialists) and practical patterns for working with common Java collections. The monoid-based aggregation in Folds may initially seem academic, but it has a way of becoming indispensable once you've used it a few times.
+This section covers both, along with Getters and Setters (the asymmetric specialists) and practical patterns for working with common Java collections. The monoid-based aggregation in Folds may initially seem academic, but it has a way of becoming indispensable once you've used it a few times.
 
 ---
 
@@ -55,7 +55,7 @@ Both can read. Only Traversal can write. Choose based on intent.
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **Traversals** – Focus on zero-or-more elements within a structure. Apply the same modification to every item in a list, or extract all values matching a path.
 - **Folds** – Read-only traversal that aggregates results using a Monoid. Sum all prices, count matching elements, or check if any element satisfies a predicate. Combine multiple folds with `plus` to extract values from different paths in a single query.
 - **Getters** – A read-only Lens. When you need to extract a value but never modify it, a Getter documents that intent in the type.
@@ -67,7 +67,7 @@ Both can read. Only Traversal can write. Choose based on intent.
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [Traversals](traversals.md) - Bulk operations on collection elements
 2. [Folds](folds.md) - Read-only queries with monoid-based aggregation and multi-path combination

@@ -1,7 +1,7 @@
 # When Lenses Assume Too Much
 
 ## _Atomic Updates for Fields with Shared Invariants_
-![coupled_mr_robot.png](../images/coupled_mr_robot.png)
+<img src="../images/coupled_mr_robot.png" alt="Illustration for coupled fields and atomic updates" style="width: 100%;" />
 > *"A bug is never just a mistake. It represents something bigger. An error of thinking that makes you who you are."*
 > -- Elliot Alderson, Mr. Robot
 

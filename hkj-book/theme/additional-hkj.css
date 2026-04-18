@@ -491,3 +491,42 @@ html.frappe .source-group-files li::before,
 html.mocha .source-group-files li::before {
     opacity: 0.6;
 }
+
+/* ===== Chapter Intro Title Styles ===== */
+
+/* Scope: top-level chapter intros only. The `chapter-intro` body class is
+   added by theme/chapter-title.js based on a URL allowlist, so this rule
+   is inert on every other page in the book.
+
+   Colours: "Wordmark Mirror" — each theme's primary matches the colour of
+   the HKJ wordmark on the corresponding logo variant (deep teal on the
+   light logo, citron yellow on the dark logo). The secondary accent is
+   the leaf-green "H" from the logo, used universally for brand cohesion. */
+
+body.chapter-intro main > h1:first-of-type {
+    font-size: 2.8em;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    padding-bottom: 0.35em;
+    margin-bottom: 1.1em;
+    border-bottom: 3px solid currentColor;
+    position: relative;
+}
+
+/* Two-tone accent: a leaf-green stripe sits 6px below the wordmark-colour
+   border, echoing the H + wordmark pairing in the HKJ logo. */
+body.chapter-intro main > h1:first-of-type::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -9px;
+    height: 3px;
+    background-color: #5dc349; /* Leaf Green — HKJ logo "H" */
+}
+
+/* Wordmark-Mirror primary colour, per theme. */
+html.latte body.chapter-intro main > h1:first-of-type     { color: #0b6455 !important; } /* Deep Teal — light-logo wordmark */
+html.frappe body.chapter-intro main > h1:first-of-type    { color: #dad126 !important; } /* Citron Yellow — dark-logo wordmark */
+html.macchiato body.chapter-intro main > h1:first-of-type { color: #dad126 !important; } /* Citron Yellow — dark-logo wordmark */
+html.mocha body.chapter-intro main > h1:first-of-type     { color: #dad126 !important; } /* Citron Yellow — dark-logo wordmark */

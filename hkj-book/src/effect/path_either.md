@@ -70,15 +70,30 @@ EitherPath<String, Config> config = Path.either(loadConfig())
 
 ## Bifunctor Operations
 
-Transform both sides simultaneously:
+Transform both the error and the success values simultaneously with `bimap`:
 
 ```java
 EitherPath<String, Integer> original = Path.right(42);
 
 EitherPath<Integer, String> transformed = original.bimap(
-    String::length,      // Transform error
-    n -> "Value: " + n   // Transform success
+    String::length,       // Transform error
+    n -> "Value: " + n    // Transform success
 );
+```
+
+`bimap(errorFn, successFn)` is equivalent to `.mapError(errorFn).map(successFn)`
+but expressed in one call. Only the mapper for the side that is present is
+invoked: a `Right` leaves the error mapper untouched, and a `Left` leaves the
+success mapper untouched.
+
+Use the single-sided variants when only one side needs changing:
+
+```java
+// Transform only the error
+EitherPath<DomainError, User> mapped = path.mapError(ApiError::toDomain);
+
+// Transform only the success
+EitherPath<Error, String> named = path.map(User::name);
 ```
 
 ---

@@ -1,4 +1,4 @@
-# Optics IV: Java-Friendly APIs
+# Java-Friendly APIs
 
 > *"There was no particular reason to respect the language of the Establishment."*
 >
@@ -8,7 +8,7 @@
 
 Optics originated in Haskell, a language with rather different conventions to Java. Method names like `view`, `over`, and `preview` don't match what Java developers expect, and the parameter ordering (value before source) feels backwards to anyone accustomed to the receiver-first style.
 
-This chapter addresses that gap with three complementary APIs, each suited to different needs.
+This section addresses that gap with three complementary APIs, each suited to different needs.
 
 ---
 
@@ -143,7 +143,7 @@ Same program, different execution strategies.
 
 ## What You'll Learn
 
-~~~admonish info title="In This Chapter"
+~~~admonish info title="In This Section"
 - **Focus DSL** – The recommended starting point for most users. Navigate nested structures with a fluent, path-based API that provides full IDE autocomplete support.
 - **Fluent API** – When modifications need validation or can fail, the `OpticOps` class provides builders that integrate with Either, Maybe, and Validated for error handling.
 - **Validation Integration** – Combine optics with functional error types. Validate all fields in a nested structure and accumulate every error, not just the first.
@@ -153,7 +153,7 @@ Same program, different execution strategies.
 
 ---
 
-## Chapter Contents
+## Section Contents
 
 1. [Focus DSL](focus_dsl.md) - Path-based navigation with type safety and IDE support
    - [Navigation and Composition](focus_navigation.md) - Collection navigation, `.via()` composition, and generated navigators

@@ -185,19 +185,24 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
    * @return a VTaskPath that will recover from exceptions
    * @throws NullPointerException if recovery is null
    */
+  @Override
   VTaskPath<A> handleError(Function<? super Throwable, ? extends A> recovery);
 
   /**
-   * Handles exceptions that occur during execution with a recovery VTaskPath.
+   * Handles exceptions that occur during execution with a recovery effect.
    *
    * <p>If an exception is thrown during execution, the recovery function is applied to produce an
-   * alternative VTaskPath.
+   * alternative {@link Effectful} computation whose result is used instead. The recovery function
+   * may return any {@code Effectful<A>} (for example an {@code IOPath<A>} or another {@code
+   * VTaskPath<A>}); the returned value is always a {@code VTaskPath<A>}.
    *
-   * @param recovery the function to apply if an exception occurs; must not be null
-   * @return a VTaskPath that will recover from exceptions
+   * @param recovery the function to apply if an exception occurs; must not be null and must not
+   *     return null
+   * @return a VTaskPath that will recover from exceptions using the provided effectful fallback
    * @throws NullPointerException if recovery is null
    */
-  VTaskPath<A> handleErrorWith(Function<? super Throwable, ? extends VTaskPath<A>> recovery);
+  @Override
+  VTaskPath<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
 
   // ===== Timeout =====
 
@@ -325,6 +330,7 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
    * @param finalizer the finalizer to run; must not be null
    * @return a new VTaskPath with guaranteed finalization
    */
+  @Override
   VTaskPath<A> guarantee(Runnable finalizer);
 
   // ===== Parallel Combinators =====

@@ -2,7 +2,7 @@
 
 ## _Working with Product Types_
 
-![Visual representation of a lens focusing on a single field within nested immutable data structures](../images/lens2.jpg)
+<img src="../images/lens2.jpg" alt="Visual representation of a lens focusing on a single field within nested immutable data structures" style="width: 100%;" />
 
 ~~~admonish info title="What You'll Learn"
 - How to safely access and update fields in immutable data structures
@@ -21,15 +21,13 @@
 [LensesExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 ~~~
 
-In the introduction to optics, we saw how updating nested immutable data can be verbose and why optics provide a clean, functional solution. We identified the `Lens` as the primary tool for working with "has-a" relationships, like a field within a record.
-
-This guide provides a complete, step-by-step walkthrough of how to solve the nested update problem using a composable Lens and its generated helper methods.
+A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades.
 
 ---
 
 ## The Scenario: Updating an Employee's Address
 
-Let's use a common business scenario involving a deeply nested data structure. Our goal is to update the `street` of an `Employee`'s `Company``Address`.
+Let's use a common business scenario involving a deeply nested data structure. Our goal is to update the `street` of an `Employee`'s `Company`'s `Address`.
 
 **The Data Model:**
 
@@ -401,5 +399,5 @@ Practice lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kin
 
 ---
 
-**Previous:** [An Introduction to Optics](optics_intro.md)
+**Previous:** [What Are Optics?](optics_intro.md)
 **Next:** [Prisms: Working with Sum Types](prisms.md)

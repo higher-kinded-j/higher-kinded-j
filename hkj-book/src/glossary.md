@@ -1230,6 +1230,9 @@ String output = absent.fold(
 Try<Integer> parsed = Try.of(() -> Integer.parseInt("42"));     // Success(42)
 Try<Integer> failed = Try.of(() -> Integer.parseInt("abc"));    // Failure(NumberFormatException)
 
+// For checked-throwing APIs, use Try.attempt with a CheckedSupplier
+Try<String> contents = Try.attempt(() -> Files.readString(Path.of("data.txt")));
+
 // Safe chaining - exceptions don't propagate
 Try<String> result = parsed
     .map(n -> n * 2)
@@ -2446,15 +2449,15 @@ Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 **Structure:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Bracket Pattern                           │
-│                                                              │
+│                    Bracket Pattern                          │
+│                                                             │
 │  acquire ─────► use ─────► release                          │
-│     │            │            ↑                              │
-│     │            │            │ (always executed)            │
-│     │            └── success ─┘                              │
-│     │            └── failure ─┘                              │
-│     │            └── cancel ──┘                              │
-│     │                                                        │
+│     │            │            ↑                             │
+│     │            │            │ (always executed)           │
+│     │            └── success ─┘                             │
+│     │            └── failure ─┘                             │
+│     │            └── cancel ──┘                             │
+│     │                                                       │
 │  (may fail)   (may fail)   (guaranteed to run)              │
 └─────────────────────────────────────────────────────────────┘
 ```

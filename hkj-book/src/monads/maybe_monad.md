@@ -227,7 +227,7 @@ void apExample() {
 ```
 ~~~~
 
-~~~admonish example title="Example: _handleErrorWith(Kind<MaybeKind.Witness, A> ma, Function<Void, Kind<MaybeKind.Witness, A>> handler)_"
+~~~admonish example title="Example: _handleErrorWith(Kind<MaybeKind.Witness, A> ma, Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler)_"
 
 If `ma` is `Just`, it's returned. If `ma` is `Nothing` (the "error" state), `handler` is invoked (with `Unit.INSTANCE` for `Unit`) to provide a recovery `MaybeKind`.
 
@@ -286,7 +286,7 @@ public void monadExample() {
 
 
   // 5. Use handleErrorWith
-  Function<Void, Kind<MaybeKind.Witness, Integer>> recoverWithDefault =
+  Function<Unit, Kind<MaybeKind.Witness, Integer>> recoverWithDefault =
       v -> maybeMonad.of(-1); // Default value if absent
 
   Kind<MaybeKind.Witness, Integer> recoveredFromAbsent =
