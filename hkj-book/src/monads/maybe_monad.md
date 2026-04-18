@@ -331,10 +331,10 @@ This example highlights how `MaybeMonad` facilitates working with optional value
 
 | Scenario | Use |
 |----------|-----|
-| Green-field code representing optional values | `Maybe` — strict non-null guarantee in `Just` |
+| Green-field code representing optional values | `Maybe`: strict non-null guarantee in `Just` |
 | JDK interop (APIs returning `java.util.Optional`) | Prefer [Optional](./optional_monad.md) to avoid conversion overhead |
 | Optional values with typed error context | Convert with `maybeUser.toEither("not found")` → use [Either](./either_monad.md) |
-| Generic monadic code that works across any `Kind<F, A>` | `MaybeMonad` — implements `MonadError<MaybeKind.Witness, Unit>` |
+| Generic monadic code that works across any `Kind<F, A>` | `MaybeMonad`: implements `MonadError<MaybeKind.Witness, Unit>` |
 | Application-level pipelines with fluent API | Prefer [MaybePath](../effect/path_maybe.md) |
 
 ---
@@ -362,8 +362,8 @@ See [Effect Path Overview](../effect/effect_path_overview.md) for the complete g
 ~~~admonish example title="Benchmarks"
 Maybe has dedicated JMH benchmarks measuring instance reuse, short-circuit efficiency, filtering, and nullable interop. Key expectations:
 
-- **`nothingMap` is 5-10x faster than `justMap`** — Nothing reuses the same instance with zero allocation
-- **`nothingLongChain` is 10-50x faster than `justLongChain`** — sustained reuse benefit over 50-deep chains
+- **`nothingMap` is 5-10x faster than `justMap`**: Nothing reuses the same instance with zero allocation
+- **`nothingLongChain` is 10-50x faster than `justLongChain`**: sustained reuse benefit over 50-deep chains
 - `nothingFilter` and `nothingFlatMap` should show similar reuse benefits
 - If Nothing operations allocate memory, instance reuse is broken
 

@@ -254,8 +254,8 @@ See [Effect Path Overview](../effect/effect_path_overview.md) for the complete g
 Try has dedicated JMH benchmarks measuring instance reuse, short-circuit efficiency, and recovery operations. Key expectations:
 
 - **`failureMap`** reuses the same Failure instance with zero allocation (like Either.Left)
-- **`failureLongChain`** is significantly faster than `successLongChain` — sustained reuse benefit over deep chains
-- **`recover` / `recoverWith`** add minimal overhead — pattern matching on the exception type is the dominant cost
+- **`failureLongChain`** is significantly faster than `successLongChain`: sustained reuse benefit over deep chains
+- **`recover` / `recoverWith`** add minimal overhead; pattern matching on the exception type is the dominant cost
 - If Failure operations allocate memory, instance reuse is broken
 
 ```bash
