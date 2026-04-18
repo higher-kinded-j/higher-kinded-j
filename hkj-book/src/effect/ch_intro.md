@@ -1,5 +1,6 @@
 # Effect Path API
 ## _Navigating Computational Territory_
+
 > *"A map is not the territory it represents, but, if correct, it has a similar
 > structure to the territory, which accounts for its usefulness."*
 >
