@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.1) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.2) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,26 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### v0.4.2 -- 18 April 2026
+
+**EffectBoundary, Claude Code Skills, and Spring HTTP Ergonomics**
+
+This release introduces `EffectBoundary` for gradual Spring adoption of Free-monad programs, delivers a complete `hkj-spring` order-processing showcase demonstrating the boundary pattern end-to-end, ships a suite of six Claude Code skills providing in-editor guidance to HKJ adopters, extends the Effect Path return-value handlers with `@ResponseStatus` honouring and a canonical `@WebMvcTest` slice-test recipe, widens the `Effectful` capability interface for cross-path error recovery, and adds `EitherPath.bimap` and `Try.attempt(CheckedSupplier)` alongside targeted bug fixes.
+
+- [EffectBoundary](spring/effect_boundary_integration.md) -- Gradual adoption boundary bridging `Free` programs into the Effect Path handler ecosystem via IO-target (production) and Id-target (test) interpreters. Spring integration adds `@EnableEffectBoundary`, `@Interpreter` component meta-annotation, `@EffectTest` slice, `FreePathReturnValueHandler`, and `ObservableEffectBoundary` (Micrometer), letting teams adopt effects module-by-module without rewriting existing code
+- [Effect Boundary Showcase](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-spring/effect-example) -- Complete Spring Boot order-processing example demonstrating the full boundary pattern: three effect algebras (`OrderOp`, `InventoryOp`, `NotifyOp`) composed into programs, interpreters discovered as Spring beans via `@Interpreter`, `OrderService` building pure `Free<F, A>` programs, `OrderController` invoking `boundary.runIO()` with the existing `IOPathReturnValueHandler`, `TestBoundary` + `Id` pure tests running in milliseconds, full MockMvc integration tests, and `ObservableEffectBoundary` metrics exposed via actuator
+- [Claude Code Skills Suite](tooling/claude_code_skills.md) -- Six Claude Code skills (`/hkj-guide`, `/hkj-optics`, `/hkj-effects`, `/hkj-bridge`, `/hkj-spring`, `/hkj-arch`) providing contextual guidance on Path selection, optics generation, Free monads and effect algebras, effects-optics bridging, Spring adoption ladder, and functional-core architecture; auto-triggered on keywords or invoked directly
+- [@ResponseStatus Support](spring/spring_boot_integration.md) -- All nine Effect Path return-value handlers (`EitherPath`, `MaybePath`, `TryPath`, `ValidationPath`, `IOPath`, `CompletableFuturePath`, `VTaskPath`, `FreePath`, `VStreamPath`) now honour `@ResponseStatus` on handler methods via the new `SuccessStatusResolver`, with controller-class fallback and meta-annotation support; POSTs can return canonical `201`, DELETEs can return `204` with body suppressed
+- [@WebMvcTest Slice Recipe](spring/spring_boot_integration.md) -- Canonical slice-test pattern using `@ImportAutoConfiguration({HkjAutoConfiguration, HkjJacksonAutoConfiguration, HkjWebMvcAutoConfiguration})` with `@MockitoBean`, covering `Right` → `200` and tagged-error `Left` → `404`
+- [Effectful Capability Widening](effect/capabilities.md) -- `handleError`, `handleErrorWith`, and `guarantee` now live on the sealed `Effectful` interface; `handleErrorWith` accepts `Function<? super Throwable, ? extends Effectful<A>>` so `IOPath` and `VTaskPath` can cross-recover while preserving the receiver's concrete type
+- [EitherPath.bimap](effect/path_either.md) -- Transform error and success values in a single call; equivalent to `.mapError(errorFn).map(successFn)` with laziness on the unused branch
+- [Try.attempt](monads/try_monad.md) -- New `Try.attempt(CheckedSupplier)` entry point for Java APIs that throw checked exceptions (`Files.readString`, `Class.forName`, JDBC, reflection). `CheckedSupplier<T, X extends Exception>` in `hkj-api` declares `throws X` on `get()`, avoiding the lambda target-type ambiguity of `Try.of(Supplier)`
+- `hkj-checker` registered on `testAnnotationProcessor` and every source-set annotation-processor classpath via the Gradle plugin; the Maven plugin defensively appends HKJ entries to user-supplied `testAnnotationProcessorPaths`, resolving `error: plug-in not found: HKJChecker` during test compilation
+- `hkj.web.either.default-error-status` property now binds and takes effect (#490); legacy flat path `hkj.web.default-error-status` preserved as a backward-compatible alias, with end-to-end `@WebMvcTest` regression coverage
+- Test coverage uplift across `FocusProcessor`, `FoldProcessor`, `ForComprehensionProcessor`, the optics processors, `EffectAlgebra`/`ComposeEffects`/Path processors, and `KindFieldAnalyser`, plus a new `@ExcludeFromJacocoGeneratedReport` utility
+
+---
 
 ### v0.4.1 -- 8 April 2026
 
