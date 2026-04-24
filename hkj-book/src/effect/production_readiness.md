@@ -210,4 +210,5 @@ Integer result = countdown(1_000_000).run();  // completes without overflow
 
 ---
 
-**Previous:** [Advanced Topics](advanced_topics.md)
+**Previous:** [Common Compiler Errors](compiler_errors.md)
+**Next:** [Optics](../optics/ch_intro.md)

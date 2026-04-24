@@ -15,34 +15,7 @@
 
 ### Without the Plugin
 
-```gradle
-// build.gradle.kts
-plugins { java }
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(25))
-    }
-}
-
-dependencies {
-    implementation("io.github.higher-kinded-j:hkj-core:0.3.7-SNAPSHOT")
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:0.3.7-SNAPSHOT")
-    annotationProcessor("io.github.higher-kinded-j:hkj-checker:0.3.7-SNAPSHOT")
-}
-
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.addAll(listOf("--enable-preview", "-Xplugin:HKJChecker"))
-}
-
-tasks.withType<Test>().configureEach {
-    jvmArgs("--enable-preview")
-}
-
-tasks.withType<JavaExec>().configureEach {
-    jvmArgs("--enable-preview")
-}
-```
+A manual setup requires dependencies, annotation processors, the compile-time checker, and preview flags wired into every task that needs them. The full build file runs to roughly 30 lines -- see [Manual Gradle and Maven Setup](manual_setup.md) for the complete configuration.
 
 ### With the Plugin
 
@@ -259,58 +232,7 @@ Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:insta
 
 ### Manual Maven Setup
 
-If you prefer not to use the plugin, configure dependencies and compiler settings manually:
-
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>io.github.higher-kinded-j</groupId>
-            <artifactId>hkj-bom</artifactId>
-            <version>0.3.7-SNAPSHOT</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
-
-<dependencies>
-    <dependency>
-        <groupId>io.github.higher-kinded-j</groupId>
-        <artifactId>hkj-core</artifactId>
-    </dependency>
-</dependencies>
-
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-                <release>25</release>
-                <enablePreview>true</enablePreview>
-                <annotationProcessorPaths>
-                    <path>
-                        <groupId>io.github.higher-kinded-j</groupId>
-                        <artifactId>hkj-processor-plugins</artifactId>
-                        <version>0.3.7-SNAPSHOT</version>
-                    </path>
-                    <path>
-                        <groupId>io.github.higher-kinded-j</groupId>
-                        <artifactId>hkj-checker</artifactId>
-                        <version>0.3.7-SNAPSHOT</version>
-                    </path>
-                </annotationProcessorPaths>
-                <compilerArgs>
-                    <arg>-Xplugin:HKJChecker</arg>
-                </compilerArgs>
-            </configuration>
-        </plugin>
-    </plugins>
-</build>
-```
-
-See the [Quickstart](../quickstart.md) page for a complete Maven configuration including test and execution plugins.
+Projects that cannot apply the Maven plugin should see [Manual Gradle and Maven Setup](manual_setup.md) for the full `pom.xml` -- including the BOM, annotation processors, the `HKJChecker` compiler plugin, and the preview flags for surefire and exec plugins.
 
 ---
 
@@ -324,5 +246,5 @@ See the [Quickstart](../quickstart.md) page for a complete Maven configuration i
 
 ---
 
-**Previous:** [Tooling](ch_intro.md)
+**Previous:** [Manual Gradle and Maven Setup](manual_setup.md)
 **Next:** [Compile-Time Checks](compile_checks.md)

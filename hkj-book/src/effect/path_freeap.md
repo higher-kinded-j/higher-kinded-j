@@ -166,10 +166,10 @@ static analysis and parallelism that monads cannot provide.
 ~~~admonish tip title="See Also"
 - [Free Applicative](../monads/free_applicative.md) - Underlying type for FreeApPath
 - [FreePath](path_free.md) - Monadic variant for dependent operations
-- [Applicative](../typeclasses/applicative.md) - The Applicative typeclass
+- [Applicative](../functional/applicative.md) - The Applicative typeclass
 ~~~
 
 ---
 
 **Previous:** [FreePath](path_free.md)
-**Next:** [VTaskPath](path_vtask.md)
+**Next:** [VStreamPath](path_vstream.md)

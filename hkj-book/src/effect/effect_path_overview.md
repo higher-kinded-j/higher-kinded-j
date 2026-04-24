@@ -1,4 +1,6 @@
-# Effect Path Overview
+# Core Paths
+
+## _Effect Path Overview_
 
 > *"There is no real direction here, neither lines of power nor cooperation.
 > Decisions are never really made; at best they manage to emerge, from a chaos
@@ -15,6 +17,10 @@ reading a poorly implemented service layer on a Monday morning.
 - Creating Path types with factory methods
 - Transforming values with `map`, chaining with `via`, extracting with `run`
 - Debugging pipelines with `peek`
+~~~
+
+~~~admonish tip title="Coming from imperative Java?"
+Start with the [Migration Cookbook](migration_cookbook.md) -- side-by-side translations of `try/catch`, nullable lookups, `CompletableFuture`, and validation patterns you already know.
 ~~~
 
 ---
@@ -269,16 +275,22 @@ rethrow) are gone. What remains is the essential shape of your logic.
 
 ## Path Types at a Glance
 
+The six **core path types** -- the everyday API for almost every workflow:
+
 | Path Type | Underlying Effect | When to Reach for It |
 |-----------|-------------------|----------------------|
 | `MaybePath<A>` | `Maybe<A>` | Absence is normal, not an error |
 | `EitherPath<E, A>` | `Either<E, A>` | Errors carry typed information |
 | `TryPath<A>` | `Try<A>` | Wrapping code that throws exceptions |
-| `IOPath<A>` | `IO<A>` | Side effects you want to defer |
 | `ValidationPath<E, A>` | `Validated<E, A>` | Collecting *all* errors, not just the first |
-| `IdPath<A>` | `Id<A>` | The trivial case: always succeeds |
-| `OptionalPath<A>` | `Optional<A>` | Bridging to Java's standard library |
-| `GenericPath<F, A>` | `Kind<F, A>` | Custom monads, when nothing else fits |
+| `IOPath<A>` | `IO<A>` | Side effects you want to defer |
+| `VTaskPath<A>` | `VTask<A>` | Virtual-thread concurrency for I/O-bound work |
+
+Seven additional path types (`IdPath`, `OptionalPath`, `GenericPath`,
+`TrampolinePath`, `FreePath`, `FreeApPath`, `VStreamPath`) live under
+[Advanced Paths](advanced_topics.md) for stack-safe recursion, free-monad
+DSLs, and lazy streaming. See [Path Types Overview](path_types.md) for the
+full decision tree.
 
 Each Path type wraps its underlying effect and provides:
 - `map(f)` - Transform the success value
@@ -546,8 +558,10 @@ Try<String> safe = ioPath.runSafe();    // execute, exceptions captured
 | `mapError(f)` | Transform the error, stay on failure track | Relabel the delay announcement |
 | `run()` | Exit the railway, extract the result | Arrive at destination |
 
-Continue to [Capability Interfaces](capabilities.md) to understand the powers
-that make this possible.
+Continue to the [Migration Cookbook](migration_cookbook.md) for side-by-side
+translations from imperative Java to Effect Path. The capability hierarchy
+that powers `via`, `recover`, `mapError` and the rest is documented in
+[Capability Interfaces](capabilities.md) under the Reference section.
 
 ~~~admonish tip title="See Also"
 - [Choosing Abstraction Levels](../functional/abstraction_levels.md) - When to use Applicative vs Selective vs Monad
@@ -564,5 +578,5 @@ that make this possible.
 
 ---
 
-**Previous:** [Introduction](ch_intro.md)
-**Next:** [Capability Interfaces](capabilities.md)
+**Previous:** [Quickstart](quickstart.md)
+**Next:** [Migration Cookbook](migration_cookbook.md)

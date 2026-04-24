@@ -396,5 +396,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ---
 
-**Previous:** [FreeApPath](path_freeap.md)
-**Next:** [VStreamPath](path_vstream.md)
+**Previous:** [IOPath](path_io.md)
+**Next:** [Composition Patterns](composition.md)

@@ -46,7 +46,7 @@ Before diving into specifics, orient yourself by the problem you're solving:
                                          EitherPath     TryPath
 ```
 
-*For deferred side effects, see [`IOPath`](path_io.md). For virtual-thread concurrency, see [`VTaskPath`](path_vtask.md). For stack-safe recursion, see [`TrampolinePath`](path_trampoline.md).*
+*The decision tree above covers the six core path types in this section. For deferred side effects, [`IOPath`](path_io.md) and [`VTaskPath`](path_vtask.md) follow shortly. For stack-safe recursion via [`TrampolinePath`](path_trampoline.md), and for free-monad DSLs via [`FreePath`](path_free.md) / [`FreeApPath`](path_freeap.md), see [Advanced Paths](advanced_topics.md).*
 
 ### _"The value might not exist"_
 
@@ -223,5 +223,5 @@ messages, `TryPath` to `EitherPath` when you want typed errors). The
 
 ---
 
-**Previous:** [Capability Interfaces](capabilities.md)
+**Previous:** [Migration Cookbook](migration_cookbook.md)
 **Next:** [MaybePath](path_maybe.md)

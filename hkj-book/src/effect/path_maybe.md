@@ -11,6 +11,12 @@ It's the simplest failure mode: either you have a value, or you don't.
 - When to use (and when not to)
 ~~~
 
+~~~admonish example title="See Example Code"
+- [BasicPathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/BasicPathExample.java) - Creating and transforming MaybePath values
+- [ChainedComputationsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ChainedComputationsExample.java) - Chaining MaybePath with `via` and `map`
+- [ErrorHandlingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ErrorHandlingExample.java) - Recovery patterns and `toEitherPath`
+~~~
+
 ---
 
 ## Creation

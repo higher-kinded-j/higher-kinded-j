@@ -212,5 +212,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ---
 
-**Previous:** [TryPath](path_try.md)
-**Next:** [ValidationPath](path_validation.md)
+**Previous:** [ValidationPath](path_validation.md)
+**Next:** [VTaskPath](path_vtask.md)

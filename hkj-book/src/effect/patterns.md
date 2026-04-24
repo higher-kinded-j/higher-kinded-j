@@ -754,5 +754,5 @@ Writer patterns.
 
 ---
 
-**Previous:** [Capstone: Effects Meet Optics](capstone_focus_effect.md)
-**Next:** [Migration Cookbook](migration_cookbook.md)
+**Previous:** [Effect Handler Reference](effect_handlers.md)
+**Next:** [Resilience Patterns](../resilience/ch_intro.md)

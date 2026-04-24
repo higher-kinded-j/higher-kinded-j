@@ -12,6 +12,13 @@ right, as the mnemonic goes.)
 - When to use (and when not to)
 ~~~
 
+~~~admonish example title="See Example Code"
+- [BasicPathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/BasicPathExample.java) - Creating and transforming EitherPath values
+- [ErrorHandlingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ErrorHandlingExample.java) - Typed-error workflows with `recover` and `mapError`
+- [EitherPathBimapExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/EitherPathBimapExample.java) - Bifunctor operations transforming both sides
+- [ServiceLayerExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ServiceLayerExample.java) - Real-world service composition with EitherPath
+~~~
+
 ---
 
 ## Creation

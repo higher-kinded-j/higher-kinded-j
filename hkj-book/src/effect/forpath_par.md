@@ -101,4 +101,4 @@ For `par()` with raw `Kind` values (no Path wrappers), see [For Parallel Composi
 
 ---
 
-**Previous:** [ForPath Examples](forpath_examples.md) | **Next:** [ForPath Traverse](forpath_traverse.md)
+**Previous:** [VStreamPath](path_vstream.md) | **Next:** [ForPath Traverse](forpath_traverse.md)

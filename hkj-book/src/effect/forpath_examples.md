@@ -131,6 +131,10 @@ At higher arities, the tuple-style `yield` can be more readable:
 .yield(t -> t._6())  // access the summary directly by position
 ```
 
+~~~admonish tip title="Need parallelism or typeclass-level traversal?"
+For concurrent evaluation of independent paths, see [ForPath Parallel Composition](forpath_par.md). For traversing a list of inputs through a path-producing function, see [ForPath Traverse](forpath_traverse.md). Both live under Advanced Paths.
+~~~
+
 ---
 
-**Previous:** [ForPath Comprehension](forpath_comprehension.md) | **Next:** [ForPath Parallel Composition](forpath_par.md)
+**Previous:** [ForPath Comprehension](forpath_comprehension.md) | **Next:** [Optics Integration](focus_integration.md)
