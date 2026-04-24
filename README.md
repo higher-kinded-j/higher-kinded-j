@@ -59,7 +59,7 @@ Higher-Kinded-J's **Effect Path API** models computation as a railway: success t
 // Effect Path API: flat, composable, readable
 public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest request) {
     return Path.maybe(userRepository.findById(userId))
-        .toEitherPath(() -> new OrderError.UserNotFound(userId))
+        .toEitherPath(new OrderError.UserNotFound(userId))
         .via(user -> Path.either(validator.validate(request))
             .mapError(OrderError.ValidationFailed::new))
         .via(validated -> Path.tryOf(() -> paymentService.charge(user, amount))
