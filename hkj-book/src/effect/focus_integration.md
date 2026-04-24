@@ -1,6 +1,6 @@
-# Focus-Effect Integration
+# Optics Integration
 
-## _Bridging Structural Navigation and Effect Composition_
+## _Focus-Effect Integration · Bridging Structural Navigation and Effect Composition_
 
 > *"The knife had two edges: one was tempered for common use, but the other was keener than any blade that had ever existed before. It could cut through anything, even the fabric of the universe itself... With the right touch, you could open a window to another world."*
 >
@@ -13,6 +13,15 @@ The Focus DSL and Effect Paths inhabit different worlds. One navigates the struc
 But like the subtle knife, the bridge API lets you cut cleanly between them.
 
 When you hold structured data and need the railway semantics of effects, the `toXxxPath` methods open a window from optics into effects. When you're deep in an effect pipeline and need to navigate the contained structure, `focus()` opens a window back. The passage is seamless. The types guide you. Each world remains itself, but now they connect.
+
+~~~admonish info title="In this section"
+The **Optics Integration** sub-chapter shows how the Effect Path API and the [Optics chapter](../optics/ch_intro.md) compose:
+
+- **This page** -- the bridge API: `toMaybePath()`, `toEitherPath()`, `focus()`, and the conversion mechanics between FocusPath / AffinePath / TraversalPath and the Effect Path types.
+- **[Capstone: Effects Meet Optics](capstone_focus_effect.md)** -- a complete worked example replacing 30 lines of defensive Java with a single optics-and-effects pipeline.
+
+Assumes you've read the [Focus DSL](../optics/focus_dsl.md) and the basic Effect Path types from Core Paths.
+~~~
 
 ~~~admonish info title="What You'll Learn"
 - How Focus paths and Effect paths complement each other
@@ -361,5 +370,5 @@ Practice Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://git
 
 ---
 
-**Previous:** [Type Conversions](conversions.md)
+**Previous:** [ForPath Examples](forpath_examples.md)
 **Next:** [Capstone: Effects Meet Optics](capstone_focus_effect.md)

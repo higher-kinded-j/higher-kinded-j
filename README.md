@@ -59,7 +59,7 @@ Higher-Kinded-J's **Effect Path API** models computation as a railway: success t
 // Effect Path API: flat, composable, readable
 public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest request) {
     return Path.maybe(userRepository.findById(userId))
-        .toEitherPath(() -> new OrderError.UserNotFound(userId))
+        .toEitherPath(new OrderError.UserNotFound(userId))
         .via(user -> Path.either(validator.validate(request))
             .mapError(OrderError.ValidationFailed::new))
         .via(validated -> Path.tryOf(() -> paymentService.charge(user, amount))
@@ -271,7 +271,7 @@ Traversal<League, Player> activePlayers =
 * **Java Development Kit (JDK): Version 25** or later, with `--enable-preview` enabled.
 * Gradle (the project includes a Gradle wrapper).
 
-Higher-Kinded-J uses Java preview features. See the [Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html) for full Gradle and Maven configuration including preview flags.
+Higher-Kinded-J uses Java preview features. See the [Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html) for the recommended plugin-based Gradle and Maven setup, or [Manual Gradle and Maven Setup](https://higher-kinded-j.github.io/latest/tooling/manual_setup.html) if your project cannot apply the HKJ build plugin.
 
 ### Version Compatibility
 
@@ -344,7 +344,7 @@ Run `mvn hkj:diagnostics` to inspect your current HKJ configuration.
 
 ### Manual Setup
 
-See the **[Quickstart Guide](https://higher-kinded-j.github.io/latest/quickstart.html)** for manual Gradle and Maven configuration including preview flags and annotation processors.
+See **[Manual Gradle and Maven Setup](https://higher-kinded-j.github.io/latest/tooling/manual_setup.html)** for the full `build.gradle.kts` and `pom.xml` configuration including preview flags and annotation processors.
 
 **For SNAPSHOTS:**
 

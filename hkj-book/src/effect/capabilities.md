@@ -1,4 +1,6 @@
-# Capability Interfaces
+# Reference
+
+## _Capability Interfaces_
 
 > *"Caress the detail, the divine detail."*
 >
@@ -13,6 +15,15 @@ The type system prevents you from reaching for tools that don't apply.
 
 This isn't bureaucratic fastidiousness. It's how the library stays honest
 about what each type can do.
+
+~~~admonish info title="In this section"
+The **Reference** sub-chapter is lookup material rather than narrative -- the typeclass foundations, the conversion rules, and the gotchas you'll hit at the keyboard.
+
+- **This page** -- the capability interface hierarchy that determines which operations each Path type supports.
+- **[Type Conversions](conversions.md)** -- the rules for converting between Path types as your needs change.
+- **[Common Compiler Errors](compiler_errors.md)** -- the five most common errors with full messages and minimal fixes.
+- **[Production Readiness](production_readiness.md)** -- stack traces, allocation overhead, and stack safety. Honest answers for senior engineers.
+~~~
 
 ~~~admonish info title="What You'll Learn"
 - The capability interface hierarchy: Composable, Combinable, Chainable, Recoverable, Effectful, and Accumulating
@@ -429,5 +440,5 @@ Continue to [Path Types](path_types.md) for detailed coverage of each type.
 
 ---
 
-**Previous:** [Effect Path Overview](effect_path_overview.md)
-**Next:** [Path Types](path_types.md)
+**Previous:** [Combined Patterns](../resilience/combined.md)
+**Next:** [Type Conversions](conversions.md)

@@ -16,7 +16,7 @@
 
 ---
 
-Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **[Effect Path API](effect/effect_path_overview.md)**, and type-safe immutable data navigation through the **[Focus DSL](optics/focus_dsl.md)**. Each is powerful alone. Together, they form a unified approach to building robust applications, where effects and structure compose seamlessly. For services that need multiple execution modes, **[Effect Handlers](effect/effect_handlers_intro.md)** let you define domain operations as data and interpret them differently for production, testing, or audit.
+Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **[Effect Path API](effect/ch_intro.md)**, and type-safe immutable data navigation through the **[Focus DSL](optics/focus_dsl.md)**. Each is powerful alone. Together, they form a unified approach to building robust applications, where effects and structure compose seamlessly. For services that need multiple execution modes, **[Effect Handlers](effect/effect_handlers_intro.md)** let you define domain operations as data and interpret them differently for production, testing, or audit.
 
 No more pyramids of nested checks. No more scattered validation logic. Just clean, flat pipelines that read like the business logic they represent.
 
@@ -98,7 +98,7 @@ EitherPath<Error, String> result =
 
 This is the unification that Java has been missing: effects and structure, composition and navigation, all speaking the same language.
 
-**[Discover Focus-Effect Integration →](effect/focus_integration.md)**
+**[Discover Optics Integration →](effect/focus_integration.md)**
 
 ---
 
@@ -278,10 +278,11 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 ~~~
 
 ### Effect Path API (Start Here)
-1. **[Effect Path Overview](effect/effect_path_overview.md):** The railway model, creating paths, core operations
-2. **[Capability Interfaces](effect/capabilities.md):** The powers that paths possess
-3. **[Path Types](effect/path_types.md):** When to use each path type
-4. **[Focus-Effect Integration](effect/focus_integration.md):** Bridging optics and effects
+1. **[Quickstart](effect/quickstart.md):** Three runnable examples showing MaybePath, EitherPath, and ForPath in about 150 lines
+2. **[Core Paths](effect/effect_path_overview.md):** The railway model, the six core path types, composition, and basic ForPath comprehensions
+3. **[Optics Integration](effect/focus_integration.md):** Bridging Effect Paths with the Focus DSL
+4. **[Advanced Paths](effect/advanced_topics.md):** Free monads, effect handlers, contexts, ForPath parallelism, and resilience
+5. **[Reference](effect/capabilities.md):** Capability typeclasses, type conversions, compiler errors, and production readiness
 
 ### Optics Guides
 1. **[Introduction to Optics](optics/optics_intro.md):** What optics are and the problems they solve

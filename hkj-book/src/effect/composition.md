@@ -10,9 +10,12 @@ a boolean flag that means three different things depending on context, and
 suddenly your "understandable and lawful" service layer has become something
 you approach with trepidation.
 
-Composition is how you hold the line. Each pattern in this chapter is a way
-of connecting operations so that failures propagate predictably, successes
-build on each other, and the logic remains visible even as complexity grows.
+Composition is how you hold the line. The previous pages introduced `via`,
+`map`, `recover`, and `zipWith` one path type at a time -- this page steps
+back and looks at the shapes those operators form when you combine them
+across real workflows: dependent chains, independent fan-outs, debugging
+hooks, and fallback strategies. The vocabulary you've already met is the
+vocabulary used throughout.
 
 ~~~admonish info title="What You'll Learn"
 - Sequential composition with `via` and `then` for dependent computations
@@ -586,5 +589,5 @@ moving between Path types.
 
 ---
 
-**Previous:** [VStreamPath](path_vstream.md)
+**Previous:** [VTaskPath](path_vtask.md)
 **Next:** [ForPath Comprehension](forpath_comprehension.md)

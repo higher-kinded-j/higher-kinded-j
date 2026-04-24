@@ -245,4 +245,4 @@ PaymentResult result = chargePayment.run();
 ---
 
 **Previous:** [Saga](saga.md)
-**Next:** [Advanced Topics](../transformers/ch_intro.md)
+**Next:** [Reference](../effect/capabilities.md)

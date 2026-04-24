@@ -65,4 +65,5 @@ Higher-Kinded-J's resilience patterns integrate directly with `VTask`, `VStream`
 
 ---
 
+**Previous:** [Patterns and Recipes](../effect/patterns.md)
 **Next:** [Retry](retry.md)

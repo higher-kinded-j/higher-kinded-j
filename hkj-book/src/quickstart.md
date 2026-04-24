@@ -56,51 +56,9 @@ repositories {
 }
 ```
 
-### Manual Setup
+### Prefer Not to Use the Plugin?
 
-If you prefer to configure dependencies yourself:
-
-```gradle
-// build.gradle.kts
-plugins { java }
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(25))
-    }
-}
-
-dependencies {
-    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
-
-    // Optional: generates Focus paths and Effect paths for your records
-    annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
-}
-
-// Required: enable Java preview features
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.add("--enable-preview")
-}
-
-tasks.withType<Test>().configureEach {
-    jvmArgs("--enable-preview")
-}
-
-tasks.withType<JavaExec>().configureEach {
-    jvmArgs("--enable-preview")
-}
-```
-
-For SNAPSHOTS, add the Sonatype snapshots repository:
-
-```gradle
-repositories {
-    mavenCentral()
-    maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-    }
-}
-```
+If your project cannot apply the HKJ plugin, see [Manual Gradle and Maven Setup](tooling/manual_setup.md) for the full `build.gradle.kts` configuration.
 
 ---
 
@@ -123,63 +81,9 @@ repositories {
 
 The plugin automatically adds `hkj-core`, annotation processors, compile-time checks, and `--enable-preview` flags. See the [Build Plugins](tooling/gradle_plugin.md) documentation for the full configuration reference.
 
-### Manual Setup
+### Prefer Not to Use the Plugin?
 
-If you prefer to configure dependencies yourself:
-
-```xml
-<properties>
-    <maven.compiler.release>25</maven.compiler.release>
-    <maven.compiler.enablePreview>true</maven.compiler.enablePreview>
-</properties>
-
-<dependencies>
-    <dependency>
-        <groupId>io.github.higher-kinded-j</groupId>
-        <artifactId>hkj-core</artifactId>
-        <version>LATEST_VERSION</version>
-    </dependency>
-</dependencies>
-
-<build>
-    <plugins>
-        <!-- Optional: generates Focus paths and Effect paths for your records -->
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.14.1</version>
-            <configuration>
-                <annotationProcessorPaths>
-                    <path>
-                        <groupId>io.github.higher-kinded-j</groupId>
-                        <artifactId>hkj-processor-plugins</artifactId>
-                        <version>LATEST_VERSION</version>
-                    </path>
-                </annotationProcessorPaths>
-            </configuration>
-        </plugin>
-        <!-- Required: enable preview features for tests -->
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-                <argLine>--enable-preview</argLine>
-            </configuration>
-        </plugin>
-        <!-- Required: enable preview features for application execution -->
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <configuration>
-                <executable>java</executable>
-                <arguments>
-                    <argument>--enable-preview</argument>
-                </arguments>
-            </configuration>
-        </plugin>
-    </plugins>
-</build>
-```
+If your project cannot apply the HKJ Maven plugin, see [Manual Gradle and Maven Setup](tooling/manual_setup.md) for the full `pom.xml` configuration.
 
 ---
 

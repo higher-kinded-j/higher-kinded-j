@@ -734,5 +734,5 @@ Continue to [Patterns and Recipes](patterns.md) for real-world usage patterns.
 
 ---
 
-**Previous:** [ForPath Comprehension](forpath_comprehension.md)
-**Next:** [Focus-Effect Integration](focus_integration.md)
+**Previous:** [Capability Interfaces](capabilities.md)
+**Next:** [Common Compiler Errors](compiler_errors.md)

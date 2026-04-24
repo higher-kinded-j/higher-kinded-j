@@ -73,5 +73,5 @@ IdPath<String> result = process(testPath);
 
 ---
 
-**Previous:** [ValidationPath](path_validation.md)
+**Previous:** [Advanced Paths](advanced_topics.md)
 **Next:** [OptionalPath](path_optional.md)

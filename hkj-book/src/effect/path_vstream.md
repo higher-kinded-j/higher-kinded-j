@@ -415,5 +415,5 @@ Try<List<String>> result = task.runSafe();
 
 ---
 
-**Previous:** [VTaskPath](path_vtask.md)
-**Next:** [Composition Patterns](composition.md)
+**Previous:** [FreeApPath](path_freeap.md)
+**Next:** [ForPath Parallel Composition](forpath_par.md)

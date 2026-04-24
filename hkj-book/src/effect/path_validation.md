@@ -130,5 +130,5 @@ String result = validated.fold(
 
 ---
 
-**Previous:** [IOPath](path_io.md)
-**Next:** [IdPath](path_id.md)
+**Previous:** [TryPath](path_try.md)
+**Next:** [IOPath](path_io.md)

@@ -10,6 +10,8 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 ---
 
 ~~~admonish info title="In This Chapter"
+- **[Manual Gradle and Maven Setup](manual_setup.md)** -- Full `build.gradle.kts` and `pom.xml` configuration for projects that cannot use the HKJ build plugin. Covers dependencies, annotation processors, Java preview flags, and snapshot repositories.
+
 - **[Build Plugins](gradle_plugin.md)** -- One-line setup for Gradle or Maven that configures dependencies, preview features, and compile-time checks automatically. Replaces multi-block boilerplate configuration with a single plugin application.
 
 - **[Compile-Time Checks](compile_checks.md)** -- A javac plugin that detects Path type mismatches at compile time, preventing runtime `IllegalArgumentException` errors. Follows a strict no-false-positives policy.
@@ -23,12 +25,13 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 ## Chapter Contents
 
-1. [Build Plugins](gradle_plugin.md) - One-line project setup for Gradle and Maven
-2. [Compile-Time Checks](compile_checks.md) - Path type mismatch detection
-3. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
-4. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
-5. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
+1. [Manual Gradle and Maven Setup](manual_setup.md) - Full manual build configuration
+2. [Build Plugins](gradle_plugin.md) - One-line project setup for Gradle and Maven
+3. [Compile-Time Checks](compile_checks.md) - Path type mismatch detection
+4. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
+5. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
+6. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
 
 ---
 
-**Next:** [Build Plugins](gradle_plugin.md)
+**Next:** [Manual Gradle and Maven Setup](manual_setup.md)

@@ -245,4 +245,4 @@ Path.<DirectoryError, Department>right(department)
 ---
 
 **Previous:** [Focus-Effect Integration](focus_integration.md)
-**Next:** [Patterns and Recipes](patterns.md)
+**Next:** [Advanced Paths](advanced_topics.md)

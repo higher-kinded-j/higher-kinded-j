@@ -344,5 +344,5 @@ The lens extracts and updates the postcode within the same `via` block, so the u
 
 ---
 
-**Previous:** [Patterns and Recipes](patterns.md)
-**Next:** [Common Compiler Errors](compiler_errors.md)
+**Previous:** [Core Paths](effect_path_overview.md)
+**Next:** [Path Types Overview](path_types.md)

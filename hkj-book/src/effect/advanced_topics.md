@@ -1,4 +1,6 @@
-# Advanced Effect Topics
+# Advanced Paths
+
+## _Advanced Effect Topics_
 
 > *"The Cryptonomicon was like an idea that had been exploded into a thousand
 > fragments and scattered across the world... You had to pick up all the
@@ -17,6 +19,17 @@ This chapter explores advanced capabilities that build on the core Path types:
 stack-safe recursion, DSL building, resource management, parallelism, and
 resilience. These aren't academic exercises. They're the patterns that emerge
 when simple composition meets real-world demands.
+
+~~~admonish info title="In this section"
+The **Advanced Paths** sub-chapter expands the Effect Path API beyond the core six path types. This page is the narrative tour; the dedicated pages give API-level reference.
+
+- **Advanced path types**: [IdPath](path_id.md), [OptionalPath](path_optional.md), [GenericPath](path_generic.md), [TrampolinePath](path_trampoline.md), [FreePath](path_free.md), [FreeApPath](path_freeap.md), [VStreamPath](path_vstream.md)
+- **Advanced ForPath**: [Parallel Composition](forpath_par.md) and [Traverse](forpath_traverse.md) for concurrent and typeclass-level patterns
+- **Advanced effects**: [Reader/State/Writer Paths](advanced_effects.md), [Effect Contexts](effect_contexts.md), and [Effect Handlers](effect_handlers_intro.md)
+- **Production patterns**: [Patterns and Recipes](patterns.md) and the [Resilience Patterns](../resilience/ch_intro.md) sub-chapter
+
+Assumes comfort with the six core path types and the basic ForPath comprehension API from Core Paths.
+~~~
 
 ~~~admonish info title="What You'll Learn"
 - `TrampolinePath` for stack-safe recursive computations that never overflow
@@ -43,6 +56,8 @@ when simple composition meets real-world demands.
 > encrypted thing was encrypted safely."*
 >
 > -- Neal Stephenson, *Cryptonomicon*
+
+*Looking for the API reference? See [TrampolinePath](path_trampoline.md). This section is the narrative -- when stack safety matters and how trampolining converts unbounded recursion into a constant-space loop.*
 
 Recursion is elegant, until it overflows your stack. Java's call stack is
 finite, typically 512KB to 1MB depending on configuration. A recursive
@@ -179,6 +194,8 @@ LazyPath<Integer> lazy = computation.toLazyPath();
 > this, everything else followed."*
 >
 > -- Neal Stephenson, *Cryptonomicon*
+
+*Looking for the API reference? See [FreePath](path_free.md), [FreeApPath](path_freeap.md), and [Effect Handlers](effect_handlers_intro.md) for interpreter patterns. This section is the narrative -- why programs-as-data, what Free buys you, and how to interpret one.*
 
 Sometimes you want to describe a computation without immediately executing it.
 You might want to:
@@ -455,6 +472,8 @@ connection. If any step fails, all acquired resources are still released.
 >
 > -- Neal Stephenson, *Cryptonomicon*
 
+*Looking for parallel ForPath comprehensions specifically? See [ForPath Parallel Composition](forpath_par.md). This section covers parallel primitives across path types -- `parZipWith`, `parSequence`, and `race`.*
+
 Some computations are independent. Fetching user data and fetching preferences
 don't depend on each other; why wait for one to finish before starting the other?
 
@@ -583,6 +602,8 @@ prefer sequential; parallelise when profiling shows it matters.
 > wait two seconds, try again; wait four seconds..."*
 >
 > -- Neal Stephenson, *Cryptonomicon*
+
+*This section is the conceptual primer. The dedicated [Resilience Patterns](../resilience/ch_intro.md) sub-chapter goes much deeper into Retry, Circuit Breaker, Bulkhead, and Saga, including the `ResilienceBuilder` for composing multiple patterns.*
 
 Networks fail. Services timeout. Databases hiccup. Resilient code doesn't
 assume success; it plans for failure and recovers gracefully.
@@ -741,5 +762,5 @@ systems that handle the full spectrum of real-world complexity.
 
 ---
 
-**Previous:** [Context vs ConfigContext](context_vs_config.md)
-**Next:** [Production Readiness](production_readiness.md)
+**Previous:** [Capstone: Effects Meet Optics](capstone_focus_effect.md)
+**Next:** [IdPath](path_id.md)

@@ -283,5 +283,5 @@ for setup and details.
 
 ---
 
-**Previous:** [Migration Cookbook](migration_cookbook.md)
-**Next:** [Advanced Effects](advanced_effects.md)
+**Previous:** [Type Conversions](conversions.md)
+**Next:** [Production Readiness](production_readiness.md)

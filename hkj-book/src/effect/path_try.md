@@ -109,4 +109,4 @@ if (tryValue.isSuccess()) {
 ---
 
 **Previous:** [EitherPath](path_either.md)
-**Next:** [IOPath](path_io.md)
+**Next:** [ValidationPath](path_validation.md)
