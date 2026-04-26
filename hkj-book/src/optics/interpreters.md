@@ -1,6 +1,6 @@
 # Optic Interpreters: Multiple Execution Strategies
 
-![interpreters.jpg](../images/lens2.jpg)
+<img src="../images/the-interpreter.jpg" alt="Illustration of an interpreter translating a Free Monad program into a concrete execution strategy" style="width: 100%;" />
 
 ~~~admonish info title="What You'll Learn"
 - How the Interpreter pattern separates description from execution
@@ -741,4 +741,3 @@ try {
 ---
 
 **Previous:** [Free Monad DSL](free_monad_dsl.md)
-**Next:** [Integration and Recipes](ch5_intro.md)

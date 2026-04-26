@@ -434,5 +434,5 @@ User updated = allTasks.modifyAll(Task::markReviewed, user);
 
 ---
 
-**Previous:** [Indexed Optics](indexed_optics.md)
+**Previous:** [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md)
 **Next:** [String Traversals](string_traversals.md)

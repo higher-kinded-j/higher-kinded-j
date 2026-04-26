@@ -686,5 +686,5 @@ Practice affine basics in [Tutorial 04: Affine Basics](https://github.com/higher
 
 ---
 
-**Previous:** [Prisms: Working with Sum Types](prisms.md)
+**Previous:** [Prism Toolkit](prism_toolkit.md)
 **Next:** [Isomorphisms: Data Equivalence](iso.md)

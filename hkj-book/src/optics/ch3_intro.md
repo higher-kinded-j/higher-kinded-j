@@ -14,7 +14,15 @@ The At and Ixed type classes extend this precision to maps and indexed collectio
 
 This section also revisits Prisms with advanced patterns: the `nearly` prism for predicate-based matching, `doesNotMatch` for exclusion filtering, and composition strategies for complex sealed interface hierarchies. These are the tools you reach for when the basic patterns no longer suffice.
 
-Fair warning: some of this material is dense. It rewards careful reading.
+Most users only need filtered traversals, covered first. Indexed access and profunctor optics solve specific problems; read those pages when you hit them, not before.
+
+~~~admonish info title="Hands-On Learning"
+The [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (27 exercises, ~40 minutes) covers filtering and indexed patterns alongside the basics.
+~~~
+
+~~~admonish tip title="See Also"
+- [Annotations at a Glance](annotations_at_a_glance.md), the underlying optics are still annotation-generated.
+~~~
 
 ---
 
@@ -62,9 +70,7 @@ When position matters:
 
 ---
 
-## What You'll Learn
-
-~~~admonish info title="In This Section"
+~~~admonish info title="In This Chapter"
 - **Filtered Optics** – Apply predicates to narrow which elements a Traversal affects. Only modify items over a certain price, or extract elements matching a condition.
 - **Indexed Optics** – Carry position information alongside values. Know which index you're modifying, or transform values based on their position in a collection.
 - **Each Typeclass** – Provides canonical traversals for container types. Get a Traversal for any List, Map, Optional, or custom container through a uniform interface, with optional indexed access.
@@ -76,7 +82,7 @@ When position matters:
 
 ---
 
-## Section Contents
+## Chapter Contents
 
 1. [Filtered Optics](filtered_optics.md) - Predicate-based targeting within traversals
 2. [Indexed Optics](indexed_optics.md) - Position-aware operations on collections
@@ -88,5 +94,4 @@ When position matters:
 
 ---
 
-**Previous:** [List Decomposition](list_decomposition.md)
 **Next:** [Filtered Optics](filtered_optics.md)

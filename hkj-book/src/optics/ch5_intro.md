@@ -16,6 +16,14 @@ The cookbook provides ready-to-use recipes for common problems: updating nested 
 
 Copy freely. That's what they're for.
 
+~~~admonish info title="Hands-On Learning"
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all four journeys (108 exercises, ~150 minutes).
+~~~
+
+~~~admonish tip title="See Also"
+- [Annotations at a Glance](annotations_at_a_glance.md), every optic in the recipes below is annotation-generated.
+~~~
+
 ---
 
 ## Which Optic Do I Need?
@@ -106,9 +114,7 @@ All permissions validated. All errors accumulated. Original structure preserved.
 
 ---
 
-## What You'll Learn
-
-~~~admonish info title="In This Section"
+~~~admonish info title="In This Chapter"
 - **Composing Optics** – A complete walkthrough building a validation pipeline that composes Lens, Prism, and Traversal to validate deeply nested permissions in a form structure.
 - **Core Type Integration** – How optics work with the library's functional types. Use Prisms to focus on Right values in Either, or Some values in Maybe.
 - **Optics Extensions** – Additional capabilities beyond the basics. Extended Lens operations, Traversal utilities, and convenience methods for common patterns.
@@ -120,7 +126,7 @@ See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for
 
 ---
 
-## Section Contents
+## Chapter Contents
 
 1. [Composing Optics](composing_optics.md) - A complete validation workflow example
 2. [Core Type Integration](core_type_integration.md) - Using optics with Either, Maybe, Validated, and Optional
@@ -130,5 +136,4 @@ See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for
 
 ---
 
-**Previous:** [Interpreters](interpreters.md)
 **Next:** [Composing Optics](composing_optics.md)

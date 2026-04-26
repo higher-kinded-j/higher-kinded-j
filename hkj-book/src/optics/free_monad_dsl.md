@@ -673,5 +673,5 @@ Practice the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github
 
 ---
 
-**Previous:** [Fluent API](fluent_api.md)
+**Previous:** [Advanced Optics](ch6_intro.md)
 **Next:** [Interpreters](interpreters.md)
