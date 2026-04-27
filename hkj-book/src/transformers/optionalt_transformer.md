@@ -77,7 +77,7 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
 
 `OptionalT<F, A>` wraps a computation yielding `Kind<F, Optional<A>>`. It represents an effectful computation in `F` that may or may not produce a value.
 
-<pre style="line-height:1.4;font-size:0.95em">
+<pre style="line-height:1.4;font-size:0.95em;font-family:ui-monospace,SFMono-Regular,'SF Mono','Cascadia Mono','Roboto Mono','DejaVu Sans Mono','Source Code Pro',Menlo,Consolas,monospace,monospace;">
     ┌──────────────────────────────────────────────────────────┐
     │  OptionalT&lt;CompletableFutureKind.Witness, Value&gt;         │
     │                                                          │
@@ -91,10 +91,10 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
-    │  flatMap ──▶ sequences F, then routes on Optional       │
-    │  map ──────▶ transforms <span style="color:#4CAF50">present value</span> only              │
-    │  raiseError(Unit) ──▶ creates <span style="color:#F44336">empty()</span> in F              │
-    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">empty</span>                │
+    │  flatMap ──▶ sequences F, then routes on Optional        │
+    │  map ──────▶ transforms <span style="color:#4CAF50">present value</span> only               │
+    │  raiseError(Unit) ──▶ creates <span style="color:#F44336">empty()</span> in F               │
+    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">empty</span>                 │
     └──────────────────────────────────────────────────────────┘
 </pre>
 
