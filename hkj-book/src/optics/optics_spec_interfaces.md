@@ -65,7 +65,7 @@ This is what spec interfaces enable.
 
 When we try `@ImportOptics(JsonNode.class)`, the processor struggles. Jackson's `JsonNode` has several properties that confuse auto-detection:
 
-1. **No sealed hierarchy** - `ObjectNode`, `ArrayNode`, `TextNode` exist as subtypes, but `JsonNode` isn't a sealed interface. The processor can't discover them automatically.
+1. **No sealed hierarchy** - `ObjectNode`, `ArrayNode`, `StringNode` exist as subtypes, but `JsonNode` isn't a sealed interface. The processor can't discover them automatically.
 
 2. **No copy mechanism** - `JsonNode` is essentially immutable but has no builder pattern, withers, or convenient constructors. We create new nodes through factories.
 
@@ -82,8 +82,8 @@ A spec interface extends `OpticsSpec<S>` and declares what optics we want with a
 ```java
 package com.myapp.optics;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.*;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.*;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.*;
 
@@ -96,8 +96,8 @@ public interface JsonOptics extends OpticsSpec<JsonNode> {
     @InstanceOf(ArrayNode.class)
     Prism<JsonNode, ArrayNode> array();
 
-    @InstanceOf(TextNode.class)
-    Prism<JsonNode, TextNode> text();
+    @InstanceOf(StringNode.class)
+    Prism<JsonNode, StringNode> text();
 
     @InstanceOf(NumericNode.class)
     Prism<JsonNode, NumericNode> numeric();
@@ -151,8 +151,8 @@ public interface JsonOptics extends OpticsSpec<JsonNode> {
     @InstanceOf(ArrayNode.class)
     Prism<JsonNode, ArrayNode> array();
 
-    @InstanceOf(TextNode.class)
-    Prism<JsonNode, TextNode> text();
+    @InstanceOf(StringNode.class)
+    Prism<JsonNode, StringNode> text();
 
     @InstanceOf(NumericNode.class)
     Prism<JsonNode, NumericNode> numeric();
@@ -199,7 +199,7 @@ public interface JsonOptics extends OpticsSpec<JsonNode> {
         return JsonOptics.text().andThen(
             Affine.of(
                 node -> Optional.of(node.asText()),
-                (node, value) -> new TextNode(value)
+                (node, value) -> new StringNode(value)
             )
         );
     }
@@ -633,7 +633,7 @@ Consider these opportunities to enhance your JSON optics:
 
 **Jackson Documentation:**
 - [Jackson Databind](https://github.com/FasterXML/jackson-databind) - Core databinding functionality
-- [JsonNode Javadoc](https://javadoc.io/doc/com.fasterxml.jackson.core/jackson-databind/latest/com/fasterxml/jackson/databind/JsonNode.html) - API reference
+- [JsonNode Javadoc (2.x)](https://javadoc.io/doc/com.fasterxml.jackson.core/jackson-databind/latest/com/fasterxml/jackson/databind/JsonNode.html) - API reference. In Jackson 3.x the same API lives under `tools.jackson.databind`.
 
 **Alternative JSON Libraries:**
 The same spec interface pattern works for other JSON libraries:

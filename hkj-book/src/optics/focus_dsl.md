@@ -31,6 +31,44 @@ The Focus DSL provides a fluent, path-based syntax for working with optics. Inst
 
 ---
 
+## Five-Minute Focus DSL
+
+If you only have a few minutes, this is the entire feature.
+
+**Step 1.** Annotate two records:
+
+```java
+import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.higherkindedj.optics.annotations.GenerateFocus;
+
+@GenerateLenses @GenerateFocus
+public record Address(String street, String city) {}
+
+@GenerateLenses @GenerateFocus
+public record User(String name, Address address) {}
+```
+
+**Step 2.** Use the generated `UserFocus` companion class:
+
+```java
+User alice = new User("Alice", new Address("Old Street", "London"));
+
+// Get
+String city = UserFocus.address().city().get(alice);              // "London"
+
+// Set
+User moved  = UserFocus.address().city().set("Paris", alice);
+
+// Modify
+User shouty = UserFocus.address().city().modify(String::toUpperCase, alice);
+```
+
+**Step 3.** That's it. The path you typed (`UserFocus.address().city()`) is a typed value: you can store it, pass it around, and reuse it. The processor generated `UserFocus` and `AddressFocus` at compile time; nothing reflective happens at runtime.
+
+For collections, sealed types, and `Kind<F, A>` fields, the same pattern extends through `.each()`, `.some()`, `.at(i)`, and `instanceOf()`. The rest of this page walks through each in turn, but you almost never have to compose lenses manually to get useful work done.
+
+---
+
 ## The Problem: Verbose Manual Composition
 
 When working with deeply nested data structures, manual optic composition becomes verbose:

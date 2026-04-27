@@ -114,12 +114,12 @@ Java lacks native support for abstracting over type constructors like `Optional<
 * **Type classes** like `Functor`, `Applicative`, and `Monad` with consistent interfaces
 * **Monad transformers** for composing effect stacks (`EitherT`, `StateT`, `ReaderT`)
 
-### [Advanced Optics](optics/optics_intro.md)
+### [Advanced Optics](optics/ch_intro.md)
 
-Higher-Kinded-J provides the most comprehensive optics implementation available for Java. Working with immutable records means verbose "copy-and-update" logic; the Optics library treats data access as first-class values:
+Higher-Kinded-J provides the most comprehensive optics implementation available for Java. Working with immutable records means verbose "copy-and-update" logic; the Optics library treats data access as first-class values. The chapter opens with an annotation-led [Quickstart](optics/quickstart.md) and the [Annotations at a Glance](optics/annotations_at_a_glance.md) lookup table; you write a record, add `@GenerateLenses` and `@GenerateFocus`, and the processor writes a typed path builder for you.
 
 * **Complete optic hierarchy:** Lenses, Prisms, Isos, Affines, Traversals, Folds, and Setters
-* **Automatic generation** via annotation processor for Java records and sealed interfaces
+* **Annotation-driven generation** for records, sealed interfaces, and enums; see [Annotations at a Glance](optics/annotations_at_a_glance.md) for the full surface
 * **[External type import](optics/importing_optics.md)** via `@ImportOptics` for types you don't own
 * **[Spec interfaces](optics/optics_spec_interfaces.md)** for complex external types with copy strategy annotations (`@ViaBuilder`, `@Wither`, `@ViaCopyAndSet`)
 * **[Third-party integration](optics/focus_external_bridging.md)** with Jackson, JOOQ, Immutables, Lombok, AutoValue, and Protocol Buffers
@@ -284,16 +284,14 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 4. **[Advanced Paths](effect/advanced_topics.md):** Free monads, effect handlers, contexts, ForPath parallelism, and resilience
 5. **[Reference](effect/capabilities.md):** Capability typeclasses, type conversions, compiler errors, and production readiness
 
-### Optics Guides
-1. **[Introduction to Optics](optics/optics_intro.md):** What optics are and the problems they solve
-2. **[Practical Guide: Lenses](optics/lenses.md):** Nested immutable updates
-3. **[Practical Guide: Prisms](optics/prisms.md):** Working with sum types
-4. **[Focus DSL](optics/focus_dsl.md):** Type-safe structural navigation
-5. **[Container Navigation](optics/focus_containers.md):** SPI-aware container widening and custom types
-6. **[External Types](optics/importing_optics.md):** Importing optics for types you don't own
-7. **[Spec Interfaces](optics/optics_spec_interfaces.md):** Jackson, JOOQ, and complex external types
-8. **[Focus DSL Bridging](optics/focus_external_bridging.md):** Seamless navigation into Immutables, Lombok, AutoValue
-9. **[Profunctor Optics](optics/profunctor_optics.md):** Adapting optics to different data shapes
+### Optics
+1. **[Quickstart](optics/quickstart.md):** Three runnable examples covering generated lenses, prisms and traversals, plus `@ImportOptics` for Jackson
+2. **[Annotations at a Glance](optics/annotations_at_a_glance.md):** Every annotation, what it generates, and when to reach for each one
+3. **[Fundamentals](optics/ch1_intro.md):** Lens, Prism, Affine, Iso, composition rules, and coupled fields
+4. **[Java-Friendly APIs](optics/ch4_intro.md):** Focus DSL, optics for external types, Kind field support, and the Fluent API
+5. **[Integration and Recipes](optics/ch5_intro.md):** Validation pipelines, core-type integration, and the cookbook
+6. **[Advanced Optics](optics/ch6_intro.md):** Free Monad DSL and interpreters for programs-as-data
+7. **[Reference](optics/ch7_intro.md):** Capabilities, conversions, compiler errors, production readiness, and consolidated decision trees
 
 ### Effect Handlers
 1. **[Effect Handlers Introduction](effect/effect_handlers_intro.md):** Motivation, terminology, and when to use

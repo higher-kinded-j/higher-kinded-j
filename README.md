@@ -131,12 +131,12 @@ Java lacks native support for abstracting over type constructors. Higher-Kinded-
 * Type classes like `Functor`, `Applicative`, and `Monad`
 * Monad transformers for composing effect stacks
 
-### [Advanced Optics](https://higher-kinded-j.github.io/latest/optics/optics_intro.html)
+### [Advanced Optics](https://higher-kinded-j.github.io/latest/optics/ch_intro.html)
 
-Higher-Kinded-J provides the most comprehensive optics implementation available for Java. Working with immutable records means verbose "copy-and-update" logic; the Optics library treats data access as first-class values:
+Higher-Kinded-J provides the most comprehensive optics implementation available for Java. Working with immutable records means verbose "copy-and-update" logic; the Optics library treats data access as first-class values. The chapter opens with an annotation-led [Quickstart](https://higher-kinded-j.github.io/latest/optics/quickstart.html) and the [Annotations at a Glance](https://higher-kinded-j.github.io/latest/optics/annotations_at_a_glance.html) lookup table; you write a record, add `@GenerateLenses` and `@GenerateFocus`, and the processor writes a typed path builder for you.
 
 * **Complete optic hierarchy:** Lenses, Prisms, Isos, Affines, Traversals, Folds, and Setters
-* **Automatic generation** via annotation processor for Java records and sealed interfaces
+* **Annotation-driven generation** for records, sealed interfaces, and enums; see [Annotations at a Glance](https://higher-kinded-j.github.io/latest/optics/annotations_at_a_glance.html) for the full surface
 * **External type import** via `@ImportOptics` for types you don't own (e.g., `java.time.LocalDate`)
 * **Spec interfaces** for complex external types with copy strategy annotations (`@ViaBuilder`, `@Wither`, `@ViaCopyAndSet`)
 * **Works with popular libraries**: Jackson JsonNode, JOOQ records, Immutables, Lombok, AutoValue, and Protocol Buffers

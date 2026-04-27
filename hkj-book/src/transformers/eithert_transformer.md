@@ -86,7 +86,7 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
 
 `EitherT<F, L, R>` wraps a value of type `Kind<F, Either<L, R>>`. It represents a computation within the context `F` that will eventually yield an `Either<L, R>`.
 
-<pre style="line-height:1.4;font-size:0.95em">
+<pre style="line-height:1.4;font-size:0.95em;font-family:ui-monospace,SFMono-Regular,'SF Mono','Cascadia Mono','Roboto Mono','DejaVu Sans Mono','Source Code Pro',Menlo,Consolas,monospace,monospace;">
     ┌──────────────────────────────────────────────────────────┐
     │  EitherT&lt;CompletableFutureKind.Witness, Error, Value&gt;    │
     │                                                          │
@@ -100,10 +100,10 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
-    │  flatMap ──▶ sequences F, then routes on Either         │
-    │  map ──────▶ transforms <span style="color:#4CAF50">Right(value)</span> only               │
-    │  raiseError ──▶ creates <span style="color:#F44336">Left(error)</span> in F                │
-    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">Left</span>                 │
+    │  flatMap ──▶ sequences F, then routes on Either          │
+    │  map ──────▶ transforms <span style="color:#4CAF50">Right(value)</span> only                │
+    │  raiseError ──▶ creates <span style="color:#F44336">Left(error)</span> in F                 │
+    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">Left</span>                  │
     └──────────────────────────────────────────────────────────┘
 </pre>
 

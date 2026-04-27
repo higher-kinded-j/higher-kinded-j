@@ -3,7 +3,7 @@
 ![Diagram showing optics as composable lenses focusing on nested data structures](../images/optics.jpg)
 
 ~~~admonish tip title="Learn Optics Hands-On"
-Ready to master optics through practice? Our **[Optics Tutorial Track](../tutorials/optics_track.md)** offers 9 interactive tutorials covering Lenses, Prisms, Traversals, and the Free Monad DSL in ~90 minutes.
+Ready to master optics through practice? The **[Optics Tutorial Track](../tutorials/optics/ch_intro.md)** offers four interactive journeys covering Lenses, Prisms, Traversals, the Fluent and Free DSLs, and the Focus DSL (108 exercises, ~150 minutes total).
 ~~~
 
 ~~~admonish info title="What You'll Learn"
@@ -266,6 +266,7 @@ This level of abstraction enables you to write highly reusable and testable busi
 
 ---
 
+**Previous:** [Fundamentals](ch1_intro.md)
 **Next:** [Lenses: Working with Product Types](lenses.md)
 
 

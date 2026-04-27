@@ -12,7 +12,22 @@ Immutable records in Java are safer, easier to reason about, and, when you need 
 
 An **optic** is a first-class, composable path from a whole structure to one or more of its parts. Once you have the path, reading, writing, and transforming the focused value all come for free, and the paths themselves compose: a lens into a record composed with a prism into a sealed field composed with a traversal over a list is a single optic that knows how to operate on the whole route.
 
-Higher-Kinded-J provides optics for every common access pattern: single required fields, variants of sealed types, optional fields, lossless conversions, and bulk operations on collections. The five sections of this chapter take you from the foundational optics through the Java-friendly APIs and into a cookbook of practical recipes.
+Higher-Kinded-J's optics are **annotation-driven**. You write a record, add `@GenerateLenses` and `@GenerateFocus`, and the processor writes a typed path builder for you. The same applies to sealed types (`@GeneratePrisms`), collections (`@GenerateTraversals`), and even types you can't modify (`@ImportOptics` for Jackson, JOOQ, JDK types). No boilerplate, no runtime reflection, no manual composition unless you want it.
+
+```java
+@GenerateLenses @GenerateFocus
+public record Street(String name, int number) {}
+
+@GenerateLenses @GenerateFocus
+public record Address(Street street, String city) {}
+
+@GenerateLenses @GenerateFocus
+public record User(String name, Address address) {}
+
+User updated = UserFocus.address().street().name().set("New Street", user);
+```
+
+The same record can carry several annotations, each generating its own companion class for a different use case. The five sections of this chapter take you from the foundational optics through the Java-friendly APIs and into a cookbook of practical recipes.
 
 ---
 
@@ -64,18 +79,23 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 
 ## Chapter Contents
 
-1. [Fundamentals](ch1_intro.md) - Lens, Prism, Affine, Iso, composition rules, coupled fields
-2. [Collections](ch2_intro.md) - Traversal, Fold, Getter, Setter, and collection patterns
-3. [Precision and Filtering](ch3_intro.md) - Filtered, indexed, and predicate-based optics
-4. [Java-Friendly APIs](ch4_intro.md) - Focus DSL, Fluent API, Free Monad DSL, code generation
-5. [Integration and Recipes](ch5_intro.md) - Validation workflows, core-type integration, cookbook
+1. [Quickstart](quickstart.md) - Three runnable examples in 100 lines
+2. [Annotations at a Glance](annotations_at_a_glance.md) - Every annotation, what it generates, and when to use it
+3. [Fundamentals](ch1_intro.md) - Lens, Prism, Affine, Iso, composition rules, coupled fields
+4. [Collections](ch2_intro.md) - Traversal, Fold, Getter, Setter, and collection patterns
+5. [Precision and Filtering](ch3_intro.md) - Filtered, indexed, and predicate-based optics
+6. [Java-Friendly APIs](ch4_intro.md) - Focus DSL, Fluent API, Free Monad DSL, code generation
+7. [Integration and Recipes](ch5_intro.md) - Validation workflows, core-type integration, cookbook
 
 ---
 
 ~~~admonish tip title="Start Here"
-New to optics? Begin with [Fundamentals](ch1_intro.md). If you only want to update a nested field in a record right now, skip straight to the [Focus DSL](focus_dsl.md) in Java-Friendly APIs and come back to the foundational material when you need it.
+- **Want to see optics in action?** Read the [Quickstart](quickstart.md), three runnable examples in 100 lines.
+- **Looking for a specific annotation?** [Annotations at a Glance](annotations_at_a_glance.md) is the lookup table.
+- **Just need to update a nested record right now?** Skip straight to the [Focus DSL](focus_dsl.md) and come back to the foundational material when you need it.
+- **New to the concepts?** Start with [Fundamentals](ch1_intro.md).
 ~~~
 
 ---
 
-**Next:** [Fundamentals](ch1_intro.md)
+**Next:** [Quickstart](quickstart.md)
