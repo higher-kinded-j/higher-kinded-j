@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.effect.CompletableFuturePath;
 import org.higherkindedj.hkt.effect.Path;
@@ -295,6 +296,52 @@ class CompletableFuturePathReturnValueHandlerTest {
 
       // Handler should be created successfully
       assertThat(customTimeoutHandler).isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("HttpHeaderCarrier integration")
+  class HeaderInjectionTests {
+
+    @Test
+    @DisplayName("Failure cause that implements HttpHeaderCarrier surfaces its headers")
+    void writesRetryAfter() throws Exception {
+      CompletableFuturePath<TestUser> path = Path.futureFailed(new ThrottledFailure(45));
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(() -> assertThat(mockResponse.getHeader("Retry-After")).isEqualTo("45"));
+    }
+
+    @Test
+    @DisplayName("Plain failure leaves no extra headers")
+    void noHeadersForPlainFailure() throws Exception {
+      CompletableFuturePath<TestUser> path = Path.futureFailed(new RuntimeException("boom"));
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(() -> assertThat(mockResponse.getHeader("Retry-After")).isNull());
+    }
+  }
+
+  /** Test exception that surfaces a Retry-After header via {@link HttpHeaderCarrier}. */
+  static class ThrottledFailure extends RuntimeException implements HttpHeaderCarrier {
+    private final int seconds;
+
+    ThrottledFailure(int seconds) {
+      super("throttled");
+      this.seconds = seconds;
+    }
+
+    @Override
+    public Map<String, String> headers() {
+      return Map.of("Retry-After", Integer.toString(seconds));
     }
   }
 

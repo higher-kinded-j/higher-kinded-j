@@ -156,6 +156,7 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
   private void writeInvalidResponse(Object errors, HttpServletResponse response) {
     try {
       response.setStatus(invalidStatus);
+      ErrorResponseHeaders.applyTo(errors, response);
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
       int errorCount = countErrors(errors);

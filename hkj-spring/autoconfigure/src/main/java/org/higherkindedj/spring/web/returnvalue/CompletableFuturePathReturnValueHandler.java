@@ -173,6 +173,8 @@ public class CompletableFuturePathReturnValueHandler
       // Unwrap CompletionException if present
       Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
 
+      ErrorResponseHeaders.applyTo(cause, response);
+
       Map<String, Object> errorBody;
       if (includeExceptionDetails) {
         // Include structured error with type and message for client identification

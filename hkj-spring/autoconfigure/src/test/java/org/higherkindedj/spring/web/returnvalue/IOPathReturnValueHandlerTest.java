@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Map;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -250,6 +251,52 @@ class IOPathReturnValueHandlerTest {
       handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       verify(mavContainer).setRequestHandled(true);
+    }
+  }
+
+  @Nested
+  @DisplayName("HttpHeaderCarrier integration")
+  class HeaderInjectionTests {
+
+    @Test
+    @DisplayName("Failure throwable that implements HttpHeaderCarrier surfaces its headers")
+    void writesRetryAfter() throws Exception {
+      IOPath<TestUser> path =
+          Path.io(
+              () -> {
+                throw new ThrottledFailure(45);
+              });
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).addHeader("Retry-After", "45");
+    }
+
+    @Test
+    @DisplayName("Plain failure sets no extra headers")
+    void noHeadersForPlainFailure() throws Exception {
+      IOPath<TestUser> path =
+          Path.io(
+              () -> {
+                throw new RuntimeException("boom");
+              });
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+      verify(response, never()).addHeader(anyString(), anyString());
+    }
+  }
+
+  /** Test exception that surfaces a Retry-After header via {@link HttpHeaderCarrier}. */
+  static class ThrottledFailure extends RuntimeException implements HttpHeaderCarrier {
+    private final int seconds;
+
+    ThrottledFailure(int seconds) {
+      super("throttled");
+      this.seconds = seconds;
+    }
+
+    @Override
+    public Map<String, String> headers() {
+      return Map.of("Retry-After", Integer.toString(seconds));
     }
   }
 

@@ -5,7 +5,9 @@ package org.higherkindedj.spring.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import org.higherkindedj.spring.web.returnvalue.DefaultErrorStatusCodeStrategy;
 import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.ErrorStatusCodeStrategy;
 import org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +17,8 @@ import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.webmvc.autoconfigure.DispatcherServletAutoConfiguration;
 import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
@@ -345,6 +349,61 @@ class HkjWebMvcAutoConfigurationTest {
             assertThat(hasEitherHandler).isTrue();
             assertThat(hasValidatedHandler).isTrue();
           });
+    }
+  }
+
+  @Nested
+  @DisplayName("ErrorStatusCodeStrategy bean wiring")
+  class ErrorStatusCodeStrategyBeanTests {
+
+    @Test
+    @DisplayName("Default DefaultErrorStatusCodeStrategy is registered when no user bean exists")
+    void defaultStrategyRegistered() {
+      contextRunner.run(
+          context -> {
+            assertThat(context).hasSingleBean(ErrorStatusCodeStrategy.class);
+            assertThat(context.getBean(ErrorStatusCodeStrategy.class))
+                .isInstanceOf(DefaultErrorStatusCodeStrategy.class);
+          });
+    }
+
+    @Test
+    @DisplayName("Default strategy is seeded from hkj.web.error-status-mappings")
+    void defaultStrategySeededFromProperties() {
+      contextRunner
+          .withPropertyValues(
+              "hkj.web.error-status-mappings.MfaAlreadyEnrolledError=409",
+              "hkj.web.error-status-mappings.MfaThrottledError=429")
+          .run(
+              context -> {
+                DefaultErrorStatusCodeStrategy strategy =
+                    context.getBean(DefaultErrorStatusCodeStrategy.class);
+                assertThat(strategy.mappings())
+                    .containsEntry("MfaAlreadyEnrolledError", 409)
+                    .containsEntry("MfaThrottledError", 429);
+              });
+    }
+
+    @Test
+    @DisplayName("User-supplied ErrorStatusCodeStrategy bean replaces the default")
+    void userStrategyReplacesDefault() {
+      contextRunner
+          .withUserConfiguration(CustomStrategyConfig.class)
+          .run(
+              context -> {
+                assertThat(context).hasSingleBean(ErrorStatusCodeStrategy.class);
+                ErrorStatusCodeStrategy strategy = context.getBean(ErrorStatusCodeStrategy.class);
+                assertThat(strategy).isNotInstanceOf(DefaultErrorStatusCodeStrategy.class);
+                assertThat(strategy.statusCodeFor(new Object(), 400)).isEqualTo(418);
+              });
+    }
+  }
+
+  @Configuration
+  static class CustomStrategyConfig {
+    @Bean
+    ErrorStatusCodeStrategy errorStatusCodeStrategy() {
+      return (error, defaultStatus) -> 418;
     }
   }
 }

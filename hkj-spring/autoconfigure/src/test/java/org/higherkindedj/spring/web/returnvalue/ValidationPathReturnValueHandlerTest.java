@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.Map;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ValidationPath;
@@ -229,6 +230,34 @@ class ValidationPathReturnValueHandlerTest {
       printWriter.flush();
       String json = stringWriter.toString();
       assertThat(json).contains("\"errorCount\":1");
+    }
+  }
+
+  @Nested
+  @DisplayName("HttpHeaderCarrier integration")
+  class HeaderInjectionTests {
+
+    @Test
+    @DisplayName("Each carrier element of an Invalid collection contributes its headers")
+    void carriersInCollectionAccumulateHeaders() throws Exception {
+      // WWW-Authenticate is multi-valued per RFC 7235 — each challenge is a separate header line.
+      ValidationPath<List<AuthChallengeViolation>, TestUser> path =
+          Path.invalid(
+              List.of(new AuthChallengeViolation("Basic"), new AuthChallengeViolation("Bearer")),
+              Semigroups.list());
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).addHeader("WWW-Authenticate", "Basic");
+      verify(response).addHeader("WWW-Authenticate", "Bearer");
+    }
+  }
+
+  /** Validation error that doubles as a {@code WWW-Authenticate} challenge carrier. */
+  record AuthChallengeViolation(String scheme) implements HttpHeaderCarrier {
+    @Override
+    public Map<String, String> headers() {
+      return Map.of("WWW-Authenticate", scheme);
     }
   }
 

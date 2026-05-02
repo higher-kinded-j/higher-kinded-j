@@ -7,7 +7,9 @@ import java.util.List;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.higherkindedj.spring.web.returnvalue.CompletableFuturePathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.DefaultErrorStatusCodeStrategy;
 import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
+import org.higherkindedj.spring.web.returnvalue.ErrorStatusCodeStrategy;
 import org.higherkindedj.spring.web.returnvalue.FreePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.IOPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.MaybePathReturnValueHandler;
@@ -19,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.webmvc.autoconfigure.WebMvcRegistrations;
 import org.springframework.context.ApplicationContext;
@@ -68,6 +71,22 @@ public class HkjWebMvcAutoConfiguration {
   public HkjWebMvcAutoConfiguration() {}
 
   /**
+   * Default {@link ErrorStatusCodeStrategy} that combines the {@code hkj.web.error-status-mappings}
+   * property table with the heuristics in {@code ErrorStatusCodeMapper}. Adopters who need
+   * field-aware mappings (e.g. {@code MfaThrottledError.retryAfter() ≥ N → 503}) can replace this
+   * by declaring their own bean of type {@link ErrorStatusCodeStrategy}; the
+   * {@code @ConditionalOnMissingBean} guard ensures the user bean wins.
+   *
+   * @param properties the HKJ configuration properties
+   * @return the default error status code strategy
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public ErrorStatusCodeStrategy hkjErrorStatusCodeStrategy(HkjProperties properties) {
+    return new DefaultErrorStatusCodeStrategy(properties.getWeb().getErrorStatusMappings());
+  }
+
+  /**
    * Customizes the RequestMappingHandlerAdapter to add Effect Path return value handlers before
    * Spring's default handlers.
    *
@@ -95,6 +114,7 @@ public class HkjWebMvcAutoConfiguration {
       HkjProperties properties,
       JsonMapper jsonMapper,
       ApplicationContext applicationContext,
+      ErrorStatusCodeStrategy errorStatusCodeStrategy,
       @Autowired(required = false) @Nullable HkjMetricsService metricsService) {
     return new WebMvcRegistrations() {
       @Override
@@ -115,7 +135,8 @@ public class HkjWebMvcAutoConfiguration {
             // Register Path handlers in order of specificity
             if (webConfig.isEitherPathEnabled()) {
               newHandlers.add(
-                  new EitherPathReturnValueHandler(jsonMapper, webConfig.getDefaultErrorStatus()));
+                  new EitherPathReturnValueHandler(
+                      jsonMapper, webConfig.getDefaultErrorStatus(), errorStatusCodeStrategy));
             }
 
             if (webConfig.isMaybePathEnabled()) {

@@ -40,51 +40,54 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>{@code Left<E>} → HTTP 4xx/5xx with error as JSON body
  * </ul>
  *
- * <p>Error status codes are determined by examining the error class name:
+ * <p>Error status codes are determined by the supplied {@link ErrorStatusCodeStrategy}. By default
+ * the auto-configuration installs {@link DefaultErrorStatusCodeStrategy}, which combines explicit
+ * {@code hkj.web.error-status-mappings} entries with the heuristics in {@link
+ * ErrorStatusCodeMapper}.
  *
- * <ul>
- *   <li>Contains "notfound" → 404 Not Found
- *   <li>Contains "validation" or "invalid" → 400 Bad Request
- *   <li>Contains "authorization" or "forbidden" → 403 Forbidden
- *   <li>Contains "authentication" or "unauthorized" → 401 Unauthorized
- *   <li>Default → configurable (default 400 Bad Request)
- * </ul>
- *
- * <p>Example usage:
- *
- * <pre>{@code
- * @GetMapping("/users/{id}")
- * public Either<UserError, User> getUser(@PathVariable String id) {
- *     return userService.findById(id);
- * }
- *
- * @GetMapping("/users/{id}")
- * public EitherPath<UserError, User> getUser(@PathVariable String id) {
- *     return Path.either(userService.findById(id))
- *         .peek(user -> log.info("Found user: {}", user.id()));
- * }
- * }</pre>
+ * <p>If the {@code Left} value implements {@link HttpHeaderCarrier}, its headers are copied onto
+ * the response before the body is written — this is how throttling errors surface a {@code
+ * Retry-After} header, for example.
  *
  * @see EitherPath
  * @see Either
- * @see ErrorStatusCodeMapper
+ * @see ErrorStatusCodeStrategy
+ * @see HttpHeaderCarrier
  */
 public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHandler {
 
   private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int defaultErrorStatus;
+  private final ErrorStatusCodeStrategy errorStatusCodeStrategy;
 
   /**
-   * Creates a new EitherPathReturnValueHandler with the specified settings.
+   * Backward-compatible constructor preserved for programmatic adopters who built the handler
+   * directly without going through the auto-configuration. Equivalent to constructing with a {@link
+   * DefaultErrorStatusCodeStrategy} backed by an empty mapping table — i.e. heuristics only.
    *
    * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
    * @param defaultErrorStatus the default HTTP status code for errors
    */
   public EitherPathReturnValueHandler(JsonMapper jsonMapper, int defaultErrorStatus) {
+    this(jsonMapper, defaultErrorStatus, new DefaultErrorStatusCodeStrategy(Map.of()));
+  }
+
+  /**
+   * Creates a new EitherPathReturnValueHandler with the specified settings.
+   *
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param defaultErrorStatus the default HTTP status code for errors when no rule matches
+   * @param errorStatusCodeStrategy the strategy that resolves the status code for an error
+   */
+  public EitherPathReturnValueHandler(
+      JsonMapper jsonMapper,
+      int defaultErrorStatus,
+      ErrorStatusCodeStrategy errorStatusCodeStrategy) {
     this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.defaultErrorStatus = defaultErrorStatus;
+    this.errorStatusCodeStrategy = errorStatusCodeStrategy;
   }
 
   @Override
@@ -151,8 +154,9 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
    */
   private void writeErrorResponse(Object error, HttpServletResponse response) {
     try {
-      int statusCode = ErrorStatusCodeMapper.determineStatusCode(error, defaultErrorStatus);
+      int statusCode = errorStatusCodeStrategy.statusCodeFor(error, defaultErrorStatus);
       response.setStatus(statusCode);
+      ErrorResponseHeaders.applyTo(error, response);
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
       Map<String, Object> errorBody = Map.of("success", false, "error", error);
