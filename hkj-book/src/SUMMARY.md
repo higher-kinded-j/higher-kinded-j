@@ -113,6 +113,10 @@
     - [Decision Trees](optics/decision_trees.md)
 
 - [Monad Transformers & MTL](transformers/ch_intro.md)
+  - [Path or Transformer?](transformers/when_to_drop_to_transformers.md)
+  - [Quickstart](transformers/quickstart.md)
+  - [Transformers at a Glance](transformers/transformers_at_a_glance.md)
+  - [Migration Cookbook](transformers/migration_cookbook.md)
   - [Stack Archetypes](transformers/archetypes.md)
   - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
@@ -126,6 +130,8 @@
     - [MonadState](transformers/mtl_state.md)
     - [MonadWriter](transformers/mtl_writer.md)
     - [Combining Capabilities](transformers/mtl_combining.md)
+  - [Common Compiler Errors](transformers/common_errors.md)
+  - [Capstone: A Multi-Capability Workflow](transformers/transformer_capstone.md)
 
 - [Foundations](hkts/foundations_intro.md)
   - [Higher-Kinded Types](hkts/ch_intro.md)
@@ -212,6 +218,7 @@
     - [Error Handling](tutorials/coretypes/error_handling_journey.md)
     - [Advanced](tutorials/coretypes/advanced_journey.md)
   - [Effect API](tutorials/effect/effect_journey.md)
+  - [Monad Transformers](tutorials/transformers/transformers_journey.md)
   - [Concurrency](tutorials/concurrency/ch_intro.md)
     - [VTask](tutorials/concurrency/vtask_journey.md)
     - [Scope & Resource](tutorials/concurrency/scope_resource_journey.md)

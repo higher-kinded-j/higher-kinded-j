@@ -8,15 +8,21 @@
 The Either inside a Future exists in a place Java's type system cannot natively map to. EitherT creates the map.
 
 ~~~admonish info title="What You'll Learn"
-- How to combine async operations (CompletableFuture) with typed error handling (Either)
+- How to combine async operations (`CompletableFuture`) with typed error handling (`Either`)
 - Building workflows that can fail with specific domain errors while remaining async
-- Using `fromKind`, `fromEither`, and `liftF` to construct EitherT values
+- Using `For` comprehensions to keep witness types localised and the body readable
 - Real-world order processing with validation, inventory checks, and payment processing
-- Why EitherT eliminates "callback hell" in complex async workflows
+- When to use the [`EitherPath`](../effect/path_either.md) Path type instead of raw `EitherT`
 ~~~
 
-~~~ admonish example title="See Example Code:"
+~~~admonish example title="See Example Code"
 [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
+~~~
+
+~~~admonish note title="Path First, Stack Later"
+For most use cases, [`EitherPath<E, A>`](../effect/path_either.md) is the better starting point. It wraps `EitherT` in a fluent API, hides the witness types, and removes the `Kind` widening calls.
+
+Reach for raw `EitherT` only when you need to combine typed errors with a specific outer monad (`CompletableFuture`, `IO`, `VTask`, custom) or when you are writing polymorphic library code that names `MonadError<F, E>`. The [Migration Cookbook](migration_cookbook.md) shows the side-by-side translation.
 ~~~
 
 ---
@@ -26,7 +32,6 @@ The Either inside a Future exists in a place Java's type system cannot natively 
 Consider a typical order processing flow. Each step is asynchronous and can fail with a domain error:
 
 ```java
-// Without EitherT: manual nesting
 CompletableFuture<Either<DomainError, Receipt>> processOrder(OrderData data) {
     return validateOrder(data).thenCompose(eitherValidated ->
         eitherValidated.fold(
@@ -46,22 +51,45 @@ CompletableFuture<Either<DomainError, Receipt>> processOrder(OrderData data) {
 
 Four steps, four levels of nesting, identical error-propagation boilerplate at every level. The actual business logic is buried inside the structure. Add error recovery for a specific step and this becomes nearly unreadable.
 
-## The Solution: EitherT
+---
+
+## The Solution
+
+### With the Effect Path API
+
+The simplest fix is to switch to `EitherPath`. It composes the same way as a transformer but with no witness types in your code:
 
 ```java
-// With EitherT: flat composition
-Kind<W, Receipt> processOrder(OrderData data) {
-    return For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
-        .from(validated -> EitherT.fromKind(checkInventory(validated)))
-        .from(inventory -> EitherT.fromKind(processPayment(inventory)))
-        .from(payment -> EitherT.fromKind(createReceipt(payment)))
-        .yield((v, i, p, r) -> r);
+EitherPath<DomainError, Receipt> processOrder(OrderData data) {
+    return Path.either(validateOrder(data))
+        .via(validated -> Path.either(checkInventory(validated)))
+        .via(inventory -> Path.either(processPayment(inventory)))
+        .via(payment   -> Path.either(createReceipt(payment)));
 }
 ```
 
-Same four steps. No manual error propagation. If any step returns `Left`, subsequent steps are skipped automatically. The error type `DomainError` flows through the entire chain.
+Use this whenever the outer monad is one Path already wraps.
 
-### The Railway View
+### With raw `EitherT`
+
+When you need a specific outer monad (here `CompletableFuture`), use `EitherT` with a `For` comprehension:
+
+```java
+var futureMonad  = CompletableFutureMonad.INSTANCE;
+var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+
+var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
+    .from(validated -> EitherT.fromKind(checkInventory(validated)))
+    .from(inventory -> EitherT.fromKind(processPayment(inventory)))
+    .from(payment   -> EitherT.fromKind(createReceipt(payment)))
+    .yield((v, i, p, r) -> r);
+```
+
+Same four steps. No manual error propagation. If any step returns `Left`, subsequent steps are skipped automatically. The witness type appears once, on the `eitherTMonad` declaration.
+
+---
+
+## The Railway View
 
 <pre style="line-height:1.5;font-size:0.95em">
     <span style="color:#4CAF50"><b>Right</b>  ═══●══════════●══════════●══════════●═══▶  Receipt</span>
@@ -107,9 +135,7 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
     └──────────────────────────────────────────────────────────┘
 </pre>
 
-![eithert_transformer.svg](../images/puml/eithert_transformer.svg)
-
-* **`F`**: The witness type of the **outer monad** (e.g., `CompletableFutureKind.Witness`). This monad handles the primary effect.
+* **`F`**: The witness type of the **outer monad** (e.g. `CompletableFutureKind.Witness`). This monad handles the primary effect.
 * **`L`**: The **Left type** of the inner `Either`, typically the error type.
 * **`R`**: The **Right type** of the inner `Either`, typically the success value.
 
@@ -125,24 +151,18 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
 The `EitherTMonad<F, L>` class implements `MonadError<EitherTKind.Witness<F, L>, L>`, providing the standard monadic operations for the combined structure. It requires a `Monad<F>` instance for the outer monad:
 
 ```java
-// F = CompletableFutureKind.Witness, L = DomainError
-MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = CompletableFutureMonad.INSTANCE;
-
-MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError> eitherTMonad =
-    new EitherTMonad<>(futureMonad);
+var futureMonad  = CompletableFutureMonad.INSTANCE;
+var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
 ```
 
-~~~admonish note title="Type Witness and Helpers"
+~~~admonish note title="Working with Kind"
 **Witness Type:** `EitherTKind<F, L, R>` extends `Kind<EitherTKind.Witness<F, L>, R>`. The types `F` and `L` are fixed for a given context; `R` is the variable value type.
 
-**KindHelper:** `EitherTKindHelper` provides `EITHER_T.widen` and `EITHER_T.narrow` for safe conversion between the concrete `EitherT<F, L, R>` and its `Kind` representation.
+**KindHelper:** `EitherTKindHelper` provides `EITHER_T.widen` and `EITHER_T.narrow` for safe conversion between the concrete `EitherT<F, L, R>` and its `Kind` representation. You rarely need them when using `For` comprehensions; they appear at the boundaries when interoperating with raw `flatMap` chains or other `Kind`-returning code.
 
 ```java
-// Widen: concrete → Kind
 Kind<EitherTKind.Witness<F, L>, R> kind = EITHER_T.widen(eitherT);
-
-// Narrow: Kind → concrete
-EitherT<F, L, R> concrete = EITHER_T.narrow(kind);
+EitherT<F, L, R> concrete                = EITHER_T.narrow(kind);
 ```
 ~~~
 
@@ -150,21 +170,121 @@ EitherT<F, L, R> concrete = EITHER_T.narrow(kind);
 
 ## Key Operations
 
-~~~admonish info title="Key Operations with _EitherTMonad_:"
-* **`eitherTMonad.of(value)`:** Lifts a pure value `A` into the `EitherT` context. Result: `F<Right(A)>`.
-* **`eitherTMonad.map(f, eitherTKind)`:** Applies function `A -> B` to the `Right` value inside the nested structure. If `Left`, the error propagates unchanged. Result: `F<Either<L, B>>`.
-* **`eitherTMonad.flatMap(f, eitherTKind)`:** The core sequencing operation. Takes `A -> Kind<EitherTKind.Witness<F, L>, B>`:
-  * If `Left(l)`, propagates `F<Left(l)>` (subsequent steps skipped)
-  * If `Right(a)`, applies `f(a)` to get the next `EitherT<F, L, B>`
-* **`eitherTMonad.raiseError(errorL)`:** Creates an `EitherT` representing a failure. Result: `F<Left(L)>`.
-* **`eitherTMonad.handleErrorWith(eitherTKind, handler)`:** Handles a failure `L` from the inner `Either`. If `Right(a)`, propagates unchanged. If `Left(l)`, applies `handler(l)` to attempt recovery.
+| Operation | Behaviour |
+|-----------|-----------|
+| `eitherTMonad.of(value)`                          | Lifts a pure value into the `EitherT` context as `F<Right(value)>` |
+| `eitherTMonad.map(f, kind)`                       | Applies `A -> B` to the `Right`; `Left` propagates unchanged |
+| `eitherTMonad.flatMap(f, kind)`                   | Sequences operations; `Left` short-circuits the rest |
+| `eitherTMonad.raiseError(error)`                  | Creates `F<Left(error)>` |
+| `eitherTMonad.handleErrorWith(kind, handler)`     | Recovers from a `Left` by applying `handler` |
+
+---
+
+## Creating EitherT Instances
+
+`EitherT` provides several factory methods for different starting points:
+
+```java
+var optMonad = OptionalMonad.INSTANCE;
+
+// 1. From a pure Right value: F<Right(value)>
+var etRight = EitherT.<OptionalKind.Witness, String, String>right(optMonad, "OK");
+
+// 2. From a pure Left value: F<Left(error)>
+var etLeft  = EitherT.<OptionalKind.Witness, String, Integer>left(optMonad, "FAILED");
+
+// 3. From an existing Either: F<input>
+Either<String, String> plainEither = Either.left("FAILED");
+var etFromEither = EitherT.fromEither(optMonad, plainEither);
+
+// 4. Lifting an outer-monad value F<R> into F<Right(R)>
+Kind<OptionalKind.Witness, Integer> outerOptional = OPTIONAL.widen(Optional.of(123));
+var etLiftF = EitherT.<OptionalKind.Witness, String, Integer>liftF(optMonad, outerOptional);
+
+// 5. Wrapping an existing nested Kind F<Either<L, R>>
+Kind<OptionalKind.Witness, Either<String, String>> nestedKind =
+    OPTIONAL.widen(Optional.of(Either.right("OK")));
+var etFromKind = EitherT.fromKind(nestedKind);
+```
+
+`etRight.value()` returns the underlying `Kind<F, Either<L, R>>`, which you narrow back to the outer monad's concrete form when you need the result.
+
+---
+
+## Real-World Example: Async Workflow with Error Handling
+
+~~~admonish example title="Async Workflow with Error Handling"
+
+- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
+
+**The problem:** validate input, process it asynchronously, and handle domain-specific errors at each step without nested `thenCompose`/`fold` chains.
+
+**The solution:**
+
+```java
+record DomainError(String message) {}
+record ValidatedData(String data) {}
+record ProcessedData(String data) {}
+
+var futureMonad  = CompletableFutureMonad.INSTANCE;
+var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+
+// Sync validation returning Either
+Either<DomainError, ValidatedData> validateSync(String input) {
+  return input.isEmpty()
+      ? Either.left(new DomainError("Input empty"))
+      : Either.right(new ValidatedData("Validated:" + input));
+}
+
+// Async processing returning Future<Either>
+Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>>
+    processAsync(ValidatedData vd) {
+  var future = CompletableFuture.supplyAsync(() ->
+      vd.data().contains("fail")
+          ? Either.<DomainError, ProcessedData>left(new DomainError("Processing failed"))
+          : Either.<DomainError, ProcessedData>right(new ProcessedData("Processed:" + vd.data())));
+  return FUTURE.widen(future);
+}
+
+// Compose with For: validate (sync Either) then process (async Future<Either>)
+var workflow = For.from(eitherTMonad, EitherT.fromEither(futureMonad, validateSync(input)))
+    .from(validated -> EitherT.fromKind(processAsync(validated)))
+    .yield((validated, processed) -> processed);
+```
+
+**Why this works:** the `For` comprehension threads each step through `eitherTMonad.flatMap`. The first step lifts a synchronous `Either` into the transformer; the second wraps an existing `Future<Either>`. If validation returns `Left`, processing is skipped and the error propagates through the future.
+~~~
+
+---
+
+## Advanced Example: Error Recovery
+
+~~~admonish example title="Error Recovery"
+
+- [OrderWorkflowRunner.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java)
+
+**The problem:** a shipping step might fail with a temporary error, and you want to recover by using a default shipping option rather than failing the entire workflow.
+
+**The solution:**
+
+```java
+var shipmentAttempt = EitherT.fromKind(steps.createShipmentAsync(orderId, address));
+
+var recoveredShipment = eitherTMonad.handleErrorWith(
+    shipmentAttempt,
+    error -> error instanceof DomainError.ShippingError se && "Temporary Glitch".equals(se.reason())
+        ? eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"))
+        : eitherTMonad.raiseError(error));
+```
+
+`EitherT` already implements the `Kind` interface, so it can be passed straight to `handleErrorWith` without an explicit widen. The handler only fires when the inner `Either` is `Left`, and the outer `CompletableFuture` context is preserved throughout.
 ~~~
 
 ---
 
 ## Transforming the Outer Monad with `mapT`
 
-Sometimes you need to change the *outer monad* of an `EitherT` without touching the inner `Either` at all. Imagine you have built a pipeline over `CompletableFuture` but now want to continue in a synchronous `Optional` context — or you want to apply a cross-cutting concern (logging, retry) at the monad level.
+Sometimes you need to change the *outer monad* of an `EitherT` without touching the inner `Either` at all. Imagine you have built a pipeline over `CompletableFuture` but now want to continue in a synchronous `Optional` context, or you want to apply a cross-cutting concern (logging, retry) at the monad level.
 
 `mapT` does exactly this. It applies a function to the wrapped `Kind<F, Either<L, R>>` and produces a new `EitherT<G, L, R>`:
 
@@ -181,176 +301,26 @@ Sometimes you need to change the *outer monad* of an `EitherT` without touching 
 ```
 
 ```java
-// Switch from Future to Optional after awaiting a result
 EitherT<CompletableFutureKind.Witness, Error, Data> futureET = ...;
 
-EitherT<OptionalKind.Witness, Error, Data> optionalET =
-    futureET.mapT(futureKind -> {
-      Either<Error, Data> awaited = FUTURE.join(futureKind);
-      return OPTIONAL.widen(Optional.of(awaited));
-    });
+var optionalET = futureET.mapT(futureKind -> {
+  Either<Error, Data> awaited = FUTURE.join(futureKind);
+  return OPTIONAL.widen(Optional.of(awaited));
+});
 ```
 
 ~~~admonish note title="mapT vs map"
 `map` transforms the *value* inside the `Either` (the `R` in `Right(R)`).
-`mapT` transforms the *outer monad* wrapping the `Either` — the `F` in `F<Either<L, R>>`.
+`mapT` transforms the *outer monad* wrapping the `Either`, the `F` in `F<Either<L, R>>`.
 They operate at different levels of the transformer stack.
 ~~~
 
 ---
 
-## Creating EitherT Instances
-
-~~~admonish title="Creating _EitherT_ Instances"
-`EitherT` provides several factory methods for different starting points:
-
-```java
-Monad<OptionalKind.Witness> optMonad = OptionalMonad.INSTANCE;
-
-// 1. From a pure Right value: F<Right(value)>
-EitherT<OptionalKind.Witness, String, String> etRight =
-    EitherT.right(optMonad, "OK");
-
-// 2. From a pure Left value: F<Left(error)>
-EitherT<OptionalKind.Witness, String, Integer> etLeft =
-    EitherT.left(optMonad, "FAILED");
-
-// 3. From an existing Either: F<Either(input)>
-Either<String, String> plainEither = Either.left("FAILED");
-EitherT<OptionalKind.Witness, String, String> etFromEither =
-    EitherT.fromEither(optMonad, plainEither);
-
-// 4. Lifting an outer monad value F<R> → F<Right(R)>
-Kind<OptionalKind.Witness, Integer> outerOptional =
-    OPTIONAL.widen(Optional.of(123));
-EitherT<OptionalKind.Witness, String, Integer> etLiftF =
-    EitherT.liftF(optMonad, outerOptional);
-
-// 5. Wrapping an existing nested Kind F<Either<L, R>>
-Kind<OptionalKind.Witness, Either<String, String>> nestedKind =
-    OPTIONAL.widen(Optional.of(Either.right("OK")));
-EitherT<OptionalKind.Witness, String, String> etFromKind =
-    EitherT.fromKind(nestedKind);
-
-// Accessing the wrapped value:
-Kind<OptionalKind.Witness, Either<String, String>> wrappedValue = etRight.value();
-Optional<Either<String, String>> unwrappedOptional = OPTIONAL.narrow(wrappedValue);
-// → Optional.of(Either.right("OK"))
-```
-~~~
-
----
-
-## Real-World Example: Async Workflow with Error Handling
-
-~~~admonish Example title="Async Workflow with Error Handling"
-
-- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
-
-**The problem:** You need to validate input, process it asynchronously, and handle domain-specific errors at each step, all without nested `thenCompose`/`fold` chains.
-
-**The solution:**
-
-```java
-public class EitherTExample {
-
-  record DomainError(String message) {}
-  record ValidatedData(String data) {}
-  record ProcessedData(String data) {}
-
-  MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
-      CompletableFutureMonad.INSTANCE;
-  MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
-      DomainError> eitherTMonad = new EitherTMonad<>(futureMonad);
-
-  // Sync validation returning Either
-  Kind<EitherKind.Witness<DomainError>, ValidatedData> validateSync(String input) {
-    if (input.isEmpty()) {
-      return EITHER.widen(Either.left(new DomainError("Input empty")));
-    }
-    return EITHER.widen(Either.right(new ValidatedData("Validated:" + input)));
-  }
-
-  // Async processing returning Future<Either>
-  Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>>
-      processAsync(ValidatedData vd) {
-    CompletableFuture<Either<DomainError, ProcessedData>> future =
-        CompletableFuture.supplyAsync(() -> {
-          if (vd.data().contains("fail")) {
-            return Either.left(new DomainError("Processing failed"));
-          }
-          return Either.right(new ProcessedData("Processed:" + vd.data()));
-        });
-    return FUTURE.widen(future);
-  }
-
-  Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>>
-      runWorkflow(String input) {
-    // Lift initial value into EitherT
-    var initialET = eitherTMonad.of(input);
-
-    // Step 1: Validate (sync Either → EitherT)
-    var validatedET = eitherTMonad.flatMap(
-        in -> EitherT.fromEither(futureMonad, EITHER.narrow(validateSync(in))),
-        initialET);
-
-    // Step 2: Process (async Future<Either> → EitherT)
-    var processedET = eitherTMonad.flatMap(
-        vd -> EitherT.fromKind(processAsync(vd)),
-        validatedET);
-
-    // Unwrap to get Future<Either>
-    return EITHER_T.narrow(processedET).value();
-  }
-}
-```
-
-**Why this works:** Each step produces an `EitherT` value. The `flatMap` handles both the `CompletableFuture` sequencing and the `Either` error propagation. If validation returns `Left`, processing is skipped entirely. No manual error checking at any point.
-~~~
-
----
-
-## Advanced Example: Error Recovery
-
-~~~admonish Example title="Using _EitherTMonad_ for Sequencing and Error Handling"
-
-- [OrderWorkflowRunner.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java)
-
-**The problem:** A shipping step might fail with a temporary error, and you want to recover by using a default shipping option rather than failing the entire workflow.
-
-**The solution:**
-
-```java
-// Attempt shipment
-Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
-    ShipmentInfo> shipmentAttemptET =
-    EitherT.fromKind(steps.createShipmentAsync(orderId, address));
-
-// Recover from specific errors
-Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
-    ShipmentInfo> recoveredShipmentET =
-    eitherTMonad.handleErrorWith(
-        shipmentAttemptET,
-        error -> {
-            if (error instanceof DomainError.ShippingError se
-                    && "Temporary Glitch".equals(se.reason())) {
-                // Recoverable: use default shipping
-                return eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
-            } else {
-                // Non-recoverable: re-raise
-                return eitherTMonad.raiseError(error);
-            }
-        });
-```
-
-The `handleErrorWith` only fires when the inner `Either` is `Left`. The outer `CompletableFuture` context is preserved throughout.
-~~~
-
----
-
 ~~~admonish warning title="Common Mistakes"
-- **Mixing up `fromEither` and `fromKind`:** Use `fromEither` when you have a plain `Either<L, R>` (e.g., from a synchronous validation). Use `fromKind` when you have `Kind<F, Either<L, R>>` (e.g., from an async operation that already returns `Future<Either>`).
-- **Forgetting `.value()`:** The final result of an `EitherT` chain is still an `EitherT`. Call `.value()` to extract the underlying `Kind<F, Either<L, R>>` when you need to interact with the outer monad directly.
+- **Mixing up `fromEither` and `fromKind`:** use `fromEither` when you have a plain `Either<L, R>` (e.g. from a synchronous validation). Use `fromKind` when you have `Kind<F, Either<L, R>>` (e.g. from an async operation that already returns `Future<Either>`).
+- **Forgetting `.value()`:** the final result of an `EitherT` chain is still an `EitherT`. Call `.value()` to extract the underlying `Kind<F, Either<L, R>>` when you need to interact with the outer monad directly.
+- **Reaching for the transformer when `EitherPath` would do:** if your outer monad is one Path already wraps, `EitherPath` is shorter, has less ceremony, and reads more naturally. The transformer is the right choice when the outer monad is fixed by an external constraint.
 ~~~
 
 ---
@@ -362,6 +332,9 @@ Without HKT simulation, you would need a separate transformer for each outer mon
 ---
 
 ~~~admonish tip title="See Also"
+- [EitherPath](../effect/path_either.md) - The Path-API equivalent, recommended for most use cases
+- [Stack Archetypes](archetypes.md) - The Service Stack archetype maps directly to `EitherT`/`EitherPath`
+- [Migration Cookbook](migration_cookbook.md) - Side-by-side translations
 - [Monad Transformers](transformers.md) - General concept and choosing the right transformer
 - [OptionalT](optionalt_transformer.md) - When your inner effect is absence rather than typed errors
 - [Either Monad](../monads/either_monad.md) - The underlying Either type
@@ -374,6 +347,11 @@ Without HKT simulation, you would need a separate transformer for each outer mon
 - [Railway Oriented Programming](https://dev.tube/video/fYo3LN9Vf_M) - Scott Wlaschin's classic talk on functional error handling (60 min watch)
 ~~~
 
+~~~admonish info title="Hands-On Learning"
+Practice composing async-and-typed-error workflows in [Tutorial 01: When Path Isn't Enough](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial01_WhenPathIsNotEnough.java) (6 exercises, ~25 minutes).
+~~~
+
+---
 
 **Previous:** [Monad Transformers](transformers.md)
 **Next:** [OptionalT](optionalt_transformer.md)

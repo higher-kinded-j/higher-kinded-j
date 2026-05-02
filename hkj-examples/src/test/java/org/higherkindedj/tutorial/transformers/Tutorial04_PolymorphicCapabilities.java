@@ -1,6 +1,6 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.tutorial.mtl;
+package org.higherkindedj.tutorial.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
@@ -37,11 +37,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: MTL Basics - Writing Stack-Independent Effectful Code
+ * Tutorial 04: Polymorphic Capabilities (MTL) - Writing Stack-Independent Effectful Code
+ *
+ * <p>Prerequisites: complete Tutorial 01 (When Path Isn't Enough), Tutorial 02 (Async with
+ * Absence), and ideally Tutorial 03 (Stacking Transformers) first. This tutorial builds on the raw
+ * transformer types you have already met.
  *
  * <p>Learn to use MonadReader, MonadState, and MonadWriter to declare capabilities without fixing a
  * concrete transformer stack. These interfaces let you write polymorphic functions that work with
- * any stack providing the required capability.
+ * any stack providing the required capability. This is the layer of abstraction that library
+ * authors reach for when callers need to plug their own effect stack underneath.
  *
  * <p>Key Concepts:
  *
@@ -56,8 +61,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
-@DisplayName("Tutorial 02: MTL Basics")
-public class Tutorial02_MTLBasics {
+@DisplayName("Tutorial 04: Polymorphic Capabilities (MTL)")
+public class Tutorial04_PolymorphicCapabilities {
 
   // --- Test Data ---
 
@@ -481,7 +486,7 @@ public class Tutorial02_MTLBasics {
   }
 
   /**
-   * Congratulations! You've completed Tutorial 02: MTL Basics
+   * Congratulations! You've completed Tutorial 04: Polymorphic Capabilities (MTL).
    *
    * <p>You now understand:
    *

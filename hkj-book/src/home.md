@@ -200,7 +200,7 @@ Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover
 
 ## Learn by Doing
 
-The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Twelve journeys guide you through hands-on exercises with immediate test feedback.
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Thirteen journeys guide you through hands-on exercises with immediate test feedback.
 
 | Journey | Focus | Duration | Exercises |
 |---------|-------|----------|-----------|
@@ -208,6 +208,7 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 | **[Core: Error Handling](tutorials/coretypes/error_handling_journey.md)** | MonadError, concrete types, real-world patterns | ~30 min | 20 |
 | **[Core: Advanced](tutorials/coretypes/advanced_journey.md)** | Natural Transformations, Coyoneda, Free Applicative | ~40 min | 26 |
 | **[Effect API](tutorials/effect/effect_journey.md)** | Effect paths, ForPath, Effect Contexts | ~65 min | 15 |
+| **[Monad Transformers](tutorials/transformers/transformers_journey.md)** | When Path isn't enough, async + absence, stacking, MTL | ~90 min | 28 |
 | **[Expression: ForState](tutorials/expression/forstate_journey.md)** | Named fields, guards, pattern matching, zoom | ~25 min | 11 |
 | **[Concurrency: VTask](tutorials/concurrency/vtask_journey.md)** | Virtual threads, VTaskPath, Par combinators | ~45 min | 16 |
 | **[Concurrency: Scope & Resource](tutorials/concurrency/scope_resource_journey.md)** | Structured concurrency, resource management | ~30 min | 12 |
@@ -283,6 +284,16 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 3. **[Optics Integration](effect/focus_integration.md):** Bridging Effect Paths with the Focus DSL
 4. **[Advanced Paths](effect/advanced_topics.md):** Free monads, effect handlers, contexts, ForPath parallelism, and resilience
 5. **[Reference](effect/capabilities.md):** Capability typeclasses, type conversions, compiler errors, and production readiness
+
+### Monad Transformers
+For the cases where the Path API does not fit (a different outer monad, polymorphic library code, or integrating with raw `Kind` shapes).
+
+1. **[Path or Transformer?](transformers/when_to_drop_to_transformers.md):** The triage page; read this first to know whether the rest of the chapter applies to you
+2. **[Quickstart](transformers/quickstart.md):** Three runnable transformer examples in about 150 lines
+3. **[Stack Archetypes](transformers/archetypes.md):** Seven named patterns covering the most common composition problems
+4. **[MTL Capabilities](transformers/mtl_capabilities.md):** Stack-independent capability abstractions for polymorphic library code
+5. **[Capstone](transformers/transformer_capstone.md):** End-to-end multi-capability workflow combining typed errors, configuration, audit, and async
+6. **[Common Compiler Errors](transformers/common_errors.md):** Six common errors and the fix for each
 
 ### Optics
 1. **[Quickstart](optics/quickstart.md):** Three runnable examples covering generated lenses, prisms and traversals, plus `@ImportOptics` for Jackson

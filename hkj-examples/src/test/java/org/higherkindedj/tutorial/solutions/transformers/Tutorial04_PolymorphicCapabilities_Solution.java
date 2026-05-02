@@ -1,6 +1,6 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.tutorial.solutions.mtl;
+package org.higherkindedj.tutorial.solutions.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
@@ -37,13 +37,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 02: MTL Basics
+ * Solutions for Tutorial 04: Polymorphic Capabilities (MTL).
  *
  * <p>This file contains the completed solutions for all exercises. Compare your answers with these
  * solutions after attempting the tutorial.
  */
-@DisplayName("Tutorial 02: MTL Basics - Solutions")
-public class Tutorial02_MTLBasics_Solution {
+@DisplayName("Tutorial 04: Polymorphic Capabilities (MTL) - Solutions")
+public class Tutorial04_PolymorphicCapabilities_Solution {
 
   record AppConfig(String dbUrl, int maxRetries) {}
 
