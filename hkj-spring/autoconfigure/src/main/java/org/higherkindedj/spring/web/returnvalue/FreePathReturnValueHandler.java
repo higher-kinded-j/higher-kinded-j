@@ -131,6 +131,7 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
   private void writeFailureResponse(Throwable throwable, HttpServletResponse response) {
     try {
       response.setStatus(failureStatus);
+      ErrorResponseHeaders.applyTo(throwable, response);
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
       Map<String, Object> errorBody;

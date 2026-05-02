@@ -1,6 +1,6 @@
 ---
 name: hkj-spring
-description: "HKJ Spring Boot integration: hkj-spring-boot-starter, Either/Validated as REST responses, Jackson 3.x serialization, auto-configuration, EitherHttpMessageConverter, functional error handling in @RestController, domain error to HTTP status mapping"
+description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @DeleteMapping) that returns Either, Validated, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath; (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types; (4) any application.yml / application.properties key under hkj.web.*, hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter."
 ---
 
 # Higher-Kinded-J Spring Boot Integration
@@ -83,40 +83,105 @@ The starter auto-configures everything: response conversion, JSON serialization,
 
 ## HTTP Status Code Mapping
 
-The starter maps `Left` error values to HTTP status codes using the `ErrorStatusCodeMapper` utility (final class, class-name heuristics, not user-implementable):
+The starter resolves the status for a `Left` error value in this order:
 
-| Error class name contains... | HTTP status |
-|------------------------------|-------------|
-| `NotFound` | 404 |
-| `Validation` or `Invalid` | 400 |
-| `Authorization` or `Forbidden` | 403 |
-| `Authentication` or `Unauthorized` | 401 |
-| (default) | configured default (500) |
+1. **Explicit mapping** by simple (or fully-qualified) class name from `hkj.web.error-status-mappings`
+2. **Token heuristic** on the simple class name (CamelCase split, lower-cased, whole-token match)
+3. **Configured default** (`hkj.web.either.default-error-status`, alias `hkj.web.default-error-status`)
 
-### Design Your Error Class Names to Match
+| Token(s) present in the simple class name | HTTP status |
+|-------------------------------------------|-------------|
+| `not` adjacent to `found`                 | 404 |
+| `validation` or `invalid`                 | 400 |
+| `authorization` or `forbidden`            | 403 |
+| `authentication` or `unauthorized`        | 401 |
+| (no match)                                | configured default |
 
-Because the mapper uses heuristics on class names, name your sealed error variants to trigger the right status code:
+### Explicit Mappings (covers 409, 422, 429, 503, …)
 
-```java
-public sealed interface DomainError {
-    record UserNotFound(String id) implements DomainError {}        // -> 404
-    record ValidationFailed(List<String> errors) implements DomainError {}  // -> 400
-    record ForbiddenAction(String reason) implements DomainError {} // -> 403
-    record UnauthorizedAccess(String reason) implements DomainError {} // -> 401
-    record DuplicateResource(String id) implements DomainError {}   // -> default (500)
-}
-```
-
-### Overriding the Default Status
-
-Configure the default status for unmatched errors in `application.yml`:
+For status codes the heuristics do not produce, add entries to `hkj.web.error-status-mappings`:
 
 ```yaml
 hkj:
   web:
     either:
       default-error-status: 500
+    error-status-mappings:
+      MfaAlreadyEnrolledError: 409   # Conflict
+      PaymentDeclinedError: 422      # Unprocessable Entity
+      MfaThrottledError: 429         # Too Many Requests
+      ScheduledMaintenanceError: 503 # Service Unavailable
 ```
+
+Mapping by fully-qualified class name is also supported, useful when two error classes share a
+simple name across packages.
+
+### Custom Strategy Bean (field-dependent status)
+
+When the status depends on the error's field values, register an `ErrorStatusCodeStrategy`
+bean. It replaces the default via `@ConditionalOnMissingBean`:
+
+```java
+@Bean
+ErrorStatusCodeStrategy errorStatusCodeStrategy() {
+    return (error, defaultStatus) -> switch (error) {
+        case MfaThrottledError t when t.retryAfter() > 60 -> 503;
+        case MfaThrottledError ignored -> 429;
+        default -> ErrorStatusCodeMapper.determineStatusCode(error, defaultStatus);
+    };
+}
+```
+
+### Designing Error Class Names
+
+If you can pick the names, choose ones that trip the heuristics so you avoid configuration:
+
+```java
+public sealed interface DomainError {
+    record UserNotFound(String id) implements DomainError {}              // -> 404
+    record ValidationFailed(List<String> errors) implements DomainError {} // -> 400
+    record ForbiddenAction(String reason) implements DomainError {}      // -> 403
+    record UnauthorizedAccess(String reason) implements DomainError {}   // -> 401
+    record DuplicateResource(String id) implements DomainError {}        // -> default
+}
+```
+
+If the desired status is 409, 422, 429, 503, or anything else outside the heuristics, prefer
+an explicit mapping over renaming the variant — names should describe the domain, not the HTTP
+table.
+
+### Response Header Injection (Retry-After, WWW-Authenticate, …)
+
+Error payloads can surface response headers by implementing `HttpHeaderCarrier`:
+
+```java
+public record MfaThrottledError(int retryAfterSeconds) implements DomainError, HttpHeaderCarrier {
+    @Override public Map<String, String> headers() {
+        return Map.of("Retry-After", Integer.toString(retryAfterSeconds));
+    }
+}
+```
+
+Honoured by `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`, `CompletableFuturePath`,
+`VTaskPath`, and `FreePath` handlers. Headers are added (not set), so multi-valued headers
+like `WWW-Authenticate` and `Set-Cookie` accumulate as separate header lines, matching the
+HTTP grammar; upstream headers from filters or interceptors are preserved. For single-valued
+headers like `Retry-After`, the carrier should ensure the value appears at most once across
+all payload elements. **Not** honoured by `VStreamPath` (SSE: headers commit before the
+first event, set them via a filter / controller advice instead).
+
+### Known Limits (so you don't fight the framework)
+
+- The strategy bean is process-wide. For per-request behaviour, inspect request context inside
+  the implementation.
+- `MaybePath`'s `Nothing` carries no payload, so it cannot implement `HttpHeaderCarrier`. Wrap
+  the result in `EitherPath<DomainError, T>` if you need headers or per-class status.
+- `@ResponseStatus` on the handler method governs success values only; error status always
+  comes from the strategy.
+
+For the canonical end-to-end fixture (one endpoint per heuristic + every override + a header
+case), see `hkj-spring/example/.../ErrorStatusFixtureController.java` and the matching
+`ErrorStatusFixtureSliceTest`.
 
 ---
 
@@ -187,7 +252,7 @@ public class UserService {
     }
 
     public Validated<List<String>, User> validateAndCreate(UserRequest req) {
-        return Path.valid(req.name(), Semigroup.listSemigroup())
+        return Path.valid(req.name(), Semigroups.list())
             .via(name -> validateName(name))
             .zipWithAccum(
                 validateEmail(req.email()),
@@ -411,19 +476,68 @@ public FreePath<OrderEffects, OrderStatus> getStatus(@PathVariable String id) {
 
 ## Configuration
 
+The full reference lives in `hkj-spring/CONFIGURATION.md`. The headline keys:
+
 ```yaml
 # application.yml
 hkj:
   web:
+    # ---- Status codes ----
     either:
-      default-error-status: 500       # Default HTTP status for Left values
-    validated:
-      error-status: 400               # HTTP status for Invalid values
-    free-path-enabled: true           # Enable FreePath return type handling
-    free-path-failure-status: 500     # HTTP status for FreePath execution failures
-    json:
-      format: standard                # JSON serialisation format
+      default-error-status: 500             # alias: hkj.web.default-error-status
+    maybe-nothing-status: 404               # MaybePath Nothing → 404
+    try-failure-status: 500                 # TryPath Failure → 500
+    validation-invalid-status: 400          # ValidationPath Invalid → 400
+    io-failure-status: 500                  # IOPath failures → 500
+    async-failure-status: 500               # CompletableFuturePath failures → 500
+    vtask-failure-status: 500               # VTaskPath failures → 500
+    vstream-failure-status: 500             # VStreamPath failures → 500
+    free-path-failure-status: 500           # FreePath interpretation failures → 500
+
+    # ---- Per-class overrides (this is the §1 fix; takes precedence over heuristics) ----
+    error-status-mappings:
+      MfaAlreadyEnrolledError: 409
+      PaymentDeclinedError: 422
+      MfaThrottledError: 429
+      ScheduledMaintenanceError: 503
+
+    # ---- Handler toggles (all default true) ----
+    either-path-enabled: true
+    maybe-path-enabled: true
+    try-path-enabled: true
+    validation-path-enabled: true
+    io-path-enabled: true
+    completable-future-path-enabled: true
+    vtask-path-enabled: true
+    vstream-path-enabled: true
+    free-path-enabled: true
+
+    # ---- Production vs. dev: include exception details? ----
+    try-include-exception-details: false
+    io-include-exception-details: false
+    async-include-exception-details: false
+    vtask-include-exception-details: false
+    vstream-include-exception-details: false
+    free-path-include-exception-details: false
+
+  json:
+    custom-serializers-enabled: true
+    either-format: TAGGED                   # TAGGED | SIMPLE
+    validated-format: TAGGED                # TAGGED | SIMPLE
+    maybe-format: TAGGED                    # TAGGED | SIMPLE
+
+  validation:
+    enabled: true
+    accumulate-errors: true                 # true = collect all; false = fail-fast
+
+  virtual-threads:
+    default-timeout-ms: 30000
+    stream-timeout-ms: 60000
 ```
+
+For field-aware status decisions (e.g. `MfaThrottledError.retryAfter() > 60 → 503`),
+register an `ErrorStatusCodeStrategy` bean — see the [HTTP Status Code Mapping](#http-status-code-mapping)
+section above.
 
 ---
 

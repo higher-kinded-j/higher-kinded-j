@@ -12,6 +12,9 @@ This document provides a complete reference for all configuration properties ava
 6. [Virtual Thread Configuration](#virtual-thread-configuration)
 7. [Complete Example](#complete-example)
 8. [Disabling Features](#disabling-features)
+9. [Error Status Code Strategy Bean](#error-status-code-strategy-bean)
+10. [HTTP Header Injection on Errors](#http-header-injection-on-errors)
+11. [Known Limitations](#known-limitations)
 
 ## Quick Start
 
@@ -341,9 +344,11 @@ Custom mappings from error class names to HTTP status codes.
 
 - **Type:** `Map<String, Integer>`
 - **Default:** Empty map
-- **Key:** Simple class name of error (e.g., "UserNotFoundError")
-- **Value:** HTTP status code (e.g., 404)
-- **Effect:** Overrides default status code determination
+- **Key:** Simple class name of the error (e.g. `UserNotFoundError`) or its fully-qualified
+  class name (useful when two error classes share a simple name across packages).
+- **Value:** HTTP status code (e.g. 404)
+- **Effect:** Takes precedence over the heuristics. If the error matches no mapping, the
+  heuristics run; if those do not match either, the configured default applies.
 
 **Example:**
 ```yaml
@@ -354,18 +359,36 @@ hkj:
       ValidationError: 400
       AuthorizationError: 403
       AuthenticationError: 401
+      MfaAlreadyEnrolledError: 409   # Conflict
+      PaymentDeclinedError: 422      # Unprocessable Entity
+      MfaThrottledError: 429         # Too Many Requests
       ServerError: 500
 ```
 
-**Default behaviour without mappings:**
-```java
-// Built-in heuristics (case-insensitive):
-// - Contains "notfound" -> 404
-// - Contains "validation" or "invalid" -> 400
-// - Contains "authorization" or "forbidden" -> 403
-// - Contains "authentication" or "unauthorized" -> 401
-// - Default -> value of default-error-status property
-```
+**Resolution order (applied to the `Left` value of an `EitherPath` / `Either`):**
+
+1. Explicit mapping by simple class name
+2. Explicit mapping by fully-qualified class name
+3. Built-in token heuristic on the simple class name
+4. `hkj.web.either.default-error-status` (or its legacy alias `hkj.web.default-error-status`)
+
+**Built-in heuristics (token-aware, case-insensitive):**
+
+The simple class name is split on CamelCase boundaries and lower-cased; the rule fires when
+one of the listed tokens appears as a whole token (so `RevalidationError` no longer matches
+the `validation` rule).
+
+| Token(s) present                          | Status |
+| ----------------------------------------- | ------ |
+| `not` adjacent to `found`                 | 404    |
+| `validation` or `invalid`                 | 400    |
+| `authorization` or `forbidden`            | 403    |
+| `authentication` or `unauthorized`        | 401    |
+| (no match)                                | configured default |
+
+For anything beyond table lookup — for example, a status that depends on a record's field
+(`MfaThrottledError.retryAfter() ≥ 60 → 503`) — register a custom
+[`ErrorStatusCodeStrategy` bean](#error-status-code-strategy-bean).
 
 ## Validation Configuration
 
@@ -891,7 +914,75 @@ public class HkjConfig {
 }
 ```
 
+## Error Status Code Strategy Bean
+
+For status decisions that property-table mappings cannot express — for example, a status that
+depends on an error's field values — register a custom `ErrorStatusCodeStrategy` bean. The
+auto-configuration declares its default with `@ConditionalOnMissingBean`, so your bean
+replaces it without further wiring.
+
+```java
+@Bean
+ErrorStatusCodeStrategy errorStatusCodeStrategy() {
+    return (error, defaultStatus) -> switch (error) {
+        case MfaThrottledError t when t.retryAfter() > 60 -> 503; // backoff escalates to 503
+        case MfaThrottledError ignored -> 429;
+        case PaymentDeclinedError ignored -> 422;
+        // Delegate to the built-in heuristics + property mappings for everything else
+        default -> ErrorStatusCodeMapper.determineStatusCode(error, defaultStatus);
+    };
+}
+```
+
+The strategy is invoked once per error response on the request thread (or the async completion
+thread for `CompletableFuturePath` / `VTaskPath`), so implementations must be thread-safe and
+side-effect-free.
+
+## HTTP Header Injection on Errors
+
+Error payloads can surface response headers (`Retry-After`, `WWW-Authenticate`, etc.) by
+implementing `HttpHeaderCarrier`:
+
+```java
+public record MfaThrottledError(int retryAfterSeconds) implements DomainError, HttpHeaderCarrier {
+    @Override
+    public Map<String, String> headers() {
+        return Map.of("Retry-After", Integer.toString(retryAfterSeconds));
+    }
+}
+```
+
+The headers are applied by `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`,
+`CompletableFuturePath`, `VTaskPath`, and `FreePath` handlers before the JSON body is written.
+Internally the headers are added (not set), so multi-valued headers such as
+`WWW-Authenticate`, `Set-Cookie`, and `Link` accumulate as separate header lines on the
+response, matching the HTTP grammar; upstream headers set by filters or interceptors are also
+preserved. For collection-typed payloads (e.g. `ValidationPath` `Invalid` values), every
+element that implements `HttpHeaderCarrier` contributes its headers. `null` keys and `null`
+values are skipped silently. For single-valued headers such as `Retry-After`, the carrier
+should ensure the value appears at most once across all payload elements.
+
+`VStreamPath` does not honour `HttpHeaderCarrier` — by the time an SSE error event is emitted,
+the response status and headers are already committed, so headers must be set before the
+stream begins.
+
+## Known Limitations
+
+These are the configuration surfaces adopters most often discover by hitting their edges. If
+any of these block you, please open an issue.
+
+| Area | Current state | Workaround |
+| ---- | ------------- | ---------- |
+| Per-class status mapping | Configurable via `hkj.web.error-status-mappings` (simple or fully-qualified class name) | Register a custom `ErrorStatusCodeStrategy` bean for field-dependent decisions |
+| Heuristic flexibility | Tokenised CamelCase match — no regex / pluggable predicate | Provide explicit mappings in `hkj.web.error-status-mappings`; they take precedence |
+| Response-header injection | Implement `HttpHeaderCarrier` on the error class | Not configurable via properties |
+| `VStreamPath` headers | Status + headers committed before the first event | Set required headers via a `WebFilter` or controller advice before the stream starts |
+| `MaybePath` Nothing payload | Single configurable status (`hkj.web.maybe-nothing-status`); no header injection — there is no error value to query | Wrap the result in `EitherPath<DomainError, T>` to gain mapping + headers |
+| Per-request strategy override | The `ErrorStatusCodeStrategy` bean is process-wide | Inspect request context inside the strategy implementation if needed |
+| `@ResponseStatus` on the handler method | Honoured for `Right` / `Valid` / success values only — error status comes from the strategy | Move per-error behaviour into mappings or a custom strategy |
+
 ## See Also
 
 - [Testing Guide](./example/TESTING.md) - How to test your configured application
+- [`ErrorStatusFixtureController`](./example/src/main/java/org/higherkindedj/spring/example/controller/ErrorStatusFixtureController.java) - Canonical `@WebMvcTest` fixture exercising every status-mapping rule
 - [Jackson Serialization](./JACKSON_SERIALIZATION.md) - Details on JSON serialization

@@ -194,6 +194,8 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
       // Unwrap CompletionException if present
       Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
 
+      ErrorResponseHeaders.applyTo(cause, response);
+
       Map<String, Object> errorBody;
       if (includeExceptionDetails) {
         errorBody =

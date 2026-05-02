@@ -113,6 +113,12 @@ hkj:
     vtask-failure-status: 500
     vstream-failure-status: 500
 
+    # Per-class overrides (take precedence over the heuristic table)
+    error-status-mappings:
+      MfaAlreadyEnrolledError: 409
+      PaymentDeclinedError: 422
+      MfaThrottledError: 429
+
     # Exception details (disable in production!)
     try-include-exception-details: false
     io-include-exception-details: false
@@ -144,7 +150,11 @@ hkj-spring/
 │   │   ├── VTaskPathReturnValueHandler     # Virtual thread async
 │   │   ├── VStreamPathReturnValueHandler   # Virtual thread SSE streaming
 │   │   ├── FreePathReturnValueHandler      # Effect boundary interpretation
-│   │   └── ErrorStatusCodeMapper
+│   │   ├── ErrorStatusCodeStrategy         # Pluggable error -> HTTP status resolver
+│   │   ├── DefaultErrorStatusCodeStrategy  # Mappings + heuristics, registered as default bean
+│   │   ├── ErrorStatusCodeMapper           # Token-aware heuristic helper
+│   │   ├── HttpHeaderCarrier               # Mix-in for Retry-After / WWW-Authenticate / etc.
+│   │   └── ErrorResponseHeaders            # Internal helper that copies carrier headers
 │   ├── effect/
 │   │   ├── EnableEffectBoundary            # Auto-wire interpreters
 │   │   ├── Interpreter                     # Interpreter stereotype

@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.util.Map;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -324,6 +325,98 @@ class EitherPathReturnValueHandlerTest {
     }
   }
 
+  @Nested
+  @DisplayName("Status mapping table (issue: hkj.web.error-status-mappings was unwired)")
+  class ErrorStatusMappingTests {
+
+    @Test
+    @DisplayName("Simple-name mapping wins over heuristic and produces 409")
+    void simpleNameMappingWins() throws Exception {
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(
+              jsonMapper,
+              500,
+              new DefaultErrorStatusCodeStrategy(Map.of("MfaAlreadyEnrolledError", 409)));
+      EitherPath<MfaAlreadyEnrolledError, TestUser> path =
+          Path.left(new MfaAlreadyEnrolledError("user-1"));
+
+      customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(409);
+    }
+
+    @Test
+    @DisplayName("Mapping overrides a heuristic match (e.g. Invalid → 401 instead of 400)")
+    void mappingOverridesHeuristic() throws Exception {
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(
+              jsonMapper,
+              500,
+              new DefaultErrorStatusCodeStrategy(Map.of("MfaCodeInvalidError", 401)));
+      EitherPath<MfaCodeInvalidError, TestUser> path = Path.left(new MfaCodeInvalidError("E_BAD"));
+
+      customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(401);
+    }
+
+    @Test
+    @DisplayName("Custom strategy bean replaces default resolution entirely")
+    void customStrategyBean() throws Exception {
+      ErrorStatusCodeStrategy strategy =
+          (error, defaultStatus) ->
+              error instanceof MfaThrottledError t && t.retryAfterSeconds() > 60 ? 503 : 429;
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(jsonMapper, 500, strategy);
+
+      EitherPath<MfaThrottledError, TestUser> retryShort = Path.left(new MfaThrottledError(30));
+      customHandler.handleReturnValue(retryShort, returnType, mavContainer, webRequest);
+      verify(response).setStatus(429);
+    }
+
+    @Test
+    @DisplayName("Unmatched error with mappings + strategy still falls back to default")
+    void unmatchedFallsBack() throws Exception {
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(
+              jsonMapper, 599, new DefaultErrorStatusCodeStrategy(Map.of("Other", 999)));
+      EitherPath<DuplicateError, TestUser> path = Path.left(new DuplicateError("x"));
+
+      customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(599);
+    }
+  }
+
+  @Nested
+  @DisplayName("HttpHeaderCarrier integration (Retry-After et al.)")
+  class HeaderInjectionTests {
+
+    @Test
+    @DisplayName("Left value implementing HttpHeaderCarrier surfaces its headers")
+    void writesRetryAfterHeader() throws Exception {
+      EitherPathReturnValueHandler customHandler =
+          new EitherPathReturnValueHandler(
+              jsonMapper,
+              500,
+              new DefaultErrorStatusCodeStrategy(Map.of("MfaThrottledError", 429)));
+      EitherPath<MfaThrottledError, TestUser> path = Path.left(new MfaThrottledError(45));
+
+      customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(429);
+      verify(response).addHeader("Retry-After", "45");
+    }
+
+    @Test
+    @DisplayName("Plain Left value (no carrier) sets no extra headers")
+    void noHeadersForPlainError() throws Exception {
+      EitherPath<String, TestUser> path = Path.left("plain");
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+      verify(response, never()).addHeader(anyString(), anyString());
+    }
+  }
+
   // Test DTOs
   record TestUser(String id, String email) {}
 
@@ -339,6 +432,20 @@ class EitherPathReturnValueHandlerTest {
 
   /** A domain error whose simple name matches no heuristic substring (issue #490). */
   record DuplicateError(String id) {}
+
+  /** Conflict error with no heuristic match — relies on explicit mapping. */
+  record MfaAlreadyEnrolledError(String userId) {}
+
+  /** Heuristic match (Invalid token) but adopters may want 401 via override. */
+  record MfaCodeInvalidError(String code) {}
+
+  /** Throttling error that surfaces a Retry-After header. */
+  record MfaThrottledError(int retryAfterSeconds) implements HttpHeaderCarrier {
+    @Override
+    public Map<String, String> headers() {
+      return Map.of("Retry-After", Integer.toString(retryAfterSeconds));
+    }
+  }
 
   @SuppressWarnings("unused")
   static class SampleController {

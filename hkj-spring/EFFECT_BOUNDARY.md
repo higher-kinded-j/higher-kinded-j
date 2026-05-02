@@ -262,7 +262,7 @@ The ninth handler in the hkj-spring handler family, following the same pattern a
 2. **Looks up** the `EffectBoundary` bean from the application context
 3. **Calls** `boundary.run(program)` to interpret the Free monad program
 4. **Serialises** the result as JSON using `JsonMapper`
-5. **Maps** errors to HTTP status codes using the existing `ErrorStatusCodeMapper`
+5. **Maps** interpretation failures to the configured `hkj.web.free-path-failure-status` (default 500). If the failure value implements `HttpHeaderCarrier`, its headers are copied onto the response. `FreePath` does not currently consult `ErrorStatusCodeStrategy`, since interpretation failures are surfaced as `Throwable`s rather than typed `Left` values; route domain errors through `EitherPath` (or the inner monad of the boundary's target) when per-class status mapping is required.
 
 ### Bean Resolution Strategy
 
