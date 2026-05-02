@@ -341,6 +341,69 @@ Pages in advanced topic chapters should lead with a concrete problem before intr
 
 This structure ensures readers understand *why* they need a concept before learning *how* it works. Reference material (type signatures, witness types, helper utilities) should still be present but positioned after the narrative arc, typically inside admonishments so the teaching flow is not interrupted.
 
+## Monad Transformer Pages
+
+Pages documenting individual monad transformers (e.g. `eithert_transformer.md`, `readert_transformer.md`) follow a stricter template than general advanced topics. The goal is to ensure every transformer page reads consistently and emphasises the Effect Path API as the recommended starting point.
+
+### Required Page Structure
+
+Each per-transformer page must use the following structure, in this order:
+
+1. **Title** with descriptive subtitle and optional epigraph
+2. **What You'll Learn** admonishment
+3. **See Example Code** admonishment with link to the runnable example
+4. **Path First, Stack Later** note that points readers at the equivalent Path type
+5. **The Problem** – 5 to 15 lines of imperative code demonstrating the pain
+6. **The Solution** – the same scenario expressed through the transformer, ideally with a `For` comprehension
+7. **The Railway View** – ASCII diagram showing the success and failure tracks
+8. **How It Works** – ASCII type diagram (no UML or generated SVGs) and short explanation of the type parameters
+9. **Setting Up the Monad** – constructor for the `*Monad` instance, plus a Witness/Helper note
+10. **Key Operations** – table or admonishment listing the core methods
+11. **Creating Instances** – tour of the static factory methods
+12. **Real-World Example** – one substantial worked example using `For` comprehension
+13. **Transforming the Outer Monad with `mapT`** – short section with a `mapT` example and a `mapT vs map` note
+14. **Common Mistakes** warning admonishment
+15. **See Also** admonishment with internal links
+16. **Further Reading** (optional) with external links
+17. **Navigation** (Previous/Next)
+
+### Effect Path First in Examples
+
+Code samples on transformer pages should follow this order of preference:
+
+1. **First example**: show the problem solved with the corresponding Effect Path type (e.g. `EitherPath`, `MaybePath`). This emphasises that most readers do not need the raw transformer.
+2. **Second example**: show the transformer-based solution using `For.from(...)` syntax to keep witness types localised.
+3. **Reference material**: explicit `flatMap` chains and raw `Kind<>` ceremony belong in admonishments or later sections, not in the headline example.
+
+The pattern is: *Effect Path first, transformer second, raw `Kind` only when illustrating the underlying mechanism.*
+
+### `For` Comprehension Over Raw `flatMap`
+
+Real-world examples must prefer `For.from(monad, ...)` over chained `flatMap` calls. The witness types are noisy when written inline; `For` keeps them at the top of the comprehension and lets the body read like a sequence of named bindings.
+
+When a chained `flatMap` example is genuinely useful (e.g. to show the mechanism), keep it short and place it after the `For` example, not before.
+
+### No UML or SVG Class Diagrams
+
+Per-transformer pages should not embed UML or generated SVG class diagrams. They are difficult to maintain, add little to the reader's understanding, and do not match the lightweight, code-first style of the rest of the chapter. Use the boxed ASCII type diagram (under "How It Works") and the railway diagram (under "The Railway View") instead.
+
+### Reducing `Kind` Ceremony
+
+The single biggest barrier to reading transformer pages is the volume of `EITHER_T.widen(...)`, `OPTIONAL_T.narrow(...)`, and `Kind<XKind.Witness<F, ...>, A>` annotations. Apply the following rules:
+
+- Use `var` for local variables whose type is obvious from context
+- Push `widen`/`narrow` calls into a dedicated "Working with Kind" admonishment rather than scattering them through the headline example
+- Prefer `For.from(monad, ...)` so that `Kind<>` types appear at the comprehension boundary and not inside every step
+- When a code sample demonstrates a single concept, omit unrelated ceremony
+
+### Cross-References
+
+Every transformer page should link to:
+
+- The corresponding **Effect Path type** (e.g. `EitherT` links to `EitherPath`)
+- The relevant **MTL capability** if one exists (e.g. `ReaderT` links to `MonadReader`)
+- The **Stack Archetypes** page when an archetype matches the transformer's primary use case
+
 ## Checklist for New Pages
 
 When creating a new documentation page, ensure:

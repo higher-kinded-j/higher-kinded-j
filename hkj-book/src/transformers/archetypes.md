@@ -532,5 +532,5 @@ Each archetype's Path type provides a fluent, concrete API. For most use cases, 
 
 ---
 
-**Previous:** [Introduction](ch_intro.md)
+**Previous:** [Migration Cookbook](migration_cookbook.md)
 **Next:** [Monad Transformers](transformers.md)

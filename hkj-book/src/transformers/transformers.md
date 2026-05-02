@@ -10,7 +10,7 @@ If you've ever written a utility method that takes a `CompletableFuture<Either<E
 ~~~admonish info title="What You'll Learn"
 - Why directly nesting monadic types like `CompletableFuture<Either<E, A>>` leads to complex, unwieldy code
 - How monad transformers wrap nested monads to provide a unified interface with familiar `map` and `flatMap` operations
-- The available transformers in Higher-Kinded-J: EitherT, MaybeT, OptionalT, ReaderT, and StateT
+- The available transformers in Higher-Kinded-J: EitherT, OptionalT, MaybeT, ReaderT, and StateT
 - How to choose the right transformer for your use case based on the effect you need to add
 ~~~
 
@@ -20,8 +20,8 @@ The [Effect Path API](../effect/ch_intro.md) provides a fluent, concrete wrapper
 | Path Type | Corresponding Transformer |
 |-----------|--------------------------|
 | `EitherPath<E, A>` | `EitherT<F, E, A>` |
-| `MaybePath<A>` | `MaybeT<F, A>` |
 | `OptionalPath<A>` | `OptionalT<F, A>` |
+| `MaybePath<A>` | `MaybeT<F, A>` |
 | `ReaderPath<R, A>` | `ReaderT<F, R, A>` |
 | `WithStatePath<S, A>` | `StateT<S, F, A>` |
 

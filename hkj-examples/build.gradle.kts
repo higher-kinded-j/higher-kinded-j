@@ -45,6 +45,7 @@ tasks.named<Test>("test") {
     exclude("**/tutorial/effecthandlers/**")
     exclude("**/tutorial/context/**")
     exclude("**/tutorial/mtl/**")
+    exclude("**/tutorial/transformers/**")
     // Solutions are in tutorial/solutions/ and will run
 }
 

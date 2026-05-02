@@ -400,12 +400,13 @@ For complete documentation, see:
 
 ## Learn by Doing
 
-Twelve interactive tutorial journeys with hands-on exercises:
+Thirteen interactive tutorial journeys with hands-on exercises:
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
 | [Core: Foundations](https://higher-kinded-j.github.io/latest/tutorials/coretypes/foundations_journey.html) | HKT simulation, Functor, Monad | 24 |
 | [Effect API](https://higher-kinded-j.github.io/latest/tutorials/effect/effect_journey.html) | Effect paths, ForPath, Contexts | 15 |
+| [Monad Transformers](https://higher-kinded-j.github.io/latest/tutorials/transformers/transformers_journey.html) | When Path isn't enough, async + absence, MTL | 28 |
 | [Concurrency: VTask](https://higher-kinded-j.github.io/latest/tutorials/concurrency/vtask_journey.html) | Virtual threads, VTaskPath, Par | 16 |
 | [Optics: Focus DSL](https://higher-kinded-j.github.io/latest/tutorials/optics/focus_dsl_journey.html) | Type-safe path navigation | 29 |
 

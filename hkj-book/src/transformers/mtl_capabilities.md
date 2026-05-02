@@ -27,7 +27,7 @@ That is what MTL-style capability interfaces do. They separate the declaration o
 Consider a function that reads a URL from configuration and fetches a user profile:
 
 ```java
-// Locked to ReaderT over CompletableFuture — cannot be reused with IO, Id, or VTask
+// Locked to ReaderT over CompletableFuture; cannot be reused with IO, Id, or VTask
 ReaderT<CompletableFutureKind.Witness, AppConfig, UserProfile>
     fetchProfile(String userId) {
   return ReaderT.of(config ->
@@ -131,23 +131,20 @@ MTL adds a layer of abstraction. If your entire application uses a single transf
 ---
 
 ~~~admonish info title="In This Section"
-- **[MonadReader](mtl_reader.md)** -- Read-only environment access. Inject configuration, database URLs, API keys, and other dependencies without threading parameters through every function.
-
-- **[MonadState](mtl_state.md)** -- Mutable state management. Read and update state as a computation progresses, with automatic state threading through `flatMap` chains.
-
-- **[MonadWriter](mtl_writer.md)** -- Append-only output accumulation. Build audit trails, diagnostic logs, and computation summaries that travel with the result.
-
-- **[Combining Capabilities](mtl_combining.md)** -- Using multiple MTL interfaces together. Concrete instances, ForState integration, and practical patterns for multi-capability functions.
+- **[MonadReader](mtl_reader.md)** – Read-only environment access. Inject configuration, database URLs, API keys, and other dependencies without threading parameters through every function.
+- **[MonadState](mtl_state.md)** – Mutable state management. Read and update state as a computation progresses, with automatic state threading through `flatMap` chains.
+- **[MonadWriter](mtl_writer.md)** – Append-only output accumulation. Build audit trails, diagnostic logs, and computation summaries that travel with the result.
+- **[Combining Capabilities](mtl_combining.md)** – Using multiple MTL interfaces together. Concrete instances, ForState integration, and practical patterns for multi-capability functions.
 ~~~
 
 ---
 
 ## Section Contents
 
-1. [MonadReader](mtl_reader.md) -- Environment access and scoped modification
-2. [MonadState](mtl_state.md) -- State threading and mutation
-3. [MonadWriter](mtl_writer.md) -- Output accumulation and log inspection
-4. [Combining Capabilities](mtl_combining.md) -- Multi-capability functions and concrete instances
+1. [MonadReader](mtl_reader.md) - Environment access and scoped modification
+2. [MonadState](mtl_state.md) - State threading and mutation
+3. [MonadWriter](mtl_writer.md) - Output accumulation and log inspection
+4. [Combining Capabilities](mtl_combining.md) - Multi-capability functions and concrete instances
 
 ---
 
