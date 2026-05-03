@@ -77,4 +77,11 @@ Learn to use resilience patterns through the fluent Path API.
 
 ## Solutions
 
-Each tutorial has a corresponding solution file in the `solutions/` subdirectory. Try to complete the exercises on your own before checking the solutions.
+Each tutorial has a corresponding solution file under `hkj-examples/src/test/java/org/higherkindedj/tutorial/solutions/resilience/`. Try to complete the exercises on your own before checking the solutions.
+
+| Tutorial | Solution File |
+|----------|--------------|
+| `Tutorial01_CircuitBreaker.java` | `solutions/resilience/Tutorial01_CircuitBreaker_Solution.java` |
+| `Tutorial02_Saga.java` | `solutions/resilience/Tutorial02_Saga_Solution.java` |
+| `Tutorial03_RetryBulkheadResilience.java` | `solutions/resilience/Tutorial03_RetryBulkheadResilience_Solution.java` |
+| `Tutorial04_PathResilience.java` | `solutions/resilience/Tutorial04_PathResilience_Solution.java` |

@@ -39,10 +39,15 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Requirements: Java 25+ (virtual threads and structured concurrency)
  *
- * <p>Replace each {@code fail("TODO: ...")} with the correct code to make the tests pass.
+ * <p>Replace each {@code answerRequired()} call with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 03: Retry, Bulkhead, and Resilience Composition")
 public class Tutorial03_RetryBulkheadResilience {
+
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
 
   // ===========================================================================
   // Part 1: Retry with RetryPolicy
@@ -73,11 +78,12 @@ public class Tutorial03_RetryBulkheadResilience {
                 return "Success on attempt " + attempt;
               });
 
-      // Create a fixed retry policy
-      RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(10));
+      // TODO: Create a fixed retry policy with 3 attempts and 10ms delay.
+      //       Hint: RetryPolicy.fixed(3, Duration.ofMillis(10))
+      RetryPolicy policy = answerRequired();
 
-      // Wrap the task with retry logic
-      VTask<String> retriedTask = Retry.retryTask(unstableTask, policy);
+      // TODO: Wrap unstableTask with retry logic using Retry.retryTask(unstableTask, policy)
+      VTask<String> retriedTask = answerRequired();
 
       String result = retriedTask.run();
       assertThat(result).isEqualTo("Success on attempt 3");
@@ -106,8 +112,9 @@ public class Tutorial03_RetryBulkheadResilience {
                 return "done";
               });
 
-      // Create policy with onRetry listener
-      RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(10)).onRetry(events::add);
+      // TODO: Create a fixed retry policy and attach an onRetry listener that records each
+      //       RetryEvent into the `events` list. Hint: .onRetry(events::add)
+      RetryPolicy policy = answerRequired();
 
       VTask<String> retriedTask = Retry.retryTask(unstableTask, policy);
       retriedTask.run();
@@ -136,13 +143,14 @@ public class Tutorial03_RetryBulkheadResilience {
     @Test
     @DisplayName("Exercise 3: Protect a VTask with a Bulkhead")
     void exercise3_bulkheadProtect() {
-      // Create a Bulkhead that allows at most 5 concurrent executions
-      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(5);
+      // TODO: Create a Bulkhead allowing at most 5 concurrent executions
+      //       Hint: Bulkhead.withMaxConcurrent(5)
+      Bulkhead bulkhead = answerRequired();
 
       VTask<String> task = VTask.succeed("protected result");
 
-      // Protect the task with the bulkhead
-      VTask<String> protectedTask = bulkhead.protect(task);
+      // TODO: Protect the task with the bulkhead using bulkhead.protect(task)
+      VTask<String> protectedTask = answerRequired();
 
       String result = protectedTask.run();
       assertThat(result).isEqualTo("protected result");
@@ -175,13 +183,12 @@ public class Tutorial03_RetryBulkheadResilience {
 
       VTask<String> serviceCall = VTask.succeed("service response");
 
-      // Build a resilient task using ResilienceBuilder
-      VTask<String> resilientTask =
-          Resilience.<String>builder(serviceCall)
-              .withCircuitBreaker(breaker)
-              .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(10)))
-              .withFallback(error -> "fallback value")
-              .build();
+      // TODO: Build a resilient VTask<String> using Resilience.<String>builder(serviceCall):
+      //       .withCircuitBreaker(breaker)
+      //       .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(10)))
+      //       .withFallback(error -> "fallback value")
+      //       .build()
+      VTask<String> resilientTask = answerRequired();
 
       String result = resilientTask.run();
       assertThat(result).isEqualTo("service response");
@@ -210,9 +217,8 @@ public class Tutorial03_RetryBulkheadResilience {
                 return "recovered";
               });
 
-      // Use the convenience method for circuit breaker + retry
-      VTask<String> resilientTask =
-          Resilience.withCircuitBreakerAndRetry(unstableTask, breaker, policy);
+      // TODO: Use Resilience.withCircuitBreakerAndRetry(unstableTask, breaker, policy)
+      VTask<String> resilientTask = answerRequired();
 
       String result = resilientTask.run();
       assertThat(result).isEqualTo("recovered");

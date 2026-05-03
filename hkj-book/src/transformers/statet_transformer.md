@@ -95,7 +95,7 @@ The state flows from one operation to the next through `flatMap`. If any operati
 
 ## The Railway View
 
-<pre style="line-height:1.5;font-size:0.95em">
+<pre class="hkj-railway-diagram">
     <span style="color:#4CAF50"><b>Value</b>   ═══●═══════════●═══════════●═══════════●═══▶  result A (in F)</span>
     <span style="color:#4CAF50">           push(10)    push(20)    pop         pop</span>
     <span style="color:#4CAF50">           (flatMap)   (flatMap)   (flatMap)   (flatMap)</span>

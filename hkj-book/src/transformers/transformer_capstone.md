@@ -190,19 +190,19 @@ The Path API trades the polymorphism of MTL for shorter, more concrete code. Whe
 
 The railway diagram for the success-and-failure tracks of the polymorphic version:
 
-<pre style="line-height:1.5;font-size:0.95em">
+<pre class="hkj-railway-diagram">
     <span style="color:#4CAF50"><b>Success</b> ═══●══════════════●══════════════●══════════●═══▶  Receipt</span>
-    <span style="color:#4CAF50">         validate       reserve         charge       map</span>
-    <span style="color:#4CAF50">         (errors)        (env+errors)    (env+errors)</span>
-              │                │                │
-              ▼ <i>tell</i>          ▼ <i>tell</i>          ▼ <i>tell</i>
-    <span style="color:#FFB300"><b>Audit</b>   ──●──────────────●──────────────●─────────────────▶  List&lt;AuditEntry&gt;</span>
+    <span style="color:#4CAF50">           validate        reserve         charge      map</span>
+    <span style="color:#4CAF50">           (errors)     (env+errors)   (env+errors)</span>
+               │              │              │
+               ▼ <i>tell</i>         ▼ <i>tell</i>         ▼ <i>tell</i>
+    <span style="color:#FFB300"><b>Audit</b>   ───●──────────────●──────────────●──────────────▶  List&lt;AuditEntry&gt;</span>
     <span style="color:#FFB300">         "validate ok"  "reserve ok"   "charge ok"</span>
-              ╲                ╲                ╲
-               ╲                ╲                ╲  Left: skip remaining steps
-                ╲                ╲                ╲
-    <span style="color:#F44336"><b>Failure</b> ──●────────────────●──────────────●────────────────▶  DomainError</span>
-    <span style="color:#F44336">         InvalidOrder    OutOfStock     PaymentDeclined</span>
+               ╲              ╲              ╲
+                ╲              ╲              ╲  Left: skip remaining steps
+                 ╲              ╲              ╲
+    <span style="color:#F44336"><b>Failure</b> ─────●──────────────●──────────────●────────────▶  DomainError</span>
+    <span style="color:#F44336">           InvalidOrder    OutOfStock     PaymentDeclined</span>
 </pre>
 
 The audit track and the value track advance together. The error track absorbs any `Left` from any step and short-circuits the rest. All three concerns coexist in one comprehension because the capabilities composed through MTL share the same monad witness `F`.

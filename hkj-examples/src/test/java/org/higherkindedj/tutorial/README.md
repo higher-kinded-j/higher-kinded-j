@@ -257,6 +257,7 @@ Complete solutions for all exercises are available in:
 - `solutions/coretypes/` - Core types solutions
 - `solutions/optics/` - Optics solutions
 - `solutions/mtl/` - MTL solutions
+- `solutions/resilience/` - Resilience patterns solutions
 
 Try to solve the exercises yourself before looking at the solutions!
 

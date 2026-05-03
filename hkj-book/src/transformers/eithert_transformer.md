@@ -91,13 +91,13 @@ Same four steps. No manual error propagation. If any step returns `Left`, subseq
 
 ## The Railway View
 
-<pre style="line-height:1.5;font-size:0.95em">
+<pre class="hkj-railway-diagram">
     <span style="color:#4CAF50"><b>Right</b>  ═══●══════════●══════════●══════════●═══▶  Receipt</span>
     <span style="color:#4CAF50">       validate   inventory   payment   receipt</span>
     <span style="color:#4CAF50">       (flatMap)  (flatMap)   (flatMap)  (map)</span>
-                ╲            ╲            ╲
-                 ╲            ╲            ╲  Left: skip remaining steps
-                  ╲            ╲            ╲
+              ╲         ╲             ╲
+               ╲         ╲             ╲  Left: skip remaining steps
+                ╲         ╲             ╲
     <span style="color:#F44336"><b>Left</b>   ─────●─────────●─────────────●──────────▶  DomainError</span>
     <span style="color:#F44336">       InvalidOrder  OutOfStock  PaymentFailed</span>
                                         │
@@ -114,7 +114,7 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
 
 `EitherT<F, L, R>` wraps a value of type `Kind<F, Either<L, R>>`. It represents a computation within the context `F` that will eventually yield an `Either<L, R>`.
 
-<pre style="line-height:1.4;font-size:0.95em;font-family:ui-monospace,SFMono-Regular,'SF Mono','Cascadia Mono','Roboto Mono','DejaVu Sans Mono','Source Code Pro',Menlo,Consolas,monospace,monospace;">
+<pre class="hkj-ascii-diagram">
     ┌──────────────────────────────────────────────────────────┐
     │  EitherT&lt;CompletableFutureKind.Witness, Error, Value&gt;    │
     │                                                          │

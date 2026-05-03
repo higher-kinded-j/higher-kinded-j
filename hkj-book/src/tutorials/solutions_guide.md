@@ -282,16 +282,21 @@ hkj-examples/src/test/java/org/higherkindedj/tutorial/solutions/
 │   ├── Tutorial05_MonadErrorHandling_Solution.java
 │   ├── Tutorial06_ConcreteTypes_Solution.java
 │   └── Tutorial07_RealWorld_Solution.java
-└── optics/
-    ├── Tutorial01_LensBasics_Solution.java
-    ├── Tutorial02_LensComposition_Solution.java
-    ├── Tutorial03_PrismBasics_Solution.java
-    ├── Tutorial04_TraversalBasics_Solution.java
-    ├── Tutorial05_OpticsComposition_Solution.java
-    ├── Tutorial06_GeneratedOptics_Solution.java
-    ├── Tutorial07_RealWorldOptics_Solution.java
-    ├── Tutorial08_FluentOpticsAPI_Solution.java
-    └── Tutorial09_AdvancedOpticsDSL_Solution.java
+├── optics/
+│   ├── Tutorial01_LensBasics_Solution.java
+│   ├── Tutorial02_LensComposition_Solution.java
+│   ├── Tutorial03_PrismBasics_Solution.java
+│   ├── Tutorial04_TraversalBasics_Solution.java
+│   ├── Tutorial05_OpticsComposition_Solution.java
+│   ├── Tutorial06_GeneratedOptics_Solution.java
+│   ├── Tutorial07_RealWorldOptics_Solution.java
+│   ├── Tutorial08_FluentOpticsAPI_Solution.java
+│   └── Tutorial09_AdvancedOpticsDSL_Solution.java
+└── resilience/
+    ├── Tutorial01_CircuitBreaker_Solution.java
+    ├── Tutorial02_Saga_Solution.java
+    ├── Tutorial03_RetryBulkheadResilience_Solution.java
+    └── Tutorial04_PathResilience_Solution.java
 ```
 
 Each solution file:

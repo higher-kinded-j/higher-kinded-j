@@ -530,3 +530,29 @@ html.latte body.chapter-intro main > h1:first-of-type     { color: #0b6455 !impo
 html.frappe body.chapter-intro main > h1:first-of-type    { color: #dad126 !important; } /* Citron Yellow — dark-logo wordmark */
 html.macchiato body.chapter-intro main > h1:first-of-type { color: #dad126 !important; } /* Citron Yellow — dark-logo wordmark */
 html.mocha body.chapter-intro main > h1:first-of-type     { color: #dad126 !important; } /* Citron Yellow — dark-logo wordmark */
+
+/* ===== ASCII Diagram Styles =====
+   Box-drawing glyphs (┌ ─ ┐ │ └ ┘) render at non-standard widths in some
+   default UI monospace fonts (notably iOS Safari and several Android
+   webviews), which breaks the alignment of the box edges. Force a known-
+   good monospace stack and enable horizontal scroll on narrow viewports so
+   the diagram stays flush on phones and tablets. */
+
+.hkj-ascii-diagram,
+.hkj-railway-diagram {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', 'Cascadia Mono',
+                 'Roboto Mono', 'DejaVu Sans Mono', 'Source Code Pro',
+                 Menlo, Consolas, monospace, monospace;
+    font-size: 0.95em;
+    white-space: pre;
+    overflow-x: auto;
+    -webkit-text-size-adjust: 100%;
+}
+
+/* Tighter line-height for box-drawing diagrams so the vertical edges stay
+   visually flush. */
+.hkj-ascii-diagram { line-height: 1.4; }
+
+/* Slightly looser line-height for railway-track diagrams, where the rows
+   carry labels above and below the track and need breathing room. */
+.hkj-railway-diagram { line-height: 1.5; }

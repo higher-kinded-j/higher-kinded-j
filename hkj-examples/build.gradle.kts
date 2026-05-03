@@ -46,6 +46,7 @@ tasks.named<Test>("test") {
     exclude("**/tutorial/context/**")
     exclude("**/tutorial/mtl/**")
     exclude("**/tutorial/transformers/**")
+    exclude("**/tutorial/resilience/**")
     // Solutions are in tutorial/solutions/ and will run
 }
 
@@ -68,6 +69,7 @@ tasks.register<Test>("tutorialTest") {
     include("**/tutorial/expression/**")
     include("**/tutorial/effecthandlers/**")
     include("**/tutorial/mtl/**")
+    include("**/tutorial/resilience/**")
     exclude("**/tutorial/solutions/**")
     // Don't fail the build - tutorials are expected to fail
     ignoreFailures = true
