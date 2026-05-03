@@ -34,10 +34,15 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Requirements: Java 25+ (virtual threads and structured concurrency)
  *
- * <p>Replace each {@code fail("TODO: ...")} with the correct code to make the tests pass.
+ * <p>Replace each {@code answerRequired()} call with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 01: Circuit Breaker Pattern")
 public class Tutorial01_CircuitBreaker {
+
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
 
   // ===========================================================================
   // Part 1: Creating and Configuring a Circuit Breaker
@@ -62,15 +67,12 @@ public class Tutorial01_CircuitBreaker {
     @Test
     @DisplayName("Exercise 1: Create a CircuitBreaker with custom config")
     void exercise1_createCircuitBreaker() {
-      // Create a CircuitBreakerConfig using the builder pattern
-      CircuitBreakerConfig config =
-          CircuitBreakerConfig.builder()
-              .failureThreshold(3)
-              .openDuration(Duration.ofMillis(100))
-              .build();
+      // TODO: Build a CircuitBreakerConfig with failureThreshold(3) and
+      //       openDuration(Duration.ofMillis(100)) using CircuitBreakerConfig.builder()
+      CircuitBreakerConfig config = answerRequired();
 
-      // Create a CircuitBreaker from the config
-      CircuitBreaker breaker = CircuitBreaker.create(config);
+      // TODO: Create a CircuitBreaker from the config using CircuitBreaker.create(config)
+      CircuitBreaker breaker = answerRequired();
 
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
     }
@@ -87,8 +89,8 @@ public class Tutorial01_CircuitBreaker {
       CircuitBreaker breaker = CircuitBreaker.withDefaults();
       VTask<String> fetchData = VTask.succeed("Hello from service");
 
-      // Wrap fetchData with circuit breaker protection
-      VTask<String> protectedTask = breaker.protect(fetchData);
+      // TODO: Wrap fetchData with circuit breaker protection using breaker.protect(...)
+      VTask<String> protectedTask = answerRequired();
 
       String result = protectedTask.run();
       assertThat(result).isEqualTo("Hello from service");
@@ -107,7 +109,7 @@ public class Tutorial01_CircuitBreaker {
      * Exercise 3: Verify the circuit opens after threshold failures
      *
      * <p>Create a circuit breaker with failureThreshold=3. Send 3 failing tasks through it, then
-     * verify that the circuit has transitioned to OPEN (or HALF_OPEN if enough time passes).
+     * verify that the circuit has transitioned to OPEN.
      */
     @Test
     @DisplayName("Exercise 3: Circuit opens after threshold failures")
@@ -121,10 +123,10 @@ public class Tutorial01_CircuitBreaker {
 
       VTask<String> failingTask = VTask.fail(new RuntimeException("Service down"));
 
-      // Execute the protected failing task 3 times using runSafe()
-      breaker.protect(failingTask).runSafe();
-      breaker.protect(failingTask).runSafe();
-      breaker.protect(failingTask).runSafe();
+      // TODO: Execute the protected failing task 3 times.
+      //       Use breaker.protect(failingTask).runSafe() to swallow exceptions
+      //       so the loop can drive the circuit through 3 consecutive failures.
+      answerRequired();
 
       // After 3 failures, the circuit should be OPEN
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
@@ -145,13 +147,13 @@ public class Tutorial01_CircuitBreaker {
 
       VTask<String> task = VTask.succeed("Should not execute");
 
-      // Protect the task and execute it with runSafe()
-      Try<String> result = breaker.protect(task).runSafe();
+      // TODO: Protect the task and execute it with runSafe() to obtain Try<String>
+      Try<String> result = answerRequired();
 
       assertThat(result.isFailure()).isTrue();
 
-      // Extract the exception and verify it is a CircuitOpenException
-      Throwable error = result.fold(value -> null, ex -> ex);
+      // TODO: Extract the exception from the Try (hint: result.fold(value -> null, ex -> ex))
+      Throwable error = answerRequired();
 
       assertThat(error).isInstanceOf(CircuitOpenException.class);
       CircuitOpenException coe = (CircuitOpenException) error;
@@ -181,8 +183,8 @@ public class Tutorial01_CircuitBreaker {
 
       VTask<String> task = VTask.succeed("Primary response");
 
-      // Use breaker.protectWithFallback() with a fallback that returns "Fallback response"
-      VTask<String> protectedTask = breaker.protectWithFallback(task, error -> "Fallback response");
+      // TODO: Use breaker.protectWithFallback(task, error -> "Fallback response")
+      VTask<String> protectedTask = answerRequired();
 
       String result = protectedTask.run();
       assertThat(result).isEqualTo("Fallback response");
@@ -211,8 +213,8 @@ public class Tutorial01_CircuitBreaker {
       // Run 1 failed call
       breaker.protect(VTask.fail(new RuntimeException("fail"))).runSafe();
 
-      // Get the metrics from the circuit breaker
-      CircuitBreakerMetrics metrics = breaker.metrics();
+      // TODO: Get the CircuitBreakerMetrics from the breaker (hint: breaker.metrics())
+      CircuitBreakerMetrics metrics = answerRequired();
 
       assertThat(metrics.totalCalls()).isEqualTo(3);
       assertThat(metrics.successfulCalls()).isEqualTo(2);

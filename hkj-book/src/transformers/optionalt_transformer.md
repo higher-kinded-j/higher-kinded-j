@@ -83,13 +83,13 @@ If any step returns empty, subsequent steps are skipped. No manual `orElse` fall
 
 ## The Railway View
 
-<pre style="line-height:1.5;font-size:0.95em">
+<pre class="hkj-railway-diagram">
     <span style="color:#4CAF50"><b>Present</b>  ═══●═══════════●═══════════●═══════════▶  UserPreferences</span>
     <span style="color:#4CAF50">          fetchUser   fetchProfile fetchPrefs</span>
     <span style="color:#4CAF50">          (flatMap)   (flatMap)    (flatMap)</span>
-                  ╲           ╲            ╲
-                   ╲           ╲            ╲  empty: skip remaining steps
-                    ╲           ╲            ╲
+               ╲          ╲             ╲
+                ╲          ╲             ╲  empty: skip remaining steps
+                 ╲          ╲             ╲
     <span style="color:#F44336"><b>Empty</b>    ────●──────────●─────────────●──────────▶  Optional.empty()</span>
     <span style="color:#F44336">        user absent  profile absent  prefs absent</span>
                                           │
@@ -106,7 +106,7 @@ Each `flatMap` runs inside the outer monad `F`. If the inner `Optional` is empty
 
 `OptionalT<F, A>` wraps a computation yielding `Kind<F, Optional<A>>`. It represents an effectful computation in `F` that may or may not produce a value.
 
-<pre style="line-height:1.4;font-size:0.95em;font-family:ui-monospace,SFMono-Regular,'SF Mono','Cascadia Mono','Roboto Mono','DejaVu Sans Mono','Source Code Pro',Menlo,Consolas,monospace,monospace;">
+<pre class="hkj-ascii-diagram">
     ┌──────────────────────────────────────────────────────────┐
     │  OptionalT&lt;CompletableFutureKind.Witness, Value&gt;         │
     │                                                          │

@@ -27,7 +27,7 @@ Higher-Kinded-J provides six transformers, each adding a specific capability to 
 
 ## The Stacking Concept
 
-<pre style="line-height:1.4;font-size:0.95em">
+<pre class="hkj-ascii-diagram">
 <span style="color:#F44336">    ┌─────────────────────────────────────────────────────────────┐
     │  WITHOUT TRANSFORMER                                        │
     │                                                             │

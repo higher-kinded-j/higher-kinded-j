@@ -98,12 +98,12 @@ One comprehension. The log combines via `List`'s `Monoid`. No manual threading.
 
 ## The Railway View
 
-<pre style="line-height:1.5;font-size:0.95em">
+<pre class="hkj-railway-diagram">
     <span style="color:#4CAF50"><b>Value</b>   ═══●═══════════════●═══════════════●═══▶  final price (in F)</span>
     <span style="color:#4CAF50">         applyDiscount   addShipping     yield</span>
     <span style="color:#4CAF50">         (flatMap)       (flatMap)</span>
               │                  │
-              ▼ <i>tell</i>            ▼ <i>tell</i>
+              ▼ <i>tell</i>             ▼ <i>tell</i>
     <span style="color:#FFB300"><b>Log</b>     ──●──────────────●──────────────────────▶  ["Discount", "Shipping"]</span>
     <span style="color:#FFB300">       "Applied 10%"  "Added shipping"</span>
     <span style="color:#FFB300">                  combined via Monoid&lt;List&lt;String&gt;&gt;</span>

@@ -5,7 +5,6 @@ package org.higherkindedj.tutorial.resilience;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.Saga;
@@ -35,10 +34,15 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Requirements: Java 25+ (virtual threads and structured concurrency)
  *
- * <p>Replace each {@code fail("TODO: ...")} with the correct code to make the tests pass.
+ * <p>Replace each {@code answerRequired()} call with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 02: Saga Pattern")
 public class Tutorial02_Saga {
+
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
 
   // ===========================================================================
   // Part 1: Creating Simple Sagas
@@ -59,10 +63,11 @@ public class Tutorial02_Saga {
     void exercise1_createSimpleSaga() {
       AtomicBoolean compensated = new AtomicBoolean(false);
 
-      // Create a saga with Saga.of()
-      Saga<String> saga =
-          Saga.of(
-              VTask.succeed("payment-123"), (Consumer<String>) paymentId -> compensated.set(true));
+      // TODO: Create a Saga<String> using Saga.of() with:
+      //       - forward action: VTask.succeed("payment-123")
+      //       - compensation: a Consumer<String> that sets compensated.set(true)
+      //       Hint: cast the lambda as (Consumer<String>) to disambiguate the overload.
+      Saga<String> saga = answerRequired();
 
       // Execute the saga - since it succeeds, compensation should NOT be called
       String result = saga.run().run();
@@ -79,10 +84,11 @@ public class Tutorial02_Saga {
     @Test
     @DisplayName("Exercise 2: Chain saga steps with andThen")
     void exercise2_chainSagaSteps() {
-      // Chain two saga steps with andThen
-      Saga<String> saga =
-          Saga.of(VTask.succeed("step1-result"), (String _) -> {})
-              .andThen(prev -> Saga.of(VTask.succeed(prev + ":step2-result"), (String _) -> {}));
+      // TODO: Build a Saga<String> by chaining two steps with andThen:
+      //       Step 1: Saga.of(VTask.succeed("step1-result"), (String _) -> {})
+      //       Step 2 (depends on prev): Saga.of(VTask.succeed(prev + ":step2-result"),
+      //                                          (String _) -> {})
+      Saga<String> saga = answerRequired();
 
       String result = saga.run().run();
       assertThat(result).isEqualTo("step1-result:step2-result");
@@ -108,14 +114,11 @@ public class Tutorial02_Saga {
     void exercise3_compensationOnFailure() {
       AtomicBoolean step1Compensated = new AtomicBoolean(false);
 
-      // Create a saga where step 2 fails, triggering step 1 compensation
-      Saga<String> saga =
-          Saga.of(VTask.succeed("ok"), (String _) -> step1Compensated.set(true))
-              .andThen(
-                  _ ->
-                      Saga.of(
-                          VTask.<String>fail(new RuntimeException("step2 failed")),
-                          (String _) -> {}));
+      // TODO: Build a Saga<String> where:
+      //       Step 1 succeeds and its compensation sets step1Compensated to true
+      //       Step 2 fails with VTask.<String>fail(new RuntimeException("step2 failed"))
+      //       The failure of step 2 should cause step 1's compensation to run.
+      Saga<String> saga = answerRequired();
 
       // Execute safely - the saga should fail, triggering compensation
       var tryResult = saga.run().runSafe();
@@ -142,12 +145,11 @@ public class Tutorial02_Saga {
     @Test
     @DisplayName("Exercise 4: Use SagaBuilder for multi-step saga")
     void exercise4_sagaBuilder() {
-      // Use SagaBuilder for fluent multi-step construction
-      Saga<String> saga =
-          SagaBuilder.<Unit>start()
-              .step("charge", VTask.succeed("payment-456"), _ -> {})
-              .step("reserve", prev -> VTask.succeed(prev + ":reserved"), _ -> {})
-              .build();
+      // TODO: Build a Saga<String> using SagaBuilder.<Unit>start() with two named steps:
+      //       .step("charge", VTask.succeed("payment-456"), _ -> {})
+      //       .step("reserve", prev -> VTask.succeed(prev + ":reserved"), _ -> {})
+      //       and finally .build()
+      Saga<String> saga = answerRequired();
 
       String result = saga.run().run();
       assertThat(result).isEqualTo("payment-456:reserved");
@@ -170,8 +172,8 @@ public class Tutorial02_Saga {
                           VTask.<String>fail(new RuntimeException("Network timeout")),
                           (String s) -> {}));
 
-      // Use runSafe() to get Either<SagaError, String>
-      Either<SagaError, String> result = failingSaga.runSafe().run();
+      // TODO: Use failingSaga.runSafe().run() to obtain Either<SagaError, String>
+      Either<SagaError, String> result = answerRequired();
 
       // The result should be a Left containing the SagaError
       assertThat(result.isLeft()).isTrue();

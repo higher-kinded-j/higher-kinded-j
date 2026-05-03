@@ -42,10 +42,15 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Requirements: Java 25+ (virtual threads and structured concurrency)
  *
- * <p>Replace each {@code fail("TODO: ...")} with the correct code to make the tests pass.
+ * <p>Replace each {@code answerRequired()} call with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 04: Path-Based Resilience")
 public class Tutorial04_PathResilience {
+
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
 
   // ===========================================================================
   // Part 1: VTaskPath Retry
@@ -76,9 +81,9 @@ public class Tutorial04_PathResilience {
                 return "success";
               });
 
-      // Add retry using withRetry and a fixed policy
-      VTaskPath<String> retriedPath =
-          unstable.withRetry(RetryPolicy.fixed(3, Duration.ofMillis(10)));
+      // TODO: Add retry to `unstable` using withRetry(...) and a fixed RetryPolicy
+      //       Hint: unstable.withRetry(RetryPolicy.fixed(3, Duration.ofMillis(10)))
+      VTaskPath<String> retriedPath = answerRequired();
 
       String result = retriedPath.unsafeRun();
       assertThat(result).isEqualTo("success");
@@ -114,8 +119,9 @@ public class Tutorial04_PathResilience {
                 throw new RuntimeException("Connection refused");
               });
 
-      // Use catching to wrap the error as Either<String, String>
-      VTaskPath<Either<String, String>> caught = failing.catching(Throwable::getMessage);
+      // TODO: Wrap the failure as Either<String, String> using
+      //       failing.catching(Throwable::getMessage)
+      VTaskPath<Either<String, String>> caught = answerRequired();
 
       Either<String, String> result = caught.unsafeRun();
       assertThat(result.isLeft()).isTrue();
@@ -131,8 +137,8 @@ public class Tutorial04_PathResilience {
                 throw new RuntimeException("Not found");
               });
 
-      // Use asMaybe to convert failure to Nothing
-      VTaskPath<Maybe<String>> maybePath = failing.asMaybe();
+      // TODO: Convert the failure to Nothing using failing.asMaybe()
+      VTaskPath<Maybe<String>> maybePath = answerRequired();
 
       Maybe<String> result = maybePath.unsafeRun();
       assertThat(result.isNothing()).isTrue();
@@ -147,8 +153,8 @@ public class Tutorial04_PathResilience {
                 throw new ArithmeticException("Division by zero");
               });
 
-      // Use asTry to wrap the result in Try<Integer>
-      VTaskPath<Try<Integer>> tryPath = failing.asTry();
+      // TODO: Wrap the result in Try<Integer> using failing.asTry()
+      VTaskPath<Try<Integer>> tryPath = answerRequired();
 
       Try<Integer> result = tryPath.unsafeRun();
       assertThat(result.isFailure()).isTrue();
@@ -178,9 +184,11 @@ public class Tutorial04_PathResilience {
                   .openDuration(Duration.ofSeconds(30))
                   .build());
 
-      // Chain map and withCircuitBreaker
-      VTaskPath<String> protectedPath =
-          Path.vtaskPure(42).map(n -> "Answer: " + n).withCircuitBreaker(breaker);
+      // TODO: Build a VTaskPath<String> by:
+      //       starting with Path.vtaskPure(42)
+      //       mapping it to "Answer: " + n
+      //       protecting with withCircuitBreaker(breaker)
+      VTaskPath<String> protectedPath = answerRequired();
 
       String result = protectedPath.unsafeRun();
       assertThat(result).isEqualTo("Answer: 42");
@@ -219,13 +227,10 @@ public class Tutorial04_PathResilience {
                             return "item-" + n;
                           }));
 
-      // Use recover for both error counting and fallback value
-      VStreamPath<String> safeStream =
-          stream.recover(
-              error -> {
-                errorCount.incrementAndGet();
-                return "recovered";
-              });
+      // TODO: Use stream.recover(error -> ...) to:
+      //       - increment errorCount on each failure
+      //       - return "recovered" as the fallback value
+      VStreamPath<String> safeStream = answerRequired();
 
       List<String> result = safeStream.toList().unsafeRun();
       assertThat(result).containsExactly("item-1", "item-2", "recovered", "item-4", "item-5");
@@ -241,11 +246,10 @@ public class Tutorial04_PathResilience {
     @Test
     @DisplayName("Exercise 5: VStreamPath mapTask with per-element retry")
     void exercise5_vstreamPathMapTask() {
-      AtomicInteger callCount = new AtomicInteger(0);
-
-      // Use mapTask to apply a VTask function to each element
-      VStreamPath<String> processed =
-          Path.vstreamOf("a", "b").mapTask(s -> VTask.succeed(s.toUpperCase()));
+      // TODO: Build a VStreamPath<String> from "a", "b" and apply
+      //       mapTask(s -> VTask.succeed(s.toUpperCase()))
+      //       Hint: Path.vstreamOf("a", "b").mapTask(...)
+      VStreamPath<String> processed = answerRequired();
 
       List<String> result = processed.toList().unsafeRun();
       assertThat(result).containsExactly("A", "B");
@@ -273,19 +277,15 @@ public class Tutorial04_PathResilience {
       CircuitBreaker breaker = CircuitBreaker.withDefaults();
       AtomicInteger attempts = new AtomicInteger(0);
 
-      // Build VTaskContext with retry, circuit breaker, and recovery
-      VTaskContext<String> ctx =
-          VTaskContext.<String>of(
-                  () -> {
-                    int attempt = attempts.incrementAndGet();
-                    if (attempt < 2) {
-                      throw new RuntimeException("fail");
-                    }
-                    return "context-result";
-                  })
-              .retry(3, Duration.ofMillis(10))
-              .withCircuitBreaker(breaker)
-              .recover(error -> "fallback");
+      // TODO: Build a VTaskContext<String> by chaining:
+      //       VTaskContext.<String>of(() -> { ...attempt logic... })
+      //         .retry(3, Duration.ofMillis(10))
+      //         .withCircuitBreaker(breaker)
+      //         .recover(error -> "fallback")
+      //
+      //       The supplier should increment attempts; throw on attempt < 2;
+      //       otherwise return "context-result".
+      VTaskContext<String> ctx = answerRequired();
 
       // VTaskContext.run() returns Try<String>
       Try<String> result = ctx.run();

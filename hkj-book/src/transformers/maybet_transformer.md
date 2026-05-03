@@ -78,13 +78,13 @@ If `fetchUserAsync` returns `Nothing`, the preferences lookup is skipped entirel
 
 ## The Railway View
 
-<pre style="line-height:1.5;font-size:0.95em">
+<pre class="hkj-railway-diagram">
     <span style="color:#4CAF50"><b>Just</b>     ═══●═══════════════●═══════════════════▶  UserPreferences</span>
     <span style="color:#4CAF50">          fetchUser       fetchPreferences</span>
     <span style="color:#4CAF50">          (flatMap)        (flatMap)</span>
-                  ╲               ╲
-                   ╲               ╲  Nothing: skip remaining steps
-                    ╲               ╲
+               ╲                ╲
+                ╲                ╲  Nothing: skip remaining steps
+                 ╲                ╲
     <span style="color:#F44336"><b>Nothing</b>  ────●────────────────●──────────────────▶  Nothing</span>
     <span style="color:#F44336">         user absent     prefs absent</span>
                                     │
@@ -101,7 +101,7 @@ Each `flatMap` runs inside the outer monad `F`. If the inner `Maybe` is `Nothing
 
 `MaybeT<F, A>` wraps a computation yielding `Kind<F, Maybe<A>>`. It represents an effectful computation in `F` that may produce `Just(value)` or `Nothing`.
 
-<pre style="line-height:1.4;font-size:0.95em;font-family:ui-monospace,SFMono-Regular,'SF Mono','Cascadia Mono','Roboto Mono','DejaVu Sans Mono','Source Code Pro',Menlo,Consolas,monospace,monospace;">
+<pre class="hkj-ascii-diagram">
     ┌──────────────────────────────────────────────────────────┐
     │  MaybeT&lt;CompletableFutureKind.Witness, Value&gt;            │
     │                                                          │

@@ -13,6 +13,7 @@ The solution files mirror the structure of the tutorial files, but with all `___
 - `coretypes/` - Solutions for Core Types tutorials (01-07)
 - `optics/` - Solutions for Optics tutorials (01-07)
 - `transformers/` - Solutions for Monad Transformers tutorials (01-04)
+- `resilience/` - Solutions for Resilience Patterns tutorials (01-04)
 
 Each solution file:
 - Has the same structure as the corresponding tutorial
