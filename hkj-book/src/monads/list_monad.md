@@ -48,8 +48,6 @@ Each `flatMap` expands one level of the search tree. No nested loops, no manual 
 
 ## Core Components
 
-![list_monad.svg](../images/puml/list_monad.svg)
-
 | Component | Role |
 |-----------|------|
 | `List<A>` | Standard Java list — the underlying data structure |
@@ -159,6 +157,25 @@ Kind<ListKind.Witness, String> results = listMonad.ap(functions, inputs);
 
 This is the same Cartesian product shown in the diagram above — 2 functions applied to 2 values yields 4 results.
 ~~~
+
+---
+
+## Back to the One-Liner
+
+`List` does not appear in the Foundations one-liner because that line operates on a single record. The shape changes as soon as the request is "do this for every item":
+
+```java
+LIST.widen(repo.findAll(query))
+    .traverse(eitherApplicative,
+              node -> Path.either(node)
+                          .focus().attributes().at(key)
+                          .modify(spec::validateAndCoerce)
+                          .flatMap(repo::save));
+```
+
+`List`'s role here is the structure being walked; `traverse` flips it inside out so a `List<EitherPath<E, Node>>` becomes an `EitherPath<E, List<Node>>`. The same focus / modify / save skeleton runs once per item, and the whole batch either succeeds or surfaces the first failure. `ListMonad` is what makes `List` participate in `traverse` and the rest of the generic combinators.
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Foldable & Traverse](../functional/foldable_and_traverse.md) for what `traverse` is doing here.
 
 ## When to Use ListMonad
 

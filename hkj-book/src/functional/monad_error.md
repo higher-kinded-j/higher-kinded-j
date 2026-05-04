@@ -2,95 +2,93 @@
 
 > *"The test of a first-rate intelligence is the ability to hold two opposed ideas in mind at the same time."*
 >
-> -- F. Scott Fitzgerald, *The Crack-Up*
+> – F. Scott Fitzgerald, *The Crack-Up*
 
-A resilient workflow must hold two paths in mind simultaneously: the path where everything succeeds, and the path where things go wrong. `MonadError` gives you the tools to express both cleanly.
+A resilient workflow holds two paths in mind simultaneously: the path where everything succeeds, and the path where things go wrong. `MonadError` is the type class that lets us spell both cleanly, in the same code, without sliding into nested try/catch.
 
-~~~admonish info title="What You'll Learn"
-- How MonadError extends Monad with explicit error handling capabilities
-- Using `raiseError` to create failed computations
-- Recovering from errors with `handleErrorWith` and `handleError`
-- Building multi-step workflows with typed errors and layered recovery
-- Writing generic, resilient code that works with any error-capable monad
+~~~admonish info title="What We'll Learn"
+- How `MonadError` extends `Monad` with a typed notion of failure
+- Using `raiseError` to construct a failed computation declaratively
+- Recovering with `handleErrorWith` (effect-level) and `handleError` (value-level)
+- Chaining recovery so each fallback only fires when the previous one fails
+- Where `MonadError` shows up inside the Foundations one-liner
 ~~~
 
 ~~~admonish example title="Hands-On Practice"
 [Tutorial05_MonadErrorHandling.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial05_MonadErrorHandling.java)
 ~~~
 
-## The Problem: Scattered Try-Catch Blocks
+## The Problem: Scattered Try-Catch
 
-Consider a configuration loading workflow: parse a file, validate settings, then connect to a database. Each step can fail with a meaningful error, and you want to handle each failure differently. With imperative Java, you end up with scattered, nested try-catch blocks:
+A configuration loader parses a file, validates the parsed settings, then opens a database connection. Each step can fail with a meaningful error, and we want different recovery for each. In imperative Java, we end up with nested try/catch:
 
 ```java
-// Imperative error handling: scattered and hard to compose
 try {
     Config config = parseConfigFile(path);
     try {
         Settings settings = validateSettings(config);
         try {
-            Connection conn = connectToDatabase(settings);
-            return conn;
+            return connectToDatabase(settings);
         } catch (DbException e) {
-            return connectToFallbackDb(settings); // recovery
+            return connectToFallbackDb(settings);
         }
     } catch (ValidationException e) {
         log.error("Bad config: " + e.getMessage());
-        throw e; // no recovery possible
+        throw e;
     }
 } catch (ParseException e) {
-    return loadDefaultConfig(); // fallback to defaults
+    return loadDefaultConfig();
 }
 ```
 
-The error handling logic is tangled with the business logic. Recovery strategies are buried inside catch blocks. And composing or reusing this code is painful.
+Three levels of nesting, three different recovery rules, and the business logic is sandwiched between them. Reordering the steps means re-arranging the pyramid. Adding a fourth step means adding a fourth level. Reading the code top to bottom does not tell us what the workflow *does*; it tells us how the author chose to indent.
 
 ---
 
 ## The Solution: `raiseError` and `handleErrorWith`
 
-**`MonadError`** extends `Monad` with two fundamental operations that formalise the "try-catch" pattern in a purely functional way:
+`MonadError` extends `Monad` with two operations that turn try/catch inside out.
 
-1. **`raiseError(E error)`** -- Constructs a failed computation by lifting an error into the monadic context.
-2. **`handleErrorWith(fa, handler)`** -- Inspects a potential failure and provides a fallback computation.
+1. **`raiseError(E error)`** constructs a failed computation by lifting an error into the monadic context.
+2. **`handleErrorWith(fa, handler)`** inspects a failure and provides a fallback computation.
 
 ```
-  raiseError("config not found")
-       |
-       v
-  Kind<F, A> = Left("config not found")
-       |
-       +-- handleErrorWith --> recovery function --> Kind<F, A> = Right(defaults)
-       |
-       +-- (if no handler) --> propagates as Left("config not found")
+   raiseError("config not found")
+        │
+        ▼
+   Kind<F, A>  =  Left("config not found")
+        │
+        ├── handleErrorWith ──> recovery function ──> Kind<F, A> = Right(defaults)
+        │
+        └── (no handler)     ──> propagates as Left("config not found")
 ```
 
-Here is the same configuration workflow, rewritten with `MonadError` using `Either<String, A>`:
+The same workflow, rebuilt with `MonadError` over `Either<String, A>`:
 
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
-MonadError<Either.Witness<String>, String> me = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> me = EitherMonad.instance();
 
-// Each step returns Either<String, T>, using raiseError for failures
-public Kind<Either.Witness<String>, Config> parseConfig(String path) {
+public Kind<EitherKind.Witness<String>, Config> parseConfig(String path) {
     if (!Files.exists(Path.of(path))) {
         return me.raiseError("Config file not found: " + path);
     }
     return me.of(Config.parse(path));
 }
 
-public Kind<Either.Witness<String>, Settings> validate(Config config) {
+public Kind<EitherKind.Witness<String>, Settings> validate(Config config) {
     if (config.dbHost().isBlank()) {
         return me.raiseError("Missing required setting: db.host");
     }
     return me.of(Settings.from(config));
 }
 
-public Kind<Either.Witness<String>, Connection> connect(Settings settings) {
+public Kind<EitherKind.Witness<String>, Connection> connect(Settings settings) {
     if (!settings.isReachable()) {
         return me.raiseError("Cannot reach database: " + settings.dbHost());
     }
@@ -98,26 +96,25 @@ public Kind<Either.Witness<String>, Connection> connect(Settings settings) {
 }
 
 // Compose the workflow with flatMap, then layer recovery on top
-Kind<Either.Witness<String>, Connection> workflow =
+Kind<EitherKind.Witness<String>, Connection> workflow =
     me.flatMap(config ->
         me.flatMap(settings ->
             connect(settings),
-            validate(config)),
-        parseConfig("/etc/app.conf"));
+        validate(config)),
+    parseConfig("/etc/app.conf"));
 
 // Recover from connection failures by trying a fallback database
-Kind<Either.Witness<String>, Connection> resilient = me.handleErrorWith(
+Kind<EitherKind.Witness<String>, Connection> resilient = me.handleErrorWith(
     workflow,
     error -> {
         if (error.startsWith("Cannot reach database")) {
             return connect(Settings.fallback());
         }
-        return me.raiseError(error); // re-raise other errors
-    }
-);
+        return me.raiseError(error);
+    });
 ```
 
-The business logic reads top-to-bottom. Recovery strategies are layered on separately, and the whole thing composes cleanly.
+The business logic reads top to bottom. Recovery is a separate layer applied at the end. Re-ordering steps means re-ordering `flatMap` calls; adding a step means adding a `flatMap` call. The shape of the code matches the shape of the problem.
 
 ---
 
@@ -126,16 +123,16 @@ The business logic reads top-to-bottom. Recovery strategies are layered on separ
 @NullMarked
 public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends Monad<F> {
 
-  <A> @NonNull Kind<F, A> raiseError(@Nullable final E error);
+  <A> @NonNull Kind<F, A> raiseError(@Nullable E error);
 
   <A> @NonNull Kind<F, A> handleErrorWith(
-      final Kind<F, A> ma,
-      final Function<? super E, ? extends Kind<F, A>> handler);
+      Kind<F, A> ma,
+      Function<? super E, ? extends Kind<F, A>> handler);
 
-  // Value-level recovery (unwraps the error into a plain value)
+  // Value-level recovery; the handler returns a plain A which is auto-lifted
   default <A> @NonNull Kind<F, A> handleError(
-      final Kind<F, A> ma,
-      final Function<? super E, ? extends A> handler) {
+      Kind<F, A> ma,
+      Function<? super E, ? extends A> handler) {
     return handleErrorWith(ma, error -> of(handler.apply(error)));
   }
 }
@@ -148,80 +145,105 @@ public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends 
 
 ### Value-Level Recovery with `handleError`
 
-**The problem:** An operation might fail, but you have a sensible default value.
+**The problem.** An operation might fail, and we have a sensible default value sitting in plain Java.
 
-**The solution:** `handleError` unwraps the error and maps it to a plain value, automatically lifting the result back into the monadic context.
+**The solution.** `handleError` takes a function `E -> A` and lifts the result back into the monad for us.
 
 ```java
-MonadError<Either.Witness<String>, String> me = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> me = EitherMonad.instance();
 
-Kind<Either.Witness<String>, Integer> safeDivide(int a, int b) {
+Kind<EitherKind.Witness<String>, Integer> safeDivide(int a, int b) {
     return b == 0
         ? me.raiseError("Cannot divide by zero")
         : me.of(a / b);
 }
 
-// Value-level recovery: error -> default value
-Kind<Either.Witness<String>, Integer> result = me.handleError(
+Kind<EitherKind.Witness<String>, Integer> result = me.handleError(
     safeDivide(10, 0),
-    error -> 0  // plain value, not wrapped in Either
-);
-// Result: Right(0)
+    error -> 0);
+// Right(0)
 ```
 
 ### Effect-Level Recovery with `handleErrorWith`
 
-**The problem:** Recovery itself might fail (e.g., trying a fallback service that could also be unavailable).
+**The problem.** Recovery itself might fail. Falling back to a secondary database is no good if that database is also down.
 
-**The solution:** `handleErrorWith` lets the recovery function return a new monadic value, which can be either a success or another failure.
+**The solution.** `handleErrorWith` takes `E -> Kind<F, A>`. The recovery function can return a success, another failure, or whatever the type allows.
 
 ```java
-// Effect-level recovery: error -> new monadic computation
-Kind<Either.Witness<String>, Integer> result = me.handleErrorWith(
+Kind<EitherKind.Witness<String>, Integer> result = me.handleErrorWith(
     safeDivide(10, 0),
     error -> {
         log.warn("Division failed: " + error + ", trying alternative");
-        return safeDivide(10, 2); // fallback computation that could also fail
-    }
-);
-// Result: Right(5)
+        return safeDivide(10, 2);
+    });
+// Right(5)
 ```
 
 ### Chained Recovery
 
-**The problem:** You have multiple fallback strategies, each of which might fail.
+**The problem.** Several fallbacks, each able to fail.
 
-**The solution:** Chain `handleErrorWith` calls to try each fallback in order.
+**The solution.** Stack `handleErrorWith` calls. Each layer only triggers when the previous one is still failing.
 
 ```java
-Kind<Either.Witness<String>, Config> config =
+Kind<EitherKind.Witness<String>, Config> config =
     me.handleErrorWith(
         me.handleErrorWith(
             loadConfigFromFile(),
-            err1 -> loadConfigFromEnv()),
-        err2 -> me.of(Config.defaults())
-    );
-// Tries file first, then environment, then defaults
+            e -> loadConfigFromEnv()),
+        e -> me.of(Config.defaults()));
+// File first, then environment, then defaults
 ```
+
+For longer fallback chains, [Effect Path's `recoverWith`](../effect/path_either.md) reads more naturally; the same logic, less ceremony.
+
+---
+
+## Back to the One-Liner
+
+In the line we keep returning to:
+
+```java
+repo.find(id)
+    .toEitherPath()                  // <-- raiseError equivalent: absence becomes a typed Left
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)
+    .flatMap(repo::save);
+```
+
+`.toEitherPath()` is the user-facing surface of `raiseError` for the absence case: a missing record becomes a typed `Left` carrying the not-found story. Anywhere downstream we wanted to recover, `handleErrorWith` (or its Effect Path sibling `recoverWith`) is the door we would walk through. We did not need either in this line because the contract of the service method is "fail loudly to the caller", but the moment we want a per-error recovery rule, `MonadError` is the layer that hosts it.
+
+---
+
+## Things People Get Wrong
+
+~~~admonish warning title="Common Misunderstandings"
+- **"`raiseError` throws an exception."** It does not. It constructs a value of `Kind<F, A>` that *represents* failure. Nothing is thrown, and the rest of the chain politely skips itself. The thrown-exception equivalent is `IO.delay(() -> { throw ...; })`, and even that does not throw until interpretation.
+- **"`handleErrorWith` and a try/catch are the same."** Mechanically similar, semantically different. A try/catch is wired to call-stack unwinding; `handleErrorWith` is just a function call that runs on a value. The latter composes; the former does not.
+- **"I have to use `Either`."** Any `MonadError` instance works: `Try`, `Validated` (in its Monad shape), `CompletableFutureMonad`, `IOMonad`, the `*Path` types. Pick the error type that fits the domain; the recovery story is the same.
+- **"Recovery is for the end of the chain."** It can be anywhere. Layering `handleErrorWith` between two `flatMap` calls is the way we say "if step three fails, try step three again with a different argument before continuing".
+~~~
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **`raiseError`** creates a failed computation declaratively, without throwing exceptions
-* **`handleErrorWith`** provides effect-level recovery where the fallback can itself fail
-* **`handleError`** provides value-level recovery with a plain default value
-* **Recovery composes** by chaining handlers; each layer catches what the previous one missed
-* **Generic code** written against `MonadError<F, E>` works with `Either`, `Try`, or any error-capable monad
+* `raiseError` creates a failed computation declaratively, with no thrown exception
+* `handleErrorWith` is effect-level recovery; the handler can itself succeed or fail
+* `handleError` is value-level recovery; the handler returns a plain value that is auto-lifted
+* Recovery composes by stacking; each layer only fires when the previous one is still failing
+* Code written against `MonadError<F, E>` works with `Either`, `Try`, `Validated`, `IO`, or any other error-capable monad
 ~~~
 
 ~~~admonish tip title="See Also"
 - [Monad](monad.md) - The base type class that MonadError extends
 - [Either](../monads/either_monad.md) - The most common MonadError instance for typed errors
 - [Try](../monads/try_monad.md) - MonadError specialised for `Throwable` errors
+- [One Line, Six Layers](../hkts/one_line_six_layers.md) - Where this fits in the wider Foundations picture
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Baeldung**: [Functional Error Handling in Java](https://www.baeldung.com/java-functional-programming) - Practical guide to functional patterns in Java
+- **Baeldung**: [Functional Programming in Java](https://www.baeldung.com/java-functional-programming) - Practical guide to functional patterns in Java
 - **Mark Seemann**: [An Either Functor](https://blog.ploeh.dk/2019/01/07/either-bifunctor/) - Step-by-step introduction to Either as a functional error-handling tool
 ~~~
 

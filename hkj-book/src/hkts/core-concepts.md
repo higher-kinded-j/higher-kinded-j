@@ -59,10 +59,58 @@ This compile-time constraint prevents accidental misuse of witness types and ena
   * `EitherKind.Witness<L> implements WitnessArity<TypeArity.Unary>` represents the `Either<L, _>` type constructor (where `L` is fixed).
   * `IOKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `IO` type constructor.
 * **`A` (Type Argument):** The concrete type contained within or parametrised by the constructor (e.g., `Integer` in `List<Integer>`).
-* **How it Works:** The library provides a seamless bridge between a standard java type, like a `java.util.List<Integer>`and its `Kind` representation `Kind<ListKind.Witness, Integer>`. Instead of requiring you to manually wrap objects, this conversion is handled by static helper methods, typically `widen` and `narrow`.
-  * To treat a `List<Integer>` as a `Kind`, you use a helper function like `LIST.widen()`.
+* **How it Works:** The library provides a seamless bridge between a standard java type, like a `java.util.List<Integer>`and its `Kind` representation `Kind<ListKind.Witness, Integer>`. Instead of requiring us to manually wrap objects, this conversion is handled by static helper methods, typically `widen` and `narrow`.
+  * To treat a `List<Integer>` as a `Kind`, we use a helper function like `LIST.widen()`.
   * This `Kind` object can then be passed to generic functions (such as `map` or `flatMap` from a `Functor` or `Monad` instance) that expect `Kind<F, A>`.
 * **Reference:** [`Kind.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Kind.java)
+
+### One Round-Trip, Step by Step
+
+The diagram below traces a single `flatMap` call from user code, through `widen`, into the type-class instance, and back out via `narrow`. It is the runtime picture that the rest of this section describes in prose.
+
+```
+   user code                helper                  type-class instance        underlying type
+
+   Either.right(10)
+        │
+        ▼
+   EITHER.widen(start)  ──▶  null check
+                              │
+                              │ (Either<L,R> already implements EitherKind<L,R>)
+                              │
+                              ▼
+                          typed cast (zero allocation)
+        │
+        ▼
+   Kind<EitherKind.Witness<String>, Integer>
+        │
+        ▼
+   monad.flatMap(f, kind) ──────────────────▶  EitherMonad.flatMap
+                                                    │
+                                                    │ EITHER.narrow(kind)
+                                                    │     │
+                                                    │     ▼
+                                                    │  Either<String, Integer>
+                                                    │
+                                                    │ either.flatMap(f) ──────▶ apply f to Right(10)
+                                                    │                          │
+                                                    │                          ▼
+                                                    │                       new Kind from f
+                                                    ◀──────────────────────
+        │
+        ▼
+   Kind<EitherKind.Witness<String>, String>
+        │
+        ▼
+   EITHER.narrow(result) ──▶  null check
+                              │
+                              │ instanceof Either, cast
+                              │
+                              ▼
+   Either<String, String>      (Right("v=10"))
+```
+
+For a deeper, line-by-line walk-through with allocation costs, see [Lifting the Hood](lifting_the_hood.md).
 
 ~~~admonish tip
 For quick definitions of HKT concepts like Kind, Witness Types, and Defunctionalisation, see the [Glossary](../glossary.md).
@@ -103,7 +151,7 @@ All type classes require that `F` extends `WitnessArity<?>`, ensuring only valid
 
 ## 4. Defunctionalisation (Per Type Constructor)
 
-For each Java type constructor (like `List`, `Optional`, `IO`) you want to simulate as a Higher-Kinded Type, a specific pattern involving several components is used. The exact implementation differs slightly depending on whether the type is defined *within* the Higher-Kinded-J library (e.g., `Id`, `Maybe`, `IO`, monad transformers) or if it's an *external type* (e.g., `java.util.List`, `java.util.Optional`, `java.util.concurrent.CompletableFuture`).
+For each Java type constructor (like `List`, `Optional`, `IO`) we want to simulate as a Higher-Kinded Type, a specific pattern involving several components is used. The exact implementation differs slightly depending on whether the type is defined *within* the Higher-Kinded-J library (e.g., `Id`, `Maybe`, `IO`, monad transformers) or if it's an *external type* (e.g., `java.util.List`, `java.util.Optional`, `java.util.concurrent.CompletableFuture`).
 
 **Common Components:**
 
@@ -138,7 +186,7 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
     * `XxxKindHelper.narrow(Kind<IOKind.Witness, A> kind)` would check `instanceof IO` and perform a cast.
     * This approach provides **zero runtime overhead** for widen/narrow operations (no wrapper object allocation) and improved debugging experience (actual types visible in stack traces).
 
-This distinction is important for understanding how `wrap` and `unwrap` function for different types. However, from the perspective of a user of a type class instance (like `OptionalMonad`), the interaction remains consistent: you provide a `Kind` object, and the type class instance handles the necessary operations.
+This distinction is important for understanding how `wrap` and `unwrap` function for different types. However, from the perspective of a user of a type class instance (like `OptionalMonad`), the interaction remains consistent: we provide a `Kind` object, and the type class instance handles the necessary operations.
 
 ## 5. The `Unit` Type
 

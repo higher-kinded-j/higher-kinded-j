@@ -17,13 +17,14 @@
 
 The `Try<T>` type in the `Higher-Kinded-J` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.  We can think of it as an `Either` where the `Left` is an `Exception`, but also using try-catch blocks behind the scene, so that we don’t have to.
 
-**Try Type**
+```java
+public sealed interface Try<T> permits Try.Success, Try.Failure { ... }
 
-![try_type.svg](../images/puml/try_type.svg)
+record Success<T>(T value)        implements Try<T> { ... }
+record Failure<T>(Throwable cause) implements Try<T> { ... }
+```
 
-**Monadic Structure**
-
-![try_monad.svg](../images/puml/try_monad.svg)
+Two cases, one carrying a value and one carrying the `Throwable` that the JVM would otherwise have flung at us.
 
 Key benefits include:
 
@@ -227,6 +228,24 @@ System.out.println(flatMappedTry);
 System.out.println(handledTry);
 ```
 ~~~
+
+---
+
+## Back to the One-Liner
+
+`Try` does not appear by name in the Foundations one-liner, but it sits one short hop away. The same skeleton works for any operation that throws:
+
+```java
+TRY.of(() -> riskyParse(input))
+    .toEitherPath()
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)
+    .flatMap(repo::save);
+```
+
+`Try` captures the exception as a `Failure` value; `.toEitherPath()` then converts that value into a typed `Left` carrying whatever error type the rest of the chain expects. From there, the same `Functor`, `Monad`, and optic machinery as the original line takes over. Everywhere we would have used `Either<Throwable, A>`, `Try` is the cleaner spelling for the cases where a Java API made the choice for us.
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Natural Transformation](../functional/natural_transformation.md) for what `.toEitherPath()` is doing under the hood.
 
 ---
 

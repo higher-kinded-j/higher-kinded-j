@@ -73,11 +73,6 @@ Ask yourself: "Does step B need the **result** of step A?"
 
 ## Core Structure
 
-![free_ap_structure.svg](../images/puml/free_ap_structure.svg)
-
-![free_ap_applicative.svg](../images/puml/free_ap_applicative.svg)
-
-
 `FreeAp<F, A>` is a sealed interface with three constructors:
 
 ```java
@@ -152,9 +147,9 @@ To execute a `FreeAp` program, provide a natural transformation and an `Applicat
 Natural<DbOpKind.Witness, IOKind.Witness> interpreter = fa -> {
     DbOp<?> op = DB_OP.narrow(fa);
     return switch (op) {
-        case GetUser g -> IO.widen(IO.of(() -> database.findUser(g.id())));
-        case GetPosts g -> IO.widen(IO.of(() -> database.findPosts(g.userId())));
-        case GetNotifications g -> IO.widen(IO.of(() -> database.findNotifications(g.userId())));
+        case GetUser g -> IO_OP.widen(IO.delay(() -> database.findUser(g.id())));
+        case GetPosts g -> IO_OP.widen(IO.delay(() -> database.findPosts(g.userId())));
+        case GetNotifications g -> IO_OP.widen(IO.delay(() -> database.findNotifications(g.userId())));
     };
 };
 
@@ -169,13 +164,13 @@ The power of Free Applicative emerges when the target `Applicative` supports par
 
 ```java
 // Interpreter to CompletableFuture (can run in parallel)
-Natural<DbOpKind.Witness, CFKind.Witness> parallelInterpreter = fa -> {
+Natural<DbOpKind.Witness, CompletableFutureKind.Witness> parallelInterpreter = fa -> {
     DbOp<?> op = DB_OP.narrow(fa);
     return switch (op) {
-        case GetUser g -> CF.widen(
+        case GetUser g -> FUTURE.widen(
             CompletableFuture.supplyAsync(() -> database.findUser(g.id()))
         );
-        case GetPosts g -> CF.widen(
+        case GetPosts g -> FUTURE.widen(
             CompletableFuture.supplyAsync(() -> database.findPosts(g.userId()))
         );
     };
@@ -183,7 +178,7 @@ Natural<DbOpKind.Witness, CFKind.Witness> parallelInterpreter = fa -> {
 
 // When interpreted, GetUser and GetPosts can run in parallel!
 FreeAp<DbOp, UserProfile> program = userFetch.map2(postsFetch, UserProfile::new);
-Kind<CFKind.Witness, UserProfile> future = program.foldMap(parallelInterpreter, cfApplicative);
+Kind<CompletableFutureKind.Witness, UserProfile> future = program.foldMap(parallelInterpreter, cfApplicative);
 ```
 
 Because the Free Applicative structure makes independence explicit, the `CompletableFuture` applicative can start both operations immediately rather than waiting for one to complete.

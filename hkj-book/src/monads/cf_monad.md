@@ -34,14 +34,6 @@ The `CompletableFutureMonad` gives you a structured alternative: standard `map`,
 
 ## Core Components
 
-**Higher-Kinded Bridge for CompletableFuture**
-
-![cf_kind.svg](../images/puml/cf_kind.svg)
-
-**TypeClasses**
-
-![cf_monad.svg](../images/puml/cf_monad.svg)
-
 The simulation for `CompletableFuture` involves these key pieces:
 
 | Component | Role |
@@ -200,6 +192,23 @@ This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which retu
 The handler receives the *cause* of the failure, unwrapped from `CompletionException` when necessary. This lets you pattern-match on specific exception types and choose recovery strategies — retry, fallback, or re-raise — all within the same compositional pipeline.
 ~~~
 
+---
+
+## Back to the One-Liner
+
+The Foundations one-liner is synchronous, but the same skeleton works unchanged when the repository operations are asynchronous:
+
+```java
+FUTURE.widen(repo.findAsync(id))
+    .toEitherPath()
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)
+    .flatMap(node -> FUTURE.widen(repo.saveAsync(node)));
+```
+
+`CompletableFutureMonad.flatMap` is the layer dispatched here, and it sequences the asynchronous steps without us writing a single `thenCompose` by hand. Failures (a `CompletionException` carrying our domain error, or a network blip) flow through `MonadError` recovery the same way `Either` errors do in the synchronous version. One mental model, two execution profiles.
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [VTask](./vtask_monad.md) when structured concurrency on virtual threads is the better fit.
 
 ## When to Use CompletableFutureMonad
 

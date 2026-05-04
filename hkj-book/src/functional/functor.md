@@ -1,129 +1,158 @@
 # Functor: The "Mappable" Type Class
 
-~~~admonish info title="What You'll Learn"
-- How to transform values inside containers without changing the container structure
-- The difference between regular functions and functorial mapping
-- Functor laws (identity and composition) and why they matter
-- How to use Functor instances with List, Optional, and other containers
-- When to choose Functor over direct method calls
+~~~admonish info title="What We'll Learn"
+- How `Functor` formalises an operation we have already used a hundred times
+- The two laws every honest `Functor` obeys, and why the laws are easier than they look
+- How a single `map` method dispatches to `Optional`, `List`, `Either`, `IO`, `MaybePath`, and friends
+- Where `Functor` shows up inside the Foundations one-liner
 ~~~
 
 ~~~admonish example title="Hands-On Practice"
 [Tutorial02_FunctorMapping.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial02_FunctorMapping.java)
 ~~~
 
-At the heart of functional programming is the ability to transform data within a container without having to open it. The **`Functor`** type class provides exactly this capability. It's the simplest and most common abstraction for any data structure that can be "mapped over."
+We have all written this code:
 
-If you've ever used `Optional.map()` or `Stream.map()`, you've already been using the Functor pattern! Higher-Kinded-J simply formalises this concept so you can apply it to any data structure.
+```java
+optional.map(String::length);
+list.stream().map(String::length).toList();
+completableFuture.thenApply(String::length);
+maybePath.map(String::length);
+```
+
+Four method calls, four containers, the same shape. `Functor` is the name of that shape. If we can write `map` for some container `F` such that the laws below hold, then `F` *is* a `Functor`. That is the entire idea, and most of the type classes in this chapter follow the same pattern: they name a capability we already use without naming.
 
 ---
 
-## What Does It Do?
+## What `Functor` Lets Us Do
 
-A **`Functor`** is a type class for any data structure `F` that supports a `map` operation. This operation takes a function from `A -> B` and applies it to the value(s) inside a container `F<A>`, producing a new container `F<B>` of the same shape.
+A `Functor` is a container `F` that supports a single operation:
 
-Think of a `Functor` as a generic "box" that holds a value. The `map` function lets you transform the contents of the box without ever taking the value out. Whether the box is an `Optional` that might be empty, a `List` with many items, or a `Try` that might hold an error, the mapping logic remains the same.
+> Given a function `A -> B` and an `F<A>`, produce an `F<B>` by applying the function inside the container.
+
+The container's *shape* never changes. A `List` of three elements maps to a `List` of three elements. An `Optional.empty()` maps to an `Optional.empty()`. A failed `Try` maps to the same failed `Try`. The function only ever sees the values, never the container.
 
 ~~~admonish note title="Interface Signature"
-``` java
+```java
 public interface Functor<F extends WitnessArity<TypeArity.Unary>> {
-  <A, B> @NonNull Kind<F, B> map(final Function<? super A, ? extends B> f, final Kind<F, A> fa);
+  <A, B> @NonNull Kind<F, B> map(
+      Function<? super A, ? extends B> f,
+      Kind<F, A> fa);
 }
 ```
 
-* `f`: The function to apply to the value inside the Functor.
-* `fa`: The higher-kinded `Functor` instance (e.g., a `Kind<Optional.Witness, String>`).
-* The `F extends WitnessArity<TypeArity.Unary>` bound ensures that only valid unary witness types can be used with Functor.
+`F` is a witness type standing in for the container. `Kind<F, A>` is "some container `F` holding an `A`". The `Functor<F>` instance is the implementation that knows how to map inside that specific container.
 ~~~
 
 ---
 
-### The Functor Laws
+## Two Laws That Keep Us Honest
 
-For a `Functor` implementation to be lawful, it must obey two simple rules. These ensure that the `map` operation is predictable and doesn't have unexpected side effects.
+A `Functor` instance has to obey two rules, and once we have read them we will realise we have always assumed them anyway.
 
-1. **Identity Law**: Mapping with the identity function (`x -> x`) should change nothing.
+**1. Identity.** Mapping with the identity function changes nothing.
 
-   ``` java
-   functor.map(x -> x, fa); // This must be equivalent to fa
-   ```
-2. **Composition Law**: Mapping with two functions composed together is the same as mapping with each function one after the other.
+```java
+functor.map(x -> x, fa).equals(fa);
+```
 
-   ``` java
-   Function<A, B> f = ...;
-   Function<B, C> g = ...;
+**2. Composition.** Mapping with `f` and then with `g` is the same as mapping once with `g.compose(f)`.
 
-   // This...
-   functor.map(g.compose(f), fa);
+```java
+functor.map(g, functor.map(f, fa))
+    .equals(functor.map(g.compose(f), fa));
+```
 
-   // ...must be equivalent to this:
-   functor.map(g, functor.map(f, fa));
-   ```
-
-These laws ensure that `map` is only about transformation and preserves the structure of the data type.
+Together, these rules say *map only transforms the values; it never tampers with the container*. Anything that violated them would surprise us in unpleasant ways: a `Functor` that quietly dropped elements during identity mapping, or that produced different results depending on whether we composed before or after mapping. We are unlikely to write one by accident, but the laws are worth keeping in mind when defining instances for our own types.
 
 ---
 
-### Practical Example: Mapping over `Optional` and `List`
+## A Single `map`, Five Different Containers
 
-Let's see how we can use the `Functor` instances for `Optional` and `List` to apply the same logic to different data structures.
+The reason `Functor` earns its keep in Higher-Kinded-J is that we can write code once and dispatch to whichever container the caller hands us.
 
-``` java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.list.ListFunctor;
-import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.optional.OptionalFunctor;
-import org.higherkindedj.hkt.optional.OptionalKind;
-import java.util.List;
-import java.util.Optional;
+```java
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-
-// Our function that we want to apply
 Function<String, Integer> stringLength = String::length;
 
-// --- Scenario 1: Mapping over an Optional ---
-Functor<OptionalKind.Witness> optionalFunctor = OptionalFunctor.INSTANCE;
+Functor<OptionalKind.Witness> optFunctor = OptionalFunctor.INSTANCE;
+Functor<ListKind.Witness>     listFunctor = ListFunctor.INSTANCE;
 
-Kind<OptionalKind.Witness, String> optionalWithValue = OPTIONAL.widen(Optional.of("Hello"));
-Kind<OptionalKind.Witness, String> optionalEmpty = OPTIONAL.widen(Optional.empty());
+Kind<OptionalKind.Witness, String> presentName = OPTIONAL.widen(Optional.of("Hello"));
+Kind<OptionalKind.Witness, String> absentName  = OPTIONAL.widen(Optional.empty());
+Kind<ListKind.Witness, String>     names       = LIST.widen(List.of("one", "two", "three"));
 
-Kind<OptionalKind.Witness, Integer> lengthWithValue = optionalFunctor.map(stringLength, optionalWithValue);
-Kind<OptionalKind.Witness, Integer> lengthEmpty = optionalFunctor.map(stringLength, optionalEmpty);
+Kind<OptionalKind.Witness, Integer> presentLength = optFunctor.map(stringLength, presentName);
+Kind<OptionalKind.Witness, Integer> absentLength  = optFunctor.map(stringLength, absentName);
+Kind<ListKind.Witness, Integer>     nameLengths   = listFunctor.map(stringLength, names);
 
-// Result: Optional[5]
-System.out.println(OPTIONAL.narrow(lengthWithValue));
-// Result: Optional.empty
-System.out.println(OPTIONAL.narrow(lengthEmpty));
-
-
-// --- Scenario 2: Mapping over a List ---
-Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
-
-Kind<ListKind.Witness, String> listOfStrings = LIST.widen(List.of("one", "two", "three"));
-
-Kind<ListKind.Witness, Integer> listOfLengths = listFunctor.map(stringLength, listOfStrings);
-
-// Result: [3, 3, 5]
-System.out.println(LIST.narrow(listOfLengths));
+OPTIONAL.narrow(presentLength); // Optional[5]
+OPTIONAL.narrow(absentLength);  // Optional.empty
+LIST.narrow(nameLengths);       // [3, 3, 5]
 ```
 
-The `Functor` provides a consistent API for transformation, regardless of the underlying data structure. This is the first and most essential step on the path to more powerful abstractions like `Applicative` and `Monad`.
+Same function, three different `Kind` flows, and not a single conditional. The container takes care of "what does it mean to map an empty thing", because that is what `OptionalFunctor` is *for*.
+
+---
+
+## Generic Code, For Free
+
+Once we accept `Functor<F>` as currency, we can write helpers that work for any container at all.
+
+```java
+public static <F extends WitnessArity<TypeArity.Unary>, A>
+    Kind<F, String> describe(Functor<F> functor, Kind<F, A> fa) {
+  return functor.map(a -> "value = " + a, fa);
+}
+```
+
+`describe(optionalFunctor, presentName)` returns `Optional[value = Hello]`. `describe(listFunctor, names)` returns `["value = one", "value = two", "value = three"]`. The body of `describe` does not know, and does not need to know, which container it is operating on. That is the payoff.
+
+---
+
+## Back to the One-Liner
+
+Recall the line from [One Line, Six Layers](../hkts/one_line_six_layers.md):
+
+```java
+repo.find(id)
+    .toEitherPath()
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)   // <-- Functor at work
+    .flatMap(repo::save);
+```
+
+`.modify(...)` runs a `Functor` `map` inside the optic, against whatever container the path is currently carrying. When we are on the right rail of an `EitherPath`, `EitherFunctor.map` rewrites the focused attribute and leaves the rest of the record alone. When we are on the left rail, the same `map` is a no-op, because the `Functor` for `Either` knows that mapping a `Left` returns the same `Left`.
+
+Two different runtime behaviours, one method name, no `if` in sight. That is `Functor` doing its job.
+
+---
+
+## Things People Get Wrong
+
+~~~admonish warning title="Common Misunderstandings"
+- **"Mapping iterates."** Not in general. `map` on `Optional` runs the function at most once. `map` on `Either` runs it only on the right rail. The "for each element" intuition only fits collections.
+- **"`map` runs the function eagerly."** Often, but not always. `LazyFunctor.map` defers; `IOFunctor.map` builds an unevaluated `IO` action. `Functor` says nothing about *when* the function runs, only that it eventually does and that the container's shape is preserved.
+- **"It's just `Stream.map` with extra steps."** The point of the abstraction is not to be cleverer than `Stream.map`; it is to let one piece of code talk about *all* mappable containers at once. We pay a little ceremony at the boundary so that the body of a generic function can be written exactly once.
+- **"Then I can call `.map` on a `Kind` directly."** No: `Kind` is a marker interface and has no methods. We always go through a `Functor<F>` instance, which is the thing that actually knows how to map inside `F`.
+~~~
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **`map` transforms values inside a container** without changing the container's structure
-* **One interface, many types**: the same `map` operation works with Optional, List, Either, IO, and more
-* **Functor laws** (identity and composition) guarantee predictable, side-effect-free transformations
-* **Functor is the foundation** that Applicative, Monad, and every other type class builds upon
+* `Functor` formalises the "anything with a sensible `map`" pattern that already lives in `Optional`, `List`, `CompletableFuture`, and most of the JDK
+* The two laws (identity, composition) say "map transforms values, never the container"
+* A `Functor<F>` instance lets us write generic code that works for every supported container without conditionals
+* It is the first rung of the type-class ladder; everything else in this section either extends it or stands beside it
 ~~~
 
 ~~~admonish tip title="See Also"
 - [Applicative](applicative.md) - The next step up: combining independent computations
 - [Monad](monad.md) - Sequencing dependent computations with `flatMap`
 - [Bifunctor](bifunctor.md) - Mapping over types with two parameters
+- [One Line, Six Layers](../hkts/one_line_six_layers.md) - Where this fits in the wider Foundations picture
 ~~~
 
 ~~~admonish tip title="Further Reading"

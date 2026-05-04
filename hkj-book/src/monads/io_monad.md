@@ -45,18 +45,6 @@ The logic is testable (swap `loadConfig` for a stub), composable (chain more ste
 
 ## Core Components
 
-**The IO Type**
-
-![io_detail.svg](../images/puml/io_detail.svg)
-
-**The HKT Bridge for IO**
-
-![io_kind.svg](../images/puml/io_kind.svg)
-
-**Typeclasses for IO**
-
-![io_monad.svg](../images/puml/io_monad.svg)
-
 The `IO` functionality is built upon these key pieces:
 
 | Component | Role |
@@ -232,6 +220,24 @@ IO_OP.unsafeRunSync(finalProgram);
 ```
 ~~~
 
+---
+
+## Back to the One-Liner
+
+`IO` is the layer we wrap around the Foundations one-liner when we want side effects to be *described* rather than *performed* until interpretation:
+
+```java
+IO.delay(() -> repo.find(id))
+    .map(maybe -> maybe.toEitherPath()
+                       .focus().attributes().at(key)
+                       .modify(spec::validateAndCoerce))
+    .flatMap(eitherPath ->
+        IO.delay(() -> eitherPath.flatMap(repo::save)));
+```
+
+Every effectful step is now wrapped in `IO.delay`, which means the whole expression is a value: a description of work to do, not the work itself. Tests can assemble this value, swap `repo` for a stub, and never run a real save. Production calls `unsafeRunSync` (or composes the value into a larger interpreter) once, at the edge.
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Free Monad](./free_monad.md) when we want the description to be a structured program that several interpreters can run in different ways.
 
 ## When to Use IO
 

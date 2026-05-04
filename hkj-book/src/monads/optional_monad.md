@@ -52,8 +52,6 @@ Choose `OptionalMonad` when you need to interoperate with JDK APIs that already 
 
 ## Core Components
 
-![optional_monad.svg](../images/puml/optional_monad.svg)
-
 The `Optional` HKT simulation is built from these pieces:
 
 | Component | Role |
@@ -174,6 +172,24 @@ Kind<OptionalKind.Witness, String> handledAbsent =
 // OPTIONAL.narrow(handledAbsent) => Optional.of("Default Value")
 ```
 ~~~
+
+---
+
+## Back to the One-Liner
+
+`Optional` is the JDK alternative to `Maybe` and lives at exactly the same spot in the Foundations one-liner: anywhere a repository or service might return "value, or absence". When the line begins with a JDK API:
+
+```java
+OPTIONAL.widen(repo.findById(id))
+    .toEitherPath()
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)
+    .flatMap(repo::save);
+```
+
+`OptionalMonad.flatMap` is the layer that decides whether the rest of the chain runs (when the `Optional` is present) or quietly skips itself (when it is empty). The one extra cost compared with `Maybe` is the small `Holder` allocation that `widen` performs because we cannot retrofit the JDK type; the trade is API compatibility with everything else that already returns `Optional`.
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Foundations FAQ](../hkts/faq.md) for the cost trade between `Maybe` and `Optional`.
 
 ## When to Use Optional vs Maybe
 

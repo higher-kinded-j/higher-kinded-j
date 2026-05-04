@@ -81,18 +81,6 @@ That is it. No restructuring, no cleverness. Follow these three steps and your f
 
 ## Core Components
 
-**The Trampoline Structure**
-
-![trampoline_structure.svg](../images/puml/trampoline_structure.svg)
-
-**The HKT Bridge for Trampoline**
-
-![trampoline_kind.svg](../images/puml/trampoline_kind.svg)
-
-**Typeclasses for Trampoline**
-
-![trampoline_monad.svg](../images/puml/trampoline_monad.svg)
-
 | Component | Role |
 |-----------|------|
 | `Trampoline<A>` | Sealed interface with three variants: `Done<A>` (final value), `More<A>` (suspended thunk), `FlatMap<A,B>` (monadic bind) |

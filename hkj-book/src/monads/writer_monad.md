@@ -75,8 +75,6 @@ Swap in a different Monoid and Writer accumulates a completely different kind of
 
 ## Core Components
 
-![writer.svg](../images/puml/writer.svg)
-
 | Component | Role |
 |-----------|------|
 | `Writer<W, A>` | Record holding a `log` of type `W` and a `value` of type `A` |

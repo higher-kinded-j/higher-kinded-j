@@ -65,7 +65,7 @@ When you use the `Applicative` instance for `Validated`, you must provide a `Sem
 
 ``` java
 // Create an applicative for Validated that accumulates String errors by joining them.
-Applicative<Validated.Witness<String>> applicative =
+Applicative<ValidatedKind.Witness<String>> applicative =
     ValidatedMonad.instance(Semigroups.string("; "));
 
 // Two invalid results
@@ -73,7 +73,7 @@ Validated<String, Integer> invalid1 = Validated.invalid("Field A is empty");
 Validated<String, Integer> invalid2 = Validated.invalid("Field B is not a number");
 
 // Combine them using the applicative's map2 method
-Kind<Validated.Witness<String>, Integer> result =
+Kind<ValidatedKind.Witness<String>, Integer> result =
     applicative.map2(
         VALIDATED.widen(invalid1),
         VALIDATED.widen(invalid2),

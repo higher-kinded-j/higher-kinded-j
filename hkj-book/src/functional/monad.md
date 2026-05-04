@@ -1,22 +1,22 @@
-# Monad: Sequencing Computations
+# Monad: Sequencing Dependent Computations
 
-~~~admonish info title="What You'll Learn"
-- How to sequence computations where each step depends on previous results
-- The power of `flatMap` for chaining operations that return wrapped values
-- Essential utility methods: `as`, `peek`, `flatMapIfOrElse`, and `flatMapN`
-- How to combine multiple monadic values with `flatMap2`, `flatMap3`, etc.
-- How monadic short-circuiting works in practice
+~~~admonish info title="What We'll Learn"
+- Why `flatMap` is the operation we reach for whenever the next step depends on the previous result
+- How short-circuiting comes for free, without writing a single conditional
+- The utility methods (`as`, `peek`, `flatMapIfOrElse`) that turn common idioms into one-liners
+- How `flatMapN` combines several monadic values when the combiner is itself effectful
+- Where `Monad` shows up inside the Foundations one-liner
 ~~~
 
 ~~~admonish example title="Hands-On Practice"
 [Tutorial04_MonadChaining.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial04_MonadChaining.java)
 ~~~
 
-## The Problem: When Each Step Depends on the Last
+## Why `flatMap` Earns Its Keep
 
-You've seen how `Functor` lets you `map` over a value in a context and how `Applicative` lets you combine independent computations. But what happens when the result of one step determines what happens next?
+`Functor` lets us transform a value inside a container. `Applicative` lets us combine several independent containers. Neither of those answers the question that comes up in roughly every other method we write: *what if the next step needs to look at the previous result before it can even decide what to do?*
 
-Consider fetching a user, then their account, then their balance. Each step depends on the previous result, and any step could fail. Without `flatMap`, you end up with deeply nested checks:
+Consider the classic three-step lookup: fetch a user, then their account, then the balance on it. Without `flatMap`, the imperative version drowns in pyramids:
 
 ```java
 Optional<User> user = findUser(1);
@@ -31,19 +31,18 @@ if (user.isPresent()) {
 }
 ```
 
-Three levels of nesting for three steps, and it only gets worse as the workflow grows.
+Three steps, three checks, and the meaningful code is hiding in the bottom-right corner like a frightened mouse.
 
 ---
 
 ## The Solution: `flatMap`
 
-A **`Monad`** builds on `Applicative` by adding one crucial ability: **`flatMap`**. Whilst `map` takes a simple function `A -> B`, `flatMap` takes a function that returns a new value *already wrapped in the monadic context*, i.e., `A -> Kind<F, B>`. It then flattens the nested result into a simple `Kind<F, B>`.
-
-Here is the same workflow, rewritten with `flatMap`:
+A `Monad` builds on `Applicative` by adding one operation. Whereas `map` takes `A -> B`, `flatMap` takes `A -> Kind<F, B>`: a function that *itself* produces a new container, which `flatMap` then quietly flattens for us.
 
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import java.util.Optional;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -51,51 +50,48 @@ import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 record User(int id, String name) {}
 record Account(int userId, String accountId) {}
 
-public Kind<Optional.Witness, User> findUser(int id) { /* ... */ }
-public Kind<Optional.Witness, Account> findAccount(User user) { /* ... */ }
-public Kind<Optional.Witness, Double> getBalance(Account account) { /* ... */ }
+public Kind<OptionalKind.Witness, User> findUser(int id) { /* ... */ }
+public Kind<OptionalKind.Witness, Account> findAccount(User user) { /* ... */ }
+public Kind<OptionalKind.Witness, Double> getBalance(Account account) { /* ... */ }
 
-Monad<Optional.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
 
-// --- Successful workflow ---
-Kind<Optional.Witness, Double> balance = monad.flatMap(user ->
-    monad.flatMap(account ->
-        getBalance(account),
+// Happy path
+Kind<OptionalKind.Witness, Double> balance =
+    monad.flatMap(user ->
+        monad.flatMap(account ->
+            getBalance(account),
         findAccount(user)),
     findUser(1));
 
-// Result: Optional[1000.0]
-System.out.println(OPTIONAL.narrow(balance));
+OPTIONAL.narrow(balance);   // Optional[1000.0]
 
-// --- Failing workflow (user not found) ---
-Kind<Optional.Witness, Double> missing = monad.flatMap(user ->
-    monad.flatMap(account -> getBalance(account), findAccount(user)),
-    findUser(2)); // Returns Optional.empty()
+// Missing user
+Kind<OptionalKind.Witness, Double> missing =
+    monad.flatMap(user ->
+        monad.flatMap(account -> getBalance(account), findAccount(user)),
+    findUser(2));
 
-// The chain short-circuits immediately.
-// Result: Optional.empty
-System.out.println(OPTIONAL.narrow(missing));
+OPTIONAL.narrow(missing);   // Optional.empty
 ```
 
-No null checks, no nesting. The chain elegantly handles the "happy path" whilst short-circuiting on failure.
+The chain handles the happy path inline and short-circuits the moment any step is empty. We never asked for that behaviour; it falls out of how `Optional`'s `flatMap` is defined. Nested `flatMap` calls are still a bit ugly to read, which is why [For comprehensions](for_comprehension.md) exist; the *capability* lives here.
 
 ```
   flatMap chain; each step depends on the previous:
 
-  findUser(1) ──> User ──> findAccount(user) ──> Account ──> getBalance(account)
-       |                         |                                  |
-       v                         v                                  v
-  Optional<User>          Optional<Account>                  Optional<Double>
+  findUser(1) -> User -> findAccount(user) -> Account -> getBalance(account)
+       |                       |                              |
+       v                       v                              v
+  Optional<User>        Optional<Account>             Optional<Double>
 
-  If ANY step returns empty, the chain short-circuits:
+  If any step returns empty, the rail breaks and the chain stops:
 
-  findUser(2) ──> empty ──X (chain stops)
+  findUser(2) -> empty -X (chain halts)
        |
        v
   Optional.empty
 ```
-
-This pattern is the foundation for the **for-comprehension** builder in Higher-Kinded-J, which transforms a chain of `flatMap` calls into clean, imperative-style code.
 
 ---
 
@@ -103,173 +99,164 @@ This pattern is the foundation for the **for-comprehension** builder in Higher-K
 ```java
 @NullMarked
 public interface Monad<M extends WitnessArity<TypeArity.Unary>> extends Applicative<M> {
-  // Core sequencing method
+  // Core sequencing
   <A, B> @NonNull Kind<M, B> flatMap(
-      final Function<? super A, ? extends Kind<M, B>> f, final Kind<M, A> ma);
+      Function<? super A, ? extends Kind<M, B>> f, Kind<M, A> ma);
 
   // Type-safe conditional branching
   default <A, B> @NonNull Kind<M, B> flatMapIfOrElse(
-      final Predicate<? super A> predicate,
-      final Function<? super A, ? extends Kind<M, B>> ifTrue,
-      final Function<? super A, ? extends Kind<M, B>> ifFalse,
-      final Kind<M, A> ma) {
+      Predicate<? super A> predicate,
+      Function<? super A, ? extends Kind<M, B>> ifTrue,
+      Function<? super A, ? extends Kind<M, B>> ifFalse,
+      Kind<M, A> ma) {
     return flatMap(a -> predicate.test(a) ? ifTrue.apply(a) : ifFalse.apply(a), ma);
   }
 
   // Replace the value while preserving the effect
-  default <A, B> @NonNull Kind<M, B> as(final B b, final Kind<M, A> ma) {
+  default <A, B> @NonNull Kind<M, B> as(B b, Kind<M, A> ma) {
     return map(_ -> b, ma);
   }
 
-  // Perform a side-effect without changing the value
-  default <A> @NonNull Kind<M, A> peek(final Consumer<? super A> action, final Kind<M, A> ma) {
-    return map(a -> {
-      action.accept(a);
-      return a;
-    }, ma);
+  // Side-effect without changing the value
+  default <A> @NonNull Kind<M, A> peek(Consumer<? super A> action, Kind<M, A> ma) {
+    return map(a -> { action.accept(a); return a; }, ma);
   }
 
-  // Combine multiple monadic values (flatMapN methods)
+  // Combine multiple monadic values; flatMap3 / flatMap4 / flatMap5 build similarly
   default <A, B, R> @NonNull Kind<M, R> flatMap2(
       Kind<M, A> ma, Kind<M, B> mb,
       BiFunction<? super A, ? super B, ? extends Kind<M, R>> f) {
     return flatMap(a -> flatMap(b -> f.apply(a, b), mb), ma);
   }
-
-  // flatMap3, flatMap4, and flatMap5 build similarly...
 }
 ```
 ~~~
 
 ---
 
-## When Should You Use Monad vs Applicative?
+## When Should We Reach for `Monad` Instead of `Applicative`?
 
-The short answer: use `Monad` when the next step **depends on** the previous result; use `Applicative` when computations are **independent**.
+The short answer: use `Monad` when the next step *depends on* the previous result, and `Applicative` when the steps are independent. The longer answer, with a worked decision flow, lives in [Choosing Your Abstraction Level](abstraction_levels.md).
 
-For a detailed comparison with worked examples and a decision flowchart, see [Choosing Your Abstraction Level](abstraction_levels.md).
+A useful rule of thumb: if we find ourselves writing `applicative.map3(a, b, c, ...)` and one of `a`, `b`, `c` is computed from the result of another, we have crossed into Monad territory whether we admit it or not.
 
 ---
 
-## Utility Methods
+## Utility Methods Worth Knowing
 
-`Monad` provides default methods for common tasks like debugging, conditional logic, and transforming results.
+`Monad` provides default helpers for things we end up writing by hand otherwise. None of them are clever; they just save us from re-inventing the same lambda for the tenth time.
 
 ### `flatMapIfOrElse`
 
-**The problem:** You need conditional branching in a monadic chain, but using `if/else` inside a `flatMap` lambda is error-prone and hard to read.
+**The problem.** We need conditional branching inside a chain, and stuffing `if`/`else` into a `flatMap` lambda is the kind of thing that makes a future maintainer file a bug.
 
-**The solution:** `flatMapIfOrElse` applies one of two functions based on a predicate, ensuring both paths result in the same type.
+**The solution.**
 
 ```java
-Monad<Optional.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
 
-Kind<Optional.Witness, User> standardUser = OPTIONAL.widen(Optional.of(new User(1, "Alice")));
-Kind<Optional.Witness, User> premiumUser = OPTIONAL.widen(Optional.of(new User(101, "Bob")));
+Kind<OptionalKind.Witness, User> standardUser = OPTIONAL.widen(Optional.of(new User(1, "Alice")));
+Kind<OptionalKind.Witness, User> premiumUser  = OPTIONAL.widen(Optional.of(new User(101, "Bob")));
 
-// Only fetch accounts for standard users (ID < 100)
-Kind<Optional.Witness, Account> result = monad.flatMapIfOrElse(
+Kind<OptionalKind.Witness, Account> result = monad.flatMapIfOrElse(
     user -> user.id() < 100,
     user -> findAccount(user),
     user -> OPTIONAL.widen(Optional.empty()),
-    standardUser
-);
-// Result: Optional[Account[userId=1, accountId=acc-123]]
+    standardUser);
+// Optional[Account[userId=1, accountId=acc-123]]
 
-Kind<Optional.Witness, Account> empty = monad.flatMapIfOrElse(
+Kind<OptionalKind.Witness, Account> empty = monad.flatMapIfOrElse(
     user -> user.id() < 100,
     user -> findAccount(user),
     user -> OPTIONAL.widen(Optional.empty()),
-    premiumUser
-);
-// Result: Optional.empty
+    premiumUser);
+// Optional.empty
 ```
 
 ### `as`
 
-**The problem:** After a monadic operation, you care *that* it succeeded, not *what* it returned.
+**The problem.** After a monadic operation we care *that* it succeeded, not *what* it returned.
 
-**The solution:** `as` replaces the value inside a monad whilst preserving its effect (success or failure).
+**The solution.**
 
 ```java
-Kind<Optional.Witness, String> message = monad.as("User found successfully", findUser(1));
-// Result: Optional["User found successfully"]
+Kind<OptionalKind.Witness, String> message = monad.as("User found successfully", findUser(1));
+// Optional["User found successfully"]
 
-Kind<Optional.Witness, String> missing = monad.as("User found successfully", findUser(99));
-// Result: Optional.empty (effect preserved, value irrelevant)
+Kind<OptionalKind.Witness, String> missing = monad.as("User found successfully", findUser(99));
+// Optional.empty (effect preserved, value irrelevant)
 ```
 
 ### `peek`
 
-**The problem:** You need to log or inspect a value mid-chain without altering the flow.
+**The problem.** We want to log or inspect mid-chain, without altering the flow.
 
-**The solution:** `peek` performs a side-effect on the value and returns the original monadic value unchanged.
+**The solution.**
 
 ```java
-Kind<Optional.Witness, User> logged = monad.peek(
+Kind<OptionalKind.Witness, User> logged = monad.peek(
     user -> System.out.println("LOG: Found user -> " + user.name()),
-    findUser(1)
-);
+    findUser(1));
 // Console: LOG: Found user -> Alice
 // Result: Optional[User[id=1, name=Alice]] (unchanged)
 
-Kind<Optional.Witness, User> notFound = monad.peek(
+Kind<OptionalKind.Witness, User> notFound = monad.peek(
     user -> System.out.println("LOG: Found user -> " + user.name()),
-    findUser(99)
-);
-// Console: (nothing; the action is never executed)
+    findUser(99));
+// Console: (nothing; the action never fires)
 // Result: Optional.empty
 ```
 
+The unspoken pleasure here is that `peek` only runs on the success rail. We do not have to remember to wrap it in an `isPresent` check; the `Monad` instance does the right thing.
+
 ---
 
-## Combining Multiple Monadic Values: `flatMapN`
+## Combining Several Monadic Values: `flatMapN`
 
-Just as `Applicative` provides `map2`, `map3`, etc. for combining independent computations with a pure function, `Monad` provides `flatMap2`, `flatMap3`, `flatMap4`, and `flatMap5` for combining multiple monadic values where the combining function itself returns a monadic value.
+`Applicative` gives us `map2`, `map3`, and so on for combining independent values with a *pure* function. `Monad` adds `flatMap2` through `flatMap5` for the case where the combiner is *itself* effectful.
 
 ### `flatMap2`
 
-**The problem:** You need to fetch data from two sources and then perform an effectful validation that might fail.
+**The problem.** Fetch two pieces of data from independent sources, then perform a validation that might fail.
 
-**The solution:**
+**The solution.**
 
 ```java
 record User(int id, String name) {}
 record Order(int userId, String item) {}
 record UserOrder(User user, Order order) {}
 
-public Kind<Optional.Witness, User> findUser(int id) { /* ... */ }
-public Kind<Optional.Witness, Order> findOrder(int orderId) { /* ... */ }
+public Kind<OptionalKind.Witness, User>  findUser(int id) { /* ... */ }
+public Kind<OptionalKind.Witness, Order> findOrder(int orderId) { /* ... */ }
 
-public Kind<Optional.Witness, UserOrder> validateAndCombine(User user, Order order) {
+public Kind<OptionalKind.Witness, UserOrder> validateAndCombine(User user, Order order) {
     if (order.userId() != user.id()) {
         return OPTIONAL.widen(Optional.empty());
     }
     return OPTIONAL.widen(Optional.of(new UserOrder(user, order)));
 }
 
-Monad<Optional.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
 
-Kind<Optional.Witness, UserOrder> result = monad.flatMap2(
+Kind<OptionalKind.Witness, UserOrder> result = monad.flatMap2(
     findUser(1),
     findOrder(100),
-    (user, order) -> validateAndCombine(user, order)
-);
-// Result: Optional[UserOrder[...]] if valid, Optional.empty if any step fails
+    (user, order) -> validateAndCombine(user, order));
+// Optional[UserOrder[...]] if valid, Optional.empty if any step fails
 ```
 
 ### `flatMap3` and Higher Arities
 
-For more complex scenarios, you can combine three, four, or five monadic values:
+For richer scenarios, three, four, or five inputs are equally well behaved.
 
 ```java
 record Product(int id, String name, double price) {}
 record Inventory(int productId, int quantity) {}
 
-public Kind<Optional.Witness, Product> findProduct(int id) { /* ... */ }
-public Kind<Optional.Witness, Inventory> checkInventory(int productId) { /* ... */ }
+public Kind<OptionalKind.Witness, Product>   findProduct(int id) { /* ... */ }
+public Kind<OptionalKind.Witness, Inventory> checkInventory(int productId) { /* ... */ }
 
-Kind<Optional.Witness, String> orderResult = monad.flatMap3(
+Kind<OptionalKind.Witness, String> orderResult = monad.flatMap3(
     findUser(1),
     findProduct(100),
     checkInventory(100),
@@ -279,50 +266,77 @@ Kind<Optional.Witness, String> orderResult = monad.flatMap3(
         }
         String confirmation = String.format(
             "Order confirmed for %s: %s (qty: %d)",
-            user.name(), product.name(), inventory.quantity()
-        );
+            user.name(), product.name(), inventory.quantity());
         return OPTIONAL.widen(Optional.of(confirmation));
-    }
-);
+    });
 ```
 
 ### `flatMapN` vs `mapN`
 
-| Method | From | Combining Function Returns | Use When |
-|--------|------|----------------------------|----------|
-| `mapN` | Applicative | A pure value: `(A, B) -> C` | Combination is guaranteed to succeed |
-| `flatMapN` | Monad | A monadic value: `(A, B) -> Kind<M, C>` | Combination itself may fail or produce effects |
+| Method | From | Combiner returns | Use when |
+|--------|------|------------------|----------|
+| `mapN` | Applicative | Pure value `(A, B) -> C` | Combination is guaranteed to succeed |
+| `flatMapN` | Monad | Monadic value `(A, B) -> Kind<M, C>` | Combination itself may fail or produce effects |
 
 ```java
-// mapN: Pure combination (cannot fail)
-Kind<Optional.Witness, String> pure = monad.map2(
+// Pure combination, cannot fail
+Kind<OptionalKind.Witness, String> pure = monad.map2(
     findUser(1),
     findOrder(100),
-    (user, order) -> user.name() + " ordered " + order.item()
-);
+    (user, order) -> user.name() + " ordered " + order.item());
 
-// flatMapN: Effectful combination (may fail)
-Kind<Optional.Witness, String> effectful = monad.flatMap2(
+// Effectful combination, may fail
+Kind<OptionalKind.Witness, String> effectful = monad.flatMap2(
     findUser(1),
     findOrder(100),
-    (user, order) -> validateAndProcess(user, order)
-);
+    (user, order) -> validateAndProcess(user, order));
 ```
 
 ---
 
+## Back to the One-Liner
+
+The line we keep coming back to is:
+
+```java
+repo.find(id)
+    .toEitherPath()
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)
+    .flatMap(repo::save);   // <-- Monad at work
+```
+
+The closing `.flatMap(repo::save)` is `EitherMonad.flatMap`, dispatched at compile time the moment we asked for an `EitherPath`. `repo::save` returns *another* `EitherPath`, and `flatMap` flattens it into the outer chain. If validation in the previous step left us on the `Left` rail, `save` is never called; the same `Left` is propagated through unchanged. That short-circuit is not a feature we asked for; it is what `Monad` *is*.
+
+The whole expression is a `Kind<EitherPathKind.Witness<Error>, Node>` flowing from one type-class method to the next. `Monad` is the thing that lets us spell that flow as a sequence rather than a pyramid.
+
+---
+
+## Things People Get Wrong
+
+~~~admonish warning title="Common Misunderstandings"
+- **"`flatMap` runs the function immediately."** Not necessarily. For `IO` and `Lazy`, `flatMap` builds a deferred description; nothing runs until interpretation. The *order* is fixed; the *timing* is up to the container.
+- **"Monads always short-circuit."** They short-circuit when the container has a notion of failure or absence (`Optional`, `Either`, `Try`, `Maybe`). `List`'s `flatMap` does not short-circuit; it produces the cross-product of results. The behaviour comes from the instance, not from the word "Monad".
+- **"`flatMap` is just `flatMap` from `Stream`."** It is the same idea, but specialised. `Stream.flatMap` flattens streams of streams into a single stream. `Optional.flatMap` flattens an optional of optional into one optional. Each `Monad` instance defines its own flattening rule.
+- **"Nested `flatMap` is the cleanest we can do."** It is the most explicit. For more than two steps, [For comprehensions](for_comprehension.md) read better and avoid the indentation creep.
+- **"I can call `.flatMap` on a `Kind` directly."** `Kind` has no methods. Always go through the `Monad<F>` instance, which is the thing that knows how to flatten inside `F`.
+~~~
+
+---
+
 ~~~admonish info title="Key Takeaways"
-* **`flatMap` is the core operation** that enables sequencing dependent computations
-* **Short-circuiting** happens automatically; if any step fails, the chain stops
-* **Utility methods** (`as`, `peek`, `flatMapIfOrElse`) cover common patterns without manual lambda wrangling
-* **`flatMapN` methods** combine multiple monadic values when the combining function itself produces effects
-* **Choose the least powerful abstraction** that fits your problem; see [Choosing Your Abstraction Level](abstraction_levels.md) for guidance
+* `flatMap` is the operation we use whenever the next step depends on the previous result
+* Short-circuiting comes from the *instance*, not from `Monad` itself; `Optional`, `Either`, `Try` give it for free
+* The default helpers (`as`, `peek`, `flatMapIfOrElse`, `flatMapN`) cover most of the small idioms we would otherwise hand-roll
+* For chains beyond two or three steps, [For comprehensions](for_comprehension.md) keep the code readable
+* When in doubt, [pick the least powerful abstraction that fits the problem](abstraction_levels.md)
 ~~~
 
 ~~~admonish tip title="See Also"
 - [Applicative](applicative.md) - For combining independent computations
 - [For Comprehension](for_comprehension.md) - Readable syntax for `flatMap` chains
 - [Choosing Your Abstraction Level](abstraction_levels.md) - When to use Applicative vs Selective vs Monad
+- [One Line, Six Layers](../hkts/one_line_six_layers.md) - Where this fits in the wider Foundations picture
 ~~~
 
 ~~~admonish tip title="Further Reading"

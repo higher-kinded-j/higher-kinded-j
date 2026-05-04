@@ -33,10 +33,6 @@ Java Streams have **single-use semantics**. Once a terminal operation has been p
 **Best Practice:** Create fresh stream instances for each operation sequence. Don't store and reuse `Kind<StreamKind.Witness, A>` instances after they've been consumed.
 ~~~
 
-## Structure
-
-![stream_monad.svg](../images/puml/stream_monad.svg)
-
 ## How to Use `StreamMonad` and `StreamKind`
 
 ### Creating Instances

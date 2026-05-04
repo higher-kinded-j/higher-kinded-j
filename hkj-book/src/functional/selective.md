@@ -92,23 +92,23 @@ The `whenS` operation is the primary way to conditionally execute effects. It ta
 import org.higherkindedj.hkt.io.IOSelective;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.Unit;
-import static org.higherkindedj.hkt.io.IOKindHelper.IO_KIND;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
 
 // Check if debug mode is enabled
 Kind<IOKind.Witness, Boolean> debugEnabled =
-    IO_KIND.widen(IO.delay(() -> Config.isDebugMode()));
+    IO_OP.widen(IO.delay(() -> Config.isDebugMode()));
 
 // The logging effect (only executed if debug is enabled)
 Kind<IOKind.Witness, Unit> logEffect =
-    IO_KIND.widen(IO.fromRunnable(() -> log.debug("Debug information")));
+    IO_OP.widen(IO.fromRunnable(() -> log.debug("Debug information")));
 
 // Conditional execution
 Kind<IOKind.Witness, Unit> maybeLog = selective.whenS(debugEnabled, logEffect);
 
 // Run the IO
-IO.narrow(maybeLog).unsafeRunSync();
+IO_OP.narrow(maybeLog).unsafeRunSync();
 // Only logs if Config.isDebugMode() returns true
 ```
 
@@ -119,10 +119,10 @@ When you have an effect that returns a value but you want to treat it as a `Unit
 ```java
 // Database write returns row count, but we don't care about the value
 Kind<IOKind.Witness, Integer> writeEffect =
-    IO_KIND.widen(IO.delay(() -> database.write(data)));
+    IO_OP.widen(IO.delay(() -> database.write(data)));
 
 Kind<IOKind.Witness, Boolean> shouldPersist =
-    IO_KIND.widen(IO.delay(() -> config.shouldPersist()));
+    IO_OP.widen(IO.delay(() -> config.shouldPersist()));
 
 // Discard the Integer result, treat as Unit
 Kind<IOKind.Witness, Unit> maybeWrite = selective.whenS_(shouldPersist, writeEffect);
@@ -279,7 +279,7 @@ Kind<F, Choice<Error, Data>> finalResult = selective.apS(initialData, validation
 ```java
 import org.higherkindedj.hkt.io.IOSelective;
 import org.higherkindedj.hkt.io.IO;
-import static org.higherkindedj.hkt.io.IOKindHelper.IO_KIND;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 public class AnalyticsService {
     private final Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
@@ -287,11 +287,11 @@ public class AnalyticsService {
     public Kind<IOKind.Witness, Unit> trackEvent(String eventName, User user) {
         // Check feature flag (effectful)
         Kind<IOKind.Witness, Boolean> flagEnabled =
-            IO_KIND.widen(IO.delay(() -> featureFlags.isEnabled("analytics")));
+            IO_OP.widen(IO.delay(() -> featureFlags.isEnabled("analytics")));
 
         // The tracking effect (potentially expensive)
         Kind<IOKind.Witness, Unit> trackingEffect =
-            IO_KIND.widen(IO.fromRunnable(() -> {
+            IO_OP.widen(IO.fromRunnable(() -> {
                 analytics.track(eventName, user.id(), user.properties());
                 log.info("Tracked event: " + eventName);
             }));
@@ -307,7 +307,7 @@ Kind<IOKind.Witness, Unit> trackingOperation =
     analytics.trackEvent("user_signup", currentUser);
 
 // Execute the IO
-IO.narrow(trackingOperation).unsafeRunSync();
+IO_OP.narrow(trackingOperation).unsafeRunSync();
 // Only sends analytics if feature flag is enabled
 ```
 
