@@ -78,18 +78,6 @@ That is the Free monad's value: **write once, interpret many ways**.
 
 ## Core Components
 
-**The Free Structure**
-
-![free_structure.svg](../images/puml/free_structure.svg)
-
-**The HKT Bridge for Free**
-
-![free_kind.svg](../images/puml/free_kind.svg)
-
-**Type Classes for Free**
-
-![free_monad.svg](../images/puml/free_monad.svg)
-
 | Component | Role |
 |-----------|------|
 | `Free<F, A>` | A program built from instructions `F` that produces `A`. Sealed: `Pure`, `Suspend`, `FlatMapped` |

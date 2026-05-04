@@ -4,7 +4,7 @@
 
 These examples showcase how to use various monads and monad transformers to handle common programming tasks like managing optional values, asynchronous operations, and state in a functional way.
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Practical examples of core monads including Either, Maybe, Optional, IO, and State
 - How to use monad transformers like EitherT, MaybeT, and StateT to combine effects
 - Working with specialized monads like Reader for dependency injection and Writer for logging
@@ -225,7 +225,7 @@ Kind<OptionalKind.Witness, Integer> parsedPresent =
 
 This example introduces the **Reader monad**. The `Reader` monad is a pattern used for dependency injection. It represents a computation that depends on some configuration or environment of type `R`.
 
-* **Key Concept**: A `Reader<R, A>` represents a function `R -> A`. It allows you to "read" from a configuration `R` to produce a value `A`, without explicitly passing the configuration object everywhere.
+* **Key Concept**: A `Reader<R, A>` represents a function `R -> A`. It lets us "read" from a configuration `R` to produce a value `A`, without explicitly passing the configuration object everywhere.
 * **Demonstrates**:
   * Creating `Reader` computations that access parts of a configuration object.
   * Using `flatMap` to chain computations where one step depends on the result of a previous step and the shared configuration.
@@ -297,7 +297,7 @@ Try<Double> result = input.flatMap(safeDivide);
 
 This example showcases the **Validated applicative functor**. While it has a `Monad` instance, it's often used as an `Applicative` to accumulate errors. This example, however, focuses on its monadic (fail-fast) behaviour.
 
-* **Key Concept**: `Validated` is used for validation scenarios where you want either to get a valid result or to accumulate validation errors.
+* **Key Concept**: `Validated` is used for validation scenarios where we want either a valid result or the accumulated set of validation errors.
 * **Demonstrates**:
   * Creating `Valid` and `Invalid` instances.
   * Using `flatMap` to chain validation steps, where the first `Invalid` result short-circuits the computation.
@@ -345,7 +345,7 @@ Kind<WriterKind.Witness<String>, String> finalComputation = writerMonad.flatMap(
 
 This example showcases how to write **generic functions** that can operate on any `Functor` (or `Monad`) by accepting the type class instance as a parameter. This is a core concept of higher-kinded polymorphism.
 
-* **Key Concept**: By abstracting over the computational context (`F`), you can write code that works for `List`, `Optional`, `IO`, or any other type that has a `Functor` instance.
+* **Key Concept**: By abstracting over the computational context (`F`), we can write code that works for `List`, `Optional`, `IO`, or any other type that has a `Functor` instance.
 * **Demonstrates**:
   * Writing a generic `mapWithFunctor` function that takes a `Functor<F>` instance and a `Kind<F, A>`.
   * Calling this generic function with different monad instances (`ListMonad`, `OptionalMonad`) and their corresponding `Kind`-wrapped types.

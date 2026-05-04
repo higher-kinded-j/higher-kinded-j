@@ -32,9 +32,14 @@ The `MaybeMonad` provides a monadic interface for `Maybe`, allowing for function
 It implements `MonadError<MaybeKind.Witness, Unit>`, which transitively includes `Monad<MaybeKind.Witness>`, `Applicative<MaybeKind.Witness>`, and `Functor<MaybeKind.Witness>`.
 
 
-## Structure
+```java
+public sealed interface Maybe<T> permits Just, Nothing { ... }
 
-![maybe_monad.svg](../images/puml/maybe_monad.svg)
+record Just<T>(T value)  implements Maybe<T> { ... }   // never null
+record Nothing<T>()      implements Maybe<T> { ... }   // singleton
+```
+
+Two cases, with a strict non-null guarantee on `Just` that `Optional` does not give us.
 
 ~~~admonish note title="Related Types"
 For working with Java's standard `Optional` type in the HKT system, see [Optional Monad](./optional_monad.md). For error handling with typed error values, see [Either Monad](./either_monad.md).
@@ -326,6 +331,24 @@ public static <A, B> Kind<MaybeKind.Witness, B> processData(
 
 This example highlights how `MaybeMonad` facilitates working with optional values in a functional, type-safe manner, especially when dealing with the HKT abstractions and requiring non-null guarantees for present values.
 ~~~
+
+---
+
+## Back to the One-Liner
+
+In the Foundations one-liner:
+
+```java
+repo.find(id)              // <-- a Maybe in flight (or its MaybePath fluent wrapper)
+    .toEitherPath()
+    .focus().attributes().at(key)
+    .modify(spec::validateAndCoerce)
+    .flatMap(repo::save);
+```
+
+`repo.find(id)` returns "the node, or absence", which is the exact shape `Maybe` was built for. Inside the library, that absence flows through `MaybeMonad.flatMap` (or its `MaybePath` surface) without ever touching a `null`. The `.toEitherPath()` step is the moment we decide that "absent" should become a typed error rather than continuing as silent absence; before that, every `map`/`flatMap` is `MaybeMonad` doing its quiet job of either applying the function or short-circuiting on `Nothing`.
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Natural Transformation](../functional/natural_transformation.md) for what `.toEitherPath()` is actually doing.
 
 ## When to Use Maybe
 

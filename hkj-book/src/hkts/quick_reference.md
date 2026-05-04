@@ -2,9 +2,9 @@
 
 This section provides at-a-glance summaries of all type classes in Higher-Kinded-J. Use this as a quick lookup while coding or to compare different type classes.
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Quick reference summaries for all core type classes and their key methods
-- Decision guides for choosing the right type class for your use case
+- Decision guides for choosing the right type class for our use case
 - Common patterns and examples for Functor, Applicative, Monad, and MonadError
 - Understanding Semigroup, Monoid, Foldable, and Traverse for data operations
 - Type class hierarchy and inheritance relationships
@@ -189,9 +189,9 @@ Kind<EitherKind.Witness<String>, Double> result =
 Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
 
 Kind<IOKind.Witness, Boolean> debugEnabled =
-    IO_KIND.widen(IO.delay(() -> config.isDebug()));
+    IO_OP.widen(IO.delay(() -> config.isDebug()));
 Kind<IOKind.Witness, Unit> logEffect =
-    IO_KIND.widen(IO.fromRunnable(() -> log.debug("Debug info")));
+    IO_OP.widen(IO.fromRunnable(() -> log.debug("Debug info")));
 
 Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEffect);
 // Log effect only executes if debugEnabled is true
@@ -324,7 +324,7 @@ Boolean allPositive = foldable.foldMap(Monoids.booleanAnd(),
 
 **Key Operations:**
 - `traverse`: apply function then flip
-- `sequence`: just flip contexts (when you already have `F<G<A>>`)
+- `sequence`: just flip contexts (when we already have `F<G<A>>`)
 
 **Common Patterns:**
 - Validate every item in a list
@@ -464,7 +464,7 @@ Bifunctor
 - Every **Monoid** is also a **Semigroup**
 - Every **Traverse** provides both **Functor** and **Foldable** capabilities
 
-**Practical Implication:** If you have a `Monad<F>` instance, you can also use it as an `Applicative<F>` or `Functor<F>`. Selective and Monad are alternative extensions of Applicative with different trade-offs.
+**Practical Implication:** If we have a `Monad<F>` instance, we can also use it as an `Applicative<F>` or `Functor<F>`. Selective and Monad are alternative extensions of Applicative with different trade-offs.
 ~~~
 
 ## Common Monoid Instances
@@ -487,7 +487,7 @@ Bifunctor
 
 **Custom:**
 ```java
-// Create your own monoid
+// Define a custom monoid
 Monoid<MyType> myMonoid = new Monoid<MyType>() {
     public MyType empty() { return MyType.defaultValue(); }
     public MyType combine(MyType a, MyType b) { return a.mergeWith(b); }

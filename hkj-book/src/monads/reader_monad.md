@@ -34,10 +34,6 @@ The benefits of using the Reader monad include:
 
 In `Higher-Kinded-J`, the Reader monad pattern is implemented via the `Reader<R, A>` interface and its corresponding HKT simulation types (`ReaderKind`, `ReaderKindHelper`) and type class instances (`ReaderMonad`, `ReaderApplicative`, `ReaderFunctor`).
 
-## Structure
-
-![reader_monad.svg](../images/puml/reader_monad.svg)
-
 ## The `Reader<R, A>` Type
 
 The core type is the `Reader<R, A>` functional interface:

@@ -59,13 +59,14 @@ validateName("")  --> Invalid         validateName("")  --> Invalid("Name is req
 
 ## Core Components
 
-**Validated Type** — `Valid(value)` or `Invalid(error)`:
+```java
+public sealed interface Validated<E, A> permits Valid, Invalid { ... }
 
-![validated_type.svg](../images/puml/validated_type.svg)
+record Valid<E, A>(A value)   implements Validated<E, A> { ... }
+record Invalid<E, A>(E error) implements Validated<E, A> { ... }
+```
 
-**Monadic Structure** — `ValidatedMonad<E>` enables monadic operations on `ValidatedKind.Witness<E>`:
-
-![validated_monad.svg](../images/puml/validated_monad.svg)
+`Valid` and `Invalid` look like `Right` and `Left`, and at the `Monad` level they behave the same way (fail-fast). The difference shows up in the `Applicative` instance, where `Invalid` accumulates rather than short-circuits.
 
 | Component | Role |
 |-----------|------|
@@ -90,7 +91,7 @@ Let's build a registration validator that validates username, email, and age —
 Each validator is an independent function that returns `Validated<List<String>, T>`:
 
 ```java
-ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
+ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance(Semigroups.list());
 
 static Validated<List<String>, String> validateName(String name) {
     return (name == null || name.isBlank())
@@ -224,6 +225,25 @@ Does step B depend on step A's result?
 ```
 Many real-world forms mix both: independent field validations (accumulate), followed by cross-field checks (fail-fast).
 ~~~
+
+---
+
+## Back to the One-Liner
+
+The Foundations one-liner uses `EitherPath` because it is fail-fast by design: a save endpoint either succeeds or surfaces the first reason it could not. The variant we reach for when the request is "validate every field and tell me about every problem in one go" is `Validated`:
+
+```java
+applicative.map3(
+        VALIDATED.widen(validateName(input.name())),
+        VALIDATED.widen(validateEmail(input.email())),
+        VALIDATED.widen(validatePassword(input.password())),
+        UserDetails::new)
+    .flatMap(repo::save);
+```
+
+The shape is the same as the one-liner; only the container changes. `Validated`'s `Applicative` accumulates errors through a `Semigroup`, where `EitherPath`'s `Monad` short-circuits at the first `Left`. Two abstractions, one mechanical decision: do we want fail-fast or fail-slow?
+
+See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Applicative](../functional/applicative.md) for why `Validated` and `Either` deliberately disagree at the type-class level.
 
 ## When to Use Validated
 

@@ -250,3 +250,4 @@ By following these patterns, you can integrate new or existing types into the Hi
 ---
 
 **Previous:** [Quick Reference](quick_reference.md)
+**Next:** [Foundations FAQ](faq.md)

@@ -42,8 +42,6 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
 
 ## Core Components
 
-![id_monad.svg](../images/puml/id_monad.svg)
-
 | Component | Role |
 |-----------|------|
 | `Id<A>` | A record wrapping a value of type `A`. Directly implements `IdKind<A>`, so no wrapper allocation is needed. |

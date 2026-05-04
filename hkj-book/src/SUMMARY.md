@@ -134,6 +134,8 @@
   - [Capstone: A Multi-Capability Workflow](transformers/transformer_capstone.md)
 
 - [Foundations](hkts/foundations_intro.md)
+  - [One Line, Six Layers](hkts/one_line_six_layers.md)
+  - [Lifting the Hood](hkts/lifting_the_hood.md)
   - [Higher-Kinded Types](hkts/ch_intro.md)
     - [HKT Introduction](hkts/hkt_introduction.md)
     - [Concepts](hkts/core-concepts.md)
@@ -142,6 +144,7 @@
     - [Basic HKT Examples](hkts/hkt_basic_examples.md)
     - [Quick Reference](hkts/quick_reference.md)
     - [Extending](hkts/extending-simulation.md)
+    - [Foundations FAQ](hkts/faq.md)
   - [Type Classes](functional/ch_intro.md)
     - [Functional Api](functional/functional_api.md)
     - [Functor](functional/functor.md)

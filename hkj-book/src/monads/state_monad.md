@@ -43,10 +43,6 @@ A `State<S, A>` represents a computation that takes an initial state `S` and pro
 
 In `Higher-Kinded-J`, the State monad pattern is implemented via the `State<S, A>` interface, its associated `StateTuple<S, A>` record, the HKT simulation types (`StateKind`, `StateKindHelper`), and the type class instances (`StateMonad`, `StateApplicative`, `StateFunctor`).
 
-## Structure
-
-![state_monad.svg](../images/puml/state_monad.svg)
-
 ## The `State<S, A>` Type and `StateTuple<S, A>`
 
 The core type is the `State<S, A>` functional interface:
