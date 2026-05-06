@@ -1,6 +1,6 @@
 # Expression: ForPath Parallel Composition Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - How `ForPath.par()` combines independent computations using applicative semantics
 - Short-circuit behaviour when one computation fails (MaybePath, EitherPath)
 - True parallel execution with VTaskPath on virtual threads

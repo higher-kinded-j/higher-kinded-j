@@ -15,10 +15,25 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 18: Fold Combination
+ * Tutorial 18: Fold Combination.
  *
- * <p>Learn how to combine multiple Fold optics using {@code plus}, {@code empty}, and {@code sum}
- * to build queries that extract results from several different paths through a data structure.
+ * <p>Pain → Promise. A {@link Fold} is the read-only side of a Traversal: "give me every matching
+ * element". Combining several folds — "every shipped item's tracking number, plus every cancelled
+ * order's id" — needs Stream concatenation in plain Java, with the concatenation logic per call
+ * site. {@code Fold.plus} / {@code Fold.sum} capture the same shape as composable optics:
+ *
+ * <pre>
+ *   Fold&lt;Order, String&gt; trackingPlusReason = trackingFold.plus(reasonFold);
+ *   List&lt;String&gt; both = trackingPlusReason.toList(order);
+ * </pre>
+ *
+ * <p>Folds form a {@link Monoid}: {@code Fold.empty()} is the identity, {@code Fold.plus} is the
+ * operation. {@code Fold.sum(first, rest...)} is sugar for {@code first.plus(rest[0])
+ * .plus(rest[1])...}.
+ *
+ * <p>Original notes: this tutorial covers combining multiple Fold optics using {@code plus}, {@code
+ * empty}, and {@code sum} to build queries that extract results from several different paths
+ * through a data structure.
  *
  * <p>Key Concepts:
  *
@@ -87,6 +102,10 @@ public class Tutorial18_FoldCombination {
      * plus()} to get both the first name and last name from a Person.
      *
      * <p>Task: Create a combined fold that extracts both names.
+     *
+     * <pre>
+     *   // Strategy: firstNameLens.asFold().plus(lastNameLens.asFold())
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 1: Combine two field folds with plus")
@@ -109,6 +128,10 @@ public class Tutorial18_FoldCombination {
      * fold.
      *
      * <p>Task: Verify the identity property by combining a fold with Fold.empty().
+     *
+     * <pre>
+     *   // Strategy: nameFold.plus(Fold.empty())
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 2: Identity with Fold.empty()")
@@ -140,6 +163,10 @@ public class Tutorial18_FoldCombination {
      * Fold that focuses on multiple elements from a list.
      *
      * <p>Task: Create a fold that returns the team lead's name followed by all member names.
+     *
+     * <pre>
+     *   // Strategy: leadNameFold.plus(memberNamesFold)
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 3: Lens fold plus list Fold")
@@ -168,6 +195,10 @@ public class Tutorial18_FoldCombination {
      * combine them to extract values regardless of which variant is present.
      *
      * <p>Task: Create a fold that extracts a descriptive string from any Shape variant.
+     *
+     * <pre>
+     *   // Strategy: circleDesc.plus(rectDesc)
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 4: Combine folds from sealed interface branches")
@@ -208,6 +239,10 @@ public class Tutorial18_FoldCombination {
      * behaves identically to chaining {@code plus()} calls.
      *
      * <p>Task: Use Fold.sum() to combine three field folds from a Person.
+     *
+     * <pre>
+     *   // Strategy: Fold.sum() to combine all three folds
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 5: Fold.sum() for multiple paths")
@@ -233,6 +268,10 @@ public class Tutorial18_FoldCombination {
      * extractor. This simulates extracting all relevant strings from a complex nested structure.
      *
      * <p>Task: Extract the team name, lead's full name, and all member first names.
+     *
+     * <pre>
+     *   // Strategy: Fold.sum() to combine all four folds
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 6: Real-world extractor")
@@ -265,6 +304,10 @@ public class Tutorial18_FoldCombination {
      *
      * <p>Task: Use foldMap with a sum monoid to add ages from both a single person fold and a list
      * fold.
+     *
+     * <pre>
+     *   // Strategy: Create combined fold with plus(), then call foldMap(sumMonoid, age -> age, team)
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 7: foldMap with custom monoid")
@@ -307,6 +350,10 @@ public class Tutorial18_FoldCombination {
      *
      * <p>Task: Combine a fold of senior members (age >= 30) with a fold of junior members (age <
      * 30), each prefixed accordingly.
+     *
+     * <pre>
+     *   // Strategy: seniorNames.plus(juniorNames)
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 8: Combining filtered folds")

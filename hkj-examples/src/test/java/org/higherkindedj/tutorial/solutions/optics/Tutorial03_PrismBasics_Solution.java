@@ -14,18 +14,21 @@ import org.higherkindedj.optics.util.Prisms;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: Prism Basics - Working with Sum Types
+ * Solution for Tutorial03 PrismBasics — teaching-solution format.
  *
- * <p>A Prism is an optic for working with sum types (sealed interfaces, Either, etc.). Unlike a
- * Lens which always succeeds, a Prism might fail because the value might not match the expected
- * case.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Key Concepts: - getOptional: tries to extract a value, returns Maybe - build: constructs a
- * value from the inner type - modify: updates the value if it matches the case - Pattern matching:
- * type-safe access to sealed interface variants
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <p>When to use: - Sealed interfaces with multiple implementations - Either (Left vs Right prisms)
- * - Validated (Valid vs Invalid prisms) - Any sum type where you need to focus on one case
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial03_PrismBasics_Solution {
 
@@ -74,11 +77,17 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 1: Getting a value with a Prism
+   * Why this is idiomatic: a prism's read operation is partial by design — {@code getOptional}
+   * returns {@code Optional<Circle>} so the caller cannot accidentally treat a {@code Rectangle} as
+   * a {@code Circle}. The two test branches (present, empty) prove the totality of the result.
    *
-   * <p>getOptional tries to extract the value if it matches the expected case.
+   * <p>Alternative: pattern-match the {@code Shape} with {@code if (s instanceof Circle c)}. The
+   * code is the same shape — the prism just promotes that pattern into a value you can pass around,
+   * store, and compose.
    *
-   * <p>Task: Use a prism to extract a Circle from a Shape
+   * <p>Common wrong attempt: cast unconditionally with {@code (Circle) shape} and rely on the
+   * {@code ClassCastException} to indicate "not a circle". Exceptions for routine flow are exactly
+   * what {@code Optional} replaces.
    */
   @Test
   void exercise1_gettingWithPrism() {
@@ -99,11 +108,16 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 2: Building a value with a Prism
+   * Why this is idiomatic: {@code build} is total — given a {@code Circle}, you always get back a
+   * {@code Shape}. It is the symmetric partner of {@code getOptional}: read may fail, write cannot.
    *
-   * <p>build (also called reverseGet) constructs the outer type from the inner type.
+   * <p>Alternative: {@code Shape s = circle;} — the upcast is implicit because {@code Circle}
+   * implements {@code Shape}. {@code build} is preferred when the prism is being passed around as
+   * data; the implicit upcast is fine for one-off code.
    *
-   * <p>Task: Build a Shape from a Circle
+   * <p>Common wrong attempt: thinking {@code build} can fail and writing {@code
+   * circlePrism.build(circle).orElseThrow(...)}. {@code build} returns the outer type directly —
+   * there is nothing to unwrap.
    */
   @Test
   void exercise2_buildingWithPrism() {
@@ -119,11 +133,17 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 3: Modifying with a Prism
+   * Why this is idiomatic: {@code prism.modify} is "apply this function if the variant matches,
+   * otherwise pass through unchanged". One call expresses both the conditional and the
+   * transformation; the {@code isSameAs} assertion proves the no-match branch is identity.
    *
-   * <p>modify applies a function, but only if the value matches the prism's case.
+   * <p>Alternative: an explicit {@code switch} or {@code instanceof} block returning the modified
+   * or original shape. Same outcome; the prism factors the boilerplate into a combinator that
+   * composes with other optics.
    *
-   * <p>Task: Double the radius of circles, leave other shapes unchanged
+   * <p>Common wrong attempt: write {@code modify} with side effects (logging the transformation,
+   * caching results). Prism modify expects a pure function; surprise side effects fire on every
+   * match and become very confusing inside a larger composition.
    */
   @Test
   void exercise3_modifyingWithPrism() {
@@ -143,11 +163,17 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 4: Pattern matching with multiple prisms
+   * Why this is idiomatic: chain {@code Optional.or(...)} across each prism — the first one that
+   * matches wins, the rest are skipped. The sum-type dispatch reads as a single expression with one
+   * terminal {@code orElse}.
    *
-   * <p>Use different prisms to handle different cases of a sum type.
+   * <p>Alternative: a Java {@code switch} expression on the sealed interface ({@code switch (shape)
+   * { case Circle c -> ... }}). Just as good in modern Java; the prism form is preferable when the
+   * dispatch needs to be passed as data or composed with optics elsewhere.
    *
-   * <p>Task: Calculate area for different shapes using prisms
+   * <p>Common wrong attempt: nest {@code if (circlePrism.matches(...)) ... else if ...} blocks and
+   * re-extract with a cast. Works once, but every cast duplicates the {@code matches} check the
+   * prism already performed; let {@code getOptional} carry the typed value through.
    */
   @Test
   void exercise4_patternMatching() {
@@ -171,11 +197,17 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 5: Composing Prisms with Lenses
+   * Why this is idiomatic: {@code stringPrism.getOptional(...).map(...)} is the prism-then-lens
+   * shape — partial read into the variant, total read of the field. The result stays {@code
+   * Optional<String>} so the absent-variant case is impossible to forget.
    *
-   * <p>You can compose a Prism with a Lens to access nested fields within a sum type variant.
+   * <p>Alternative: a real {@code prism.andThen(lens)} composition that returns an {@code
+   * Affine<JsonValue, String>}. Equivalent semantics; reach for the named composition once the same
+   * path is needed in two or more places.
    *
-   * <p>Task: Access the radius of a circle through composition
+   * <p>Common wrong attempt: call {@code stringPrism.getOptional(jv).get().value()} without an
+   * {@code ifPresent}/{@code map}. The {@code get()} on an empty optional throws — the {@code map}
+   * keeps the absence handling in the type.
    */
   @Test
   void exercise5_composingPrismWithLens() {
@@ -190,11 +222,18 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 6: Conditional updates
+   * Why this is idiomatic: one prism modifier handles every value; matching variants get
+   * transformed, non-matching variants pass through untouched. The {@code isSameAs(number)}
+   * assertion on the {@code JsonNumber} input proves the no-op branch is identity.
    *
-   * <p>Prisms are great for conditionally updating specific variants.
+   * <p>Alternative: a {@code stream().map(jv -> switch (jv) { case JsonString js -> ... default ->
+   * jv; })} pipeline. Equally readable; the prism form is mechanical (no manual {@code default}
+   * arm) and stays in sync when a new variant is added.
    *
-   * <p>Task: Uppercase all JsonString values in a collection
+   * <p>Common wrong attempt: forget to wrap the result in a fresh {@code JsonString} and return the
+   * bare uppercased {@code String} from the modify lambda. The lambda's required return type is
+   * {@code JsonString}, so it fails to compile — but only after the test catches the intent
+   * mismatch.
    */
   @Test
   void exercise6_conditionalUpdates() {
@@ -217,11 +256,16 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 7: Using matches for type checking
+   * Why this is idiomatic: {@code matches} is the cheap predicate — yes/no without the {@code
+   * Optional} allocation. Useful when you only need the boolean answer (filter, count, branch) and
+   * not the extracted value.
    *
-   * <p>Prisms provide a matches() method to check if a value is of the expected case.
+   * <p>Alternative: {@code instanceof Circle}. Same answer; reach for {@code matches} when the
+   * predicate needs to be passed to a higher-order function (a {@code Stream.filter}, a custom
+   * combinator) where the prism reference is what gets stored.
    *
-   * <p>Task: Filter shapes to find all circles
+   * <p>Common wrong attempt: writing {@code circlePrism.getOptional(s).isPresent()} when only a
+   * boolean is needed. {@code matches} is the named, allocation-free spelling.
    */
   @Test
   void exercise7_usingMatches() {
@@ -242,12 +286,16 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 8: Using doesNotMatch for exclusion filtering
+   * Why this is idiomatic: {@code circlePrism::doesNotMatch} reads as "everything except a circle",
+   * and as a method reference it slots straight into {@code Stream.filter}. Negation lives in the
+   * prism, not in a stray lambda.
    *
-   * <p>The doesNotMatch method is the logical negation of matches(). It's useful for filtering out
-   * values that don't match a prism.
+   * <p>Alternative: {@code .filter(s -> !circlePrism.matches(s))}. Equivalent; the named {@code
+   * doesNotMatch} is the smaller, more discoverable spelling.
    *
-   * <p>Task: Filter a list to get all non-circle shapes
+   * <p>Common wrong attempt: writing {@code .filter(s -> !(s instanceof Circle))} and bypassing the
+   * prism entirely. Now the filter no longer participates in optic refactors — change the prism's
+   * predicate and the manual filter silently goes out of sync.
    */
   @Test
   void exercise8_usingDoesNotMatch() {
@@ -271,12 +319,17 @@ public class Tutorial03_PrismBasics_Solution {
   }
 
   /**
-   * Exercise 9: Using the nearly prism for predicate-based matching
+   * Why this is idiomatic: {@code Prisms.nearly(default, predicate)} promotes any predicate to a
+   * prism — the read side asks "does it satisfy?", the build side returns the supplied default. It
+   * is the bridge between a value-level predicate and an optic the rest of the API speaks.
    *
-   * <p>The nearly prism matches values that satisfy a predicate. Unlike 'only' which matches exact
-   * values, 'nearly' matches categories of values.
+   * <p>Alternative: {@code Prisms.only(value)} when the match is a single specific value. Use
+   * {@code nearly} for categories ("positive", "non-empty", "even"), {@code only} for exact
+   * sentinels.
    *
-   * <p>Task: Create a prism that matches positive numbers and use it to filter a list
+   * <p>Common wrong attempt: forget that {@code build(Unit.INSTANCE)} returns the supplied default
+   * and assume it can be reverse-engineered from the predicate. The predicate is one-way; the
+   * default is what the prism produces when asked to construct.
    */
   @Test
   void exercise9_usingNearlyPrism() {

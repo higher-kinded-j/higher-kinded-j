@@ -10,11 +10,15 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.junit.jupiter.api.Test;
 
 /**
- * SOLUTION for Tutorial 01: Lens Basics - Immutable Field Access
+ * Solution for Tutorial 01: Lens Basics — teaching-solution format.
  *
- * <p>This file contains complete, working solutions for all exercises in Tutorial01_LensBasics.
+ * <p>Each exercise's Javadoc records:
  *
- * <p>Compare your solutions with these to learn different approaches and best practices.
+ * <ul>
+ *   <li><b>Why this is idiomatic</b> — what makes the chosen form the standard one
+ *   <li><b>Alternative</b> — at least one other shape that also works, with the trade-off
+ *   <li><b>Common wrong attempt</b> — a typical first stumble and the symptom it produces
+ * </ul>
  */
 public class Tutorial01_LensBasics_Solution {
 
@@ -30,9 +34,15 @@ public class Tutorial01_LensBasics_Solution {
       Lens.of(Person::age, (person, newAge) -> new Person(person.name(), newAge, person.email()));
 
   /**
-   * Exercise 1: Getting a value with a Lens
+   * Why this is idiomatic: {@code lens.get(source)} reads as "this is the focus on that source" —
+   * one method call, no copy, no allocation.
    *
-   * <p>SOLUTION: Use lens.get(source) to extract the value
+   * <p>Alternative: call the record accessor directly ({@code person.name()}). Same answer; loses
+   * the lens reference for downstream composition.
+   *
+   * <p>Common wrong attempt: passing the source first as in {@code nameLens.get(person,
+   * "default")}. {@code Lens.get} takes one argument; for defaulting on absent fields use {@link
+   * org.higherkindedj.optics.Affine}.
    */
   @Test
   void exercise1_gettingValue() {
@@ -45,9 +55,15 @@ public class Tutorial01_LensBasics_Solution {
   }
 
   /**
-   * Exercise 2: Setting a value with a Lens
+   * Why this is idiomatic: {@code lens.set(newValue, source)} returns a fresh structure; the
+   * original is never touched. The assertion against {@code person.name()} at the end is proof.
    *
-   * <p>SOLUTION: Use lens.set(newValue, source) to create an updated copy
+   * <p>Alternative: {@code lens.modify(ignored -> "Bob", person)}. Same result; loses the "constant
+   * value" signal.
+   *
+   * <p>Common wrong attempt: mutating a non-record holder pretending it is immutable. The lens
+   * contract assumes immutability of the focused field; mutation breaks every reasoning principle
+   * the optic provides.
    */
   @Test
   void exercise2_settingValue() {
@@ -62,9 +78,14 @@ public class Tutorial01_LensBasics_Solution {
   }
 
   /**
-   * Exercise 3: Modifying a value with a Lens
+   * Why this is idiomatic: {@code modify} captures "apply this function to exactly that field"
+   * without the get-transform-set ceremony.
    *
-   * <p>SOLUTION: Use lens.modify(function, source) to transform the value
+   * <p>Alternative: {@code ageLens.set(ageLens.get(person) + 1, person)}. Same answer; three
+   * mentions of ageLens instead of one, more places to make a typo.
+   *
+   * <p>Common wrong attempt: passing the source first, as in {@code ageLens.modify(person, age ->
+   * age + 1)}. The contract is function first, then source — symmetric with {@code set}.
    */
   @Test
   void exercise3_modifyingValue() {
@@ -78,9 +99,14 @@ public class Tutorial01_LensBasics_Solution {
   }
 
   /**
-   * Exercise 4: Chaining multiple updates
+   * Why this is idiomatic: each lens operation produces a fresh structure that flows into the next.
+   * The chain reads inside-out (innermost call runs first), which is the standard functional style.
    *
-   * <p>SOLUTION: Chain lens operations by passing the result of one to the next
+   * <p>Alternative: extract a local variable for the intermediate result. Same call shape; easier
+   * to debug; preferred in production code.
+   *
+   * <p>Common wrong attempt: trying to apply both updates "at once" by composing functions. Lens
+   * chains are sequential — each update flows through the next.
    */
   @Test
   void exercise4_chainingUpdates() {
@@ -94,9 +120,16 @@ public class Tutorial01_LensBasics_Solution {
   }
 
   /**
-   * Exercise 5: Using generated lenses
+   * Why this is idiomatic: the annotation processor generates a {@code ProductLenses} class with
+   * one static method per field. We call them like any other static method; the generated code is
+   * the same shape as the manual lenses we have been writing.
    *
-   * <p>SOLUTION: Generated lenses are accessed via static methods on the {RecordName}Lenses class
+   * <p>Alternative: use the generated {@code with*} helpers ({@code ProductLenses.withName}). Same
+   * outcome; the lens form composes, the helper form does not.
+   *
+   * <p>Common wrong attempt: trying to use a generated lens for a record defined inside a method
+   * body. The annotation processor cannot generate companions for local classes; either move the
+   * record to top-level or define lenses manually.
    */
   @Test
   void exercise5_generatedLenses() {
@@ -128,9 +161,16 @@ public class Tutorial01_LensBasics_Solution {
   }
 
   /**
-   * Exercise 6: Creating a custom lens
+   * Why this is idiomatic: {@code Lens.of(getter, setter)} matches the lens contract directly — the
+   * getter extracts, the setter rebuilds.
    *
-   * <p>SOLUTION: Use Lens.of(getter, setter) where setter is a BiFunction
+   * <p>Alternative: {@code Lens.of(Person::email, (p, newEmail) -> new Person(p.name(), p.age(),
+   * newEmail))} — exactly the form used in the test. The method-reference getter is the cleanest
+   * spelling.
+   *
+   * <p>Common wrong attempt: writing a setter that returns a partially-modified instance (e.g.
+   * forgetting to copy one field). The compiler will not catch this; the test will. As a sanity
+   * check, lens setters always rebuild every field.
    */
   @Test
   void exercise6_customLens() {
@@ -148,9 +188,13 @@ public class Tutorial01_LensBasics_Solution {
   }
 
   /**
-   * Exercise 7: Using modify with method references
+   * Why this is idiomatic: any {@code Function<A, A>} works, including method references.
+   * Lambda-free spelling reads cleanest when the method already exists.
    *
-   * <p>SOLUTION: Method references like String::toUpperCase work perfectly with modify
+   * <p>Alternative: a lambda {@code s -> s.toUpperCase()}. Identical, two extra tokens.
+   *
+   * <p>Common wrong attempt: {@code String::toUpperCase()} (parentheses). That is a method call,
+   * not a reference; the compiler will reject it.
    */
   @Test
   void exercise7_methodReferences() {

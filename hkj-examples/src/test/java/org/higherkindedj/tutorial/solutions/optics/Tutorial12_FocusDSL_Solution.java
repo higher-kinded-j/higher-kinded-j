@@ -16,12 +16,37 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 12: Focus DSL - Type-Safe Path Navigation
+ * Solution for Tutorial12 FocusDSL — teaching-solution format.
  *
- * <p>These are the completed solutions for all exercises in Tutorial12_FocusDSL.java
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial12_FocusDSL_Solution {
 
+  /**
+   * Why this is idiomatic: {@code FocusPath.of(lens)} lifts a lens into the path DSL where {@code
+   * via}, {@code each}, {@code at}, and the rest of the navigation vocabulary become available. The
+   * path reads as a sentence and accepts further refinements.
+   *
+   * <p>Alternative: keep the lens and call its methods directly. Same answer; the {@code FocusPath}
+   * wrapper is what allows the next step to be {@code .via(...)} rather than a hand-rolled
+   * composition.
+   *
+   * <p>Common wrong attempt: skip the path and call {@code lens.get} for reads but {@code lens.set}
+   * with the wrong argument order for writes. The path's {@code get}/{@code set} are source-first
+   * by convention; staying inside the DSL keeps the order consistent.
+   */
   @Test
   void exercise1_basicFocusPath() {
     record Person(String name, int age) {}
@@ -43,6 +68,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(renamed.age()).isEqualTo(30);
   }
 
+  /**
+   * Why this is idiomatic: {@code .via(lens)} extends the path one step deeper. Reading the call
+   * chain top-to-bottom mirrors how the field would be described in conversation — "person →
+   * address → street → name".
+   *
+   * <p>Alternative: chain {@code andThen} on raw lenses. Equivalent; the {@code via} spelling reads
+   * better when the path navigation outweighs the lens algebra.
+   *
+   * <p>Common wrong attempt: try to compose two paths with {@code andThen}. The DSL provides {@code
+   * via} for path-to-path concatenation; reach for {@code andThen} only when working at the raw
+   * optic level.
+   */
   @Test
   void exercise2_composingPaths() {
     record Street(String name) {}
@@ -70,6 +107,17 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(updated.address().street().name()).isEqualTo("HIGH STREET");
   }
 
+  /**
+   * Why this is idiomatic: {@code .some()} on a lens-into-{@code Optional} produces an {@code
+   * AffinePath} that reads partially. {@code matches} answers presence; {@code getOptional} carries
+   * the absent case forward.
+   *
+   * <p>Alternative: compose the {@code lens} with {@code Prisms.some()} explicitly. Same outcome;
+   * the DSL's {@code some()} is a one-word shorthand for the common case.
+   *
+   * <p>Common wrong attempt: use {@code .get()} on the path expecting a plain value. The affine
+   * cannot guarantee a value exists; the type forces you to handle absence.
+   */
   @Test
   void exercise3_affinePathBasics() {
     record Config(Optional<String> apiKey) {}
@@ -99,6 +147,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(noKey).isFalse();
   }
 
+  /**
+   * Why this is idiomatic: {@code .each()} promotes a list-shaped lens into a {@code
+   * TraversalPath}. {@code getAll}, {@code modifyAll}, and {@code count} attach naturally to the
+   * resulting path.
+   *
+   * <p>Alternative: build a {@code Traversal} explicitly with the listTraversal helper. Same
+   * answer; the DSL's {@code each()} is the named shortcut and signals iteration intent cleanly.
+   *
+   * <p>Common wrong attempt: try to call {@code get} on a traversal-shaped path expecting the first
+   * element. {@code getAll} returns the whole collection — pick {@code at(0)} with an affine if
+   * "the first element" is what you want.
+   */
   @Test
   void exercise4_traversalPathBasics() {
     record Team(String name, List<String> members) {}
@@ -123,6 +183,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(memberCount).isEqualTo(3);
   }
 
+  /**
+   * Why this is idiomatic: {@code .at(i)} narrows a list-shaped lens to a single index — an {@code
+   * AffinePath} because the index may be out of bounds. {@code set} writes through the same path
+   * and rebuilds the list.
+   *
+   * <p>Alternative: read the list, mutate {@code list.set(i, value)}, write it back. Works for
+   * mutable lists; many record-shaped fields are immutable lists where this fails.
+   *
+   * <p>Common wrong attempt: assume {@code at(10)} on a three-element list throws. It returns
+   * {@code Optional.empty()} — the affine carries the absence forward, just like other partial
+   * reads.
+   */
   @Test
   void exercise5_listIndexAccess() {
     record Playlist(String name, List<String> songs) {}
@@ -150,6 +222,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(updated.songs()).containsExactly("New First Song", "Song B", "Song C");
   }
 
+  /**
+   * Why this is idiomatic: {@code .atKey(key)} narrows a map-shaped lens to a single value. The
+   * result is an {@code AffinePath} because the key may be absent — present and missing keys are
+   * answered by the same partial read.
+   *
+   * <p>Alternative: read the map and call {@code get(key)} expecting a possibly-{@code null} value.
+   * Loses the typed absence; the affine wrapper makes the missing case impossible to forget.
+   *
+   * <p>Common wrong attempt: write through {@code atKey} with a map literal that has a different
+   * value type. The lens enforces the map's value type at the call site; mismatch is a compile
+   * error.
+   */
   @Test
   void exercise6_mapNavigation() {
     record Settings(Map<String, String> values) {}
@@ -175,6 +259,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(missingPath.getOptional(settings)).isEmpty();
   }
 
+  /**
+   * Why this is idiomatic: chain {@code each()}, {@code via}, and {@code some()} — every
+   * department, then its optional manager, then the present-only manager. The {@code TraversalPath}
+   * returns the present managers and rewrites them in a single pass.
+   *
+   * <p>Alternative: a stream pipeline that filters out empty {@code Optional}s and then maps. Same
+   * reads; the corresponding writes are what the path makes a one-line update.
+   *
+   * <p>Common wrong attempt: forget {@code some()} and try to traverse over an {@code
+   * Optional<String>} as if it were always present. The path would be ill-formed; the explicit
+   * {@code some()} confirms the partiality.
+   */
   @Test
   void exercise7_deepNavigation() {
     record Department(String name, Optional<String> manager) {}
@@ -209,6 +305,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(updatedManagers).containsExactly("ALICE", "CHARLIE");
   }
 
+  /**
+   * Why this is idiomatic: {@code traversalPath.filter(predicate)} narrows the focus to elements
+   * that match. {@code modifyAll} on the filtered path applies the discount only to the expensive
+   * products; the cheap ones pass through untouched.
+   *
+   * <p>Alternative: stream over the products, partition, modify the matching half, and concatenate.
+   * Works once; the filtered traversal is the optic-driven version that stays inspectable.
+   *
+   * <p>Common wrong attempt: pre-filter the list before applying the modify. The cheap products are
+   * now missing from the result; let the path's {@code filter} keep them and just exclude them from
+   * the rewrite.
+   */
   @Test
   void exercise8_filteringTraversals() {
     record Product(String name, double price) {}
@@ -248,6 +356,18 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(widget.price()).isEqualTo(10.0);
   }
 
+  /**
+   * Why this is idiomatic: {@code toLens}, {@code asAffine}, and {@code asTraversal} drop the path
+   * back into the underlying optic when an external API expects that shape. The conversions
+   * preserve semantics — a lens always succeeds, the affine and traversal show one focus.
+   *
+   * <p>Alternative: keep the path everywhere. Possible if the surrounding API accepts {@code
+   * FocusPath}; reach for the conversions when interoperating with other libraries.
+   *
+   * <p>Common wrong attempt: cast a path to a different optic shape. The conversions are named
+   * because they encode small contracts (e.g. {@code asAffine} gives an always- matching affine); a
+   * cast would skip the validation.
+   */
   @Test
   void exercise9_pathConversion() {
     record Box(String content) {}
@@ -267,6 +387,17 @@ public class Tutorial12_FocusDSL_Solution {
     assertThat(asTraversal.getAll(new Box("test"))).containsExactly("test");
   }
 
+  /**
+   * Why this is idiomatic: {@code FocusPaths.listElements()}, {@code listAt(0)}, and {@code
+   * listLast()} are pre-built traversals/affines for the most common list patterns. Reach for them
+   * when the lens-then-{@code each()} chain would just rebuild the same canonical optic.
+   *
+   * <p>Alternative: build the optics by hand. Equivalent; the utility methods cut the boilerplate
+   * to one call.
+   *
+   * <p>Common wrong attempt: assume {@code listLast()} on an empty list throws. It returns {@code
+   * Optional.empty()}; the affine carries the absence forward like any other partial read.
+   */
   @Test
   void exercise10_focusPathsUtility() {
     var listTraversal = FocusPaths.<String>listElements();

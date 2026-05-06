@@ -17,23 +17,36 @@ import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 06: Concrete Types - Choosing the Right Type for the Job
+ * Solution for Tutorial06 ConcreteTypes — teaching-solution format.
  *
- * <p>Now that you understand Functor, Applicative, and Monad, let's explore the concrete types and
- * when to use each one.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Common Types: - Either<L, R>: Represents a value that can be Left (error) or Right (success) -
- * Maybe<A>: Represents a value that might be absent - List<A>: Represents multiple values -
- * Validated<E, A>: Like Either, but accumulates all errors
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial06_ConcreteTypes_Solution {
 
   /**
-   * Exercise 1: Either for error handling
+   * Why this is idiomatic: a guarded ladder of validations that returns a typed {@code Left} on the
+   * first failing rule keeps the success path unindented and gives each error its own short, stable
+   * string. The caller sees one "valid" branch and one "invalid" branch with a reason.
    *
-   * <p>Use Either when you want explicit error types and fail-fast behavior.
+   * <p>Alternative: collect all the failures with {@code Validated} and a {@code Semigroup}
+   * (Exercise 5). Pick that when the user wants every reason at once; pick {@code Either} when
+   * "first reason wins" is good enough.
    *
-   * <p>Task: Create a function that validates a user's age
+   * <p>Common wrong attempt: returning {@code null} or throwing {@code IllegalArgumentException}
+   * for invalid inputs. Both choices push the failure handling out of the type system — {@code
+   * Either<String, Integer>} states "either an error reason or an age" right in the signature.
    */
   @Test
   void exercise1_eitherForErrorHandling() {
@@ -60,11 +73,18 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 2: Maybe for optional values
+   * Why this is idiomatic: {@code Maybe.just(...)} and {@code Maybe.nothing()} say "present" and
+   * "absent" without inventing a reason. Lookups are exactly that shape — the key is there or it is
+   * not — so {@code Maybe} fits without ceremony.
    *
-   * <p>Use Maybe when a value might be absent, but you don't need to explain why.
+   * <p>Alternative: {@code Optional<String>} from the JDK. Same operational meaning; reach for
+   * {@code Maybe} when the surrounding code already speaks higher-kinded-j typeclasses (so {@code
+   * map}/{@code flatMap} compose with the rest of the pipeline) and {@code Optional} when interop
+   * with vanilla Java code dominates.
    *
-   * <p>Task: Look up a value in a simple key-value store
+   * <p>Common wrong attempt: returning {@code null} for missing keys. The signature {@code String}
+   * now lies — every caller has to remember to null-check, and one missed check NPEs at the next
+   * dereference.
    */
   @Test
   void exercise2_maybeForOptionalValues() {
@@ -87,11 +107,16 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 3: Maybe with orElse
+   * Why this is idiomatic: {@code orElse(default)} collapses the {@code Maybe} into a plain {@code
+   * String} in one move — exactly the spelling needed at the boundary where the downstream code
+   * expects a value, not a wrapper.
    *
-   * <p>Maybe provides convenient methods for handling the absent case.
+   * <p>Alternative: {@code maybe.fold(() -> "Default", v -> v)}. Equivalent; choose {@code fold}
+   * when the default needs to be lazily computed or depends on something other than a constant.
    *
-   * <p>Task: Use orElse to provide a default value
+   * <p>Common wrong attempt: {@code maybe.get()} guarded by an {@code if (maybe.isJust())}. Two
+   * statements, two dereferences of the same value, and the {@code get} on the absent branch is a
+   * runtime error if the guard ever drifts. {@code orElse} is total by construction.
    */
   @Test
   void exercise3_maybeWithDefault() {
@@ -107,11 +132,17 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 4: List for multiple values
+   * Why this is idiomatic: {@code stream().filter(...).map(...).collect(toList())} is the JDK's
+   * canonical filter-then-transform pipeline. Each stage is one concern, and the result is an
+   * eagerly evaluated {@code List}.
    *
-   * <p>Use List when you have zero or more values and want to work with all of them.
+   * <p>Alternative: {@code .toList()} (Java 16+) instead of {@code Collectors.toList()}. The
+   * shorter form returns an unmodifiable list — prefer it for new code unless something downstream
+   * genuinely mutates the result.
    *
-   * <p>Task: Filter and transform a list of numbers using Java streams
+   * <p>Common wrong attempt: looping with an {@code int} index and an {@code ArrayList}. It works,
+   * but every readable line of intent ("keep evens", "scale by 10") becomes scaffolding around the
+   * actual logic; the stream pipeline is the smaller surface area.
    */
   @Test
   void exercise4_listOperations() {
@@ -125,11 +156,16 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 5: Validated for accumulating errors
+   * Why this is idiomatic: {@code Validated} with a {@code Semigroup<String>} is the canonical
+   * "tell me everything that's wrong" shape. {@code map3} runs all three validators independently
+   * and combines failures with the semigroup — one call, every error visible.
    *
-   * <p>Use Validated when you want to collect ALL errors, not just the first one.
+   * <p>Alternative: chain the validators with {@code Either.flatMap}. Easier to read but fail-fast;
+   * the user only sees the first error and re-submits to discover the next one.
    *
-   * <p>Task: Create field validators that accumulate errors
+   * <p>Common wrong attempt: using {@code map3} without supplying a {@code Semigroup}. The
+   * applicative needs to know how to combine errors; passing the wrong instance (e.g. a monad that
+   * short-circuits on first failure) silently switches behaviour back to fail-fast.
    */
   @Test
   void exercise5_validatedAccumulatesErrors() {
@@ -181,11 +217,19 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 6: Converting between types
+   * Why this is idiomatic: pairing the {@code Maybe} state check with the corresponding {@code
+   * Either} constructor makes the conversion total — every {@code Maybe} maps to exactly one {@code
+   * Either}, and the error string lives at the conversion site rather than inside the {@code
+   * Maybe}.
    *
-   * <p>You can convert between Maybe, Either, and other types.
+   * <p>Alternative: {@code maybe.toEither("Not found")} where the helper exists; the inline ternary
+   * shown here is the explicit form when the named bridge is unavailable or when the error is
+   * computed lazily.
    *
-   * <p>Task: Convert Maybe to Either
+   * <p>Common wrong attempt: calling {@code maybe.get()} unconditionally and catching the resulting
+   * exception to map it to {@code Either.left}. That uses exceptions for routine control flow on
+   * values the type system already exposes; branch on {@code isJust} (or call {@code fold})
+   * instead.
    */
   @Test
   void exercise6_convertingTypes() {
@@ -206,11 +250,17 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 7: Choosing the right type
+   * Why this is idiomatic: the same operation gets two signatures because the choice is about the
+   * caller's needs, not the operation. {@code Either<String, Integer>} offers a reason; {@code
+   * Maybe<Integer>} offers brevity. Both are total — neither throws, neither returns {@code null}.
    *
-   * <p>Let's practice choosing the right type for different scenarios.
+   * <p>Alternative: a single {@code Either<DivisionError, Integer>} with an enum error and a helper
+   * to drop to {@code Maybe}. Better when there is more than one failure mode and you want both
+   * shapes from a single source of truth.
    *
-   * <p>Task: Implement a safe division function
+   * <p>Common wrong attempt: using {@code int} and returning a sentinel like {@code -1} for "by
+   * zero". Sentinels collide with valid results, are easy to forget to check, and the type does not
+   * warn the caller. Pick whichever wrapper above matches the caller's appetite for detail.
    */
   @Test
   void exercise7_choosingTheRightType() {

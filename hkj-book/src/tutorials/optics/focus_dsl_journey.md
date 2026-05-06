@@ -1,14 +1,21 @@
 # Optics: Focus DSL Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Type-safe path navigation with automatic type transitions
 - The FocusPath, AffinePath, and TraversalPath types
 - Effectful modifications with Applicative and Monad
 - Aggregating values with Monoid and foldMap
 - Kind field support and type class integration
+- The Focus-Effect bridge for combining optic navigation with Effect Paths
+- List Prisms, optics for external types (Jackson, jOOQ), VStream integration
+- Fold combination, navigator generation, container-type navigation
 ~~~
 
-**Duration**: ~35 minutes | **Tutorials**: 4 | **Exercises**: 29
+**Duration**: ~75 minutes | **Tutorials**: 9 (T12-T20) | **Exercises**: ~80
+
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+The Focus DSL is the ergonomic layer that lets us write `.focus().attributes().at(key)` from [One Line, Six Layers](../../hkts/one_line_six_layers.md) as a single fluent path. Tutorials 12-13 cover the basics; Tutorial 14 is the bridge to Effect Paths; Tutorials 15-20 cover specialised cases (list prisms, external types, VStream integration, fold combination, navigator generation, container-type navigation). Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
+~~~
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
 

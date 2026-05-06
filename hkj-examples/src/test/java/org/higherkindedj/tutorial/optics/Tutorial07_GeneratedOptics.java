@@ -19,13 +19,30 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 07: Generated Optics - Leveraging Annotation Processing
+ * Tutorial 07: Generated Optics — leveraging annotation processing.
  *
- * <p>Higher-kinded-j provides annotations that automatically generate optics for your types. This
- * eliminates boilerplate and ensures consistency.
+ * <p>Pain → Promise. Tutorials 01-06 manually defined every lens / prism / traversal. That is fine
+ * for learning the mechanics, but in real code we never write {@code Lens.of(...)} by hand: the
+ * annotation processor reads our records and sealed interfaces and emits a companion class with one
+ * optic per field / variant / collection.
+ *
+ * <pre>
+ *   &#064;GenerateLenses
+ *   &#064;GenerateTraversals
+ *   record User(String name, int age, List&lt;Address&gt; addresses) {}
+ *
+ *   // Generated:
+ *   //   UserLenses.name() / age() / addresses()
+ *   //   UserTraversals.addresses()  // a Traversal&lt;User, Address&gt;
+ * </pre>
+ *
+ * <p>Java idiom anchor: this is the optics equivalent of Lombok's {@code @Wither} or AutoValue
+ * generated builders — same boilerplate-elimination, but the generated artifact is a value (an
+ * optic), not a method.
  *
  * <p>Key Annotations: - @GenerateLenses: Creates lenses for all fields in a record
  * - @GeneratePrisms: Creates prisms for all variants of a sealed interface - @GenerateTraversals:
@@ -126,14 +143,18 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 1: Using @GenerateLenses
+   * Exercise 1: Using {@code @GenerateLenses}.
    *
-   * <p>The @GenerateLenses annotation generates a *Lenses class with: - A lens() method for each
-   * field - A with*() helper method for each field
-   *
-   * <p>Task: Use generated lenses to access and modify fields
+   * <pre>
+   *   // Nudge:    Three generated calls: name() to read, age() to set, withEmail to use the helper.
+   *   // Strategy: PersonLenses.name().get(person)
+   *   //           PersonLenses.age().set(31, person)
+   *   //           PersonLenses.withEmail(person, "new@example.com")
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: read / set / with-helper via @GenerateLenses")
   void exercise1_generatedLenses() {
     @GenerateLenses
     record Person(String name, int age, String email) {}
@@ -177,14 +198,17 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 2: Using @GeneratePrisms
+   * Exercise 2: Using {@code @GeneratePrisms}.
    *
-   * <p>The @GeneratePrisms annotation on a sealed interface generates a *Prisms class with a prism
-   * for each implementation.
-   *
-   * <p>Task: Use generated prisms to work with sum types
+   * <pre>
+   *   // Nudge:    Two generated prisms: success() and failure().
+   *   // Strategy: ResultPrisms.success().getOptional(result)
+   *   //           ResultPrisms.failure().build(new Failure2("Error"))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: getOptional / build via @GeneratePrisms")
   void exercise2_generatedPrisms() {
     // Manual implementation (annotation processor would generate this)
     class ResultPrisms {
@@ -214,13 +238,16 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 3: Using @GenerateTraversals
+   * Exercise 3: Using {@code @GenerateTraversals} for List fields.
    *
-   * <p>The @GenerateTraversals annotation generates traversals for List, Set, and Map fields.
-   *
-   * <p>Task: Use generated traversals to work with collections
+   * <pre>
+   *   // Nudge:    Generated traversal for the items field.
+   *   // Strategy: CartTraversals.items()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: traversal over a List field via @GenerateTraversals")
   void exercise3_generatedTraversals() {
     @GenerateLenses
     record Item(String name, double price) {}
@@ -250,13 +277,17 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 4: Combining generated optics
+   * Exercise 4: Compose generated lenses across three records.
    *
-   * <p>Generated optics compose just like manually created ones.
-   *
-   * <p>Task: Use composition with generated optics
+   * <pre>
+   *   // Nudge:    Three andThen calls; all three are Lenses so the result is a Lens.
+   *   // Strategy: EmployeeLenses.company().andThen(CompanyLenses.address())
+   *   //               .andThen(AddressLenses.city())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: compose generated lenses (Employee → Company → Address → city)")
   void exercise4_combiningGeneratedOptics() {
     @GenerateLenses
     record Address(String street, String city) {}
@@ -313,13 +344,16 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 5: Generated traversals for Map fields
+   * Exercise 5: Generated traversal for Map values.
    *
-   * <p>@GenerateTraversals also works with Map<K, V> fields, creating traversals over values.
-   *
-   * <p>Task: Use generated map traversals
+   * <pre>
+   *   // Nudge:    Generated traversal traverses the map values.
+   *   // Strategy: InventoryTraversals.products()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: traversal over Map values via @GenerateTraversals")
   void exercise5_generatedMapTraversals() {
     @GenerateLenses
     record Product(String name, double price) {}
@@ -354,13 +388,16 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 6: Using with* helpers for convenient updates
+   * Exercise 6: Using {@code with*} helpers for convenient updates.
    *
-   * <p>Generated *Lenses classes include with* methods for more discoverable API.
-   *
-   * <p>Task: Use with* helpers instead of lens.set()
+   * <pre>
+   *   // Nudge:    The generated companion exposes with* methods alongside the lens methods.
+   *   // Strategy: UserLenses.withName(user, "Bob")
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: with* helpers as a more discoverable alias for lens.set")
   void exercise6_withHelpers() {
     @GenerateLenses
     record User(String id, String name, String email, boolean active) {}
@@ -408,13 +445,19 @@ public class Tutorial07_GeneratedOptics {
   }
 
   /**
-   * Exercise 7: Complex scenario with all three annotations
+   * Exercise 7: All three generators in one realistic scenario.
    *
-   * <p>Combine @GenerateLenses, @GeneratePrisms, and @GenerateTraversals in a real scenario.
-   *
-   * <p>Task: Model and manipulate a notification system
+   * <pre>
+   *   // Nudge:    Browse the manual classes built below the placeholder; they tell us what
+   *   //           the generated companion would look like for this notification scheme.
+   *   //           Compose the right optics to read each variant's text and to flip 'sent'.
+   *   // Strategy: see the assertions for the exact field names and chains required.
+   *   // Spoiler:  the existing solution file (Tutorial07_GeneratedOptics_Solution) shows the
+   *   //           full pipeline.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: Lens + Prism + Traversal in a notification system")
   void exercise7_complexScenario() {
     @GenerateLenses
     record Notification(String id, NotificationType7 type, boolean sent) {}

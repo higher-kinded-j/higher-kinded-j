@@ -23,9 +23,21 @@ import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 14: Focus-Effect Bridge
+ * Solution for Tutorial14 FocusEffectBridge — teaching-solution format.
  *
- * <p>These are the completed solutions for all exercises in Tutorial14_FocusEffectBridge.java
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial14_FocusEffectBridge_Solution {
 
@@ -55,6 +67,17 @@ public class Tutorial14_FocusEffectBridge_Solution {
   // Part 1: FocusPath -> EffectPath Bridge
   // ═══════════════════════════════════════════════════════════════════════
 
+  /**
+   * Why this is idiomatic: {@code path.toMaybePath(source)} lifts a focus path into a {@code
+   * MaybePath}, ready to chain with effect-aware operations like {@code map} and {@code via}. The
+   * optic supplies the navigation; the effect supplies the failure channel.
+   *
+   * <p>Alternative: read the value with the path and wrap with {@code Path.just}. Same answer in
+   * this case; {@code toMaybePath} is the named lift that signals the bridge intent.
+   *
+   * <p>Common wrong attempt: try to chain effect operations on a raw {@code FocusPath}. Optics
+   * describe pure navigation; effect operations live on the {@code Path} types.
+   */
   @Test
   void exercise1_focusPathToMaybePath() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
@@ -71,6 +94,18 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(upperPath.getOrElse("default")).isEqualTo("ALICE");
   }
 
+  /**
+   * Why this is idiomatic: {@code path.toEitherPath(source)} lifts the path into an {@code
+   * EitherPath}; subsequent {@code via} steps can refine the focus while staying in the typed-error
+   * channel.
+   *
+   * <p>Alternative: {@code Path.right(path.get(source))}. Equivalent runtime; the lifted version
+   * makes the next {@code via} step natural.
+   *
+   * <p>Common wrong attempt: assume {@code toEitherPath} introduces a failure case. The source-side
+   * {@code FocusPath} always succeeds, so the result is always {@code Right}; use {@code
+   * AffinePath.toEitherPath(error)} when failure must be encoded.
+   */
   @Test
   void exercise2_focusPathToEitherPath() {
     FocusPath<Company, Address> addressPath = FocusPath.of(companyAddressLens);
@@ -90,6 +125,17 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(cityResult).isEqualTo("London");
   }
 
+  /**
+   * Why this is idiomatic: an affine path is partial; {@code toMaybePath} promotes the partiality
+   * into the {@code Maybe} effect — present becomes {@code Just}, absent becomes {@code Nothing}.
+   * The bridge is total in both directions.
+   *
+   * <p>Alternative: {@code path.getOptional(source)} and wrap manually. Same outcome; the bridge
+   * keeps every transformation consistent with the rest of the path API.
+   *
+   * <p>Common wrong attempt: assume the affine throws on absence. {@code Maybe} is the typed
+   * answer; {@code toMaybePath} is the canonical lift.
+   */
   @Test
   void exercise3_affinePathToMaybePath() {
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -108,6 +154,17 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(absentPath.getOrElse("no-email")).isEqualTo("no-email");
   }
 
+  /**
+   * Why this is idiomatic: {@code affine.toEitherPath(source, error)} promotes absence to a typed
+   * {@code Left}. The error is supplied at the bridge call so the rest of the pipeline reads
+   * "either the focus or this reason".
+   *
+   * <p>Alternative: {@code affine.toMaybePath(...)} followed by {@code .toEitherPath(error)} on the
+   * resulting {@code MaybePath}. Same outcome; the direct overload removes the intermediate type.
+   *
+   * <p>Common wrong attempt: pass a generic {@code String} error type even when a typed enum is
+   * wanted. The error type is yours to choose; pick the type the rest of the domain already speaks.
+   */
   @Test
   void exercise4_affinePathToEitherPathWithError() {
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -128,6 +185,16 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(errorResult).isEqualTo("Email not configured");
   }
 
+  /**
+   * Why this is idiomatic: a traversal can yield zero or many focuses; {@code toListPath} is the
+   * bridge into the list-shaped path so every focus becomes an element of the resulting effect.
+   *
+   * <p>Alternative: {@code traversal.getAll(source)} and wrap with the list factory. Same outcome;
+   * the named bridge keeps the navigation consistent across helpers.
+   *
+   * <p>Common wrong attempt: try to {@code toMaybePath} a multi-focus traversal. The effect would
+   * have to choose one element; {@code toListPath} keeps every focus visible.
+   */
   @Test
   void exercise5_traversalPathToListPath() {
     TraversalPath<Company, User> employeesPath = FocusPath.of(companyEmployeesLens).each();
@@ -153,6 +220,18 @@ public class Tutorial14_FocusEffectBridge_Solution {
   // Part 2: EffectPath.focus() - Optics Within Effects
   // ═══════════════════════════════════════════════════════════════════════
 
+  /**
+   * Why this is idiomatic: {@code effectPath.focus(focusPath)} navigates into the success value of
+   * the effect. {@code Just(user).focus(name)} is "if there is a user, give me the name"; {@code
+   * Nothing} stays {@code Nothing}.
+   *
+   * <p>Alternative: {@code map(user -> namePath.get(user))} on the {@code MaybePath}. Equivalent;
+   * the {@code focus} spelling avoids re-reading the path's contract at the call site.
+   *
+   * <p>Common wrong attempt: try to dereference the {@code Maybe} before focusing. The point of
+   * {@code focus} is that it works on the path-as-data; reach into the value only at the end with
+   * {@code run}/{@code getOrElse}.
+   */
   @Test
   void exercise6_maybePathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
@@ -169,6 +248,16 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(focusedEmpty.run().isNothing()).isTrue();
   }
 
+  /**
+   * Why this is idiomatic: focusing on an {@code EitherPath} preserves the typed error channel.
+   * {@code Right} values are navigated into; {@code Left} values pass through unchanged.
+   *
+   * <p>Alternative: {@code map} on the {@code EitherPath} with the focus path's getter. Same
+   * answer; the {@code focus} variant reads better when the navigation is the central concern.
+   *
+   * <p>Common wrong attempt: try to lift the error type with the focus. The error channel is
+   * independent of the focus; only the success path is touched.
+   */
   @Test
   void exercise7_eitherPathFocus() {
     FocusPath<Address, String> cityPath = FocusPath.of(addressCityLens);
@@ -188,6 +277,17 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(failureResult).isEqualTo("Address not found");
   }
 
+  /**
+   * Why this is idiomatic: focusing an {@code EitherPath} through an {@code AffinePath} needs an
+   * error for the absent case — pass it as the second argument and the affine's partiality lifts
+   * into the {@code Either}'s error channel.
+   *
+   * <p>Alternative: convert the affine to an {@code EitherPath} first and chain. The combined call
+   * is a one-liner; the staged form helps when the error needs different computation per call site.
+   *
+   * <p>Common wrong attempt: forget the error argument. The affine's partiality has nowhere to go
+   * and the call fails to type-check; supply the error explicitly.
+   */
   @Test
   void exercise8_eitherPathFocusAffine() {
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -209,6 +309,18 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(missingResult).isEqualTo("Email not configured");
   }
 
+  /**
+   * Why this is idiomatic: {@code TryPath} carries a {@code Throwable}; focusing through an {@code
+   * AffinePath} provides an exception supplier for the absent case. The bridge routes the affine's
+   * "not present" through the try's failure channel.
+   *
+   * <p>Alternative: convert the affine to a {@code TryPath} explicitly. Same outcome; the focus
+   * overload is the named shortcut.
+   *
+   * <p>Common wrong attempt: throw inside the supplier rather than returning a {@code Throwable}.
+   * {@code TryPath} expects a value-style {@code Throwable} so the supplier should construct, not
+   * throw.
+   */
   @Test
   void exercise9_tryPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
@@ -232,6 +344,16 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(emailAbsent.run().isFailure()).isTrue();
   }
 
+  /**
+   * Why this is idiomatic: {@code IOPath} defers execution; focusing through an optic keeps the
+   * deferral. The optic does the navigation when {@code unsafeRun} is invoked.
+   *
+   * <p>Alternative: run the IO eagerly, focus, and re-wrap. Loses the laziness — the effect runs
+   * even if the result is discarded.
+   *
+   * <p>Common wrong attempt: forget that {@code IOPath} can throw at {@code unsafeRun}. Wrap the
+   * call in {@code TryPath} or check the supplied exception when the affine path does not match.
+   */
   @Test
   void exercise10_ioPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
@@ -255,6 +377,18 @@ public class Tutorial14_FocusEffectBridge_Solution {
         .hasMessage("No email");
   }
 
+  /**
+   * Why this is idiomatic: {@code ValidationPath} accumulates errors via a {@code Semigroup}.
+   * Focusing through an affine routes the absent case into the error list, keeping every reason
+   * visible.
+   *
+   * <p>Alternative: use {@code EitherPath} for fail-fast. Pick {@code ValidationPath} when the user
+   * wants every error at once, not just the first.
+   *
+   * <p>Common wrong attempt: pass a single error string instead of a list. The semigroup shape
+   * needs the combiner, so the error type usually matches the accumulator (e.g. {@code
+   * List<String>}).
+   */
   @Test
   void exercise11_validationPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
@@ -285,6 +419,18 @@ public class Tutorial14_FocusEffectBridge_Solution {
   // Part 3: Practical Patterns
   // ═══════════════════════════════════════════════════════════════════════
 
+  /**
+   * Why this is idiomatic: a real pipeline mixes {@code focus} with effect-shaped {@code via} steps
+   * and pure {@code map} transforms. Each piece does one thing; the typed-error channel carries
+   * failures forward without interleaving plumbing.
+   *
+   * <p>Alternative: bind intermediate {@code EitherPath}s to local variables. Same semantics; the
+   * chained version stays declarative when each step is short.
+   *
+   * <p>Common wrong attempt: collapse the validation into a single lambda after running the effect.
+   * Doing so runs everything regardless of the typed errors; keep the path lazy and let {@code via}
+   * short-circuit.
+   */
   @Test
   void exercise12_combinedPipeline() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
@@ -314,6 +460,18 @@ public class Tutorial14_FocusEffectBridge_Solution {
     assertThat(emailValidation).isEqualTo("alice@example.com");
   }
 
+  /**
+   * Why this is idiomatic: {@code IdPath} carries no failure channel; focusing through an affine
+   * returns a {@code MaybePath} because the affine itself may not match. The bridge picks the
+   * result type that matches the navigation's partiality.
+   *
+   * <p>Alternative: use {@code FocusPath.get} on the underlying value directly. Equivalent for
+   * total navigation; reach for {@code IdPath.focus(affine)} when the affine's partiality should be
+   * preserved.
+   *
+   * <p>Common wrong attempt: assume {@code IdPath.focus(affine)} returns an {@code IdPath}. The
+   * affine may not match; the result is necessarily the wider {@code MaybePath}.
+   */
   @Test
   void exercise13_simplePathsFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);

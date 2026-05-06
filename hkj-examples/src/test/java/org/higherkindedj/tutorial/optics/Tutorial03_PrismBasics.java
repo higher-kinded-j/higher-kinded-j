@@ -9,18 +9,40 @@ import java.util.Optional;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: Prism Basics - Working with Sum Types
+ * Tutorial 03: Prism Basics — working with sum types.
  *
- * <p>A Prism is an optic for working with sum types (sealed interfaces, Either, etc.). Unlike a
- * Lens which always succeeds, a Prism might fail because the value might not match the expected
- * case.
+ * <p>Pain → Promise. Java pattern-matching on a sealed interface plus a "modify just this variant"
+ * method is two pieces of code that have to stay in sync:
  *
- * <p>Key Concepts: - getOptional: tries to extract a value, returns Maybe - build: constructs a
- * value from the inner type - modify: updates the value if it matches the case - Pattern matching:
- * type-safe access to sealed interface variants
+ * <pre>
+ *   if (status instanceof Shipped s) {
+ *       return new Shipped(s.tracking().toUpperCase()); // mutate one variant
+ *   }
+ *   return status; // every other variant passes through
+ * </pre>
+ *
+ * <p>A {@link Prism} captures both the {@code instanceof} check and the rebuild in one value:
+ *
+ * <pre>
+ *   OrderStatusPrisms.shipped()
+ *       .modify(s -&gt; new Shipped(s.tracking().toUpperCase()), status);
+ * </pre>
+ *
+ * <p>Java idiom anchor:
+ *
+ * <ul>
+ *   <li>{@code prism.getOptional(s)} ↔ {@code instanceof X x ? Optional.of(x) : Optional.empty()}.
+ *   <li>{@code prism.build(a)} ↔ {@code new X(a)} — the variant constructor.
+ *   <li>{@code prism.modify(fn, s)} ↔ pattern-match-and-rebuild, in one call.
+ *   <li>{@link GeneratePrisms} ↔ generated companion class, one prism per sealed-interface variant.
+ * </ul>
+ *
+ * <p>Key concepts: getOptional / build / modify; the {@code matches} convenience; prism
+ * composition.
  *
  * <p>When to use: - Sealed interfaces with multiple implementations - Either (Left vs Right prisms)
  * - Validated (Valid vs Invalid prisms) - Any sum type where you need to focus on one case
@@ -113,13 +135,17 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 1: Getting a value with a Prism
+   * Exercise 1: Getting a value with a Prism.
    *
-   * <p>getOptional tries to extract the value if it matches the expected case.
-   *
-   * <p>Task: Use a prism to extract a Circle from a Shape
+   * <pre>
+   *   // Nudge:    A Prism's getOptional tries to extract; returns Optional.empty when the
+   *   //           variant doesn't match.
+   *   // Strategy: circlePrism.getOptional(circle)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: prism.getOptional extracts the matching variant")
   void exercise1_gettingWithPrism() {
     Shape circle = new Circle(5.0);
     Shape rectangle = new Rectangle(10.0, 20.0);
@@ -139,13 +165,16 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 2: Building a value with a Prism
+   * Exercise 2: Building with a Prism.
    *
-   * <p>build (also called reverseGet) constructs the outer type from the inner type.
-   *
-   * <p>Task: Build a Shape from a Circle
+   * <pre>
+   *   // Nudge:    build is the inverse of getOptional - construct an outer from an inner.
+   *   // Strategy: circlePrism.build(circle)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: prism.build constructs the outer from the inner")
   void exercise2_buildingWithPrism() {
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
@@ -161,13 +190,16 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 3: Modifying with a Prism
+   * Exercise 3: Modifying with a Prism.
    *
-   * <p>modify applies a function, but only if the value matches the prism's case.
-   *
-   * <p>Task: Double the radius of circles, leave other shapes unchanged
+   * <pre>
+   *   // Nudge:    modify applies the function only when the variant matches.
+   *   // Strategy: circlePrism.modify(c -&gt; new Circle(c.radius() * 2), circle)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: prism.modify only updates the matching variant")
   void exercise3_modifyingWithPrism() {
     Shape circle = new Circle(5.0);
     Shape rectangle = new Rectangle(10.0, 20.0);
@@ -187,13 +219,19 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 4: Pattern matching with multiple prisms
+   * Exercise 4: Pattern matching with multiple prisms.
    *
-   * <p>Use different prisms to handle different cases of a sum type.
-   *
-   * <p>Task: Calculate area for different shapes using prisms
+   * <pre>
+   *   // Nudge:    Each prism handles one variant; combine them in a chain of getOptional.map.
+   *   // Strategy: circlePrism.getOptional(shape).map(c -&gt; Math.PI * c.radius() * c.radius())
+   *   //               .or(() -&gt; rectanglePrism.getOptional(shape).map(r -&gt; r.width()*r.height()))
+   *   //               .or(() -&gt; trianglePrism.getOptional(shape).map(t -&gt; t.base()*t.height()/2))
+   *   //               .orElse(0.0)
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: pattern match across multiple prisms")
   void exercise4_patternMatching() {
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
     Prism<Shape, Rectangle> rectanglePrism = ShapePrisms.rectangle();
@@ -211,13 +249,16 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 5: Composing Prisms with Lenses
+   * Exercise 5: Composing Prism + extract via map.
    *
-   * <p>You can compose a Prism with a Lens to access nested fields within a sum type variant.
-   *
-   * <p>Task: Access the radius of a circle through composition
+   * <pre>
+   *   // Nudge:    getOptional gives an Optional; map extracts the inner value.
+   *   // Strategy: stringPrism.getOptional(stringValue).map(JsonString::value)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: compose Prism extraction with a field map")
   void exercise5_composingPrismWithLens() {
     JsonValue stringValue = new JsonString("Hello");
 
@@ -233,13 +274,16 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 6: Conditional updates
+   * Exercise 6: Conditional updates via prism.modify.
    *
-   * <p>Prisms are great for conditionally updating specific variants.
-   *
-   * <p>Task: Uppercase all JsonString values in a collection
+   * <pre>
+   *   // Nudge:    Same shape as updated1 right above the placeholder.
+   *   // Strategy: stringPrism.modify(js -&gt; new JsonString(js.value().toUpperCase()), string2)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: modify only the matching variants in a collection")
   void exercise6_conditionalUpdates() {
     JsonValue string1 = new JsonString("hello");
     JsonValue string2 = new JsonString("world");
@@ -260,13 +304,16 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 7: Using matches for type checking
+   * Exercise 7: matches() for type checking.
    *
-   * <p>Prisms provide a matches() method to check if a value is of the expected case.
-   *
-   * <p>Task: Filter shapes to find all circles
+   * <pre>
+   *   // Nudge:    matches() is the type-safe replacement for an instanceof check.
+   *   // Strategy: circlePrism.matches(shape1)
+   *   // Spoiler:  same call for all three shapes.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: prism.matches as a type-safe instanceof")
   void exercise7_usingMatches() {
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
@@ -286,14 +333,16 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 8: Using doesNotMatch for exclusion filtering
+   * Exercise 8: doesNotMatch for exclusion filtering.
    *
-   * <p>The doesNotMatch method is the logical negation of matches(). It's useful for filtering out
-   * values that don't match a prism.
-   *
-   * <p>Task: Filter a list to get all non-circle shapes
+   * <pre>
+   *   // Nudge:    doesNotMatch is the negation of matches.
+   *   // Strategy: shapes.stream().filter(circlePrism::doesNotMatch).toList()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: prism.doesNotMatch for exclusion filtering")
   void exercise8_usingDoesNotMatch() {
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
@@ -315,14 +364,17 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
-   * Exercise 9: Using the nearly prism for predicate-based matching
+   * Exercise 9: The {@code nearly} prism for predicate-based matching.
    *
-   * <p>The nearly prism matches values that satisfy a predicate. Unlike 'only' which matches exact
-   * values, 'nearly' matches categories of values.
-   *
-   * <p>Task: Create a prism that matches positive numbers and use it to filter a list
+   * <pre>
+   *   // Nudge:    Prisms.nearly takes a default value and a predicate.
+   *   // Strategy: Prisms.nearly(1, n -&gt; n &gt; 0)
+   *   //           numbers.stream().filter(positivePrism::matches).toList()
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: predicate-based prism via Prisms.nearly")
   void exercise9_usingNearlyPrism() {
     // TODO: Replace null with a nearly prism that matches positive integers
     // Hint: Prisms.nearly(defaultValue, predicate)

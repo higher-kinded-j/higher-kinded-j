@@ -14,7 +14,23 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Solutions for Tutorial 04: SecurityContext Patterns */
+/**
+ * Solution for Tutorial04 SecurityContextPatterns — teaching-solution format.
+ *
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
+ */
 @DisplayName("Tutorial 04: SecurityContext Patterns - Solutions")
 public class Tutorial04_SecurityContextPatterns_Solution {
 
@@ -22,6 +38,17 @@ public class Tutorial04_SecurityContextPatterns_Solution {
   @DisplayName("Part 1: Authentication")
   class AuthenticationPatterns {
 
+    /**
+     * Why this is idiomatic: {@code SecurityContext.isAuthenticated()} returns a context that
+     * yields {@code true} when a non-null principal is bound. The check is total — unbound
+     * principals come back {@code false}, never throw.
+     *
+     * <p>Alternative: read the principal directly and null-check. Equivalent; the named helper
+     * signals the intent and stays consistent across components.
+     *
+     * <p>Common wrong attempt: assume an unbound scoped value and a {@code null} value are
+     * different. {@code isAuthenticated} treats both as "not authenticated".
+     */
     @Test
     @DisplayName("Exercise 1: Check authentication status")
     void exercise1_checkAuthentication() throws Exception {
@@ -39,6 +66,17 @@ public class Tutorial04_SecurityContextPatterns_Solution {
       assertThat(anonymous).isFalse();
     }
 
+    /**
+     * Why this is idiomatic: {@code requireAuthenticated()} succeeds with the principal or throws
+     * {@code UnauthenticatedException}. Use it at endpoint boundaries where downstream code may
+     * safely assume a user.
+     *
+     * <p>Alternative: check {@code isAuthenticated} and branch manually. Same outcome; the
+     * require-style helper enforces the precondition with a typed exception.
+     *
+     * <p>Common wrong attempt: catch the exception locally and continue with a default principal.
+     * The endpoint should reject unauthenticated requests at the door, not mask them.
+     */
     @Test
     @DisplayName("Exercise 2: Require authentication")
     void exercise2_requireAuthentication() throws Exception {
@@ -58,6 +96,17 @@ public class Tutorial04_SecurityContextPatterns_Solution {
           .isInstanceOf(SecurityContext.UnauthenticatedException.class);
     }
 
+    /**
+     * Why this is idiomatic: chain {@code requireAuthenticated().map(Principal::getName)} to read
+     * the user's name once authentication succeeds. The {@code map} stays in the same monad, so the
+     * type still throws on missing principals.
+     *
+     * <p>Alternative: read the principal first, then call {@code getName()}. Same answer; the
+     * chained form keeps the contract explicit.
+     *
+     * <p>Common wrong attempt: skip the require and read directly. Without the gate,
+     * unauthenticated requests would return {@code null} or throw NPE.
+     */
     @Test
     @DisplayName("Exercise 3: Get authenticated user's name")
     void exercise3_getUsername() throws Exception {
@@ -77,6 +126,16 @@ public class Tutorial04_SecurityContextPatterns_Solution {
   @DisplayName("Part 2: Role-Based Access Control")
   class RoleBasedAccessControl {
 
+    /**
+     * Why this is idiomatic: {@code SecurityContext.hasRole(name)} returns a boolean context — true
+     * when the role is in the bound set. No exception, just a clean predicate.
+     *
+     * <p>Alternative: read the {@code ROLES} scoped set and call {@code .contains}. Same answer;
+     * the named context centralises the check.
+     *
+     * <p>Common wrong attempt: hard-code the role check at every endpoint. Drift between sites; the
+     * helper is the single source of truth for role logic.
+     */
     @Test
     @DisplayName("Exercise 4: Check for role")
     void exercise4_hasRole() throws Exception {
@@ -95,6 +154,16 @@ public class Tutorial04_SecurityContextPatterns_Solution {
       assertThat(userHasRole).isFalse();
     }
 
+    /**
+     * Why this is idiomatic: {@code requireRole(name)} succeeds with {@code Unit} or throws {@code
+     * UnauthorisedException} (note the British spelling). Use it as a gate at endpoint boundaries.
+     *
+     * <p>Alternative: check {@code hasRole} and branch manually. Same outcome; the require-style
+     * helper enforces the precondition with a typed exception.
+     *
+     * <p>Common wrong attempt: re-check the role inside business logic. The boundary gate should
+     * suffice; downstream code trusts the contract.
+     */
     @Test
     @DisplayName("Exercise 5: Require a role")
     void exercise5_requireRole() throws Exception {
@@ -116,6 +185,16 @@ public class Tutorial04_SecurityContextPatterns_Solution {
           .hasMessageContaining("admin");
     }
 
+    /**
+     * Why this is idiomatic: {@code hasAnyRole(a, b)} returns true when the user has at least one
+     * of the listed roles. Useful for endpoints that admit several roles.
+     *
+     * <p>Alternative: chain {@code hasRole(a) || hasRole(b)} manually. Same answer; the vararg
+     * helper reads more cleanly for several roles.
+     *
+     * <p>Common wrong attempt: pass an empty vararg list expecting "any role passes". No matches
+     * means {@code false}; supply the actual roles you accept.
+     */
     @Test
     @DisplayName("Exercise 6: Check for any role")
     void exercise6_hasAnyRole() throws Exception {
@@ -138,6 +217,16 @@ public class Tutorial04_SecurityContextPatterns_Solution {
       assertThat(basicResult).isFalse();
     }
 
+    /**
+     * Why this is idiomatic: {@code hasAllRoles(a, b)} returns true only when every listed role is
+     * present. Useful for compound checks like "logged-in and verified".
+     *
+     * <p>Alternative: chain {@code hasRole(a) && hasRole(b)} manually. Same answer; the vararg
+     * helper scales without operator soup.
+     *
+     * <p>Common wrong attempt: confuse {@code hasAllRoles} with {@code hasAnyRole}. The former is
+     * conjunctive, the latter disjunctive; pick by the policy intent.
+     */
     @Test
     @DisplayName("Exercise 7: Check for all roles")
     void exercise7_hasAllRoles() throws Exception {
@@ -162,6 +251,17 @@ public class Tutorial04_SecurityContextPatterns_Solution {
   @DisplayName("Part 3: Permission-Based Access Control")
   class PermissionBasedAccessControl {
 
+    /**
+     * Why this is idiomatic: permissions are typically string-typed verbs (e.g. "documents:write").
+     * {@code hasPermission} treats them like roles — a containment check on the bound permission
+     * set.
+     *
+     * <p>Alternative: roll bespoke permission logic. The named helper keeps the permission encoding
+     * consistent across components.
+     *
+     * <p>Common wrong attempt: encode permissions as enums and store them as strings
+     * inconsistently. Pick one convention (string or enum) and stick with it.
+     */
     @Test
     @DisplayName("Exercise 8: Check permission")
     void exercise8_hasPermission() throws Exception {
@@ -180,6 +280,16 @@ public class Tutorial04_SecurityContextPatterns_Solution {
       assertThat(viewerResult).isFalse();
     }
 
+    /**
+     * Why this is idiomatic: {@code requirePermission(name)} succeeds with {@code Unit} or throws
+     * {@code UnauthorisedException}. Use it before a protected action runs.
+     *
+     * <p>Alternative: check {@code hasPermission} and throw a custom exception. The library helper
+     * provides the same semantics with a typed exception class.
+     *
+     * <p>Common wrong attempt: bake the check inside the protected operation. The gate belongs at
+     * the boundary so the operation's signature stays focused.
+     */
     @Test
     @DisplayName("Exercise 9: Require permission")
     void exercise9_requirePermission() throws Exception {
@@ -207,13 +317,25 @@ public class Tutorial04_SecurityContextPatterns_Solution {
   @DisplayName("Part 4: Combined Security Checks")
   class CombinedSecurityChecks {
 
+    /**
+     * Why this is idiomatic: authentication and authorisation use different scoped values, so run
+     * both checks sequentially in the same {@code where} chain. Auth confirms identity; authz
+     * confirms permission.
+     *
+     * <p>Alternative: write a custom combined helper that does both. Possible; the two-step form
+     * keeps each gate inspectable.
+     *
+     * <p>Common wrong attempt: bind only the principal and skip the role binding. {@code
+     * requireRole} would throw because the role set is unbound; bind every scoped value the gates
+     * need.
+     */
     @Test
     @DisplayName("Exercise 10: Combined auth and authz")
     void exercise10_combinedChecks() throws Exception {
       Principal admin = () -> "admin@example.com";
       Set<String> adminRoles = Set.of("user", "admin");
 
-      // SOLUTION: Authentication and authorization have different Context types
+      // SOLUTION: Authentication and authorisation have different Context types
       // (Context<Principal, ?> vs Context<Set<String>, ?>), so we run both checks
       // sequentially in the same scope
       String result =
@@ -224,7 +346,7 @@ public class Tutorial04_SecurityContextPatterns_Solution {
                     // SOLUTION: Call requireAuthenticated().run() to verify auth
                     Principal p = SecurityContext.requireAuthenticated().run();
 
-                    // SOLUTION: Call requireRole("admin").run() to verify authorization
+                    // SOLUTION: Call requireRole("admin").run() to verify authorisation
                     SecurityContext.requireRole("admin").run();
 
                     return p.getName();

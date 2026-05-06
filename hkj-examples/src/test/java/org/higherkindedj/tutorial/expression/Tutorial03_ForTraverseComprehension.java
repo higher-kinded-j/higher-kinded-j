@@ -22,10 +22,29 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: For Traverse Comprehension - Traversing Collections in Effectful Contexts
+ * Tutorial 03: For Traverse Comprehension — traversing collections in effectful contexts.
  *
- * <p>In this tutorial, you'll learn how to use {@code traverse}, {@code sequence}, and {@code
- * flatTraverse} within for-comprehensions. These operations let you apply an effectful function to
+ * <p>Pain → Promise. We have a list of items and a function that may fail per item. The hand-rolled
+ * "do them all, fail if any fails, collect the results" pattern is one stream pipeline plus one
+ * early-exit per call site:
+ *
+ * <pre>
+ *   List&lt;Result&gt; results = new ArrayList&lt;&gt;();
+ *   for (var item : items) {
+ *       var r = process(item);
+ *       if (r.isError()) return r.error();
+ *       results.add(r.value());
+ *   }
+ * </pre>
+ *
+ * <p>{@code traverse} captures the same pattern as one composable call. {@code sequence} is the
+ * same operation when the list already holds the effects. {@code flatTraverse} is the version that
+ * flattens nested results.
+ *
+ * <p>Original notes:
+ *
+ * <p>In this tutorial, we learn how to use {@code traverse}, {@code sequence}, and {@code
+ * flatTraverse} within for-comprehensions. These operations let us apply an effectful function to
  * every element of a collection, collecting the results while respecting the surrounding monadic
  * context (e.g., short-circuiting on failure).
  *

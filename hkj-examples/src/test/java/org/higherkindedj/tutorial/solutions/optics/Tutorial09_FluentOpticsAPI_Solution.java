@@ -24,21 +24,21 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 08: Fluent Optics API - Ergonomic Data Access
+ * Solution for Tutorial09 FluentOpticsAPI — teaching-solution format.
  *
- * <p>The OpticOps class provides a more fluent, Java-friendly API for working with optics. It
- * offers two complementary styles:
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <ul>
- *   <li><b>Static methods</b>: Concise, direct operations (source-first parameter ordering)
- *   <li><b>Fluent builders</b>: Method chaining for explicit workflows
- * </ul>
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <p>Key Benefits: - More intuitive parameter ordering (source comes first) - Validation-aware
- * operations with Either, Maybe, and Validated - Query operations (exists, count, find) - Cleaner
- * syntax for common patterns
- *
- * <p>This tutorial covers the fluent API. For the Free Monad DSL approach, see Tutorial 09.
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial09_FluentOpticsAPI_Solution {
 
@@ -59,12 +59,16 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 1: Basic get and set operations
+   * Why this is idiomatic: {@code OpticOps.get(source, lens)} reads source-first, matching the way
+   * Java developers think about access ("from this person, the name"). The lens still does the
+   * work; the call shape just feels native.
    *
-   * <p>OpticOps.get() and OpticOps.set() provide source-first parameter ordering, which is more
-   * natural in Java.
+   * <p>Alternative: {@code lens.get(source)} — the curried form. Both produce the same value; pick
+   * the source-first form when the surrounding code is plain Java and the curried form when
+   * chaining other optic combinators.
    *
-   * <p>Task: Use OpticOps to get and set values
+   * <p>Common wrong attempt: mix the two orderings in the same file. Readers cannot remember which
+   * side the source is on; pick one convention per module and stick with it.
    */
   @Test
   void exercise1_basicGetAndSet() {
@@ -104,11 +108,16 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 2: Modify operations
+   * Why this is idiomatic: {@code OpticOps.modify(source, lens, fn)} captures "transform this field
+   * of this source by this function" in one call, source-first. The lens does the read, the
+   * function transforms, the lens writes back.
    *
-   * <p>OpticOps.modify() applies a transformation function to the focused value.
+   * <p>Alternative: {@code OpticOps.set(source, lens, fn.apply(OpticOps.get(source, lens)))}. Three
+   * calls, two reads, easy to typo. Use {@code modify} whenever the new value depends on the old.
    *
-   * <p>Task: Use OpticOps.modify() to increment age and uppercase name
+   * <p>Common wrong attempt: pass the lens-curried form {@code lens.modify(fn, source)} into an
+   * {@code OpticOps.modify(...)} call. The {@code OpticOps} API expects a fresh source-first
+   * invocation; do not nest the two conventions.
    */
   @Test
   void exercise2_modifyOperations() {
@@ -143,11 +152,16 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 3: Working with collections using getAll and modifyAll
+   * Why this is idiomatic: {@code OpticOps.getAll(source, traversal)} reads every focused element
+   * into a list; {@code OpticOps.modifyAll(source, traversal, fn)} rewrites them in one pass. The
+   * shape mirrors the read/write pair on lenses.
    *
-   * <p>OpticOps provides dedicated methods for traversals over collections.
+   * <p>Alternative: call {@code Traversals.getAll}/{@code Traversals.modify} from the static
+   * helpers. Same answer; the {@code OpticOps} surface keeps every operation source-first for
+   * consistency with the rest of the API.
    *
-   * <p>Task: Extract and modify all elements using OpticOps
+   * <p>Common wrong attempt: hand-roll the iteration with a stream and try to write back via a
+   * constructor. Works for one schema; the traversal-based call survives schema growth.
    */
   @Test
   void exercise3_collectionOperations() {
@@ -196,11 +210,16 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 4: Query operations - exists, count, find
+   * Why this is idiomatic: {@code exists}, {@code count}, and {@code find} answer the three most
+   * common questions about a focused set of elements without materialising a list. They read like
+   * assertions and return at the first match where they can.
    *
-   * <p>OpticOps provides query methods for checking predicates and finding elements.
+   * <p>Alternative: call {@code getAll(...)} and run streams over the result. Equivalent for small
+   * inputs; the dedicated query methods short-circuit and avoid the intermediate list for large
+   * traversals.
    *
-   * <p>Task: Use query operations to inspect data
+   * <p>Common wrong attempt: write {@code getAll(...).contains(predicate)} — {@code List.contains}
+   * checks equality, not a predicate. Use {@code anyMatch} or the dedicated {@code exists}.
    */
   @Test
   void exercise4_queryOperations() {
@@ -255,11 +274,16 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 5: Validation with Either (fail-fast)
+   * Why this is idiomatic: {@code OpticOps.modifyEither(source, lens, fn)} runs an {@code
+   * Either}-returning validator on the focused field. A {@code Left} aborts the write; a {@code
+   * Right} replaces the field. The error type is exactly what the validator returns.
    *
-   * <p>OpticOps.modifyEither() validates a value and short-circuits on the first error.
+   * <p>Alternative: validate before modifying ({@code if (!isValid(...)) return Left(...)}). Same
+   * outcome; the optic-driven version keeps the path and the validator paired in one call site.
    *
-   * <p>Task: Validate and update an email field
+   * <p>Common wrong attempt: throw an {@code IllegalArgumentException} from the validator. The
+   * optic call now propagates a runtime exception instead of a typed {@code Left}; reach for {@code
+   * modifyEither} when typed errors are the contract.
    */
   @Test
   void exercise5_validationWithEither() {
@@ -293,7 +317,7 @@ public class Tutorial09_FluentOpticsAPI_Solution {
           return Either.right(email.toLowerCase());
         };
 
-    // Use OpticOps.modifyEither() to validate and normalize email
+    // Use OpticOps.modifyEither() to validate and normalise email
     Either<String, User> validResult = OpticOps.modifyEither(user, emailLens, validateEmail);
 
     assertThat(validResult.isRight()).isTrue();
@@ -311,11 +335,15 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 6: Validation with Maybe (optional)
+   * Why this is idiomatic: {@code OpticOps.modifyMaybe(source, lens, fn)} replaces the {@code
+   * Either} channel with a {@code Maybe} — when the only meaningful answer to "did this work?" is
+   * yes/no, the simpler wrapper saves the caller from inventing an error type.
    *
-   * <p>OpticOps.modifyMaybe() validates a value, returning Maybe.nothing() on failure.
+   * <p>Alternative: keep using {@code modifyEither} with {@code Either<Unit, A>}. Equivalent;
+   * {@code modifyMaybe} is shorter when the failure carries no extra information.
    *
-   * <p>Task: Validate age is within reasonable bounds
+   * <p>Common wrong attempt: return {@code null} for invalid inputs. {@code Maybe.nothing()} is the
+   * typed equivalent and never NPEs; never reach for {@code null} when the API offers a wrapper.
    */
   @Test
   void exercise6_validationWithMaybe() {
@@ -356,12 +384,16 @@ public class Tutorial09_FluentOpticsAPI_Solution {
   }
 
   /**
-   * Exercise 7: Multi-field validation with Validated (error accumulation)
+   * Why this is idiomatic: {@code modifyAllValidated} runs every element through the validator and
+   * combines the errors via a {@code Semigroup}. The user sees every reason the order is rejected,
+   * not just the first one.
    *
-   * <p>OpticOps.modifyAllValidated() validates multiple values and accumulates ALL errors, not just
-   * the first one.
+   * <p>Alternative: {@code modifyAllEither} with fail-fast semantics. Pick that when one error is
+   * enough; pick the {@code Validated} form when the user wants to fix everything at once.
    *
-   * <p>Task: Validate all item prices in an order
+   * <p>Common wrong attempt: feed validation errors into a list and {@code throw} at the end. The
+   * errors are now a side channel; the {@code Validated} return type carries them in the result and
+   * stays composable.
    */
   @Test
   void exercise7_validationWithValidated() {

@@ -17,24 +17,30 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: Resource Management with Bracket Pattern
+ * Tutorial: Resource Management with the Bracket Pattern.
  *
- * <p>Learn to manage resources safely using Resource, Higher-Kinded-J's implementation of the
- * bracket pattern. Resource guarantees that acquired resources are always released, even when
- * exceptions occur or tasks are cancelled.
+ * <p>Pain → Promise. Java's try-with-resources covers a single {@code AutoCloseable} but does not
+ * compose: try-with-resources blocks cannot return a value into a surrounding pipeline, cannot be
+ * lifted into an effect type, and stack awkwardly when a resource depends on a previously-acquired
+ * one. Manual try/finally is even worse.
  *
- * <p>Key Concepts:
+ * <p>{@link Resource} captures the acquire-use-release lifecycle as a value. Release is guaranteed
+ * on success, on exception, and on cancellation. Resources compose with {@code flatMap}
+ * (sequential) and {@code and()} (parallel), with LIFO release ordering so dependent resources are
+ * released correctly.
+ *
+ * <p>Java idiom anchor:
  *
  * <ul>
- *   <li>Resource wraps acquire-use-release into a single abstraction
- *   <li>Release is guaranteed even on exceptions or cancellation
- *   <li>Resources compose with flatMap (sequential) and and() (parallel)
- *   <li>LIFO release order ensures dependent resources are released correctly
+ *   <li>{@code Resource.make(acquire, release)} ↔ try-with-resources, but as a value.
+ *   <li>{@code resource.use(fn)} ↔ the body of the try block.
+ *   <li>{@code resourceA.flatMap(a -> resourceB(a))} ↔ nested try-with-resources where the inner
+ *       resource depends on the outer.
+ *   <li>{@code resourceA.and(resourceB)} ↔ acquiring two independent resources in parallel and
+ *       releasing both regardless of which body finishes first.
  * </ul>
  *
- * <p>Prerequisites: Complete TutorialVTask and TutorialScope first
- *
- * <p>Replace each placeholder with the correct code to make the tests pass.
+ * <p>Prerequisites: complete {@code TutorialVTask} and {@code TutorialScope} first.
  */
 @DisplayName("Tutorial: Resource Management with Bracket Pattern")
 public class TutorialResource {
@@ -419,6 +425,47 @@ public class TutorialResource {
       assertThat(events)
           .containsExactly("connect", "prepare", "execute", "close-stmt", "disconnect");
     }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Diagnostic: Things People Get Wrong
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Diagnostic: release runs even when the body throws.
+   *
+   * <p>This is the entire point of the bracket pattern: regardless of whether the {@code use} body
+   * returns normally or throws, the release action runs exactly once. Verify it once so the
+   * guarantee is concrete.
+   *
+   * <pre>
+   *   // Nudge:    Wrap an acquire/release pair, run a body that throws, observe release ran.
+   *   // Strategy: VTask&lt;Integer&gt; task = resource.use(value -&gt; VTask.of(() -&gt; { throw new
+   *   //                                       RuntimeException("body"); }));
+   *   //           task.runSafe(); // captures the failure; release still ran.
+   *   // Spoiler:  see the body below; the asserted invariant is "released == true".
+   * </pre>
+   */
+  @Test
+  @DisplayName("Diagnostic: release runs even when the body throws")
+  void diagnostic_releaseAlwaysRuns() {
+    AtomicBoolean released = new AtomicBoolean(false);
+
+    Resource<String> resource =
+        Resource.make(() -> "acquired-handle", handle -> released.set(true));
+
+    Try<Integer> result =
+        resource
+            .use(
+                value ->
+                    VTask.<Integer>of(
+                        () -> {
+                          throw new RuntimeException("body blew up");
+                        }))
+            .runSafe();
+
+    assertThat(result.isFailure()).isTrue();
+    assertThat(released.get()).isTrue();
   }
 
   /**

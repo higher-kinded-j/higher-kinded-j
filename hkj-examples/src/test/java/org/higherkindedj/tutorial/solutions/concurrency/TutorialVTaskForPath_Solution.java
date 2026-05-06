@@ -18,9 +18,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solution: ForPath with VTaskPath - For-Comprehensions for Virtual Threads
+ * Solution for TutorialVTaskForPath — teaching-solution format.
  *
- * <p>This file contains the complete solutions for TutorialVTaskForPath.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Solution: ForPath with VTaskPath")
 public class TutorialVTaskForPath_Solution {
@@ -33,6 +45,16 @@ public class TutorialVTaskForPath_Solution {
   @DisplayName("Part 1: Basic For-Comprehensions")
   class BasicComprehensions {
 
+    /**
+     * Why this is idiomatic: {@code ForPath.from(...).from(...).yield(...)} is the comprehension
+     * form of {@code via}. Each step binds a name; {@code yield} combines them.
+     *
+     * <p>Alternative: chained {@code via} calls. Equivalent; the comprehension keeps every binding
+     * accessible to subsequent steps.
+     *
+     * <p>Common wrong attempt: try to use a value from {@code from} outside the comprehension.
+     * Bindings live in the comprehension scope; project with {@code yield}.
+     */
     @Test
     @DisplayName("Exercise 1: Two-step comprehension")
     void exercise1_twoStepComprehension() {
@@ -50,6 +72,16 @@ public class TutorialVTaskForPath_Solution {
       assertThat(tryResult.orElse("error")).isEqualTo("Hello, user-123!");
     }
 
+    /**
+     * Why this is idiomatic: each {@code from} extends the binding tuple by one slot. Later steps
+     * access prior bindings via {@code t._1()}, {@code t._2()}, etc.
+     *
+     * <p>Alternative: extract intermediate {@code VTaskPath}s into local variables. Same answer;
+     * loses the chain shape.
+     *
+     * <p>Common wrong attempt: forget that the lambda receives a tuple. {@code from(t -> ...)} sees
+     * a tuple of all prior bindings; index correctly.
+     */
     @Test
     @DisplayName("Exercise 2: Multi-step with value access")
     void exercise2_multiStepValueAccess() {
@@ -76,6 +108,17 @@ public class TutorialVTaskForPath_Solution {
   @DisplayName("Part 2: Using let() for Pure Computations")
   class LetBindings {
 
+    /**
+     * Why this is idiomatic: {@code let(fn)} binds a pure intermediate value without wrapping in
+     * {@code VTaskPath}. Use it for arithmetic, concatenation, and other pure derivations between
+     * effectful steps.
+     *
+     * <p>Alternative: wrap pure values in {@code Path.vtaskPure} and use {@code from}. Works;
+     * {@code let} avoids the unnecessary wrapping.
+     *
+     * <p>Common wrong attempt: use {@code let} for an effectful step. The lambda is supposed to be
+     * pure; effectful steps belong in {@code from}.
+     */
     @Test
     @DisplayName("Exercise 3: Pure intermediate values with let()")
     void exercise3_letForIntermediates() {
@@ -93,6 +136,16 @@ public class TutorialVTaskForPath_Solution {
       assertThat(tryResult.orElse("error")).isEqualTo("Original: 5, Result: 35");
     }
 
+    /**
+     * Why this is idiomatic: alternate {@code from} (effectful) and {@code let} (pure) freely. Each
+     * step extends the binding tuple; later steps see all prior values.
+     *
+     * <p>Alternative: collapse pure steps into the {@code yield}. Same answer; the staged form
+     * keeps each derived value named.
+     *
+     * <p>Common wrong attempt: order steps so a {@code let} runs before its inputs are bound. Each
+     * step sees only prior bindings; let must come after its inputs.
+     */
     @Test
     @DisplayName("Exercise 4: Mixing from() and let()")
     void exercise4_mixFromAndLet() {
@@ -131,6 +184,16 @@ public class TutorialVTaskForPath_Solution {
     static final Lens<Address, String> CITY_LENS =
         Lens.of(Address::city, (addr, city) -> new Address(city, addr.postcode()));
 
+    /**
+     * Why this is idiomatic: {@code focus(focusPath)} navigates the previous binding through an
+     * optic, adding the focused value as a new binding. The comprehension stays declarative.
+     *
+     * <p>Alternative: chain {@code let(t -> lens.get(t._1()))}. Equivalent; the {@code focus} call
+     * is the named optic-aware step.
+     *
+     * <p>Common wrong attempt: build the focus path inline. The path can be extracted as a
+     * constant; pull it out for reuse.
+     */
     @Test
     @DisplayName("Exercise 5: Focus on nested structure")
     void exercise5_focusOnNested() {
@@ -148,6 +211,16 @@ public class TutorialVTaskForPath_Solution {
       assertThat(tryResult.orElse("error")).isEqualTo("London");
     }
 
+    /**
+     * Why this is idiomatic: combine {@code focus} (optic navigation) with {@code from} (effectful
+     * follow-up). The comprehension threads the focused value into the next service call.
+     *
+     * <p>Alternative: read the focused value, then call the service in a subsequent {@code via}.
+     * Same answer; the comprehension form keeps the pipeline flat.
+     *
+     * <p>Common wrong attempt: re-read the original value when the focused one suffices. Use the
+     * comprehension's binding tuple to access whichever step is needed.
+     */
     @Test
     @DisplayName("Exercise 6: Focus with subsequent effects")
     void exercise6_focusWithEffects() {
@@ -179,6 +252,16 @@ public class TutorialVTaskForPath_Solution {
   @DisplayName("Part 4: Error Handling in Comprehensions")
   class ErrorHandling {
 
+    /**
+     * Why this is idiomatic: a failure in any {@code from} step short-circuits the comprehension;
+     * later steps never run. The semantics match a try/catch surrounding the entire chain.
+     *
+     * <p>Alternative: explicit early return after each step. Equivalent; the comprehension does it
+     * automatically.
+     *
+     * <p>Common wrong attempt: assume later steps still run because they appear after the failure.
+     * They do not; the comprehension halts on first failure.
+     */
     @Test
     @DisplayName("Exercise 7: Error propagation")
     void exercise7_errorPropagation() {
@@ -199,6 +282,16 @@ public class TutorialVTaskForPath_Solution {
       assertThat(errorMessage).isEqualTo("Step 2 failed");
     }
 
+    /**
+     * Why this is idiomatic: chain {@code .handleError(fn)} on the final {@code yield} result. The
+     * comprehension fails into the recovery; the recovery substitutes a value.
+     *
+     * <p>Alternative: wrap each step in {@code handleError}. Tedious; the outer-level recovery
+     * covers the entire chain.
+     *
+     * <p>Common wrong attempt: try to recover inside a {@code from} step and pretend the failure
+     * did not happen. The cleanest place is on the outermost path after {@code yield}.
+     */
     @Test
     @DisplayName("Exercise 8: Comprehension with recovery")
     void exercise8_comprehensionWithRecovery() {
@@ -231,6 +324,16 @@ public class TutorialVTaskForPath_Solution {
 
     record Confirmation(String orderId, String transactionId, String message) {}
 
+    /**
+     * Why this is idiomatic: validate, pay, confirm — three dependent steps, each one's success
+     * feeding the next. The comprehension reads as a clear top-to-bottom workflow.
+     *
+     * <p>Alternative: a procedural method with manual error handling. Same outcome; the
+     * comprehension makes the data flow explicit.
+     *
+     * <p>Common wrong attempt: skip validation and start with payment. Push validation to the
+     * boundary so invalid orders never reach the payment service.
+     */
     @Test
     @DisplayName("Exercise 9: Order processing workflow")
     void exercise9_orderProcessingWorkflow() {
@@ -259,6 +362,18 @@ public class TutorialVTaskForPath_Solution {
       assertThat(tryResult.orElse("error")).isEqualTo("Order confirmed: ORD-001");
     }
 
+    /**
+     * Why this is idiomatic: mix effectful steps ({@code from}) with pure calculations ({@code
+     * let}) in the same comprehension. Cart subtotal is a pure derivation; tax lookup is an effect;
+     * total is a pure derivation.
+     *
+     * <p>Alternative: compute the cart subtotal outside the comprehension and pass it in. Same
+     * answer; the comprehension keeps every value visible to later steps.
+     *
+     * <p>Common wrong attempt: wrap pure calculations in {@code Path.vtaskPure} and use {@code
+     * from}. Works but adds unnecessary effect overhead; reach for {@code let} when the value is
+     * pure.
+     */
     @Test
     @DisplayName("Exercise 10: Workflow with calculations")
     void exercise10_workflowWithCalculations() {

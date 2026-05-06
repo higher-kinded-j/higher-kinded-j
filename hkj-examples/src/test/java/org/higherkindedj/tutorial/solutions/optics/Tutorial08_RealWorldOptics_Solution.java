@@ -23,11 +23,21 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 07: Real World Optics - Practical Applications
+ * Solution for Tutorial08 RealWorldOptics — teaching-solution format.
  *
- * <p>In this final tutorial, we'll apply optics to solve real-world problems: 1. Updating user
- * profiles in a database 2. Processing API responses with nested structures 3. Batch operations on
- * complex data
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial08_RealWorldOptics_Solution {
 
@@ -85,11 +95,15 @@ public class Tutorial08_RealWorldOptics_Solution {
   }
 
   /**
-   * Exercise 1: User profile updates
+   * Why this is idiomatic: a real user profile is records-of-records-of-records. Each level gets
+   * one lens; the composed path reads as a sentence and the update touches only the leaf field
+   * while every other field is rebuilt automatically.
    *
-   * <p>Manage user profile updates with nested settings and preferences.
+   * <p>Alternative: rebuild the profile by hand at every level. Works once; the next field added to
+   * {@code User} silently drifts to its default unless every site is updated.
    *
-   * <p>Task: Build a system to update user preferences immutably
+   * <p>Common wrong attempt: try to "patch" the inner record with reflection or a setter. Records
+   * are immutable; the lens-driven rebuild is the only safe path.
    */
   @Test
   void exercise1_userProfileUpdates() {
@@ -209,11 +223,16 @@ public class Tutorial08_RealWorldOptics_Solution {
   }
 
   /**
-   * Exercise 2: API response processing
+   * Why this is idiomatic: API payloads are deeply nested records (response → data → coordinates →
+   * lat). Composed lenses traverse the JSON-shaped graph without ever unwrapping intermediate
+   * records by hand.
    *
-   * <p>Process nested API responses and extract/transform data.
+   * <p>Alternative: pretty-print the payload, find the field, edit, re-serialise. Works for one-off
+   * changes; loses the type-safety the records provide.
    *
-   * <p>Task: Navigate a complex API response structure
+   * <p>Common wrong attempt: extract the leaf with chained accessors and ignore the rebuild ({@code
+   * response.data().coordinates().lat()}). That reads, but the corresponding write is the entire
+   * reason the lens exists.
    */
   @Test
   void exercise2_apiResponseProcessing() {
@@ -299,11 +318,16 @@ public class Tutorial08_RealWorldOptics_Solution {
   }
 
   /**
-   * Exercise 3: E-commerce order processing
+   * Why this is idiomatic: orders mix lenses (status, customer), traversals (line items), and
+   * prisms (payment methods). One named optic per concern keeps the discount logic, the status
+   * update, and the per-item adjustment separate.
    *
-   * <p>Handle complex order structures with line items, pricing, and status.
+   * <p>Alternative: a single sprawling {@code processOrder} method. Works for a tutorial;
+   * production code grows the method past a thousand lines and unit-testing it becomes difficult.
    *
-   * <p>Task: Build order processing logic with optics
+   * <p>Common wrong attempt: mutate the order in place with a {@code setStatus} method and a
+   * mutable line-item list. The data flow is now hidden; testing a discount means resetting the
+   * order state between cases.
    */
   @Test
   void exercise3_ecommerceOrderProcessing() {
@@ -405,11 +429,17 @@ public class Tutorial08_RealWorldOptics_Solution {
   }
 
   /**
-   * Exercise 4: Data validation and transformation
+   * Why this is idiomatic: each cleansing step is one named transform — trim names, normalise post
+   * codes, lowercase emails. Composing them with lens-driven {@code modify} gives a single rebuilt
+   * customer with every field at its canonical value.
    *
-   * <p>Validate and transform data structures while preserving immutability.
+   * <p>Alternative: a single {@code normaliseCustomer} method that copies every field with its
+   * cleansed value. Works once; loses the per-field naming, so the diff in code review shows "the
+   * whole customer changed" instead of "the email was normalised".
    *
-   * <p>Task: Clean and normalize customer data
+   * <p>Common wrong attempt: validate against the cleansed value but write back the original. The
+   * cleansing pipeline must produce the value the rest of the system reads; keep the lens write at
+   * the end, not somewhere in the middle.
    */
   @Test
   void exercise4_dataValidationAndTransformation() {
@@ -528,11 +558,16 @@ public class Tutorial08_RealWorldOptics_Solution {
   }
 
   /**
-   * Exercise 5: Configuration management
+   * Why this is idiomatic: configuration is a layered tree — base, environment overrides,
+   * per-instance tweaks. Lenses through each layer let the merge stay declarative; the environment
+   * override is a {@code modify} on the matching field, nothing more.
    *
-   * <p>Manage application configuration with environment-specific overrides.
+   * <p>Alternative: a property-merging library that walks the trees by key. Works for string-keyed
+   * maps; loses the type-safety records provide.
    *
-   * <p>Task: Build a configuration system with optics
+   * <p>Common wrong attempt: encode every override as a string-keyed map and reach into fields by
+   * name. A typo in a key compiles fine and silently keeps the default value. Records + lenses make
+   * the field misnames a compile error.
    */
   @Test
   void exercise5_configurationManagement() {
@@ -639,11 +674,17 @@ public class Tutorial08_RealWorldOptics_Solution {
   }
 
   /**
-   * Exercise 6: Event processing pipeline
+   * Why this is idiomatic: events are a sealed interface; a prism per variant lets the pipeline
+   * classify each event without {@code instanceof} ladders. Metrics are folds over the matching
+   * variants — write the prism once, fold many ways.
    *
-   * <p>Process events with different types and extract metrics.
+   * <p>Alternative: visitor-pattern dispatch with one method per variant. More verbose, no extra
+   * power; the prism + fold pair stays compact and composes with traversals when the event stream
+   * is itself nested.
    *
-   * <p>Task: Build an event processing system
+   * <p>Common wrong attempt: branch on the variant inside the metric collector. Now the collector
+   * knows about every event type and adding a new variant means touching every collector; the prism
+   * + fold split keeps the concerns separate.
    */
   @Test
   void exercise6_eventProcessingPipeline() {

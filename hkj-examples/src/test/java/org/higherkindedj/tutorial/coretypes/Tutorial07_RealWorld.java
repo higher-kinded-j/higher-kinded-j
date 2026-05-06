@@ -10,12 +10,16 @@ import java.util.stream.Collectors;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.reader.Reader;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 07: Real World Applications
+ * Tutorial 07: Real-World Applications.
  *
- * <p>In this final tutorial, we'll apply everything you've learned to solve real-world problems.
+ * <p>Pain → Promise. Tutorials 01-06 introduced each type and capability in isolation. Production
+ * code combines them: validate inputs, parse, look up users, thread configuration through a
+ * pipeline. This tutorial is the end-to-end walkthrough that ties Functor, Applicative, Monad,
+ * MonadError, Either, Maybe, Validated, and Reader together into three realistic scenarios.
  *
  * <p>You'll build: 1. A complete validation pipeline 2. A data processing workflow 3. A
  * configuration-based application with Reader
@@ -28,13 +32,20 @@ public class Tutorial07_RealWorld {
   }
 
   /**
-   * Exercise 1: Building a validation pipeline
+   * Exercise 1: Validation pipeline with nested flatMaps.
    *
-   * <p>Real applications need to validate user input thoroughly.
-   *
-   * <p>Task: Build a registration validator that checks multiple fields
+   * <pre>
+   *   // Nudge:    Each step receives the previous validated value through a tuple of locals.
+   *   // Strategy: For each answerRequired() inside .apply(...), pass the field name from the
+   *   //           Registration we want to validate (e.g. "alice", "alice@example.com").
+   *   //           For the inner .map(age -&gt; answerRequired()), build the Registration record.
+   *   // Spoiler:  validateUsername.apply("alice").flatMap(username -&gt;
+   *   //              validateEmail.apply("alice@example.com").flatMap(email -&gt; ...
+   *   //                  ... .map(age -&gt; new Registration(username, email, password, age))))
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: validation pipeline via nested flatMap")
   void exercise1_validationPipeline() {
     record Registration(String username, String email, String password, int age) {}
 
@@ -96,13 +107,17 @@ public class Tutorial07_RealWorld {
   }
 
   /**
-   * Exercise 2: Data processing pipeline
+   * Exercise 2: Data processing pipeline.
    *
-   * <p>Process a stream of data with transformations and error handling.
-   *
-   * <p>Task: Parse, validate, and transform a list of user records
+   * <pre>
+   *   // Nudge:    Stream over rawData, map through processRecord, filter to Right, extract.
+   *   // Strategy: rawData.stream().map(processRecord)
+   *   //               .filter(Either::isRight).map(Either::getRight).toList()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: stream of records through processRecord; keep successes")
   void exercise2_dataProcessingPipeline() {
     record RawData(String userId, String scoreStr) {}
 
@@ -153,14 +168,16 @@ public class Tutorial07_RealWorld {
   }
 
   /**
-   * Exercise 3: Reader for dependency injection
+   * Exercise 3: Reader for dependency injection.
    *
-   * <p>Reader allows you to thread configuration through your application without passing it
-   * manually to every function.
-   *
-   * <p>Task: Build a configuration-based greeting service
+   * <pre>
+   *   // Nudge:    The lambda inside .map receives the AppConfig; build the versioned greeting.
+   *   // Strategy: greeting + " (v" + config.version() + ")"
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Reader threads configuration through a workflow")
   void exercise3_readerForDependencyInjection() {
     record Config(String appName, String version, boolean debugMode) {}
 
@@ -190,14 +207,17 @@ public class Tutorial07_RealWorld {
   }
 
   /**
-   * Exercise 4: Combining multiple effects
+   * Exercise 4: Combining Maybe + Either.
    *
-   * <p>Real applications often need to combine different effects - Maybe + Either, List + Either,
-   * etc.
-   *
-   * <p>Task: Look up users and validate their data
+   * <pre>
+   *   // Nudge:    The single answerRequired() in this exercise asks for an id that
+   *   //           findUser will not find, e.g. "missing-id".
+   *   // Strategy: findUser.apply("missing-id")
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: combine Maybe lookup with Either validation")
   void exercise4_combiningEffects() {
     record User(String id, String name, int age) {}
 
@@ -243,13 +263,16 @@ public class Tutorial07_RealWorld {
   }
 
   /**
-   * Exercise 5: Batch operations with error handling
+   * Exercise 5: Batch operations partitioned by success / failure.
    *
-   * <p>Process multiple items and handle individual failures gracefully.
-   *
-   * <p>Task: Process a batch of operations and partition successes from failures
+   * <pre>
+   *   // Nudge:    Stream over items, run processItem, collect to list.
+   *   // Strategy: items.stream().map(processItem).collect(Collectors.toList())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: stream of items into a List<Either> for partitioning")
   void exercise5_batchOperations() {
     record Result(List<String> successes, List<String> failures) {}
 
@@ -285,13 +308,17 @@ public class Tutorial07_RealWorld {
   }
 
   /**
-   * Exercise 6: Building a mini workflow
+   * Exercise 6: Mini order workflow.
    *
-   * <p>Combine everything: validation, transformation, error handling, and dependency injection.
-   *
-   * <p>Task: Build an order processing workflow
+   * <pre>
+   *   // Nudge:    The .map lambda gets the validated RawOrder; build the ProcessedOrder by
+   *   //           applying processOrder.apply(config) to it.
+   *   // Strategy: processOrder.apply(config).apply(o)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: validate then process an order using Reader-style config")
   void exercise6_miniWorkflow() {
     record Config(double taxRate, double shippingCost) {}
 

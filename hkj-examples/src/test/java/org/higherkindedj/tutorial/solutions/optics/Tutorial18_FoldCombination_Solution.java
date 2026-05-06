@@ -15,9 +15,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 18: Fold Combination
+ * Solution for Tutorial18 FoldCombination — teaching-solution format.
  *
- * <p>These are the reference solutions for Tutorial18_FoldCombination.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Tutorial Solution: Fold Combination")
 public class Tutorial18_FoldCombination_Solution {
@@ -54,6 +66,17 @@ public class Tutorial18_FoldCombination_Solution {
   @DisplayName("Part 1: Basic Fold Combination")
   class BasicCombination {
 
+    /**
+     * Why this is idiomatic: {@code fold1.plus(fold2)} produces a fold that yields every focus of
+     * both — lens-as-fold combined gives "all the names". The result still has {@code length},
+     * {@code getAll}, and the rest of the fold API.
+     *
+     * <p>Alternative: read each lens separately and concatenate the lists. Same answer; {@code
+     * plus} keeps the operation as a single fold for further composition.
+     *
+     * <p>Common wrong attempt: assume {@code plus} interleaves the focuses. It concatenates — left
+     * fold's focuses first, right fold's after.
+     */
     @Test
     @DisplayName("Exercise 1: Combine two field folds with plus")
     void exercise1_combineFieldFolds() {
@@ -66,6 +89,17 @@ public class Tutorial18_FoldCombination_Solution {
       assertThat(allNames.length(person)).isEqualTo(2);
     }
 
+    /**
+     * Why this is idiomatic: {@code Fold.empty()} is the monoid identity for {@code plus}.
+     * Combining anything with {@code empty} returns the original — useful as a starting accumulator
+     * in folds-of-folds.
+     *
+     * <p>Alternative: special-case the first iteration to skip {@code empty}. Equivalent; the
+     * identity element is the cleaner answer.
+     *
+     * <p>Common wrong attempt: assume {@code Fold.empty()} returns {@code null}. It is a proper
+     * fold that yields zero focuses on any source.
+     */
     @Test
     @DisplayName("Exercise 2: Identity with Fold.empty()")
     void exercise2_identityWithEmpty() {
@@ -84,6 +118,17 @@ public class Tutorial18_FoldCombination_Solution {
   @DisplayName("Part 2: Combining Different Optic Types")
   class DifferentOpticTypes {
 
+    /**
+     * Why this is idiomatic: a single-focus lens fold and a multi-focus list fold both have the
+     * same {@code Fold} type, so {@code plus} composes them. The lead's name comes first, then
+     * every member's name.
+     *
+     * <p>Alternative: collect the lead's name into a singleton list, then concatenate. Same answer;
+     * the {@code plus} approach treats both folds uniformly.
+     *
+     * <p>Common wrong attempt: use {@code andThen} when {@code plus} is wanted. {@code andThen}
+     * composes paths sequentially; {@code plus} runs them in parallel.
+     */
     @Test
     @DisplayName("Exercise 3: Lens fold plus list Fold")
     void exercise3_lensFoldPlusListFold() {
@@ -103,6 +148,18 @@ public class Tutorial18_FoldCombination_Solution {
       assertThat(allNames.getAll(team)).containsExactly("Alice", "Bob", "Carol");
     }
 
+    /**
+     * Why this is idiomatic: each variant gets a prism-driven fold; {@code plus} merges them into
+     * one description fold. A {@code Circle} fires the circle branch only; a {@code Rectangle}
+     * fires the rectangle branch only.
+     *
+     * <p>Alternative: a {@code switch} on the sealed interface. Same answer; the fold form keeps
+     * the dispatch as data and survives a new variant addition.
+     *
+     * <p>Common wrong attempt: combine the branches with {@code andThen}. The result would chain
+     * prism + prism, which never matches anything because the prisms are disjoint. {@code plus} is
+     * the additive operation.
+     */
     @Test
     @DisplayName("Exercise 4: Combine folds from sealed interface branches")
     void exercise4_sealedInterfaceBranches() {
@@ -130,6 +187,16 @@ public class Tutorial18_FoldCombination_Solution {
   @DisplayName("Part 3: Fold.sum() and Advanced Patterns")
   class SumAndAdvanced {
 
+    /**
+     * Why this is idiomatic: {@code Fold.sum(f1, f2, f3)} is a multi-arg version of {@code plus}
+     * chains. The result yields focuses from every fold in argument order.
+     *
+     * <p>Alternative: chain {@code .plus(...)} calls. Same answer; {@code sum} is the named, vararg
+     * variant.
+     *
+     * <p>Common wrong attempt: pass folds with mismatched element types. The combined fold's
+     * element type is the common supertype; pick folds that already agree.
+     */
     @Test
     @DisplayName("Exercise 5: Fold.sum() for multiple paths")
     void exercise5_foldSum() {
@@ -146,6 +213,18 @@ public class Tutorial18_FoldCombination_Solution {
       assertThat(allInfo.getAll(person)).containsExactly("Alice", "Smith", "30");
     }
 
+    /**
+     * Why this is idiomatic: a real extractor pulls four pieces from a {@code Team} — the team
+     * name, the lead's first and last names, and every member's first name. {@code Fold.sum}
+     * composes them into one named extractor.
+     *
+     * <p>Alternative: write a bespoke method that returns a list of strings. Works once; adding a
+     * fifth piece means rewriting; the fold-sum scales by adding one argument.
+     *
+     * <p>Common wrong attempt: try to combine extractors with different result types inside {@code
+     * Fold.sum}. The vararg requires a uniform element type; convert to {@code String} (or another
+     * shared type) inside each fold first.
+     */
     @Test
     @DisplayName("Exercise 6: Real-world extractor")
     void exercise6_realWorldExtractor() {
@@ -169,6 +248,17 @@ public class Tutorial18_FoldCombination_Solution {
           .containsExactly("Backend", "Alice", "Smith", "Bob", "Carol");
     }
 
+    /**
+     * Why this is idiomatic: combine the lead-age and member-ages folds with {@code plus}, then
+     * reduce with {@code foldMap} and a sum {@code Monoid}. One number falls out the bottom — the
+     * team's total age.
+     *
+     * <p>Alternative: collect both lists, concatenate, and sum the result. Same answer; the {@code
+     * foldMap} version stays in the optic vocabulary.
+     *
+     * <p>Common wrong attempt: write the {@code Monoid} with {@code combine} that subtracts. The
+     * fold reduces in arbitrary order for some optics; pick a commutative monoid for safety.
+     */
     @Test
     @DisplayName("Exercise 7: foldMap with custom monoid")
     void exercise7_foldMapWithMonoid() {
@@ -201,6 +291,17 @@ public class Tutorial18_FoldCombination_Solution {
       assertThat(totalAge).isEqualTo(95);
     }
 
+    /**
+     * Why this is idiomatic: each filtered fold tags its names with a label, then {@code plus}
+     * combines the two streams. Seniors come first, juniors after — the {@code plus} order matches
+     * the {@code getAll} order.
+     *
+     * <p>Alternative: a stream pipeline with a single map that branches on age. Same answer; the
+     * fold-based version composes with other path operators.
+     *
+     * <p>Common wrong attempt: rely on the union to be order-independent. {@code plus} is
+     * concatenation, not set union — order is preserved.
+     */
     @Test
     @DisplayName("Exercise 8: Combining filtered folds")
     void exercise8_combiningFilteredFolds() {

@@ -23,11 +23,20 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Path-Based Resilience
+ * Tutorial 04: Path-Based Resilience.
  *
- * <p>Learn to use resilience patterns through the fluent Path API. VTaskPath, VStreamPath, and
- * VTaskContext provide chainable resilience operations like withRetry(), withCircuitBreaker(),
- * catching(), asMaybe(), and asTry().
+ * <p>Pain → Promise. Tutorial 01-03 wrap resilience patterns around individual VTasks. In Path-API
+ * style we want the same patterns as fluent chain methods on VTaskPath:
+ *
+ * <pre>
+ *   Path.vtask(() -&gt; service.fetch())
+ *       .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofMillis(100)))
+ *       .withCircuitBreaker(breaker)
+ *       .catching(IOException.class, e -&gt; defaultResponse)
+ *       .asTry();
+ * </pre>
+ *
+ * <p>Same patterns, fluent shape, integrates with the rest of the Effect Path API.
  *
  * <p>Key Concepts:
  *
@@ -61,10 +70,13 @@ public class Tutorial04_PathResilience {
   class VTaskPathRetry {
 
     /**
-     * Exercise 1: VTaskPath withRetry and retry convenience
+     * Exercise 1: VTaskPath retry via {@code withRetry}.
      *
-     * <p>VTaskPath provides withRetry(RetryPolicy) for full control and retry(maxAttempts,
-     * initialDelay) as a convenience for exponential backoff with jitter.
+     * <pre>
+     *   // Nudge:    Same RetryPolicy.fixed shape as Tutorial 03; .withRetry on the path.
+     *   // Strategy: unstable.withRetry(RetryPolicy.fixed(3, Duration.ofMillis(10)))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 1: VTaskPath withRetry and retry")
@@ -100,15 +112,15 @@ public class Tutorial04_PathResilience {
   class VTaskPathErrorWrapping {
 
     /**
-     * Exercise 2: VTaskPath catching, asMaybe, asTry
+     * Exercise 2: convert exceptions into typed values.
      *
-     * <p>These methods convert exceptions into typed values:
-     *
-     * <ul>
-     *   <li>catching(mapper) wraps in Either: Right(value) or Left(mappedError)
-     *   <li>asMaybe() wraps in Maybe: Just(value) or Nothing
-     *   <li>asTry() wraps in Try: Success(value) or Failure(exception)
-     * </ul>
+     * <pre>
+     *   // Nudge:    Three different conversions: catching, asMaybe, asTry.
+     *   // Strategy: 2a: failing.catching(Throwable::getMessage)
+     *   //           2b: failing.asMaybe()
+     *   //           2c: failing.asTry()
+     *   // Spoiler:  exactly that for each.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 2a: Use catching to convert errors to Either")
@@ -170,9 +182,13 @@ public class Tutorial04_PathResilience {
   class VTaskPathCircuitBreaker {
 
     /**
-     * Exercise 3: VTaskPath withCircuitBreaker in a chain
+     * Exercise 3: VTaskPath chain with inline circuit breaker.
      *
-     * <p>Use withCircuitBreaker() directly in a VTaskPath chain to protect a computation inline.
+     * <pre>
+     *   // Nudge:    pure value -&gt; map to format -&gt; protect with breaker.
+     *   // Strategy: Path.vtaskPure(42).map(n -&gt; "Answer: " + n).withCircuitBreaker(breaker)
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 3: VTaskPath withCircuitBreaker in a chain")
@@ -205,10 +221,13 @@ public class Tutorial04_PathResilience {
   class VStreamPathErrors {
 
     /**
-     * Exercise 4: VStreamPath recover and onError
+     * Exercise 4: VStreamPath element recovery.
      *
-     * <p>VStreamPath.recover() provides a fallback value for elements that fail during processing.
-     * VStreamPath.onError() performs a side effect when an error occurs.
+     * <pre>
+     *   // Nudge:    recover takes a function from the error to a fallback value.
+     *   // Strategy: stream.recover(error -&gt; { errorCount.incrementAndGet(); return "recovered"; })
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 4: VStreamPath recover from element errors")
@@ -238,10 +257,13 @@ public class Tutorial04_PathResilience {
     }
 
     /**
-     * Exercise 5: VStreamPath mapTask with per-element retry
+     * Exercise 5: VStreamPath per-element {@code mapTask}.
      *
-     * <p>mapTask() applies an effectful function (returning VTask) to each element sequentially.
-     * You can combine this with Retry to add per-element retry logic.
+     * <pre>
+     *   // Nudge:    mapTask takes a function returning VTask; per-element retry comes from Retry.
+     *   // Strategy: Path.vstreamOf("a", "b").mapTask(s -&gt; VTask.succeed(s.toUpperCase()))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 5: VStreamPath mapTask with per-element retry")
@@ -265,11 +287,20 @@ public class Tutorial04_PathResilience {
   class VTaskContextResilience {
 
     /**
-     * Exercise 6: VTaskContext retry and withCircuitBreaker
+     * Exercise 6: VTaskContext layered resilience.
      *
-     * <p>VTaskContext provides a simplified Layer 2 API with built-in resilience methods. It wraps
-     * VTaskPath and provides factory methods like of(), pure(), fail(), and execution methods like
-     * run() (returns Try), runOrThrow(), and runOrElse().
+     * <pre>
+     *   // Nudge:    VTaskContext.of -&gt; .retry -&gt; .withCircuitBreaker -&gt; .recover.
+     *   // Strategy: VTaskContext.&lt;String&gt;of(() -&gt; {
+     *   //               int n = attempts.incrementAndGet();
+     *   //               if (n &lt; 2) throw new RuntimeException("flaky");
+     *   //               return "context-result";
+     *   //           })
+     *   //               .retry(3, Duration.ofMillis(10))
+     *   //               .withCircuitBreaker(breaker)
+     *   //               .recover(error -&gt; "fallback")
+     *   // Spoiler:  see hint above.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 6: VTaskContext with retry and circuit breaker")

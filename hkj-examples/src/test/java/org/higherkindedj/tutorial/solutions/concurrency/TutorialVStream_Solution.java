@@ -13,9 +13,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: VStream Basics - SOLUTIONS
+ * Solution for TutorialVStream — teaching-solution format.
  *
- * <p>This file contains the complete solutions for all exercises in TutorialVStream.java.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Tutorial: VStream Basics (Solutions)")
 public class TutorialVStream_Solution {
@@ -28,6 +40,16 @@ public class TutorialVStream_Solution {
   @DisplayName("Part 1: Creating VStreams")
   class CreatingVStreams {
 
+    /**
+     * Why this is idiomatic: {@code VStream.fromList(source).toList().run()} treats the stream as a
+     * lazy description and forces it once at the end. The list is the collection sink.
+     *
+     * <p>Alternative: a plain {@code Stream}. Same answer for in-memory data; reach for {@code
+     * VStream} when downstream stages may be effectful or async.
+     *
+     * <p>Common wrong attempt: forget {@code .run()} on the {@code toList()} result. The VStream
+     * stays a lazy description until {@code run} is invoked.
+     */
     @Test
     @DisplayName("Exercise 1: Create from list and collect")
     void exercise1_fromListAndCollect() {
@@ -39,6 +61,16 @@ public class TutorialVStream_Solution {
       assertThat(result).containsExactly("alpha", "beta", "gamma");
     }
 
+    /**
+     * Why this is idiomatic: {@code VStream.range(1, 6)} creates a half-open integer range as a
+     * lazy stream. Standard semantics — start inclusive, end exclusive.
+     *
+     * <p>Alternative: {@code IntStream.range(1, 6).boxed()...} for plain streams. The VStream
+     * version composes with effectful stages that {@code IntStream} cannot.
+     *
+     * <p>Common wrong attempt: assume the end is inclusive. The convention matches {@code
+     * IntStream}; the upper bound is excluded.
+     */
     @Test
     @DisplayName("Exercise 2: Create a range stream")
     void exercise2_rangeStream() {
@@ -57,6 +89,16 @@ public class TutorialVStream_Solution {
   @DisplayName("Part 2: Transformations")
   class Transformations {
 
+    /**
+     * Why this is idiomatic: {@code map} transforms each element lazily. The lambda runs once per
+     * element when the stream is finally consumed.
+     *
+     * <p>Alternative: {@code Stream.map}. Same shape; the VStream variant stays in the effect-aware
+     * family for downstream composition.
+     *
+     * <p>Common wrong attempt: consume the stream twice expecting cached results. VStream does not
+     * memoise — repeat consumers re-run the pipeline.
+     */
     @Test
     @DisplayName("Exercise 3: Map elements")
     void exercise3_mapElements() {
@@ -66,6 +108,16 @@ public class TutorialVStream_Solution {
       assertThat(result).containsExactly("#1", "#2", "#3");
     }
 
+    /**
+     * Why this is idiomatic: {@code filter} keeps elements matching the predicate. The retained
+     * elements pass through unchanged; non-matches are dropped.
+     *
+     * <p>Alternative: a manual loop with an {@code if}. Same answer; the combinator fits into a
+     * fluent pipeline cleanly.
+     *
+     * <p>Common wrong attempt: assume {@code filter} can mutate elements. It only decides
+     * inclusion; transform with {@code map} when the value should change.
+     */
     @Test
     @DisplayName("Exercise 4: Filter elements")
     void exercise4_filterElements() {
@@ -75,6 +127,16 @@ public class TutorialVStream_Solution {
       assertThat(result).containsExactly(2, 4, 6);
     }
 
+    /**
+     * Why this is idiomatic: {@code iterate(seed, fn)} produces an infinite stream; {@code take(n)}
+     * bounds it. The pair is the canonical "n powers of two" idiom.
+     *
+     * <p>Alternative: a {@code for} loop and a manual list. Works for one-off code; the combinator
+     * pair composes with other stream stages.
+     *
+     * <p>Common wrong attempt: invoke {@code toList} on the unbounded iterate. The stream never
+     * terminates; always pair {@code iterate} with a limiting combinator.
+     */
     @Test
     @DisplayName("Exercise 5: Limit infinite stream with take")
     void exercise5_takeFromInfinite() {
@@ -93,6 +155,15 @@ public class TutorialVStream_Solution {
   @DisplayName("Part 3: Composition")
   class Composition {
 
+    /**
+     * Why this is idiomatic: {@code flatMap} expands each element into a sub-stream and
+     * concatenates the results. Use it when one element maps to many.
+     *
+     * <p>Alternative: a nested loop. Equivalent; the combinator stays in the lazy pipeline.
+     *
+     * <p>Common wrong attempt: expect {@code flatMap} to flatten arbitrarily nested structures. It
+     * flattens one level — call again for deeper nesting.
+     */
     @Test
     @DisplayName("Exercise 6: FlatMap expansion")
     void exercise6_flatMapExpansion() {
@@ -102,6 +173,17 @@ public class TutorialVStream_Solution {
       assertThat(result).containsExactly(1, 10, 2, 20, 3, 30);
     }
 
+    /**
+     * Why this is idiomatic: chain filter, map, take in one lazy pipeline. Each stage runs only on
+     * elements that survive the previous stage; the take limits total work even though range is
+     * large.
+     *
+     * <p>Alternative: a hand-written loop with state variables. Same answer; the pipeline is
+     * composable and the laziness limits work to what is needed.
+     *
+     * <p>Common wrong attempt: collect to a list between stages. Each materialisation costs memory;
+     * keep the pipeline lazy until the end.
+     */
     @Test
     @DisplayName("Exercise 7: Multi-step pipeline")
     void exercise7_pipeline() {
@@ -121,6 +203,15 @@ public class TutorialVStream_Solution {
   @DisplayName("Part 4: Terminal Operations and Effects")
   class TerminalOperations {
 
+    /**
+     * Why this is idiomatic: {@code fold(seed, combiner)} reduces the stream into a single value.
+     * {@code Integer::sum} is the canonical addition combiner.
+     *
+     * <p>Alternative: collect to a list and sum. Works; the fold avoids the intermediate list.
+     *
+     * <p>Common wrong attempt: forget the seed. {@code fold} needs an identity for empty streams;
+     * supply zero for sum, one for product.
+     */
     @Test
     @DisplayName("Exercise 8: Fold to sum")
     void exercise8_foldToSum() {
@@ -130,6 +221,17 @@ public class TutorialVStream_Solution {
       assertThat(result).isEqualTo(15);
     }
 
+    /**
+     * Why this is idiomatic: {@code unfold(seed, stateFn)} drives a stream from a stateful
+     * generator. Each step returns either a {@code Seed(value, nextState)} or {@code empty} to
+     * terminate.
+     *
+     * <p>Alternative: {@code iterate} with a sentinel value and {@code takeWhile}. Same answer for
+     * monotonic generators; {@code unfold} handles non-monotonic termination directly.
+     *
+     * <p>Common wrong attempt: forget to terminate. Without a path to {@code empty} the stream runs
+     * forever; bound it with {@code take} or terminate via state.
+     */
     @Test
     @DisplayName("Exercise 9: Effectful unfold")
     void exercise9_unfold() {
@@ -148,6 +250,17 @@ public class TutorialVStream_Solution {
       assertThat(result).containsExactly(5, 4, 3, 2, 1);
     }
 
+    /**
+     * Why this is idiomatic: {@code exists(predicate)} short-circuits at the first match. On an
+     * infinite iterate stream, the search stops as soon as 42 appears.
+     *
+     * <p>Alternative: {@code filter(p).take(1).toList()} returns a list with one element. The named
+     * {@code exists} returns a boolean directly.
+     *
+     * <p>Common wrong attempt: use {@code filter} on infinite streams expecting a boolean. The
+     * result is a stream; reach for {@code exists}, {@code anyMatch}, or {@code findFirst} to
+     * terminate.
+     */
     @Test
     @DisplayName("Exercise 10: Short-circuiting exists")
     void exercise10_existsShortCircuit() {
@@ -166,6 +279,18 @@ public class TutorialVStream_Solution {
   @DisplayName("Part 5: Error Handling")
   class ErrorHandling {
 
+    /**
+     * Why this is idiomatic: {@code VStream.fail(throwable).recover(fn)} produces a single-element
+     * stream containing the recovery value. The error message is available to the recovery
+     * function.
+     *
+     * <p>Alternative: {@code recoverWith(e -> VStream.of(...))} when the recovery is itself a
+     * stream of multiple elements. {@code recover} is the single-value form.
+     *
+     * <p>Common wrong attempt: catch the exception around {@code toList().run()}. The streaming
+     * layer already provides recovery; staying inside the stream keeps later combinators
+     * applicable.
+     */
     @Test
     @DisplayName("Exercise 11: Recover from failure")
     void exercise11_recover() {

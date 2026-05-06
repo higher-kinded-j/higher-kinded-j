@@ -24,10 +24,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 02: Async with Absence.
+ * Solution for Tutorial02 AsyncWithAbsence — teaching-solution format.
  *
- * <p>This file contains the completed solutions for all exercises. Compare your answers with these
- * solutions after attempting the tutorial.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Tutorial 02: Async with Absence - Solutions")
 public class Tutorial02_AsyncWithAbsence_Solution {
@@ -64,6 +75,16 @@ public class Tutorial02_AsyncWithAbsence_Solution {
   @DisplayName("Part 1: OptionalT")
   class OptionalTExercises {
 
+    /**
+     * Why this is idiomatic: {@code OptionalT.fromKind} lifts {@code Kind<F, Optional<A>>} into the
+     * transformer. Future + Optional becomes a single monad with a unified flatMap.
+     *
+     * <p>Alternative: chain {@code thenCompose} + {@code if-present} manually. Same outcome; the
+     * transformer hides the plumbing.
+     *
+     * <p>Common wrong attempt: assume {@code OptionalT} runs the future. The transformer is a
+     * description; runs at {@code .value()} extraction.
+     */
     @Test
     @DisplayName("Exercise 1: fromKind lifts a Future<Optional> into OptionalT")
     void exercise1_fromKindLiftsFutureOptional() {
@@ -77,6 +98,17 @@ public class Tutorial02_AsyncWithAbsence_Solution {
       assertThat(result.get().name()).isEqualTo("Alice");
     }
 
+    /**
+     * Why this is idiomatic: {@code For.from} threads OptionalT bindings through dependent steps.
+     * The user lookup feeds the profile lookup; both run in the future without manual {@code
+     * thenCompose}.
+     *
+     * <p>Alternative: nested {@code thenCompose} chains with {@code if-present}. Equivalent
+     * runtime; the comprehension keeps the data flow visible.
+     *
+     * <p>Common wrong attempt: forget {@code OPTIONAL_T.narrow}. The {@code Kind} returned by
+     * {@code yield} is widened; narrow before {@code value()}.
+     */
     @Test
     @DisplayName("Exercise 2: For chains two async lookups")
     void exercise2_forChainsAsyncLookups() {
@@ -91,6 +123,16 @@ public class Tutorial02_AsyncWithAbsence_Solution {
       assertThat(result.get().userId()).isEqualTo("alice");
     }
 
+    /**
+     * Why this is idiomatic: an {@code Optional.empty()} from any step short- circuits the
+     * comprehension. The future still completes; later OptionalT steps simply do not run.
+     *
+     * <p>Alternative: explicit {@code if-present} branches after each step. Equivalent; the
+     * transformer does it automatically.
+     *
+     * <p>Common wrong attempt: assume the future itself can be empty. Optional-ness lives in the
+     * inner type; the future always completes with a value.
+     */
     @Test
     @DisplayName("Exercise 3: Empty short-circuits the chain")
     void exercise3_emptyShortCircuits() {
@@ -104,6 +146,17 @@ public class Tutorial02_AsyncWithAbsence_Solution {
       assertThat(result).isEmpty();
     }
 
+    /**
+     * Why this is idiomatic: {@code handleErrorWith} on the OptionalT monad receives {@code Unit}
+     * (absence carries no payload) and returns a fresh OptionalT. Defaults provide a present value
+     * for empty cases.
+     *
+     * <p>Alternative: pattern-match the optional after running. Same answer; the transformer keeps
+     * the recovery composable.
+     *
+     * <p>Common wrong attempt: call {@code orElse} on the inner Optional. Works for synchronous
+     * code; the transformer-aware {@code handleErrorWith} keeps the future intact.
+     */
     @Test
     @DisplayName("Exercise 4: handleErrorWith provides a default for empty")
     void exercise4_handleErrorWithProvidesDefault() {
@@ -128,6 +181,17 @@ public class Tutorial02_AsyncWithAbsence_Solution {
   @DisplayName("Part 2: MaybeT")
   class MaybeTExercises {
 
+    /**
+     * Why this is idiomatic: {@code MaybeT.fromKind} mirrors {@code OptionalT} but for
+     * higher-kinded-j's {@code Maybe}. Use it when the surrounding code already speaks in {@code
+     * Maybe} for absence.
+     *
+     * <p>Alternative: {@code OptionalT} for {@code java.util.Optional}-shaped absence. Pick
+     * whichever absence type the rest of the system uses.
+     *
+     * <p>Common wrong attempt: mix {@code Optional} and {@code Maybe} in the same transformer
+     * pipeline. Convert at the boundary or pick one.
+     */
     @Test
     @DisplayName("Exercise 5: MaybeT.fromKind for an async Maybe")
     void exercise5_maybeTFromKind() {

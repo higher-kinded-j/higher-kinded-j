@@ -21,13 +21,17 @@ import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 02: Multiple Interpreters
+ * Tutorial 02: Multiple Interpreters.
  *
- * <p>The same Free monad program can be interpreted in fundamentally different ways. This tutorial
- * explores how the Payment Processing example uses different interpreters for different scenarios.
+ * <p>Pain → Promise. The whole point of describing programs as values is that we can interpret them
+ * more than one way. This tutorial uses the production-shaped Payment Processing example to drive
+ * the point home: the same {@code Free} program runs against the real-payment interpreter, the
+ * in-memory test interpreter, and a recording interpreter that captures every operation for
+ * assertion — without any change to the program itself.
  *
  * <p>Key concepts:
  *
@@ -66,6 +70,7 @@ public class Tutorial02_MultipleInterpreters {
    * <p>Task: Create a payment service and call processPayment
    */
   @Test
+  @DisplayName("Exercise 1: Build Test Program")
   void exercise1_buildTestProgram() {
     // TODO: Create a PaymentService using PaymentService.create()
     // Then call processPayment(CUSTOMER, AMOUNT, VISA)
@@ -82,6 +87,7 @@ public class Tutorial02_MultipleInterpreters {
    * <p>Task: Combine interpreters and interpret the program
    */
   @Test
+  @DisplayName("Exercise 2: Interpret with Recording")
   void exercise2_interpretWithRecording() {
     var service = PaymentService.create();
     var program = service.processPayment(CUSTOMER, AMOUNT, VISA);
@@ -109,6 +115,7 @@ public class Tutorial02_MultipleInterpreters {
    * <p>Task: Use a FixedRiskInterpreter with a high score (95) and verify the decline
    */
   @Test
+  @DisplayName("Exercise 3: Different Interpreter Different Outcome")
   void exercise3_differentInterpreterDifferentOutcome() {
     var service = PaymentService.create();
     var program = service.processPayment(CUSTOMER, AMOUNT, VISA);

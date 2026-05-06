@@ -15,11 +15,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: Context with VTask - Concurrent Context Propagation
+ * Tutorial: Context with VTask — concurrent context propagation.
  *
- * <p>Learn how Context integrates with VTask and Scope for concurrent operations. ScopedValue
- * bindings automatically propagate to child virtual threads, making Context ideal for structured
- * concurrency.
+ * <p>Pain → Promise. {@code ThreadLocal} does not survive a virtual-thread fan-out cleanly: each
+ * forked thread gets a fresh empty TL unless we manually copy values across. {@code ScopedValue}
+ * (Java 25), and therefore {@link Context}, was designed for the virtual-thread world: child
+ * threads forked from a {@link VTask} or {@link Scope} see the parent's bindings automatically.
  *
  * <p>Key Concepts:
  *

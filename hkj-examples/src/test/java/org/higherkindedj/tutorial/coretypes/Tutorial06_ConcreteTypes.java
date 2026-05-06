@@ -9,13 +9,26 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 06: Concrete Types - Choosing the Right Type for the Job
+ * Tutorial 06: Concrete Types — choosing the right type for the job.
  *
- * <p>Now that you understand Functor, Applicative, and Monad, let's explore the concrete types and
- * when to use each one.
+ * <p>Pain → Promise. Java has at least four ad-hoc ways to model "might fail or might be absent":
+ * {@code null}, {@code Optional}, checked exceptions, custom {@code Result} types. Each application
+ * picks one (or three) inconsistently. The library's concrete types map the problem shape to the
+ * right tool:
+ *
+ * <ul>
+ *   <li>{@link Maybe} — value may be absent; no information about why.
+ *   <li>{@link Either} — value or a typed error; fail-fast.
+ *   <li>{@link Validated} — value or accumulated typed errors; for forms / batch validations.
+ *   <li>{@link List} — zero-or-many values, often used as a Monad for Cartesian-product
+ *       combinations.
+ * </ul>
+ *
+ * <p>This tutorial walks through the decision: when to reach for which type.
  *
  * <p>Common Types: - Either<L, R>: Represents a value that can be Left (error) or Right (success) -
  * Maybe<A>: Represents a value that might be absent - List<A>: Represents multiple values -
@@ -29,13 +42,18 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 1: Either for error handling
+   * Exercise 1: Either for typed errors.
    *
-   * <p>Use Either when you want explicit error types and fail-fast behavior.
-   *
-   * <p>Task: Create a function that validates a user's age
+   * <pre>
+   *   // Nudge:    Three branches: invalid range, too young, valid.
+   *   // Strategy: if age &lt; 0 or &gt; 150 -&gt; Either.left("Invalid age");
+   *   //           if age &lt; 18 -&gt; Either.left("Too young");
+   *   //           else Either.right(age).
+   *   // Spoiler:  see the conditional shape above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Either with typed errors for age validation")
   void exercise1_eitherForErrorHandling() {
     Function<Integer, Either<String, Integer>> validateAge =
         age -> {
@@ -57,13 +75,16 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 2: Maybe for optional values
+   * Exercise 2: Maybe for optional values.
    *
-   * <p>Use Maybe when a value might be absent, but you don't need to explain why.
-   *
-   * <p>Task: Look up a value in a simple key-value store
+   * <pre>
+   *   // Nudge:    Two branches: known key returns Just; anything else returns Nothing.
+   *   // Strategy: key.equals("key1") ? Maybe.just("value") : Maybe.nothing()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Maybe.just / Maybe.nothing for optional lookup")
   void exercise2_maybeForOptionalValues() {
     Function<String, Maybe<String>> lookup =
         key -> {
@@ -82,13 +103,16 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 3: Maybe with getOrElse
+   * Exercise 3: Maybe.getOrElse for defaults.
    *
-   * <p>Maybe provides convenient methods for handling the absent case.
-   *
-   * <p>Task: Use getOrElse to provide a default value
+   * <pre>
+   *   // Nudge:    getOrElse takes the default and returns it on Nothing.
+   *   // Strategy: present.getOrElse("Default") and absent.getOrElse("Default")
+   *   // Spoiler:  same call shape for both.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Maybe.getOrElse provides defaults for the absent case")
   void exercise3_maybeWithDefault() {
     Maybe<String> present = Maybe.just("Hello");
     Maybe<String> absent = Maybe.nothing();
@@ -103,13 +127,16 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 4: List for multiple values
+   * Exercise 4: List operations via Stream.
    *
-   * <p>Use List when you have zero or more values and want to work with all of them.
-   *
-   * <p>Task: Filter and transform a list of numbers using Java streams
+   * <pre>
+   *   // Nudge:    Three operations: filter even, multiply by 10, collect.
+   *   // Strategy: numbers.stream().filter(n -&gt; n % 2 == 0).map(n -&gt; n * 10).toList()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: filter / map / collect for List operations")
   void exercise4_listOperations() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
@@ -125,13 +152,18 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 5: Validated for accumulating errors
+   * Exercise 5: Validated accumulates every error.
    *
-   * <p>Use Validated when you want to collect ALL errors, not just the first one.
-   *
-   * <p>Task: Create field validators that accumulate errors
+   * <pre>
+   *   // Nudge:    Use ValidatedMonad with a Semigroup; map3 across the three validations.
+   *   // Strategy: var app = ValidatedMonad.instance(Semigroups.string(", "));
+   *   //           VALIDATED.narrow(app.map3(VALIDATED.widen(name), VALIDATED.widen(age),
+   *   //                                     VALIDATED.widen(email), User::new))
+   *   // Spoiler:  see hint above. Same call for valid and invalid inputs.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: Validated map3 accumulates errors via Semigroup")
   void exercise5_validatedAccumulatesErrors() {
     record User(String name, int age, String email) {}
 
@@ -167,13 +199,16 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 6: Converting between types
+   * Exercise 6: Converting Maybe to Either.
    *
-   * <p>You can convert between Maybe, Either, and other types.
-   *
-   * <p>Task: Convert Maybe to Either
+   * <pre>
+   *   // Nudge:    Pattern: present -&gt; Either.right; absent -&gt; Either.left("Not found").
+   *   // Strategy: present.isJust() ? Either.right(present.get()) : Either.left("Not found")
+   *   // Spoiler:  same shape for both.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: convert Maybe to Either")
   void exercise6_convertingTypes() {
     Maybe<String> present = Maybe.just("value");
     Maybe<String> absent = Maybe.nothing();
@@ -191,13 +226,17 @@ public class Tutorial06_ConcreteTypes {
   }
 
   /**
-   * Exercise 7: Choosing the right type
+   * Exercise 7: Choosing the right type for safe division.
    *
-   * <p>Let's practice choosing the right type for different scenarios.
-   *
-   * <p>Task: Implement a safe division function
+   * <pre>
+   *   // Nudge:    Two implementations: Either when the error has meaning, Maybe when it doesn't.
+   *   // Strategy: Either: b == 0 ? Either.left("Division by zero") : Either.right(a / b);
+   *   //           Maybe:  b == 0 ? Maybe.nothing() : Maybe.just(a / b)
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: pick Either or Maybe by whether the error carries information")
   void exercise7_choosingTheRightType() {
     // Option 1: Use Either to provide an error message
     Function<Integer, Function<Integer, Either<String, Integer>>> safeDivideEither =

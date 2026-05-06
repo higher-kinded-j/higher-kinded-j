@@ -1,7 +1,7 @@
 # Learning Paths
 
-~~~admonish info title="Choose Your Path"
-Each journey is designed to be completed in a single sitting (25–40 minutes). Paths are recommended sequences of journeys for different goals.
+~~~admonish info title="Choose a Path"
+Each journey is designed to be completed in a single sitting (25–40 minutes). The paths below are recommended *sequences* of journeys for different goals.
 ~~~
 
 ## All Journeys at a Glance
@@ -26,7 +26,7 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 ## Recommended Paths
 
 ~~~admonish tip title="Start Here"
-**Path A: Effect-First** is the recommended path for most users. It teaches the primary user-facing API of Higher-Kinded-J and gets you productive quickly.
+**Path A: Effect-First** is the recommended path for most users. It teaches the primary user-facing API of Higher-Kinded-J and gets us productive quickly.
 ~~~
 
 ### Path A: Effect-First (Recommended)
@@ -88,7 +88,7 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 
 **Total**: 3 sessions, ~110 min across sessions
 
-**Best for**: Developers who want to understand the FP theory deeply before applying it.
+**Best for**: Developers who want to understand the FP theory deeply before applying it. Pair this path with the [Foundations chapter](../hkts/foundations_intro.md) of the book; the journeys exercise the concepts that the book explains.
 
 ---
 
@@ -129,7 +129,7 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 
 **Total**: 13 sessions, ~470 min across sessions
 
-**Best for**: Those who want comprehensive mastery of Higher-Kinded-J.
+**Best for**: Comprehensive mastery of Higher-Kinded-J.
 
 ---
 
@@ -140,7 +140,7 @@ For longer learning sessions, these combinations work well together and stay und
 ### Error Mastery (~70 min)
 Combine [Core: Error Handling](coretypes/error_handling_journey.md) + [Core: Advanced Patterns](coretypes/advanced_journey.md)
 
-Focus: Complete the error handling and advanced FP patterns in one sitting.
+Focus: Complete error handling and advanced FP patterns in one sitting.
 
 ### DSL Power (~70 min)
 Combine [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) + [Optics: Focus DSL](optics/focus_dsl_journey.md)
@@ -161,15 +161,11 @@ Focus: Master virtual threads, structured concurrency, and resource management i
 
 ## Tips for Success
 
-1. **One journey per sitting**: Each journey is designed to be completed without interruption. Taking breaks between journeys helps consolidation.
-
-2. **Don't skip the struggle**: When an exercise is hard, that's where learning happens. Consult solutions only after genuine effort.
-
-3. **Run the tests**: The red-to-green feedback loop is essential. Don't just read the exercises.
-
-4. **Revisit earlier journeys**: After completing later journeys, earlier concepts often make more sense. Circle back.
-
-5. **Apply immediately**: After each journey, try using what you learned in your own code.
+1. **One journey per sitting.** Each journey is designed to be completed without interruption. Taking breaks between journeys helps consolidation.
+2. **Don't skip the struggle.** When an exercise is hard, that is where learning happens. Consult solutions only after genuine effort.
+3. **Run the tests.** The red-to-green feedback loop is essential. Don't just read the exercises.
+4. **Revisit earlier journeys.** After completing later journeys, earlier concepts often make more sense. Circle back.
+5. **Apply immediately.** After each journey, try using what we learned in our own code.
 
 ---
 

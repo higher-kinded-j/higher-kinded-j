@@ -20,14 +20,24 @@ import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.free_ap.FreeApApplicative;
 import org.higherkindedj.hkt.free_ap.FreeApKindHelper;
 import org.higherkindedj.hkt.free_ap.SelectiveAnalyzer;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 11: Static Analysis of Free Applicative Programs
+ * Tutorial 11: Static Analysis of Free Applicative Programs.
  *
- * <p>One of the key advantages of Free Applicative over Free Monad is the ability to statically
- * analyse programs BEFORE execution. Because all operations are independent (no operation depends
- * on the result of another), we can inspect the entire program structure.
+ * <p>Pain → Promise. We have a program that talks to several services. Before we run it, we want to
+ * know: which services does it touch, what is the worst-case fan-out, do any of the operations
+ * require permissions our caller does not have? In imperative Java that means a separate "analyser"
+ * pass over the same code, easy to drift out of sync.
+ *
+ * <p>{@link FreeAp} programs are <em>data</em>. We can fold them through any monoid before we run
+ * them, accumulating whatever metadata we want — service names, required permissions, estimated
+ * cost. The analyser and the runtime cannot drift; they are folds over the same value.
+ *
+ * <p>Java idiom anchor: think of this as "execute a dry-run of an Apache Beam pipeline extracting
+ * its operator graph", except we get the static-analysis machinery for free from the Applicative
+ * laws.
  *
  * <p>Key Concepts:
  *
@@ -113,8 +123,13 @@ public class Tutorial11_StaticAnalysis {
    * for cost estimation, rate limiting, or progress tracking.
    *
    * <p>Task: Use FreeApAnalyzer.countOperations to count the operations
+   *
+   * <pre>
+   *   // Strategy: FreeApAnalyzer.countOperations(program)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: count operations")
   void exercise1_countOperations() {
     // A program that fetches two keys and stores one
     FreeAp<DataOpKind.Witness, String> program =
@@ -138,8 +153,13 @@ public class Tutorial11_StaticAnalysis {
    * logging, auditing, or generating documentation.
    *
    * <p>Task: Use FreeApAnalyzer.collectOperations to get the operations
+   *
+   * <pre>
+   *   // Strategy: FreeApAnalyzer.collectOperations(program)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: collect operations")
   void exercise2_collectOperations() {
     FreeAp<DataOpKind.Witness, String> program =
         fetch("config")
@@ -173,8 +193,13 @@ public class Tutorial11_StaticAnalysis {
    * This is crucial for security: we can reject programs before they execute any effects.
    *
    * <p>Task: Use FreeApAnalyzer.containsOperation to check for Remove operations
+   *
+   * <pre>
+   *   // Strategy: FreeApAnalyzer.containsOperation(program, op -> ...)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: check dangerous operations")
   void exercise3_checkDangerousOperations() {
     FreeAp<DataOpKind.Witness, String> safeProgram = fetch("key1").map2(fetch("key2"), (a, b) -> a);
 
@@ -201,8 +226,13 @@ public class Tutorial11_StaticAnalysis {
    * operations, we might be able to batch them into a single database query.
    *
    * <p>Task: Use FreeApAnalyzer.groupByType to categorise operations
+   *
+   * <pre>
+   *   // Strategy: FreeApAnalyzer.groupByType(program, DataOpHelper.DATA_OP::narrow)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: group by Type")
   void exercise4_groupByType() {
     FreeApApplicative<DataOpKind.Witness> app = FreeApApplicative.instance();
 
@@ -235,8 +265,13 @@ public class Tutorial11_StaticAnalysis {
    * results.
    *
    * <p>Task: Collect all keys accessed by the program
+   *
+   * <pre>
+   *   // Strategy: FreeApAnalyzer.analyseWith to collect all keys
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: custom analysis")
   void exercise5_customAnalysis() {
     FreeAp<DataOpKind.Witness, String> program =
         fetch("user:123")
@@ -282,8 +317,13 @@ public class Tutorial11_StaticAnalysis {
    * execute. For pure FreeAp (no conditions), min equals max.
    *
    * <p>Task: Use SelectiveAnalyzer to compute effect bounds
+   *
+   * <pre>
+   *   // Strategy: SelectiveAnalyzer.computeEffectBounds(program)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: effect bounds")
   void exercise6_effectBounds() {
     FreeAp<DataOpKind.Witness, String> program =
         fetch("key1").map2(fetch("key2"), (a, b) -> a + b).map2(fetch("key3"), (ab, c) -> ab + c);
@@ -308,8 +348,13 @@ public class Tutorial11_StaticAnalysis {
    * uses Set semantics, so repeated operations appear once.
    *
    * <p>Task: Collect possible effects and verify deduplication
+   *
+   * <pre>
+   *   // Strategy: SelectiveAnalyzer.collectPossibleEffects(program, DataOpHelper.DATA_OP::narrow)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: collect possible effects")
   void exercise7_collectPossibleEffects() {
     // Same fetch twice
     FreeAp<DataOpKind.Witness, String> program =
@@ -335,8 +380,13 @@ public class Tutorial11_StaticAnalysis {
    * operations based on a predicate.
    *
    * <p>Task: Use containsDangerousEffect to check for Remove operations
+   *
+   * <pre>
+   *   // Strategy: SelectiveAnalyzer.containsDangerousEffect(program, narrow, predicate)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: contains dangerous effect")
   void exercise8_containsDangerousEffect() {
     FreeAp<DataOpKind.Witness, String> program =
         fetch("user")
@@ -361,8 +411,13 @@ public class Tutorial11_StaticAnalysis {
    * if the user has permission to run it.
    *
    * <p>Task: Check if a "read-only" user can run a program
+   *
+   * <pre>
+   *   // Strategy: Collect operations, get their classes, check against permissions
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: permission check")
   void exercise9_permissionCheck() {
     // A program that reads and writes
     FreeAp<DataOpKind.Witness, String> program =
@@ -396,6 +451,7 @@ public class Tutorial11_StaticAnalysis {
    * <p>Task: Identify how many Fetch operations could be batched
    */
   @Test
+  @DisplayName("Exercise 10: batching analysis")
   void exercise10_batchingAnalysis() {
     FreeApApplicative<DataOpKind.Witness> app = FreeApApplicative.instance();
 

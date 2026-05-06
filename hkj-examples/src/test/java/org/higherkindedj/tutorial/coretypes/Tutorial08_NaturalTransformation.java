@@ -15,13 +15,24 @@ import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 08: Natural Transformations
+ * Tutorial 08: Natural Transformations.
  *
- * <p>A natural transformation is a polymorphic function between type constructors. It converts F[A]
- * to G[A] for any type A, without knowing what A is.
+ * <p>Pain → Promise. Converting between effect types ({@code Optional} → {@code Either}, {@code
+ * Maybe} → {@code List}, etc.) is a per-call helper in plain Java — write the conversion once per
+ * pair, hope nobody else writes it differently. A {@link Natural} transformation is the same
+ * conversion expressed once, for any inner type:
+ *
+ * <pre>
+ *   Natural&lt;MaybeKind.Witness, ListKind.Witness&gt; maybeToList = ...; // works for any A
+ *   Kind&lt;ListKind.Witness, Integer&gt; ints = maybeToList.transform(MAYBE.widen(maybe));
+ * </pre>
+ *
+ * <p>Java idiom anchor: the {@code .toEitherPath(...)} call in the One Line, Six Layers anchor is a
+ * natural transformation. This tutorial teaches the underlying machinery.
  *
  * <p>Key Concepts:
  *
@@ -50,8 +61,13 @@ public class Tutorial08_NaturalTransformation {
    * Just(x) becomes a singleton list [x].
    *
    * <p>Task: Implement the transformation
+   *
+   * <pre>
+   *   // Strategy: a Natural transformation from Maybe to List
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Maybe to List")
   void exercise1_maybeToList() {
     // TODO: Replace null with a Natural transformation from Maybe to List
     // Hint: Use Maybe.fold() to handle Nothing and Just cases
@@ -76,8 +92,13 @@ public class Tutorial08_NaturalTransformation {
    * Nothing (discarding the error), Right(x) becomes Just(x).
    *
    * <p>Task: Implement the transformation
+   *
+   * <pre>
+   *   // Strategy: a Natural transformation from Either<String, _> to Maybe
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Either to Maybe")
   void exercise2_eitherToMaybe() {
     // TODO: Replace null with a Natural transformation from Either<String, _> to Maybe
     // Hint: Use Either.fold() to handle Left and Right cases
@@ -101,8 +122,13 @@ public class Tutorial08_NaturalTransformation {
    * non-empty list becomes Just(first element).
    *
    * <p>Task: Implement the transformation
+   *
+   * <pre>
+   *   // Strategy: a Natural transformation from List to Maybe
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: list head")
   void exercise3_listHead() {
     // TODO: Replace null with a Natural transformation from List to Maybe
     // Hint: Check if list is empty, return Maybe.nothing() or Maybe.just(list.get(0))
@@ -125,8 +151,13 @@ public class Tutorial08_NaturalTransformation {
    * <p>Natural transformations compose: (F ~> G) andThen (G ~> H) gives (F ~> H).
    *
    * <p>Task: Compose two transformations
+   *
+   * <pre>
+   *   // Strategy: Use maybeToList.andThen(listHead)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: composition")
   void exercise4_composition() {
     // Given transformations
     Natural<MaybeKind.Witness, ListKind.Witness> maybeToList =
@@ -169,8 +200,13 @@ public class Tutorial08_NaturalTransformation {
    * == nat nat.andThen(identity) == nat
    *
    * <p>Task: Use the identity transformation
+   *
+   * <pre>
+   *   // Strategy: Use Natural.identity()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: identity")
   void exercise5_identity() {
     // TODO: Get the identity transformation for Maybe
     // Hint: Use Natural.identity()

@@ -12,14 +12,32 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.ListPrisms;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 15: List Prisms - Functional List Decomposition
+ * Tutorial 15: List Prisms — functional list decomposition.
  *
- * <p>This tutorial introduces {@link ListPrisms}, a utility class that provides optics for
- * functional list decomposition patterns. These patterns originate from functional programming
- * languages like Haskell and enable elegant, type-safe list manipulation.
+ * <p>Pain → Promise. Pattern-matching on a list head/tail in Java is a sequence of {@code
+ * isEmpty()} guards plus index-based access:
+ *
+ * <pre>
+ *   if (xs.isEmpty()) { ... }
+ *   else { var head = xs.get(0); var tail = xs.subList(1, xs.size()); ... }
+ * </pre>
+ *
+ * <p>{@link ListPrisms} captures the same shape as composable optics:
+ *
+ * <pre>
+ *   ListPrisms.&lt;Integer&gt;cons().getOptional(xs)  // Maybe&lt;Pair&lt;Integer, List&lt;Integer&gt;&gt;&gt;
+ * </pre>
+ *
+ * <p>Java idiom anchor: this is the optics equivalent of Scala's {@code case head :: tail}
+ * extractor or Haskell's {@code (x:xs)} pattern, expressed in Java without macro support.
+ *
+ * <p>Original notes: this tutorial introduces {@link ListPrisms}, a utility class that provides
+ * optics for functional list decomposition patterns. These patterns originate from functional
+ * programming languages like Haskell and enable elegant, type-safe list manipulation.
  *
  * <p>Key Concepts:
  *
@@ -64,8 +82,13 @@ public class Tutorial15_ListPrisms {
    * pattern for list processing.
    *
    * <p>Task: Use the cons prism to extract the head and tail of a list
+   *
+   * <pre>
+   *   // Strategy: code that uses cons.getOptional() to decompose the list
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Cons decomposition")
   void exercise1_consDecomposition() {
     Prism<List<String>, Pair<String, List<String>>> cons = ListPrisms.cons();
 
@@ -87,8 +110,13 @@ public class Tutorial15_ListPrisms {
    * empty case without exceptions.
    *
    * <p>Task: Verify that cons returns empty for an empty list
+   *
+   * <pre>
+   *   // Strategy: code that uses cons.getOptional() on the empty list
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: cons on empty list")
   void exercise2_consOnEmptyList() {
     Prism<List<Integer>, Pair<Integer, List<Integer>>> cons = ListPrisms.cons();
 
@@ -107,8 +135,13 @@ public class Tutorial15_ListPrisms {
    * is equivalent to prepending an element to a list.
    *
    * <p>Task: Use cons.build() to create a list by prepending an element
+   *
+   * <pre>
+   *   // Strategy: code that uses cons.build() to create a list
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: build with Cons")
   void exercise3_buildingWithCons() {
     Prism<List<String>, Pair<String, List<String>>> cons = ListPrisms.cons();
 
@@ -133,8 +166,13 @@ public class Tutorial15_ListPrisms {
    * useful when you need to process lists from the end.
    *
    * <p>Task: Use the snoc prism to extract the init and last of a list
+   *
+   * <pre>
+   *   // Strategy: code that uses snoc.getOptional() to decompose the list
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: Snoc decomposition")
   void exercise4_snocDecomposition() {
     Prism<List<Integer>, Pair<List<Integer>, Integer>> snoc = ListPrisms.snoc();
 
@@ -155,8 +193,13 @@ public class Tutorial15_ListPrisms {
    * to the end of a list.
    *
    * <p>Task: Use snoc.build() to create a list by appending an element
+   *
+   * <pre>
+   *   // Strategy: code that uses snoc.build() to create a list
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: build with Snoc")
   void exercise5_buildingWithSnoc() {
     Prism<List<Integer>, Pair<List<Integer>, Integer>> snoc = ListPrisms.snoc();
 
@@ -179,8 +222,13 @@ public class Tutorial15_ListPrisms {
    * decomposes into a pair, head() gives you direct access to just the first element.
    *
    * <p>Task: Use the head affine to get and modify the first element
+   *
+   * <pre>
+   *   // Strategy: code that uses head.getOptional() to get the first element
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: head Affine")
   void exercise6_headAffine() {
     Affine<List<String>, String> head = ListPrisms.head();
 
@@ -204,8 +252,13 @@ public class Tutorial15_ListPrisms {
    * <p>The last() affine focuses on the last element of a list.
    *
    * <p>Task: Use the last affine to get and modify the last element
+   *
+   * <pre>
+   *   // Strategy: code that uses last.getOptional() to get the last element
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: last Affine")
   void exercise7_lastAffine() {
     Affine<List<Integer>, Integer> last = ListPrisms.last();
 
@@ -230,8 +283,13 @@ public class Tutorial15_ListPrisms {
    * singleton list. This is useful for initialising lists with a first element.
    *
    * <p>Task: Use head.set() to create a list from an empty list
+   *
+   * <pre>
+   *   // Strategy: code that uses head.set() to create a singleton list
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: set on empty list")
   void exercise8_settingOnEmptyList() {
     Affine<List<String>, String> head = ListPrisms.head();
 
@@ -252,8 +310,13 @@ public class Tutorial15_ListPrisms {
    * Pair, tail gives you just the remaining list.
    *
    * <p>Task: Use the tail affine to get the remaining elements
+   *
+   * <pre>
+   *   // Strategy: code that uses tail.getOptional() to get the tail
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: tail Affine")
   void exercise9_tailAffine() {
     Affine<List<String>, List<String>> tail = ListPrisms.tail();
 
@@ -276,8 +339,13 @@ public class Tutorial15_ListPrisms {
    * <p>The init() affine focuses on all elements except the last.
    *
    * <p>Task: Use the init affine to get all but the last element
+   *
+   * <pre>
+   *   // Strategy: code that uses init.getOptional() to get the init
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 10: init Affine")
   void exercise10_initAffine() {
     Affine<List<Integer>, List<Integer>> init = ListPrisms.init();
 
@@ -301,8 +369,13 @@ public class Tutorial15_ListPrisms {
    * pattern matching on list structure, similar to functional programming languages.
    *
    * <p>Task: Use the empty prism for pattern matching
+   *
+   * <pre>
+   *   // Strategy: false with code that uses empty.matches() to check if list is empty
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 11: empty prism")
   void exercise11_emptyPrism() {
     Prism<List<String>, Unit> empty = ListPrisms.empty();
     Prism<List<String>, Pair<String, List<String>>> cons = ListPrisms.cons();
@@ -340,8 +413,13 @@ public class Tutorial15_ListPrisms {
    * provides trampoline-based operations that are stack-safe for any list size.
    *
    * <p>Task: Use mapTrampoline to transform a list
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.mapTrampoline()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 12: stack-safe map")
   void exercise12_stackSafeMap() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5);
 
@@ -359,8 +437,13 @@ public class Tutorial15_ListPrisms {
    * <p>The filterTrampoline operation safely filters elements from large lists.
    *
    * <p>Task: Use filterTrampoline to keep only even numbers
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.filterTrampoline()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 13: stack-safe filter")
   void exercise13_stackSafeFilter() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
@@ -379,8 +462,13 @@ public class Tutorial15_ListPrisms {
    * direction for building new lists or computing right-associative operations.
    *
    * <p>Task: Use foldRight to sum a list of numbers
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.foldRight()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 14: stack-safe fold")
   void exercise14_stackSafeFold() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5);
 
@@ -399,8 +487,13 @@ public class Tutorial15_ListPrisms {
    * results.
    *
    * <p>Task: Use flatMapTrampoline to duplicate each element
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.flatMapTrampoline()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 15: stack-safe flatMap")
   void exercise15_stackSafeFlatMap() {
     List<Integer> numbers = List.of(1, 2, 3);
 
@@ -418,8 +511,13 @@ public class Tutorial15_ListPrisms {
    * <p>The zipWithTrampoline operation safely combines two lists element-by-element.
    *
    * <p>Task: Use zipWithTrampoline to combine names and ages
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.zipWithTrampoline()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 16: stack-safe zip")
   void exercise16_stackSafeZip() {
     List<String> names = List.of("Alice", "Bob", "Charlie");
     List<Integer> ages = List.of(30, 25, 35);
@@ -438,8 +536,13 @@ public class Tutorial15_ListPrisms {
    * <p>The takeTrampoline and dropTrampoline operations safely slice lists.
    *
    * <p>Task: Use takeTrampoline and dropTrampoline to slice a list
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.takeTrampoline()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 17: stack-safe take/drop")
   void exercise17_stackSafeTakeAndDrop() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
@@ -461,8 +564,13 @@ public class Tutorial15_ListPrisms {
    * <p>The reverseTrampoline operation safely reverses a list.
    *
    * <p>Task: Use reverseTrampoline to reverse a list
+   *
+   * <pre>
+   *   // Strategy: code that uses ListPrisms.reverseTrampoline()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 18: stack-safe reverse")
   void exercise18_stackSafeReverse() {
     List<String> words = List.of("one", "two", "three", "four", "five");
 
@@ -484,8 +592,13 @@ public class Tutorial15_ListPrisms {
    * to focus on the first element of a nested list.
    *
    * <p>Task: Compose a lens with head to access a nested list's first element
+   *
+   * <pre>
+   *   // Strategy: code that uses firstItem.getOptional()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 19: compose with Head")
   void exercise19_composingWithHead() {
     record Container(List<String> items) {}
 

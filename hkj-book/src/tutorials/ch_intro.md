@@ -1,46 +1,63 @@
 # Hands-On Learning
 
-> *"You look at where you're going and where you are and it never makes sense, but then you look back at where you've been and a pattern seems to emerge."*
+> _"You look at where you're going and where you are and it never makes sense, but then you look back at where you've been and a pattern seems to emerge."_
 >
 > – Robert M. Pirsig, *Zen and the Art of Motorcycle Maintenance*
 
 ---
 
-Reading about functional programming is one thing. Writing it is another entirely.
+Reading about functional programming is one thing. Writing it is another entirely. This chapter is the writing part: thirteen short journeys, each a single test file we open in our IDE and complete by replacing `answerRequired()` with working code. Tests stay red until the solution is right, which makes feedback immediate and the loop tight.
 
-These tutorials exist because understanding emerges from doing. You will encounter exercises where you replace `answerRequired()` with working code. Tests will fail, red and insistent, until your solution is correct. The failure is not punishment; it is feedback. Each red test is a question; each green test is comprehension made concrete.
+We can read every other chapter in the book without ever opening this one — the Effect Path API, Optics, and Monad Transformers chapters are designed for that — but most readers find that the patterns "click" only after they have spent forty minutes typing them out. That is what this chapter is for.
 
-The pattern Pirsig describes applies precisely here. Midway through an exercise on Applicative composition, the relationship between `map` and `ap` may feel arbitrary. Three tutorials later, building a validation pipeline, the pattern clicks. You look back at where you've been, and suddenly the earlier struggles make sense. This is not a flaw in the learning process. It *is* the learning process.
-
-**Thirteen journeys** are available, each designed to be completed in 20-65 minutes. Do one per sitting. Let concepts consolidate before moving on.
-
-Expect to struggle. Expect moments of confusion. These are not signs that something is wrong. They are signs that learning is happening.
+~~~admonish tip title="Already Productive? Skip to the Capstone"
+If we have already shipped something with the library, the **[One Line, Six Layers](../hkts/one_line_six_layers.md)** anchor in the Foundations chapter is the densest tour of the stack. Each journey here teaches one of the tokens in that single expression; **Tutorial00_OneLineSixLayers** ties them together as a setup check.
+~~~
 
 ---
 
-## The Learning Loop
+## How The Journeys Stack
 
 ```
-    ┌─────────────────────────────────────────────────────────────┐
-    │                                                             │
-    │    READ  ──────►  WRITE  ──────►  RUN  ──────►  OBSERVE     │
-    │      │              │              │               │        │
-    │      │              │              │               │        │
-    │      ▼              ▼              ▼               ▼        │
-    │   Exercise      Replace        Execute          Red or      │
-    │   description   answerRequired()  test          Green?      │
-    │                                                             │
-    │                         │                                   │
-    │                         ▼                                   │
-    │              ┌──────────┴──────────┐                        │
-    │              │                     │                        │
-    │           GREEN                   RED                       │
-    │         (Next exercise)     (Read error, iterate)           │
-    │                                                             │
-    └─────────────────────────────────────────────────────────────┘
+       Effect API Journey               our usual entry point
+   ┌───────────────────────────────────────────┐
+   │  Path / EitherPath / MaybePath / TryPath  │   the API most code uses
+   │  ForPath, recover, contexts               │
+   └───────────────────────────────────────────┘
+                         ▲
+                         │  rests on
+                         │
+       Foundations Journeys (Core Types)
+   ┌───────────────────────────────────────────┐
+   │  Kind, Functor, Applicative, Monad        │   the abstractions
+   │  MonadError, Natural Transformations      │
+   └───────────────────────────────────────────┘
+                         ▲
+                         │  applied through
+                         │
+       Optics, Expression, Concurrency, Resilience
+   ┌───────────────────────────────────────────┐
+   │  Lens, Prism, Traversal, Focus DSL        │   immutable updates
+   │  ForState, ForPath.par                    │   workflow shape
+   │  VTask, Scope, Resource                   │   structured concurrency
+   │  Circuit Breaker, Saga, Retry, Bulkhead   │   failure handling
+   └───────────────────────────────────────────┘
 ```
 
-The loop is simple. The understanding it produces is not.
+We can take the journeys bottom-up (Foundations → Effect API → applications), top-down (Effect API first, fill in Foundations only when we want the theory), or pick one specialism and dive in. The [Learning Paths](learning_paths.md) page suggests sequences for each goal.
+
+---
+
+~~~admonish info title="In This Chapter"
+- **Interactive Tutorials** – How the exercise pattern works, what to expect from a red test, and how to use the solutions.
+- **Core Types Journeys** – Three journeys building from `Kind<F, A>` through `MonadError` to advanced patterns like Coyoneda and Free Applicative.
+- **Effect API Journey** – The recommended user-facing API for working with functional effects in Java.
+- **Concurrency Journeys** – Two journeys on virtual threads and structured concurrency with `VTask`, `Scope`, and `Resource`.
+- **Optics Journeys** – Four journeys progressing from Lens basics through Traversals, the Free Monad DSL, and the Focus DSL.
+- **Expression Journeys** – Two journeys on comprehension patterns: `ForState` for named state workflows and `ForPath.par` for parallel composition.
+- **Resilience Patterns** – Circuit Breaker, Saga, Retry, and Bulkhead, applied to `VTask` and the Path API.
+- **Learning Paths, Solutions Guide, Troubleshooting** – Curated sequences, how to use solutions effectively, and fixes for common stumbles.
+~~~
 
 ---
 
@@ -62,45 +79,43 @@ The loop is simple. The understanding it produces is not.
 | **Expression: ForPath Parallel** | Applicative parallel composition for Path types | ~20 min | 9 |
 | **Resilience Patterns** | Circuit Breaker, Saga, Retry, Bulkhead, Path API resilience | ~40 min | 22 |
 
-Start with whichever interests you most. The [Learning Paths](learning_paths.md) guide suggests sequences for different goals.
+Start wherever interests us most. The pattern Pirsig describes applies precisely here: midway through an exercise on Applicative composition, the relationship between `map` and `ap` may feel arbitrary; three tutorials later, building a validation pipeline, it clicks. Looking back, the earlier struggle makes sense. That *is* the learning process.
 
 ---
 
-## What You'll Learn
+## The Learning Loop
 
-~~~admonish info title="In This Chapter"
-- **Core Types Journeys** – Three journeys building from basic `Kind<F, A>` wrapping through error handling to advanced patterns like Coyoneda and Free Applicative.
-- **Effect API Journey** – Learn the recommended user-facing API for working with functional effects.
-- **Concurrency Journeys** – Two journeys on virtual threads and structured concurrency with `VTask`, `Scope`, and `Resource`.
-- **Optics Journeys** – Four journeys progressing from simple Lens operations through Traversals, the Free Monad DSL, and the Focus DSL.
-- **Expression Journeys** – Two journeys on comprehension patterns: `ForState` for named state workflows and `ForPath.par` for parallel composition.
-- **Resilience Patterns Tutorials** – Four short tutorials covering Circuit Breaker, Saga, Retry with Bulkhead, and Path API resilience.
-- **Learning Paths** – Curated sequences of journeys for different goals and time budgets.
-- **Solutions Guide** – When you're genuinely stuck, reference implementations are available. Try to struggle first; the learning happens in the struggle.
-- **Troubleshooting** – Common errors and their solutions.
-~~~
+```
+    ┌─────────────────────────────────────────────────────────────┐
+    │                                                             │
+    │    READ  ──────►  WRITE  ──────►  RUN  ──────►  OBSERVE     │
+    │      │              │              │               │        │
+    │      ▼              ▼              ▼               ▼        │
+    │   Exercise      Replace        Execute          Red or      │
+    │   description   answerRequired()  test          Green?      │
+    │                                                             │
+    │                         │                                   │
+    │                         ▼                                   │
+    │              ┌──────────┴──────────┐                        │
+    │              │                     │                        │
+    │           GREEN                   RED                       │
+    │         (Next exercise)     (Read error, iterate)           │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+```
+
+The loop is simple. The understanding it produces is not. Expect moments of confusion — they are signs that learning is happening, not that something is wrong.
 
 ---
 
 ## Chapter Contents
 
-1. [Interactive Tutorials](tutorials_intro.md) - Getting started with the tutorial system
-2. [Core Types Journeys](coretypes/ch_intro.md)
-   - [Foundations](coretypes/foundations_journey.md) - Kind basics to Monad
-   - [Error Handling](coretypes/error_handling_journey.md) - MonadError and concrete types
-   - [Advanced](coretypes/advanced_journey.md) - Natural transformations to Free Applicative
+1. [Interactive Tutorials](tutorials_intro.md) - How the exercise system works
+2. [Core Types Journeys](coretypes/ch_intro.md) - `Kind` basics through advanced patterns
 3. [Effect API](effect/effect_journey.md) - The recommended user-facing API
-4. [Concurrency Journeys](concurrency/ch_intro.md)
-   - [VTask](concurrency/vtask_journey.md) - Virtual threads and Par combinators
-   - [Scope & Resource](concurrency/scope_resource_journey.md) - Structured concurrency and the resource bracket
-5. [Optics Journeys](optics/ch_intro.md)
-   - [Lens & Prism](optics/lens_prism_journey.md) - Fundamental optics
-   - [Traversals & Practice](optics/traversals_journey.md) - Collections and real-world use
-   - [Fluent & Free DSL](optics/fluent_free_journey.md) - Advanced APIs
-   - [Focus DSL](optics/focus_dsl_journey.md) - Type-safe path navigation
-6. [Expression Journeys](expression/ch_intro.md)
-   - [ForState](expression/forstate_journey.md) - Named state comprehensions
-   - [ForPath Parallel](expression/forpath_parallel_journey.md) - Applicative parallel composition
+4. [Concurrency Journeys](concurrency/ch_intro.md) - VTask, Scope, Resource
+5. [Optics Journeys](optics/ch_intro.md) - Lens, Prism, Traversal, Focus DSL
+6. [Expression Journeys](expression/ch_intro.md) - ForState and ForPath.par
 7. [Resilience Patterns](resilience/resilience_journey.md) - Circuit Breaker, Saga, Retry, Bulkhead
 8. [Learning Paths](learning_paths.md) - Recommended journey sequences
 9. [Solutions Guide](solutions_guide.md) - Reference implementations

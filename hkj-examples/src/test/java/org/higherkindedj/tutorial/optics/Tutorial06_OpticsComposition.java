@@ -20,13 +20,38 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 06: Optics Composition - Combining Different Optic Types
+ * Tutorial 06: Optics Composition — combining different optic types.
  *
- * <p>The true power of optics comes from composing different types together. You can chain Lenses,
- * Prisms, and Traversals to navigate complex data structures.
+ * <p>Pain → Promise. Real domain models mix product types (records) and sum types (sealed
+ * interfaces) and collections, all nested. Hand-rolled traversal + variant-check + update is one
+ * function per shape:
+ *
+ * <pre>
+ *   for (Order order : orders) {
+ *       if (order.status() instanceof Shipped s) {
+ *           // mutate the tracking number on every Shipped order
+ *       }
+ *   }
+ * </pre>
+ *
+ * <p>Composed optics turn the same expression into a single declared path:
+ *
+ * <pre>
+ *   var allShippedTracking = orders().each()                // Traversal
+ *       .andThen(OrderLenses.status())                       // Lens
+ *       .andThen(OrderStatusPrisms.shipped().asTraversal())  // Prism -&gt; Traversal
+ *       .andThen(ShippedLenses.tracking().asTraversal());    // Lens -&gt; Traversal
+ *   List&lt;Order&gt; updated = allShippedTracking.modify(
+ *       String::toUpperCase, orders);
+ * </pre>
+ *
+ * <p>Composition rules: the result is always the weakest of the composed optics (Lens &gt; Affine
+ * &gt; Traversal). Compose a Lens and a Prism, get an Affine. Compose an Affine and a Traversal,
+ * get a Traversal.
  *
  * <p>Key Concepts:
  *
@@ -131,14 +156,16 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 1: Lens + Prism composition = Traversal
+   * Exercise 1: Lens + Prism = Traversal.
    *
-   * <p>Access an optional field through a guaranteed path. Because the Prism might not match, the
-   * result is a Traversal with zero-or-one focus.
-   *
-   * <p>Task: Navigate to a specific variant's field using Lens.andThen(Prism)
+   * <pre>
+   *   // Nudge:    The result inhabits the weakest of the composed optics.
+   *   // Strategy: orderToPayment.andThen(creditCardPrism)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Lens andThen Prism produces a Traversal (0..1 focus)")
   void exercise1_lensPlusPrism() {
     @GenerateLenses
     record Order(String id, PaymentMethod1 payment) {}
@@ -179,14 +206,16 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 2: Prism + Lens composition = Traversal
+   * Exercise 2: Prism + Lens = Traversal.
    *
-   * <p>Access a field within a specific variant. Because the Prism might not match, the result is a
-   * Traversal with zero-or-one focus.
-   *
-   * <p>Task: Update just the CVV of a credit card payment using Prism.andThen(Lens)
+   * <pre>
+   *   // Nudge:    Same composition order, opposite optic order.
+   *   // Strategy: creditCardPrism.andThen(cvvLens)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Prism andThen Lens produces a Traversal (0..1 focus)")
   void exercise2_prismPlusLens() {
     @GenerateLenses
     record Order(String id, PaymentMethod1 payment) {}
@@ -226,13 +255,16 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 3: Lens + Traversal composition
+   * Exercise 3: Lens + Traversal = Traversal (0..many).
    *
-   * <p>Access multiple elements through a guaranteed path.
-   *
-   * <p>Task: Update all items in an order's item list
+   * <pre>
+   *   // Nudge:    OrderTraversals.items() already encodes Lens(items) + listTraversal.
+   *   // Strategy: OrderTraversals.items()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Lens andThen Traversal stays a Traversal")
   void exercise3_lensPlusTraversal() {
     @GenerateLenses
     record Item(String name, double price) {}
@@ -270,14 +302,17 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 4: Complex composition (Lens + Prism + Lens) = Traversal
+   * Exercise 4: Three-step Lens + Prism + Lens = Traversal.
    *
-   * <p>Navigate through multiple levels with different optic types. The Prism in the middle means
-   * the overall result is a Traversal.
-   *
-   * <p>Task: Access a field deep within an optional branch
+   * <pre>
+   *   // Nudge:    After Lens.andThen(Prism) we already have a Traversal; the trailing Lens
+   *   //           must become a Traversal too.
+   *   // Strategy: dataLens.andThen(stringPrism).andThen(valueLens.asTraversal())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: Lens + Prism + Lens — note the trailing asTraversal()")
   void exercise4_complexComposition() {
     // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class JsonObjectLenses {
@@ -330,13 +365,16 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 5: Traversal + Prism composition
+   * Exercise 5: Traversal + Prism composition.
    *
-   * <p>Filter a collection to specific variants and access their fields.
-   *
-   * <p>Task: Find all string values in a mixed list
+   * <pre>
+   *   // Nudge:    Traversal andThen Prism stays a Traversal (filtering effect).
+   *   // Strategy: valuesTraversal.andThen(stringPrism)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: Traversal andThen Prism filters to matching variants")
   void exercise5_traversalPlusPrism() {
     // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class JsonArrayTraversals {
@@ -373,13 +411,18 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 6: Deep nested composition
+   * Exercise 6: Deep nested composition (League → Team → Player → score).
    *
-   * <p>Combine multiple optics to navigate a complex structure.
-   *
-   * <p>Task: Access all player scores in all teams
+   * <pre>
+   *   // Nudge:    Three steps; the final lens needs asTraversal because everything before
+   *   //           it is a Traversal.
+   *   // Strategy: LeagueTraversals.teams().andThen(TeamTraversals.players())
+   *   //               .andThen(PlayerLenses.score().asTraversal())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: deep nested composition across three layers")
   void exercise6_deepNestedComposition() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -434,11 +477,15 @@ public class Tutorial06_OpticsComposition {
   /**
    * Exercise 7: Building reusable optic pipelines
    *
-   * <p>Create composable building blocks for common access patterns.
-   *
-   * <p>Task: Build a library of reusable optics
+   * <pre>
+   *   // Nudge:    Two pipelines: Lens+Lens stays a Lens; Lens+Prism+Lens becomes a Traversal.
+   *   // Strategy: userToAddress.andThen(addressToCity)
+   *   //           userToContact.andThen(emailPrism).andThen(emailToAddress.asTraversal())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: build reusable optic pipelines as named values")
   void exercise7_reusableOpticPipelines() {
     @GenerateLenses
     record Address(String street, String city) {}

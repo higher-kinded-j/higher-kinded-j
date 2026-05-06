@@ -22,9 +22,21 @@ import org.jooq.impl.DSL;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 16: Optics Spec Interfaces
+ * Solution for Tutorial16 OpticsSpecInterfaces — teaching-solution format.
  *
- * @see org.higherkindedj.tutorial.optics.Tutorial16_OpticsSpecInterfaces
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial16_OpticsSpecInterfaces_Solution {
 
@@ -157,6 +169,18 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
   // Solutions
   // =========================================================================
 
+  /**
+   * Why this is idiomatic: {@code @Wither} optic specs target classes that already supply {@code
+   * withX()} setters — {@code LocalDate.withYear(...)}. The generated lens reads via the getter and
+   * writes via the wither, no record rebuild needed.
+   *
+   * <p>Alternative: hand-write the lens with {@code Lens.of(LocalDate::getYear, (d, y) ->
+   * d.withYear(y))}. Same answer; the spec interface produces the same lens declaratively.
+   *
+   * <p>Common wrong attempt: try {@code @Wither} on a class without {@code withX()} methods. The
+   * processor needs the wither to exist; reach for {@code @ViaBuilder} when only a builder is
+   * available.
+   */
   @Test
   void exercise1_witherPattern() {
     LocalDate date = LocalDate.of(2024, 6, 15);
@@ -175,6 +199,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(december).isEqualTo(LocalDate.of(2024, 12, 15));
   }
 
+  /**
+   * Why this is idiomatic: {@code modify} on a {@code @Wither}-generated lens reads, applies the
+   * function, and writes — all through the existing wither method. The class stays in charge of its
+   * invariants.
+   *
+   * <p>Alternative: read with {@code getYear()}, compute, call {@code withYear(...)}. Three
+   * statements, two mentions of the field; the lens collapses them.
+   *
+   * <p>Common wrong attempt: cache the {@code year} integer outside the modify. Stale data
+   * surprises the next call; let the lens re-read each time.
+   */
   @Test
   void exercise2_modifyWithWitherLens() {
     LocalDate date = LocalDate.of(2024, 6, 15);
@@ -190,6 +225,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(lastDay.getDayOfMonth()).isEqualTo(30);
   }
 
+  /**
+   * Why this is idiomatic: {@code @ViaBuilder} targets jOOQ-style records that ship a {@code
+   * toBuilder()} method. The generated lens reads via the accessor and writes by building a fresh
+   * record with the field replaced.
+   *
+   * <p>Alternative: hand-write {@code Lens.of(CustomerRecord::name, (c, n) ->
+   * c.toBuilder().name(n).build())}. Same answer; the spec interface declares the intent.
+   *
+   * <p>Common wrong attempt: use {@code @Wither} on a builder-style record. Builders are not
+   * setters; the processor would not find the {@code withX} method and fail.
+   */
   @Test
   void exercise3_viaBuilderPattern() {
     CustomerRecord customer =
@@ -211,6 +257,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(updated.name()).isEqualTo("Alice");
   }
 
+  /**
+   * Why this is idiomatic: {@code modify} through a builder-backed lens reads, transforms, and
+   * rebuilds via {@code toBuilder()}. The credit-limit uplift only touches the one field, the rest
+   * of the record is preserved automatically.
+   *
+   * <p>Alternative: hand-call {@code customer.toBuilder().creditLimit(newLimit).build()}. Same
+   * semantics; the lens-driven version composes with other lenses for deeper updates.
+   *
+   * <p>Common wrong attempt: forget that {@code modify} requires a function, not a value. Pass
+   * {@code limit -> newLimit} when a constant is wanted, or use {@code set} directly.
+   */
   @Test
   void exercise4_modifyWithBuilderLens() {
     CustomerRecord customer =
@@ -233,6 +290,16 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(uppercased.name()).isEqualTo("ALICE SMITH");
   }
 
+  /**
+   * Why this is idiomatic: {@code @MatchWhen} on a sealed interface generates a prism per variant.
+   * Reads return {@code Optional} of the matched payload; non-matching values come back empty.
+   *
+   * <p>Alternative: hand-roll prisms with {@code Prism.of(... instanceof ...)}. Same answer; the
+   * spec interface keeps the prisms in lock-step with the sealed interface.
+   *
+   * <p>Common wrong attempt: extend the sealed interface and forget to update the spec. The new
+   * variant has no prism; either re-run the processor or add a manual prism.
+   */
   @Test
   void exercise5_matchWhenPrisms() {
     JsonValue textValue = new JsonString("hello");
@@ -253,6 +320,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(bool).contains(true);
   }
 
+  /**
+   * Why this is idiomatic: a wrong-variant read returns {@code Optional.empty()} rather than
+   * throwing — the prism's partiality is exactly what makes it safe.
+   *
+   * <p>Alternative: cast and catch {@code ClassCastException}. Possible but ugly; the prism is the
+   * typed version.
+   *
+   * <p>Common wrong attempt: assume {@code getOptional} can short-circuit early in a pipeline. It
+   * returns the empty optional and the next stage handles it; chain with {@code map} or {@code
+   * flatMap} accordingly.
+   */
   @Test
   void exercise6_prismTypeSafety() {
     JsonValue textValue = new JsonString("hello");
@@ -267,6 +345,18 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(boolFromText).isEmpty();
   }
 
+  /**
+   * Why this is idiomatic: optics produced from any spec interface compose with each other and with
+   * hand-written optics. The lens-into-{@code LocalDate}-year and the lens-into-{@code
+   * CustomerRecord}-name are the same shape and combine naturally.
+   *
+   * <p>Alternative: chain three {@code with*} calls or three {@code toBuilder()} calls. Works for
+   * one schema; the optic composition keeps the path stable when the schema grows.
+   *
+   * <p>Common wrong attempt: assume optics from different specs cannot compose. They all return
+   * {@code Lens}/{@code Prism}/{@code Traversal} types; composition is algebraic, not
+   * implementation-specific.
+   */
   @Test
   void exercise7_composingSpecOptics() {
     LocalDate date = LocalDate.of(2024, 6, 15);
@@ -305,6 +395,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(fullyUpdated.creditLimit()).isEqualByComparingTo(new BigDecimal("2000.00"));
   }
 
+  /**
+   * Why this is idiomatic: a {@code @MatchWhen}-generated prism's {@code build} creates the variant
+   * from its payload. Pair {@code text().build("hello")} with {@code text().getOptional(...)} for
+   * round-trip use.
+   *
+   * <p>Alternative: {@code new JsonString("hello")}. Same runtime; the prism form keeps the
+   * building consistent with the rest of the optic API.
+   *
+   * <p>Common wrong attempt: try to build a sealed parent without picking a variant. The prism is
+   * variant-specific by construction; pick the matching one.
+   */
   @Test
   void exercise8_buildingWithPrisms() {
     // SOLUTION: Build a JsonString using prism
@@ -317,6 +418,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(builtNumber).isEqualTo(new JsonNumber(99.9));
   }
 
+  /**
+   * Why this is idiomatic: jOOQ's {@code Result<R>} already implements {@code List<R>}, so the
+   * existing {@code Traversals.list()} works without a spec interface. Reach for the specs only
+   * when the integration needs them.
+   *
+   * <p>Alternative: write a custom traversal that wraps jOOQ's API. Pointless duplication when
+   * {@code List} interop covers the case.
+   *
+   * <p>Common wrong attempt: assume every external type needs a spec annotation. Many already
+   * conform to standard interfaces; check for that first.
+   */
   @Test
   void exercise9_jooqResultIntegration() {
     // JOOQ's Result<R> implements List<R>
@@ -333,6 +445,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     // - Types with withX() methods -> use @Wither spec
   }
 
+  /**
+   * Why this is idiomatic: a {@code @ThroughField}-generated traversal walks every line item of an
+   * order. Compose with the line-item lenses to project per-row data without iterating by hand.
+   *
+   * <p>Alternative: stream-map twice (once to read items, once to read fields). Same answer; the
+   * traversal composition keeps reads and writes symmetric.
+   *
+   * <p>Common wrong attempt: try to materialise the items first and operate on them separately. The
+   * traversal abstracts the "for each item" detail; pre-materialising loses the optic
+   * composability.
+   */
   @Test
   void exercise10_throughFieldBasics() {
     OrderRecord order =
@@ -370,6 +493,17 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
     assertThat(quantities).containsExactly(2, 1);
   }
 
+  /**
+   * Why this is idiomatic: the same composed traversal that reads also writes. Uppercase names,
+   * double quantities, apply 10% discount — three independent transforms on the same path, each one
+   * a single call.
+   *
+   * <p>Alternative: write a per-transform method that loops over items and calls {@code
+   * toBuilder().field(...)}. Same answer; the traversal stays declarative.
+   *
+   * <p>Common wrong attempt: chain the three modifies into one nested expression. The staged form
+   * keeps each effect inspectable and testable in isolation.
+   */
   @Test
   void exercise11_throughFieldModify() {
     OrderRecord order =
@@ -432,6 +566,18 @@ public class Tutorial16_OpticsSpecInterfaces_Solution {
         .containsExactly(new BigDecimal("90.00"), new BigDecimal("45.00"));
   }
 
+  /**
+   * Why this is idiomatic: a {@code @Wither} lens for the order date and a {@code @ThroughField}
+   * traversal for the items compose end-to-end. The result reads "set the year next year" or
+   * "version every product id" as a single expression.
+   *
+   * <p>Alternative: write a custom helper for each cross-cutting update. Works for one site; the
+   * optic composition removes the need for the helper.
+   *
+   * <p>Common wrong attempt: assume composition only works within a single spec family. Lenses,
+   * prisms, and traversals from different specs all return the same algebraic types and compose
+   * cleanly.
+   */
   @Test
   void exercise12_throughFieldComposition() {
     OrderRecord order =

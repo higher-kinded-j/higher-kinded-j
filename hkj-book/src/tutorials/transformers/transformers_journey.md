@@ -3,12 +3,16 @@
 **Estimated Duration**: ~90 minutes (four sub-journeys) | **Exercises**: ~28
 
 ~~~admonish info title="When to Take This Journey"
-The Effect Path API ([Tutorial 01: Effect Path Basics](../effect/effect_journey.md)) covers most workflows you will write in Java. Take this journey when you have hit one of the corners that Path types do not reach: integrating with code that returns a different outer monad, or writing library code that should work against any caller's effect stack.
+The Effect Path API ([Tutorial 01: Effect Path Basics](../effect/effect_journey.md)) covers most workflows we will write in Java. Take this journey when we have hit one of the corners that Path types do not reach: integrating with code that returns a different outer monad, or writing library code that should work against any caller's effect stack.
 ~~~
 
-## What You'll Learn
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+Monad transformers compose two monads into a single layer (e.g. `CompletableFuture<Either<L, R>>` → `EitherT`). The `.toEitherPath()` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is a special case of the same idea expressed as a [natural transformation](../../functional/natural_transformation.md). When the Path types do not reach, we drop down here.
+~~~
 
-The Monad Transformers Journey builds on the Effect Path API to cover the cases where you need to drop down to the underlying transformer machinery.
+## What We'll Learn
+
+The Monad Transformers Journey builds on the Effect Path API to cover the cases where we need to drop down to the underlying transformer machinery.
 
 ### Tutorial 01: When Path Isn't Enough (~30 min, 6 exercises)
 - Bridging an existing `CompletableFuture<Either<L, R>>` into `EitherT`

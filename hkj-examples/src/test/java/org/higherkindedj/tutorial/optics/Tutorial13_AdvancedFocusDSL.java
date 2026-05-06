@@ -20,10 +20,22 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 13: Advanced Focus DSL - Type Class Integration
+ * Tutorial 13: Advanced Focus DSL — type-class integration.
+ *
+ * <p>Pain → Promise. Tutorial 12 navigates through plain records. Production code mixes records
+ * with effect types ({@code Maybe}, {@code Either}, {@code List}) — and we want to express the
+ * navigation through both layers at once. Hand-rolling that means alternating optic-modify and
+ * monad-flatMap calls per step.
+ *
+ * <p>The Advanced Focus DSL adds typeclass-aware combinators that thread an Applicative or Traverse
+ * through the path automatically; the call site reads as a single declarative path, with the effect
+ * handling pushed into the DSL.
+ *
+ * <p>Original notes:
  *
  * <p>This tutorial covers advanced features of the Focus DSL that integrate with higher-kinded-j
  * type classes for effectful operations, monoid aggregation, and generic collection traversal.
@@ -126,8 +138,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * </ul>
    *
    * <p>Task: Use modifyF to validate and transform a value
+   *
+   * <pre>
+   *   // Strategy: keyPath.modifyF(validateAndTransform, config, MaybeMonad.INSTANCE)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: effectful modification")
   void exercise1_effectfulModification() {
     record Config(String apiKey) {}
 
@@ -174,8 +191,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * computing summaries across multiple focused elements.
    *
    * <p>Task: Use foldMap to compute aggregate values
+   *
+   * <pre>
+   *   // Strategy: 0 with salariesPath.foldMap(intAddition, salary -> salary, dept)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Monoid aggregation")
   void exercise2_monoidAggregation() {
     Department dept =
         new Department(
@@ -243,8 +265,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * traverseOver() with a Traverse instance to navigate into the collection elements.
    *
    * <p>Task: Use traverseOver to access elements in Kind-wrapped collections
+   *
+   * <pre>
+   *   // Strategy: rolesKindPath.<ListKind.Witness,
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Traverse type-class Integration")
   void exercise3_traverseTypeClassIntegration() {
     User user =
         new User(
@@ -283,8 +310,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * deeper into each element.
    *
    * <p>Task: Compose traverseOver with via to access nested properties
+   *
+   * <pre>
+   *   // Strategy: step2.via(roleLevelLens)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: traverseOver composition")
   void exercise4_traverseOverComposition() {
     User user =
         new User(
@@ -325,8 +357,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * unchanged.
    *
    * <p>Task: Use modifyWhen to selectively update elements
+   *
+   * <pre>
+   *   // Strategy: null with:
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: conditional modification")
   void exercise5_conditionalModification() {
     Department dept =
         new Department(
@@ -362,8 +399,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * useful for working with sealed interfaces and other sum types.
    *
    * <p>Task: Use instanceOf to focus on specific variants
+   *
+   * <pre>
+   *   // Strategy: AffinePath.instanceOf(Circle.class)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: sum-type Navigation")
   void exercise6_sumTypeNavigation() {
     Drawing drawing =
         new Drawing(
@@ -411,8 +453,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * to debug complex path navigation.
    *
    * <p>Task: Use traced to observe path navigation
+   *
+   * <pre>
+   *   // Strategy: employeesPath.traced(observer)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: path debugging")
   void exercise7_pathDebugging() {
     Department dept =
         new Department(List.of(new Employee("Alice", 5, 60000), new Employee("Bob", 3, 50000)));
@@ -454,8 +501,13 @@ public class Tutorial13_AdvancedFocusDSL {
    * <p>This exercise combines traverseOver, modifyWhen, and foldMap to solve a real-world scenario.
    *
    * <p>Task: Process a team structure using multiple Focus DSL features
+   *
+   * <pre>
+   *   // Strategy: 0 with allRoles.count(team)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: combining features")
   void exercise8_combiningFeatures() {
     Team team =
         new Team(

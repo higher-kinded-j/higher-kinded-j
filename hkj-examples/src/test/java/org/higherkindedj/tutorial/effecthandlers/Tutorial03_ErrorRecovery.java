@@ -12,10 +12,16 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: Error Recovery in Free Programs
+ * Tutorial 03: Error Recovery in Free Programs.
+ *
+ * <p>Pain → Promise. Recovery in imperative Java is a try/catch around the call site; in Free
+ * programs it becomes part of the program description, applied uniformly by the interpreter. Some
+ * interpreters honour recovery (production); some elide it (audit, dry-run). The program does not
+ * have to change.
  *
  * <p>Free programs can include error recovery strategies using {@code handleError}. The recovery is
  * part of the program description: interpreters that support error handling will use it; those that
@@ -55,6 +61,7 @@ public class Tutorial03_ErrorRecovery {
    * <p>Task: Add error recovery that returns "recovered" on any Throwable
    */
   @Test
+  @DisplayName("Exercise 1: Basic recovery")
   void exercise1_basicRecovery() {
     Free<IdKind.Witness, String> program = Free.pure("success");
 
@@ -73,8 +80,13 @@ public class Tutorial03_ErrorRecovery {
    * <p>Multiple handleError calls can be nested. Inner recovery takes precedence.
    *
    * <p>Task: Add two levels of error recovery
+   *
+   * <pre>
+   *   // Strategy: program.handleError(...).handleError(...)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Nested recovery")
   void exercise2_nestedRecovery() {
     Free<IdKind.Witness, String> program = Free.pure("data");
 
@@ -93,8 +105,13 @@ public class Tutorial03_ErrorRecovery {
    * <p>Recovery can be combined with map to transform the result after recovery.
    *
    * <p>Task: Create a program that maps the result to uppercase, with recovery
+   *
+   * <pre>
+   *   // Strategy: program.handleError(Throwable.class, ...).map(String::toUpperCase)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: recovery with map")
   void exercise3_recoveryWithMap() {
     Free<IdKind.Witness, String> program = Free.pure("hello");
 

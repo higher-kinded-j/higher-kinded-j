@@ -13,13 +13,35 @@ import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 12: Focus DSL - Type-Safe Path Navigation
+ * Tutorial 12: Focus DSL — type-safe path navigation.
+ *
+ * <p>Pain → Promise. Composing lenses, prisms, and traversals with {@code andThen} is correct but
+ * verbose, and the resulting type signatures are noisy:
+ *
+ * <pre>
+ *   Traversal&lt;Order, String&gt; orderToShippedTracking =
+ *       OrderTraversals.items()
+ *           .andThen(ItemLenses.status().asTraversal())
+ *           .andThen(ItemStatusPrisms.shipped().asTraversal())
+ *           .andThen(ShippedLenses.tracking().asTraversal());
+ * </pre>
+ *
+ * <p>The Focus DSL gives the same path a fluent shape that follows the data:
+ *
+ * <pre>
+ *   var path = FocusPath.of(Order.class)
+ *       .into(OrderLenses::items).each()       // Traversal
+ *       .into(ItemLenses::status)              // Lens
+ *       .at(ItemStatusPrisms::shipped)         // Prism
+ *       .into(ShippedLenses::tracking);        // Lens
+ * </pre>
  *
  * <p>The Focus DSL provides an ergonomic, type-safe way to navigate through nested data structures.
- * Instead of manually composing optics, you build navigation paths that automatically track type
+ * Instead of manually composing optics, we build navigation paths that automatically track type
  * changes as you traverse deeper.
  *
  * <p>Key concepts:
@@ -54,8 +76,13 @@ public class Tutorial12_FocusDSL {
    * FocusPath.of(lens).
    *
    * <p>Task: Create a FocusPath and use it to get and set values
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(nameLens)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Basic FocusPath")
   void exercise1_basicFocusPath() {
     record Person(String name, int age) {}
 
@@ -86,8 +113,13 @@ public class Tutorial12_FocusDSL {
    * Lens, you get a FocusPath that navigates deeper.
    *
    * <p>Task: Compose paths to navigate through nested structures
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(addressLens).via(streetLens).via(streetNameLens)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: compose Paths")
   void exercise2_composingPaths() {
     record Street(String name) {}
 
@@ -124,8 +156,13 @@ public class Tutorial12_FocusDSL {
    * because the target may not exist.
    *
    * <p>Task: Use AffinePath to navigate through optional data
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(apiKeyLens).some()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: AffinePath Basics")
   void exercise3_affinePathBasics() {
     record Config(Optional<String> apiKey) {}
 
@@ -165,8 +202,13 @@ public class Tutorial12_FocusDSL {
    * multiple elements.
    *
    * <p>Task: Use TraversalPath to work with list elements
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(membersLens).each()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: TraversalPath Basics")
   void exercise4_traversalPathBasics() {
     record Team(String name, List<String> members) {}
 
@@ -202,8 +244,13 @@ public class Tutorial12_FocusDSL {
    * the index is out of bounds.
    *
    * <p>Task: Focus on specific elements by index
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(songsLens).at(0)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: list index Access")
   void exercise5_listIndexAccess() {
     record Playlist(String name, List<String> songs) {}
 
@@ -241,8 +288,13 @@ public class Tutorial12_FocusDSL {
    * <p>Maps can be navigated using atKey(key) for a specific key.
    *
    * <p>Task: Navigate through map structures
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(valuesLens).atKey("theme")
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: map navigation")
   void exercise6_mapNavigation() {
     record Settings(Map<String, String> values) {}
 
@@ -278,8 +330,13 @@ public class Tutorial12_FocusDSL {
    * optionality.
    *
    * <p>Task: Navigate through a complex nested structure
+   *
+   * <pre>
+   *   // Strategy: managersPath.getAll(company)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: deep navigation")
   void exercise7_deepNavigation() {
     record Department(String name, Optional<String> manager) {}
 
@@ -325,8 +382,13 @@ public class Tutorial12_FocusDSL {
    * <p>TraversalPath provides a filter() method to focus only on elements matching a predicate.
    *
    * <p>Task: Filter elements during traversal
+   *
+   * <pre>
+   *   // Strategy: allProducts.filter(p -> p.price() > 100)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: filtering traversals")
   void exercise8_filteringTraversals() {
     record Product(String name, double price) {}
 
@@ -378,8 +440,13 @@ public class Tutorial12_FocusDSL {
    * asTraversal().
    *
    * <p>Task: Convert paths for use with other optics APIs
+   *
+   * <pre>
+   *   // Strategy: contentPath.toLens()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: path conversion")
   void exercise9_pathConversion() {
     record Box(String content) {}
 
@@ -407,8 +474,13 @@ public class Tutorial12_FocusDSL {
    * <p>FocusPaths provides pre-built optics for common collection operations.
    *
    * <p>Task: Use FocusPaths utilities directly
+   *
+   * <pre>
+   *   // Strategy: appropriate call using listTraversal
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 10: FocusPaths utility")
   void exercise10_focusPathsUtility() {
     // FocusPaths provides optics for lists
     var listTraversal = FocusPaths.<String>listElements();

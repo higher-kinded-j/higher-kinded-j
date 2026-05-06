@@ -18,10 +18,18 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: VStream Optics Integration
+ * Tutorial: VStream Optics Integration.
  *
- * <p>Learn how VStream integrates with the optics ecosystem (Each, Traversal, FocusDSL) and the
- * effect path bridges (toVStreamPath, fromEach).
+ * <p>Pain → Promise. Streams and optics both transform data, but in plain Java they live in
+ * separate worlds — we cannot apply a {@code Stream.map} to the focus of a {@code Lens}, and we
+ * cannot apply a {@code Lens.modify} to every element of a {@code Stream}. The {@link Each}
+ * typeclass and the optics-stream bridge let the two worlds compose: a {@code Traversal} can
+ * navigate every element of a VStream, and a VStream can be sourced from any {@code Each} instance.
+ *
+ * <p>Original notes:
+ *
+ * <p>This tutorial shows how VStream integrates with the optics ecosystem (Each, Traversal,
+ * FocusDSL) and the effect path bridges (toVStreamPath, fromEach).
  *
  * <p>Key Concepts:
  *

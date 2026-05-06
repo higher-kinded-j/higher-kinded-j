@@ -22,10 +22,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: Retry, Bulkhead, and Resilience Composition - SOLUTIONS
+ * Solution for Tutorial03 RetryBulkheadResilience — teaching-solution format.
  *
- * <p>This file contains the complete solutions for all exercises in
- * Tutorial03_RetryBulkheadResilience.java.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Tutorial 03: Retry, Bulkhead, and Resilience Composition (Solutions)")
 public class Tutorial03_RetryBulkheadResilience_Solution {
@@ -34,6 +45,17 @@ public class Tutorial03_RetryBulkheadResilience_Solution {
   @DisplayName("Part 1: Retry with RetryPolicy")
   class RetryWithPolicy {
 
+    /**
+     * Why this is idiomatic: {@code Retry.retryTask(task, policy)} wraps a VTask with retry logic.
+     * The policy controls attempts and delay; the task runs until success or attempts are
+     * exhausted.
+     *
+     * <p>Alternative: a try/catch loop with manual sleeps. Same outcome; the combinator centralises
+     * the policy.
+     *
+     * <p>Common wrong attempt: retry indefinitely. Always cap attempts — unbounded retries hide
+     * real failures and exhaust resources.
+     */
     @Test
     @DisplayName("Exercise 1: Retry a failing task until success")
     void exercise1_retryTask() {
@@ -60,6 +82,16 @@ public class Tutorial03_RetryBulkheadResilience_Solution {
       assertThat(attempts.get()).isEqualTo(3);
     }
 
+    /**
+     * Why this is idiomatic: {@code policy.onRetry(listener)} fires a {@code RetryEvent} per
+     * attempt. Wire it to logging or metrics to see exactly when and why retries happen.
+     *
+     * <p>Alternative: instrument the task itself. Bleeds the retry concern into the business logic;
+     * the listener keeps it separate.
+     *
+     * <p>Common wrong attempt: assume the listener fires for the final success. It fires for
+     * retries; success is the absence of further events.
+     */
     @Test
     @DisplayName("Exercise 2: Monitor retry attempts with RetryEvent")
     void exercise2_monitorRetries() {
@@ -92,6 +124,16 @@ public class Tutorial03_RetryBulkheadResilience_Solution {
   @DisplayName("Part 2: Bulkhead")
   class BulkheadProtection {
 
+    /**
+     * Why this is idiomatic: {@code Bulkhead.withMaxConcurrent(n)} caps simultaneous executions;
+     * {@code bulkhead.protect(task)} acquires a permit, runs the task, and releases on completion.
+     *
+     * <p>Alternative: a manual {@code Semaphore}. Same idea; the bulkhead is the named pattern with
+     * consistent acquire/release semantics.
+     *
+     * <p>Common wrong attempt: pick {@code maxConcurrent} too high. The bulkhead is the protection;
+     * tune it to the downstream service's actual capacity.
+     */
     @Test
     @DisplayName("Exercise 3: Protect a VTask with a Bulkhead")
     void exercise3_bulkheadProtect() {
@@ -114,6 +156,17 @@ public class Tutorial03_RetryBulkheadResilience_Solution {
   @DisplayName("Part 3: Composing Resilience Patterns")
   class ComposingPatterns {
 
+    /**
+     * Why this is idiomatic: {@code Resilience.builder(task)} composes circuit breaker, retry, and
+     * fallback into one resilient task. Each pattern lives in its own layer; the builder wires them
+     * in the right order.
+     *
+     * <p>Alternative: hand-stack the patterns by chaining wrappers. Tedious and easy to get the
+     * order wrong (retry inside the breaker, fallback outside).
+     *
+     * <p>Common wrong attempt: skip one of the layers. Each pattern handles a different failure
+     * mode; combine all three for production-grade resilience.
+     */
     @Test
     @DisplayName("Exercise 4: Compose patterns with ResilienceBuilder")
     void exercise4_resilienceBuilder() {
@@ -134,6 +187,15 @@ public class Tutorial03_RetryBulkheadResilience_Solution {
       assertThat(result).isEqualTo("service response");
     }
 
+    /**
+     * Why this is idiomatic: {@code Resilience.withCircuitBreakerAndRetry} is the named convenience
+     * for the most common pair. One call, both patterns, sane order.
+     *
+     * <p>Alternative: the full builder. Same answer; the convenience is shorter.
+     *
+     * <p>Common wrong attempt: assume retry runs outside the circuit breaker. The convention is
+     * breaker on the outside, retry on the inside — a tripped breaker should not be retried.
+     */
     @Test
     @DisplayName("Exercise 5: Use Resilience.withCircuitBreakerAndRetry")
     void exercise5_convenienceCombination() {
@@ -165,6 +227,17 @@ public class Tutorial03_RetryBulkheadResilience_Solution {
   @DisplayName("Bonus: Complete Example")
   class CompleteExample {
 
+    /**
+     * Why this is idiomatic: a complete resilience stack — circuit breaker, bulkhead, retry — all
+     * composed via the builder. Each pattern handles a different failure shape; together they
+     * shield the downstream from surges and the application from outages.
+     *
+     * <p>Alternative: a single ad-hoc retry-with-timeout. Catches some failures; misses
+     * concurrent-call surges and tripped-circuit signals.
+     *
+     * <p>Common wrong attempt: configure each layer with default settings. Defaults are starting
+     * points; tune thresholds, capacity, and policy to the actual downstream characteristics.
+     */
     @Test
     @DisplayName("Complete resilience composition example")
     void completeResilienceComposition() {

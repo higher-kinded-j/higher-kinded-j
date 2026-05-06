@@ -14,10 +14,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: RequestContext Patterns - Distributed Tracing
+ * Tutorial: RequestContext Patterns — distributed tracing.
  *
- * <p>Learn to use RequestContext for distributed tracing, multi-tenancy, and request lifecycle
- * management. RequestContext provides pre-defined ScopedValues for common request-scoped data.
+ * <p>Pain → Promise. Distributed tracing typically lives in MDC: a global, mutable {@code
+ * Map<String, String>} keyed by string. Adding a trace id to every log line means remembering to
+ * {@code MDC.put} on every entry point and {@code MDC.remove} on every exit. {@link RequestContext}
+ * captures the same data (request id, trace id, tenant id, locale) as a strongly-typed scoped
+ * value: bind once at the boundary, read anywhere downstream, no cleanup ceremony.
+ *
+ * <p>Java idiom anchor: {@code RequestContext} is to MDC what {@code Context} is to {@code
+ * ThreadLocal} — same concept, value-level, virtual-thread-safe.
  *
  * <p>Key Concepts:
  *

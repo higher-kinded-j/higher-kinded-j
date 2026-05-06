@@ -1,6 +1,6 @@
 # Optics: Fluent & Free DSL Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - The ergonomic fluent API for Java-friendly optic operations
 - Advanced prism patterns including predicate-based matching
 - Building composable optic programs with the Free Monad DSL
@@ -10,6 +10,10 @@
 **Duration**: ~35 minutes | **Tutorials**: 3 | **Exercises**: 22
 
 **Prerequisites**: [Optics: Traversals & Practice Journey](traversals_journey.md)
+
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+This journey adds two ergonomic layers on top of the optic primitives from the previous two journeys: the fluent `OpticOps` API for source-first call shapes, and the Free Monad DSL for "describe a program as data, interpret it many ways". Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
+~~~
 
 ## Journey Overview
 

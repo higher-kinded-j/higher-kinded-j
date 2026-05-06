@@ -14,31 +14,31 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: VTaskPath Effect API - Fluent Virtual Thread Concurrency
+ * Tutorial: VTaskPath Effect API — fluent virtual-thread concurrency.
  *
- * <p>Learn to work with VTaskPath, the Effect Path wrapper for VTask. VTaskPath provides a fluent,
- * composable API for concurrent operations that integrates with the broader Effect Path ecosystem.
+ * <p>Pain → Promise. {@code VTask} composes with {@code map} / {@code flatMap}, but production
+ * concurrency wants more: timeouts, fallback chains, peek-based debugging, and a fluent shape that
+ * mixes with the rest of the Effect Path API. {@link org.higherkindedj.hkt.effect.VTaskPath} is
+ * exactly that — a {@link org.higherkindedj.hkt.effect.Path} wrapper around {@code VTask} that
+ * carries the same surface as {@link org.higherkindedj.hkt.effect.MaybePath} / {@link
+ * org.higherkindedj.hkt.effect.EitherPath} but with virtual-thread execution underneath.
  *
- * <p>Key Concepts:
+ * <p>Java idiom anchor:
  *
  * <ul>
- *   <li>VTaskPath wraps VTask to provide Effect Path style composition
- *   <li>Use Path.vtask() to create paths from callables
- *   <li>Chain operations with via() (Effect Path's flatMap)
- *   <li>Add timeouts with timeout(Duration) for production safety
- *   <li>Build resilient workflows with handleError() and handleErrorWith()
+ *   <li>{@code Path.vtask(callable)} ↔ {@code Executor.submit(callable)}, fluent.
+ *   <li>{@code path.timeout(Duration)} ↔ {@code future.orTimeout(...)}, with cancellation
+ *       semantics.
+ *   <li>{@code path.handleError(fn)} ↔ {@code future.exceptionally(fn)} but typed.
+ *   <li>{@code path.handleErrorWith(fn)} ↔ {@code future.exceptionallyCompose(fn)}.
  * </ul>
  *
- * <p>Prerequisites: Complete TutorialVTask first for VTask fundamentals.
- *
- * <p>See the documentation: VTaskPath in hkj-book
- *
- * <p>Replace each placeholder with the correct code to make the tests pass.
+ * <p>Prerequisites: complete {@code TutorialVTask} for VTask fundamentals.
  */
 @DisplayName("Tutorial: VTaskPath Effect API")
 public class TutorialVTaskPath {
 
-  /** Helper method for incomplete exercises that throws a clear exception. */
+  /** Helper for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
     throw new RuntimeException("Answer required - replace answerRequired() with your solution");
   }
@@ -52,19 +52,19 @@ public class TutorialVTaskPath {
   class CreatingVTaskPaths {
 
     /**
-     * Exercise 1: Create a VTaskPath using Path.vtask()
+     * Exercise 1: Create a VTaskPath with {@link Path#vtask}.
      *
-     * <p>Path.vtask() is the primary way to create a VTaskPath. It takes a Callable and wraps it in
-     * a lazy computation that will execute on a virtual thread.
-     *
-     * <p>Task: Create a VTaskPath that computes the length of "Hello, VTaskPath!"
+     * <pre>
+     *   // Nudge:    Path.vtask wraps a Callable as a deferred Path.
+     *   // Strategy: Path.vtask(() -&gt; input.length())
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 1: Create a VTaskPath with Path.vtask()")
     void exercise1_createVTaskPathWithVtask() {
       String input = "Hello, VTaskPath!";
 
-      // TODO: Replace answerRequired() with Path.vtask(() -> input.length())
       VTaskPath<Integer> lengthPath = answerRequired();
 
       // Execute safely and verify
@@ -74,20 +74,18 @@ public class TutorialVTaskPath {
     }
 
     /**
-     * Exercise 2: Create pure and failing VTaskPaths
+     * Exercise 2: pure and failing VTaskPaths.
      *
-     * <p>Path.vtaskPure() creates a VTaskPath with an immediate value. Path.vtaskFail() creates a
-     * VTaskPath that fails with the given exception.
-     *
-     * <p>Task: Create a pure VTaskPath with value "success" and a failing VTaskPath
+     * <pre>
+     *   // Nudge:    Path.vtaskPure / Path.vtaskFail are immediate-value factories.
+     *   // Strategy: Path.vtaskPure("success") and Path.vtaskFail(new RuntimeException("Expected"))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 2: Create pure and failing VTaskPaths")
     void exercise2_pureAndFailingPaths() {
-      // TODO: Replace answerRequired() with Path.vtaskPure("success")
       VTaskPath<String> purePath = answerRequired();
-
-      // TODO: Replace answerRequired() with Path.vtaskFail(new RuntimeException("Expected"))
       VTaskPath<String> failedPath = answerRequired();
 
       // Verify pure path
@@ -110,21 +108,20 @@ public class TutorialVTaskPath {
   class FluentComposition {
 
     /**
-     * Exercise 3: Chain VTaskPath operations with via()
+     * Exercise 3: chain operations with {@code via}.
      *
-     * <p>The via() method chains dependent computations, similar to flatMap but following Effect
-     * Path naming conventions. Each via() returns a new VTaskPath.
-     *
-     * <p>Task: Chain operations to parse a string to an integer and then double it
+     * <pre>
+     *   // Nudge:    Two dependent steps - parse, then double.
+     *   // Strategy: input.via(s -&gt; Path.vtask(() -&gt; Integer.parseInt(s)))
+     *   //                .via(n -&gt; Path.vtaskPure(n * 2))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 3: Chain operations with via()")
     void exercise3_chainWithVia() {
       VTaskPath<String> input = Path.vtaskPure("21");
 
-      // TODO: Replace answerRequired() with:
-      // input.via(s -> Path.vtask(() -> Integer.parseInt(s)))
-      //      .via(n -> Path.vtaskPure(n * 2))
       VTaskPath<Integer> doubled = answerRequired();
 
       Try<Integer> result = doubled.runSafe();
@@ -133,12 +130,14 @@ public class TutorialVTaskPath {
     }
 
     /**
-     * Exercise 4: Use peek() for debugging
+     * Exercise 4: debug with {@code peek}.
      *
-     * <p>The peek() method allows you to observe values as they flow through the pipeline without
-     * modifying them. This is useful for logging and debugging.
-     *
-     * <p>Task: Use peek() to count how many times a value passes through the pipeline
+     * <pre>
+     *   // Nudge:    peek lets us observe without modifying; map transforms in between.
+     *   // Strategy: path.peek(v -&gt; counter.incrementAndGet()).map(v -&gt; v * 2)
+     *   //               .peek(v -&gt; counter.incrementAndGet())
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 4: Debug with peek()")
@@ -147,10 +146,6 @@ public class TutorialVTaskPath {
 
       VTaskPath<Integer> path = Path.vtaskPure(10);
 
-      // TODO: Replace answerRequired() with:
-      // path.peek(v -> peekCount.incrementAndGet())
-      //     .map(v -> v * 2)
-      //     .peek(v -> peekCount.incrementAndGet())
       VTaskPath<Integer> debugged = answerRequired();
 
       Try<Integer> result = debugged.runSafe();
@@ -168,12 +163,15 @@ public class TutorialVTaskPath {
   class ErrorHandlingAndTimeouts {
 
     /**
-     * Exercise 5: Add a timeout to an operation
+     * Exercise 5: timeout with recovery.
      *
-     * <p>The timeout() method adds a deadline to an operation. If the operation takes longer than
-     * the specified duration, it fails with a TimeoutException.
-     *
-     * <p>Task: Add a timeout to a slow operation and recover with a default value
+     * <pre>
+     *   // Nudge:    timeout() returns a Path that fails with TimeoutException; handleError
+     *   //           swaps the error for a value.
+     *   // Strategy: slowOperation.timeout(Duration.ofMillis(100))
+     *   //                        .handleError(e -&gt; "timeout fallback")
+     *   // Spoiler:  exactly that. (Import java.time.Duration.)
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 5: Add timeout with recovery")
@@ -181,13 +179,10 @@ public class TutorialVTaskPath {
       VTaskPath<String> slowOperation =
           Path.vtask(
               () -> {
-                Thread.sleep(500); // Slow operation
+                Thread.sleep(500);
                 return "slow result";
               });
 
-      // TODO: Replace answerRequired() with:
-      // slowOperation.timeout(Duration.ofMillis(100))
-      //              .handleError(e -> "timeout fallback")
       VTaskPath<String> withTimeout = answerRequired();
 
       Try<String> result = withTimeout.runSafe();
@@ -196,12 +191,13 @@ public class TutorialVTaskPath {
     }
 
     /**
-     * Exercise 6: Build a fallback chain
+     * Exercise 6: fallback chain.
      *
-     * <p>Use handleErrorWith() to try alternative operations when the primary fails. This creates a
-     * chain of fallback attempts.
-     *
-     * <p>Task: Build a chain that tries primary, then secondary, then returns a default
+     * <pre>
+     *   // Nudge:    handleErrorWith chains another Path on failure; handleError returns a value.
+     *   // Strategy: primary.handleErrorWith(e -&gt; secondary).handleError(e -&gt; "fallback value")
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 6: Build fallback chain")
@@ -222,9 +218,6 @@ public class TutorialVTaskPath {
                 throw new RuntimeException("Secondary failed");
               });
 
-      // TODO: Replace answerRequired() with:
-      // primary.handleErrorWith(e -> secondary)
-      //        .handleError(e -> "fallback value")
       VTaskPath<String> resilient = answerRequired();
 
       Try<String> result = resilient.runSafe();
@@ -245,12 +238,14 @@ public class TutorialVTaskPath {
     record UserProfile(String name, int orderCount, String status) {}
 
     /**
-     * Exercise 7: Aggregate data from multiple services in parallel
+     * Exercise 7: parallel service aggregation with {@code Par.map3}.
      *
-     * <p>Use Par.map3() to fetch data from multiple services concurrently and combine the results.
-     * This is faster than sequential fetching.
-     *
-     * <p>Task: Fetch user, orders, and status in parallel and combine into UserProfile
+     * <pre>
+     *   // Nudge:    Par.map3 fans out three tasks; wrap the result in Path.vtaskPath.
+     *   // Strategy: Path.vtaskPath(Par.map3(fetchName, fetchOrderCount, fetchStatus,
+     *   //                                   UserProfile::new))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 7: Parallel service aggregation")
@@ -276,8 +271,6 @@ public class TutorialVTaskPath {
                 return "active";
               });
 
-      // TODO: Replace answerRequired() with:
-      // Path.vtaskPath(Par.map3(fetchName, fetchOrderCount, fetchStatus, UserProfile::new))
       VTaskPath<UserProfile> profile = answerRequired();
 
       Try<UserProfile> result = profile.runSafe();
@@ -291,12 +284,15 @@ public class TutorialVTaskPath {
     }
 
     /**
-     * Exercise 8: Build a resilient dashboard loader
+     * Exercise 8: resilient dashboard loader — parallelism + timeout + fallback.
      *
-     * <p>Combine parallel fetching with timeouts and fallbacks to build a production-ready data
-     * loader. This demonstrates the full power of VTaskPath composition.
-     *
-     * <p>Task: Load a dashboard with timeout protection and graceful fallback
+     * <pre>
+     *   // Nudge:    Three pieces - parallel fetch, timeout wrapper, fallback handler.
+     *   // Strategy: Path.vtaskPath(Par.map2(fetchGreeting, fetchNotifications, Dashboard::new))
+     *   //               .timeout(Duration.ofSeconds(1))
+     *   //               .handleError(e -&gt; Dashboard.empty())
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 8: Resilient dashboard loader")
@@ -343,9 +339,48 @@ public class TutorialVTaskPath {
     }
   }
 
-  // ===========================================================================
+  // ═════════════════════════════════════════════════════════════════════════
+  // Diagnostic: Things People Get Wrong
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Diagnostic: timeout cancels the underlying VTask. Long-running side effects do not finish on
+   * the side after the timeout fires; structured concurrency cancels them.
+   *
+   * <p>This is the right behaviour, but worth seeing once: code that was racing the timeout cannot
+   * assume the side effect "kept running silently".
+   *
+   * <pre>
+   *   // Nudge:    On timeout, the inner work is interrupted.
+   *   // Strategy: Use a counter incremented inside the task; observe it never reaches the
+   *   //           expected value when the timeout fires.
+   *   // Spoiler:  see the solution.
+   * </pre>
+   */
+  @Test
+  @DisplayName("Diagnostic: timeout cancels the underlying VTask, not just the result")
+  void diagnostic_timeoutCancelsTheTask() {
+    AtomicInteger counter = new AtomicInteger(0);
+    VTaskPath<Integer> work =
+        Path.vtask(
+            () -> {
+              for (int i = 0; i < 5; i++) {
+                Thread.sleep(50);
+                counter.incrementAndGet();
+              }
+              return counter.get();
+            });
+
+    Integer result = answerRequired();
+
+    assertThat(result).isEqualTo(-1);
+    // The counter is non-zero (some iterations completed) but less than 5: the rest were cancelled.
+    assertThat(counter.get()).isLessThan(5);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
   // Bonus: Converting Between Types
-  // ===========================================================================
+  // ═════════════════════════════════════════════════════════════════════════
 
   @Nested
   @DisplayName("Bonus: Type Conversions")

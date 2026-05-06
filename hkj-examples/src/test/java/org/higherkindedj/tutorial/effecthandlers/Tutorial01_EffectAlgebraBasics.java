@@ -13,13 +13,29 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 01: Effect Algebra Basics
+ * Tutorial 01: Effect Algebra Basics.
  *
- * <p>Effect algebras are sealed interfaces that describe operations a program can perform. They
- * represent programs as data — the operations are described but not executed.
+ * <p>Pain → Promise. Hexagonal Architecture says "code against interfaces, mock them in tests". In
+ * Java this means a port interface, a real implementation, a Mockito mock, and a config wiring
+ * layer per effect we want to swap. Effect algebras compress all of this into a single sealed
+ * interface of operations and a single program value:
+ *
+ * <pre>
+ *   sealed interface UserOp&lt;T&gt; { record FindById(String id) implements UserOp&lt;Maybe&lt;User&gt;&gt; {} ... }
+ *   Free&lt;UserOpKind.Witness, Maybe&lt;User&gt;&gt; program = Free.liftF(new FindById("u1"));
+ *
+ *   // production
+ *   var user = DirectInterpreter.run(program, realRepo);
+ *   // test
+ *   var user = MapInterpreter.run(program, Map.of("u1", alice));
+ * </pre>
+ *
+ * <p>Java idiom anchor: same outcome as Mockito + a port interface, but the program is a value we
+ * can analyse, log, dry-run, or replay before any interpreter runs.
  *
  * <p>Key concepts:
  *
@@ -55,6 +71,7 @@ public class Tutorial01_EffectAlgebraBasics {
    * <p>Task: Create a Free program that produces the string "hello"
    */
   @Test
+  @DisplayName("Exercise 1: pure program")
   void exercise1_pureProgram() {
     // TODO: Create a Free program that produces "hello"
     Free<IdKind.Witness, String> program = answerRequired();
@@ -80,8 +97,13 @@ public class Tutorial01_EffectAlgebraBasics {
    * the first.
    *
    * <p>Task: Chain two pure values using flatMap
+   *
+   * <pre>
+   *   // Strategy: flatMap to create a program that adds 5 to the first value
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: flatMap Chaining")
   void exercise2_flatMapChaining() {
     Free<IdKind.Witness, Integer> first = Free.pure(10);
 
@@ -109,8 +131,13 @@ public class Tutorial01_EffectAlgebraBasics {
    * <p>{@code map} transforms the result of a Free program without adding new effects.
    *
    * <p>Task: Transform a Free program's result using map
+   *
+   * <pre>
+   *   // Strategy: map to convert the string to uppercase
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Mapping Values")
   void exercise3_mappingValues() {
     Free<IdKind.Witness, String> greeting = Free.pure("hello");
 
@@ -143,8 +170,13 @@ public class Tutorial01_EffectAlgebraBasics {
    * counts instructions, recovery points, and parallel scopes.
    *
    * <p>Task: Analyse a pure program and verify the counts
+   *
+   * <pre>
+   *   // Strategy: ProgramAnalyser.analyse to get the analysis
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: Program Analysis")
   void exercise4_programAnalysis() {
     Free<IdKind.Witness, String> program = Free.pure("hello");
 
@@ -163,8 +195,13 @@ public class Tutorial01_EffectAlgebraBasics {
    * <p>{@code handleError} adds recovery points that ProgramAnalyser can detect.
    *
    * <p>Task: Add error recovery to a program and verify the analysis counts it
+   *
+   * <pre>
+   *   // Strategy: risky.handleError(Throwable.class, e -> Free.pure("recovered"))
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: Error recovery Analysis")
   void exercise5_errorRecoveryAnalysis() {
     Free<IdKind.Witness, String> risky = Free.pure("data");
 

@@ -15,13 +15,30 @@ import org.higherkindedj.optics.free.OpticInterpreters;
 import org.higherkindedj.optics.free.OpticOpKind;
 import org.higherkindedj.optics.free.OpticPrograms;
 import org.higherkindedj.optics.free.ValidationOpticInterpreter;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 11: Advanced Optics DSL - Free Monad for Complex Workflows
+ * Tutorial 11: Advanced Optics DSL — Free Monad for complex workflows.
  *
- * <p>The Free Monad DSL allows you to build optic operations as composable data structures that can
- * be interpreted in multiple ways:
+ * <p>Pain → Promise. The optic operations from Tutorials 01-10 execute eagerly. Sometimes we want
+ * to <em>describe</em> a sequence of optic operations as data — to log them, validate them before
+ * running, run a dry-run for testing, or fuse them for performance. The hand-rolled version is a
+ * {@code List<Operation>} ADT we have to interpret per scenario.
+ *
+ * <p>The Free Monad DSL captures the same idea, generally:
+ *
+ * <pre>
+ *   Free&lt;OpticOp, Order&gt; program = OpticPrograms.modify(orderItems, ...)
+ *       .flatMap(o -&gt; OpticPrograms.set(orderStatus, Shipped.of("ABC123"), o));
+ *
+ *   Order out = OpticInterpreters.direct.run(program, order);          // execute
+ *   List&lt;String&gt; trace = OpticInterpreters.logging.run(program, ...);  // audit log
+ *   Validation report = ValidationOpticInterpreter.dryRun(program);     // pre-check
+ * </pre>
+ *
+ * <p>One program; many interpreters. This is the same trick used by the Foundations chapter's Free
+ * Monad section (the Coyoneda / Free Applicative tutorials in the Advanced journey).
  *
  * <ul>
  *   <li><b>Direct execution</b>: Normal optic operations
@@ -48,13 +65,17 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 1: Building a simple program
+   * Exercise 1: Build a simple Free program with get / set.
    *
-   * <p>OpticPrograms provides methods to build optic operations as Free monad programs.
-   *
-   * <p>Task: Create a simple program that gets and sets a value
+   * <pre>
+   *   // Nudge:    OpticPrograms.get(source, optic) and OpticPrograms.set(source, optic, value).
+   *   // Strategy: OpticPrograms.get(person, ageLens)
+   *   //           OpticPrograms.set(person, ageLens, 31)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: build Free programs from optic operations")
   void exercise1_simpleProgram() {
     @GenerateLenses
     record Person(String name, int age) {}
@@ -94,13 +115,16 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 2: Composing programs with flatMap
+   * Exercise 2: Compose programs with {@code flatMap}.
    *
-   * <p>Programs can be composed using flatMap to create multi-step workflows.
-   *
-   * <p>Task: Build a program that reads a value, then uses it to compute an update
+   * <pre>
+   *   // Nudge:    Inside the lambda, build a set program with the new value.
+   *   // Strategy: OpticPrograms.set(counter, valueLens, currentValue + 10)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: read-then-write programs via Free.flatMap")
   void exercise2_composingPrograms() {
     @GenerateLenses
     record Counter(int value) {}
@@ -127,14 +151,17 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 3: Conditional workflows
+   * Exercise 3: Conditional workflow inside a Free program.
    *
-   * <p>Free monads excel at conditional logic - building different programs based on runtime
-   * values.
-   *
-   * <p>Task: Build a program that conditionally updates based on a threshold
+   * <pre>
+   *   // Nudge:    Each branch returns a different set program; pick the new status.
+   *   // Strategy: OpticPrograms.set(account, statusLens, "APPROVED")
+   *   //           OpticPrograms.set(account, statusLens, "DENIED")
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: branching Free programs by runtime value")
   void exercise3_conditionalWorkflows() {
     @GenerateLenses
     record Account(String id, double balance, String status) {}
@@ -201,13 +228,16 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 4: Multi-step transformations
+   * Exercise 4: Three-step transformation in one Free program.
    *
-   * <p>Chain multiple operations together in a single program.
-   *
-   * <p>Task: Build a program that performs multiple updates in sequence
+   * <pre>
+   *   // Nudge:    The third step toggles the active flag.
+   *   // Strategy: OpticPrograms.set(u2, activeLens, true)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: multi-step Free program — capitalise / lowercase / activate")
   void exercise4_multiStepTransformations() {
     @GenerateLenses
     record User(String id, String name, String email, boolean active) {}
@@ -267,13 +297,17 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 5: Logging interpreter for audit trails
+   * Exercise 5: Logging interpreter for audit trails.
    *
-   * <p>The logging interpreter records all operations without changing behaviour.
-   *
-   * <p>Task: Execute a program with logging to create an audit trail
+   * <pre>
+   *   // Nudge:    OpticInterpreters.logging() returns a LoggingOpticInterpreter; getLog reads it.
+   *   // Strategy: OpticInterpreters.logging()
+   *   //           logger.getLog()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: logging interpreter records operations")
   void exercise5_loggingInterpreter() {
     @GenerateLenses
     record Document(String id, String title, String status) {}
@@ -324,13 +358,17 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 6: Validation interpreter for dry-runs
+   * Exercise 6: Validation interpreter for dry-runs.
    *
-   * <p>The validation interpreter checks a program without executing it.
-   *
-   * <p>Task: Validate a program before execution
+   * <pre>
+   *   // Nudge:    OpticInterpreters.validation() / new ValidationOpticInterpreter() depending on
+   *   //           the API; check the surrounding scaffolding for the exact factory.
+   *   // Strategy: build a ValidationOpticInterpreter and call validate(program).
+   *   // Spoiler:  see assertions and the matching solution file for the exact wiring.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: validation interpreter dry-runs without executing")
   void exercise6_validationInterpreter() {
     @GenerateLenses
     record Config(String env, int maxConnections, boolean debugMode) {}
@@ -386,13 +424,16 @@ public class Tutorial11_AdvancedOpticsDSL {
   }
 
   /**
-   * Exercise 7: Real-world workflow - Order processing pipeline
+   * Exercise 7: Real-world workflow — order processing pipeline.
    *
-   * <p>Build a complex multi-step workflow with conditional logic and logging.
-   *
-   * <p>Task: Create an order processing pipeline as a Free monad program
+   * <pre>
+   *   // Nudge:    Build a chain: read total -&gt; conditional set status -&gt; flip paid -&gt; flip shipped.
+   *   // Strategy: walk the assertions; each step is one OpticPrograms call.
+   *   // Spoiler:  the matching solution file has the full pipeline.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: end-to-end order processing as a Free program")
   void exercise7_realWorldWorkflow() {
     @GenerateLenses
     record Order(String id, double total, String status, boolean paid, boolean shipped) {}

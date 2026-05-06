@@ -24,25 +24,21 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: Optics Composition - Combining Different Optic Types
+ * Solution for Tutorial06 OpticsComposition — teaching-solution format.
  *
- * <p>The true power of optics comes from composing different types together. You can chain Lenses,
- * Prisms, and Traversals to navigate complex data structures.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Key Concepts:
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <ul>
- *   <li>Lens + Lens = Lens (guaranteed path to guaranteed path)
- *   <li>Lens + Prism = Traversal (guaranteed path to optional branch - zero or one focus)
- *   <li>Lens + Traversal = Traversal (guaranteed path to many elements)
- *   <li>Prism + Lens = Traversal (optional branch to guaranteed field - zero or one focus)
- *   <li>Prism + Prism = Prism (optional to optional)
- *   <li>Traversal + Traversal = Traversal (many to many)
- *   <li>All optics can be converted to Traversal for maximum composability
- * </ul>
- *
- * <p><strong>Important:</strong> When composing a Lens with a Prism (or vice versa), the result is
- * a Traversal because the Prism might not match, resulting in zero-or-one focus.
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial06_OpticsComposition_Solution {
 
@@ -100,12 +96,16 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 1: Lens + Prism composition = Traversal
+   * Why this is idiomatic: {@code lens.andThen(prism)} produces an {@code Affine} — the lens
+   * navigates totally to the {@code PaymentMethod}, the prism focuses partially on the credit-card
+   * variant. {@code getOptional} answers "is this order paid by card?" in one call.
    *
-   * <p>Access an optional field through a guaranteed path. Because the Prism might not match, the
-   * result is a Traversal with zero-or-one focus.
+   * <p>Alternative: pattern-match the payment after extracting it. Same answer; the affine names
+   * the path so other reads ({@code modify}, {@code matches}) attach to the same one.
    *
-   * <p>Task: Navigate to a specific variant's field using Lens.andThen(Prism)
+   * <p>Common wrong attempt: try to compose the prism on the left ({@code creditCardPrism
+   * .andThen(orderToPayment)}). Types disagree — the lens's source is {@code Order}, not {@code
+   * PaymentMethod}; {@code andThen} flows outer-to-inner.
    */
   @Test
   void exercise1_lensPlusPrism() {
@@ -146,12 +146,16 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 2: Prism + Lens composition = Traversal
+   * Why this is idiomatic: {@code prism.andThen(lens)} focuses partially into a variant and then
+   * totally onto a field of that variant — an {@code Affine} again. The {@code modify} touches only
+   * credit-card payments; cash payments come back unchanged by reference.
    *
-   * <p>Access a field within a specific variant. Because the Prism might not match, the result is a
-   * Traversal with zero-or-one focus.
+   * <p>Alternative: pattern-match the payment, modify the {@code CreditCard} field, rewrap. Same
+   * outcome; the optic-driven version stays declarative when the same path is reused elsewhere.
    *
-   * <p>Task: Update just the CVV of a credit card payment using Prism.andThen(Lens)
+   * <p>Common wrong attempt: cast {@code PaymentMethod} to {@code CreditCard} unconditionally and
+   * update. The {@code Cash} branch throws {@code ClassCastException}; the affine fails silently
+   * (returns the input) which is the typical contract for "modify if matched".
    */
   @Test
   void exercise2_prismPlusLens() {
@@ -191,11 +195,17 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 3: Lens + Traversal composition
+   * Why this is idiomatic: a list-shaped {@code Traversal<Order, Item>} hides the lens-then-
+   * for-each plumbing. {@code Traversals.modify} applies a 10% discount to every item with one
+   * expression.
    *
-   * <p>Access multiple elements through a guaranteed path.
+   * <p>Alternative: read the items list with a lens, map a stream, write the new list back.
+   * Equivalent; the traversal stays composable into deeper paths ({@code .andThen(itemPriceLens)})
+   * without rewriting the read/write.
    *
-   * <p>Task: Update all items in an order's item list
+   * <p>Common wrong attempt: rebuild the {@code Order} with {@code new Order(...)} after computing
+   * the new item list. Works once; the moment a field is added to {@code Order} the constructor
+   * call drifts. The traversal-driven rebuild keeps every field accounted for.
    */
   @Test
   void exercise3_lensPlusTraversal() {
@@ -233,12 +243,16 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 4: Complex composition (Lens + Prism + Lens) = Traversal
+   * Why this is idiomatic: {@code lens.andThen(prism).andThen(lens.asTraversal())} navigates a
+   * field, narrows to a variant, then reads its leaf — the result is a {@code Traversal} with
+   * zero-or-one focus, and {@code getAll} returns either an empty or singleton list.
    *
-   * <p>Navigate through multiple levels with different optic types. The Prism in the middle means
-   * the overall result is a Traversal.
+   * <p>Alternative: a pattern-matching {@code switch} on {@code JsonValue}. Equivalent; the optic
+   * chain composes with other paths and survives schema changes more gracefully.
    *
-   * <p>Task: Access a field deep within an optional branch
+   * <p>Common wrong attempt: forget to lift the trailing lens with {@code asTraversal()}. The arity
+   * mismatch ({@code Traversal.andThen(Lens)} would require an overload that accepts a {@code
+   * Lens}) is what the compiler complains about; lift the lens explicitly.
    */
   @Test
   void exercise4_complexComposition() {
@@ -292,11 +306,15 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 5: Traversal + Prism composition
+   * Why this is idiomatic: {@code traversal.andThen(prism.asTraversal())} walks a list and keeps
+   * only the elements that match the prism. Combine that with the leaf lens and {@code getAll}
+   * extracts every {@code JsonString} value in one pass.
    *
-   * <p>Filter a collection to specific variants and access their fields.
+   * <p>Alternative: a stream filter with {@code instanceof} guards. Equivalent for reads; the optic
+   * version makes the corresponding update available for free.
    *
-   * <p>Task: Find all string values in a mixed list
+   * <p>Common wrong attempt: assume the prism's failure aborts the whole traversal. Per- element
+   * prism failures simply skip the element — the traversal continues with the rest of the list.
    */
   @Test
   void exercise5_traversalPlusPrism() {
@@ -335,11 +353,16 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 6: Deep nested composition
+   * Why this is idiomatic: League → teams → players → score reads as a sentence. Each {@code
+   * andThen} extends the focus by one step; the resulting {@code Traversal<League, Integer>} treats
+   * every score in every team as a single set.
    *
-   * <p>Combine multiple optics to navigate a complex structure.
+   * <p>Alternative: nested {@code stream().flatMap(...).map(...)}. Same answer for reads; the
+   * deep-nested traversal is what makes the corresponding update a one-liner.
    *
-   * <p>Task: Access all player scores in all teams
+   * <p>Common wrong attempt: try to update scores by reading the list, mutating the integer boxes,
+   * and writing back. Records and lists alike are immutable; the rebuild is the only safe path, and
+   * the traversal manages it.
    */
   @Test
   void exercise6_deepNestedComposition() {
@@ -396,11 +419,16 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 7: Building reusable optic pipelines
+   * Why this is idiomatic: name the composed paths once, then call them everywhere. The call sites
+   * speak in domain terms; the path definitions live in one place where they can evolve with the
+   * schema.
    *
-   * <p>Create composable building blocks for common access patterns.
+   * <p>Alternative: inline {@code andThen} chains at every call site. Fine for a single use; once
+   * the same path is wanted in two or more places the named helper wins.
    *
-   * <p>Task: Build a library of reusable optics
+   * <p>Common wrong attempt: hide the optics behind imperative helpers ({@code static String
+   * getEmail(Contact c)}). Two months later the helper grows null-checks and the optic-based
+   * reasoning is gone. Keep the path as data so it composes.
    */
   @Test
   void exercise7_reusableOpticPipelines() {

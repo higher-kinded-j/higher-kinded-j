@@ -20,13 +20,39 @@ import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 01: ForState Basics - State-Threaded Comprehensions
+ * Tutorial 01: ForState Basics — state-threaded comprehensions.
  *
- * <p>ForState provides a fluent builder for monadic workflows where state is automatically threaded
- * through each step, and updates are expressed through Lens optics.
+ * <p>Pain → Promise. Workflows that thread mutating state through every step (an order moving
+ * through validation, processing, confirmation) are usually written with a mutable field per stage
+ * and a chain of {@code if (!order.isValidated()) return ERROR;} guards.
+ *
+ * <pre>
+ *   OrderContext ctx = OrderContext.start(orderId);
+ *   if (!validate(ctx)) return ERROR;
+ *   ctx.setValidated(true);
+ *   if (!process(ctx)) return ERROR;
+ *   ctx.setProcessed(true);
+ *   ctx.setConfirmationId(generateId());
+ *   return ctx;
+ * </pre>
+ *
+ * <p>{@link ForState} captures the same workflow as a comprehension that threads state
+ * declaratively, with {@link Lens} updates instead of mutation:
+ *
+ * <pre>
+ *   ForState.&lt;OrderContext, Maybe&lt;?&gt;&gt;init()
+ *       .update(validatedLens, true)
+ *       .when(ctx -&gt; ctx.validated())
+ *       .update(processedLens, true)
+ *       .let(generateId).update(confirmationIdLens, t -&gt; t._1())
+ *       .yield(ctx -&gt; ctx);
+ * </pre>
+ *
+ * <p>Same semantics, no mutation, no shadowed booleans. The original notes follow.
  *
  * <p>Key Concepts:
  *
@@ -78,12 +104,20 @@ public class Tutorial01_ForStateBasics {
   // =========================================================================
 
   /**
-   * Exercise 1: Use ForState.withState to create a workflow that sets the validated and processed
-   * fields to true, then sets the confirmationId to "CONF-001".
+   * Exercise 1: Basic state threading with {@code update}.
    *
-   * <p>Hint: Use .update(lens, value) for each field, then .yield()
+   * <pre>
+   *   // Nudge:    Three sequential lens updates ending in .yield().
+   *   // Strategy: ForState.withState(idMonad, Id.of(initial))
+   *   //               .update(validatedLens, true)
+   *   //               .update(processedLens, true)
+   *   //               .update(confirmationIdLens, "CONF-001")
+   *   //               .yield()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: thread state through three lens updates")
   void exercise1_basicStateUpdate() {
     IdMonad idMonad = IdMonad.instance();
     OrderContext initial = OrderContext.start("ORD-100");
@@ -109,12 +143,17 @@ public class Tutorial01_ForStateBasics {
   // =========================================================================
 
   /**
-   * Exercise 2: Use fromThen() to perform an effectful computation that generates a confirmation ID
-   * by prefixing the order ID with "CONF-".
+   * Exercise 2: Effectful update with {@code fromThen}.
    *
-   * <p>Hint: .fromThen(ctx -> Id.of("CONF-" + ctx.orderId()), confirmationIdLens)
+   * <pre>
+   *   // Nudge:    fromThen runs an effectful computation against the state and stores the result
+   *   //           through a lens.
+   *   // Strategy: .fromThen(ctx -&gt; Id.of("CONF-" + ctx.orderId()), confirmationIdLens)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: fromThen runs an effectful computation against state")
   void exercise2_fromThenEffectfulUpdate() {
     IdMonad idMonad = IdMonad.instance();
     OrderContext initial = OrderContext.start("ORD-200");
@@ -134,11 +173,16 @@ public class Tutorial01_ForStateBasics {
   // =========================================================================
 
   /**
-   * Exercise 3: Use modify() to toggle the validated field from false to true.
+   * Exercise 3: {@code modify} transforms a field via a function.
    *
-   * <p>Hint: .modify(validatedLens, v -> !v)
+   * <pre>
+   *   // Nudge:    modify takes a lens and a transform; analogous to lens.modify on the state.
+   *   // Strategy: .modify(validatedLens, v -&gt; !v)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: modify transforms a state field through a lens")
   void exercise3_modifyField() {
     IdMonad idMonad = IdMonad.instance();
     OrderContext initial = OrderContext.start("ORD-300");
@@ -156,12 +200,18 @@ public class Tutorial01_ForStateBasics {
   // =========================================================================
 
   /**
-   * Exercise 4a: Use when() to guard a workflow. The workflow should only proceed if the order is
-   * validated. Use Maybe as the monad context.
+   * Exercise 4a: Guard with {@code when} (success path).
    *
-   * <p>Hint: Use ForState.withState(maybeMonad, MAYBE.just(ctx)).when(predicate)
+   * <pre>
+   *   // Nudge:    when takes a predicate; the workflow proceeds only if the predicate holds.
+   *   // Strategy: ForState.withState(maybeMonad, MAYBE.just(validCtx))
+   *   //               .when(OrderContext::validated)
+   *   //               .update(processedLens, true).yield()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4a: when() guard passes on a validated order")
   void exercise4a_whenGuardPasses() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     OrderContext validCtx = new OrderContext("ORD-400", true, false, null);
@@ -177,8 +227,18 @@ public class Tutorial01_ForStateBasics {
         .isEqualTo(Maybe.just(new OrderContext("ORD-400", true, true, null)));
   }
 
-  /** Exercise 4b: Same workflow but with an unvalidated order. Should produce Nothing. */
+  /**
+   * Exercise 4b: Guard with {@code when} (failure path) — the workflow short-circuits to Nothing
+   * because the predicate fails.
+   *
+   * <pre>
+   *   // Nudge:    Same call as 4a; the difference is the input state.
+   *   // Strategy: same .when(OrderContext::validated) call.
+   *   // Spoiler:  exactly that.
+   * </pre>
+   */
   @Test
+  @DisplayName("Exercise 4b: when() guard short-circuits to Nothing")
   void exercise4b_whenGuardFails() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     OrderContext invalidCtx = OrderContext.start("ORD-401");
@@ -217,10 +277,16 @@ public class Tutorial01_ForStateBasics {
           code -> new Status.Active(code));
 
   /**
-   * Exercise 5a: Use matchThen(sourceLens, prism, targetLens) to extract the code from an Active
-   * status and store it in extractedCode. Should succeed for Active.
+   * Exercise 5a: Pattern matching with {@code matchThen} (success path).
+   *
+   * <pre>
+   *   // Nudge:    matchThen extracts via a prism through a source lens, stores via a target lens.
+   *   // Strategy: .matchThen(matchStatusLens, activeCodePrism, extractedCodeLens)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5a: matchThen extracts a prism focus into a target lens")
   void exercise5a_matchThenSuccess() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     MatchContext ctx = new MatchContext(new Status.Active("A-001"), null);
@@ -235,8 +301,18 @@ public class Tutorial01_ForStateBasics {
         .isEqualTo(Maybe.just(new MatchContext(new Status.Active("A-001"), "A-001")));
   }
 
-  /** Exercise 5b: Same but with Inactive status. Should produce Nothing. */
+  /**
+   * Exercise 5b: matchThen failure path — short-circuits to Nothing because the prism does not
+   * match.
+   *
+   * <pre>
+   *   // Nudge:    Same call as 5a; the prism's getOptional returns empty for Inactive.
+   *   // Strategy: same .matchThen(...) chain.
+   *   // Spoiler:  exactly that.
+   * </pre>
+   */
   @Test
+  @DisplayName("Exercise 5b: matchThen short-circuits when the prism doesn't match")
   void exercise5b_matchThenFailure() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     MatchContext ctx = new MatchContext(new Status.Inactive("retired"), null);
@@ -260,11 +336,16 @@ public class Tutorial01_ForStateBasics {
       Lens.of(TaggedItem::tags, (item, t) -> new TaggedItem(item.name(), t));
 
   /**
-   * Exercise 6: Use traverse() to uppercase all tags in a TaggedItem.
+   * Exercise 6: Bulk operations with {@code traverse}.
    *
-   * <p>Hint: .traverse(itemTagsLens, Traversals.forList(), tag -> Id.of(tag.toUpperCase()))
+   * <pre>
+   *   // Nudge:    traverse takes a lens to a collection field, a Traversal helper, and a per-element fn.
+   *   // Strategy: .traverse(itemTagsLens, Traversals.forList(), tag -&gt; Id.of(tag.toUpperCase()))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: traverse applies a function to every element of a collection field")
   void exercise6_traverseBulkOperation() {
     IdMonad idMonad = IdMonad.instance();
     TaggedItem item = new TaggedItem("Widget", List.of("sale", "new", "featured"));
@@ -301,10 +382,18 @@ public class Tutorial01_ForStateBasics {
       Lens.of(Address::city, (a, c) -> new Address(a.street(), c, a.zip()));
 
   /**
-   * Exercise 7: Use zoom(addressLens) to enter the Address scope, update the street and city, then
-   * endZoom() to return to the Customer scope and update the name.
+   * Exercise 7: Zooming with {@code zoom} / {@code endZoom}.
+   *
+   * <pre>
+   *   // Nudge:    zoom narrows state through a lens; endZoom returns to the outer scope.
+   *   // Strategy: .zoom(customerAddressLens)
+   *   //               .update(streetLens, "456 Oak").update(cityLens, "Shelbyville")
+   *   //           .endZoom().update(customerNameLens, "Bob")
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: zoom narrows state to a sub-record; endZoom returns to outer")
   void exercise7_zoomIntoSubState() {
     IdMonad idMonad = IdMonad.instance();
     Customer customer = new Customer("Alice", new Address("123 Main", "Springfield", "62701"));
@@ -331,17 +420,18 @@ public class Tutorial01_ForStateBasics {
   // =========================================================================
 
   /**
-   * Exercise 8: Build a complete workflow that:
+   * Exercise 8: Combined workflow — update + when + fromThen + yield(projection).
    *
-   * <ol>
-   *   <li>Starts with an unvalidated order
-   *   <li>Sets validated=true
-   *   <li>Guards that validated is true (using when)
-   *   <li>Uses fromThen to generate a confirmation ID
-   *   <li>Yields a summary string using yield(projection)
-   * </ol>
+   * <pre>
+   *   // Nudge:    Five operations chained left-to-right; yield(projection) returns a summary.
+   *   // Strategy: .update(validatedLens, true).when(OrderContext::validated)
+   *   //               .fromThen(ctx -&gt; MAYBE.just("CONF-" + ctx.orderId()), confirmationIdLens)
+   *   //               .yield(ctx -&gt; ctx.orderId() + ":" + ctx.confirmationId())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: combined update / guard / fromThen / yield(projection)")
   void exercise8_combinedWorkflow() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     OrderContext initial = OrderContext.start("ORD-800");
@@ -376,9 +466,16 @@ public class Tutorial01_ForStateBasics {
    * <p>The workflow should: start with "Alice", construct Dashboard("Alice", 0, false), set
    * ready=true, multiply count by 10 (still 0), and yield the Dashboard.
    *
-   * <p>Hint: For.from(idMonad, Id.of("Alice")).toState(name -> new Dashboard(...)).update(...)
+   * <pre>
+   *   // Nudge:    For.from gives a value; .toState(constructor) bridges to ForState.
+   *   // Strategy: For.from(idMonad, Id.of("Alice"))
+   *   //               .toState(name -&gt; new Dashboard(name, 0, false))
+   *   //               .update(dashboardReadyLens, true).yield()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9a: For.toState bridges from value comprehensions to ForState")
   void exercise9a_basicToStateBridge() {
     IdMonad idMonad = IdMonad.instance();
 
@@ -395,12 +492,16 @@ public class Tutorial01_ForStateBasics {
   }
 
   /**
-   * Exercise 9b: Accumulate two values with For (a name and a count), then bridge to ForState using
-   * the spread-style toState constructor.
+   * Exercise 9b: toState with multiple accumulated values.
    *
-   * <p>Hint: .toState((name, count) -> new Dashboard(name, count, false))
+   * <pre>
+   *   // Nudge:    For.from(...).from(fn) accumulates values; toState takes a multi-arg constructor.
+   *   // Strategy: .toState((name, count) -&gt; new Dashboard(name, count, false))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9b: For.toState handles multi-value accumulation")
   void exercise9b_multiValueToStateBridge() {
     IdMonad idMonad = IdMonad.instance();
 
@@ -420,12 +521,16 @@ public class Tutorial01_ForStateBasics {
   }
 
   /**
-   * Exercise 9c: Use toState() with a MonadZero (Maybe) to show that filtering is preserved across
-   * the bridge. The workflow should filter on the state after the bridge.
+   * Exercise 9c: toState preserves MonadZero filtering across the bridge.
    *
-   * <p>Hint: For.from(maybeMonad, MAYBE.just(...)).toState(...).when(d -> d.count() > 5)
+   * <pre>
+   *   // Nudge:    when() works on the bridged state because Maybe is a MonadZero.
+   *   // Strategy: For.from(maybeMonad, MAYBE.just(...)).toState(...).when(d -&gt; d.count() &gt; 5)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9c: For.toState preserves MonadZero filtering")
   void exercise9c_filterableToStateBridge() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 

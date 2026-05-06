@@ -20,10 +20,26 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 14: Focus-Effect Bridge - Connecting Optics with Effects
+ * Tutorial 14: Focus-Effect Bridge — connecting optics with effects.
+ *
+ * <p>Pain → Promise. The Focus DSL navigates structures; the Effect Path API handles failure and
+ * async. Production workflows need both — "fetch the order, focus on the shipping address, validate
+ * the postcode, save". Hand-rolled that means optic.modify inside path.via inside focus.compose;
+ * the bridge unifies them through the {@code via} composition operator they both share.
+ *
+ * <pre>
+ *   // FocusPath -&gt; EffectPath: lift a focused value into an effect
+ *   FocusPath&lt;User, String&gt; userName = FocusPath.of(userNameLens);
+ *   MaybePath&lt;String&gt; nameMaybe = userName.toMaybePath(user);
+ *
+ *   // EffectPath -&gt; FocusPath (within effect context): narrow into a field
+ *   EitherPath&lt;Error, User&gt; userPath = ...;
+ *   EitherPath&lt;Error, String&gt; cityPath = userPath.focus(addressPath).focus(cityPath);
+ * </pre>
  *
  * <p>This tutorial explores the bridge between the Focus DSL (optics-based structural navigation)
  * and Effect Paths (effect-based computation sequencing). Both use {@code via} as their central
@@ -108,8 +124,13 @@ public class Tutorial14_FocusEffectBridge {
    * MaybePath. Since FocusPath always has a focus, the result is always Just.
    *
    * <p>Task: Use toMaybePath to lift a value into the Maybe effect
+   *
+   * <pre>
+   *   // Strategy: namePath.toMaybePath(alice)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: FocusPath to MaybePath")
   void exercise1_focusPathToMaybePath() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     User alice = new User("Alice", Optional.of("alice@example.com"));
@@ -133,8 +154,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>FocusPath provides {@code toEitherPath(source)} to extract a value and wrap it as a Right.
    *
    * <p>Task: Use toEitherPath to lift a value into the Either effect
+   *
+   * <pre>
+   *   // Strategy: addressPath.toEitherPath(company)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: FocusPath to EitherPath")
   void exercise2_focusPathToEitherPath() {
     FocusPath<Company, Address> addressPath = FocusPath.of(companyAddressLens);
     Company company = new Company("TechCorp", new Address("123 Main St", "London"), List.of());
@@ -161,8 +187,13 @@ public class Tutorial14_FocusEffectBridge {
    * focus doesn't exist.
    *
    * <p>Task: Convert an AffinePath to MaybePath and handle both present and absent cases
+   *
+   * <pre>
+   *   // Strategy: emailPath.toMaybePath(withEmail)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: AffinePath to MaybePath")
   void exercise3_affinePathToMaybePath() {
     // Create an AffinePath for optional email (unwraps the Optional)
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -188,8 +219,13 @@ public class Tutorial14_FocusEffectBridge {
    * toEitherPath(source, errorIfAbsent)} to provide an error value.
    *
    * <p>Task: Convert an AffinePath to EitherPath with meaningful errors
+   *
+   * <pre>
+   *   // Strategy: emailPath.toEitherPath(withEmail, "Email not configured")
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: AffinePath to EitherPath with Error")
   void exercise4_affinePathToEitherPathWithError() {
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
 
@@ -213,8 +249,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>TraversalPath can be converted to ListPath or StreamPath for working with multiple values.
    *
    * <p>Task: Use toListPath to collect all focused values
+   *
+   * <pre>
+   *   // Strategy: employeesPath.toListPath(company)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: TraversalPath to ListPath")
   void exercise5_traversalPathToListPath() {
     TraversalPath<Company, User> employeesPath = FocusPath.of(companyEmployeesLens).each();
 
@@ -248,8 +289,13 @@ public class Tutorial14_FocusEffectBridge {
    * effect context. This is the reverse direction: starting with an effect and drilling down.
    *
    * <p>Task: Use focus() to navigate within a MaybePath
+   *
+   * <pre>
+   *   // Strategy: userPath.focus(namePath)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: MaybePath Focus")
   void exercise6_maybePathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     MaybePath<User> userPath = Path.just(new User("Alice", Optional.of("alice@example.com")));
@@ -272,8 +318,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>EitherPath.focus works similarly, preserving Left values while navigating Right values.
    *
    * <p>Task: Use focus() to navigate within an EitherPath
+   *
+   * <pre>
+   *   // Strategy: successPath.focus(cityPath)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: EitherPath Focus")
   void exercise7_eitherPathFocus() {
     FocusPath<Address, String> cityPath = FocusPath.of(addressCityLens);
 
@@ -299,8 +350,13 @@ public class Tutorial14_FocusEffectBridge {
    * absent case.
    *
    * <p>Task: Use focus() with AffinePath and error handling
+   *
+   * <pre>
+   *   // Strategy: userWithEmail.focus(emailPath, "Email not configured")
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: EitherPath Focus Affine")
   void exercise8_eitherPathFocusAffine() {
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
 
@@ -326,8 +382,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>TryPath.focus with AffinePath throws an exception when the focus is absent.
    *
    * <p>Task: Use focus() with TryPath
+   *
+   * <pre>
+   *   // Strategy: userPath.focus(namePath)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: TryPath Focus")
   void exercise9_tryPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -359,8 +420,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>IOPath.focus allows optic navigation within deferred computations.
    *
    * <p>Task: Use focus() with IOPath
+   *
+   * <pre>
+   *   // Strategy: userIO.focus(namePath)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 10: IOPath Focus")
   void exercise10_ioPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     User alice = new User("Alice", Optional.of("alice@example.com"));
@@ -391,8 +457,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>ValidationPath.focus returns Invalid when the AffinePath doesn't match.
    *
    * <p>Task: Use focus() with ValidationPath for validation pipelines
+   *
+   * <pre>
+   *   // Strategy: validUser.focus(namePath)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 11: ValidationPath Focus")
   void exercise11_validationPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -432,8 +503,13 @@ public class Tutorial14_FocusEffectBridge {
    * then extract more with optics.
    *
    * <p>Task: Build a pipeline that validates and transforms user data
+   *
+   * <pre>
+   *   // Strategy: userPath.focus(emailPath, "Email required")
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 12: combined pipeline")
   void exercise12_combinedPipeline() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
@@ -471,8 +547,13 @@ public class Tutorial14_FocusEffectBridge {
    * <p>Even simpler effect types support the focus operation.
    *
    * <p>Task: Use focus with IdPath and OptionalPath
+   *
+   * <pre>
+   *   // Strategy: idPath.focus(namePath)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 13: SimplePaths focus")
   void exercise13_simplePathsFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
     AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();

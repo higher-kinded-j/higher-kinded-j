@@ -15,9 +15,21 @@ import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 19: Navigator Generation - Fluent Cross-Type Navigation
+ * Solution for Tutorial19 NavigatorGeneration — teaching-solution format.
  *
- * <p>These are the complete solutions for all exercises in Tutorial 19.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial19_NavigatorGeneration_Solution {
 
@@ -53,6 +65,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
   static final Lens<Warehouse, Map<String, Integer>> warehouseInventoryLens =
       Lens.of(Warehouse::inventory, (w, inv) -> new Warehouse(w.id(), inv));
 
+  /**
+   * Why this is idiomatic: a generated navigator delegates to {@code FocusPath.via} chains. The
+   * path reads as a sentence — Company → headquarters → city — and {@code get} returns the leaf
+   * string.
+   *
+   * <p>Alternative: invoke the lenses directly with {@code companyHqLens.andThen(addressCityLens)}.
+   * Same answer; the navigator-style spelling is what the generator emits.
+   *
+   * <p>Common wrong attempt: skip the navigator and re-implement the path elsewhere. The navigator
+   * is the single source of truth; duplications drift.
+   */
   @Test
   void exercise1_navigatorDelegationGet() {
     Company acme = new Company("Acme", new Address("123 Main St", "London", "SW1A 1AA"), 100);
@@ -66,6 +89,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(city).isEqualTo("London");
   }
 
+  /**
+   * Why this is idiomatic: the same navigator path used for {@code get} also serves {@code set} and
+   * {@code modify}. Each operation rebuilds the {@code Company} with only the city changed; other
+   * fields remain.
+   *
+   * <p>Alternative: rebuild the {@code Company} explicitly with {@code new Company(..., new
+   * Address(..., newCity, ...))}. Same answer; the path-driven version stays one-line.
+   *
+   * <p>Common wrong attempt: assume {@code modify} mutates the input. Records are immutable; {@code
+   * modify} returns a fresh value.
+   */
   @Test
   void exercise2_navigatorSetAndModify() {
     Company acme = new Company("Acme", new Address("123 Main St", "London", "SW1A 1AA"), 100);
@@ -85,6 +119,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(shouted.headquarters().city()).isEqualTo("LONDON");
   }
 
+  /**
+   * Why this is idiomatic: an {@code Optional} field demands an {@code AffinePath}. The generated
+   * navigator widens through {@code .some()} so the partiality lives in the type, not in the call
+   * sites.
+   *
+   * <p>Alternative: use a focus path and call {@code .map} after {@code get}. Awkward and loses the
+   * corresponding {@code modify}; the affine handles both directions.
+   *
+   * <p>Common wrong attempt: try to use a {@code FocusPath} on an {@code Optional} field and reach
+   * for {@code get}. The path's type prevents that — convert to an affine.
+   */
   @Test
   void exercise3_pathWideningOptional() {
     Organisation org =
@@ -106,6 +151,16 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(absentAddress).isEmpty();
   }
 
+  /**
+   * Why this is idiomatic: a collection field demands a {@code TraversalPath}. The generator widens
+   * through {@code .each()} so the multiplicity is part of the type.
+   *
+   * <p>Alternative: read the list, stream-map, write back. Same answer; the path keeps the
+   * navigation declarative.
+   *
+   * <p>Common wrong attempt: forget that {@code modifyAll} returns the rebuilt structure; assume
+   * the original was mutated. Records and lists alike are immutable.
+   */
   @Test
   void exercise4_pathWideningCollection() {
     Department engineering = new Department("Engineering", List.of("Alice", "Bob", "Charlie"));
@@ -127,6 +182,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(shouted.members()).containsExactly("ALICE", "BOB", "CHARLIE");
   }
 
+  /**
+   * Why this is idiomatic: {@code .each(EachInstances.mapValuesEach())} widens a {@code Map<K, V>}
+   * field into a traversal over its values. The SPI declares the container's multiplicity
+   * (ZERO_OR_MORE) and the navigator picks the right widener.
+   *
+   * <p>Alternative: hand-roll a custom traversal that walks the map's values. The SPI handles this
+   * for known container types.
+   *
+   * <p>Common wrong attempt: pass {@code listEach()} for a map field. Wrong instance; the compiler
+   * rejects the mismatch.
+   */
   @Test
   void exercise5_spiAwareWideningMap() {
     Warehouse warehouse = new Warehouse("W1", Map.of("bolts", 100, "nuts", 250, "washers", 50));
@@ -141,6 +207,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(quantities).containsExactlyInAnyOrder(100, 250, 50);
   }
 
+  /**
+   * Why this is idiomatic: {@code AffinePath} (Optional) plus {@code TraversalPath} (List) yields a
+   * {@code TraversalPath} — the compound shape is the wider of the two. Empty optionals contribute
+   * zero focuses; non-empty contribute every member.
+   *
+   * <p>Alternative: bind intermediate paths to local variables. The compiler can need the help with
+   * local records; once they live at the top level the inline chain is fine.
+   *
+   * <p>Common wrong attempt: assume the result is still affine. The list multiplies the
+   * multiplicity; the combined path is a traversal.
+   */
   @Test
   void exercise6_compoundWidening() {
     record Team(String teamName, Optional<Department> optionalDept) {}
@@ -170,6 +247,16 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(noMembers).isEmpty();
   }
 
+  /**
+   * Why this is idiomatic: turning {@code widenCollections = true} on the navigator generator emits
+   * the {@code .each(mapValuesEach())} step automatically — the same call you would write by hand.
+   *
+   * <p>Alternative: leave widening off and write {@code .each(...)} at every call site. Same
+   * answer; turn widening on once a navigator stabilises and the manual call is boilerplate.
+   *
+   * <p>Common wrong attempt: rely on widening for unknown container types. The SPI needs to know
+   * about the container; for custom collections, register an {@code Each} instance first.
+   */
   @Test
   void exercise8_widenCollectionsAndPriority() {
     Warehouse warehouse = new Warehouse("W1", Map.of("bolts", 100, "nuts", 250, "washers", 50));
@@ -187,6 +274,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
     assertThat(quantities).containsExactlyInAnyOrder(200, 500, 100);
   }
 
+  /**
+   * Why this is idiomatic: the navigator generator can be told to stop at a given depth. Composing
+   * the lenses by hand to the depth you actually need keeps the API surface small and prevents
+   * callers from drilling into private layers.
+   *
+   * <p>Alternative: generate every possible navigator and rely on access modifiers. The generated
+   * surface is smaller when the depth limit matches the public contract.
+   *
+   * <p>Common wrong attempt: assume the depth limit silently truncates deeper paths. Past the
+   * limit, the helper stops generating; the navigator does not magically extend.
+   */
   @Test
   void exercise7_depthLimiting() {
     record Building(String buildingName, Address address) {}

@@ -16,11 +16,27 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 02: Saga Pattern for Distributed Compensation
+ * Tutorial 02: Saga Pattern for Distributed Compensation.
  *
- * <p>Learn to use the Saga pattern to orchestrate multi-step operations where each step has a
- * corresponding compensation action. If any step fails, all previously completed steps are
- * compensated in reverse order.
+ * <p>Pain → Promise. Long-running multi-service workflows cannot use database transactions — if
+ * step 3 fails, we have to undo steps 1 and 2 by issuing compensating calls. Hand-rolled sagas are
+ * a stack of "did we do this?" booleans plus a giant try/catch with manual rollback in reverse
+ * order.
+ *
+ * <p>{@link Saga} captures the action/compensation pair per step and the reverse-order cleanup
+ * automatically:
+ *
+ * <pre>
+ *   Saga&lt;OrderConfirmed&gt; placeOrder = SagaBuilder.&lt;OrderConfirmed&gt;create()
+ *       .step(reserveInventory, releaseInventory)
+ *       .step(chargeCustomer, refundCustomer)
+ *       .step(shipOrder, cancelShipment)
+ *       .build();
+ * </pre>
+ *
+ * <p>Java idiom anchor: same pattern as the Sagas in Eventuate or Axon, expressed as a value we can
+ * compose, test, and run. Failure of any step triggers compensation of all preceding steps in
+ * reverse order.
  *
  * <p>Key Concepts:
  *
@@ -53,10 +69,14 @@ public class Tutorial02_Saga {
   class CreatingSimpleSagas {
 
     /**
-     * Exercise 1: Create a simple saga with compensation
+     * Exercise 1: Build a Saga with a compensation.
      *
-     * <p>Use Saga.of() to create a saga with a forward action and a compensation action. The
-     * compensation is a Consumer that receives the result of the forward action.
+     * <pre>
+     *   // Nudge:    Saga.of takes a forward VTask and a Consumer compensation.
+     *   // Strategy: Saga.of(VTask.succeed("payment-123"),
+     *   //                   (Consumer&lt;String&gt;) s -&gt; compensated.set(true))
+     *   // Spoiler:  exactly that. The cast disambiguates the overload.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 1: Create a simple saga with compensation")
@@ -76,10 +96,15 @@ public class Tutorial02_Saga {
     }
 
     /**
-     * Exercise 2: Chain saga steps with andThen
+     * Exercise 2: Chain saga steps with {@code andThen}.
      *
-     * <p>Use andThen() to compose a multi-step saga where each step depends on the previous step's
-     * result. If a later step fails, earlier steps are compensated.
+     * <pre>
+     *   // Nudge:    andThen takes a function from the previous result to a new Saga.
+     *   // Strategy: Saga.of(VTask.succeed("step1-result"), (String _) -&gt; {})
+     *   //               .andThen(prev -&gt; Saga.of(VTask.succeed(prev + ":step2-result"),
+     *   //                                         (String _) -&gt; {}))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 2: Chain saga steps with andThen")
@@ -104,10 +129,16 @@ public class Tutorial02_Saga {
   class CompensationOnFailure {
 
     /**
-     * Exercise 3: Verify compensation on failure
+     * Exercise 3: Compensation runs on failure.
      *
-     * <p>When a later step in the saga fails, earlier completed steps are compensated in reverse
-     * order. Use AtomicBoolean to track whether compensation was executed.
+     * <pre>
+     *   // Nudge:    Step 1 succeeds with a compensation that flips the flag; step 2 fails.
+     *   // Strategy: Saga.of(VTask.succeed("step1"),
+     *   //                   (String _) -&gt; step1Compensated.set(true))
+     *   //               .andThen(_ -&gt; Saga.of(VTask.&lt;String&gt;fail(new RuntimeException("step2 failed")),
+     *   //                                      (String _) -&gt; {}))
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 3: Verify compensation runs on failure")
@@ -137,10 +168,16 @@ public class Tutorial02_Saga {
   class SagaBuilderAndRunSafe {
 
     /**
-     * Exercise 4: Use SagaBuilder for multi-step saga
+     * Exercise 4: SagaBuilder fluent multi-step.
      *
-     * <p>SagaBuilder provides a more fluent way to construct sagas with named steps. Each step has
-     * a name, an action, and a compensation. Use SagaBuilder.start() to begin.
+     * <pre>
+     *   // Nudge:    SagaBuilder.&lt;Unit&gt;start().step(...).step(...).build().
+     *   // Strategy: SagaBuilder.&lt;Unit&gt;start()
+     *   //               .step("charge", VTask.succeed("payment-456"), _ -&gt; {})
+     *   //               .step("reserve", prev -&gt; VTask.succeed(prev + ":reserved"), _ -&gt; {})
+     *   //               .build()
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 4: Use SagaBuilder for multi-step saga")
@@ -156,10 +193,13 @@ public class Tutorial02_Saga {
     }
 
     /**
-     * Exercise 5: Handle SagaError with runSafe()
+     * Exercise 5: {@code runSafe} returns Either&lt;SagaError, A&gt;.
      *
-     * <p>Saga.runSafe() returns a VTask that produces Either&lt;SagaError, A&gt;. The left side
-     * contains the error details including the original error and compensation results.
+     * <pre>
+     *   // Nudge:    runSafe gives a VTask; .run() unwraps the Either.
+     *   // Strategy: failingSaga.runSafe().run()
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 5: Handle SagaError with runSafe()")

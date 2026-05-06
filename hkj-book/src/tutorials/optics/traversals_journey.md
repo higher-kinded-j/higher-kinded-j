@@ -1,6 +1,6 @@
 # Optics: Traversals & Practice Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Working with multiple targets simultaneously using Traversals
 - The rules for composing different optic types
 - Using annotation-driven code generation
@@ -10,6 +10,10 @@
 **Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 27
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
+
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+Traversals are the "0..many" sibling of Lens (exactly 1) and Prism / Affine (0..1) from the previous journey. Tutorial 06 shows Lens + Prism + Traversal composing into deep paths; Tutorial 07 introduces the annotation processor that generates them so we never write `Lens.of(...)` by hand in production; Tutorial 08 is a real-world walkthrough that ties them all together. Each tutorial opens with a Pain → Promise header showing the imperative-Java pain it replaces.
+~~~
 
 ## Journey Overview
 

@@ -16,11 +16,27 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 01: Circuit Breaker Pattern
+ * Tutorial 01: Circuit Breaker Pattern.
  *
- * <p>Learn to protect VTask operations using the Circuit Breaker pattern. A circuit breaker tracks
- * the health of a dependency and prevents repeated calls to a failing service by transitioning
- * through three states: CLOSED (normal), OPEN (rejecting), and HALF_OPEN (probing).
+ * <p>Pain → Promise. When a downstream service is failing, naively retrying every request makes
+ * things worse: we hammer a struggling service, hold up our own threads, and turn a downstream
+ * incident into a cascade. Hand-rolled circuit-breaker logic is one {@code AtomicInteger} per
+ * service plus per-call {@code if (failures > threshold) throw} scaffolding.
+ *
+ * <p>{@link CircuitBreaker} captures the same state machine as a value:
+ *
+ * <pre>
+ *   var breaker = CircuitBreaker.create(CircuitBreakerConfig.builder()
+ *       .failureThreshold(3)
+ *       .openDuration(Duration.ofSeconds(10))
+ *       .build());
+ *
+ *   VTask&lt;Response&gt; protected = breaker.protect(() -&gt; service.fetch());
+ * </pre>
+ *
+ * <p>Java idiom anchor: this is the same pattern as Resilience4j's CircuitBreaker, expressed as a
+ * composable value rather than a per-call decorator. {@code protect}, {@code protectWithFallback},
+ * and {@link CircuitBreakerMetrics} cover the common production needs.
  *
  * <p>Key Concepts:
  *
@@ -53,16 +69,15 @@ public class Tutorial01_CircuitBreaker {
   class CreatingCircuitBreakers {
 
     /**
-     * Exercise 1: Create a CircuitBreaker with custom configuration
+     * Exercise 1: Build a configured CircuitBreaker.
      *
-     * <p>Use CircuitBreakerConfig.builder() to create a config with:
-     *
-     * <ul>
-     *   <li>failureThreshold = 3 (open after 3 consecutive failures)
-     *   <li>openDuration = 100ms (time before transitioning to half-open)
-     * </ul>
-     *
-     * Then create a CircuitBreaker from that config.
+     * <pre>
+     *   // Nudge:    Builder pattern: failureThreshold(3), openDuration(Duration.ofMillis(100)).
+     *   // Strategy: CircuitBreakerConfig.builder().failureThreshold(3)
+     *   //              .openDuration(Duration.ofMillis(100)).build()
+     *   //           CircuitBreaker.create(config)
+     *   // Spoiler:  see hint above.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 1: Create a CircuitBreaker with custom config")
@@ -78,10 +93,13 @@ public class Tutorial01_CircuitBreaker {
     }
 
     /**
-     * Exercise 2: Protect a VTask with the circuit breaker
+     * Exercise 2: protect() wraps a VTask in the breaker.
      *
-     * <p>Use breaker.protect() to wrap a VTask with circuit breaker protection. When the task
-     * succeeds, the result passes through unchanged.
+     * <pre>
+     *   // Nudge:    breaker.protect(task) returns a wrapped VTask.
+     *   // Strategy: breaker.protect(fetchData)
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 2: Protect a VTask with the circuit breaker")
@@ -106,10 +124,13 @@ public class Tutorial01_CircuitBreaker {
   class StateTransitions {
 
     /**
-     * Exercise 3: Verify the circuit opens after threshold failures
+     * Exercise 3: Open the circuit by hitting the threshold.
      *
-     * <p>Create a circuit breaker with failureThreshold=3. Send 3 failing tasks through it, then
-     * verify that the circuit has transitioned to OPEN.
+     * <pre>
+     *   // Nudge:    Run the protected failing task 3 times via runSafe so exceptions are caught.
+     *   // Strategy: for (int i = 0; i &lt; 3; i++) { breaker.protect(failingTask).runSafe(); }
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 3: Circuit opens after threshold failures")
@@ -133,10 +154,15 @@ public class Tutorial01_CircuitBreaker {
     }
 
     /**
-     * Exercise 4: Handle CircuitOpenException
+     * Exercise 4: Capture {@link CircuitOpenException} from a tripped circuit.
      *
-     * <p>When the circuit is open, protected calls are rejected immediately with a
-     * CircuitOpenException. Use runSafe() to capture this exception and verify its properties.
+     * <pre>
+     *   // Nudge:    Wrap the call in protect, then runSafe to get a Try.
+     *   //           Extract the exception with fold.
+     *   // Strategy: Try&lt;String&gt; result = breaker.protect(task).runSafe();
+     *   //           Throwable error = result.fold(value -&gt; null, ex -&gt; ex);
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 4: Handle CircuitOpenException")
@@ -170,10 +196,13 @@ public class Tutorial01_CircuitBreaker {
   class FallbackAndMetrics {
 
     /**
-     * Exercise 5: Use protectWithFallback
+     * Exercise 5: Graceful degradation with {@code protectWithFallback}.
      *
-     * <p>protectWithFallback() provides a fallback value when the circuit is open, instead of
-     * throwing CircuitOpenException. The fallback function receives the exception.
+     * <pre>
+     *   // Nudge:    The fallback receives the exception and returns a value.
+     *   // Strategy: breaker.protectWithFallback(task, error -&gt; "Fallback response")
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 5: Use protectWithFallback for graceful degradation")
@@ -191,10 +220,13 @@ public class Tutorial01_CircuitBreaker {
     }
 
     /**
-     * Exercise 6: Check circuit breaker metrics
+     * Exercise 6: Inspect breaker metrics.
      *
-     * <p>CircuitBreaker.metrics() returns a CircuitBreakerMetrics record with operational counters:
-     * totalCalls, successfulCalls, failedCalls, rejectedCalls, and stateTransitions.
+     * <pre>
+     *   // Nudge:    breaker.metrics() returns a snapshot record.
+     *   // Strategy: breaker.metrics()
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 6: Inspect circuit breaker metrics")

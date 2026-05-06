@@ -1,6 +1,6 @@
 # Core Types: Error Handling Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Making failures explicit and recoverable using MonadError
 - When to use `Either`, `Maybe`, `Validated`, and `Try`
 - Building real-world workflows that combine multiple patterns
@@ -9,6 +9,10 @@
 **Duration**: ~30 minutes | **Tutorials**: 3 | **Exercises**: 20
 
 **Prerequisites**: [Core Types: Foundations Journey](foundations_journey.md)
+
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+This journey teaches the type-class layer that makes the **Either short-circuits** comment in [One Line, Six Layers](../../hkts/one_line_six_layers.md) work. It is the hands-on companion to [MonadError](../../functional/monad_error.md), [Either](../../monads/either_monad.md), [Maybe](../../monads/maybe_monad.md), and [Validated](../../monads/validated_monad.md).
+~~~
 
 ## Journey Overview
 

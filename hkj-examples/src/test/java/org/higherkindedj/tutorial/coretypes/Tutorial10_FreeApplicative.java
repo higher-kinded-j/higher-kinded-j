@@ -10,13 +10,22 @@ import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 10: Free Applicative
+ * Tutorial 10: Free Applicative.
  *
- * <p>Free Applicative captures independent computations that can potentially run in parallel. This
- * contrasts with Free Monad, which captures sequential, dependent computations.
+ * <p>Pain → Promise. The Free Monad lets us describe sequential programs as data and interpret them
+ * many ways. The Free Applicative does the same for <em>independent</em> programs — the shape we
+ * get from {@link org.higherkindedj.hkt.expression.For}-comprehensions that use only {@code
+ * map}/{@code zipWith}, never {@code flatMap}. Because every step is independent, the resulting
+ * program can be statically analysed (Tutorial 11), reordered, or run in parallel before any step
+ * actually executes.
+ *
+ * <p>Java idiom anchor: think of Free Applicative as the value-level form of "an immutable static
+ * plan you can introspect before running"; the Free Monad is the equivalent for "dependent steps
+ * where each result decides the next".
  *
  * <p>Key Concepts:
  *
@@ -48,8 +57,13 @@ public class Tutorial10_FreeApplicative {
    * <p>FreeAp.pure lifts a value into the Free Applicative context.
    *
    * <p>Task: Create a pure FreeAp value
+   *
+   * <pre>
+   *   // Strategy: Use FreeAp.pure(42)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: pure")
   void exercise1_pure() {
     // TODO: Create a FreeAp containing the value 42
     // Hint: Use FreeAp.pure(42)
@@ -67,8 +81,13 @@ public class Tutorial10_FreeApplicative {
    * <p>FreeAp supports map, allowing transformation of the result value.
    *
    * <p>Task: Map over a FreeAp to transform its value
+   *
+   * <pre>
+   *   // Strategy: pureValue.map(x -> x * 5)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: map")
   void exercise2_map() {
     FreeAp<IdKind.Witness, Integer> pureValue = FreeAp.pure(10);
 
@@ -88,8 +107,13 @@ public class Tutorial10_FreeApplicative {
    * result.
    *
    * <p>Task: Combine two independent values
+   *
+   * <pre>
+   *   // Strategy: name.map2(age, (n, a) -> n + " is " + a + " years old")
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Map2")
   void exercise3_map2() {
     FreeAp<IdKind.Witness, String> name = FreeAp.pure("Alice");
     FreeAp<IdKind.Witness, Integer> age = FreeAp.pure(30);
@@ -109,8 +133,13 @@ public class Tutorial10_FreeApplicative {
    * <p>You can chain map2 to combine multiple independent computations.
    *
    * <p>Task: Combine three independent values
+   *
+   * <pre>
+   *   // Strategy: a.map2(b, Integer::sum).map2(c, Integer::sum)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: Multiple Map2")
   void exercise4_multipleMap2() {
     FreeAp<IdKind.Witness, Integer> a = FreeAp.pure(10);
     FreeAp<IdKind.Witness, Integer> b = FreeAp.pure(20);
@@ -132,8 +161,13 @@ public class Tutorial10_FreeApplicative {
    * <p>The key difference from Free Monad: with map2, neither computation uses the other's result.
    *
    * <p>Task: Identify why this enables parallelism
+   *
+   * <pre>
+   *   // Strategy: fetchUser.map2(fetchPosts, (user, posts) -> user + " has " + posts)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: Free Applicative independence")
   void exercise5_independenceUnderstanding() {
     // These represent "fetching" operations
     FreeAp<IdKind.Witness, String> fetchUser = FreeAp.pure("User{id=1}");
@@ -160,8 +194,13 @@ public class Tutorial10_FreeApplicative {
    * <p>A common pattern: combine multiple independent fetches into a record.
    *
    * <p>Task: Build a Person record from independent values
+   *
+   * <pre>
+   *   // Strategy: Chain map2 calls, building up the record step by step
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: build a record")
   void exercise6_buildRecord() {
     record Person(String name, int age, String city) {}
 

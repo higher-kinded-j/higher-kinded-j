@@ -18,36 +18,34 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 09: Advanced Optics DSL - Free Monad for Complex Workflows
+ * Solution for Tutorial11 AdvancedOpticsDSL — teaching-solution format.
  *
- * <p>The Free Monad DSL allows you to build optic operations as composable data structures that can
- * be interpreted in multiple ways:
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <ul>
- *   <li><b>Direct execution</b>: Normal optic operations
- *   <li><b>Logging</b>: Record all operations for audit trails
- *   <li><b>Validation</b>: Dry-run to check constraints before executing
- *   <li><b>Testing</b>: Mock operations without real data
- *   <li><b>Optimization</b>: Analyze and fuse operations for efficiency
- * </ul>
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <p>When to Use: - Complex multi-step workflows - Audit trails (logging what changed) - Validation
- * before execution (dry-run) - Testing without side effects - Performance optimization (batch
- * operations)
- *
- * <p>When NOT to Use: - Simple one-off operations (use OpticOps instead) - No need for multiple
- * interpretations
- *
- * <p>This is an advanced topic. Complete Tutorial 08 first.
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial11_AdvancedOpticsDSL_Solution {
 
   /**
-   * Exercise 1: Building a simple program
+   * Why this is idiomatic: {@code OpticPrograms} lifts get/set/modify into a Free monad program —
+   * the optic operations become values you can inspect, transform, and interpret.
    *
-   * <p>OpticPrograms provides methods to build optic operations as Free monad programs.
+   * <p>Alternative: call the optic methods directly. Equivalent runtime; the program form is what
+   * enables logging interpreters, dry-runs, and static analysis later in the chapter.
    *
-   * <p>Task: Create a simple program that gets and sets a value
+   * <p>Common wrong attempt: try to interpret the program by hand with {@code instanceof} branches
+   * over the program's AST. The supplied interpreters cover the cases consistently; write a custom
+   * interpreter only when the existing ones cannot express the semantics.
    */
   @Test
   void exercise1_simpleProgram() {
@@ -87,11 +85,17 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   }
 
   /**
-   * Exercise 2: Composing programs with flatMap
+   * Why this is idiomatic: {@code flatMap} on a Free program threads the result of one step into
+   * the next — read the value, add ten, write it back, all as a single description that the
+   * interpreter executes.
    *
-   * <p>Programs can be composed using flatMap to create multi-step workflows.
+   * <p>Alternative: read with {@code lens.get}, compute, write with {@code lens.set}. Same answer;
+   * the Free composition keeps the workflow as data and lets a different interpreter (audit,
+   * dry-run) run the same program.
    *
-   * <p>Task: Build a program that reads a value, then uses it to compute an update
+   * <p>Common wrong attempt: nest plain Java lambdas inside {@code flatMap} that already call into
+   * the interpreter. The point of Free is to defer interpretation; embedding side effects in the
+   * program defeats it.
    */
   @Test
   void exercise2_composingPrograms() {
@@ -119,12 +123,17 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   }
 
   /**
-   * Exercise 3: Conditional workflows
+   * Why this is idiomatic: build different sub-programs for the threshold-met and threshold- missed
+   * branches, then choose between them inside the {@code flatMap}. The dispatch is a value-level
+   * decision; the interpreter still sees one program tree.
    *
-   * <p>Free monads excel at conditional logic - building different programs based on runtime
-   * values.
+   * <p>Alternative: split the workflow into two top-level methods and pick which one to call
+   * outside the program. Loses the inspectability — the audit interpreter no longer sees the choice
+   * in the trace.
    *
-   * <p>Task: Build a program that conditionally updates based on a threshold
+   * <p>Common wrong attempt: throw an {@code IllegalStateException} from the failing branch. The
+   * interpreter would have to catch it, and the failure is now in the wrong channel; if the
+   * workflow can fail, encode the failure as a value.
    */
   @Test
   void exercise3_conditionalWorkflows() {
@@ -190,11 +199,14 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   }
 
   /**
-   * Exercise 4: Multi-step transformations
+   * Why this is idiomatic: a sequence of {@code flatMap}s threads each updated record into the next
+   * step. The interpreter sees one program with a clear order; the audit log can trace every step.
    *
-   * <p>Chain multiple operations together in a single program.
+   * <p>Alternative: bind intermediate values to local variables and run them through plain lens
+   * calls. Equivalent runtime; loses the program-as-data benefit.
    *
-   * <p>Task: Build a program that performs multiple updates in sequence
+   * <p>Common wrong attempt: try to fold a {@code List<Free>} with a sequencer that doesn't exist
+   * on the optic Free yet. Compose with {@code flatMap} explicitly until the helper is provided.
    */
   @Test
   void exercise4_multiStepTransformations() {
@@ -253,11 +265,16 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   }
 
   /**
-   * Exercise 5: Logging interpreter for audit trails
+   * Why this is idiomatic: same program, different interpreter. The logging interpreter walks the
+   * program tree and emits one audit entry per step before delegating to the standard
+   * implementation — observability without changing the workflow.
    *
-   * <p>The logging interpreter records all operations without changing behaviour.
+   * <p>Alternative: weave logging into the workflow itself. Works, but every change to the workflow
+   * has to remember to log; the interpreter approach keeps the workflow pure.
    *
-   * <p>Task: Execute a program with logging to create an audit trail
+   * <p>Common wrong attempt: log inside the {@code flatMap} lambdas instead of in the interpreter.
+   * The audit is now duplicated whenever the program is interpreted twice (e.g. dry-run then
+   * apply); keep effects in the interpreter.
    */
   @Test
   void exercise5_loggingInterpreter() {
@@ -308,11 +325,17 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   }
 
   /**
-   * Exercise 6: Validation interpreter for dry-runs
+   * Why this is idiomatic: the validation interpreter walks the program and reports issues without
+   * writing anything. A dry-run means "would this work?" and the answer is a value, not an
+   * exception — perfect for confirmation prompts and CI checks.
    *
-   * <p>The validation interpreter checks a program without executing it.
+   * <p>Alternative: copy the input, run the workflow, and discard the result. Same outcome for
+   * read-only checks; the validation interpreter avoids the wasted allocation and runs faster on
+   * large structures.
    *
-   * <p>Task: Validate a program before execution
+   * <p>Common wrong attempt: assume "validation" means "type-check at compile time". The
+   * interpreter validates at runtime against actual data — the two roles are complementary, not
+   * redundant.
    */
   @Test
   void exercise6_validationInterpreter() {
@@ -368,11 +391,17 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   }
 
   /**
-   * Exercise 7: Real-world workflow - Order processing pipeline
+   * Why this is idiomatic: a real workflow combines reads, conditional logic, and writes. The Free
+   * program lets you write each step once and then run it through several interpreters — direct
+   * execution, audit logging, dry-run validation — without changes.
    *
-   * <p>Build a complex multi-step workflow with conditional logic and logging.
+   * <p>Alternative: hand-roll the same workflow imperatively and feed it through {@code if}
+   * branches. Works for one interpreter; reproducing the audit and dry-run behaviour separately
+   * means duplicating the workflow logic.
    *
-   * <p>Task: Create an order processing pipeline as a Free monad program
+   * <p>Common wrong attempt: invoke the database (or other side-effecting service) from inside the
+   * program's lambdas. The Free program is a description; the interpreter is the only place real
+   * effects belong.
    */
   @Test
   void exercise7_realWorldWorkflow() {

@@ -10,10 +10,17 @@ import org.higherkindedj.example.payment.model.EventLog;
 import org.higherkindedj.example.payment.model.Money;
 import org.higherkindedj.example.payment.model.PaymentMethod;
 import org.higherkindedj.example.payment.service.PaymentService;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 06: Advanced Interpreters (Audit and Replay)
+ * Tutorial 06: Advanced Interpreters (Audit and Replay).
+ *
+ * <p>Pain → Promise. The "log every operation for compliance" requirement usually means peppering
+ * audit calls through the production code, where they pollute the business logic and drift out of
+ * sync over time. With Free programs, audit becomes <em>another interpreter</em> targeting {@code
+ * WriterT}: same program, different interpretation, audit log accumulates as a value alongside the
+ * result. Replay (re-running a captured trace) is the same idea in reverse.
  *
  * <p>The same Free program can target monad transformers for advanced interpretation strategies:
  *
@@ -52,8 +59,13 @@ public class Tutorial06_AdvancedInterpreters {
    * result contains both the payment outcome and the accumulated audit log.
    *
    * <p>Task: Combine audit interpreters, interpret the program, and extract the audit log
+   *
+   * <pre>
+   *   // Strategy: new WriterTMonad<>(IdMonad.instance(), AuditLogMonoid.INSTANCE)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Audit Interpretation")
   void exercise1_auditInterpretation() {
     var service = PaymentService.create();
     var program = service.processPayment(CUSTOMER, AMOUNT, VISA);
@@ -82,8 +94,13 @@ public class Tutorial06_AdvancedInterpreters {
    * from the event log instead of calling external services.
    *
    * <p>Task: Build an event log, combine replay interpreters, and interpret the program
+   *
+   * <pre>
+   *   // Strategy: new EventLog(Map.of(
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Replay Interpretation")
   void exercise2_replayInterpretation() {
     var service = PaymentService.create();
     var program = service.processPayment(CUSTOMER, AMOUNT, VISA);

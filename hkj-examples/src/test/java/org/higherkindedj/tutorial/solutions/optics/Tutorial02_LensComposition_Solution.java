@@ -9,10 +9,21 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.junit.jupiter.api.Test;
 
 /**
- * SOLUTION for Tutorial 02: Lens Composition - Accessing Nested Structures
+ * Solution for Tutorial02 LensComposition — teaching-solution format.
  *
- * <p>This file contains complete, working solutions for all exercises in
- * Tutorial02_LensComposition.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial02_LensComposition_Solution {
 
@@ -54,9 +65,17 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 1: Composing two lenses
+   * Why this is idiomatic: {@code andThen} reads left-to-right ("from {@code Person} to {@code
+   * Company}, then to {@code String}") and produces a new {@code Lens<Person, String>} that
+   * participates in {@code get}, {@code set}, and {@code modify} like any other lens.
    *
-   * <p>SOLUTION: Use andThen to chain lenses together
+   * <p>Alternative: {@code companyToName.compose(personToCompany)}. Mathematically equivalent, but
+   * the right-to-left reading rarely matches how Java developers describe the path — {@code
+   * andThen} matches the field-access spelling.
+   *
+   * <p>Common wrong attempt: extract the company manually with {@code person.company()}, then call
+   * {@code companyToName.set("TechCorp", company)}. The inner update is correct, but the outer
+   * {@code Person} is never rebuilt — the lens composition is what carries the new company back up.
    */
   @Test
   void exercise1_composingTwoLenses() {
@@ -80,9 +99,17 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 2: Deep composition (three levels)
+   * Why this is idiomatic: each {@code andThen} extends the path by one step; the resulting {@code
+   * Lens<Person, String>} hides the intermediate {@code Company} and {@code Address}. The final
+   * {@code set} rebuilds three records and we never write any of those constructors.
    *
-   * <p>SOLUTION: Chain multiple andThen calls for deep nesting
+   * <p>Alternative: a single named helper {@code Lenses.personToCity()} that returns the same
+   * composition. Worth doing in production code where the path is reused; the inline form is fine
+   * for a one-off update.
+   *
+   * <p>Common wrong attempt: applying {@code andThen} in the wrong order ({@code city().andThen
+   * (address())}) and getting a compile error like "incompatible types". The argument types are the
+   * diagnostic — each step must consume the previous step's focus.
    */
   @Test
   void exercise2_deepComposition() {
@@ -108,9 +135,17 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 3: Modifying through composed lenses
+   * Why this is idiomatic: {@code modify} on a composed lens lets a single function describe
+   * "transform the deeply nested value" — composition handles the rebuild, the function only sees
+   * the leaf.
    *
-   * <p>SOLUTION: Use modify on a composed lens
+   * <p>Alternative: {@code personToStreet.set(personToStreet.get(person).toUpperCase(), person)}.
+   * Same result, two traversals of the structure and a name typed three times — {@code modify} is
+   * the named "read-then-update" combinator.
+   *
+   * <p>Common wrong attempt: {@code String::toUpperCase()} (with parentheses). That's a method
+   * call, not a method reference, so the compiler rejects it. The reference is the unparenthesised
+   * form.
    */
   @Test
   void exercise3_modifyThroughComposition() {
@@ -130,9 +165,17 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 4: Multiple updates with composed lenses
+   * Why this is idiomatic: each lens operation returns a fresh structure, so we can pipeline them
+   * by feeding the previous result into the next call. Two independent updates, two named lenses,
+   * no shared mutation.
    *
-   * <p>SOLUTION: Chain multiple lens operations by passing results
+   * <p>Alternative: extract the intermediate {@code Person} into a local variable ({@code var
+   * withName = ...; var done = cityLens.set(...);}). Same semantics, easier to step through under a
+   * debugger.
+   *
+   * <p>Common wrong attempt: try to "merge" the two updates into one ({@code companyNameLens
+   * .andThen(cityLens)}). The lenses focus on different fields, not on a chain — they cannot be
+   * composed; pipeline the {@code Person} through them instead.
    */
   @Test
   void exercise4_multipleNestedUpdates() {
@@ -154,9 +197,17 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 5: Reusable composed lenses
+   * Why this is idiomatic: name the composed paths once ({@code appToHost}, {@code appToPort}) and
+   * let every call site speak in domain terms. The lens names match the way the change would be
+   * described in code review.
    *
-   * <p>SOLUTION: Build up composed lenses by chaining andThen calls
+   * <p>Alternative: drop the named composed lenses and inline {@code appToDb.andThen(...)} at each
+   * call site. Fine for one or two uses; once three or more sites share the path, extracting the
+   * lens beats repeating the chain.
+   *
+   * <p>Common wrong attempt: cache a single composed lens at the wrong type — e.g. declare {@code
+   * Lens<Application, Object> appToConfig} and try to set both host and port through it. Lenses are
+   * field-specific; build one per leaf field.
    */
   @Test
   void exercise5_reusableComposedLenses() {
@@ -214,10 +265,18 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 6: Lens composition with helper methods
+   * Why this is idiomatic: side-by-side, the lens form ({@code cityLens.set(...)}) and the
+   * hand-written nested-constructor form make the cost of <em>not</em> using lenses concrete — one
+   * line versus eight. The lens form is also where adding a new field to {@code Address} is a
+   * one-line change.
    *
-   * <p>SOLUTION: with* methods provide nested update helpers (Note: Implementation depends on
-   * generated code)
+   * <p>Alternative: generated {@code with*} helpers ({@code AddressLenses.withCity}). Same outcome,
+   * but a {@code with*} helper does not compose; if the next refactor asks for {@code modify(...
+   * toUpperCase ...)} it has to be rewritten as a lens.
+   *
+   * <p>Common wrong attempt: copy the nested-constructor form and forget one inner field. The
+   * compiler accepts it (the constructors are still total), but the test catches the silent data
+   * loss — a real-world incident the lens form prevents by construction.
    */
   @Test
   void exercise6_helperMethods() {
@@ -251,9 +310,18 @@ public class Tutorial02_LensComposition_Solution {
   }
 
   /**
-   * Exercise 7: Complex real-world scenario
+   * Why this is idiomatic: this is the common e-commerce shape — User → PaymentInfo →
+   * BillingAddress → city — and the composed lens names the entire path with one identifier. The
+   * setter rebuilds the right level without disturbing the card number or the user id.
    *
-   * <p>SOLUTION: Chain lenses to access deeply nested billing address city
+   * <p>Alternative: split the path into a {@code billingAddressLens} (User → Address) and a {@code
+   * cityLens} on top. Useful when other call sites need the address as a whole; this test only
+   * cares about the city, so the single composed lens stays tightest.
+   *
+   * <p>Common wrong attempt: lens through the user's payment info and then mutate the {@code
+   * Address}'s {@code city} field directly. Records are immutable; the would-be mutation would not
+   * even compile, but folks reaching for {@code reflection} or {@code @Setter} have recreated this
+   * footgun more than once. Rebuild the leaf, let composition lift it back.
    */
   @Test
   void exercise7_realWorldScenario() {

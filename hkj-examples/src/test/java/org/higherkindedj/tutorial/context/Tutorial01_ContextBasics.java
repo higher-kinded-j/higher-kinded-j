@@ -11,11 +11,30 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: Context Basics - Working with ScopedValue
+ * Tutorial: Context Basics — working with ScopedValue.
  *
- * <p>Learn to work with Context, Higher-Kinded-J's effect type for reading from Java's ScopedValue
- * API. Context provides a functional approach to thread-scoped values that automatically propagate
- * to child virtual threads.
+ * <p>Pain → Promise. Threading "the current user / request id / tenant" through a workflow without
+ * DI usually means a {@code ThreadLocal} per concept. {@code ThreadLocal} leaks across pool reuse,
+ * does not propagate to virtual threads cleanly, and forces every intermediate layer to know about
+ * it.
+ *
+ * <pre>
+ *   // Imperative
+ *   private static final ThreadLocal&lt;String&gt; CURRENT_USER = new ThreadLocal&lt;&gt;();
+ *   try { CURRENT_USER.set(userId); doWork(); } finally { CURRENT_USER.remove(); }
+ * </pre>
+ *
+ * <p>{@link Context} wraps Java 25's {@code ScopedValue} as a composable value. Bind the value once
+ * at the boundary; every {@code Context.ask()} downstream reads it cleanly, and the binding
+ * propagates across virtual-thread boundaries.
+ *
+ * <pre>
+ *   Context&lt;String, User&gt; loadUser = Context.&lt;String&gt;ask().map(userService::find);
+ *   User u = loadUser.run("user-123");
+ * </pre>
+ *
+ * <p>Java idiom anchor: this is {@code ScopedValue} (Java 25) wrapped as a Reader-style value-level
+ * effect.
  *
  * <p>Key Concepts:
  *
