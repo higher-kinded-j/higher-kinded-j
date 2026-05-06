@@ -11,12 +11,30 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: Error Handling Patterns
+ * Tutorial 05: Error Handling Patterns — MonadError, fold, recover.
  *
- * <p>Learn how to handle errors gracefully using Either's fold() method and Try's recovery methods.
+ * <p>Pain → Promise. Imperative Java mixes thrown exceptions, custom Result types, and the classic
+ * null-on-failure return per call site. {@link MonadError} unifies these as a typeclass capability:
+ * the same {@code raiseError}, {@code handleError}, {@code recover} surface works for {@link
+ * Either}, {@link Try}, {@link org.higherkindedj.hkt.maybe.Maybe}, and {@link
+ * org.higherkindedj.hkt.validated.Validated}.
+ *
+ * <pre>
+ *   // Either: typed error
+ *   Either&lt;Error, A&gt; e = parse(input);
+ *   var safe = e.fold(err -&gt; defaultValue, value -&gt; value);
+ *
+ *   // Try: error is Throwable
+ *   Try&lt;A&gt; t = Try.of(() -&gt; parse(input));
+ *   var safe = t.recover(err -&gt; defaultValue);
+ * </pre>
+ *
+ * <p>Java idiom anchor: {@code fold} ↔ exhaustive pattern match; {@code recover} ↔ try/catch with a
+ * fallback value; {@code raiseError} ↔ explicit error construction.
  *
  * <p>Key Concepts: - fold: pattern match on Either to handle both error and success cases -
  * Try.recover: recover from exceptions with a default value - MonadError typeclass: raiseError for
@@ -32,13 +50,16 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 1: Raising errors
+   * Exercise 1: Raising errors with {@code raiseError}.
    *
-   * <p>raiseError creates an error value in the error channel.
-   *
-   * <p>Task: Use the MonadError instance to raise an error
+   * <pre>
+   *   // Nudge:    monad.raiseError lifts an error value into the failure channel.
+   *   // Strategy: monad.raiseError("Invalid input")
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: raiseError lifts an error into the failure channel")
   void exercise1_raisingErrors() {
     EitherMonad<String> monad = EitherMonad.instance();
 
@@ -52,13 +73,16 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 2: Handling errors with fold
+   * Exercise 2: Handle errors with {@code fold}.
    *
-   * <p>fold() allows you to pattern match on Either, providing different logic for Left and Right.
-   *
-   * <p>Task: Recover from a parse error using fold
+   * <pre>
+   *   // Nudge:    fold takes two functions: one for Left, one for Right.
+   *   // Strategy: failed.fold(err -&gt; 0, value -&gt; value)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: fold pattern-matches both branches of Either")
   void exercise2_handleErrorWith() {
     Function<String, Either<String, Integer>> parse =
         s -> {
@@ -80,13 +104,16 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 3: Recovering with a plain value using fold
+   * Exercise 3: Recover with a plain value using fold.
    *
-   * <p>fold() can be used to recover from an error by providing a default value.
-   *
-   * <p>Task: Provide a default value for errors
+   * <pre>
+   *   // Nudge:    Same fold shape as exercise 2; the default goes in the err branch.
+   *   // Strategy: error.fold(err -&gt; -1, value -&gt; value)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: fold provides a default for the error branch")
   void exercise3_recoverWithValue() {
     Either<String, Integer> error = Either.left("Database connection failed");
 
@@ -98,13 +125,16 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 4: Conditional error recovery
+   * Exercise 4: Conditional error recovery.
    *
-   * <p>You can inspect the error and decide whether to recover or not using fold.
-   *
-   * <p>Task: Recover only from specific errors
+   * <pre>
+   *   // Nudge:    Inside the err branch we can branch further on the error value.
+   *   // Strategy: NOT_FOUND -&gt; 0; everything else -&gt; -999.
+   *   // Spoiler:  return 0 for the if branch, -999 for the else.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: branch inside the error handler")
   void exercise4_conditionalRecovery() {
     Either<String, Integer> error = Either.left("NOT_FOUND");
 
@@ -126,13 +156,17 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 5: Error handling in a chain
+   * Exercise 5: Error handling at the end of a chain.
    *
-   * <p>Errors can occur at any point in a chain of operations. Use fold at the end to recover.
-   *
-   * <p>Task: Handle errors in the middle of a computation chain
+   * <pre>
+   *   // Nudge:    The chain can short-circuit at parse or validation; fold handles whatever
+   *   //           shape the result lands in.
+   *   // Strategy: input.flatMap(parse).flatMap(validatePositive).fold(err -&gt; 1, value -&gt; value)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: fold at the end of a multi-step chain")
   void exercise5_errorHandlingInChain() {
     Function<String, Either<String, Integer>> parse =
         s -> {
@@ -159,13 +193,16 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 6: Fallback values with fold
+   * Exercise 6: Fallback Either via fold.
    *
-   * <p>Use fold to provide a fallback Either if the primary one fails.
-   *
-   * <p>Task: Provide a fallback using fold
+   * <pre>
+   *   // Nudge:    err -&gt; fallback Either; success -&gt; rewrap as Either.right.
+   *   // Strategy: primary.fold(err -&gt; fallback, value -&gt; Either.right(value))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: fold returns a fallback Either when primary fails")
   void exercise6_orElseFallback() {
     Either<String, String> primary = Either.left("Primary failed");
     Either<String, String> fallback = Either.right("Fallback value");
@@ -180,13 +217,16 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 7: Try for exception handling
+   * Exercise 7: Try captures throws as values.
    *
-   * <p>Try is like Either but specifically for catching exceptions.
-   *
-   * <p>Task: Use Try to safely perform a risky operation
+   * <pre>
+   *   // Nudge:    Try.of takes a Supplier that may throw; the result is Success or Failure.
+   *   // Strategy: Try.of(() -&gt; riskyDivision.apply(0))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: Try.of captures exceptions as Failure values")
   void exercise7_tryForExceptions() throws Throwable {
     Function<Integer, Integer> riskyDivision =
         n -> {

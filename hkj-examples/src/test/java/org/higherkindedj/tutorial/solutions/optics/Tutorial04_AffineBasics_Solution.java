@@ -13,10 +13,21 @@ import org.higherkindedj.optics.util.Prisms;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 04: Affine Basics
+ * Solution for Tutorial04 AffineBasics — teaching-solution format.
  *
- * <p>This file contains the complete solutions for all exercises in Tutorial 04. Refer to this if
- * you get stuck, but try to solve the exercises yourself first.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial04_AffineBasics_Solution {
 
@@ -30,7 +41,19 @@ public class Tutorial04_AffineBasics_Solution {
 
   record DatabaseConfig(String host, int port) {}
 
-  /** Exercise 1 Solution: Creating an Affine with Affines.some() */
+  /**
+   * Why this is idiomatic: {@code Affines.some()} is the named bridge from {@code Optional} into
+   * the optic API. {@code getOptional} on the resulting {@code Affine} is the partial read
+   * operation — you get either a present value or the empty result, never a thrown exception.
+   *
+   * <p>Alternative: keep the {@code Optional} and call {@code .map(...)} directly. Equivalent for
+   * one-step access; lift to {@code Affine} as soon as the optional needs to participate in a
+   * longer optic chain.
+   *
+   * <p>Common wrong attempt: assume {@code Affines.some()} unwraps the value to a plain {@code
+   * String}. The result is still an {@code Optional} — affines preserve the partiality because the
+   * value may be absent; the caller decides what to do with the empty case.
+   */
   @Test
   void exercise1_usingSomeAffine() {
     Affine<Optional<String>, String> someAffine = Affines.some();
@@ -49,7 +72,19 @@ public class Tutorial04_AffineBasics_Solution {
     assertThat(notPresent).isEmpty();
   }
 
-  /** Exercise 2 Solution: Setting values with an Affine */
+  /**
+   * Why this is idiomatic: {@code Affine.set} is total in the write direction — even an empty
+   * {@code Optional} becomes {@code Optional.of("world")}. Affines, like prisms, write totally even
+   * when reads are partial.
+   *
+   * <p>Alternative: {@code Optional.of("world")}. Same outcome; reach for the affine when the
+   * setter needs to compose with the rest of an optic pipeline (e.g. lens-then-affine into a deep
+   * optional field).
+   *
+   * <p>Common wrong attempt: expect {@code set} to refuse to write when the original is empty (some
+   * libraries' "modify" semantics). {@code Affine.set} replaces; use {@code modify} when you only
+   * want to transform an existing value.
+   */
   @Test
   void exercise2_settingWithAffine() {
     Affine<Optional<String>, String> someAffine = Affines.some();
@@ -63,7 +98,19 @@ public class Tutorial04_AffineBasics_Solution {
     assertThat(updated.get()).isEqualTo("world");
   }
 
-  /** Exercise 3 Solution: Composing Lens with Prism to get an Affine */
+  /**
+   * Why this is idiomatic: {@code lens.andThen(prism)} produces an {@code Affine} — the lens
+   * focuses totally on the {@code Optional} field, the prism focuses partially on its content. The
+   * compiler picks the correct return type from the optic algebra.
+   *
+   * <p>Alternative: hand-write a getter ({@code config.database().map(DatabaseConfig::host)}). Same
+   * answer in this small case; the named affine is what other optic combinators ({@code modify},
+   * {@code set}, {@code matches}) attach to.
+   *
+   * <p>Common wrong attempt: try to compose the prism on the left ({@code somePrism.andThen
+   * (databaseLens)}). The types don't line up — the prism's source is the {@code Optional}, the
+   * lens's source is the outer {@code AppConfig}. {@code andThen} flows outer-to-inner.
+   */
   @Test
   void exercise3_lensAndPrismComposition() {
     // Lens to access the optional database field
@@ -90,7 +137,17 @@ public class Tutorial04_AffineBasics_Solution {
     assertThat(db2).isEmpty();
   }
 
-  /** Exercise 4 Solution: Using matches() for presence checking */
+  /**
+   * Why this is idiomatic: {@code matches} answers the boolean question without allocating an
+   * {@code Optional} for the value. It is the affine's predicate-style accessor.
+   *
+   * <p>Alternative: {@code someAffine.getOptional(s).isPresent()}. Same answer; reach for {@code
+   * matches} when you only need the boolean and want to avoid the extra wrapper.
+   *
+   * <p>Common wrong attempt: write {@code .matches(present) == true} (or worse, {@code
+   * Boolean.TRUE.equals(...)}). The boolean comparison is gratuitous — the predicate itself is the
+   * answer.
+   */
   @Test
   void exercise4_usingMatches() {
     Affine<Optional<String>, String> someAffine = Affines.some();
@@ -106,7 +163,18 @@ public class Tutorial04_AffineBasics_Solution {
     assertThat(isEmpty).isTrue();
   }
 
-  /** Exercise 5 Solution: Using getOrElse() for default values */
+  /**
+   * Why this is idiomatic: {@code getOrElse(default, source)} collapses the partial read to a total
+   * value in one call. It is the affine's answer to "give me the focus or this fallback".
+   *
+   * <p>Alternative: {@code someAffine.getOptional(present).orElse("default")}. Identical runtime
+   * behaviour; the {@code getOrElse} spelling keeps the affine in the foreground and pairs nicely
+   * with the rest of the optic vocabulary.
+   *
+   * <p>Common wrong attempt: a {@code String} sentinel like {@code null} or {@code ""} as the
+   * default. Both collide with valid focused values and force every caller into a re-check. Pick a
+   * default that cannot collide, or change the return type.
+   */
   @Test
   void exercise5_usingGetOrElse() {
     Affine<Optional<String>, String> someAffine = Affines.some();
@@ -122,7 +190,20 @@ public class Tutorial04_AffineBasics_Solution {
     assertThat(value2).isEqualTo("default");
   }
 
-  /** Exercise 6 Solution: Modifying values with an Affine */
+  /**
+   * Why this is idiomatic: {@code modify} on an affine is "transform the focus if it is there,
+   * otherwise pass through". The empty case stays empty, the present case gets the function — one
+   * call expresses both branches.
+   *
+   * <p>Alternative: {@code present.map(String::toUpperCase)}. Equivalent for a plain {@code
+   * Optional}; the {@code Affine.modify} form generalises to deeper structures ({@code
+   * Lens}-then-{@code Affine}) without changing shape.
+   *
+   * <p>Common wrong attempt: {@code modify} with a function that throws on the empty case ({@code s
+   * -> s.toUpperCase()} where {@code s} could be {@code null}). The affine never invokes the
+   * function on the empty branch, so the worry is only valid if you handed it a present {@code
+   * Optional} containing {@code null} — wrap with {@code Optional.ofNullable}.
+   */
   @Test
   void exercise6_modifyingWithAffine() {
     Affine<Optional<String>, String> someAffine = Affines.some();
@@ -141,7 +222,21 @@ public class Tutorial04_AffineBasics_Solution {
     assertThat(stillEmpty).isEmpty();
   }
 
-  /** Exercise 7 Solution: Chaining Affines for deep optional access */
+  /**
+   * Why this is idiomatic: alternate lens and prism through every layer ({@code lens.andThen
+   * (prism)}) — each lens handles a total field, each prism handles an {@code Optional} unwrap. The
+   * resulting {@code Affine<UserProfile, String>} reads "user to phone" without caring how many
+   * layers of optionality are between.
+   *
+   * <p>Alternative: a chain of {@code .flatMap}s on the inner {@code Optional}s ({@code
+   * user.contact().flatMap(ContactInfo::phone)}). The vanilla form is fine for reads; once a deep
+   * <em>update</em> is needed, the affine chain rewrites the entire path with one {@code set}.
+   *
+   * <p>Common wrong attempt: skip a prism between two optional layers ({@code contactLens
+   * .andThen(phoneLens)} on the {@code Optional<ContactInfo>}). The types reject the composition
+   * because the lens expects a concrete {@code ContactInfo}, not an {@code Optional}. Each {@code
+   * Optional} layer needs its own {@code Prisms.some()}.
+   */
   @Test
   void exercise7_chainingAffines() {
     // Lenses for the record fields

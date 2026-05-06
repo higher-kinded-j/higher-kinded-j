@@ -24,9 +24,21 @@ import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 13: Advanced Focus DSL - Type Class Integration
+ * Solution for Tutorial13 AdvancedFocusDSL — teaching-solution format.
  *
- * <p>These are the completed solutions for all exercises in Tutorial13_AdvancedFocusDSL.java
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial13_AdvancedFocusDSL_Solution {
 
@@ -87,6 +99,18 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
   static final Lens<Circle, Double> circleRadiusLens =
       Lens.of(Circle::radius, (c, r) -> new Circle(r));
 
+  /**
+   * Why this is idiomatic: {@code modifyF} on a path takes a function that returns an effect (here
+   * a {@code Maybe}), threads the effect through the navigation, and rebuilds the source.
+   * Validation that may fail stays in the type.
+   *
+   * <p>Alternative: read with the lens, run the validator, branch on the result, write back.
+   * Equivalent for one effect; {@code modifyF} composes for free with deeper paths.
+   *
+   * <p>Common wrong attempt: throw an exception from the validator. The effect channel is what the
+   * path knows about; throwing leaks the failure outside the optic and skips any follow-up steps
+   * the caller wired up.
+   */
   @Test
   void exercise1_effectfulModification() {
     record Config(String apiKey) {}
@@ -123,6 +147,18 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     assertThat(invalidMaybe.isNothing()).isTrue();
   }
 
+  /**
+   * Why this is idiomatic: {@code foldMap(monoid, fn, source)} reduces every focused element
+   * through the monoid — sum salaries with addition, find max with the max-monoid. Same traversal,
+   * different question.
+   *
+   * <p>Alternative: {@code getAll(...).stream().mapToInt(...).sum()}. Equivalent for sums; the
+   * monoid version generalises to any commutative reduction without changing shape.
+   *
+   * <p>Common wrong attempt: pick the wrong identity for the monoid (e.g. zero for max). The fold
+   * over an empty set returns the identity, so the answer is wrong; double-check the identity
+   * matches the intent.
+   */
   @Test
   void exercise2_monoidAggregation() {
     Department dept =
@@ -177,6 +213,19 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     assertThat(maxSalary).isEqualTo(75000);
   }
 
+  /**
+   * Why this is idiomatic: {@code traverseOver(traverse)} lifts any {@code Traverse} type class
+   * instance into a path. {@code ListTraverse.INSTANCE} is the bridge between the higher-kinded
+   * list and the path DSL.
+   *
+   * <p>Alternative: build a custom traversal that knows about {@code Kind<ListKind.Witness, A>}.
+   * Same answer; using the canonical {@code ListTraverse} instance keeps the integration stable
+   * across versions.
+   *
+   * <p>Common wrong attempt: confuse {@code traverseOver} with {@code each()}. {@code each()} works
+   * on plain {@code List<A>} fields; {@code traverseOver} is for fields already wrapped in {@code
+   * Kind<F, A>}.
+   */
   @Test
   void exercise3_traverseTypeClassIntegration() {
     User user =
@@ -205,6 +254,18 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     assertThat(promotedRoles.stream().map(Role::level).toList()).containsExactly(11, 6, 2);
   }
 
+  /**
+   * Why this is idiomatic: {@code traverseOver(...).via(lens)} chains an HKT traversal with a lens
+   * — User → roles → level for every role. The composed path is one named optic with all the usual
+   * operations.
+   *
+   * <p>Alternative: extract the levels into a list, transform, and rewrite the user. Same runtime;
+   * the composed path stays in one expression and survives schema growth.
+   *
+   * <p>Common wrong attempt: forget the {@code traverseOver} step and try to {@code via} directly
+   * into a {@code Kind<ListKind.Witness, Role>}. The lens does not know how to iterate a
+   * higher-kinded container; the {@code Traverse} instance is what supplies the iteration.
+   */
   @Test
   void exercise4_traverseOverComposition() {
     User user =
@@ -235,6 +296,18 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     assertThat(doubledLevels).containsExactly(20, 6, 2);
   }
 
+  /**
+   * Why this is idiomatic: {@code modifyWhen(predicate, fn, source)} narrows the focus to elements
+   * that satisfy a predicate and applies the function only to them. The other elements pass through
+   * untouched.
+   *
+   * <p>Alternative: {@code modifyAll(e -> matches(e) ? fn(e) : e, source)}. Equivalent runtime; the
+   * named version advertises the predicate at the optic level so other reads inherit the same
+   * scope.
+   *
+   * <p>Common wrong attempt: assume non-matching elements are removed. They are kept as-is; if
+   * removal is wanted, filter the source list before the path navigates it.
+   */
   @Test
   void exercise5_conditionalModification() {
     Department dept =
@@ -257,6 +330,17 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     assertThat(updatedSalaries).containsExactly(66000, 45000, 60500, 40000);
   }
 
+  /**
+   * Why this is idiomatic: {@code AffinePath.instanceOf(Class)} is the canonical "narrow to this
+   * variant" affine. Composed with the shapes traversal, it produces a {@code
+   * TraversalPath<Drawing, Circle>} that touches only circles.
+   *
+   * <p>Alternative: a hand-rolled prism per variant. {@code instanceOf} is the named shorthand for
+   * the common case where the class is the discriminator.
+   *
+   * <p>Common wrong attempt: cast the shapes inside {@code modifyAll} ({@code (Circle) s}).
+   * Non-circles throw at runtime; the affine refuses cleanly with no exception.
+   */
   @Test
   void exercise6_sumTypeNavigation() {
     Drawing drawing =
@@ -293,6 +377,18 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
         .containsExactly(10.0, 6.0, 14.0);
   }
 
+  /**
+   * Why this is idiomatic: {@code path.traced(observer)} returns a path that fires the observer on
+   * read. The behaviour is unchanged; the trace becomes diagnostic data — handy during development
+   * without polluting production code.
+   *
+   * <p>Alternative: log inside a wrapping function. Works but is brittle when the path is built up
+   * gradually; the {@code traced} variant attaches the observer to one point in the chain.
+   *
+   * <p>Common wrong attempt: assume the observer fires on writes too. The trace is deliberately
+   * read-only; if write-tracking is needed, wrap the traversal's modify call in an observation step
+   * at the call site.
+   */
   @Test
   void exercise7_pathDebugging() {
     Department dept =
@@ -323,6 +419,17 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     assertThat(observations).isEmpty();
   }
 
+  /**
+   * Why this is idiomatic: combine {@code each()}, {@code traverseOver}, and {@code via} to
+   * navigate a team of users with role lists. One named path traverses every level and the caller
+   * asks the questions through {@code getAll}, {@code modifyAll}, or {@code foldMap}.
+   *
+   * <p>Alternative: nested {@code stream().flatMap(...).flatMap(...)} chains. Same reads; the
+   * optic-driven version makes the corresponding writes a single call.
+   *
+   * <p>Common wrong attempt: build several paths and merge their results with hand-rolled zips. The
+   * composed path is the single source; the merge is what the path's {@code via} provides natively.
+   */
   @Test
   void exercise8_combiningFeatures() {
     Team team =

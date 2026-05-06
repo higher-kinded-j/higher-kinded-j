@@ -18,20 +18,39 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: Traversal Basics - Working with Multiple Values
+ * Tutorial 05: Traversal Basics — focusing on many values at once.
  *
- * <p>A Traversal is an optic that focuses on zero-or-more elements within a structure. It's like a
- * Lens that can target multiple fields, or a Prism that can target multiple cases.
+ * <p>Pain → Promise. Updating every element of a list inside a record is a copy-then-stream dance:
  *
- * <p>Key Concepts: - Focuses on 0 to many elements (unlike Lens which focuses on exactly 1) -
- * modify: applies a function to all focused elements - Bulk updates: change all elements at once -
- * Filtering: focus on elements matching a condition
+ * <pre>
+ *   var newItems = order.items().stream()
+ *       .map(item -&gt; new Item(item.id(), item.price() * 1.1, ...))
+ *       .toList();
+ *   var updated = new Order(order.id(), newItems, order.status());
+ * </pre>
  *
- * <p>Common uses: - All elements in a List - All values in a Map - All fields of a specific type in
- * nested structures
+ * <p>A {@link Traversal} captures "focus every element" as a single composable optic:
+ *
+ * <pre>
+ *   Order updated = OrderTraversals.itemsPrice().modify(p -&gt; p * 1.1, order);
+ * </pre>
+ *
+ * <p>Java idiom anchor:
+ *
+ * <ul>
+ *   <li>{@code traversal.modify(fn, s)} ↔ {@code .stream().map(fn).toList()} plus copy-construction
+ *       of the surrounding record.
+ *   <li>{@link Fold} (the read-only side) ↔ {@code .stream().reduce(...)}.
+ *   <li>Traversals compose with lenses and prisms for paths into deeply nested collections.
+ * </ul>
+ *
+ * <p>A Traversal is the "0..many" sibling of {@link Lens} (exactly 1) and Prism / Affine (0..1).
+ * Use it when the focus count is unknown ahead of time: a list, every value in a map, every Some in
+ * an Optional pipeline.
  */
 public class Tutorial05_TraversalBasics {
 
@@ -109,13 +128,16 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 1: Modifying all elements
+   * Exercise 1: Modify all elements through a Traversal.
    *
-   * <p>Use a Traversal to modify all elements in a collection.
-   *
-   * <p>Task: Double all player scores in a team
+   * <pre>
+   *   // Nudge:    Traversals.modify(traversal, fn, source) applies fn to every focus.
+   *   // Strategy: Traversals.modify(playersTraversal, p -&gt; new Player(p.name(), p.score() * 2), team)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Traversal.modify updates every focused element")
   void exercise1_modifyingAllElements() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -147,13 +169,16 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 2: Composing traversals to access nested collections
+   * Exercise 2: Compose traversals across nested collections.
    *
-   * <p>Compose traversals to reach deeply nested collections.
-   *
-   * <p>Task: Access all players in all teams in a league
+   * <pre>
+   *   // Nudge:    andThen for traversals reads top-down through the structure.
+   *   // Strategy: LeagueTraversals.teams().andThen(TeamTraversals.players())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: compose traversals to reach nested collections")
   void exercise2_composingTraversals() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -199,13 +224,17 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 3: Traversal with Lens composition
+   * Exercise 3: Traversal + Lens composition.
    *
-   * <p>Compose a Traversal with a Lens to modify a specific field in all elements.
-   *
-   * <p>Task: Update only the scores of all players
+   * <pre>
+   *   // Nudge:    Traversals.modify(traversal, fn, source) requires a Traversal end-to-end;
+   *   //           a Lens becomes a Traversal via .asTraversal().
+   *   // Strategy: TeamTraversals.players().andThen(PlayerLenses.score().asTraversal())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: compose Traversal with a Lens via asTraversal")
   void exercise3_traversalWithLens() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -241,13 +270,16 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 4: Filtering elements
+   * Exercise 4: Filtering with {@code filtered}.
    *
-   * <p>Use filtered() to focus only on elements matching a condition.
-   *
-   * <p>Task: Give a bonus only to players with scores above 100
+   * <pre>
+   *   // Nudge:    filtered narrows a Traversal to elements satisfying a predicate.
+   *   // Strategy: playersTraversal.filtered(p -&gt; p.score() &gt; 100)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: filtered narrows a traversal to matching elements")
   void exercise4_filteringElements() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -282,13 +314,16 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 5: Getting all values
+   * Exercise 5: Read every focused value with {@code getAll}.
    *
-   * <p>Use getAll to extract all focused values into a list.
-   *
-   * <p>Task: Extract all player names from a team
+   * <pre>
+   *   // Nudge:    Traversals.getAll(traversal, source) returns List of focused values.
+   *   // Strategy: Traversals.getAll(allNames, team)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: Traversals.getAll extracts all focused values")
   void exercise5_gettingAllValues() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -323,13 +358,17 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 6: Nested filtering
+   * Exercise 6: Two filter predicates in a single traversal chain.
    *
-   * <p>Apply multiple filters in a traversal chain.
-   *
-   * <p>Task: Find all high-scoring players in winning teams
+   * <pre>
+   *   // Nudge:    The two answerRequired() lines are the predicates passed to filtered().
+   *   //           First filters teams (Team::won); second filters players (score &gt;= 100).
+   *   // Strategy: .filtered(Team::won) and .filtered(p -&gt; p.score() &gt;= 100)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: nested filters across two collection layers")
   void exercise6_nestedFiltering() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -387,13 +426,16 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 7: Conditional batch updates
+   * Exercise 7: Conditional batch updates inside a single Traversal.
    *
-   * <p>Apply different updates based on conditions.
-   *
-   * <p>Task: Apply different bonuses based on score ranges
+   * <pre>
+   *   // Nudge:    Inside the lambda, branch on p.score() to pick the bonus.
+   *   // Strategy: int bonus = p.score() &gt;= 100 ? 10 : 5;
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: conditional bonus per player inside Traversal.modify")
   void exercise7_conditionalBatchUpdates() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -436,14 +478,17 @@ public class Tutorial05_TraversalBasics {
   }
 
   /**
-   * Exercise 8: Converting Traversal to Fold with asFold()
+   * Exercise 8: Traversal {@code asFold} for read-only aggregation.
    *
-   * <p>Use asFold() to convert a filtered Traversal into a read-only Fold, then use foldMap to
-   * compute an aggregate value.
-   *
-   * <p>Task: Get the total score of all active players using asFold() and foldMap
+   * <pre>
+   *   // Nudge:    filtered narrows to active; compose with score lens; asFold makes it read-only.
+   *   // Strategy: TeamTraversals.players().filtered(Player::active)
+   *   //               .andThen(PlayerLenses.score().asTraversal()).asFold()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: convert filtered Traversal to Fold for foldMap")
   void exercise8_traversalAsFold() {
     @GenerateLenses
     record Player(String name, int score, boolean active) {}

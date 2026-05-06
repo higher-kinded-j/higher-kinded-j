@@ -17,25 +17,26 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: Structured Concurrency with Scope
+ * Tutorial: Structured Concurrency with {@link Scope}.
  *
- * <p>Learn to coordinate multiple concurrent tasks using Scope, Higher-Kinded-J's fluent API for
- * structured concurrency. Scope wraps Java 25's StructuredTaskScope with functional result
- * handling.
+ * <p>Pain → Promise. Coordinating multiple threads in plain Java means juggling {@code
+ * ExecutorService}, {@code Future.get()} loops, manual cancellation, and ad-hoc "if any fails,
+ * cancel the rest" logic per call site. {@link Scope} wraps Java 25's {@code StructuredTaskScope}
+ * in a fluent value-returning API. Different joining strategies (allSucceed, anySucceed,
+ * firstComplete, accumulating) capture the cancellation policy in the type rather than in
+ * hand-rolled finally blocks; safe variants ({@code joinSafe}, {@code joinEither}, {@code
+ * joinMaybe}) return {@link Try} / {@link Either} / {@link Maybe} instead of throwing.
  *
- * <p>Key Concepts:
+ * <p>Java idiom anchor:
  *
  * <ul>
- *   <li>Scope provides different joining strategies: allSucceed, anySucceed, firstComplete,
- *       accumulating
- *   <li>Tasks are forked into a scope and execute concurrently on virtual threads
- *   <li>Join strategies determine how results are collected and when cancellation occurs
- *   <li>Safe wrappers (joinSafe, joinEither, joinMaybe) capture failures functionally
+ *   <li>{@code Scope.allSucceed()} ↔ {@code StructuredTaskScope.ShutdownOnFailure}.
+ *   <li>{@code Scope.anySucceed()} ↔ {@code ShutdownOnSuccess}.
+ *   <li>{@code Scope.firstComplete()} ↔ "winner takes all" race semantics.
+ *   <li>{@code Scope.accumulating()} ↔ {@code allOf} that keeps both successes and failures.
  * </ul>
  *
- * <p>Prerequisites: Complete TutorialVTask first
- *
- * <p>Replace each placeholder with the correct code to make the tests pass.
+ * <p>Prerequisites: complete {@code TutorialVTask} first.
  */
 @DisplayName("Tutorial: Structured Concurrency with Scope")
 public class TutorialScope {
@@ -417,6 +418,52 @@ public class TutorialScope {
       assertThat(result.orElse(List.of()))
           .containsExactlyInAnyOrder("Alice", "Developer", "dark-mode");
     }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Diagnostic: Things People Get Wrong
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Diagnostic: structured concurrency really does cancel siblings on failure.
+   *
+   * <p>{@code Scope.allSucceed()} cancels every other forked task as soon as any one fails. The
+   * cancelled tasks are interrupted; long-running side effects do not "keep going on the side".
+   * This is the difference between structured concurrency and a bag of independent futures.
+   *
+   * <pre>
+   *   // Nudge:    Mix a fast-failing task with a slow side-effecting task.
+   *   // Strategy: After joinSafe(), the slow task's counter has not reached the full value.
+   *   // Spoiler:  see the surrounding test body; just call .joinSafe() at the end.
+   * </pre>
+   */
+  @Test
+  @DisplayName("Diagnostic: allSucceed cancels siblings as soon as one fails")
+  void diagnostic_siblingsAreCancelledOnFailure() {
+    java.util.concurrent.atomic.AtomicInteger counter =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+
+    VTask<String> failsFast =
+        VTask.of(
+            () -> {
+              throw new RuntimeException("nope");
+            });
+    VTask<String> slow =
+        VTask.of(
+            () -> {
+              for (int i = 0; i < 5; i++) {
+                Thread.sleep(50);
+                counter.incrementAndGet();
+              }
+              return "slow-done";
+            });
+
+    VTask<Try<List<String>>> scoped =
+        Scope.<String>allSucceed().fork(failsFast).fork(slow).joinSafe();
+
+    Try<List<String>> result = scoped.run();
+    assertThat(result.isFailure()).isTrue();
+    assertThat(counter.get()).isLessThan(5); // slow was cancelled before reaching 5
   }
 
   /**

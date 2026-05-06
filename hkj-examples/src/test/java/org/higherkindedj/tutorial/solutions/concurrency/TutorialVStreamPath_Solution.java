@@ -16,9 +16,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial: VStreamPath - Fluent Streaming with Effect Path API
+ * Solution for TutorialVStreamPath — teaching-solution format.
  *
- * <p>Each exercise solution replaces the answerRequired() placeholder with the correct code.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Tutorial Solution: VStreamPath")
 public class TutorialVStreamPath_Solution {
@@ -31,6 +43,17 @@ public class TutorialVStreamPath_Solution {
   @DisplayName("Part 1: Creating VStreamPath Instances")
   class CreatingInstances {
 
+    /**
+     * Why this is idiomatic: {@code Path.vstreamOf(...)} is the canonical varargs constructor for a
+     * {@code VStreamPath}. Composes with the rest of the path vocabulary ({@code map}, {@code
+     * filter}, {@code flatMap}).
+     *
+     * <p>Alternative: {@code VStream.of(...).toPath()} when the underlying stream is needed first.
+     * Same answer; the path-first form is shorter when the source is literal values.
+     *
+     * <p>Common wrong attempt: forget {@code unsafeRun} on the {@code toList} result. VStreamPath
+     * stays lazy until the run.
+     */
     @Test
     @DisplayName("Exercise 1: Create from varargs")
     void exercise1_createFromVarargs() {
@@ -40,6 +63,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3);
     }
 
+    /**
+     * Why this is idiomatic: {@code Path.vstreamRange(start, end)} produces a half-open integer
+     * range as a path. Standard upper-exclusive convention.
+     *
+     * <p>Alternative: {@code IntStream.range} bridged to a path. The path-first form keeps the
+     * chain inside the path API.
+     *
+     * <p>Common wrong attempt: assume the upper bound is inclusive. The convention matches {@code
+     * IntStream.range}.
+     */
     @Test
     @DisplayName("Exercise 2: Create from range")
     void exercise2_createFromRange() {
@@ -49,6 +82,15 @@ public class TutorialVStreamPath_Solution {
       assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3, 4, 5);
     }
 
+    /**
+     * Why this is idiomatic: {@code vstreamIterate(seed, fn).take(n)} pairs an infinite generator
+     * with a bound. The pair stays in the path API for further composition.
+     *
+     * <p>Alternative: a manual loop appending to a list. Works once; the path version composes.
+     *
+     * <p>Common wrong attempt: omit {@code take}. The unbounded iterate hangs the test; always pair
+     * iterate with a limit.
+     */
     @Test
     @DisplayName("Exercise 3: Infinite stream with take")
     void exercise3_infiniteStreamWithTake() {
@@ -58,6 +100,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(path.toList().unsafeRun()).containsExactly(10, 20, 30, 40);
     }
 
+    /**
+     * Why this is idiomatic: {@code vstreamUnfold(seed, stateFn)} drives a path from a stateful
+     * generator. Each step returns either a {@code Seed} or {@code empty} to terminate.
+     *
+     * <p>Alternative: {@code iterate} with a sentinel and {@code takeWhile}. Same answer for
+     * monotonic sequences; {@code unfold} handles arbitrary termination directly.
+     *
+     * <p>Common wrong attempt: forget the termination branch. Without {@code Optional.empty} the
+     * unfold runs forever.
+     */
     @Test
     @DisplayName("Exercise 4: Effectful unfold")
     void exercise4_effectfulUnfold() {
@@ -83,6 +135,16 @@ public class TutorialVStreamPath_Solution {
   @DisplayName("Part 2: Composing Operations")
   class ComposingOperations {
 
+    /**
+     * Why this is idiomatic: {@code path.map(fn)} transforms each element lazily, just like the
+     * underlying VStream. The path stays a description.
+     *
+     * <p>Alternative: {@code stream.map} on the underlying VStream. Same answer; the path-level API
+     * is for staying inside the path vocabulary.
+     *
+     * <p>Common wrong attempt: assume {@code map} runs eagerly. Path is lazy until {@code
+     * unsafeRun}.
+     */
     @Test
     @DisplayName("Exercise 5: Map elements")
     void exercise5_mapElements() {
@@ -94,6 +156,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(upper.toList().unsafeRun()).containsExactly("ALICE", "BOB");
     }
 
+    /**
+     * Why this is idiomatic: {@code path.filter(predicate)} keeps elements matching the predicate.
+     * Filtering composes with subsequent path stages.
+     *
+     * <p>Alternative: a manual stream consumer with an {@code if}. Same answer; the path filter
+     * stays declarative.
+     *
+     * <p>Common wrong attempt: chain multiple filters when one composite predicate would do.
+     * Functional, but verbose; combine with {@code &&} for single-pass predicates when sensible.
+     */
     @Test
     @DisplayName("Exercise 6: Filter elements")
     void exercise6_filterElements() {
@@ -105,6 +177,17 @@ public class TutorialVStreamPath_Solution {
       assertThat(evens.toList().unsafeRun()).containsExactly(2, 4, 6, 8, 10);
     }
 
+    /**
+     * Why this is idiomatic: {@code path.flatMap(fn)} expands each element into a sub-path; the
+     * result concatenates the sub-paths. The function returns {@code VStreamPath}, not {@code
+     * List}, to stay in the path API.
+     *
+     * <p>Alternative: nested loops returning a list. Equivalent; the {@code flatMap} keeps the lazy
+     * pipeline.
+     *
+     * <p>Common wrong attempt: return a {@code List} from the lambda. The path needs another path;
+     * lift with {@code Path.vstreamOf} when the data is a literal list.
+     */
     @Test
     @DisplayName("Exercise 7: FlatMap to sub-streams")
     void exercise7_flatMapToSubStreams() {
@@ -116,6 +199,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(expanded.toList().unsafeRun()).containsExactly(1, 10, 2, 20, 3, 30);
     }
 
+    /**
+     * Why this is idiomatic: chain {@code filter}, {@code map}, and {@code take} into one lazy
+     * pipeline. The take limits work even though range goes to 100.
+     *
+     * <p>Alternative: pre-compute the bounded list and process it eagerly. Wastes work; the lazy
+     * pipeline only does what is needed.
+     *
+     * <p>Common wrong attempt: collect to a list mid-pipeline. Each intermediate materialisation
+     * costs memory; stay lazy.
+     */
     @Test
     @DisplayName("Exercise 8: Compose a pipeline")
     void exercise8_composePipeline() {
@@ -135,6 +228,15 @@ public class TutorialVStreamPath_Solution {
   @DisplayName("Part 3: Terminal Operations and Zipping")
   class TerminalAndZipping {
 
+    /**
+     * Why this is idiomatic: {@code stream.fold(seed, combiner)} reduces the path to a single
+     * value, returning a {@code VTask}. Run with {@code unsafeRun} at the boundary.
+     *
+     * <p>Alternative: collect to list and sum. Works; the fold avoids the intermediate list.
+     *
+     * <p>Common wrong attempt: forget {@code unsafeRun}. The fold returns a task, not the value;
+     * run it.
+     */
     @Test
     @DisplayName("Exercise 9: Fold to sum")
     void exercise9_foldToSum() {
@@ -146,6 +248,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(sum).isEqualTo(15);
     }
 
+    /**
+     * Why this is idiomatic: {@code stream.exists(predicate)} short-circuits at the first match and
+     * returns a {@code VTask<Boolean>}.
+     *
+     * <p>Alternative: collect and {@code anyMatch}. Same answer; {@code exists} stops as soon as it
+     * finds a match — important for large or infinite paths.
+     *
+     * <p>Common wrong attempt: use {@code filter(p).toList().isEmpty()}. That traverses the entire
+     * path; {@code exists} stops early.
+     */
     @Test
     @DisplayName("Exercise 10: Check existence")
     void exercise10_checkExistence() {
@@ -157,6 +269,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(found).isTrue();
     }
 
+    /**
+     * Why this is idiomatic: {@code zipWith(other, combiner)} pairs corresponding elements and
+     * combines them. Stops at the shorter input — standard zip semantics.
+     *
+     * <p>Alternative: index both streams and rebuild manually. Same answer; {@code zipWith} keeps
+     * the path lazy and is parallel-safe in structured-concurrency settings.
+     *
+     * <p>Common wrong attempt: assume the result has the longer length. Zip truncates; pad
+     * explicitly if uniform length is required.
+     */
     @Test
     @DisplayName("Exercise 11: Zip two streams")
     void exercise11_zipTwoStreams() {
@@ -169,6 +291,16 @@ public class TutorialVStreamPath_Solution {
       assertThat(zipped.toList().unsafeRun()).containsExactly("1a", "2b", "3c");
     }
 
+    /**
+     * Why this is idiomatic: {@code path.focus(focusPath)} navigates each element through a lens.
+     * The optic-driven extraction keeps the navigation declarative and survives schema changes.
+     *
+     * <p>Alternative: {@code path.map(person -> person.name())}. Same answer; the focus bridge
+     * stays composable for deeper optic paths.
+     *
+     * <p>Common wrong attempt: read each element, then build a new path. The focus bridge wires the
+     * optic into the path API directly — no manual rebuild needed.
+     */
     @Test
     @DisplayName("Exercise 12: Focus bridge with lens")
     void exercise12_focusBridge() {

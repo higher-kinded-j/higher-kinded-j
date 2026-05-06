@@ -20,13 +20,29 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 09: Fluent Optics API - Ergonomic Data Access
+ * Tutorial 09: Fluent Optics API — ergonomic data access.
  *
- * <p>The OpticOps class provides a more fluent, Java-friendly API for working with optics. It
- * offers two complementary styles:
+ * <p>Pain → Promise. The functional spelling {@code lens.modify(fn, source)} reads left-to-right
+ * but the parameter order is "what we change, then what we change it on" — fine once we are used to
+ * it, less natural than method-chaining when the chain is long. The fluent {@code OpticOps} API
+ * provides a source-first variant for the same operation:
+ *
+ * <pre>
+ *   // Functional spelling (Tutorials 01-08):
+ *   Person updated = ageLens.modify(a -&gt; a + 1, person);
+ *
+ *   // Fluent spelling:
+ *   Person updated = OpticOps.with(person, ageLens).modify(a -&gt; a + 1);
+ * </pre>
+ *
+ * <p>Same semantics, pick whichever reads better in context. The fluent API is what most call sites
+ * in the {@code hkj-examples} domains use.
+ *
+ * <p>The OpticOps class offers two complementary styles:
  *
  * <ul>
  *   <li><b>Static methods</b>: Concise, direct operations (source-first parameter ordering)
@@ -63,14 +79,17 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 1: Basic get and set operations
+   * Exercise 1: {@code OpticOps.get} / {@code OpticOps.set}.
    *
-   * <p>OpticOps.get() and OpticOps.set() provide source-first parameter ordering, which is more
-   * natural in Java.
-   *
-   * <p>Task: Use OpticOps to get and set values
+   * <pre>
+   *   // Nudge:    Source-first form: OpticOps.get(source, optic) / set(source, optic, value).
+   *   // Strategy: OpticOps.get(person, nameLens)
+   *   //           OpticOps.set(person, ageLens, 31)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: OpticOps source-first get / set")
   void exercise1_basicGetAndSet() {
     @GenerateLenses
     record Person(String name, int age, String email) {}
@@ -110,13 +129,17 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 2: Modify operations
+   * Exercise 2: {@code OpticOps.modify}.
    *
-   * <p>OpticOps.modify() applies a transformation function to the focused value.
-   *
-   * <p>Task: Use OpticOps.modify() to increment age and uppercase name
+   * <pre>
+   *   // Nudge:    Source-first form: OpticOps.modify(source, optic, fn).
+   *   // Strategy: OpticOps.modify(person, ageLens, age -&gt; age + 1)
+   *   //           OpticOps.modify(person, nameLens, String::toUpperCase)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: OpticOps source-first modify")
   void exercise2_modifyOperations() {
     @GenerateLenses
     record Person(String name, int age) {}
@@ -151,13 +174,17 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 3: Working with collections using getAll and modifyAll
+   * Exercise 3: getAll / modifyAll on collections via Traversals.
    *
-   * <p>OpticOps provides dedicated methods for traversals over collections.
-   *
-   * <p>Task: Extract and modify all elements using OpticOps
+   * <pre>
+   *   // Nudge:    Source-first variants of Traversals.getAll / Traversals.modify.
+   *   // Strategy: OpticOps.getAll(team, playersTraversal)
+   *   //           OpticOps.modifyAll(team, playersTraversal, p -&gt; ...)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: OpticOps.getAll / modifyAll on collections")
   void exercise3_collectionOperations() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -205,13 +232,19 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 4: Query operations - exists, count, find
+   * Exercise 4: Query operations on a Traversal — exists / count / find / first.
    *
-   * <p>OpticOps provides query methods for checking predicates and finding elements.
-   *
-   * <p>Task: Use query operations to inspect data
+   * <pre>
+   *   // Nudge:    OpticOps.exists / count / find / first all take (source, traversal[, predicate]).
+   *   // Strategy: OpticOps.exists(team, playersTraversal, p -&gt; p.score() &gt; 100)
+   *   //           OpticOps.count(team, playersTraversal, p -&gt; p.score() &gt;= 90)
+   *   //           OpticOps.find(team, playersTraversal, p -&gt; p.score() &gt; 100)
+   *   //           OpticOps.first(team, playersTraversal)
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: query operations on a Traversal")
   void exercise4_queryOperations() {
     @GenerateLenses
     record Player(String name, int score) {}
@@ -267,13 +300,18 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 5: Validation with Either (fail-fast)
+   * Exercise 5: Validation through a Lens with {@code modifyEither}.
    *
-   * <p>OpticOps.modifyEither() validates a value and short-circuits on the first error.
-   *
-   * <p>Task: Validate and update an email field
+   * <pre>
+   *   // Nudge:    OpticOps.modifyEither(source, lens, validator) returns Either&lt;E, S&gt;.
+   *   // Strategy: OpticOps.modifyEither(user, emailLens, e -&gt;
+   *   //               e.contains("@") ? Either.right(e.toLowerCase())
+   *   //                               : Either.left("Invalid email"))
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: modifyEither — fail-fast validation through a Lens")
   void exercise5_validationWithEither() {
     @GenerateLenses
     record User(String id, String email) {}
@@ -323,13 +361,17 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 6: Validation with Maybe (optional)
+   * Exercise 6: Validation through a Lens with {@code modifyMaybe}.
    *
-   * <p>OpticOps.modifyMaybe() validates a value, returning Maybe.nothing() on failure.
-   *
-   * <p>Task: Validate age is within reasonable bounds
+   * <pre>
+   *   // Nudge:    Same shape as modifyEither, returns Maybe instead of Either.
+   *   // Strategy: OpticOps.modifyMaybe(person, ageLens, age -&gt;
+   *   //               age &gt; 0 &amp;&amp; age &lt; 150 ? Maybe.just(age) : Maybe.nothing())
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: modifyMaybe — present/absent validation through a Lens")
   void exercise6_validationWithMaybe() {
     @GenerateLenses
     record Person(String name, int age) {}
@@ -369,14 +411,19 @@ public class Tutorial09_FluentOpticsAPI {
   }
 
   /**
-   * Exercise 7: Multi-field validation with Validated (error accumulation)
+   * Exercise 7: Multi-field validation accumulating errors via {@code modifyAllValidated}.
    *
-   * <p>OpticOps.modifyAllValidated() validates multiple values and accumulates ALL errors, not just
-   * the first one.
-   *
-   * <p>Task: Validate all item prices in an order
+   * <pre>
+   *   // Nudge:    Validates every focused element via a Traversal; accumulates errors.
+   *   // Strategy: OpticOps.modifyAllValidated(order, itemPriceTraversal,
+   *   //               price -&gt; price &gt; 0 ? Validated.valid(price)
+   *   //                                  : Validated.invalid("Negative price"),
+   *   //               Semigroups.string(", "))
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: modifyAllValidated accumulates errors over a Traversal")
   void exercise7_validationWithValidated() {
     @GenerateLenses
     record Item(String name, double price) {}

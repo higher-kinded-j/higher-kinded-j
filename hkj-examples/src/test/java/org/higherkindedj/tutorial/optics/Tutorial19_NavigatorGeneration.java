@@ -11,14 +11,31 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 19: Navigator Generation - Fluent Cross-Type Navigation
+ * Tutorial 19: Navigator Generation — fluent cross-type navigation.
  *
- * <p>When you annotate records with {@code @GenerateFocus(generateNavigators = true)}, the
- * processor generates navigator classes that enable fluent, dot-chained navigation across type
- * boundaries, without explicit {@code .via()} calls.
+ * <p>Pain → Promise. Even with the Focus DSL, navigating across type boundaries requires explicit
+ * {@code .via()} calls per record:
+ *
+ * <pre>
+ *   FocusPath.of(Order.class).into(o -&gt; o.customer())
+ *       .via(FocusPath.of(Customer.class).into(c -&gt; c.address()))
+ *       .via(FocusPath.of(Address.class).into(a -&gt; a.city()));
+ * </pre>
+ *
+ * <p>{@code @GenerateFocus(generateNavigators = true)} adds navigator companion classes that
+ * collapse the cross-type boundaries:
+ *
+ * <pre>
+ *   OrderFocus.customer().address().city();  // generated chain, one dot per step
+ * </pre>
+ *
+ * <p>This tutorial teaches us how navigator path widening works at a conceptual level, using
+ * manually composed paths to illustrate the behaviour that the generated code provides
+ * automatically.
  *
  * <p>This tutorial teaches you how navigator path widening works at a conceptual level, using
  * manually composed paths to illustrate the behaviour that the generated code provides
@@ -92,8 +109,13 @@ public class Tutorial19_NavigatorGeneration {
    * use it to extract a value.
    *
    * <p>Task: Compose companyHqLens and addressCityLens into a FocusPath, then get the city
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(companyHqLens).via(addressCityLens)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: navigator delegation: get")
   void exercise1_navigatorDelegationGet() {
     Company acme = new Company("Acme", new Address("123 Main St", "London", "SW1A 1AA"), 100);
 
@@ -115,8 +137,13 @@ public class Tutorial19_NavigatorGeneration {
    * unchanged.
    *
    * <p>Task: Use the composed path to set and modify the city
+   *
+   * <pre>
+   *   // Strategy: cityPath.set to change the city to "Edinburgh"
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: navigator set/modify")
   void exercise2_navigatorSetAndModify() {
     Company acme = new Company("Acme", new Address("123 Main St", "London", "SW1A 1AA"), 100);
 
@@ -144,8 +171,13 @@ public class Tutorial19_NavigatorGeneration {
    * Optional<A>} instead of a bare value.
    *
    * <p>Task: Create an AffinePath through an Optional field and retrieve the value
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(orgOfficeLens).some()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: path widening Optional")
   void exercise3_pathWideningOptional() {
     Organisation org =
         new Organisation("HKJ Ltd", Optional.of(new Address("1 Elm Rd", "Oxford", "OX1 1AA")));
@@ -175,8 +207,13 @@ public class Tutorial19_NavigatorGeneration {
    * values, and {@code modifyAll()} transforms every element.
    *
    * <p>Task: Create a TraversalPath through a List field
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(membersLens).each()
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: path widening Collection")
   void exercise4_pathWideningCollection() {
     Department engineering = new Department("Engineering", List.of("Alice", "Bob", "Charlie"));
 
@@ -208,8 +245,13 @@ public class Tutorial19_NavigatorGeneration {
    * <p>Here we simulate this by creating a TraversalPath over Map values using {@code .each()}.
    *
    * <p>Task: Create a TraversalPath that focuses on all Map values
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(warehouseInventoryLens).each(EachInstances.mapValuesEach())
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: SPI-aware widening: map")
   void exercise5_spiAwareWideningMap() {
     Warehouse warehouse = new Warehouse("W1", Map.of("bolts", 100, "nuts", 250, "washers", 50));
 
@@ -238,8 +280,13 @@ public class Tutorial19_NavigatorGeneration {
    * </ul>
    *
    * <p>Task: Navigate through Optional then into a collection to produce a TraversalPath
+   *
+   * <pre>
+   *   // Strategy: Break into steps: AffinePath<Team, Department> deptPath =
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: compound widening")
   void exercise6_compoundWidening() {
     record Team(String teamName, Optional<Department> optionalDept) {}
 
@@ -287,8 +334,13 @@ public class Tutorial19_NavigatorGeneration {
    * <p>Beyond the limit, you compose manually using {@code .via()}.
    *
    * <p>Task: Compose a three-level path manually (simulating beyond-depth navigation)
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(campusLens).via(buildingLens).via(addressLens).via(addressCityLens)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: depth limiting")
   void exercise7_depthLimiting() {
     record Building(String buildingName, Address address) {}
 
@@ -345,8 +397,13 @@ public class Tutorial19_NavigatorGeneration {
    * </ul>
    *
    * <p>Task: Manually compose a path that simulates what widenCollections does automatically
+   *
+   * <pre>
+   *   // Strategy: FocusPath.of(warehouseInventoryLens).each(EachInstances.mapValuesEach())
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: widen collections + priority")
   void exercise8_widenCollectionsAndPriority() {
     // widenCollections = true would make WarehouseFocus.inventory() return
     // TraversalPath<Warehouse, Integer> directly.

@@ -8,6 +8,31 @@
 - How to experiment with variations and connect solutions to documentation
 ~~~
 
+## What's in a Solution File?
+
+Every solution file contains the working code **and** per-exercise teaching commentary. Each `@Test` method carries a Javadoc block written in this shape:
+
+```java
+/**
+ * Why this is idiomatic: explains what makes the chosen form the standard one — the
+ *   single sentence you'd give a reviewer who asked "why this and not the obvious thing?"
+ *
+ * <p>Alternative: at least one other shape that also works, with the trade-off named.
+ *   Same answer; loses {something}.
+ *
+ * <p>Common wrong attempt: a typical first stumble and the symptom it produces.
+ *   The compiler doesn't catch this; the test will.
+ */
+@Test
+void exerciseN_someName() {
+    // working code that passes the test
+}
+```
+
+That format is the same across all 60-odd solution files (Capstone, coretypes, optics, expression, effecthandlers, context, concurrency, transformers, resilience). When you peek at a solution, read the working code first, then the commentary — the prose tells you **why** the chosen form is preferred, what the close alternatives are, and which mistake the exercise is guarding against.
+
+The pilot solutions live in `coretypes/Tutorial01_KindBasics_Solution.java` and `optics/Tutorial01_LensBasics_Solution.java` — they are the canonical references for the format.
+
 ## Philosophy: When to Use Solutions
 
 The solution files exist to help you learn, not to short-circuit the learning process. Here's how to use them effectively.
@@ -35,8 +60,10 @@ When you do consult a solution, approach it systematically:
 ### 1. Don't Just Copy-Paste
 
 **Instead**:
-- Read the solution carefully
-- Understand *why* it works
+- Read the per-exercise Javadoc first — the **Why this is idiomatic** paragraph names what the working code is doing and why
+- Read the working code with that framing in mind
+- Skim the **Alternative** paragraph to understand a close-but-different shape
+- Note the **Common wrong attempt** so you know what to avoid
 - Close the solution file
 - Re-implement it yourself from memory
 - Run the test to verify understanding
@@ -270,29 +297,80 @@ LIST.widen(listValue)
 
 ## Solution File Organisation
 
-Solutions are organised to mirror the tutorial structure:
+Solutions mirror the tutorial structure under `hkj-examples/src/test/java/org/higherkindedj/tutorial/solutions/`. The contents below are kept in lockstep with the tutorial directories; if we spot drift, please open an issue.
 
 ```
-hkj-examples/src/test/java/org/higherkindedj/tutorial/solutions/
-├── coretypes/
+solutions/
+├── coretypes/                  (11 solutions)
 │   ├── Tutorial01_KindBasics_Solution.java
 │   ├── Tutorial02_FunctorMapping_Solution.java
 │   ├── Tutorial03_ApplicativeCombining_Solution.java
 │   ├── Tutorial04_MonadChaining_Solution.java
 │   ├── Tutorial05_MonadErrorHandling_Solution.java
 │   ├── Tutorial06_ConcreteTypes_Solution.java
-│   └── Tutorial07_RealWorld_Solution.java
-├── optics/
+│   ├── Tutorial07_RealWorld_Solution.java
+│   ├── Tutorial08_NaturalTransformation_Solution.java
+│   ├── Tutorial09_Coyoneda_Solution.java
+│   ├── Tutorial10_FreeApplicative_Solution.java
+│   └── Tutorial11_StaticAnalysis_Solution.java
+├── effect/                     (2 solutions)
+│   ├── Tutorial01_EffectPathBasics_Solution.java
+│   └── Tutorial02_EffectPathAdvanced_Solution.java
+├── transformers/               (4 solutions)
+│   ├── Tutorial01_WhenPathIsNotEnough_Solution.java
+│   ├── Tutorial02_AsyncWithAbsence_Solution.java
+│   ├── Tutorial03_StackingTransformers_Solution.java
+│   └── Tutorial04_PolymorphicCapabilities_Solution.java
+├── concurrency/                (8 solutions)
+│   ├── TutorialVTask_Solution.java
+│   ├── TutorialVTaskPath_Solution.java
+│   ├── TutorialVTaskForPath_Solution.java
+│   ├── TutorialVStream_Solution.java
+│   ├── TutorialVStreamHKT_Solution.java
+│   ├── TutorialVStreamParallel_Solution.java
+│   ├── TutorialVStreamPath_Solution.java
+│   └── TutorialVStreamAdvanced_Solution.java
+├── optics/                     (20 solutions)
 │   ├── Tutorial01_LensBasics_Solution.java
 │   ├── Tutorial02_LensComposition_Solution.java
 │   ├── Tutorial03_PrismBasics_Solution.java
-│   ├── Tutorial04_TraversalBasics_Solution.java
-│   ├── Tutorial05_OpticsComposition_Solution.java
-│   ├── Tutorial06_GeneratedOptics_Solution.java
-│   ├── Tutorial07_RealWorldOptics_Solution.java
-│   ├── Tutorial08_FluentOpticsAPI_Solution.java
-│   └── Tutorial09_AdvancedOpticsDSL_Solution.java
-└── resilience/
+│   ├── Tutorial04_AffineBasics_Solution.java
+│   ├── Tutorial05_TraversalBasics_Solution.java
+│   ├── Tutorial06_OpticsComposition_Solution.java
+│   ├── Tutorial07_GeneratedOptics_Solution.java
+│   ├── Tutorial08_RealWorldOptics_Solution.java
+│   ├── Tutorial09_FluentOpticsAPI_Solution.java
+│   ├── Tutorial10_AdvancedPrismPatterns_Solution.java
+│   ├── Tutorial11_AdvancedOpticsDSL_Solution.java
+│   ├── Tutorial12_FocusDSL_Solution.java
+│   ├── Tutorial13_AdvancedFocusDSL_Solution.java
+│   ├── Tutorial14_FocusEffectBridge_Solution.java
+│   ├── Tutorial15_ListPrisms_Solution.java
+│   ├── Tutorial16_OpticsSpecInterfaces_Solution.java
+│   ├── Tutorial17_VStreamOptics_Solution.java
+│   ├── Tutorial18_FoldCombination_Solution.java
+│   ├── Tutorial19_NavigatorGeneration_Solution.java
+│   └── Tutorial20_ContainerNavigation_Solution.java
+├── expression/                 (4 solutions)
+│   ├── Tutorial01_ForStateBasics_Solution.java
+│   ├── Tutorial02_ForPathParallel_Solution.java
+│   ├── Tutorial03_ForTraverseComprehension_Solution.java
+│   └── Tutorial04_EnhancedOpticsIntegration_Solution.java
+├── context/                    (6 solutions)
+│   ├── Tutorial01_ContextBasics_Solution.java
+│   ├── Tutorial02_ContextComposition_Solution.java
+│   ├── Tutorial03_RequestContextPatterns_Solution.java
+│   ├── Tutorial04_SecurityContextPatterns_Solution.java
+│   ├── Tutorial05_ContextWithVTask_Solution.java
+│   └── Tutorial06_AdvancedContextPatterns_Solution.java
+├── effecthandlers/             (6 solutions)
+│   ├── Tutorial01_EffectAlgebraBasics_Solution.java
+│   ├── Tutorial02_MultipleInterpreters_Solution.java
+│   ├── Tutorial03_ErrorRecovery_Solution.java
+│   ├── Tutorial04_CombiningEffects_Solution.java
+│   ├── Tutorial05_ProgramInspection_Solution.java
+│   └── Tutorial06_AdvancedInterpreters_Solution.java
+└── resilience/                 (4 solutions)
     ├── Tutorial01_CircuitBreaker_Solution.java
     ├── Tutorial02_Saga_Solution.java
     ├── Tutorial03_RetryBulkheadResilience_Solution.java
@@ -301,7 +379,7 @@ hkj-examples/src/test/java/org/higherkindedj/tutorial/solutions/
 
 Each solution file:
 - Contains complete, working implementations for all exercises
-- Includes explanatory comments
+- Carries a per-exercise Javadoc block in the **Why this is idiomatic / Alternative / Common wrong attempt** format
 - Demonstrates idiomatic usage patterns
 - Compiles and passes all tests
 

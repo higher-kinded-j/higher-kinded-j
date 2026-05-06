@@ -15,11 +15,24 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 02: ForPath Parallel Composition - Expressing Independent Computations
+ * Tutorial 02: ForPath Parallel Composition — expressing independent computations.
  *
- * <p>In this tutorial, you'll learn how {@code ForPath.par()} lets you compose independent
- * computations using applicative semantics. Where {@code .from()} chains sequentially via {@code
- * flatMap}, {@code par()} declares that computations are independent of each other.
+ * <p>Pain → Promise. {@code ForPath.from(...).from(...)} reads as "do A, then do B with the result
+ * of A" — sequential by definition. When the two computations are <em>independent</em> we want to
+ * say so explicitly: the type system can use that information to short-circuit on either side,
+ * accumulate errors, or run them concurrently with {@link VTaskPath}.
+ *
+ * <pre>
+ *   // Sequential (Tutorial 01 of the Effect API journey):
+ *   var seq = ForPath.from(Path.right("25")).from(parseAge).from(...);
+ *
+ *   // Parallel (this tutorial):
+ *   var par = ForPath.par(parseAge.apply("25"), parseHeight.apply("180"))
+ *       .yield((age, height) -&gt; new Profile(age, height));
+ * </pre>
+ *
+ * <p>Java idiom anchor: this is the for-comprehension version of {@code Applicative.map2} from
+ * Tutorial 03 of the Foundations journey. Same idea, prettier syntax.
  *
  * <p>Key Concepts:
  *

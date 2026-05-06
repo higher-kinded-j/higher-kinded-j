@@ -15,7 +15,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: Context Composition - flatMap and Type Classes
+ * Tutorial: Context Composition — flatMap and type classes.
+ *
+ * <p>Pain → Promise. Once we have {@link Context}, we want to compose several lookups: read a
+ * tenant id from one context, look up the tenant config from another, derive a setting. Each step
+ * depends on the previous one — that's Monad shape — and the chain reads top-to-bottom.
  *
  * <p>Learn to compose Context computations using flatMap and understand how Context integrates with
  * Higher-Kinded-J's type class hierarchy (Functor, Applicative, Monad).

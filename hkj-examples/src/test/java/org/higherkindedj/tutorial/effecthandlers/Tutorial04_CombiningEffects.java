@@ -13,14 +13,21 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Combining Effects with EitherF
+ * Tutorial 04: Combining Effects with EitherF.
  *
- * <p>When a program uses multiple effect algebras, they are composed via {@code EitherF}. Each
- * algebra gets its own interpreter, and {@code Interpreters.combine} merges them into a single
- * interpreter for the composed type.
+ * <p>Pain → Promise. Real programs use multiple algebras at once: a {@code UserOp} algebra for
+ * repository access, a {@code LogOp} algebra for structured logging, an {@code AuditOp} algebra for
+ * compliance. The hand-rolled "merge them into one giant sealed interface" approach is rigid and
+ * inflates per-algebra code. {@code EitherF} is the coproduct that lets us keep each algebra
+ * independent and combine them per program.
+ *
+ * <p>Original notes: when a program uses multiple effect algebras, they are composed via {@code
+ * EitherF}. Each algebra gets its own interpreter, and {@code Interpreters.combine} merges them
+ * into a single interpreter for the composed type.
  *
  * <p>Key concepts:
  *
@@ -54,8 +61,13 @@ public class Tutorial04_CombiningEffects {
    * composed type.
    *
    * <p>Task: Combine two identity interpreters
+   *
+   * <pre>
+   *   // Strategy: Interpreters.combine to merge two identity interpreters
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Combine Two")
   void exercise1_combineTwo() {
     // TODO: Use Interpreters.combine to merge two identity interpreters
     // Hint: Interpreters.combine(ID_INTERP, ID_INTERP)
@@ -72,8 +84,13 @@ public class Tutorial04_CombiningEffects {
    * Interpreters.combine} has an overload for three interpreters.
    *
    * <p>Task: Combine three identity interpreters
+   *
+   * <pre>
+   *   // Strategy: Interpreters.combine with three interpreters
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Combine Three")
   void exercise2_combineThree() {
     // TODO: Use Interpreters.combine with three interpreters
     var combined = answerRequired();
@@ -88,8 +105,13 @@ public class Tutorial04_CombiningEffects {
    * effect instructions.
    *
    * <p>Task: Create a pure Free program and interpret it with the combined interpreter
+   *
+   * <pre>
+   *   // Strategy: Free.<EitherFKind.Witness<IdKind.Witness, IdKind.Witness>, String>pure("combined")
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Interpret Composed")
   void exercise3_interpretComposed() {
     var combined = Interpreters.combine(ID_INTERP, ID_INTERP);
 

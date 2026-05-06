@@ -12,110 +12,122 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tutorial 03: Applicative - Combining Independent Values
- *
- * <p>Applicative extends Functor and allows you to combine multiple independent values in context.
- * Unlike flatMap (which we'll see later), Applicative operations don't depend on previous results.
- *
- * <p>Key Concepts: - of (pure): lifts a plain value into the context - map2/map3/map4/map5:
- * combines 2/3/4/5 independent values - Perfect for validation where you want to collect all errors
- *
- * <p>When to use: - Combining independent computations - Validating multiple fields - Parallel
- * operations (all inputs are known upfront)
- */
+/** Solution for Tutorial 03: Applicative Combining — teaching-solution format. */
+@DisplayName("Tutorial 03 Solution: Applicative Combining")
 public class Tutorial03_ApplicativeCombining_Solution {
 
-  /** Helper method for incomplete exercises that throws a clear exception. */
+  /** Helper for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
     throw new RuntimeException("Answer required");
   }
 
+  // ─── Exercise 1 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 1: Lifting values with 'of'
+   * Why this is idiomatic: {@code Either.right(x)} is the literal "lift a value into success" call.
+   * The Applicative typeclass spelling is {@code app.of(x)}; the concrete-type spelling is shorter
+   * when we already know we want an {@code Either}.
    *
-   * <p>The 'of' method (also called 'pure') lifts a plain value into the context.
+   * <p>Alternative: {@code app.of(42)} via {@code EitherMonad.instance()}. Useful when the
+   * surrounding code is generic in {@code F}.
    *
-   * <p>Task: Lift a plain integer into Either
+   * <p>Common wrong attempt: writing {@code Either.<String, Integer>right(42)} when the type can be
+   * inferred — works, but adds noise. Reach for explicit type witnesses only when inference
+   * actually fails.
    */
   @Test
+  @DisplayName("Exercise 1: lift a value with Either.right (= Applicative.of)")
   void exercise1_liftingValues() {
-    // SOLUTION: Use Either.right() to lift the value into the Right context
     Either<String, Integer> result = Either.right(42);
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(42);
   }
 
+  // ─── Exercise 2 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 2: Combining two values with map2
+   * Why this is idiomatic: combinators across multiple containers live on the {@code Applicative}
+   * typeclass instance, not on the concrete type. Widen the inputs, call the combinator, narrow the
+   * output. Three steps, no surprises.
    *
-   * <p>map2 combines two independent values in context using a combining function.
+   * <p>Alternative: {@code value1.flatMap(a -> value2.map(b -> a + b))}. Same answer, but uses the
+   * heavier Monad capability and forces a sequential mental model where the values are actually
+   * independent.
    *
-   * <p>Task: Add two numbers that are both wrapped in Either
+   * <p>Common wrong attempt: calling {@code value1.map2(value2, ...)}. {@code Either} does not
+   * carry {@code map2} as an instance method; the compiler error points us at the Applicative
+   * typeclass instead.
    */
   @Test
+  @DisplayName("Exercise 2: map2 sums two Right values")
   void exercise2_combiningWithMap2() {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> value2 = Either.right(20);
+    EitherMonad<String> app = EitherMonad.instance();
 
-    // SOLUTION: Use EitherMonad typeclass to access map2
-    EitherMonad<String> applicative = EitherMonad.instance();
     Either<String, Integer> result =
-        EITHER.narrow(
-            applicative.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b));
+        EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b));
 
     assertThat(result.getRight()).isEqualTo(30);
   }
 
+  // ─── Exercise 3 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 3: map2 short-circuits on Left
+   * Why this is idiomatic: identical shape to exercise 2 — the only thing that changes is which
+   * inputs are {@code Right} vs {@code Left}. Either's Applicative is fail-fast: the first {@code
+   * Left} wins.
    *
-   * <p>If any value is Left (error), map2 returns that error without calling the combining
-   * function.
+   * <p>Alternative: explicit branching with {@code if (value1.isLeft())}. Strictly more code; the
+   * {@code map2} form expresses intent in one call.
    *
-   * <p>Task: Observe that combining with an error produces an error
+   * <p>Common wrong attempt: assuming the combiner runs even when one input is Left. It does not.
+   * If we need both errors when both fail, that is what {@link Validated} (exercise 5) is for.
    */
   @Test
+  @DisplayName("Exercise 3: map2 short-circuits on the first Left")
   void exercise3_map2WithError() {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> error = Either.left("Error occurred");
+    EitherMonad<String> app = EitherMonad.instance();
 
-    // SOLUTION: Attempt to combine value1 and error using EitherMonad
-    EitherMonad<String> applicative = EitherMonad.instance();
     Either<String, Integer> result =
-        EITHER.narrow(applicative.map2(EITHER.widen(value1), EITHER.widen(error), (a, b) -> a + b));
+        EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(error), (a, b) -> a + b));
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Error occurred");
   }
 
+  // ─── Exercise 4 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 4: Validating a form with map3
+   * Why this is idiomatic: {@code Person::new} is a method reference to the canonical record
+   * constructor. Three positional fields in, one record out. Reads as "make a Person".
    *
-   * <p>map3 combines three independent values. This is perfect for validating multiple fields.
+   * <p>Alternative: an explicit lambda {@code (n, a, e) -> new Person(n, a, e)}. Equivalent;
+   * verbose where the constructor reference suffices.
    *
-   * <p>Task: Create a Person record from three validated fields
+   * <p>Common wrong attempt: nested {@code flatMap} chains across the three fields. Works, but
+   * loses the parallel-friendly semantics: an {@code Applicative} can in principle evaluate the
+   * inputs concurrently, a {@code Monad} cannot.
    */
   @Test
+  @DisplayName("Exercise 4: map3 builds a Person from three Rights")
   void exercise4_formValidationWithMap3() {
     record Person(String name, int age, String email) {}
 
     Either<String, String> name = Either.right("Alice");
     Either<String, Integer> age = Either.right(30);
     Either<String, String> email = Either.right("alice@example.com");
+    EitherMonad<String> app = EitherMonad.instance();
 
-    // SOLUTION: Use EitherMonad typeclass to access map3
-    EitherMonad<String> applicative = EitherMonad.instance();
     Either<String, Person> result =
         EITHER.narrow(
-            applicative.map3(
-                EITHER.widen(name),
-                EITHER.widen(age),
-                EITHER.widen(email),
-                (n, a, e) -> new Person(n, a, e)));
+            app.map3(EITHER.widen(name), EITHER.widen(age), EITHER.widen(email), Person::new));
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().name()).isEqualTo("Alice");
@@ -123,48 +135,55 @@ public class Tutorial03_ApplicativeCombining_Solution {
     assertThat(result.getRight().email()).isEqualTo("alice@example.com");
   }
 
+  // ─── Exercise 5 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 5: Validation with Validated (accumulating errors)
+   * Why this is idiomatic: {@code ValidatedMonad.instance(semigroup)} parameterises the Applicative
+   * by how to combine errors. The Semigroup is the only thing that changes between "comma-separated
+   * string" and "list of typed errors"; the surrounding code is unchanged.
    *
-   * <p>Validated is like Either but accumulates ALL errors instead of stopping at the first one.
-   * This is perfect for form validation.
+   * <p>Alternative: a different {@link Semigroup} — for example {@code Semigroups.list()} when the
+   * error type is {@code List<DomainError>}. Same call shape, different accumulation behaviour.
    *
-   * <p>Task: Validate multiple fields and see all errors accumulated
+   * <p>Common wrong attempt: trying to use {@code EitherMonad} for accumulation. Either is
+   * fail-fast by definition; for accumulation we want Validated.
    */
   @Test
+  @DisplayName("Exercise 5: ValidatedMonad accumulates errors via a Semigroup")
   void exercise5_accumulatingErrors() {
     record FormData(String name, int age, String email) {}
 
-    // Simulate field validations (all invalid)
     Validated<String, String> name = Validated.invalid("Name is required");
     Validated<String, Integer> age = Validated.invalid("Age must be positive");
     Validated<String, String> email = Validated.invalid("Email is invalid");
 
-    // SOLUTION: Use ValidatedMonad typeclass to access map3
-    // Validated will accumulate errors instead of short-circuiting
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedMonad<String> applicative = ValidatedMonad.instance(stringSemigroup);
+    ValidatedMonad<String> app = ValidatedMonad.instance(stringSemigroup);
+
     Validated<String, FormData> result =
         VALIDATED.narrow(
-            applicative.map3(
+            app.map3(
                 VALIDATED.widen(name),
                 VALIDATED.widen(age),
                 VALIDATED.widen(email),
-                (n, a, e) -> new FormData(n, a, e)));
+                FormData::new));
 
     assertThat(result.isInvalid()).isTrue();
-    // Validated accumulates errors - in this case, it will contain one of the errors
-    // (The exact behavior depends on the Semigroup instance for String)
   }
 
+  // ─── Exercise 6 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 6: Successful validation with map4
+   * Why this is idiomatic: same shape as map3, one more input. {@code Order::new} as a method
+   * reference is the cleanest possible spelling.
    *
-   * <p>When all validations succeed, we get the combined result.
+   * <p>Alternative: an explicit four-arg lambda. No advantage.
    *
-   * <p>Task: Validate and create an Order
+   * <p>Common wrong attempt: trying to extend the chain past five inputs. {@code map5} is the
+   * largest fixed-arity combinator; for more, see the for-comprehension in the Expression journey.
    */
   @Test
+  @DisplayName("Exercise 6: map4 builds an Order from four Rights")
   void exercise6_successfulValidation() {
     record Order(String id, String product, int quantity, double price) {}
 
@@ -172,17 +191,16 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, String> product = Either.right("Laptop");
     Either<String, Integer> quantity = Either.right(2);
     Either<String, Double> price = Either.right(999.99);
+    EitherMonad<String> app = EitherMonad.instance();
 
-    // SOLUTION: Use EitherMonad typeclass to access map4
-    EitherMonad<String> applicative = EitherMonad.instance();
     Either<String, Order> result =
         EITHER.narrow(
-            applicative.map4(
+            app.map4(
                 EITHER.widen(id),
                 EITHER.widen(product),
                 EITHER.widen(quantity),
                 EITHER.widen(price),
-                (i, p, q, pr) -> new Order(i, p, q, pr)));
+                Order::new));
 
     assertThat(result.isRight()).isTrue();
     Order order = result.getRight();
@@ -192,14 +210,19 @@ public class Tutorial03_ApplicativeCombining_Solution {
     assertThat(order.price()).isEqualTo(999.99);
   }
 
+  // ─── Exercise 7 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 7: Using Applicative typeclass with map5
+   * Why this is idiomatic: {@code map5} caps the fixed-arity ladder. Beyond that, switch to a
+   * for-comprehension; conceptually it is the same idea desugared.
    *
-   * <p>For combining 5+ values, use map5 or the Applicative typeclass instance.
+   * <p>Alternative: nested {@code map4} + {@code map2} compositions. Possible; not an improvement.
    *
-   * <p>Task: Combine 5 values to create a complete address
+   * <p>Common wrong attempt: hoping for {@code map6}. There isn't one (deliberately) — five is
+   * already the threshold where a for-comprehension reads better.
    */
   @Test
+  @DisplayName("Exercise 7: map5 builds an Address from five Rights")
   void exercise7_combiningFiveValues() {
     record Address(String street, String city, String state, String zip, String country) {}
 
@@ -208,18 +231,17 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, String> state = Either.right("IL");
     Either<String, String> zip = Either.right("62701");
     Either<String, String> country = Either.right("USA");
+    EitherMonad<String> app = EitherMonad.instance();
 
-    // SOLUTION: Use EitherMonad typeclass to access map5
-    EitherMonad<String> applicative = EitherMonad.instance();
     Either<String, Address> result =
         EITHER.narrow(
-            applicative.map5(
+            app.map5(
                 EITHER.widen(street),
                 EITHER.widen(city),
                 EITHER.widen(state),
                 EITHER.widen(zip),
                 EITHER.widen(country),
-                (s, c, st, z, co) -> new Address(s, c, st, z, co)));
+                Address::new));
 
     assertThat(result.isRight()).isTrue();
     Address address = result.getRight();
@@ -228,14 +250,39 @@ public class Tutorial03_ApplicativeCombining_Solution {
     assertThat(address.country()).isEqualTo("USA");
   }
 
+  // ─── Diagnostic ────────────────────────────────────────────────────────────
+
   /**
-   * Congratulations! You've completed Tutorial 03: Applicative Combining
+   * Why this is idiomatic: {@code Pair::new} as the combiner; same widen/narrow pattern. The same
+   * call works whether the inputs are Valid or Invalid — the typeclass picks the right semantics.
    *
-   * <p>You now understand: ✓ How to lift values into context with 'of' ✓ How to combine independent
-   * values with map2/map3/map4/map5 ✓ That Applicative operations don't depend on previous results
-   * ✓ How to validate forms with multiple fields ✓ The difference between Either (fail-fast) and
-   * Validated (accumulate errors)
+   * <p>Alternative: write the diagnostic as nested {@code flatMap} on Validated to see that the
+   * Monad instance does <em>not</em> accumulate. Useful exercise for the Advanced journey.
    *
-   * <p>Next: Tutorial 04 - Monad Chaining
+   * <p>Common wrong attempt: assuming {@code Validated.flatMap} would also accumulate. It does not
+   * — Monad is sequential by definition (the second step depends on the first), and "depends on"
+   * precludes "ran independently then combined errors". When we want accumulation, use the
+   * Applicative form.
    */
+  @Test
+  @DisplayName("Diagnostic: prefer Applicative when inputs are independent")
+  void diagnostic_applicativeVsMonad() {
+    record Pair(String name, int age) {}
+
+    Validated<String, String> nameOk = Validated.valid("Alice");
+    Validated<String, Integer> ageOk = Validated.valid(30);
+    Validated<String, Integer> ageBad = Validated.invalid("Age must be positive");
+
+    Semigroup<String> stringSemigroup = Semigroups.string(", ");
+    ValidatedMonad<String> app = ValidatedMonad.instance(stringSemigroup);
+
+    Validated<String, Pair> bothValid =
+        VALIDATED.narrow(app.map2(VALIDATED.widen(nameOk), VALIDATED.widen(ageOk), Pair::new));
+    assertThat(bothValid.isValid()).isTrue();
+    assertThat(bothValid.get().name()).isEqualTo("Alice");
+
+    Validated<String, Pair> oneInvalid =
+        VALIDATED.narrow(app.map2(VALIDATED.widen(nameOk), VALIDATED.widen(ageBad), Pair::new));
+    assertThat(oneInvalid.isInvalid()).isTrue();
+  }
 }

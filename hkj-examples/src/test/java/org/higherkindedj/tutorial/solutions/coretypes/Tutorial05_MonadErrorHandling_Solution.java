@@ -14,24 +14,38 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: Error Handling Patterns
+ * Solution for Tutorial05 MonadErrorHandling — teaching-solution format.
  *
- * <p>Learn how to handle errors gracefully using Either's fold() method and Try's recovery methods.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Key Concepts: - fold: pattern match on Either to handle both error and success cases -
- * Try.recover: recover from exceptions with a default value - MonadError typeclass: raiseError for
- * creating error values
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <p>Types covered: - Either<E, A>: explicit error type E - Try<A>: error is Throwable
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial05_MonadErrorHandling_Solution {
 
   /**
-   * Exercise 1: Raising errors
+   * Why this is idiomatic: {@code monad.raiseError(e)} produces a {@code Kind} that carries the
+   * error in the typeclass's error channel — same shape as a successful {@code of(value)}, just the
+   * failing branch. Code that only sees {@code Kind} can chain it without ever knowing it holds a
+   * Left.
    *
-   * <p>raiseError creates an error value in the error channel.
+   * <p>Alternative: build an {@code Either.left(...)} directly and {@code EITHER.widen} it. Same
+   * runtime value; loses the polymorphism — switching to {@code Validated} or {@code Try} later
+   * means rewriting every site, while {@code raiseError} is the same call against any {@code
+   * MonadError}.
    *
-   * <p>Task: Use the MonadError instance to raise an error
+   * <p>Common wrong attempt: calling {@code monad.of("Invalid input")}. {@code of} is the
+   * <em>success</em> constructor; the result is {@code Right("Invalid input")}, which the test for
+   * {@code isLeft()} catches immediately.
    */
   @Test
   void exercise1_raisingErrors() {
@@ -46,11 +60,17 @@ public class Tutorial05_MonadErrorHandling_Solution {
   }
 
   /**
-   * Exercise 2: Handling errors with fold
+   * Why this is idiomatic: {@code fold(onError, onValue)} forces both sides at the type level — the
+   * compiler will not let us forget the failure branch. Each handler returns the same target type,
+   * so the combined result is unambiguous.
    *
-   * <p>fold() allows you to pattern match on Either, providing different logic for Left and Right.
+   * <p>Alternative: {@code failed.getOrElse(0)}. Shorter for "recover with a constant", but
+   * silently throws away the error; reach for {@code fold} as soon as the recovery depends on the
+   * error value or you want to log it.
    *
-   * <p>Task: Recover from a parse error using fold
+   * <p>Common wrong attempt: {@code failed.getRight()} guarded by an {@code if (failed.isRight())}.
+   * That works at the call site but spreads the branching across two statements; {@code fold} makes
+   * the total handling a single expression.
    */
   @Test
   void exercise2_handleErrorWith() {
@@ -72,11 +92,16 @@ public class Tutorial05_MonadErrorHandling_Solution {
   }
 
   /**
-   * Exercise 3: Recovering with a plain value using fold
+   * Why this is idiomatic: ignoring the error binding ({@code err -> -1}) is honest about the
+   * intent — "any failure becomes the sentinel". The reader sees one constant on the failure branch
+   * and {@code identity} on the success branch.
    *
-   * <p>fold() can be used to recover from an error by providing a default value.
+   * <p>Alternative: {@code error.getOrElse(-1)}. Equivalent for this exact case; prefer it when the
+   * recovery is a pure constant and there is nothing to learn from the error value.
    *
-   * <p>Task: Provide a default value for errors
+   * <p>Common wrong attempt: defaulting to {@code null} ({@code err -> null}). The signature still
+   * type-checks, but the {@code Integer} unboxing at the call site will NPE — pick a real sentinel
+   * or change the return type to {@code Optional<Integer>}.
    */
   @Test
   void exercise3_recoverWithValue() {
@@ -89,11 +114,17 @@ public class Tutorial05_MonadErrorHandling_Solution {
   }
 
   /**
-   * Exercise 4: Conditional error recovery
+   * Why this is idiomatic: the error branch is a real function of the error value; pattern-style
+   * branching ({@code if/else} on the tag) lives inside that function, where it can grow without
+   * polluting the success path.
    *
-   * <p>You can inspect the error and decide whether to recover or not using fold.
+   * <p>Alternative: a {@code switch} expression on the error enum/string returning the recovery
+   * value. Cleaner once there are more than two cases; the {@code if} chain shown is the smallest
+   * step from the previous exercise.
    *
-   * <p>Task: Recover only from specific errors
+   * <p>Common wrong attempt: throwing on the unrecognised error to "promote" it. That converts a
+   * typed error back into an exception — exactly the pain {@code Either} was introduced to avoid.
+   * Return a sentinel or re-raise into a wider error type instead.
    */
   @Test
   void exercise4_conditionalRecovery() {
@@ -115,11 +146,18 @@ public class Tutorial05_MonadErrorHandling_Solution {
   }
 
   /**
-   * Exercise 5: Error handling in a chain
+   * Why this is idiomatic: each {@code flatMap} short-circuits on Left, so neither the parser nor
+   * the validator needs to know about the other. The single {@code fold} at the end is the only
+   * place that knows what "failure" means for the whole pipeline.
    *
-   * <p>Errors can occur at any point in a chain of operations. Use fold at the end to recover.
+   * <p>Alternative: {@code fold} after each step, threading a {@code Result} through. Works, but
+   * pushes the recovery decision up into every stage and makes adding a new step a multi-line
+   * change instead of a one-line {@code .flatMap(...)}.
    *
-   * <p>Task: Handle errors in the middle of a computation chain
+   * <p>Common wrong attempt: {@code .map(parse)} instead of {@code .flatMap(parse)}. {@code parse}
+   * already returns {@code Either<String, Integer>}, so {@code map} produces {@code Either<String,
+   * Either<String, Integer>>} — the chain compiles but the inner failure is invisible to the outer
+   * fold.
    */
   @Test
   void exercise5_errorHandlingInChain() {
@@ -144,11 +182,16 @@ public class Tutorial05_MonadErrorHandling_Solution {
   }
 
   /**
-   * Exercise 6: Fallback values with fold
+   * Why this is idiomatic: the failure branch returns the fallback {@code Either} as-is and the
+   * success branch re-wraps the value with {@code Either.right} — the result is a single {@code
+   * Either<E, A>} the caller can keep chaining against.
    *
-   * <p>Use fold to provide a fallback Either if the primary one fails.
+   * <p>Alternative: in libraries that ship one, {@code primary.orElse(fallback)} reads as exactly
+   * the intent. Where it is missing, this {@code fold} spelling is the canonical reconstruction.
    *
-   * <p>Task: Provide a fallback using fold
+   * <p>Common wrong attempt: returning {@code value} from the success branch rather than {@code
+   * Either.right(value)}. The lambdas would now have different result types, so the call fails to
+   * type-check; both branches must agree on the return type.
    */
   @Test
   void exercise6_orElseFallback() {
@@ -163,11 +206,17 @@ public class Tutorial05_MonadErrorHandling_Solution {
   }
 
   /**
-   * Exercise 7: Try for exception handling
+   * Why this is idiomatic: {@code Try.of(supplier)} captures any thrown {@link Throwable} as a
+   * {@code Failure}, and {@code recover(fn)} turns that failure back into a {@code Success} — the
+   * exception never leaks into the calling code.
    *
-   * <p>Try is like Either but specifically for catching exceptions.
+   * <p>Alternative: {@code try { ... } catch (Exception e) { return -1; }} around the call site.
+   * Same outcome locally; loses the value-as-data shape, so combinators like {@code map} and {@code
+   * flatMap} cannot be reused on the result.
    *
-   * <p>Task: Use Try to safely perform a risky operation
+   * <p>Common wrong attempt: {@code Try.of(riskyDivision.apply(0))} (no lambda). That evaluates the
+   * call eagerly — the exception is thrown <em>before</em> {@code Try.of} ever sees it. {@code
+   * Try.of} expects a {@code Supplier}, so always pass {@code () -> ...}.
    */
   @Test
   void exercise7_tryForExceptions() throws Throwable {

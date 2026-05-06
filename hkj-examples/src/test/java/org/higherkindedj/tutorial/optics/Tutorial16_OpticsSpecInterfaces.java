@@ -19,10 +19,24 @@ import org.jooq.Record;
 import org.jooq.Result;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 16: Optics Spec Interfaces - Defining Optics for External Types
+ * Tutorial 16: Optics Spec Interfaces — defining optics for external types.
+ *
+ * <p>Pain → Promise. We do not own every record we want to navigate. Jackson POJOs, jOOQ records,
+ * JSON objects all live outside our codebase; we cannot decorate them with {@code @GenerateLenses}.
+ * Hand-rolling lenses for each external type is the kind of boilerplate that defeats the value of
+ * optics.
+ *
+ * <p>Optics spec interfaces solve this: declare an interface describing the optics we want for an
+ * external type, the annotation processor generates the implementation. Jackson POJOs and jOOQ
+ * records are the canonical use case, but the same trick works for any third-party type.
+ *
+ * <p>Original notes:
+ *
+ * <p>Tutorial 16: Optics Spec Interfaces - Defining Optics for External Types
  *
  * <p>When you need optics for types you don't own (third-party libraries, JDK types, etc.), you
  * cannot annotate them directly with @GenerateLenses or @GeneratePrisms. Spec interfaces solve this
@@ -241,8 +255,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * withMonth(), etc. This is common in the java.time package.
    *
    * <p>Task: Use the generated lenses to manipulate LocalDate
+   *
+   * <pre>
+   *   // Strategy: lens to get the year
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: wither pattern")
   void exercise1_witherPattern() {
     LocalDate date = LocalDate.of(2024, 6, 15);
 
@@ -269,8 +288,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * <p>Lenses support modify() to transform values using a function.
    *
    * <p>Task: Use modify to increment/transform date components
+   *
+   * <pre>
+   *   // Strategy: a modified date that increments year by 1
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Modify with wither Lens")
   void exercise2_modifyWithWitherLens() {
     LocalDate date = LocalDate.of(2024, 6, 15);
 
@@ -293,8 +317,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * common in Lombok, AutoValue, Immutables, and similar libraries.
    *
    * <p>Task: Use the generated lenses to manipulate CustomerRecord
+   *
+   * <pre>
+   *   // Strategy: lens to get the name
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Via builder pattern")
   void exercise3_viaBuilderPattern() {
     CustomerRecord customer =
         CustomerRecord.builder()
@@ -321,8 +350,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * Exercise 4: Modifying values with @ViaBuilder lenses
    *
    * <p>Task: Use modify to transform CustomerRecord fields
+   *
+   * <pre>
+   *   // Strategy: a customer with 20% increased credit limit
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: Modify with builder Lens")
   void exercise4_modifyWithBuilderLens() {
     CustomerRecord customer =
         CustomerRecord.builder()
@@ -351,8 +385,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * (isX()/asX() methods) instead of sealed type hierarchies. This is common in JSON libraries.
    *
    * <p>Task: Use prisms to safely extract typed values
+   *
+   * <pre>
+   *   // Strategy: Optional.empty() with prism extraction of text
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: matchWhen Prisms")
   void exercise5_matchWhenPrisms() {
     JsonValue textValue = new JsonString("hello");
     JsonValue numberValue = new JsonNumber(42.0);
@@ -381,8 +420,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * <p>Prisms safely handle type mismatches by returning Optional.empty().
    *
    * <p>Task: Verify prism safety with mismatched types
+   *
+   * <pre>
+   *   // Strategy: Optional.of(0.0) with prism attempt to extract number from text
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: Prism type safety")
   void exercise6_prismTypeSafety() {
     JsonValue textValue = new JsonString("hello");
 
@@ -405,8 +449,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * <p>Optics generated from spec interfaces compose just like any other optics.
    *
    * <p>Task: Compose lenses to perform complex updates
+   *
+   * <pre>
+   *   // Strategy: composed updates to create New Year's Day next year
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: compose Spec optics")
   void exercise7_composingSpecOptics() {
     LocalDate date = LocalDate.of(2024, 6, 15);
 
@@ -443,8 +492,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * <p>Prisms can construct values as well as extract them using build() or reverseGet().
    *
    * <p>Task: Use prisms to construct typed values
+   *
+   * <pre>
+   *   // Strategy: prism to build a JsonString from "world"
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: build with Prisms")
   void exercise8_buildingWithPrisms() {
     // TODO: Replace null with prism to build a JsonString from "world"
     // Hint: JsonValueOptics.text().build("world")
@@ -465,8 +519,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * you can use standard traversals directly!
    *
    * <p>Task: Understand how JOOQ types integrate with optics
+   *
+   * <pre>
+   *   // Strategy: Check with instanceof
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: jOOQ Result integration")
   void exercise9_jooqResultIntegration() {
     // JOOQ's Result<R> implements List<R>
     // This means you can use Traversals.list() directly - no spec interface needed!
@@ -507,8 +566,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * </ul>
    *
    * <p>Task: Use the eachItem() traversal to extract data from an order
+   *
+   * <pre>
+   *   // Strategy: traversal to get all product names
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 10: throughField Basics")
   void exercise10_throughFieldBasics() {
     OrderRecord order =
         OrderRecord.builder()
@@ -553,8 +617,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * <p>Traversals support modify() to transform all targeted elements.
    *
    * <p>Task: Use traversals to bulk-update order items
+   *
+   * <pre>
+   *   // Strategy: an order where all product names are uppercased
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 11: throughField Modify")
   void exercise11_throughFieldModify() {
     OrderRecord order =
         OrderRecord.builder()
@@ -615,8 +684,13 @@ public class Tutorial16_OpticsSpecInterfaces {
    * <p>@ThroughField traversals compose naturally with lenses, prisms, and other traversals.
    *
    * <p>Task: Build complex transformations by composing optics
+   *
+   * <pre>
+   *   // Strategy: order date set to 2025
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 12: throughField composition")
   void exercise12_throughFieldComposition() {
     OrderRecord order =
         OrderRecord.builder()

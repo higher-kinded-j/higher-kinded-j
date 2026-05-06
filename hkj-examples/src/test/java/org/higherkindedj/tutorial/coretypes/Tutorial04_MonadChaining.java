@@ -9,42 +9,97 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Monad - Chaining Dependent Computations
+ * Tutorial 04: Monad — chaining dependent computations.
  *
- * <p>A Monad extends Applicative and provides flatMap (also called bind or >>=), which allows you
- * to chain computations where each step depends on the result of the previous step.
+ * <p>Pain → Promise. When step N+1 needs the result of step N, imperative Java threads results
+ * through if/null/exception ladders:
  *
- * <p>Key Concepts: - flatMap: chains dependent computations - Each step can decide what to do based
- * on previous results - Automatically handles the context (no manual unwrapping needed) -
- * flatMap2/flatMap3: combine multiple dependent values
+ * <pre>
+ *   String raw = request.getParameter("count");
+ *   if (raw == null) return Response.badRequest("missing count");
+ *   int count;
+ *   try { count = Integer.parseInt(raw); } catch (NumberFormatException e) {
+ *     return Response.badRequest("not a number");
+ *   }
+ *   if (count &lt;= 0) return Response.badRequest("must be positive");
+ *   double per = 100.0 / count;
+ *   return Response.ok("each share is " + per);
+ * </pre>
  *
- * <p>Difference from Applicative: - Applicative: combines INDEPENDENT values (all inputs known
- * upfront) - Monad: chains DEPENDENT computations (next step depends on previous result)
+ * <p>{@link org.higherkindedj.hkt.Monad Monad} captures the same shape with a single combinator,
+ * {@code flatMap}. Each step returns an {@code F<B>}; {@code flatMap} chains them together and
+ * short-circuits on the first failure, so the call site has no early returns and no try/catch:
+ *
+ * <pre>
+ *   parse(raw)
+ *     .flatMap(this::validatePositive)
+ *     .flatMap(this::divideHundredBy)
+ *     .map(per -&gt; "each share is " + per);
+ * </pre>
+ *
+ * <p>Java idiom anchor.
+ *
+ * <ul>
+ *   <li>{@link java.util.Optional#flatMap} is the {@code Optional} version of this exact capability
+ *       — chain steps that may return {@code Optional.empty()}.
+ *   <li>{@link java.util.concurrent.CompletableFuture#thenCompose} is the future version — chain
+ *       steps that produce another {@code CompletableFuture}.
+ *   <li>The Java 21+ {@code Result<T>} pattern people roll by hand in their own codebases is trying
+ *       to recreate {@link Either} + {@code flatMap}.
+ * </ul>
+ *
+ * <p>What we will do here:
+ *
+ * <ol>
+ *   <li>Use {@link Either#flatMap} for a single dependent step.
+ *   <li>Chain three dependent steps and observe the natural top-to-bottom reading order.
+ *   <li>See that an error at any step short-circuits the rest of the chain.
+ *   <li>Practise the {@code map} vs {@code flatMap} decision (the diagnostic from Tutorial 02).
+ *   <li>Repeat the pattern for {@link Maybe} (a different container, same shape).
+ *   <li>Use {@code flatMap} on {@link List} to compute a Cartesian product.
+ *   <li>Combine two dependent lookups using nested {@code flatMap} (one row of the Cartesian).
+ * </ol>
+ *
+ * <p>For the typeclass deep-dive see <a
+ * href="../../../../../../../../../hkj-book/src/functional/monad.md">Monad</a> in the Foundations
+ * chapter.
  */
+@DisplayName("Tutorial 04: Monad Chaining")
 public class Tutorial04_MonadChaining {
 
-  /** Helper method for incomplete exercises that throws a clear exception. */
+  /** Helper for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
     throw new RuntimeException("Answer required");
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 1: A single flatMap
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 1: Basic flatMap
+   * Exercise 1: Basic {@code flatMap} on {@link Either}.
    *
-   * <p>flatMap is like map, but the function you provide returns a wrapped value (Either, Maybe,
-   * etc.) instead of a plain value.
+   * <p>{@code flatMap} is "{@code map}, then flatten". The function we pass returns a wrapped
+   * value, and {@code flatMap} unwraps it so we don't get nested {@code Either<E, Either<E, A>>}.
    *
-   * <p>Task: Chain a parse operation with a validation
+   * <pre>
+   *   // Nudge:    parse() returns an Either; flatMap is the right tool when the function returns
+   *   //           a wrapped value.
+   *   // Strategy: input.flatMap(parse).
+   *   // Spoiler:  input.flatMap(parse)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: flatMap unwraps the inner Either")
   void exercise1_basicFlatMap() {
-    // Simulates parsing a string to an integer
     Function<String, Either<String, Integer>> parse =
         s -> {
           try {
@@ -56,22 +111,30 @@ public class Tutorial04_MonadChaining {
 
     Either<String, String> input = Either.right("42");
 
-    // TODO: Replace null with code that uses flatMap to parse the string
-    // Hint: input.flatMap(parse)
     Either<String, Integer> result = answerRequired();
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(42);
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 2: Three steps in one chain
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 2: Chaining dependent operations
+   * Exercise 2: Chaining dependent steps.
    *
-   * <p>The power of flatMap: each step can depend on the result of the previous step.
+   * <p>Each step receives the result of the previous one and decides what happens next. The chain
+   * reads top-to-bottom in the order the data flows.
    *
-   * <p>Task: Parse a string, then validate it's positive, then divide 100 by it
+   * <pre>
+   *   // Nudge:    Three steps -&gt; three flatMap calls.
+   *   // Strategy: input.flatMap(parse).flatMap(validatePositive).flatMap(divideHundredBy).
+   *   // Spoiler:  input.flatMap(parse).flatMap(validatePositive).flatMap(divideHundredBy)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: chain parse → validate → divide")
   void exercise2_chainingDependentOperations() {
     Function<String, Either<String, Integer>> parse =
         s -> {
@@ -90,22 +153,34 @@ public class Tutorial04_MonadChaining {
 
     Either<String, String> input = Either.right("5");
 
-    // TODO: Replace null with chained flatMap operations
-    // Hint: input.flatMap(parse).flatMap(validatePositive).flatMap(divideHundredBy)
     Either<String, Double> result = answerRequired();
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(20.0);
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 3: Short-circuit on first error
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 3: Early termination on error
+   * Exercise 3: Early termination.
    *
-   * <p>If any step in the chain returns Left/Nothing/etc., the rest of the chain is skipped.
+   * <p>If any step in the chain returns {@code Left} (or {@code Nothing}, or any other "failure"
+   * shape), every subsequent step is skipped. The function we pass to {@code flatMap} is never
+   * invoked. This is the same control flow as {@code if (e.isError()) return e;} in the imperative
+   * version, but it is automatic.
    *
-   * <p>Task: Observe that the chain stops at the first error
+   * <p>This exercise is partly pre-filled to show the chain shape.
+   *
+   * <pre>
+   *   // Nudge:    Same chain as exercise 2; the input is invalid so validation fails.
+   *   // Strategy: input.flatMap(parse).flatMap(validatePositive).
+   *   // Spoiler:  already filled in below.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: chain short-circuits at first error")
   void exercise3_earlyTermination() {
     Function<String, Either<String, Integer>> parse =
         s -> {
@@ -119,46 +194,68 @@ public class Tutorial04_MonadChaining {
     Function<Integer, Either<String, Integer>> validatePositive =
         n -> n > 0 ? Either.right(n) : Either.left("Must be positive");
 
-    Either<String, String> input = Either.right("-5"); // Will fail validation
+    Either<String, String> input = Either.right("-5"); // will fail validation
 
-    // TODO: Replace null with chained operations
-    // The chain will stop at validatePositive because -5 is not positive
     Either<String, Integer> result = input.flatMap(parse).flatMap(validatePositive);
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Must be positive");
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 4: map vs flatMap — the canonical decision
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 4: flatMap vs map
+   * Exercise 4: The {@code map} vs {@code flatMap} decision.
    *
-   * <p>When should you use flatMap vs map? - Use map when your function returns a plain value - Use
-   * flatMap when your function returns a wrapped value (Either, Maybe, etc.)
+   * <p>Rule of thumb:
    *
-   * <p>Task: Fix the compilation error by using the right method
+   * <ul>
+   *   <li>If the function returns a plain value, use {@code map}.
+   *   <li>If the function returns a wrapped value, use {@code flatMap}.
+   * </ul>
+   *
+   * <p>The {@code validate} function below returns {@code Either<String, Integer>}, so the right
+   * call is {@code flatMap}.
+   *
+   * <pre>
+   *   // Nudge:    validate returns Either, so we want flatMap (otherwise the result is nested).
+   *   // Strategy: value.flatMap(validate).
+   *   // Spoiler:  value.flatMap(validate)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: pick flatMap when the function returns Either")
   void exercise4_flatMapVsMap() {
     Function<Integer, Either<String, Integer>> validate =
         n -> n > 0 ? Either.right(n * 2) : Either.left("Must be positive");
 
     Either<String, Integer> value = Either.right(5);
 
-    // This function returns Either, so we need flatMap, not map
-    // TODO: Replace null with the correct method (flatMap)
-    Either<String, Integer> result = value.flatMap(validate);
+    Either<String, Integer> result = answerRequired();
 
     assertThat(result.getRight()).isEqualTo(10);
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 5: Same shape on Maybe
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 5: flatMap with Maybe
+   * Exercise 5: {@code flatMap} on {@link Maybe}.
    *
-   * <p>Maybe works the same way - flatMap chains operations that might return Nothing.
+   * <p>The Monad capability is uniform across containers. {@code Maybe.flatMap} chains operations
+   * that may return {@code Nothing}; the chain short-circuits the first time we hit absence.
    *
-   * <p>Task: Look up a user, then look up their email
+   * <pre>
+   *   // Nudge:    Two flatMap calls: lookup then read field.
+   *   // Strategy: userId.flatMap(findUser).flatMap(User::email).
+   *   // Spoiler:  userId.flatMap(findUser).flatMap(User::email)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: flatMap on Maybe")
   void exercise5_flatMapWithMaybe() {
     record User(String id, String name, Maybe<String> email) {}
 
@@ -173,72 +270,124 @@ public class Tutorial04_MonadChaining {
 
     Maybe<String> userId = Maybe.just("user1");
 
-    // TODO: Replace null with code that:
-    // 1. Finds the user by ID (flatMap with findUser)
-    // 2. Gets their email (flatMap with user -> user.email())
     Maybe<String> email = answerRequired();
 
     assertThat(email.isJust()).isTrue();
     assertThat(email.get()).isEqualTo("alice@example.com");
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 6: List flatMap = Cartesian product
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 6: flatMap with List (Cartesian product)
+   * Exercise 6: {@code flatMap} on {@link List}.
    *
-   * <p>flatMap on List creates a Cartesian product - it applies the function to each element and
-   * flattens the results.
+   * <p>For lists, {@code flatMap} produces a Cartesian-like product: for each element of the outer
+   * list, run a function that produces an inner list, and concatenate. This is the same shape as
+   * {@code Stream.flatMap}.
    *
-   * <p>Task: Generate all pairs of numbers using ListMonad
+   * <pre>
+   *   // Nudge:    The outer flatMap iterates numbers1; the inner map iterates numbers2.
+   *   // Strategy: monad.flatMap(n1 -&gt; monad.map(n2 -&gt; n1 + "-" + n2, LIST.widen(numbers2)),
+   *   //                         numbers1)
+   *   // Spoiler:  see the solution.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: ListMonad.flatMap is a Cartesian product")
   void exercise6_flatMapWithList() {
     ListMonad monad = ListMonad.INSTANCE;
     Kind<ListKind.Witness, Integer> numbers1 = LIST.widen(List.of(1, 2));
     List<Integer> numbers2 = List.of(10, 20);
 
-    // TODO: Replace null with code that creates all pairs using flatMap and map
-    // Hint: monad.flatMap(n1 -> monad.map(n2 -> n1 + "-" + n2, LIST.widen(numbers2)), numbers1)
     Kind<ListKind.Witness, String> pairs = answerRequired();
 
     assertThat(LIST.narrow(pairs)).containsExactly("1-10", "1-20", "2-10", "2-20");
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Exercise 7: Combining two dependent lookups
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Exercise 7: flatMap2 for combining dependent values
+   * Exercise 7: Two dependent lookups, combined.
    *
-   * <p>flatMap2 is like map2, but for dependent computations.
+   * <p>Once we have the user id, the age and city lookups are independent of each other but both
+   * depend on the id. The outer step is monadic (depends on id); the inner combination is
+   * Applicative ({@code map2}).
    *
-   * <p>Task: Combine two database lookups
+   * <pre>
+   *   // Nudge:    Inside the outer flatMap, age and city are independent — use map2.
+   *   // Strategy: app.map2(EITHER.widen(age), EITHER.widen(city),
+   *   //                    (a, c) -&gt; "Age: " + a + ", City: " + c)
+   *   // Spoiler:  EITHER.narrow(...)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: monadic outer step, applicative inner combination")
   void exercise7_flatMap2() {
     Function<String, Either<String, Integer>> getUserAge = id -> Either.right(30);
     Function<String, Either<String, String>> getUserCity = id -> Either.right("New York");
+    EitherMonad<String> app = EitherMonad.instance();
 
     Either<String, String> userId = Either.right("user1");
 
-    // TODO: Replace null with code that uses flatMap to get both age and city
-    // Then combine them into a description string
     Either<String, String> result =
         userId.flatMap(
             id -> {
               Either<String, Integer> age = getUserAge.apply(id);
               Either<String, String> city = getUserCity.apply(id);
-              // Use map2 to combine age and city
               return answerRequired();
             });
 
     assertThat(result.getRight()).isEqualTo("Age: 30, City: New York");
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Diagnostic: Things People Get Wrong
+  // ═════════════════════════════════════════════════════════════════════════
+
   /**
-   * Congratulations! You've completed Tutorial 04: Monad Chaining
+   * Diagnostic: don't use {@code flatMap} when the steps are independent.
    *
-   * <p>You now understand: ✓ How to use flatMap to chain dependent computations ✓ The difference
-   * between map (plain values) and flatMap (wrapped values) ✓ That flatMap short-circuits on errors
-   * ✓ How flatMap works with different types (Either, Maybe, List) ✓ How to combine dependent
-   * values with flatMap2
+   * <p>{@code flatMap} expresses dependency. If the steps do not actually depend on each other,
+   * using {@code flatMap} forces a sequential mental model and (in the fail-fast case) loses any
+   * possibility of accumulating errors or running steps concurrently.
    *
-   * <p>Next: Tutorial 05 - Monad Error Handling
+   * <p>Below, two field validations are each independent of the other; combining them with nested
+   * {@code flatMap} works, but {@code map2} on the {@code EitherMonad} typeclass instance says the
+   * same thing more directly. (And on {@link org.higherkindedj.hkt.validated.Validated}, only the
+   * Applicative form accumulates errors — the Monad form does not.)
+   *
+   * <p>Task: write the body using {@code app.map2} on {@code EitherMonad.instance()}.
+   *
+   * <pre>
+   *   // Nudge:    Same shape as Tutorial 03 exercise 2, here applied to a Pair.
+   *   // Strategy: EITHER.narrow(app.map2(EITHER.widen(name), EITHER.widen(age), Pair::new))
+   *   // Spoiler:  see the solution file.
+   * </pre>
+   */
+  @Test
+  @DisplayName("Diagnostic: prefer Applicative when steps are independent")
+  void diagnostic_avoidUnnecessaryFlatMap() {
+    record Pair(String name, int age) {}
+    Either<String, String> name = Either.right("Alice");
+    Either<String, Integer> age = Either.right(30);
+    EitherMonad<String> app = EitherMonad.instance();
+
+    Either<String, Pair> result = answerRequired();
+
+    assertThat(result.isRight()).isTrue();
+    assertThat(result.getRight().name()).isEqualTo("Alice");
+    assertThat(result.getRight().age()).isEqualTo(30);
+  }
+
+  /*
+   * Where to next?
+   *   • Tutorial 05 — MonadError. Once we can chain dependent steps, the next question is how to
+   *     model and recover from typed errors.
+   *   • Foundations chapter — Monad. Includes the "monad as programmable semicolon" framing and
+   *     the comparison with Optional.flatMap and CompletableFuture.thenCompose.
    */
 }

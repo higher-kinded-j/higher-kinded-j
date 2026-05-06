@@ -11,13 +11,25 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Prisms;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 10: Advanced Prism Patterns
+ * Tutorial 10: Advanced Prism Patterns.
  *
- * <p>This tutorial covers advanced prism techniques including predicate-based matching, exclusion
- * filtering, and cross-optic composition patterns.
+ * <p>Pain → Promise. Once we have a basic prism per sum-type variant we want to filter on
+ * predicates ("only orders with quantity > 0"), exclude ("everything that is not Cancelled"), and
+ * compose lenses across the focused part of a variant. Hand-rolled, that is a maze of {@code
+ * instanceof} + boolean logic per call site.
+ *
+ * <pre>
+ *   // We want: every PaidOrder where amount &gt; threshold, mark as VIP.
+ *   // Imperative: instanceof PaidOrder, getter chains, copy-construct, repeat.
+ * </pre>
+ *
+ * <p>This tutorial introduces the building blocks that make those queries declarative: {@code
+ * nearly} (predicate matching), {@code doesNotMatch} (exclusion), and the composition rules (Lens +
+ * Prism = Traversal; Prism + Lens = Traversal).
  *
  * <p>Key Concepts:
  *
@@ -89,9 +101,14 @@ public class Tutorial10_AdvancedPrismPatterns {
    * <p>The {@code nearly} prism matches values that satisfy a predicate. Unlike {@code only} which
    * matches exact values, {@code nearly} matches categories of values.
    *
-   * <p>Task: Create a prism that matches non-empty strings
+   * <pre>
+   *   // Nudge:    Prisms.nearly(default, predicate); the predicate matches non-empty strings.
+   *   // Strategy: Prisms.nearly("default", s -&gt; !s.isEmpty())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Prisms.nearly for predicate-based prisms")
   void exercise1_nearlyForNonEmptyStrings() {
     // TODO: Create a nearly prism that matches non-empty strings
     // Hint: Prisms.nearly(defaultValue, predicate)
@@ -108,11 +125,17 @@ public class Tutorial10_AdvancedPrismPatterns {
   }
 
   /**
-   * Exercise 2: Using nearly for numeric validation
+   * Exercise 2: nearly for numeric validation.
    *
-   * <p>Task: Create a prism that matches positive integers and use it to filter a list
+   * <pre>
+   *   // Nudge:    Default 1, predicate n &gt; 0; then filter through matches.
+   *   // Strategy: Prisms.nearly(1, n -&gt; n &gt; 0)
+   *   //           numbers.stream().filter(positivePrism::matches).toList()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Prisms.nearly for positive integers")
   void exercise2_nearlyForPositiveNumbers() {
     // TODO: Create a nearly prism that matches positive integers (> 0)
     // Use 1 as the default value
@@ -128,11 +151,16 @@ public class Tutorial10_AdvancedPrismPatterns {
   }
 
   /**
-   * Exercise 3: Comparing only vs nearly
+   * Exercise 3: only vs nearly.
    *
-   * <p>Task: Understand the difference between exact matching and predicate matching
+   * <pre>
+   *   // Nudge:    nearly takes a predicate; here we want startsWith("hello").
+   *   // Strategy: Prisms.nearly("hello", s -&gt; s.startsWith("hello"))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: only matches exact values; nearly matches by predicate")
   void exercise3_onlyVsNearly() {
     // 'only' matches exact values
     Prism<String, Unit> exactHelloPrism = Prisms.only("hello");
@@ -157,14 +185,16 @@ public class Tutorial10_AdvancedPrismPatterns {
   // =========================================================================
 
   /**
-   * Exercise 4: Using doesNotMatch for exclusion
+   * Exercise 4: doesNotMatch for exclusion.
    *
-   * <p>The {@code doesNotMatch} method is the logical negation of {@code matches}. It's useful for
-   * filtering out values that match a prism.
-   *
-   * <p>Task: Filter API responses to get only error responses (not Success)
+   * <pre>
+   *   // Nudge:    Stream filter through prism::doesNotMatch.
+   *   // Strategy: responses.stream().filter(successPrism::doesNotMatch).toList()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: doesNotMatch filters out the focused variant")
   void exercise4_doesNotMatchFiltering() {
     Prism<ApiResponse, Success> successPrism = ApiResponsePrisms.success();
 
@@ -185,11 +215,17 @@ public class Tutorial10_AdvancedPrismPatterns {
   }
 
   /**
-   * Exercise 5: Combining matches and doesNotMatch
+   * Exercise 5: matches + doesNotMatch to partition a list.
    *
-   * <p>Task: Partition responses into successes and errors
+   * <pre>
+   *   // Nudge:    Two filters, one with matches, one with doesNotMatch.
+   *   // Strategy: responses.stream().filter(successPrism::matches).toList()
+   *   //           responses.stream().filter(successPrism::doesNotMatch).toList()
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: partition via matches + doesNotMatch")
   void exercise5_partitioningWithPrisms() {
     Prism<ApiResponse, Success> successPrism = ApiResponsePrisms.success();
 
@@ -216,16 +252,17 @@ public class Tutorial10_AdvancedPrismPatterns {
   // =========================================================================
 
   /**
-   * Exercise 6: Lens then Prism composition
+   * Exercise 6: Lens andThen Prism = Traversal.
    *
-   * <p>When you compose a Lens with a Prism, you get a Traversal. This is because the Prism may not
-   * match, resulting in zero-or-one focus.
-   *
-   * <p>Pattern: Lens >>> Prism = Traversal
-   *
-   * <p>Task: Access the database settings from a Config through the Optional field
+   * <pre>
+   *   // Nudge:    databaseLens.andThen(somePrism); use Traversals.getAll to see 0..1 results.
+   *   // Strategy: databaseLens.andThen(somePrism)
+   *   //           Traversals.getAll(traversal, source)
+   *   // Spoiler:  exactly that for both placeholders.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: Lens andThen Prism produces a Traversal")
   void exercise6_lensThenPrism() {
     Lens<Config, Optional<DatabaseSettings>> databaseLens =
         Lens.of(Config::database, (config, db) -> new Config(config.name(), db));
@@ -256,16 +293,17 @@ public class Tutorial10_AdvancedPrismPatterns {
   // =========================================================================
 
   /**
-   * Exercise 7: Prism then Lens composition
+   * Exercise 7: Prism andThen Lens = Traversal.
    *
-   * <p>When you compose a Prism with a Lens, you also get a Traversal. This lets you access fields
-   * within a specific variant of a sum type.
-   *
-   * <p>Pattern: Prism >>> Lens = Traversal
-   *
-   * <p>Task: Access the ResponseData content from Success responses only
+   * <pre>
+   *   // Nudge:    successPrism.andThen(dataLens) for the Traversal; Traversals.getAll to read.
+   *   // Strategy: successPrism.andThen(dataLens)
+   *   //           Traversals.getAll(traversal, source)
+   *   // Spoiler:  exactly that for both placeholders.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: Prism andThen Lens produces a Traversal")
   void exercise7_prismThenLens() {
     Prism<ApiResponse, Success> successPrism = ApiResponsePrisms.success();
 
@@ -294,14 +332,18 @@ public class Tutorial10_AdvancedPrismPatterns {
   }
 
   /**
-   * Exercise 8: Chaining cross-optic compositions
+   * Exercise 8: Chain Prism + Lens + Lens (with asTraversal at the end).
    *
-   * <p>After getting a Traversal from Lens+Prism or Prism+Lens, you can chain further with more
-   * optics. Use {@code lens.asTraversal()} when chaining a Lens after a Traversal.
-   *
-   * <p>Task: Modify the content of Success responses to uppercase
+   * <pre>
+   *   // Nudge:    After Prism.andThen(Lens) we have a Traversal; chain another Lens via
+   *   //           .asTraversal().
+   *   // Strategy: successPrism.andThen(dataLens).andThen(contentLens.asTraversal())
+   *   //           Traversals.modify(traversal, String::toUpperCase, source)
+   *   // Spoiler:  exactly that for all three placeholders.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: chain Prism + Lens + Lens via asTraversal")
   void exercise8_chainingCompositions() {
     Prism<ApiResponse, Success> successPrism = ApiResponsePrisms.success();
 

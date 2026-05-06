@@ -20,14 +20,20 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 08: Real World Optics - Practical Applications
+ * Tutorial 08: Real-World Optics — practical applications.
  *
- * <p>In this final tutorial, we'll apply optics to solve real-world problems: 1. Updating user
- * profiles in a database 2. Processing API responses with nested structures 3. Batch operations on
- * complex data
+ * <p>Pain → Promise. The previous tutorials taught Lens, Prism, Affine, and Traversal in isolation;
+ * production code combines them. The exercises below build three realistic scenarios: a
+ * user-profile update, an API response with sum-typed branches, and a batch operation across nested
+ * collections. Each one would be 30+ lines of imperative Java with manual copy-construction; with
+ * composed optics, each fits in a few lines.
+ *
+ * <p>Java idiom anchor: think of this tutorial as the moment Streams + records + sealed interfaces
+ * stop fighting each other. The optics layer is the missing glue.
  */
 public class Tutorial08_RealWorldOptics {
 
@@ -90,13 +96,16 @@ public class Tutorial08_RealWorldOptics {
   }
 
   /**
-   * Exercise 1: User profile updates
+   * Exercise 1: Update user preferences through composed lenses.
    *
-   * <p>Manage user profile updates with nested settings and preferences.
-   *
-   * <p>Task: Build a system to update user preferences immutably
+   * <pre>
+   *   // Nudge:    Compose User -&gt; settings -&gt; theme; for notifications use a different chain.
+   *   // Strategy: build composed lenses for each nested update; .set / .modify them.
+   *   // Spoiler:  see assertions and the surrounding scaffolding for the exact field names.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: nested user preference updates")
   void exercise1_userProfileUpdates() {
     @GenerateLenses
     record NotificationPrefs(boolean email, boolean sms, boolean push) {}
@@ -213,13 +222,17 @@ public class Tutorial08_RealWorldOptics {
   }
 
   /**
-   * Exercise 2: API response processing
+   * Exercise 2: Process nested API responses with optic compositions.
    *
-   * <p>Process nested API responses and extract/transform data.
-   *
-   * <p>Task: Navigate a complex API response structure
+   * <pre>
+   *   // Nudge:    Compose the SuccessResponse2 prism with the locations Traversal,
+   *   //           then with a Lens onto Coordinates.
+   *   // Strategy: build a Traversal&lt;ApiResponse2, Coordinates2&gt; for the bulk update.
+   *   // Spoiler:  the assertions tell us the exact transformation to apply.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: API response — extract and transform via composed optics")
   void exercise2_apiResponseProcessing() {
     // Manual implementations (annotation processor would generate these)
     class CoordinatesLenses {
@@ -300,13 +313,17 @@ public class Tutorial08_RealWorldOptics {
   }
 
   /**
-   * Exercise 3: E-commerce order processing
+   * Exercise 3: E-commerce order processing.
    *
-   * <p>Handle complex order structures with line items, pricing, and status.
-   *
-   * <p>Task: Build order processing logic with optics
+   * <pre>
+   *   // Nudge:    Compose Order traversal over items with line-item lenses; use prisms
+   *   //           on OrderStatus3 to act on specific status variants.
+   *   // Strategy: read the assertions; each one points at a single composed optic to build.
+   *   // Spoiler:  the matching solution file shows the full chain.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: order processing — line items, pricing, status")
   void exercise3_ecommerceOrderProcessing() {
     @GenerateLenses
     record LineItem(String productId, String name, int quantity, double price) {}
@@ -405,13 +422,17 @@ public class Tutorial08_RealWorldOptics {
   }
 
   /**
-   * Exercise 4: Data validation and transformation
+   * Exercise 4: Validation + transformation pipeline.
    *
-   * <p>Validate and transform data structures while preserving immutability.
-   *
-   * <p>Task: Clean and normalize customer data
+   * <pre>
+   *   // Nudge:    Lens.modify with String::trim / toLowerCase normalizes each field;
+   *   //           a Prism guards a sum-type variant; compose them to clean every record.
+   *   // Strategy: walk the assertions to derive the exact optic chain.
+   *   // Spoiler:  the solution file shows the full pipeline.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: validate then transform records")
   void exercise4_dataValidationAndTransformation() {
     @GenerateLenses
     record Address(String street, String city, String state, String zip) {}
@@ -527,13 +548,17 @@ public class Tutorial08_RealWorldOptics {
   }
 
   /**
-   * Exercise 5: Configuration management
+   * Exercise 5: Configuration with environment overrides.
    *
-   * <p>Manage application configuration with environment-specific overrides.
-   *
-   * <p>Task: Build a configuration system with optics
+   * <pre>
+   *   // Nudge:    Use lens composition for nested config; for environment overrides reach
+   *   //           for affines or filtered traversals (Lens + Prism = Affine).
+   *   // Strategy: walk each assertion; build one composed optic per scenario.
+   *   // Spoiler:  the solution file shows the full pipeline.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: nested configuration with overrides")
   void exercise5_configurationManagement() {
     @GenerateLenses
     record DatabaseConfig(String host, int port, String username, boolean ssl) {}
@@ -638,13 +663,17 @@ public class Tutorial08_RealWorldOptics {
   }
 
   /**
-   * Exercise 6: Event processing pipeline
+   * Exercise 6: Event processing pipeline (variant filtering + extraction).
    *
-   * <p>Process events with different types and extract metrics.
-   *
-   * <p>Task: Build an event processing system
+   * <pre>
+   *   // Nudge:    Use prisms over the Event6 sealed interface to filter by event type, then
+   *   //           a lens onto the metric of interest; getAll for aggregation.
+   *   // Strategy: build one composed optic per metric; gather via Traversals.getAll.
+   *   // Spoiler:  the solution file shows the full chain.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: event processing — prism filtering + metric extraction")
   void exercise6_eventProcessingPipeline() {
     @GenerateTraversals
     record EventStream(List<Event6> events) {}

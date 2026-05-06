@@ -13,21 +13,38 @@ import org.higherkindedj.hkt.reader.Reader;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 07: Real World Applications
+ * Solution for Tutorial07 RealWorld — teaching-solution format.
  *
- * <p>In this final tutorial, we'll apply everything you've learned to solve real-world problems.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>You'll build: 1. A complete validation pipeline 2. A data processing workflow 3. A
- * configuration-based application with Reader
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial07_RealWorld_Solution {
 
   /**
-   * Exercise 1: Building a validation pipeline
+   * Why this is idiomatic: nested {@code flatMap} chains thread the validated values into the final
+   * {@code Registration} constructor — each {@code flatMap} is "given the previous good value, run
+   * the next check". The first {@code Left} short-circuits the rest.
    *
-   * <p>Real applications need to validate user input thoroughly.
+   * <p>Alternative: use {@code Validated} + a {@code Semigroup} (Tutorial 06 Exercise 5) to collect
+   * every error at once. Pick that when the user wants the full report; pick this fail-fast {@code
+   * Either} chain when the next check would not run anyway (e.g. once the username is invalid the
+   * rest is moot).
    *
-   * <p>Task: Build a registration validator that checks multiple fields
+   * <p>Common wrong attempt: assembling the {@code Registration} with raw record arguments before
+   * validating, then validating the whole record. That works but the constructor now accepts inputs
+   * the system never wants to allow — push validation to the boundary where the inputs first
+   * arrive.
    */
   @Test
   void exercise1_validationPipeline() {
@@ -93,11 +110,18 @@ public class Tutorial07_RealWorld_Solution {
   }
 
   /**
-   * Exercise 2: Data processing pipeline
+   * Why this is idiomatic: each record is processed independently into an {@code Either}, then a
+   * single stream pass keeps the right-handed values. Per-record failure does not abort the batch —
+   * exactly the semantics a data-processing job usually wants.
    *
-   * <p>Process a stream of data with transformations and error handling.
+   * <p>Alternative: a {@code Validated}-based aggregation that returns every parse failure
+   * alongside the successes. Use it when failures need surfacing rather than being dropped, e.g.
+   * when the caller wants a "rejected rows" report.
    *
-   * <p>Task: Parse, validate, and transform a list of user records
+   * <p>Common wrong attempt: a {@code try/catch} inside the stream that returns {@code null} for
+   * failed parses, then a {@code .filter(Objects::nonNull)}. The pipeline still works, but every
+   * downstream call has to remember the implicit {@code null} contract; a typed {@code Either}
+   * makes the failure mode visible in the signature.
    */
   @Test
   void exercise2_dataProcessingPipeline() {
@@ -149,12 +173,18 @@ public class Tutorial07_RealWorld_Solution {
   }
 
   /**
-   * Exercise 3: Reader for dependency injection
+   * Why this is idiomatic: {@code Reader.<Config>ask().map(...)} captures "I will need the config
+   * later" without naming a config parameter on every helper. {@code flatMap} chains the
+   * environment through the next step — the {@code Config} only appears once, at the call to {@code
+   * run}.
    *
-   * <p>Reader allows you to thread configuration through your application without passing it
-   * manually to every function.
+   * <p>Alternative: pass the {@code Config} explicitly through every method signature. Honest and
+   * obvious for short call chains; gets noisy once five functions all need three different fields.
+   * {@code Reader} is the right tool when the environment is wide and shared.
    *
-   * <p>Task: Build a configuration-based greeting service
+   * <p>Common wrong attempt: store the config in a static or {@code ThreadLocal}. It works locally
+   * but turns "what does this function depend on?" into a global hunt — the {@code Reader<Config,
+   * A>} return type states the dependency in the signature.
    */
   @Test
   void exercise3_readerForDependencyInjection() {
@@ -186,12 +216,17 @@ public class Tutorial07_RealWorld_Solution {
   }
 
   /**
-   * Exercise 4: Combining multiple effects
+   * Why this is idiomatic: lift the {@code Maybe} into an {@code Either} at the boundary, then
+   * chain validation with {@code flatMap}. The seam — "missing user" — picks up its error string at
+   * the conversion site, and the rest of the pipeline only deals with one effect.
    *
-   * <p>Real applications often need to combine different effects - Maybe + Either, List + Either,
-   * etc.
+   * <p>Alternative: stack monad transformers (e.g. {@code MaybeT<EitherKind, ...>}) to keep both
+   * effects nested without lifting. More powerful for deep stacks; here, a single conversion is the
+   * smaller hammer.
    *
-   * <p>Task: Look up users and validate their data
+   * <p>Common wrong attempt: keep the {@code Maybe} and call {@code maybe.flatMap(validateUser)},
+   * which fails to compile because {@code validateUser} returns {@code Either} not {@code Maybe}.
+   * The fix is to choose one effect for the pipeline and lift the other to it.
    */
   @Test
   void exercise4_combiningEffects() {
@@ -235,11 +270,17 @@ public class Tutorial07_RealWorld_Solution {
   }
 
   /**
-   * Exercise 5: Batch operations with error handling
+   * Why this is idiomatic: keep the {@code Either<E, A>} per item and partition at the end — one
+   * stream pass for the successes, one for the failures. Both lists end up materialised exactly
+   * once, with no shared mutable state.
    *
-   * <p>Process multiple items and handle individual failures gracefully.
+   * <p>Alternative: {@code Collectors.partitioningBy(Either::isRight)} into a {@code Map<Boolean,
+   * List<Either<...>>>}. Single pass, but the result still holds {@code Either} on each side and
+   * the caller has to map each list back to plain values.
    *
-   * <p>Task: Process a batch of operations and partition successes from failures
+   * <p>Common wrong attempt: a single {@code reduce} that mutates two {@code ArrayList}s. Works for
+   * sequential streams; breaks under {@code .parallelStream()} where the accumulator is called
+   * concurrently. The two-pass partition shown here is parallel-safe.
    */
   @Test
   void exercise5_batchOperations() {
@@ -275,11 +316,19 @@ public class Tutorial07_RealWorld_Solution {
   }
 
   /**
-   * Exercise 6: Building a mini workflow
+   * Why this is idiomatic: validate first (fail-fast on a bad order), then map the validated order
+   * through the {@code Config}-aware pricer. Validation owns "is this allowed?", processing owns
+   * "given it is allowed, what does it cost?", and the {@code map} keeps the order short-circuiting
+   * on failure.
    *
-   * <p>Combine everything: validation, transformation, error handling, and dependency injection.
+   * <p>Alternative: {@code Reader<Config, Function<RawOrder, Either<String, ProcessedOrder>>>} —
+   * let the {@code Reader} layer thread the config and have validation and processing share the
+   * same environment. Cleaner once the workflow grows several config-dependent steps.
    *
-   * <p>Task: Build an order processing workflow
+   * <p>Common wrong attempt: capture the {@code config} inside the validator's closure so it can
+   * read tax rates "for early rejection". Now validation depends on config and tests have to
+   * construct a config to exercise validation rules — keep validation pure of business config when
+   * you can.
    */
   @Test
   void exercise6_miniWorkflow() {

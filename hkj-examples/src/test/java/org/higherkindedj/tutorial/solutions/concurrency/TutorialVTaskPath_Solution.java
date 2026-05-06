@@ -16,9 +16,26 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial: VTaskPath Effect API
+ * Solutions for Tutorial: VTaskPath Effect API.
  *
- * <p>This file contains complete solutions for all VTaskPath tutorial exercises.
+ * <p>This solution file follows the chapter's teaching-solution conventions established by the
+ * Foundations journey: read the working code first, then the commentary on why it is the idiomatic
+ * choice. The working bodies below are unchanged from the original; future passes will add
+ * per-exercise <em>Why this is idiomatic / Alternative / Common wrong attempt</em> notes in the
+ * same shape as {@code Tutorial01_KindBasics_Solution} and {@code
+ * Tutorial01_EffectPathBasics_Solution}.
+ *
+ * <p>Pattern reminders that apply to every exercise here:
+ *
+ * <ul>
+ *   <li>{@code Path.vtask(callable)} for deferred work; {@code Path.vtaskPure(value)} for immediate
+ *       values; {@code Path.vtaskFail(throwable)} for immediate failure.
+ *   <li>{@code via} for dependent steps; {@code map} when the function returns a plain value.
+ *   <li>{@code timeout(Duration)} + {@code handleError} / {@code handleErrorWith} is the
+ *       production-safe shape for any external-service call.
+ *   <li>{@code Par.map2} / {@code Par.map3} for independent parallel work; let {@code handleError}
+ *       catch the failure of any one task and decide on a fallback.
+ * </ul>
  */
 @DisplayName("Solutions: VTaskPath Effect API")
 public class TutorialVTaskPath_Solution {
@@ -31,6 +48,16 @@ public class TutorialVTaskPath_Solution {
   @DisplayName("Part 1: Creating VTaskPaths")
   class CreatingVTaskPaths {
 
+    /**
+     * Why this is idiomatic: {@code Path.vtask(callable)} wraps a deferred computation in the path
+     * layer. The body runs when the path is executed via {@code runSafe} or {@code run}.
+     *
+     * <p>Alternative: {@code VTask.of(...)} for the underlying task. The path- first form composes
+     * with the rest of the {@code VTaskPath} vocabulary.
+     *
+     * <p>Common wrong attempt: invoke the callable eagerly. The point of {@code Path.vtask} is
+     * deferral; pass the lambda, not its result.
+     */
     @Test
     @DisplayName("Exercise 1: Create a VTaskPath with Path.vtask()")
     void exercise1_createVTaskPathWithVtask() {
@@ -44,6 +71,16 @@ public class TutorialVTaskPath_Solution {
       assertThat(result.orElse(-1)).isEqualTo(17);
     }
 
+    /**
+     * Why this is idiomatic: {@code Path.vtaskPure(value)} and {@code Path.vtaskFail(throwable)}
+     * are the success/failure constructors. No lambda — just a value or an exception.
+     *
+     * <p>Alternative: {@code Path.vtask(() -> value)} or {@code Path.vtask(() -> { throw ...; })}.
+     * Same outcome; the named constructors signal the intent.
+     *
+     * <p>Common wrong attempt: use {@code Path.vtask} when {@code vtaskPure} suffices. The lambda
+     * is unnecessary indirection for static values.
+     */
     @Test
     @DisplayName("Exercise 2: Create pure and failing VTaskPaths")
     void exercise2_pureAndFailingPaths() {
@@ -70,6 +107,16 @@ public class TutorialVTaskPath_Solution {
   @DisplayName("Part 2: Fluent Composition")
   class FluentComposition {
 
+    /**
+     * Why this is idiomatic: {@code via(fn)} threads the result of one path into the next. Parse
+     * the string, then double the integer — two named steps.
+     *
+     * <p>Alternative: a single {@code map} for one transform. {@code via} is the right fit when
+     * each step is itself a path.
+     *
+     * <p>Common wrong attempt: chain {@code map} when the next step returns a {@code VTaskPath}.
+     * {@code map} would nest; use {@code via} to flatten.
+     */
     @Test
     @DisplayName("Exercise 3: Chain operations with via()")
     void exercise3_chainWithVia() {
@@ -84,6 +131,16 @@ public class TutorialVTaskPath_Solution {
       assertThat(result.orElse(-1)).isEqualTo(42);
     }
 
+    /**
+     * Why this is idiomatic: {@code peek(consumer)} runs a side effect on the value without
+     * modifying it. Useful for logging, metrics, or test assertions.
+     *
+     * <p>Alternative: {@code map(v -> { sideEffect(v); return v; })}. Equivalent; {@code peek}
+     * signals "observe-only" intent.
+     *
+     * <p>Common wrong attempt: rely on peek to short-circuit on certain values. Peek only observes;
+     * use {@code via} or {@code handleError} for control flow.
+     */
     @Test
     @DisplayName("Exercise 4: Debug with peek()")
     void exercise4_debugWithPeek() {
@@ -111,6 +168,16 @@ public class TutorialVTaskPath_Solution {
   @DisplayName("Part 3: Error Handling and Timeouts")
   class ErrorHandlingAndTimeouts {
 
+    /**
+     * Why this is idiomatic: {@code timeout(duration)} aborts a slow task with an exception; {@code
+     * handleError} substitutes a fallback value. Pair them for deadline-aware recovery.
+     *
+     * <p>Alternative: catch {@code TimeoutException} in a wrapper. Same outcome; the path operators
+     * stay declarative.
+     *
+     * <p>Common wrong attempt: pick a timeout shorter than the slowest acceptable task. The
+     * fallback fires inappropriately; tune the timeout.
+     */
     @Test
     @DisplayName("Exercise 5: Add timeout with recovery")
     void exercise5_timeoutWithRecovery() {
@@ -130,6 +197,15 @@ public class TutorialVTaskPath_Solution {
       assertThat(result.orElse("error")).isEqualTo("timeout fallback");
     }
 
+    /**
+     * Why this is idiomatic: {@code handleErrorWith} chains an alternative path (which may itself
+     * fail); {@code handleError} provides a final value. The pair forms a tiered fallback.
+     *
+     * <p>Alternative: nested try/catch. Equivalent; the path version reads as a pipeline.
+     *
+     * <p>Common wrong attempt: assume {@code handleErrorWith} catches every exception. It catches
+     * whatever the underlying path throws; tighten with a specific predicate if needed.
+     */
     @Test
     @DisplayName("Exercise 6: Build fallback chain")
     void exercise6_fallbackChain() {
@@ -170,6 +246,16 @@ public class TutorialVTaskPath_Solution {
 
     record UserProfile(String name, int orderCount, String status) {}
 
+    /**
+     * Why this is idiomatic: {@code Par.map3(t1, t2, t3, ctor)} runs three tasks in parallel and
+     * combines their results. Wrap in a {@code VTaskPath} to add timeout/recovery operators.
+     *
+     * <p>Alternative: chain {@code via} sequentially. Triples the wall-clock time; parallel
+     * composition is the win for independent fetches.
+     *
+     * <p>Common wrong attempt: build the profile from sequentially-fetched values. Sequential
+     * ordering is unnecessary when the fetches do not depend on each other.
+     */
     @Test
     @DisplayName("Exercise 7: Parallel service aggregation")
     void exercise7_parallelAggregation() {
@@ -208,6 +294,17 @@ public class TutorialVTaskPath_Solution {
       assertThat(user.status()).isEqualTo("active");
     }
 
+    /**
+     * Why this is idiomatic: parallel fetches + timeout + fallback. {@code Par.map2} runs the two
+     * fetches concurrently; {@code timeout} bounds total time; {@code handleError} provides an
+     * empty dashboard when anything fails.
+     *
+     * <p>Alternative: sequential fetches with manual timeout tracking. Brittle; the operator stack
+     * provides the same semantics declaratively.
+     *
+     * <p>Common wrong attempt: skip the timeout. A slow backend hangs the endpoint; always bound
+     * external calls.
+     */
     @Test
     @DisplayName("Exercise 8: Resilient dashboard loader")
     void exercise8_resilientDashboard() {
@@ -248,6 +345,42 @@ public class TutorialVTaskPath_Solution {
   }
 
   // ===========================================================================
+  // Diagnostic: timeout cancels the underlying VTask, not just the result
+  // ===========================================================================
+
+  /**
+   * Why this is idiomatic: {@code timeout(duration).handleError(...)} aborts the underlying VTask
+   * when the deadline expires. The counter never reaches its expected total — proof that the
+   * remaining iterations were cancelled, not merely abandoned by the caller.
+   *
+   * <p>Alternative: race the task against a delay and ignore the slower result. Same observable
+   * behaviour at the boundary; loses the cancellation — the task continues consuming resources
+   * until it finishes.
+   *
+   * <p>Common wrong attempt: assume the task carries on after the timeout and the counter still
+   * reaches 5. The cooperative cancellation interrupts the sleep and the loop exits early.
+   */
+  @Test
+  @DisplayName("Diagnostic: timeout cancels the underlying VTask, not just the result")
+  void diagnostic_timeoutCancelsTheTask() {
+    AtomicInteger counter = new AtomicInteger(0);
+    VTaskPath<Integer> work =
+        Path.vtask(
+            () -> {
+              for (int i = 0; i < 5; i++) {
+                Thread.sleep(50);
+                counter.incrementAndGet();
+              }
+              return counter.get();
+            });
+
+    Integer result = work.timeout(Duration.ofMillis(100)).handleError(e -> -1).run().run();
+
+    assertThat(result).isEqualTo(-1);
+    assertThat(counter.get()).isLessThan(5);
+  }
+
+  // ===========================================================================
   // Bonus: Type Conversions
   // ===========================================================================
 
@@ -255,6 +388,17 @@ public class TutorialVTaskPath_Solution {
   @DisplayName("Bonus: Type Conversions")
   class TypeConversions {
 
+    /**
+     * Why this is idiomatic: {@code Path.vtaskPath(vtask)} lifts a VTask into the path layer;
+     * {@code path.run()} extracts the VTask back out. The two forms coexist for different use
+     * cases.
+     *
+     * <p>Alternative: stay in one layer. Convert at the boundary when the next stage demands the
+     * other shape.
+     *
+     * <p>Common wrong attempt: convert repeatedly. Each conversion is cheap but pointless; pick a
+     * layer per pipeline.
+     */
     @Test
     @DisplayName("Converting between VTask and VTaskPath")
     void conversionExample() {

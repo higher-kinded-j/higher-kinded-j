@@ -11,132 +11,104 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.either.Either;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tutorial 01: Effect Path Basics - The Primary API for Higher-Kinded-J
- *
- * <p>Effect Paths are the recommended way to work with functional effects in Higher-Kinded-J. They
- * wrap effect types (Maybe, Either, Try, IO) in a fluent, composable API that handles the
- * complexity of higher-kinded types for you.
- *
- * <p>Key Concepts:
- *
- * <ul>
- *   <li>Effect Paths wrap effect types in a fluent API
- *   <li>The {@code Path} class provides factory methods for creating paths
- *   <li>{@code map} transforms values; {@code via} chains dependent computations
- *   <li>Error recovery with {@code recover}, {@code recoverWith}, {@code orElse}
- *   <li>{@code zipWith} combines independent computations
- * </ul>
- *
- * <p>See the documentation: Effect Path Overview in hkj-book
- *
- * <p>Replace each placeholder with the correct code to make the tests pass.
- */
+/** Solution for Tutorial 01: Effect Path Basics — teaching-solution format. */
+@DisplayName("Tutorial 01 Solution: Effect Path Basics")
 public class Tutorial01_EffectPathBasics_Solution {
 
-  /** Helper method for incomplete exercises that throws a clear exception. */
+  /** Helper for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
     throw new RuntimeException("Answer required");
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Part 1: Creating Paths
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Exercise 1 ────────────────────────────────────────────────────────────
 
   /**
-   * Exercise 1: Creating MaybePath
+   * Why this is idiomatic: each factory expresses a single intent. {@code Path.just} = "we know the
+   * value"; {@code Path.nothing} = "no value, by design"; {@code Path.maybe} = "we have a nullable,
+   * do the right thing".
    *
-   * <p>MaybePath represents computations that might not have a value. It wraps the Maybe type,
-   * providing Just (present) or Nothing (absent) states.
+   * <p>Alternative: {@code Path.maybe(value)} works for the present case too, since non-null inputs
+   * become Just. {@code Path.just} is preferred when we already know the value is non-null — it
+   * documents intent and avoids the runtime null check.
    *
-   * <p>Task: Create MaybePath values using Path factory methods
+   * <p>Common wrong attempt: building a {@code Maybe} first and then wrapping with {@code
+   * Path.maybe(maybe)}. Works, but adds a layer that the dedicated factory removes.
    */
   @Test
+  @DisplayName("Exercise 1: build MaybePath with just / nothing / maybe")
   void exercise1_creatingMaybePath() {
-    // Path.just wraps a present value
-    // SOLUTION: Use Path.just() to create a present MaybePath
     MaybePath<String> present = Path.just("hello");
-
     assertThat(present.run().isJust()).isTrue();
     assertThat(present.getOrElse("default")).isEqualTo("hello");
 
-    // Path.nothing represents absence
-    // SOLUTION: Use Path.nothing() to create an absent MaybePath
     MaybePath<String> absent = Path.nothing();
-
     assertThat(absent.run().isNothing()).isTrue();
     assertThat(absent.getOrElse("default")).isEqualTo("default");
 
-    // Path.maybe wraps a nullable value (null becomes Nothing)
     String nullable = null;
-    // SOLUTION: Use Path.maybe() to wrap a nullable value
     MaybePath<String> fromNullable = Path.maybe(nullable);
-
     assertThat(fromNullable.run().isNothing()).isTrue();
 
-    // Non-null values become Just
     MaybePath<String> fromNonNull = Path.maybe("world");
     assertThat(fromNonNull.run().isJust()).isTrue();
   }
 
+  // ─── Exercise 2 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 2: Creating EitherPath
+   * Why this is idiomatic: {@code Path.right} / {@code Path.left} mirror {@code Either.right} /
+   * {@code Either.left} — same names, same shape, lifted into the Path API.
    *
-   * <p>EitherPath represents computations that can fail with a typed error. Left holds the error,
-   * Right holds the success value. This is the workhorse for error handling.
+   * <p>Alternative: {@code Path.either(Either.right(42))} works but is roundabout when we are
+   * starting from a literal value.
    *
-   * <p>Task: Create EitherPath values for success and failure cases
+   * <p>Common wrong attempt: type-witness syntax like {@code Path.<String, Integer>right(42)}
+   * everywhere. Inference usually does the right thing; only reach for explicit witnesses when the
+   * compiler complains.
    */
   @Test
+  @DisplayName("Exercise 2: build EitherPath with right / left / either")
   void exercise2_creatingEitherPath() {
-    // Path.right for success
-    // SOLUTION: Use Path.right() to create a success EitherPath
     EitherPath<String, Integer> success = Path.right(42);
-
     assertThat(success.run().isRight()).isTrue();
     assertThat(success.run().getRight()).isEqualTo(42);
 
-    // Path.left for failure
-    // SOLUTION: Use Path.left() to create a failure EitherPath
     EitherPath<String, Integer> failure = Path.left("Invalid input");
-
     assertThat(failure.run().isLeft()).isTrue();
     assertThat(failure.run().getLeft()).isEqualTo("Invalid input");
 
-    // Path.either wraps an existing Either value
     Either<String, Integer> either = Either.right(100);
-    // SOLUTION: Use Path.either() to wrap an existing Either
     EitherPath<String, Integer> fromEither = Path.either(either);
-
     assertThat(fromEither.run().getRight()).isEqualTo(100);
   }
 
+  // ─── Exercise 3 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 3: TryPath and IOPath
+   * Why this is idiomatic: {@code Path.tryOf} captures the throw and the success in one type;
+   * {@code Path.io} defers the side effect, so we can build pipelines without running them.
    *
-   * <p>TryPath handles exception-throwing code safely, wrapping the result in Success or Failure.
-   * IOPath wraps side-effecting computations that are deferred until explicitly run.
+   * <p>Alternative: pre-build a {@code Try} or {@code IO} and lift it. Same effect; the dedicated
+   * factory is one line shorter and reads better.
    *
-   * <p>Task: Use TryPath for exception handling and IOPath for deferred effects
+   * <p>Common wrong attempt: calling {@code Path.io(...).unsafeRun()} eagerly inside the pipeline.
+   * Defeats the purpose of IO — we lose the ability to compose, retry, or observe the effect before
+   * running it. Reach for {@code unsafeRun()} only at the boundary of the program.
    */
   @Test
+  @DisplayName("Exercise 3: TryPath captures throw; IOPath defers a side effect")
   void exercise3_tryPathAndIOPath() {
-    // Path.tryOf wraps a potentially throwing computation
-    // SOLUTION: Use Path.tryOf() to safely wrap exception-throwing code
     TryPath<Integer> successTry = Path.tryOf(() -> Integer.parseInt("42"));
-
     assertThat(successTry.run().isSuccess()).isTrue();
     assertThat(successTry.getOrElse(-1)).isEqualTo(42);
 
-    // Invalid input creates a failure
     TryPath<Integer> failureTry = Path.tryOf(() -> Integer.parseInt("not a number"));
     assertThat(failureTry.run().isFailure()).isTrue();
 
-    // Path.io wraps a side-effecting computation (deferred execution)
     var counter = new int[] {0};
-    // SOLUTION: Use Path.io() to defer a side-effecting computation
     IOPath<Integer> ioPath =
         Path.io(
             () -> {
@@ -144,63 +116,60 @@ public class Tutorial01_EffectPathBasics_Solution {
               return counter[0];
             });
 
-    // IO is lazy - the counter is not incremented yet
     assertThat(counter[0]).isEqualTo(0);
 
-    // unsafeRun executes the effect
     Integer result = ioPath.unsafeRun();
     assertThat(counter[0]).isEqualTo(1);
     assertThat(result).isEqualTo(1);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Part 2: Transforming and Chaining
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Exercise 4 ────────────────────────────────────────────────────────────
 
   /**
-   * Exercise 4: Transforming with map
+   * Why this is idiomatic: {@code map} is the Functor capability spelled into the Path API. Same
+   * shape as {@link java.util.Optional#map} or {@link java.util.stream.Stream#map} — transform the
+   * inside, leave the structure alone.
    *
-   * <p>All Effect Paths support {@code map}, which transforms the success value while preserving
-   * the effect structure. Errors pass through unchanged.
+   * <p>Alternative: {@code path.via(s -> Path.just(s.toUpperCase()))}. Works, but reaches for Monad
+   * when Functor would do.
    *
-   * <p>Task: Use map to transform values in different path types
+   * <p>Common wrong attempt: passing a function that returns a Path to {@code .map}. The result is
+   * nested ({@code MaybePath<MaybePath<String>>}). The diagnostic exercise covers this.
    */
   @Test
+  @DisplayName("Exercise 4: map transforms success values; errors pass through")
   void exercise4_transformingWithMap() {
-    // map transforms the value inside MaybePath
     MaybePath<String> name = Path.just("alice");
-    // SOLUTION: Use map to transform the value
     MaybePath<String> upperName = name.map(String::toUpperCase);
-
     assertThat(upperName.getOrElse("")).isEqualTo("ALICE");
 
-    // map on Nothing returns Nothing (no value to transform)
     MaybePath<String> absent = Path.<String>nothing().map(String::toUpperCase);
     assertThat(absent.run().isNothing()).isTrue();
 
-    // map on EitherPath transforms Right, passes Left through unchanged
     EitherPath<String, Integer> success = Path.right(10);
-    // SOLUTION: Use map to double the value
     EitherPath<String, Integer> doubled = success.map(n -> n * 2);
-
     assertThat(doubled.run().getRight()).isEqualTo(20);
 
-    // Left values pass through map unchanged
     EitherPath<String, Integer> failure = Path.<String, Integer>left("error").map(n -> n * 2);
     assertThat(failure.run().getLeft()).isEqualTo("error");
   }
 
+  // ─── Exercise 5 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 5: Chaining with via
+   * Why this is idiomatic: each step receives the previous result and decides what happens next.
+   * The chain reads top-to-bottom in the order data flows; failures short-circuit automatically.
    *
-   * <p>The {@code via} method (also available as {@code flatMap}) chains computations where each
-   * step depends on the result of the previous step. If any step fails, the chain short-circuits.
+   * <p>Alternative: {@code .flatMap(...)} (the same operation under a different name). {@code via}
+   * reads more naturally in Java, but the two are aliases.
    *
-   * <p>Task: Chain multiple operations using via
+   * <p>Common wrong attempt: assigning intermediate results to mutable locals and then using {@code
+   * if (intermediate.isLeft())} to bail out manually. Works; reintroduces every problem the
+   * abstraction was designed to remove.
    */
   @Test
+  @DisplayName("Exercise 5: via chains parse → validate → divide and short-circuits on failure")
   void exercise5_chainingWithVia() {
-    // Helper functions that return paths
     Function<String, EitherPath<String, Integer>> parseNumber =
         s -> {
           try {
@@ -216,17 +185,14 @@ public class Tutorial01_EffectPathBasics_Solution {
     Function<Integer, EitherPath<String, Double>> divideHundredBy =
         n -> n != 0 ? Path.right(100.0 / n) : Path.left("Division by zero");
 
-    // Chain the operations: parse -> validate -> divide
     EitherPath<String, String> input = Path.right("25");
 
-    // SOLUTION: Chain operations with via
     EitherPath<String, Double> result =
         input.via(parseNumber).via(validatePositive).via(divideHundredBy);
 
     assertThat(result.run().isRight()).isTrue();
     assertThat(result.run().getRight()).isEqualTo(4.0);
 
-    // Failure at any step short-circuits the entire chain
     EitherPath<String, String> invalidInput = Path.right("not-a-number");
     EitherPath<String, Double> failedResult =
         invalidInput.via(parseNumber).via(validatePositive).via(divideHundredBy);
@@ -235,112 +201,99 @@ public class Tutorial01_EffectPathBasics_Solution {
     assertThat(failedResult.run().getLeft()).isEqualTo("Not a number: not-a-number");
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Part 3: Error Recovery
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Exercise 6 ────────────────────────────────────────────────────────────
 
   /**
-   * Exercise 6: Error Recovery
+   * Why this is idiomatic: each operation has a single responsibility. {@code recover} swaps the
+   * error for a value; {@code recoverWith} swaps for a new computation; {@code orElse} keeps the
+   * error around but replaces the value; {@code mapError} adapts the error type without recovering.
    *
-   * <p>Effect Paths provide several ways to recover from errors:
+   * <p>Alternative: {@code path.recoverWith(err -> Path.right(default))} can stand in for {@code
+   * recover}; lighter weight when the recovery returns a constant, heavier when it does not.
    *
-   * <ul>
-   *   <li>{@code recover}: Replace error with a success value
-   *   <li>{@code recoverWith}: Replace error with another path computation
-   *   <li>{@code orElse}: Provide an alternative path when this one fails
-   *   <li>{@code mapError}: Transform the error type
-   * </ul>
-   *
-   * <p>Task: Use recovery methods to handle failures
+   * <p>Common wrong attempt: using {@code recover} to translate errors. {@code recover} produces a
+   * success; if we want to keep the error path, reach for {@code mapError} instead.
    */
   @Test
+  @DisplayName("Exercise 6: recover / recoverWith / orElse / mapError")
   void exercise6_errorRecovery() {
     EitherPath<String, Integer> failure = Path.left("Not found");
 
-    // recover: Replace error with a default value
-    // SOLUTION: Use recover to provide a fallback value
     EitherPath<String, Integer> recovered = failure.recover(err -> -1);
-
     assertThat(recovered.run().isRight()).isTrue();
     assertThat(recovered.run().getRight()).isEqualTo(-1);
 
-    // recoverWith: Replace error with another computation
-    // SOLUTION: Use recoverWith to provide a fallback path
     EitherPath<String, Integer> recoveredWith = failure.recoverWith(err -> Path.right(0));
-
     assertThat(recoveredWith.run().getRight()).isEqualTo(0);
 
-    // orElse: Provide an alternative path
     EitherPath<String, Integer> primary = Path.left("Primary failed");
     EitherPath<String, Integer> fallback = Path.right(42);
 
-    // SOLUTION: Use orElse to provide an alternative
     EitherPath<String, Integer> withFallback = primary.orElse(() -> fallback);
-
     assertThat(withFallback.run().getRight()).isEqualTo(42);
 
-    // mapError: Transform the error type
     EitherPath<String, Integer> stringError = Path.left("error");
-    // SOLUTION: Use mapError to transform the error
     EitherPath<Integer, Integer> intError = stringError.mapError(String::length);
-
     assertThat(intError.run().getLeft()).isEqualTo(5);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Part 4: Combining and Real-World Usage
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Exercise 7 ────────────────────────────────────────────────────────────
 
   /**
-   * Exercise 7: Combining Paths
+   * Why this is idiomatic: {@code zipWith} signals that the inputs do not depend on each other.
+   * That is information the type system can use (e.g. to run the inputs concurrently in a future
+   * version); using {@code via} would obscure it.
    *
-   * <p>Use {@code zipWith} to combine independent path computations. Both paths run and their
-   * results are combined with a function. If either fails, the result fails.
+   * <p>Alternative: nested {@code via} calls. Same answer for {@link MaybePath}; misleading name
+   * for inputs that do not depend on each other.
    *
-   * <p>Task: Combine multiple paths to build composite values
+   * <p>Common wrong attempt: trying to use {@code zipWith} when inputs are dependent. If we need
+   * the second input to be a function of the first, that is what {@code via} is for.
    */
   @Test
+  @DisplayName("Exercise 7: zipWith combines independent paths")
   void exercise7_combiningPaths() {
     record User(String name, int age) {}
 
     MaybePath<String> namePath = Path.just("Alice");
     MaybePath<Integer> agePath = Path.just(30);
 
-    // SOLUTION: Use zipWith to combine paths
     MaybePath<User> userPath = namePath.zipWith(agePath, User::new);
 
     User user = userPath.getOrElse(new User("unknown", 0));
     assertThat(user.name()).isEqualTo("Alice");
     assertThat(user.age()).isEqualTo(30);
 
-    // If either path is Nothing, result is Nothing
     MaybePath<String> absentName = Path.nothing();
     MaybePath<User> partialUser = absentName.zipWith(agePath, User::new);
     assertThat(partialUser.run().isNothing()).isTrue();
 
-    // EitherPath zipWith works similarly (first error wins)
     EitherPath<String, String> firstName = Path.right("Alice");
     EitherPath<String, String> lastName = Path.right("Smith");
 
-    // SOLUTION: Use zipWith to combine names
     EitherPath<String, String> fullName = firstName.zipWith(lastName, (f, l) -> f + " " + l);
-
     assertThat(fullName.run().getRight()).isEqualTo("Alice Smith");
   }
 
+  // ─── Exercise 8 ────────────────────────────────────────────────────────────
+
   /**
-   * Exercise 8: Real-World Workflow
+   * Why this is idiomatic: the workflow reads as a sequence of business steps — find, validate,
+   * extract, transform — without a single try/catch or null check. Errors short-circuit; we choose
+   * where to recover.
    *
-   * <p>Combine path creation, transformation, chaining, and error recovery in a realistic user
-   * lookup and validation scenario.
+   * <p>Alternative: split the chain across local variables when each step is heavy. Same chain,
+   * easier to debug.
    *
-   * <p>Task: Build a complete workflow using Effect Paths
+   * <p>Common wrong attempt: forgetting that {@code recover} can be applied at any point in the
+   * chain. We do not have to recover at the end; recovering earlier gives the rest of the chain a
+   * value to work with.
    */
   @Test
+  @DisplayName("Exercise 8: realistic find → validate → extract → transform workflow")
   void exercise8_realWorldWorkflow() {
     record User(String id, String name, String email) {}
 
-    // Simulated database lookup
     Function<String, EitherPath<String, User>> findUser =
         id -> {
           if (id.equals("u1")) {
@@ -351,15 +304,12 @@ public class Tutorial01_EffectPathBasics_Solution {
           return Path.left("User not found: " + id);
         };
 
-    // Validate email is present
     Function<User, EitherPath<String, User>> validateEmail =
         user ->
             user.email().isEmpty()
                 ? Path.left("Email required for user: " + user.name())
                 : Path.right(user);
 
-    // Build the workflow: find user -> validate email -> extract email -> uppercase
-    // SOLUTION: Chain all operations together
     EitherPath<String, String> workflow =
         Path.<String, String>right("u1")
             .via(findUser)
@@ -370,78 +320,49 @@ public class Tutorial01_EffectPathBasics_Solution {
     String result = workflow.run().fold(e -> "Error: " + e, email -> email);
     assertThat(result).isEqualTo("ALICE@EXAMPLE.COM");
 
-    // Test with user who has no email
     EitherPath<String, String> invalidWorkflow =
         Path.<String, String>right("u2").via(findUser).via(validateEmail).map(User::email);
-
     assertThat(invalidWorkflow.run().isLeft()).isTrue();
     assertThat(invalidWorkflow.run().getLeft()).contains("Email required");
 
-    // Test with non-existent user, with recovery
     EitherPath<String, String> recoveredWorkflow =
         Path.<String, String>right("u999")
             .via(findUser)
             .recover(err -> new User("default", "Guest", "guest@example.com"))
             .map(User::email);
-
     assertThat(recoveredWorkflow.run().getRight()).isEqualTo("guest@example.com");
   }
 
+  // ─── Diagnostic ────────────────────────────────────────────────────────────
+
   /**
-   * Congratulations! You have completed Tutorial 01: Effect Path Basics
+   * Why this is idiomatic: the function returns a Path, so {@code via} is the right call — it
+   * flattens the chain and produces a single {@code EitherPath<String, Integer>}.
    *
-   * <p>You now understand:
+   * <p>Alternative: {@code input.flatMap(parseNumber)} — exactly the same operation under the
+   * Java-style alias.
    *
-   * <ul>
-   *   <li>✓ How to create paths with Path.just, Path.nothing, Path.maybe
-   *   <li>✓ How to create paths with Path.right, Path.left, Path.either
-   *   <li>✓ How to use TryPath for exception handling and IOPath for deferred effects
-   *   <li>✓ How to transform values with map
-   *   <li>✓ How to chain dependent computations with via (flatMap)
-   *   <li>✓ How to recover from errors with recover, recoverWith, orElse, mapError
-   *   <li>✓ How to combine independent paths with zipWith
-   *   <li>✓ How to build real-world workflows combining all operations
-   * </ul>
-   *
-   * <p>Key Takeaways:
-   *
-   * <ul>
-   *   <li>Effect Paths are the primary, user-friendly API for Higher-Kinded-J
-   *   <li>Use {@code map} for simple transformations, {@code via} for dependent chains
-   *   <li>Errors short-circuit the chain; use recovery methods to handle them
-   *   <li>The Path factory class provides all creation methods
-   * </ul>
-   *
-   * <p>Next: Tutorial 02 - Effect Path Advanced (ForPath, Contexts, Annotations)
-   *
-   * <p>═══════════════════════════════════════════════════════════════════════ <b>Related Topics:
-   * Optics for Structural Navigation</b>
-   * ═══════════════════════════════════════════════════════════════════════
-   *
-   * <p>Effect Paths handle <i>effectful computations</i> (Maybe, Either, Try, IO). For
-   * <i>structural navigation</i> through nested data (records, lists, maps), see the <b>Optics</b>
-   * module:
-   *
-   * <ul>
-   *   <li><b>Focus DSL</b> ({@code FocusPath}, {@code AffinePath}, {@code TraversalPath}):
-   *       Type-safe navigation through nested records. See Tutorial 12-13.
-   *   <li><b>Each Typeclass</b> ({@code EachInstances}, {@code EachExtensions}): Canonical
-   *       traversals for containers (List, Map, Optional, Maybe, Either, etc.). Use {@code
-   *       .each(EachInstances.listEach())} for custom container traversal.
-   *   <li><b>Focus-Effect Bridge</b>: Tutorial 14 shows how to combine FocusPath with EffectPath
-   *       for powerful data manipulation workflows.
-   * </ul>
-   *
-   * <p>Example: Combining Effect Path with Optics
-   *
-   * <pre>{@code
-   * // Navigate to all order items, then validate each
-   * TraversalPath<Order, Item> itemsPath = FocusPath.of(orderItemsLens)
-   *     .each(EachInstances.listEach());
-   *
-   * // Use toEitherPath for effectful validation
-   * EitherPath<Error, Order> validated = itemsPath.toEitherPath(order)
-   *     .via(items -> validateItems(items));
-   * }</pre>
+   * <p>Common wrong attempt: {@code input.map(parseNumber)}. Returns {@code EitherPath<String,
+   * EitherPath<String, Integer>>}: still a valid type, no compile error, every downstream {@code
+   * .map} now operates on the wrong shape. Watch for this in code review.
    */
+  @Test
+  @DisplayName("Diagnostic: via for Path-returning functions, map for plain ones")
+  void diagnostic_viaVsMap() {
+    Function<String, EitherPath<String, Integer>> parseNumber =
+        s -> {
+          try {
+            return Path.right(Integer.parseInt(s));
+          } catch (NumberFormatException e) {
+            return Path.left("Not a number: " + s);
+          }
+        };
+
+    EitherPath<String, String> input = Path.right("42");
+
+    EitherPath<String, Integer> flattened = input.via(parseNumber);
+
+    assertThat(flattened.run().isRight()).isTrue();
+    assertThat(flattened.run().getRight()).isEqualTo(42);
+  }
 }

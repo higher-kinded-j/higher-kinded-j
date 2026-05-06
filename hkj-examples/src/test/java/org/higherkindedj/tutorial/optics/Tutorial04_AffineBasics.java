@@ -10,35 +10,41 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.util.Affines;
 import org.higherkindedj.optics.util.Prisms;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Affine Basics - Working with Optional Fields
+ * Tutorial 04: Affine Basics — focusing on zero-or-one elements.
  *
- * <p>An Affine is an optic that focuses on zero or one element. It combines aspects of both Lens
- * and Prism: like a Lens, it can get and set values; like a Prism, the value might not exist.
+ * <p>Pain → Promise. An {@link Optional} field inside a record needs three lines of code to update
+ * safely:
  *
- * <p>Key Concepts:
+ * <pre>
+ *   user.email().ifPresent(e -&gt; { ... });
+ *   // or
+ *   String e = user.email().orElseThrow();
+ *   user = new User(user.name(), Optional.of(e.toUpperCase())); // copy + Optional.of
+ * </pre>
  *
- * <ul>
- *   <li>getOptional: extracts the value if present, returns Optional
- *   <li>set: updates the value (always succeeds, even if original was absent)
- *   <li>modify: applies a function if the value is present
- *   <li>Lens + Prism composition: produces an Affine, not a Traversal
- * </ul>
+ * <p>An {@link Affine} captures the same shape as one composable optic:
  *
- * <p>When to use:
+ * <pre>
+ *   user = userEmailAffine.modify(String::toUpperCase, user);
+ * </pre>
  *
- * <ul>
- *   <li>Optional fields in records (Optional&lt;T&gt;)
- *   <li>Nullable properties in legacy code
- *   <li>When composing a Lens with a Prism
- *   <li>Any zero-or-one focus that isn't a sum type variant
- * </ul>
+ * <p>Decision guide:
  *
- * <p>Affine vs Prism: Both focus on zero-or-one elements, but Prism can "build" a complete
- * structure from a part (like constructing a Circle from its components). Affine cannot build; it
- * can only modify existing structures.
+ * <table>
+ *   <tr><th>Optic</th><th>Focus count</th><th>Use case</th></tr>
+ *   <tr><td>Lens</td><td>Exactly 1</td><td>Required field</td></tr>
+ *   <tr><td>Prism</td><td>0 or 1 (variant)</td><td>Sum-type case</td></tr>
+ *   <tr><td>Affine</td><td>0 or 1 (optional)</td><td>Optional field</td></tr>
+ *   <tr><td>Traversal</td><td>0 to many</td><td>Collection</td></tr>
+ * </table>
+ *
+ * <p>Affine vs Prism: both focus on zero-or-one, but Prism can {@code build} a complete structure
+ * (e.g. constructing a {@code Circle} from its components). Affine cannot build; it only modifies
+ * existing structures.
  */
 public class Tutorial04_AffineBasics {
 
@@ -58,14 +64,16 @@ public class Tutorial04_AffineBasics {
   record DatabaseConfig(String host, int port) {}
 
   /**
-   * Exercise 1: Creating an Affine with Affines.some()
+   * Exercise 1: {@code Affines.some()} for Optional fields.
    *
-   * <p>The Affines utility class provides ready-made affines for common patterns. Affines.some()
-   * focuses on the value inside an Optional.
-   *
-   * <p>Task: Use Affines.some() to extract a value from an Optional
+   * <pre>
+   *   // Nudge:    The Affine has a getOptional method that returns Optional.
+   *   // Strategy: someAffine.getOptional(present)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Affines.some() extracts the inner value of an Optional")
   void exercise1_usingSomeAffine() {
     Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -85,14 +93,16 @@ public class Tutorial04_AffineBasics {
   }
 
   /**
-   * Exercise 2: Setting values with an Affine
+   * Exercise 2: Affine.set always succeeds.
    *
-   * <p>Unlike getOptional which may return empty, set always succeeds. It updates the structure to
-   * contain the new value.
-   *
-   * <p>Task: Use set to update an Optional value
+   * <pre>
+   *   // Nudge:    set takes the new value first, then the source.
+   *   // Strategy: someAffine.set("world", empty)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Affine.set always succeeds, even on absent source")
   void exercise2_settingWithAffine() {
     Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -108,14 +118,16 @@ public class Tutorial04_AffineBasics {
   }
 
   /**
-   * Exercise 3: Composing Lens with Prism to get an Affine
+   * Exercise 3: Lens + Prism = Affine.
    *
-   * <p>When you compose a Lens (exactly one element) with a Prism (zero or one element), the result
-   * is an Affine (zero or one element). This is more precise than a Traversal.
-   *
-   * <p>Task: Create an Affine by composing a Lens with Prisms.some()
+   * <pre>
+   *   // Nudge:    andThen plumbs the prism through the lens.
+   *   // Strategy: databaseLens.andThen(somePrism)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Lens andThen Prism produces an Affine")
   void exercise3_lensAndPrismComposition() {
     // Lens to access the optional database field
     Lens<AppConfig, Optional<DatabaseConfig>> databaseLens =
@@ -143,14 +155,16 @@ public class Tutorial04_AffineBasics {
   }
 
   /**
-   * Exercise 4: Using matches() for presence checking
+   * Exercise 4: matches() for presence checking.
    *
-   * <p>The matches() method provides a convenient way to check if an Affine focuses on a value
-   * without extracting it.
-   *
-   * <p>Task: Use matches() to check if optional fields are present
+   * <pre>
+   *   // Nudge:    matches() returns true when the Affine has a focus.
+   *   // Strategy: someAffine.matches(present)
+   *   // Spoiler:  same call for both.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: Affine.matches checks presence without extracting")
   void exercise4_usingMatches() {
     Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -167,13 +181,16 @@ public class Tutorial04_AffineBasics {
   }
 
   /**
-   * Exercise 5: Using getOrElse() for default values
+   * Exercise 5: getOrElse() for default values.
    *
-   * <p>getOrElse() extracts the value if present, or returns a default value.
-   *
-   * <p>Task: Use getOrElse() to provide default values for missing data
+   * <pre>
+   *   // Nudge:    getOrElse takes the default first, then the source.
+   *   // Strategy: someAffine.getOrElse("default", present)
+   *   // Spoiler:  same call shape for the empty case too.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: Affine.getOrElse provides a default for absence")
   void exercise5_usingGetOrElse() {
     Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -191,14 +208,16 @@ public class Tutorial04_AffineBasics {
   }
 
   /**
-   * Exercise 6: Modifying values with an Affine
+   * Exercise 6: Modifying with an Affine.
    *
-   * <p>The modify() method applies a function to the focused value if present. If the value is
-   * absent, the structure is returned unchanged.
-   *
-   * <p>Task: Use modify() to transform optional values
+   * <pre>
+   *   // Nudge:    Same shape as Lens.modify; absent source -&gt; absent result.
+   *   // Strategy: someAffine.modify(String::toUpperCase, present)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: Affine.modify is a no-op when the focus is absent")
   void exercise6_modifyingWithAffine() {
     Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -219,13 +238,16 @@ public class Tutorial04_AffineBasics {
   }
 
   /**
-   * Exercise 7: Chaining Affines for deep optional access
+   * Exercise 7: Chaining Affines for deep optional access.
    *
-   * <p>Affines compose with other Affines to create paths through multiple layers of optionality.
-   *
-   * <p>Task: Create an Affine path to access a deeply nested optional field
+   * <pre>
+   *   // Nudge:    Four levels: contactLens -&gt; contactPrism -&gt; phoneLens -&gt; phonePrism.
+   *   // Strategy: contactLens.andThen(contactPrism).andThen(phoneLens).andThen(phonePrism)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: chain affines for deep optional access")
   void exercise7_chainingAffines() {
     // Lenses for the record fields
     Lens<UserProfile, Optional<ContactInfo>> contactLens =

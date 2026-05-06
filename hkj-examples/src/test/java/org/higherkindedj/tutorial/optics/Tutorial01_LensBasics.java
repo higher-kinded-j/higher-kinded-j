@@ -7,20 +7,44 @@ import static org.assertj.core.api.Assertions.within;
 
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 01: Lens Basics - Immutable Field Access
+ * Tutorial 01: Lens Basics — Immutable Field Access.
  *
- * <p>A Lens is an optic that focuses on a single field within a larger structure. It provides a
- * functional way to get and set values immutably.
+ * <p>Pain → Promise. Updating one field in an immutable record means rewriting every other field by
+ * hand:
  *
- * <p>Key Concepts: - get: extracts the value from a structure - set: creates a new structure with
- * an updated value - modify: applies a function to transform the value - Immutable: original
- * structure is never modified
+ * <pre>
+ *   Person updated = new Person(p.name(), p.age() + 1, p.email()); // copy, copy, change
+ * </pre>
  *
- * <p>Why Lenses? - Avoid verbose record copying (new Person(p.name(), p.age() + 1, p.email())) -
- * Type-safe field access - Composable (we'll see this in the next tutorial)
+ * <p>A {@link Lens} captures the get/set pair for one field as a value we can pass around, compose,
+ * and reuse:
+ *
+ * <pre>
+ *   Person updated = PersonLenses.age().modify(age -&gt; age + 1, p);
+ * </pre>
+ *
+ * <p>Java idiom anchor:
+ *
+ * <ul>
+ *   <li>{@code lens.get(s)} ↔ a getter (record accessor).
+ *   <li>{@code lens.set(a, s)} ↔ a {@code with*} method on a builder, but type-safe and composable.
+ *   <li>{@code lens.modify(fn, s)} ↔ {@code source.toBuilder().field(fn(source.field())).build()}
+ *       except as a single first-class operation.
+ *   <li>{@link GenerateLenses} ↔ Lombok's {@code @Wither}/Builder, but generates an actual {@code
+ *       Lens} value rather than methods.
+ * </ul>
+ *
+ * <p>Key concepts:
+ *
+ * <ul>
+ *   <li>{@code get} extracts a value; {@code set} returns a new structure; {@code modify} applies a
+ *       function. The original is never mutated.
+ *   <li>Lenses compose with {@code andThen} into deeper paths (Tutorial 02).
+ * </ul>
  */
 public class Tutorial01_LensBasics {
 
@@ -77,35 +101,43 @@ public class Tutorial01_LensBasics {
       Lens.of(Person::age, (person, newAge) -> new Person(person.name(), newAge, person.email()));
 
   /**
-   * Exercise 1: Getting a value with a Lens
+   * Exercise 1: Getting a value with a Lens.
    *
-   * <p>The get method extracts a field value from a structure.
+   * <p>The {@code get} method extracts a field value from a structure.
    *
-   * <p>Task: Use a lens to get the name from a person
+   * <pre>
+   *   // Nudge:    A Lens has a get method that takes a source and returns the focused value.
+   *   // Strategy: nameLens.get(person)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: lens.get extracts the focused field")
   void exercise1_gettingValue() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace null with code that uses nameLens.get() to extract the name
     String name = answerRequired();
 
     assertThat(name).isEqualTo("Alice");
   }
 
   /**
-   * Exercise 2: Setting a value with a Lens
+   * Exercise 2: Setting a value with a Lens.
    *
-   * <p>The set method creates a NEW structure with the field updated. The original is unchanged.
+   * <p>The {@code set} method creates a NEW structure with the field updated; the original is
+   * untouched.
    *
-   * <p>Task: Use a lens to update the name
+   * <pre>
+   *   // Nudge:    set takes the new value first, then the source.
+   *   // Strategy: nameLens.set("Bob", person)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: lens.set returns a new structure; original is untouched")
   void exercise2_settingValue() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace null with code that uses nameLens.set() to change the name to "Bob"
-    // Hint: nameLens.set("Bob", person)
     Person updated = answerRequired();
 
     assertThat(updated.name()).isEqualTo("Bob");
@@ -114,18 +146,21 @@ public class Tutorial01_LensBasics {
   }
 
   /**
-   * Exercise 3: Modifying a value with a Lens
+   * Exercise 3: Modifying a value with a Lens.
    *
-   * <p>The modify method applies a function to transform the value.
+   * <p>{@code modify} applies a function to transform the focused value.
    *
-   * <p>Task: Use a lens to increment the age by 1
+   * <pre>
+   *   // Nudge:    modify takes the function first, then the source.
+   *   // Strategy: ageLens.modify(age -&gt; age + 1, person)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: lens.modify applies a function to the focused field")
   void exercise3_modifyingValue() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace null with code that uses ageLens.modify() to increment the age
-    // Hint: ageLens.modify(age -> age + 1, person)
     Person updated = answerRequired();
 
     assertThat(updated.age()).isEqualTo(31);
@@ -133,20 +168,21 @@ public class Tutorial01_LensBasics {
   }
 
   /**
-   * Exercise 4: Chaining multiple updates
+   * Exercise 4: Chaining multiple updates.
    *
-   * <p>You can chain multiple lens operations to update multiple fields.
+   * <p>Apply one lens operation then feed the result into the next; each returns a fresh structure.
    *
-   * <p>Task: Update both name and age
+   * <pre>
+   *   // Nudge:    Two updates -&gt; two lens calls in sequence.
+   *   // Strategy: ageLens.modify(a -&gt; a + 5, nameLens.set("Bob", person))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: chain multiple lens updates")
   void exercise4_chainingUpdates() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace null with code that:
-    // 1. Updates the name to "Bob"
-    // 2. Then increments the age by 5
-    // Hint: Chain two lens operations - nameLens.set(...) then ageLens.modify(...)
     Person updated = answerRequired();
 
     assertThat(updated.name()).isEqualTo("Bob");
@@ -154,46 +190,52 @@ public class Tutorial01_LensBasics {
   }
 
   /**
-   * Exercise 5: Using generated lenses
+   * Exercise 5: Using generated lenses.
    *
-   * <p>The @GenerateLenses annotation automatically creates lens instances for record fields.
+   * <p>The {@link GenerateLenses} annotation creates a companion class with one lens per field. In
+   * real projects we always reach for the generated form.
    *
-   * <p>Task: Use generated lenses to access and modify fields
+   * <pre>
+   *   // Nudge:    The processor generates ProductLenses.name() / .price() / .id().
+   *   // Strategy: ProductLenses.name().get(product)
+   *   //           ProductLenses.price().modify(p -&gt; p * 1.1, product)
+   *   // Spoiler:  see hint above.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: generated lenses via @GenerateLenses")
   void exercise5_generatedLenses() {
     @GenerateLenses
     record Product(String id, String name, double price) {}
 
     Product product = new Product("PROD-001", "Laptop", 999.99);
 
-    // TODO: Replace null with code that uses the generated ProductLenses.name() lens
-    // to get the product name
     String name = answerRequired();
 
     assertThat(name).isEqualTo("Laptop");
 
-    // TODO: Replace null with code that uses ProductLenses.price() lens
-    // to increase the price by 10%
-    // Hint: ProductLenses.price().modify(p -> p * 1.1, product)
     Product updated = answerRequired();
 
     assertThat(updated.price()).isCloseTo(1099.989, within(0.01));
   }
 
   /**
-   * Exercise 6: Creating a custom lens
+   * Exercise 6: Creating a custom lens.
    *
-   * <p>You can create your own lenses manually using Lens.of()
+   * <p>Manual lenses are rare in production (use {@code @GenerateLenses}) but useful for unusual
+   * cases — derived fields, third-party records the processor cannot reach.
    *
-   * <p>Task: Create a lens for the email field
+   * <pre>
+   *   // Nudge:    Lens.of takes a getter and a (source, newValue) -&gt; newSource setter.
+   *   // Strategy: Lens.of(Person::email, (p, e) -&gt; new Person(p.name(), p.age(), e))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: build a custom lens with Lens.of")
   void exercise6_customLens() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace null with code that creates a lens for the email field
-    // Hint: Lens.of(Person::email, newEmail -> person -> new Person(...))
     Lens<Person, String> emailLens = answerRequired();
 
     String email = emailLens.get(person);
@@ -204,18 +246,21 @@ public class Tutorial01_LensBasics {
   }
 
   /**
-   * Exercise 7: Using modify with method references
+   * Exercise 7: {@code modify} with method references.
    *
-   * <p>Method references work great with lens.modify()
+   * <p>Any {@code Function<A, A>} works; method references read cleanest.
    *
-   * <p>Task: Use a method reference to transform a string field
+   * <pre>
+   *   // Nudge:    String has a toUpperCase method.
+   *   // Strategy: nameLens.modify(String::toUpperCase, person)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: lens.modify with a method reference")
   void exercise7_methodReferences() {
     Person person = new Person("alice", 30, "alice@example.com");
 
-    // TODO: Replace null with code that uses nameLens.modify() with String::toUpperCase
-    // to capitalise the name
     Person updated = answerRequired();
 
     assertThat(updated.name()).isEqualTo("ALICE");

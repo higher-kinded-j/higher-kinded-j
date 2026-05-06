@@ -1,10 +1,14 @@
 # Resilience Patterns Tutorials
 
-These tutorials guide you through building fault-tolerant applications with higher-kinded-j's resilience patterns.
+These tutorials guide us through building fault-tolerant applications with higher-kinded-j's resilience patterns.
+
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+The [One Line, Six Layers](../../hkts/one_line_six_layers.md) anchor uses `Either` short-circuiting to handle a single failure cleanly. This journey covers the patterns we reach for once one failure is not the whole story: retries, timeouts, downstream-protection, multi-step compensations. Reference material lives under [Resilience Patterns](../../resilience/ch_intro.md) in the Effect chapter.
+~~~
 
 ## Prerequisites
 
-Before starting, you should be comfortable with:
+Before starting, we should be comfortable with:
 - `VTask` basics (creating, running, composing)
 - The Effect Path API (`VTaskPath`, `VStreamPath`)
 - Basic error handling (`handleError`, `recover`)

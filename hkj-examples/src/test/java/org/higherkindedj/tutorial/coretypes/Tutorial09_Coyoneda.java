@@ -14,12 +14,28 @@ import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 09: Coyoneda - The Free Functor
+ * Tutorial 09: Coyoneda — The Free Functor.
  *
- * <p>Coyoneda provides two key benefits:
+ * <p>Pain → Promise. Two separate problems, one solution:
+ *
+ * <ol>
+ *   <li>We have a type that is "almost a Functor" (it has a {@code map}-shaped operation we could
+ *       imagine but the code does not actually have a {@code Functor} instance). We need a Functor
+ *       instance to participate in generic combinators.
+ *   <li>A long chain of {@code map(f).map(g).map(h)} calls walks the structure once per call. We
+ *       want the JIT to fuse these into a single pass.
+ * </ol>
+ *
+ * <p>{@link Coyoneda} solves both. It is the "free Functor": wrap any type, get a Functor instance
+ * for free, and adjacent {@code map} calls fuse automatically. When the structure is eventually
+ * projected back to the underlying type, only one composed function is applied.
+ *
+ * <p>Java idiom anchor: this is the same idea as Java {@code Stream}'s lazy operator fusion,
+ * generalised to any container.
  *
  * <ol>
  *   <li>Automatic Functor instances for any type constructor
@@ -50,8 +66,13 @@ public class Tutorial09_Coyoneda {
    * <p>Coyoneda.lift wraps a value, storing it with an identity transformation.
    *
    * <p>Task: Lift a Maybe into Coyoneda
+   *
+   * <pre>
+   *   // Strategy: Use Coyoneda.lift(maybeValue)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: lift")
   void exercise1_lift() {
     Kind<MaybeKind.Witness, Integer> maybeValue = MAYBE.widen(Maybe.just(42));
 
@@ -73,8 +94,13 @@ public class Tutorial09_Coyoneda {
    * lowering.
    *
    * <p>Task: Map over a Coyoneda
+   *
+   * <pre>
+   *   // Strategy: Use coyo.map(String::toUpperCase)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: map without Functor")
   void exercise2_mapWithoutFunctor() {
     Kind<MaybeKind.Witness, String> maybeString = MAYBE.widen(Maybe.just("hello"));
     Coyoneda<MaybeKind.Witness, String> coyo = Coyoneda.lift(maybeString);
@@ -97,8 +123,13 @@ public class Tutorial09_Coyoneda {
    * once during lower().
    *
    * <p>Task: Chain multiple maps
+   *
+   * <pre>
+   *   // Strategy: coyo.map(x -> x * 2).map(x -> x + 10).map(Object::toString)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: map fusion")
   void exercise3_mapFusion() {
     Kind<ListKind.Witness, Integer> listValue = LIST.widen(List.of(1, 2, 3, 4, 5));
     Coyoneda<ListKind.Witness, Integer> coyo = Coyoneda.lift(listValue);
@@ -122,8 +153,13 @@ public class Tutorial09_Coyoneda {
    * lowered.
    *
    * <p>Task: Work with Maybe.nothing()
+   *
+   * <pre>
+   *   // Strategy: Coyoneda.lift(nothing).map(x -> x * 2)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: with Nothing")
   void exercise4_withNothing() {
     Kind<MaybeKind.Witness, Integer> nothing = MAYBE.widen(Maybe.nothing());
 
@@ -145,8 +181,13 @@ public class Tutorial09_Coyoneda {
    * <p>Build a transformation pipeline that processes strings.
    *
    * <p>Task: Create a pipeline that trims, uppercases, and wraps strings
+   *
+   * <pre>
+   *   // Strategy: Coyoneda.lift(names).map(...).map(...).map(...)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: pipeline")
   void exercise5_pipeline() {
     Kind<ListKind.Witness, String> names = LIST.widen(List.of("  alice  ", " bob ", "charlie"));
 

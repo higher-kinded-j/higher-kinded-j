@@ -13,14 +13,17 @@ import org.higherkindedj.hkt.free.ProgramAnalysis;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: Program Inspection
+ * Tutorial 05: Program Inspection.
  *
- * <p>Because Free programs are data structures, they can be traversed and analysed before
- * execution. {@code ProgramAnalyser} counts instructions, recovery points, and parallel scopes
- * without running the program.
+ * <p>Pain → Promise. Auditing what a program <em>will</em> do before it runs — touching which
+ * services, requiring which permissions, whether any branch could leak data — usually means a
+ * separate analyser pass over the same code. Because Free programs are data, the program
+ * <em>is</em> the analyser's input: one fold gives us the static fingerprint, no source-code
+ * walking required. without running the program.
  *
  * <p>Key concepts:
  *
@@ -55,8 +58,13 @@ public class Tutorial05_ProgramInspection {
    * FlatMapped node.
    *
    * <p>Task: Analyse a program with one instruction and verify the count
+   *
+   * <pre>
+   *   // Strategy: ProgramAnalyser.analyse to get the analysis
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Count Instructions")
   void exercise1_countInstructions() {
     Free<IdKind.Witness, String> program = Free.liftF(new Id<>("hello"), ID_FUNCTOR);
 
@@ -74,8 +82,13 @@ public class Tutorial05_ProgramInspection {
    * analyser marks this with {@code hasOpaqueRegions = true}.
    *
    * <p>Task: Create a program with a flatMap and verify opaque regions are detected
+   *
+   * <pre>
+   *   // Strategy: Free.liftF(new Id<>("a"), ID_FUNCTOR).flatMap(s -> Free.pure(s + "b"))
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: Detect Opaque Regions")
   void exercise2_detectOpaqueRegions() {
     // TODO: Create a program with liftF followed by flatMap
     // Hint: Free.liftF(new Id<>("a"), ID_FUNCTOR).flatMap(s -> Free.pure(s + "b"))
@@ -94,8 +107,13 @@ public class Tutorial05_ProgramInspection {
    * counts these as parallel scopes.
    *
    * <p>Task: Create a program with an Ap node and verify the parallel scope count
+   *
+   * <pre>
+   *   // Strategy: new Free.Ap<>(FreeAp.pure("parallel"))
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: Count Parallel Scopes")
   void exercise3_countParallelScopes() {
     // TODO: Create a Free.Ap node wrapping a FreeAp.pure
     // Hint: new Free.Ap<>(FreeAp.pure("parallel"))

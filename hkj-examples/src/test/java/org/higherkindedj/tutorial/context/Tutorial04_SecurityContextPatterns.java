@@ -15,11 +15,15 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: SecurityContext Patterns - Authentication and Authorisation
+ * Tutorial: SecurityContext Patterns — authentication and authorisation.
  *
- * <p>Learn to use SecurityContext for authentication and role-based access control. SecurityContext
- * provides pre-defined ScopedValues for security-related data that propagates through virtual
- * thread hierarchies.
+ * <p>Pain → Promise. Spring Security's {@code SecurityContextHolder} is a {@code ThreadLocal} that
+ * does not propagate to virtual threads automatically. {@link SecurityContext} is the value-level
+ * form: bind the principal at the boundary, read it from any downstream code, across virtual
+ * threads, with strong-typed access checks instead of stringly-typed roles.
+ *
+ * <p>Java idiom anchor: {@code SecurityContext} ↔ {@code SecurityContextHolder}, but as a value
+ * with type-safe role and permission checks.
  *
  * <p>Key Concepts:
  *

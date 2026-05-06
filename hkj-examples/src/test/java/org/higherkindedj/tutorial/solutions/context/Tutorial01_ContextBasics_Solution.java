@@ -12,10 +12,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for Tutorial 01: Context Basics
+ * Solution for Tutorial01 ContextBasics — teaching-solution format.
  *
- * <p>This file contains the completed solutions for all exercises. Compare your answers with these
- * solutions after attempting the tutorial.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Tutorial 01: Context Basics - Solutions")
 public class Tutorial01_ContextBasics_Solution {
@@ -28,6 +39,18 @@ public class Tutorial01_ContextBasics_Solution {
   @DisplayName("Part 1: Creating Contexts")
   class CreatingContexts {
 
+    /**
+     * Why this is idiomatic: {@code Context.ask(scopedValue)} captures "read this value from the
+     * current scope" as a value. The reader runs inside a {@code ScopedValue.where (...).call(...)}
+     * scope and sees the bound value.
+     *
+     * <p>Alternative: read the {@code ScopedValue} directly with {@code USER_NAME.get()}. The
+     * {@code Context} form composes with {@code map}/{@code flatMap}; the bare get does not.
+     *
+     * <p>Common wrong attempt: call {@code USER_NAME.get()} outside any scope. The scoped value
+     * throws {@code NoSuchElementException}; the {@code Context} value is fine until {@code run} is
+     * called.
+     */
     @Test
     @DisplayName("Exercise 1: Read a ScopedValue with ask()")
     void exercise1_readWithAsk() throws Exception {
@@ -39,6 +62,17 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(result).isEqualTo("Alice");
     }
 
+    /**
+     * Why this is idiomatic: {@code Context.succeed(value)} is the no-op context — a value lifted
+     * into the {@code Context} type without reading anything from the scope. Useful for combining
+     * pure values with read results.
+     *
+     * <p>Alternative: pass the value directly. Loses the {@code Context} type so it cannot be
+     * combined with other contexts via {@code map} or {@code flatMap}.
+     *
+     * <p>Common wrong attempt: assume {@code succeed} reads from a scope. It is the "ignore the
+     * scope" constructor; the value is the same regardless of bindings.
+     */
     @Test
     @DisplayName("Exercise 2: Create a pure value with succeed()")
     void exercise2_pureWithSucceed() {
@@ -50,6 +84,17 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(result).isEqualTo(42);
     }
 
+    /**
+     * Why this is idiomatic: a {@code Context.ask} run outside any binding scope throws {@code
+     * NoSuchElementException}. The exception is the JVM telling you the {@code ScopedValue} was
+     * never set; encode the optionality at the call site.
+     *
+     * <p>Alternative: {@code Context.asks(value, default)} or wrap the run in a {@code Try}. The
+     * exception is a hard signal that scope wiring is missing.
+     *
+     * <p>Common wrong attempt: assume {@code Context.ask} returns {@code null} for missing
+     * bindings. It throws — wrap or default explicitly when absence is allowed.
+     */
     @Test
     @DisplayName("Exercise 3: Unbound ScopedValue throws exception")
     void exercise3_unboundThrows() {
@@ -64,6 +109,17 @@ public class Tutorial01_ContextBasics_Solution {
   @DisplayName("Part 2: Reading and Transforming")
   class ReadingAndTransforming {
 
+    /**
+     * Why this is idiomatic: {@code Context.asks(scopedValue, fn)} fuses read and transform into a
+     * single context. The reader's job is to take the scoped value and shape it; the function is
+     * the shaping.
+     *
+     * <p>Alternative: {@code Context.ask(value).map(fn)}. Equivalent; {@code asks} is the named
+     * one-call shorthand.
+     *
+     * <p>Common wrong attempt: pass a function that ignores its argument. The fused form is for
+     * transforms that depend on the scope value — use {@code succeed} for scope-independent values.
+     */
     @Test
     @DisplayName("Exercise 4: Read and transform with asks()")
     void exercise4_readAndTransform() throws Exception {
@@ -75,6 +131,16 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(result).isEqualTo("BOB");
     }
 
+    /**
+     * Why this is idiomatic: {@code asks} is parametric in the result type — read a {@code String},
+     * return its length as an {@code Integer}. The transform decides the result shape.
+     *
+     * <p>Alternative: {@code Context.ask(value).map(String::length)}. Same answer; the fused {@code
+     * asks} is shorter when the read and transform belong together.
+     *
+     * <p>Common wrong attempt: assume the result must match the scoped value's type. Type parameter
+     * B is independent of A; transform freely.
+     */
     @Test
     @DisplayName("Exercise 5: Change result type with asks()")
     void exercise5_changeType() throws Exception {
@@ -86,6 +152,17 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(result).isEqualTo(7);
     }
 
+    /**
+     * Why this is idiomatic: format a string from a scoped int. {@code asks} reads the int and the
+     * lambda builds the message. The result is a {@code Context<Integer, String>} ready to run in
+     * any matching scope.
+     *
+     * <p>Alternative: build the format inline at the call site. Loses the named context — every
+     * site that wants a "limit message" duplicates the formatting.
+     *
+     * <p>Common wrong attempt: build the message before binding the value. The {@code Context}
+     * captures the format function; the value is supplied at run time.
+     */
     @Test
     @DisplayName("Exercise 6: Format a message with asks()")
     void exercise6_formatMessage() throws Exception {
@@ -103,6 +180,17 @@ public class Tutorial01_ContextBasics_Solution {
   @DisplayName("Part 3: Transforming with map()")
   class TransformingWithMap {
 
+    /**
+     * Why this is idiomatic: {@code context.map(fn)} transforms the result without changing the
+     * context's relationship to the scope. Read a name, get its length — the scoped value is
+     * unchanged.
+     *
+     * <p>Alternative: {@code Context.asks(value, String::length)}. Equivalent; the {@code map}
+     * chain is the right shape when the base context already exists.
+     *
+     * <p>Common wrong attempt: try to pass the scoped value into {@code map}. {@code map} sees the
+     * result, not the source; use {@code asks} to access the scoped value.
+     */
     @Test
     @DisplayName("Exercise 7: Transform with map()")
     void exercise7_mapTransform() throws Exception {
@@ -116,6 +204,17 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(result).isEqualTo(5);
     }
 
+    /**
+     * Why this is idiomatic: chained {@code map} calls describe the transformation as a pipeline —
+     * trim, uppercase, decorate. The functor laws guarantee the chain fuses to a single function
+     * over the result.
+     *
+     * <p>Alternative: a single lambda that does all three steps. Equivalent; the staged form keeps
+     * each transform reviewable in isolation.
+     *
+     * <p>Common wrong attempt: assume each {@code map} runs eagerly. The context stays a
+     * description until {@code run} fires; the chain is fused at run time.
+     */
     @Test
     @DisplayName("Exercise 8: Chain multiple maps")
     void exercise8_chainMaps() throws Exception {
@@ -130,6 +229,17 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(result).isEqualTo("[EVE]");
     }
 
+    /**
+     * Why this is idiomatic: a boolean scoped value maps to one of two strings via a conditional
+     * expression. The same context handles both bindings — bind {@code true} for DEBUG, {@code
+     * false} for INFO.
+     *
+     * <p>Alternative: build two contexts, one per outcome, and pick at the call site. Loses the
+     * symmetry — the {@code map} expression names both branches together.
+     *
+     * <p>Common wrong attempt: use a {@code switch} for two cases. The ternary is the idiomatic
+     * Java spelling for boolean dispatch.
+     */
     @Test
     @DisplayName("Exercise 9: Map boolean to string")
     void exercise9_mapBoolean() throws Exception {
@@ -150,6 +260,16 @@ public class Tutorial01_ContextBasics_Solution {
   @DisplayName("Part 4: Running in Scopes")
   class RunningInScopes {
 
+    /**
+     * Why this is idiomatic: chain {@code where(key, value)} calls to bind multiple scoped values
+     * in one scope. Both contexts read their respective bindings inside the same {@code call}.
+     *
+     * <p>Alternative: nest two {@code where(...).call(...)} calls. Same answer; the fluent chain
+     * reads as one binding declaration.
+     *
+     * <p>Common wrong attempt: assume binding order matters. The order of {@code where} calls is
+     * irrelevant; bindings are independent.
+     */
     @Test
     @DisplayName("Exercise 10: Bind multiple values")
     void exercise10_multipleBindings() throws Exception {
@@ -167,6 +287,17 @@ public class Tutorial01_ContextBasics_Solution {
       assertThat(maxItems).isEqualTo(50);
     }
 
+    /**
+     * Why this is idiomatic: {@code ScopedValue.where(...).run(Runnable)} executes a block for its
+     * side effects within the binding. The {@code Context} reads the binding while the side effect
+     * runs.
+     *
+     * <p>Alternative: {@code .call(Callable)} when a return value is needed. {@code run} is the
+     * side-effect variant; same scope semantics.
+     *
+     * <p>Common wrong attempt: assume side effects work outside the {@code run} block. The bindings
+     * only live inside the lambda; once the lambda returns, the values are unbound again.
+     */
     @Test
     @DisplayName("Exercise 11: Using run() for side effects")
     void exercise11_runForSideEffects() {
@@ -189,6 +320,18 @@ public class Tutorial01_ContextBasics_Solution {
   @DisplayName("Bonus: Complete Examples")
   class BonusExamples {
 
+    /**
+     * Why this is idiomatic: a complete workflow combines several contexts (greeting, limit
+     * message, debug banner) into one read pipeline. Each context targets one scoped value; the
+     * bindings provide all three at once.
+     *
+     * <p>Alternative: a single {@code asks} that reads every scoped value via separate {@code
+     * .get()} calls. Loses the per-concern naming; the multi-context version makes each piece
+     * reviewable in isolation.
+     *
+     * <p>Common wrong attempt: forget to bind every scoped value the workflow reads. Any unbound
+     * scope throws; bind every value the contexts will need.
+     */
     @Test
     @DisplayName("Complete workflow example")
     void completeWorkflowExample() throws Exception {

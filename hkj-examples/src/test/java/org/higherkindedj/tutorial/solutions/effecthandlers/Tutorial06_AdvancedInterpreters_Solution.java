@@ -34,7 +34,23 @@ import org.higherkindedj.hkt.reader_t.ReaderTKindHelper;
 import org.higherkindedj.hkt.reader_t.ReaderTMonadReader;
 import org.junit.jupiter.api.Test;
 
-/** Solutions for Tutorial 06: Advanced Interpreters. */
+/**
+ * Solution for Tutorial06 AdvancedInterpreters — teaching-solution format.
+ *
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
+ */
 @SuppressWarnings("unchecked")
 public class Tutorial06_AdvancedInterpreters_Solution {
 
@@ -49,6 +65,18 @@ public class Tutorial06_AdvancedInterpreters_Solution {
   private static final Money AMOUNT = Money.gbp("25.00");
   private static final PaymentMethod VISA = new PaymentMethod.CreditCard("4242", "VISA");
 
+  /**
+   * Why this is idiomatic: recording interpreters capture every algebra call so the test can audit
+   * the full trail. The recordings are simple lists; the combined interpreter still runs the
+   * program end-to-end.
+   *
+   * <p>Alternative: a true {@code WriterT}-based audit interpreter that accumulates a log
+   * monoidally. Free's eager-suspend optimisation discards the writer context for strict monads, so
+   * the recording approach is the practical equivalent.
+   *
+   * <p>Common wrong attempt: log inside the production gateway and assert against stdout. Couples
+   * the test to formatting; recorded calls give structured data the test can match precisely.
+   */
   @Test
   void exercise1_auditInterpretation() {
     var service = PaymentService.create();
@@ -79,6 +107,18 @@ public class Tutorial06_AdvancedInterpreters_Solution {
     assertThat(notification.receipts()).isNotEmpty();
   }
 
+  /**
+   * Why this is idiomatic: a replay interpreter feeds pre-recorded values back into the algebra.
+   * The same payment program runs deterministically against the canned event log — useful for
+   * regression tests and incident reproduction.
+   *
+   * <p>Alternative: stub each dependency individually. Same outcome; the replay interpreter
+   * centralises the canned answers in one map keyed by operation.
+   *
+   * <p>Common wrong attempt: replay against a slightly different program than the one that produced
+   * the log. The keys must align; record and replay against the same program shape or the replay
+   * misses entries.
+   */
   @Test
   void exercise2_replayInterpretation() {
     var service = PaymentService.create();

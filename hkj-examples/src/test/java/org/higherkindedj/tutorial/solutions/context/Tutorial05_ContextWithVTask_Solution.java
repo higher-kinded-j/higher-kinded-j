@@ -14,7 +14,23 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Solutions for Tutorial 05: Context with VTask */
+/**
+ * Solution for Tutorial05 ContextWithVTask — teaching-solution format.
+ *
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
+ */
 @DisplayName("Tutorial 05: Context with VTask - Solutions")
 public class Tutorial05_ContextWithVTask_Solution {
 
@@ -22,6 +38,17 @@ public class Tutorial05_ContextWithVTask_Solution {
   @DisplayName("Part 1: Context to VTask Conversion")
   class ContextToVTask {
 
+    /**
+     * Why this is idiomatic: {@code context.toVTask()} lifts a {@code Context} into a {@code VTask}
+     * so structured-concurrency operators apply. The scoped value is read inside the VTask when it
+     * runs.
+     *
+     * <p>Alternative: read the value with {@code .run()} and wrap manually with {@code
+     * VTask.succeed}. Same answer; the lift is the named, composable form.
+     *
+     * <p>Common wrong attempt: convert outside the binding scope. The VTask still needs the scope
+     * when it runs; bind the scope around the call to {@code runSafe}.
+     */
     @Test
     @DisplayName("Exercise 1: Basic toVTask conversion")
     void exercise1_basicToVTask() throws Exception {
@@ -39,6 +66,17 @@ public class Tutorial05_ContextWithVTask_Solution {
       assertThat(result.orElse("error")).isEqualTo(traceId);
     }
 
+    /**
+     * Why this is idiomatic: build the chain at the {@code Context} level, then convert once. The
+     * {@code Context} composition is pure; the {@code VTask} adds the concurrency machinery.
+     *
+     * <p>Alternative: convert first, then chain at the {@code VTask} level. Equivalent for
+     * read-only chains; the {@code Context} side is preferred when both sides support the
+     * operation.
+     *
+     * <p>Common wrong attempt: convert and chain repeatedly. Each conversion adds overhead; convert
+     * at the boundary, not in the middle.
+     */
     @Test
     @DisplayName("Exercise 2: Chain then convert")
     void exercise2_chainThenConvert() throws Exception {
@@ -61,6 +99,18 @@ public class Tutorial05_ContextWithVTask_Solution {
   @DisplayName("Part 2: Context Propagation")
   class ContextPropagation {
 
+    /**
+     * Why this is idiomatic: {@code VTask.of(supplier)} wraps a side-effecting body that reads
+     * {@code ScopedValue} bindings. The VTask captures the binding lookup inside its supplier; the
+     * value is read when the task runs.
+     *
+     * <p>Alternative: pass the value into the {@code VTask.of} closure manually. Loses the
+     * scoped-value propagation that makes the pattern useful in the first place.
+     *
+     * <p>Common wrong attempt: read the scoped value before calling {@code VTask.of}. The supplier
+     * captures the value at creation time and the task may run on a different thread without the
+     * binding.
+     */
     @Test
     @DisplayName("Exercise 3: Read context in VTask")
     void exercise3_readContextInVTask() throws Exception {
@@ -78,6 +128,17 @@ public class Tutorial05_ContextWithVTask_Solution {
       assertThat(result.orElse("error")).isEqualTo(traceId);
     }
 
+    /**
+     * Why this is idiomatic: {@code Scope.allSucceed().fork(...).fork(...).join()} runs the two
+     * tasks concurrently. Both share the parent's scoped values — the trace id propagates into each
+     * forked virtual thread.
+     *
+     * <p>Alternative: spawn raw {@code Thread}s and replicate the bindings by hand. Possible but
+     * error-prone; structured concurrency does the propagation for you.
+     *
+     * <p>Common wrong attempt: assume the scoped value is lost across forks. Modern structured
+     * concurrency inherits scoped values on fork; that is the entire point.
+     */
     @Test
     @DisplayName("Exercise 4: Parallel tasks share context")
     void exercise4_parallelTasksShareContext() throws Exception {
@@ -117,6 +178,17 @@ public class Tutorial05_ContextWithVTask_Solution {
   @DisplayName("Part 3: Context with Scope")
   class ContextWithScope {
 
+    /**
+     * Why this is idiomatic: bind multiple scoped values (trace id and tenant id) and fork tasks
+     * that read different ones. Each task picks up only the bindings it needs; the runtime
+     * propagates everything.
+     *
+     * <p>Alternative: pass each scoped value explicitly into the task closures. Works but
+     * undermines the propagation guarantee that scoped values exist to provide.
+     *
+     * <p>Common wrong attempt: assume tasks see each other's local variables. Each task is a
+     * separate scope of execution; share via scoped values, not via captured locals that may race.
+     */
     @Test
     @DisplayName("Exercise 5: Context-aware parallel tasks")
     void exercise5_contextAwareParallelTasks() throws Exception {
@@ -156,6 +228,18 @@ public class Tutorial05_ContextWithVTask_Solution {
       assertThat(results.get(1)).isEqualTo("Orders[acme-corp]");
     }
 
+    /**
+     * Why this is idiomatic: {@code Context.toVTask().map(...).flatMap(...)} composes the VTask
+     * pipeline directly from a {@code Context}. The scoped value is read at pipeline run time
+     * inside the binding scope.
+     *
+     * <p>Alternative: read the value first and build a pipeline of {@code VTask.succeed} stages.
+     * Equivalent for static reads; the toVTask form scales when later stages may also read scoped
+     * values.
+     *
+     * <p>Common wrong attempt: forget the binding scope around {@code runSafe}. The VTask still
+     * needs the bindings when it executes; bind once at the boundary.
+     */
     @Test
     @DisplayName("Exercise 6: Context in VTask pipeline")
     void exercise6_contextInPipeline() throws Exception {

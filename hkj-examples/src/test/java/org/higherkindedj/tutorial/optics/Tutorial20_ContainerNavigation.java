@@ -15,11 +15,30 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 20: Custom Container Navigation - Navigating Container Types with Affines
+ * Tutorial 20: Custom Container Navigation — navigating container types with Affines.
  *
- * <p>Types like {@code Either}, {@code Try}, and {@code Validated} hold zero or one value depending
- * on their state (Right/Left, Success/Failure, Valid/Invalid). These container types can be
- * navigated using the {@code some(Affine)} method on FocusPath, AffinePath, and TraversalPath.
+ * <p>Pain → Promise. {@code Either}, {@code Try}, and {@code Validated} carry zero-or-one value
+ * depending on their state. Reaching into the Right side of an {@code Either} field inside a record
+ * is a {@code instanceof Right r &amp;&amp; ...} ladder per access:
+ *
+ * <pre>
+ *   if (user.email() instanceof Validated.Valid&lt;Error,String&gt; v) {
+ *       return v.value().toUpperCase();
+ *   }
+ * </pre>
+ *
+ * <p>{@code Affines.eitherRight()}, {@code Affines.trySuccess()}, {@code Affines.validatedValid()}
+ * are the affines that capture each "the value if present" navigator. Compose them into a focus
+ * path and the whole chain reads top-to-bottom:
+ *
+ * <pre>
+ *   userEmailPath.some(Affines.validatedValid()).modify(String::toUpperCase, user);
+ * </pre>
+ *
+ * <p>Original notes: types like {@code Either}, {@code Try}, and {@code Validated} hold zero-or-one
+ * value depending on their state (Right/Left, Success/Failure, Valid/Invalid). These container
+ * types can be navigated using the {@code some(Affine)} method on FocusPath, AffinePath, and
+ * TraversalPath.
  *
  * <p>Key concepts:
  *
@@ -88,6 +107,10 @@ public class Tutorial20_ContainerNavigation {
    *
    * <p>Task: Create an AffinePath from ApiResult to its response value (the Right side of the
    * Either), then test it on both Right and Left values.
+   *
+   * <pre>
+   *   // Strategy: getOptional on the success result
+   * </pre>
    */
   @Test
   @DisplayName("Exercise 1: Navigate through Either with eitherRight()")
@@ -121,6 +144,10 @@ public class Tutorial20_ContainerNavigation {
    *
    * <p>Task: Create an AffinePath from ComputeResult to its output value, then test getOptional and
    * modify on both Success and Failure values.
+   *
+   * <pre>
+   *   // Strategy: getOptional on the success result
+   * </pre>
    */
   @Test
   @DisplayName("Exercise 2: Navigate through Try with trySuccess()")
@@ -160,6 +187,10 @@ public class Tutorial20_ContainerNavigation {
    *
    * <p>Task: Navigate from Order through the paymentResult (Either) into the Payment record and
    * down to its amount field.
+   *
+   * <pre>
+   *   // Strategy: getOptional on the success order
+   * </pre>
    */
   @Test
   @DisplayName("Exercise 3: Compose SPI-widened paths with lens paths")
@@ -197,6 +228,10 @@ public class Tutorial20_ContainerNavigation {
    *
    * <p>Task: Navigate to the valid value inside a FormField's Validated field, and test with both
    * Valid and Invalid instances.
+   *
+   * <pre>
+   *   // Strategy: getOptional on the valid field
+   * </pre>
    */
   @Test
   @DisplayName("Exercise 4: Navigate through Validated with validatedValid()")

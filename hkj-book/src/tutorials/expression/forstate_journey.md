@@ -1,6 +1,6 @@
 # Expression: ForState Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Why ForState is the recommended comprehension pattern for complex workflows
 - How named record fields replace fragile tuple positions
 - Threading state through monadic workflows using lenses

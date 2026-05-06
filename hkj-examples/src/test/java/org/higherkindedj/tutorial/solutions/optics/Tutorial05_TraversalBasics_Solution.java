@@ -21,17 +21,21 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Traversal Basics - Working with Multiple Values
+ * Solution for Tutorial05 TraversalBasics — teaching-solution format.
  *
- * <p>A Traversal is an optic that focuses on zero-or-more elements within a structure. It's like a
- * Lens that can target multiple fields, or a Prism that can target multiple cases.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Key Concepts: - Focuses on 0 to many elements (unlike Lens which focuses on exactly 1) -
- * modify: applies a function to all focused elements - Bulk updates: change all elements at once -
- * Filtering: focus on elements matching a condition
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <p>Common uses: - All elements in a List - All values in a Map - All fields of a specific type in
- * nested structures
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial05_TraversalBasics_Solution {
 
@@ -53,11 +57,16 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 1: Modifying all elements
+   * Why this is idiomatic: {@code Traversals.modify(traversal, fn, source)} rebuilds the outer
+   * structure with every focused element transformed in one pass. The traversal owns the "for each"
+   * bit; the function only sees the leaf.
    *
-   * <p>Use a Traversal to modify all elements in a collection.
+   * <p>Alternative: {@code list.stream().map(...).toList()} and rebuild the {@code Team} around it.
+   * Same answer; the traversal stays composable so the same call generalises to deeper structures.
    *
-   * <p>Task: Double all player scores in a team
+   * <p>Common wrong attempt: try to mutate the players in place. The list inside a record is
+   * whatever {@code List.of(...)} returns — usually unmodifiable; the traversal-driven rebuild is
+   * the only safe path.
    */
   @Test
   void exercise1_modifyingAllElements() {
@@ -89,11 +98,17 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 2: Composing traversals to access nested collections
+   * Why this is idiomatic: {@code teams.andThen(players)} produces a single {@code
+   * Traversal<League, Player>} — every player in every team. One bonus update is applied across the
+   * whole nested structure with no manual iteration.
    *
-   * <p>Compose traversals to reach deeply nested collections.
+   * <p>Alternative: nested {@code stream().flatMap(...)} chains. Equivalent for reads; the composed
+   * traversal is what makes the corresponding update possible without rebuilding each {@code Team}
+   * and {@code League} by hand.
    *
-   * <p>Task: Access all players in all teams in a league
+   * <p>Common wrong attempt: write a recursive helper that walks the structure imperatively. Works
+   * once, breaks the moment the schema gains a layer; the traversal composition stays a single
+   * line.
    */
   @Test
   void exercise2_composingTraversals() {
@@ -141,11 +156,18 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 3: Traversal with Lens composition
+   * Why this is idiomatic: {@code players.andThen(score.asTraversal())} narrows the focus to "every
+   * score in every player". The transform sees raw {@code Integer}s; the traversal does the
+   * navigation and rebuild.
    *
-   * <p>Compose a Traversal with a Lens to modify a specific field in all elements.
+   * <p>Alternative: a single {@code modify} that takes a {@code Player} and rebuilds it with the
+   * new score. Same answer; the lens-composed traversal stays stable when more {@code Player}
+   * fields appear.
    *
-   * <p>Task: Update only the scores of all players
+   * <p>Common wrong attempt: forget {@code asTraversal()} and try to compose the lens directly with
+   * {@code andThen}. {@code Lens.andThen(Traversal)} returns a traversal in the right direction,
+   * but most APIs expect both halves to be the same kind of optic; {@code asTraversal} is the
+   * explicit lift.
    */
   @Test
   void exercise3_traversalWithLens() {
@@ -182,11 +204,17 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 4: Filtering elements
+   * Why this is idiomatic: {@code traversal.filtered(predicate)} narrows the focus to elements the
+   * predicate accepts; non-matching elements pass through {@code modify} untouched. The test
+   * asserts both effects in one update.
    *
-   * <p>Use filtered() to focus only on elements matching a condition.
+   * <p>Alternative: a single {@code modify} that branches inside the function. Same answer; the
+   * filtered traversal advertises the predicate at the optic level so other reads ({@code getAll},
+   * {@code asFold}) inherit the same scope.
    *
-   * <p>Task: Give a bonus only to players with scores above 100
+   * <p>Common wrong attempt: pre-filter the list, modify, and zip back. The order is now fragile
+   * and the merge logic has to reconstruct the unmodified items; the filtered traversal handles
+   * this correctly.
    */
   @Test
   void exercise4_filteringElements() {
@@ -222,11 +250,15 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 5: Getting all values
+   * Why this is idiomatic: {@code Traversals.getAll(traversal, source)} reads every focused leaf
+   * into a list. The traversal is the same one used for writes — read and write share the exact
+   * same path.
    *
-   * <p>Use getAll to extract all focused values into a list.
+   * <p>Alternative: stream the players, map the names, collect. Equivalent for reads; the
+   * traversal-based read keeps a single source of truth for the navigation.
    *
-   * <p>Task: Extract all player names from a team
+   * <p>Common wrong attempt: write a separate getter that extracts names. The optic-driven approach
+   * keeps a single navigation; the bespoke getter has to be updated in lockstep.
    */
   @Test
   void exercise5_gettingAllValues() {
@@ -262,11 +294,16 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 6: Nested filtering
+   * Why this is idiomatic: filter at each layer where it makes sense — winning teams, then
+   * high-scoring players within them. The traversal reads as a sentence; the predicates compose
+   * with {@code andThen} like every other layer.
    *
-   * <p>Apply multiple filters in a traversal chain.
+   * <p>Alternative: a single nested loop with a compound condition. Equivalent reading; the staged
+   * filters separate "which teams" from "which players" so each predicate stays focused.
    *
-   * <p>Task: Find all high-scoring players in winning teams
+   * <p>Common wrong attempt: filter the players first, then try to filter the teams. The filters
+   * operate at different levels of the structure — flatten them in the wrong order and you cannot
+   * tell whether a low-scorer's team won.
    */
   @Test
   void exercise6_nestedFiltering() {
@@ -323,11 +360,15 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 7: Conditional batch updates
+   * Why this is idiomatic: when the bonus depends on the player's score, fold the choice into the
+   * per-element function. The traversal still rebuilds the structure once; the lambda decides per
+   * element.
    *
-   * <p>Apply different updates based on conditions.
+   * <p>Alternative: split into two filtered traversals (high vs. low) and apply different modifies.
+   * Equivalent; the single-traversal form here keeps the rebuild a one-liner.
    *
-   * <p>Task: Apply different bonuses based on score ranges
+   * <p>Common wrong attempt: sort or partition the list before modifying. The original order is
+   * meaningful in many domains; the per-element decision preserves it.
    */
   @Test
   void exercise7_conditionalBatchUpdates() {
@@ -371,12 +412,17 @@ public class Tutorial05_TraversalBasics_Solution {
   }
 
   /**
-   * Exercise 8: Converting Traversal to Fold with asFold()
+   * Why this is idiomatic: {@code asFold()} converts a traversal into a read-only fold so a {@code
+   * Monoid} can aggregate. {@code Monoids.integerAddition()} expresses "sum these" directly; the
+   * fold walks the structure and combines.
    *
-   * <p>Use asFold() to convert a filtered Traversal into a read-only Fold, then use foldMap to
-   * compute an aggregate value.
+   * <p>Alternative: {@code Traversals.getAll(...).stream().mapToInt(...).sum()}. Same total; the
+   * fold keeps the optic-driven navigation and exposes companion queries ({@code length}, {@code
+   * all}, {@code exists}) on the same path.
    *
-   * <p>Task: Get the total score of all active players using asFold() and foldMap
+   * <p>Common wrong attempt: try to {@code modify} the traversal to compute a running sum via a
+   * side-effecting function. {@code modify} expects a pure leaf transform; use {@code asFold} when
+   * the goal is aggregation rather than rewriting.
    */
   @Test
   void exercise8_traversalAsFold() {

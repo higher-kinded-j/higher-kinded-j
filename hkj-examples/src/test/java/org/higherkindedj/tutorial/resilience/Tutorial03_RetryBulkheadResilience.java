@@ -22,10 +22,24 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: Retry, Bulkhead, and Resilience Composition
+ * Tutorial 03: Retry, Bulkhead, and Resilience Composition.
  *
- * <p>Learn to use Retry and Bulkhead patterns, and compose multiple resilience patterns together
- * using Resilience convenience methods and ResilienceBuilder.
+ * <p>Pain → Promise. Retry-with-backoff and concurrent-call limits (bulkheads) are two of the most
+ * common production resilience patterns, and the most common to roll by hand badly. Hand-rolled
+ * retry loses the policy in a {@code for} loop; hand-rolled bulkheads use a semaphore that is easy
+ * to leak.
+ *
+ * <pre>
+ *   var retry = Retry.create(RetryPolicy.exponentialBackoff(3, Duration.ofMillis(100)));
+ *   var bulkhead = Bulkhead.create(maxConcurrent: 10);
+ *
+ *   VTask&lt;Response&gt; protected = Resilience.combine(retry, bulkhead, breaker)
+ *       .protect(() -&gt; service.fetch());
+ * </pre>
+ *
+ * <p>Compose with Tutorial 01's CircuitBreaker via {@code Resilience.combine(...)} and the order
+ * matters: typically circuit breaker first (so retries do not hit an open circuit), then retry,
+ * then bulkhead.
  *
  * <p>Key Concepts:
  *
@@ -58,10 +72,14 @@ public class Tutorial03_RetryBulkheadResilience {
   class RetryWithPolicy {
 
     /**
-     * Exercise 1: Use Retry.retryTask with a RetryPolicy
+     * Exercise 1: Retry a flaky VTask.
      *
-     * <p>Create a VTask that fails twice then succeeds (using an AtomicInteger counter). Wrap it
-     * with Retry.retryTask and a fixed retry policy with 3 attempts and 10ms delay.
+     * <pre>
+     *   // Nudge:    RetryPolicy.fixed(maxAttempts, delay) and Retry.retryTask(task, policy).
+     *   // Strategy: RetryPolicy.fixed(3, Duration.ofMillis(10))
+     *   //           Retry.retryTask(unstableTask, policy)
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 1: Retry a failing task until success")
@@ -91,10 +109,13 @@ public class Tutorial03_RetryBulkheadResilience {
     }
 
     /**
-     * Exercise 2: Monitor retries with RetryEvent and onRetry
+     * Exercise 2: Monitor retries with {@code onRetry} listener.
      *
-     * <p>Use the onRetry() method on RetryPolicy to attach a listener that records retry events.
-     * The listener receives a RetryEvent with attempt number, exception, and delay information.
+     * <pre>
+     *   // Nudge:    Build the policy with .onRetry(events::add).
+     *   // Strategy: RetryPolicy.fixed(3, Duration.ofMillis(10)).onRetry(events::add)
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 2: Monitor retry attempts with RetryEvent")
@@ -135,10 +156,14 @@ public class Tutorial03_RetryBulkheadResilience {
   class BulkheadProtection {
 
     /**
-     * Exercise 3: Create a Bulkhead and protect a VTask
+     * Exercise 3: Bulkhead-protect a VTask.
      *
-     * <p>A Bulkhead limits the number of concurrent executions to protect a shared resource. Use
-     * Bulkhead.withMaxConcurrent() to create one and protect() to wrap a task.
+     * <pre>
+     *   // Nudge:    Bulkhead.withMaxConcurrent(N) creates the bulkhead; .protect wraps a task.
+     *   // Strategy: Bulkhead.withMaxConcurrent(5)
+     *   //           bulkhead.protect(task)
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 3: Protect a VTask with a Bulkhead")
@@ -169,11 +194,17 @@ public class Tutorial03_RetryBulkheadResilience {
   class ComposingPatterns {
 
     /**
-     * Exercise 4: Combine patterns with ResilienceBuilder
+     * Exercise 4: Compose patterns with ResilienceBuilder.
      *
-     * <p>ResilienceBuilder composes multiple resilience patterns in the correct order: Timeout
-     * (outermost) -> Bulkhead -> Retry -> Circuit Breaker (innermost). Use Resilience.builder(task)
-     * to start.
+     * <pre>
+     *   // Nudge:    Builder pattern; chain withCircuitBreaker / withRetry / withFallback / build.
+     *   // Strategy: Resilience.&lt;String&gt;builder(serviceCall)
+     *   //               .withCircuitBreaker(breaker)
+     *   //               .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(10)))
+     *   //               .withFallback(error -&gt; "fallback value")
+     *   //               .build()
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 4: Compose patterns with ResilienceBuilder")
@@ -195,10 +226,13 @@ public class Tutorial03_RetryBulkheadResilience {
     }
 
     /**
-     * Exercise 5: Use Resilience.withCircuitBreakerAndRetry convenience
+     * Exercise 5: convenience {@code withCircuitBreakerAndRetry}.
      *
-     * <p>For the common combination of circuit breaker + retry, use the convenience method
-     * Resilience.withCircuitBreakerAndRetry().
+     * <pre>
+     *   // Nudge:    Single call combining the two most common patterns.
+     *   // Strategy: Resilience.withCircuitBreakerAndRetry(unstableTask, breaker, policy)
+     *   // Spoiler:  exactly that.
+     * </pre>
      */
     @Test
     @DisplayName("Exercise 5: Use Resilience.withCircuitBreakerAndRetry")

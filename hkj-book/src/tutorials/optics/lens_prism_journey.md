@@ -1,6 +1,6 @@
 # Optics: Lens & Prism Journey
 
-~~~admonish info title="What You'll Learn"
+~~~admonish info title="What We'll Learn"
 - Accessing and updating fields in immutable records with Lenses
 - Composing lenses for deep nested access
 - Working with sum types (sealed interfaces) using Prisms
@@ -8,6 +8,10 @@
 ~~~
 
 **Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 30
+
+~~~admonish tip title="Where This Fits in the Bigger Picture"
+The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is composed from the lenses, prisms, and affines this journey teaches. Each tutorial here opens with a Pain → Promise header showing the imperative-Java horror story (copy-constructor cascades, `instanceof` plus mutate-and-rebuild) the optic replaces.
+~~~
 
 ## Journey Overview
 

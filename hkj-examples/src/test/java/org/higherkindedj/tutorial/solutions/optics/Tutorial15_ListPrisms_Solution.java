@@ -15,20 +15,21 @@ import org.higherkindedj.optics.util.ListPrisms;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 15: List Prisms - Functional List Decomposition (Solutions)
+ * Solution for Tutorial15 ListPrisms — teaching-solution format.
  *
- * <p>This file contains the complete solutions for all exercises in Tutorial 15.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Key Concepts:
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <ul>
- *   <li><b>cons (head/tail)</b>: Decompose a list as (first element, remaining elements)
- *   <li><b>snoc (init/last)</b>: Decompose a list as (all but last, last element)
- *   <li><b>head/last</b>: Affines for accessing first/last elements
- *   <li><b>tail/init</b>: Prisms for accessing the rest of a list
- *   <li><b>empty</b>: Prism for matching empty lists
- *   <li><b>Stack-safe operations</b>: Trampoline-based functions for large lists
- * </ul>
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial15_ListPrisms_Solution {
 
@@ -37,12 +38,15 @@ public class Tutorial15_ListPrisms_Solution {
   // =========================================================================
 
   /**
-   * Exercise 1: Decomposing a list with cons
+   * Why this is idiomatic: {@code ListPrisms.cons()} brings the classic functional head/tail
+   * decomposition into Java. {@code getOptional} answers "if the list is non-empty, give me the
+   * pair"; the type forces empty-list handling.
    *
-   * <p>The cons prism decomposes a non-empty list into a Pair of (head, tail) where head is the
-   * first element and tail is the remaining list.
+   * <p>Alternative: {@code list.get(0)} and {@code list.subList(1, list.size())}. Same runtime;
+   * throws on empty lists, while the prism returns {@code Optional.empty()}.
    *
-   * <p>Task: Use the cons prism to extract the head and tail of a list
+   * <p>Common wrong attempt: assume the tail is always non-empty. A two-element list decomposes
+   * into a head and a one-element tail; the prism does not promise length.
    */
   @Test
   void exercise1_consDecomposition() {
@@ -59,11 +63,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 2: Cons fails on empty lists
+   * Why this is idiomatic: cons on an empty list is partial — it returns {@code Optional.empty()}.
+   * The type carries the absence forward, no exception thrown.
    *
-   * <p>The cons prism returns Optional.empty() for empty lists.
+   * <p>Alternative: {@code if (list.isEmpty())} guards before calling. Equivalent; the prism's
+   * partiality removes the need for ad-hoc guards.
    *
-   * <p>Task: Verify that cons returns empty for an empty list
+   * <p>Common wrong attempt: assume cons returns a pair with a {@code null} head for empties. The
+   * prism never returns {@code null}; the result is {@code Optional.empty()}.
    */
   @Test
   void exercise2_consOnEmptyList() {
@@ -78,11 +85,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 3: Building a list with cons
+   * Why this is idiomatic: {@code cons.build(pair)} is the symmetric partner — given a head and a
+   * tail, produce a list. Total in the write direction; the head is always prepended.
    *
-   * <p>The cons prism can also build a list from a (head, tail) pair using the build method.
+   * <p>Alternative: a manual {@code List.of(head, ...)}-style concatenation. Equivalent runtime;
+   * the prism's {@code build} is the named pair-of-cons constructor.
    *
-   * <p>Task: Use cons.build() to create a list by prepending an element
+   * <p>Common wrong attempt: assume {@code build} returns the same {@code List} instance each time.
+   * The lists are immutable and {@code build} returns a fresh list each call.
    */
   @Test
   void exercise3_buildingWithCons() {
@@ -101,12 +111,14 @@ public class Tutorial15_ListPrisms_Solution {
   // =========================================================================
 
   /**
-   * Exercise 4: Decomposing a list with snoc
+   * Why this is idiomatic: snoc is cons read backwards — decompose into (init, last) rather than
+   * (head, tail). Useful when the algorithm naturally examines the trailing element.
    *
-   * <p>The snoc prism (cons spelled backwards) decomposes a non-empty list into a Pair of (init,
-   * last).
+   * <p>Alternative: {@code list.get(list.size() - 1)} and {@code subList(0, size - 1)}. Same
+   * runtime; throws on empty lists, while snoc returns {@code Optional.empty()}.
    *
-   * <p>Task: Use the snoc prism to extract the init and last of a list
+   * <p>Common wrong attempt: confuse cons and snoc when reaching for "last element". Cons exposes
+   * the head; snoc exposes the last. Pick the one that matches the algorithm's intent.
    */
   @Test
   void exercise4_snocDecomposition() {
@@ -123,11 +135,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 5: Building a list with snoc
+   * Why this is idiomatic: {@code snoc.build(pair)} appends the last element to the init — total in
+   * the write direction, mirroring cons.
    *
-   * <p>The snoc prism can build a list from an (init, last) pair.
+   * <p>Alternative: a {@code Stream.concat(...)} or {@code ArrayList.add(last)}. The prism version
+   * is one named call and stays immutable.
    *
-   * <p>Task: Use snoc.build() to create a list by appending an element
+   * <p>Common wrong attempt: pass {@code (last, init)} the wrong way around. The pair stores init
+   * first, last second — read {@code Pair.of(init, last)} once and remember.
    */
   @Test
   void exercise5_buildingWithSnoc() {
@@ -146,11 +161,14 @@ public class Tutorial15_ListPrisms_Solution {
   // =========================================================================
 
   /**
-   * Exercise 6: Accessing the first element with head
+   * Why this is idiomatic: {@code ListPrisms.head()} packages "first element" as an affine. Reads
+   * return {@code Optional}, modifies leave the rest of the list intact.
    *
-   * <p>The head() affine focuses on the first element of a list.
+   * <p>Alternative: cons + {@code map} on the head. Same answer; {@code head} is the named
+   * accessor.
    *
-   * <p>Task: Use the head affine to get and modify the first element
+   * <p>Common wrong attempt: assume {@code head} returns the first element directly. It returns an
+   * affine — call {@code getOptional} or {@code modify} to use it.
    */
   @Test
   void exercise6_headAffine() {
@@ -170,11 +188,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 7: Accessing the last element
+   * Why this is idiomatic: {@code ListPrisms.last()} is the symmetric companion to {@code head}.
+   * {@code modify} touches only the trailing element; the rest of the list stays unchanged.
    *
-   * <p>The last() affine focuses on the last element of a list.
+   * <p>Alternative: snoc + {@code map} on the last. Same answer; {@code last} is the named
+   * accessor.
    *
-   * <p>Task: Use the last affine to get and modify the last element
+   * <p>Common wrong attempt: assume modifying the last is O(1). For an immutable {@code List} the
+   * rebuild is O(n) — unavoidable without mutation, but worth knowing.
    */
   @Test
   void exercise7_lastAffine() {
@@ -194,11 +215,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 8: Setting values on empty lists
+   * Why this is idiomatic: {@code head.set} on an empty list materialises the singleton {@code
+   * [value]}. The affine's write side is total — no special-case handling needed.
    *
-   * <p>The head and last affines create singleton lists when setting on empty lists.
+   * <p>Alternative: {@code list.isEmpty() ? List.of(v) : ...}. The affine's unconditional set hides
+   * this branching for you.
    *
-   * <p>Task: Use head.set() to create a list from an empty list
+   * <p>Common wrong attempt: assume the affine refuses empty inputs. It accepts and grows the list
+   * to a singleton; {@code modify} is the operation that no-ops on empty.
    */
   @Test
   void exercise8_settingOnEmptyList() {
@@ -214,11 +238,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 9: Accessing the tail of a list
+   * Why this is idiomatic: {@code tail} returns "all but the first" as an affine. A single-element
+   * list has an empty tail; an empty list has no tail at all.
    *
-   * <p>The tail() prism focuses on all elements except the first.
+   * <p>Alternative: {@code list.subList(1, list.size())}. Equivalent for non-empty lists; throws
+   * for empty, while the affine returns {@code Optional.empty()}.
    *
-   * <p>Task: Use the tail affine to get the remaining elements
+   * <p>Common wrong attempt: confuse "empty tail" with "no tail". A singleton has the empty list as
+   * its tail — present but empty.
    */
   @Test
   void exercise9_tailAffine() {
@@ -238,11 +265,15 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 10: Accessing the init of a list
+   * Why this is idiomatic: {@code init} mirrors {@code tail} on the other end — every element
+   * except the last. Used in algorithms that consume from the back without special-casing
+   * single-element lists.
    *
-   * <p>The init() prism focuses on all elements except the last.
+   * <p>Alternative: {@code list.subList(0, list.size() - 1)}. Equivalent; throws on empty, while
+   * the affine returns {@code Optional.empty()}.
    *
-   * <p>Task: Use the init affine to get all but the last element
+   * <p>Common wrong attempt: mix up {@code init} and {@code tail}. {@code init} drops the last;
+   * {@code tail} drops the first.
    */
   @Test
   void exercise10_initAffine() {
@@ -262,11 +293,15 @@ public class Tutorial15_ListPrisms_Solution {
   // =========================================================================
 
   /**
-   * Exercise 11: Pattern matching with empty
+   * Why this is idiomatic: pair {@code empty} and {@code cons} for full pattern matching. Empty
+   * fires its branch; non-empty falls through to the cons decomposition.
    *
-   * <p>The empty() prism matches only empty lists.
+   * <p>Alternative: {@code list.isEmpty()} guard plus {@code list.get(0)}. Same answer; the prism
+   * pair lifts both into the optic vocabulary.
    *
-   * <p>Task: Use the empty prism for pattern matching
+   * <p>Common wrong attempt: rely on {@code empty.build(Unit.INSTANCE)} to produce a non-empty
+   * list. It always builds an empty list — the prism is one-way like {@code only} and {@code
+   * nearly}.
    */
   @Test
   void exercise11_emptyPrism() {
@@ -299,9 +334,15 @@ public class Tutorial15_ListPrisms_Solution {
   // =========================================================================
 
   /**
-   * Exercise 12: Stack-safe mapping with mapTrampoline
+   * Why this is idiomatic: {@code mapTrampoline} produces the same result as {@code
+   * stream().map(...).toList()} but without consuming JVM stack frames per element. The trampoline
+   * shape is what makes it safe for very large lists.
    *
-   * <p>Task: Use mapTrampoline to transform a list
+   * <p>Alternative: {@code list.stream().map(fn).toList()}. Same answer for medium inputs; the
+   * trampoline form scales to a million elements without overflow.
+   *
+   * <p>Common wrong attempt: assume the trampoline is always faster. For small lists the stream
+   * version wins on constant overhead; reach for the trampoline when stack safety matters.
    */
   @Test
   void exercise12_stackSafeMap() {
@@ -314,9 +355,16 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 13: Stack-safe filtering with filterTrampoline
+   * Why this is idiomatic: {@code filterTrampoline} keeps only the elements the predicate accepts
+   * and rebuilds the list without recursion. The trampoline is the mechanical equivalent of a
+   * foldRight implementation that does not blow the stack.
    *
-   * <p>Task: Use filterTrampoline to keep only even numbers
+   * <p>Alternative: {@code list.stream().filter(p).toList()}. Same answer; pick the trampoline form
+   * when the input may be enormous.
+   *
+   * <p>Common wrong attempt: combine {@code filter} + {@code map} into one trampoline call. They
+   * compose with {@code flatMapTrampoline} or by chaining; reach for the single-purpose helper that
+   * matches the intent.
    */
   @Test
   void exercise13_stackSafeFilter() {
@@ -329,9 +377,15 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 14: Stack-safe folding with foldRight
+   * Why this is idiomatic: {@code foldRight} reduces from the right with the supplied combiner —
+   * sum, concat, build — and stays stack-safe via the trampoline.
    *
-   * <p>Task: Use foldRight to sum a list of numbers
+   * <p>Alternative: {@code list.stream().reduce(0, Integer::sum)}. Same answer for commutative
+   * operations; the right-fold form preserves order for non-commutative combiners.
+   *
+   * <p>Common wrong attempt: apply a non-associative combiner expecting left-fold results. {@code
+   * foldRight} starts from the seed at the right; the order matters when the operator is
+   * non-associative.
    */
   @Test
   void exercise14_stackSafeFold() {
@@ -344,9 +398,15 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 15: Stack-safe flatMap with flatMapTrampoline
+   * Why this is idiomatic: {@code flatMapTrampoline} applies a list-returning function to each
+   * element and concatenates the results. Stack-safe; ideal for tree-flattening or expansion
+   * algorithms.
    *
-   * <p>Task: Use flatMapTrampoline to duplicate each element
+   * <p>Alternative: {@code list.stream().flatMap(x -> innerList(x).stream()).toList()}. Same
+   * answer; the trampoline form is preferable on large inputs.
+   *
+   * <p>Common wrong attempt: return {@code null} from the inner function for "no result". Use
+   * {@code List.of()} (the empty list) — flatMap concatenates the empty contribution cleanly.
    */
   @Test
   void exercise15_stackSafeFlatMap() {
@@ -359,9 +419,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 16: Stack-safe zip with zipWithTrampoline
+   * Why this is idiomatic: {@code zipWithTrampoline} pairs corresponding elements and applies the
+   * combiner — stack-safe and stops at the shorter list.
    *
-   * <p>Task: Use zipWithTrampoline to combine names and ages
+   * <p>Alternative: an indexed loop. Same runtime; the trampoline keeps the call shape consistent
+   * with the rest of the helpers.
+   *
+   * <p>Common wrong attempt: assume the result length is the longer list's length. The zip stops
+   * when either input is exhausted; pad the shorter list explicitly if a uniform length is wanted.
    */
   @Test
   void exercise16_stackSafeZip() {
@@ -376,9 +441,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 17: Stack-safe take and drop
+   * Why this is idiomatic: {@code take} and {@code drop} are the dual slicing helpers — one keeps
+   * the prefix, the other drops it. The trampoline form scales without stack cost.
    *
-   * <p>Task: Use takeTrampoline and dropTrampoline to slice a list
+   * <p>Alternative: {@code list.subList(...)} bounds. Same answer; the trampoline form keeps the
+   * API consistent with {@code map}/{@code filter} when chaining.
+   *
+   * <p>Common wrong attempt: pass a negative {@code n}. The helpers expect non-negative counts;
+   * clamp to zero or the list size before calling.
    */
   @Test
   void exercise17_stackSafeTakeAndDrop() {
@@ -395,9 +465,14 @@ public class Tutorial15_ListPrisms_Solution {
   }
 
   /**
-   * Exercise 18: Stack-safe reverse
+   * Why this is idiomatic: {@code reverseTrampoline} produces a reversed list without recursion.
+   * The classic accumulator-based reverse runs in O(n) and the trampoline makes it stack-safe.
    *
-   * <p>Task: Use reverseTrampoline to reverse a list
+   * <p>Alternative: {@code Collections.reverse(new ArrayList<>(list))}. Mutates a copy; the
+   * trampoline version stays immutable end-to-end.
+   *
+   * <p>Common wrong attempt: build a recursive reverse by hand. The naïve recursion blows the stack
+   * on long lists; the helper exists to avoid that footgun.
    */
   @Test
   void exercise18_stackSafeReverse() {
@@ -414,9 +489,15 @@ public class Tutorial15_ListPrisms_Solution {
   // =========================================================================
 
   /**
-   * Exercise 19: Composing head with other optics
+   * Why this is idiomatic: list optics compose with lenses and prisms like any other optic.
+   * Lens-into-list followed by {@code head} gives an {@code Affine<Container, String>} — the first
+   * item of the nested list.
    *
-   * <p>Task: Compose a lens with head to access a nested list's first element
+   * <p>Alternative: read the items, take {@code stream().findFirst()}, write back. Same runtime;
+   * the optic composition keeps the path inspectable.
+   *
+   * <p>Common wrong attempt: forget that {@code head} is an affine. Composing with a lens produces
+   * another affine, not a lens; the partiality propagates through.
    */
   @Test
   void exercise19_composingWithHead() {

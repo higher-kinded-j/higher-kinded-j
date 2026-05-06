@@ -6,22 +6,36 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 02: Lens Composition - Accessing Nested Structures
+ * Tutorial 02: Lens Composition — accessing deeply nested fields.
  *
- * <p>The real power of lenses comes from composition. You can combine lenses to access deeply
- * nested fields without writing verbose update code.
+ * <p>Pain → Promise. Updating a field three levels deep in immutable records is the canonical
+ * imperative-Java horror story:
  *
- * <p>Key Concepts: - andThen: composes two lenses into a deeper lens - Composition is associative:
- * a.andThen(b).andThen(c) == a.andThen(b.andThen(c)) - Accessing nested structures becomes
- * type-safe and concise
+ * <pre>
+ *   Person updated = new Person(
+ *       p.name(),
+ *       p.email(),
+ *       new Address(
+ *           new Street("New St", p.address().street().number()),
+ *           p.address().city()));
+ * </pre>
  *
- * <p>Before Lenses: new Person(p.name(), p.address().city(), new Address(p.address().street(), "New
- * City"))
+ * <p>Composed lenses turn the same update into a single line:
  *
- * <p>With Lenses: cityLens.set("New City", person)
+ * <pre>
+ *   var personToStreetName = PersonLenses.address()
+ *       .andThen(AddressLenses.street())
+ *       .andThen(StreetLenses.name());
+ *   Person updated = personToStreetName.set("New St", p);
+ * </pre>
+ *
+ * <p>Java idiom anchor: {@code andThen} is the same composition idea as {@code Function.andThen} —
+ * combining small reusable pieces into deeper transformations. Composition is associative, so we
+ * can refactor freely.
  */
 public class Tutorial02_LensComposition {
 
@@ -86,13 +100,16 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 1: Composing two lenses
+   * Exercise 1: Composing two lenses.
    *
-   * <p>Use andThen to compose lenses that focus deeper into a structure.
-   *
-   * <p>Task: Create a lens that goes from Person to Company name
+   * <pre>
+   *   // Nudge:    andThen plumbs the second lens through the first.
+   *   // Strategy: personToCompany.andThen(companyToName)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: andThen composes two lenses")
   void exercise1_composingTwoLenses() {
     Person person =
         new Person(
@@ -115,13 +132,16 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 2: Deep composition (three levels)
+   * Exercise 2: Deep composition across three levels.
    *
-   * <p>Compose multiple lenses to access deeply nested fields.
-   *
-   * <p>Task: Create a lens from Person to the city in their company's address
+   * <pre>
+   *   // Nudge:    Three levels of nesting -&gt; three andThen calls.
+   *   // Strategy: PersonLenses.company().andThen(CompanyLenses.address()).andThen(AddressLenses.city())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 2: deep composition across three levels")
   void exercise2_deepComposition() {
     Person person =
         new Person(
@@ -146,13 +166,16 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 3: Modifying through composed lenses
+   * Exercise 3: Modifying through composed lenses.
    *
-   * <p>Use modify with composed lenses to transform nested values.
-   *
-   * <p>Task: Transform the street address to uppercase
+   * <pre>
+   *   // Nudge:    A composed lens has the same modify method as a simple lens.
+   *   // Strategy: personToStreet.modify(String::toUpperCase, person)
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: modify through a composed lens")
   void exercise3_modifyThroughComposition() {
     Person person =
         new Person(
@@ -171,13 +194,16 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 4: Multiple updates with composed lenses
+   * Exercise 4: Multiple updates with composed lenses.
    *
-   * <p>Chain multiple lens operations to update different nested fields.
-   *
-   * <p>Task: Update both the company name and city
+   * <pre>
+   *   // Nudge:    Two nested updates -&gt; two lens.set calls in sequence.
+   *   // Strategy: cityLens.set("Capital City", companyNameLens.set("MegaCorp", person))
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: multiple nested updates")
   void exercise4_multipleNestedUpdates() {
     Person person =
         new Person(
@@ -199,13 +225,16 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 5: Reusable composed lenses
+   * Exercise 5: Reusable composed lenses.
    *
-   * <p>Composed lenses can be saved and reused, avoiding repetition.
-   *
-   * <p>Task: Create reusable lenses for common access patterns
+   * <pre>
+   *   // Nudge:    Compose appToDb -&gt; dbToConfig -&gt; configToHost / configToPort once each.
+   *   // Strategy: appToDb.andThen(dbToConfig).andThen(configToHost)
+   *   // Spoiler:  same shape for the port; just swap the leaf lens.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: build reusable composed lenses")
   void exercise5_reusableComposedLenses() {
     @GenerateLenses
     record Config(String host, int port) {}
@@ -261,13 +290,19 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 6: Lens composition with helper methods
+   * Exercise 6: Lens composition vs generated {@code with*} helpers.
    *
-   * <p>The generated *Lenses classes also provide convenient `with*` methods.
-   *
-   * <p>Task: Compare lens composition with helper methods
+   * <pre>
+   *   // Nudge:    Generated companions expose with* methods that mirror the lens.set call.
+   *   // Strategy: PersonLenses.withCompany(person,
+   *   //              CompanyLenses.withAddress(person.company(),
+   *   //                  AddressLenses.withCity(person.company().address(), "New City")))
+   *   // Spoiler:  the helper version is fine for one-off updates; the composed lens reuses
+   *   //           better.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: composed lens vs generated with* helpers")
   void exercise6_helperMethods() {
     Person person =
         new Person(
@@ -290,13 +325,18 @@ public class Tutorial02_LensComposition {
   }
 
   /**
-   * Exercise 7: Complex real-world scenario
+   * Exercise 7: Real-world nested update — billing address city.
    *
-   * <p>Let's put it all together with a realistic nested structure.
-   *
-   * <p>Task: Update a user's billing address city
+   * <pre>
+   *   // Nudge:    Three levels: User -&gt; PaymentInfo -&gt; Address -&gt; city.
+   *   // Strategy: UserLenses.paymentInfo()
+   *   //               .andThen(PaymentInfoLenses.billingAddress())
+   *   //               .andThen(AddressLenses.city())
+   *   // Spoiler:  exactly that.
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: real-world nested update")
   void exercise7_realWorldScenario() {
     @GenerateLenses
     record Address(String street, String city) {}

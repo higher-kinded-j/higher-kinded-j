@@ -15,14 +15,19 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Enhanced Optics Integration - Traversals, Isos, and Combined Workflows
+ * Tutorial 04: Enhanced Optics Integration — Traversals, Isos, and combined workflows.
  *
- * <p>This tutorial explores the advanced optics integration features of {@code ForState} and {@code
- * For}, focusing on bulk operations via traversals, type-safe conversions via isomorphisms, and
- * real-world combined workflows.
+ * <p>Pain → Promise. State-threading workflows often need to update a collection field in bulk
+ * (every line item gets a discount) or convert between equivalent representations (cents ↔ pounds).
+ * Hand-rolled, that is one stream pipeline plus one conversion helper per step.
+ *
+ * <p>{@code ForState} integrates with traversals (for bulk operations) and isomorphisms (for
+ * lossless type conversions) so the workflow stays a single declarative comprehension. This
+ * tutorial walks through the integration patterns end-to-end.
  *
  * <p>Key Concepts:
  *
@@ -90,8 +95,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    *
    * <p>Hint: Use {@code traverseOver(Traversals.forList(), e -> Id.of(new Employee(e.name(),
    * e.salaryInCents() + 1000)))}
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with idMonad and Id.of(employees)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 1: Basic traverseOver")
   void exercise1_basicTraverseOver() {
     IdMonad idMonad = IdMonad.instance();
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
@@ -118,6 +128,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
    * MAYBE.just(e) : MAYBE.nothing())}
    */
   @Test
+  @DisplayName("Exercise 2: traverseOver with Maybe Short Circuit")
   void exercise2_traverseOverWithMaybeShortCircuit() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     List<Employee> validEmployees =
@@ -150,8 +161,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    *
    * <p>Hint: Use {@code modifyThrough(Traversals.forList(), e -> new Employee(
    * e.name().toUpperCase(), e.salaryInCents()))}
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with idMonad and Id.of(employees)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 3: pure modifyThrough")
   void exercise3_pureModifyThrough() {
     IdMonad idMonad = IdMonad.instance();
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
@@ -174,8 +190,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    * double all employee salaries. The lens focuses on the salary field within each employee.
    *
    * <p>Hint: Use {@code modifyThrough(Traversals.forList(), salaryLens, s -> s * 2)}
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with idMonad and Id.of(employees)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 4: modifyThrough with Lens")
   void exercise4_modifyThroughWithLens() {
     IdMonad idMonad = IdMonad.instance();
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
@@ -202,8 +223,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    *
    * <p>Hint: Use {@code For.from(idMonad, Id.of(new Celsius(100.0))).through(celsiusToFahrenheit)
    * .yield((celsius, fahrenheit) -> ...)}
+   *
+   * <pre>
+   *   // Strategy: For.from with Id.of(new Celsius(100.0))
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 5: through Iso basics")
   void exercise5_throughIsoBasics() {
     IdMonad idMonad = IdMonad.instance();
 
@@ -229,8 +255,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    *
    * <p>Hint: Use {@code For.from(maybeMonad, MAYBE.just("hello")).through(stringToWrapper) .when(t
    * -> t._2().inner().length() > 3)}
+   *
+   * <pre>
+   *   // Strategy: For.from with MAYBE.just("hello") and through(stringToWrapper)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 6: through Iso with filter")
   void exercise6_throughIsoWithFilter() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
@@ -260,8 +291,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    * result.
    *
    * <p>Hint: Use {@code .modifyVia(salaryLens, centsToDollars, d -> d + 50.0)}
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with idMonad and Id.of(alice)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 7: modifyVia Iso")
   void exercise7_modifyViaIso() {
     IdMonad idMonad = IdMonad.instance();
     Employee alice = new Employee("Alice", 50000);
@@ -287,8 +323,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    * target type back to the field type using {@code reverseGet}, then stores it via the lens.
    *
    * <p>Hint: Use {@code .updateVia(salaryLens, centsToDollars, 750.0)}
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with idMonad and Id.of(alice)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 8: updateVia Iso")
   void exercise8_updateViaIso() {
     IdMonad idMonad = IdMonad.instance();
     Employee alice = new Employee("Alice", 50000);
@@ -317,8 +358,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    *
    * <p>Hint: Chain {@code traverseOver}, then {@code modifyThrough}, then another {@code
    * modifyThrough} with the salary lens.
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with maybeMonad and MAYBE.just(employees)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 9: combined workflow")
   void exercise9_combinedWorkflow() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     List<Employee> employees = List.of(new Employee("alice", 50000), new Employee("bob", 60000));
@@ -359,8 +405,13 @@ public class Tutorial04_EnhancedOpticsIntegration {
    * <p>Hint: Use {@code traverse(staffLens, Traversals.forList(), e -> e.salaryInCents() > 0 ?
    * MAYBE.just(e) : MAYBE.nothing())} for validation, then {@code modifyVia(budgetLens,
    * centsToDollars, d -> d * 1.1)} for the budget increase.
+   *
+   * <pre>
+   *   // Strategy: ForState.withState with maybeMonad and MAYBE.just(engineering)
+   * </pre>
    */
   @Test
+  @DisplayName("Exercise 10: department payroll")
   void exercise10_departmentPayroll() {
     MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     Department engineering =

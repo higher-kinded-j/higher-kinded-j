@@ -1,24 +1,31 @@
 # Tutorial Solutions
 
-This directory contains complete, working solutions for all tutorial exercises.
+This directory contains complete, working solutions for every tutorial exercise.
 
 ## Usage
 
-The solution files mirror the structure of the tutorial files, but with all `___` placeholders replaced with working code.
+The solution files mirror the structure of the tutorial files, but with all `answerRequired()` placeholders replaced with working code, plus extra commentary on *why* the solution is idiomatic.
 
-**Important**: Try to solve the exercises yourself before looking at the solutions!
+**Important**: Try to solve the exercises yourself before looking at the solutions! See [`solutions_guide.md`](../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md) in the book for guidance on how to learn from a solution rather than copy it.
 
 ## Structure
 
-- `coretypes/` - Solutions for Core Types tutorials (01-07)
-- `optics/` - Solutions for Optics tutorials (01-07)
-- `transformers/` - Solutions for Monad Transformers tutorials (01-04)
-- `resilience/` - Solutions for Resilience Patterns tutorials (01-04)
+| Directory | Solutions | Matches tutorial directory |
+|-----------|-----------|----------------------------|
+| `coretypes/` | 11 | `tutorial/coretypes/` |
+| `effect/` | 2 | `tutorial/effect/` |
+| `transformers/` | 4 | `tutorial/transformers/` |
+| `concurrency/` | 8 | `tutorial/concurrency/` |
+| `optics/` | 20 | `tutorial/optics/` |
+| `expression/` | 4 | `tutorial/expression/` |
+| `context/` | 6 | `tutorial/context/` |
+| `effecthandlers/` | 6 | `tutorial/effecthandlers/` |
+| `resilience/` | 4 | `tutorial/resilience/` |
 
 Each solution file:
 - Has the same structure as the corresponding tutorial
 - Contains complete, tested code for all exercises
-- Includes the same documentation and explanations
+- Includes commentary on the idiomatic choice, alternatives, and common wrong attempts (rolling out across journeys; see the foundations pilot for the format)
 
 ## How to Use Solutions
 

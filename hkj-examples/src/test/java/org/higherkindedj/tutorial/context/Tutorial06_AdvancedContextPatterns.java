@@ -15,10 +15,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial: Advanced Context Patterns - Error Handling and Recovery
+ * Tutorial: Advanced Context Patterns — error handling and recovery.
  *
- * <p>Learn advanced patterns for working with Context including error recovery, error
- * transformation, conversion to other types, and building robust context-aware applications.
+ * <p>Pain → Promise. Once we model the surrounding "request / security / tenant" state as a {@link
+ * Context}, error handling within the context naturally composes — recover with a fallback
+ * principal, swap to an alternative request id, mapError to translate. This tutorial walks through
+ * the production patterns.
+ *
+ * <p>Original notes: this tutorial covers advanced patterns for working with Context, including
+ * error recovery, error transformation, conversion to other types, and building robust
+ * context-aware applications.
  *
  * <p>Key Concepts:
  *

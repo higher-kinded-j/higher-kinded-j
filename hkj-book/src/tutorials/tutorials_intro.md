@@ -1,25 +1,25 @@
 # Interactive Tutorials: Learn Higher-Kinded-J by Building
 
-The best way to understand Higher-Kinded Types and Optics isn't just reading about them: it's writing code, running tests, and seeing the patterns come alive in your IDE.
+The best way to understand Higher-Kinded Types and Optics is not to read about them but to write them — to run a test, watch it fail, change one line, and watch it pass. This chapter is built around that loop.
 
 ## What Makes These Tutorials Different?
 
-Rather than passive reading, you'll:
-- **Write Real Code**: Replace `answerRequired()` placeholders with working implementations
-- **Get Immediate Feedback**: Each test fails until your solution is correct
-- **Build Progressively**: Earlier concepts become tools for later challenges
-- **See Practical Applications**: Every exercise solves a real problem Java developers face
+Rather than passive reading, we will:
+- **Write real code** by replacing `answerRequired()` placeholders with working implementations
+- **Get immediate feedback** because each test fails until our solution is correct
+- **Build progressively** — earlier concepts become tools for later challenges
+- **See practical applications** — every exercise solves a problem Java developers face routinely
 
-Think of these as a guided laboratory for functional programming patterns in Java.
+Think of the chapter as a guided laboratory for functional programming patterns in Java.
 
-## Twelve Focused Journeys
+## Thirteen Focused Journeys
 
-Each journey is designed for a single sitting (20-65 minutes). Short enough to stay focused. Long enough to build real understanding.
+Each journey is designed for a single sitting (20-65 minutes). Short enough to stay focused; long enough to build real understanding.
 
 ### Effect API Journey (Recommended)
 
 ~~~admonish tip title="Start Here for Practical Use"
-After completing Core: Foundations, the **Effect API journey** is the recommended next step. It teaches the primary user-facing API of Higher-Kinded-J.
+After completing **Core: Foundations** the **Effect API journey** is the recommended next step. It teaches the primary user-facing API of Higher-Kinded-J.
 ~~~
 
 | Journey | Duration | Exercises | Focus |
@@ -71,63 +71,83 @@ Each tutorial contains multiple exercises following this pattern:
 ```java
 @Test
 void exercise1_yourFirstChallenge() {
-    // 1. Context: What you're working with
+    // 1. Context: what we are working with
     Either<String, Integer> value = Either.right(42);
 
-    // 2. Task: What you need to implement
+    // 2. Task: what we need to implement
     // TODO: Transform the value by doubling it
     Either<String, Integer> result = answerRequired();
 
-    // 3. Verification: The test checks your solution
+    // 3. Verification: the test checks our solution
     assertThat(result.getRight()).isEqualTo(84);
 }
 ```
 
-Your job is to replace `answerRequired()` with working code. The test will fail with a clear error message until you get it right.
+We replace `answerRequired()` with working code. The test fails with a clear error message until we get it right.
+
+### Tiered Hints
+
+Newer exercise files use a three-tier hint structure so we can read just enough to get unstuck without seeing the answer:
+
+```java
+// Nudge:    What concept applies here?
+// Strategy: Which method on Either turns A into B?
+// Spoiler:  value.map(n -> n * 2)
+```
+
+Read top-to-bottom and stop as soon as we have what we need.
 
 ### The Learning Loop
 
-1. **Read** the exercise description and hints
-2. **Write** your solution in place of `answerRequired()`
+1. **Read** the exercise description and the Nudge
+2. **Write** our solution in place of `answerRequired()`
 3. **Run** the test (Ctrl+Shift+F10 in IntelliJ, Cmd+Shift+T in Eclipse)
 4. **Observe** the result:
-   - ✅ **Green**: Correct! Move to the next exercise
-   - ❌ **Red**: Read the error message carefully; it contains clues
-5. **Iterate** until you understand the pattern
+   - ✅ Green: correct — move on
+   - ❌ Red: read the error message and the Strategy hint
+5. **Iterate** until we understand the pattern, not just until the test passes
+
+### Tracking Our Progress
+
+```bash
+./gradlew :hkj-examples:tutorialProgress
+```
+
+This task scans the tutorial test files, counts the remaining `answerRequired()` calls per journey, and prints a per-journey progress bar. Useful for finding our place after a break.
 
 ### Getting Unstuck
 
-If you're struggling with an exercise:
+If we are struggling with an exercise:
 
-1. **Read the Javadoc carefully**: The comments contain hints and links to relevant documentation
-2. **Check the type signatures**: What types does the method expect? What does it return?
-3. **Look at earlier exercises**: You might have already used a similar pattern
-4. **Consult the documentation**: Links are provided throughout the tutorials
-5. **Peek at the solution**: Solutions are in `solutions/coretypes/` and `solutions/optics/` directories
+1. **Read the Javadoc carefully** — comments contain hints and links to relevant documentation
+2. **Check the type signatures** — what type does the method expect? what does it return?
+3. **Look at earlier exercises** — we may already have used a similar pattern
+4. **Consult the documentation** — links are provided throughout the tutorials
+5. **Peek at the solution** — solutions live in `solutions/<journey>/` directories. Each `@Test` method in a solution carries a Javadoc block in the **Why this is idiomatic / Alternative / Common wrong attempt** format; reading that prose first is usually more useful than reading the working code on its own. See the [Solutions Guide](solutions_guide.md) for the format and how to use it.
 
-> **Resist the temptation to copy-paste solutions!** You'll learn far more from struggling for 5 minutes than from reading the answer immediately. The struggle is where the learning happens.
+> **Resist the temptation to copy-paste.** We will learn far more from struggling for five minutes than from reading the answer immediately. The struggle is where the learning happens.
 
 ## Prerequisites
 
 ### Required Knowledge
-- **Java Fundamentals**: Records, generics, lambda expressions, method references
-- **IDE Proficiency**: Running tests, navigating code, using auto-completion
-- **Basic Functional Concepts**: Helpful but not required; we'll introduce them as needed
+- **Java fundamentals**: records, generics, lambdas, method references
+- **IDE proficiency**: running tests, navigating code, using auto-completion
+- **Basic functional concepts**: helpful but not required; we introduce them as needed
 
 ### Technical Setup
-- **Java 25 or later**: The library uses modern Java features
-- **Build Tool**: Gradle or Maven with the Higher-Kinded-J dependencies configured
+- **Java 25 or later**: the library uses modern Java features
+- **Build tool**: Gradle or Maven with the Higher-Kinded-J dependencies configured
 - **IDE**: IntelliJ IDEA, Eclipse, or VS Code with Java extensions
 
-### Verify Your Setup
+### Verify Our Setup
 
-Run this simple test to ensure everything is configured correctly:
+The fastest way is the **`Tutorial00_OneLineSixLayers`** exercise, which doubles as the chapter's anchor:
 
 ```bash
-./gradlew :hkj-examples:tutorialTest --tests "*Tutorial01_KindBasics.exercise1*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial00_OneLineSixLayers*"
 ```
 
-If you see a test failure with "Answer required", you're ready to go!
+If we see a test failure with "Answer required", everything is wired up correctly and we are ready to go.
 
 ### Running Tutorials
 
@@ -142,22 +162,24 @@ Tutorial exercises are run using a dedicated Gradle task:
 
 # Run VTask concurrency tutorials
 ./gradlew :hkj-examples:tutorialTest --tests "*TutorialVTask*"
+
+# See progress across journeys
+./gradlew :hkj-examples:tutorialProgress
 ```
 
 ~~~admonish note title="Test Configuration"
-Tutorial tests are **excluded** from `./gradlew test` because they are incomplete
-exercises. The solution tests are included and must pass to ensure tutorials are
-correctly designed.
+Tutorial tests are **excluded** from `./gradlew test` because they are incomplete by design. The solution tests are included and must pass to ensure each tutorial is correctly designed.
 
 | Command | Description |
 |---------|-------------|
 | `./gradlew test` | Runs solution tests only (must pass) |
-| `./gradlew :hkj-examples:tutorialTest` | Runs tutorial exercises (expected to fail until you complete them) |
+| `./gradlew :hkj-examples:tutorialTest` | Runs tutorial exercises (expected to fail until we complete them) |
+| `./gradlew :hkj-examples:tutorialProgress` | Prints how many `answerRequired()` calls remain per journey |
 ~~~
 
 ## Recommended Learning Paths
 
-See the full [Learning Paths](learning_paths.md) guide for detailed sequences. Here's a quick overview:
+See the full [Learning Paths](learning_paths.md) guide for detailed sequences. A quick overview:
 
 ### Quick Start (2 sessions)
 [Core: Foundations](coretypes/foundations_journey.md) → [Effect API](effect/effect_journey.md)
@@ -168,20 +190,20 @@ See the full [Learning Paths](learning_paths.md) guide for detailed sequences. H
 ### Optics Specialist (4 sessions)
 [Lens & Prism](optics/lens_prism_journey.md) → [Traversals](optics/traversals_journey.md) → [Fluent & Free](optics/fluent_free_journey.md) → [Focus DSL](optics/focus_dsl_journey.md)
 
-### Full Curriculum (12 sessions)
+### Full Curriculum (13 sessions)
 All journeys in recommended order. See [Learning Paths](learning_paths.md).
 
-## What You'll Build
+## What We Will Build
 
-By the end of these tutorials, you'll have hands-on experience building:
+By the end of these tutorials, we will have hands-on experience building:
 
-### From Core Types Journeys:
+### From Core Types Journeys
 - A **form validation system** using Applicative to combine independent checks
 - A **data processing pipeline** using Monad to chain dependent operations
 - An **error handling workflow** using `Either` and `Validated` for robust failure management
-- A **configuration system** using `Reader` monad for dependency injection
+- A **configuration system** using `Reader` for dependency injection
 
-### From Optics Journeys:
+### From Optics Journeys
 - A **user profile editor** with deep nested updates using Lens composition
 - An **e-commerce order processor** using Traversals for bulk operations
 - A **data validation pipeline** combining Lens, Prism, and Traversal
@@ -189,57 +211,54 @@ By the end of these tutorials, you'll have hands-on experience building:
 
 ## Tips for Success
 
-1. **One journey per sitting**: Each journey builds internal momentum. Splitting them reduces learning.
-
-2. **Read the Hints**: They're there to guide you, not to slow you down. The Javadoc comments often contain the answer.
-
-3. **Run Tests Frequently**: Don't write all exercises at once. Get one green, then move to the next.
-
-4. **Experiment Fearlessly**: Try different approaches. Tests provide a safety net; you can't break anything.
-
-5. **Don't Rush**: Understanding matters more than speed. Take breaks between journeys.
-
-6. **Ask Questions**: Use [GitHub Discussions](https://github.com/higher-kinded-j/higher-kinded-j/discussions) if you're confused about a concept.
+1. **One journey per sitting.** Each journey builds internal momentum. Splitting them reduces learning.
+2. **Read hints in order.** Nudge first, then Strategy, then Spoiler. Stop the moment we have enough.
+3. **Run tests frequently.** Get one green before moving on; don't write all the exercises in one go.
+4. **Experiment fearlessly.** Tests provide a safety net; we cannot break anything.
+5. **Don't rush.** Understanding matters more than speed. Take breaks between journeys.
+6. **Ask questions.** Use [GitHub Discussions](https://github.com/higher-kinded-j/higher-kinded-j/discussions) if a concept is unclear.
 
 ## Beyond the Tutorials
 
-After completing the tutorials, continue your learning journey with:
+After completing the tutorials, continue with:
 
-- **[Example Code](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example)**: Production-quality examples in `hkj-examples`
-- **[API Documentation](https://higher-kinded-j.github.io/home.html)**: Deep dives into every optic and typeclass
-- **[Complete Walkthroughs](../hkts/order-walkthrough.md)**: See how the patterns combine in real applications
-- **Your Own Projects**: Apply these patterns to your actual codebase
+- **[Example Code](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example)** — production-quality examples in `hkj-examples`, including the order, market, payment, and draughts domains
+- **[API Documentation](https://higher-kinded-j.github.io/home.html)** — deep dives into every optic and typeclass
+- **[Complete Walkthroughs](../hkts/order-walkthrough.md)** — how the patterns combine in real applications
+- **[One Line, Six Layers](../hkts/one_line_six_layers.md)** — the chapter-wide anchor that ties everything in this book to a single expression
+- **Our own projects** — apply these patterns to a real codebase
 
 ## Ready to Begin?
 
-Choose your starting point:
+Choose a starting point:
 
 **Recommended Path:**
-1. [Foundations Journey](coretypes/foundations_journey.md) - Start here for core concepts
-2. [Effect API Journey](effect/effect_journey.md) - The primary user-facing API (recommended next)
+1. [Tutorial00 — One Line, Six Layers](../hkts/one_line_six_layers.md) (anchor + setup check)
+2. [Foundations Journey](coretypes/foundations_journey.md) - core concepts
+3. [Effect API Journey](effect/effect_journey.md) - the primary user-facing API
 
 **Core Types Track (Foundation):**
-- [Foundations Journey](coretypes/foundations_journey.md) - Start here for HKT basics
-- [Error Handling Journey](coretypes/error_handling_journey.md) - Continue with error handling
-- [Advanced Journey](coretypes/advanced_journey.md) - Master advanced patterns
+- [Foundations Journey](coretypes/foundations_journey.md) - HKT basics
+- [Error Handling Journey](coretypes/error_handling_journey.md) - error handling
+- [Advanced Journey](coretypes/advanced_journey.md) - advanced patterns
 
 **Expression Track:**
-- [ForState Journey](expression/forstate_journey.md) - Named fields, guards, pattern matching, zoom
+- [ForState Journey](expression/forstate_journey.md) - named fields, guards, pattern matching, zoom
 
 **Concurrency & Resilience Track:**
-- [VTask Journey](concurrency/vtask_journey.md) - Virtual threads and Par combinators
-- [Scope & Resource Journey](concurrency/scope_resource_journey.md) - Structured concurrency
-- [Resilience Patterns Journey](resilience/resilience_journey.md) - Circuit breaker, saga, retry, bulkhead
+- [VTask Journey](concurrency/vtask_journey.md) - virtual threads and Par combinators
+- [Scope & Resource Journey](concurrency/scope_resource_journey.md) - structured concurrency
+- [Resilience Patterns Journey](resilience/resilience_journey.md) - circuit breaker, saga, retry, bulkhead
 
 **Optics Track:**
-- [Lens & Prism Journey](optics/lens_prism_journey.md) - Start here for optics
-- [Traversals Journey](optics/traversals_journey.md) - Collections and composition
-- [Fluent & Free Journey](optics/fluent_free_journey.md) - Advanced APIs
-- [Focus DSL Journey](optics/focus_dsl_journey.md) - Type-safe paths
+- [Lens & Prism Journey](optics/lens_prism_journey.md) - start here for optics
+- [Traversals Journey](optics/traversals_journey.md) - collections and composition
+- [Fluent & Free Journey](optics/fluent_free_journey.md) - advanced APIs
+- [Focus DSL Journey](optics/focus_dsl_journey.md) - type-safe paths
 
 Or see [Learning Paths](learning_paths.md) for detailed sequences.
 
-Remember: The goal isn't to memorise every detail. It's to develop an intuition for when and how to apply these patterns. That only comes through practice.
+Remember: the goal isn't to memorise every detail. It's to develop an intuition for when and how to apply these patterns. That only comes through practice.
 
 ---
 

@@ -26,10 +26,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solutions for VStream Advanced Features Tutorial.
+ * Solution for TutorialVStreamAdvanced — teaching-solution format.
  *
- * <p>This file contains the working solutions for TutorialVStreamAdvanced. Compare your answers
- * against these solutions.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
+ *
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
+ *
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 @DisplayName("Solution: VStream Advanced Features")
 public class TutorialVStreamAdvanced_Solution {
@@ -42,6 +53,16 @@ public class TutorialVStreamAdvanced_Solution {
   @DisplayName("Part 1: Resource-Safe Streaming")
   class ResourceSafeStreaming {
 
+    /**
+     * Why this is idiomatic: {@code VStream.bracket(acquire, use, release)} is the canonical
+     * resource-safe pattern. Resource opens on subscription and closes on completion or failure.
+     *
+     * <p>Alternative: a try-with-resources block. Same semantics for synchronous code; bracket
+     * integrates with the lazy stream so it works for both finite and infinite consumption.
+     *
+     * <p>Common wrong attempt: skip the release lambda. Resources leak; bracket always wants both
+     * halves of the contract.
+     */
     @Test
     @DisplayName("Exercise 1: Basic bracket usage")
     void exercise1_basicBracket() {
@@ -64,6 +85,16 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(resourceOpen).isFalse();
     }
 
+    /**
+     * Why this is idiomatic: bracket's release runs even when the consumer takes only part of the
+     * stream. The contract is "release once the stream is no longer needed", not "release at end of
+     * source".
+     *
+     * <p>Alternative: manual cleanup after each take. Brittle; bracket centralises the lifetime.
+     *
+     * <p>Common wrong attempt: assume {@code take(n)} implies "release later". The release fires as
+     * soon as the consumer stops; the test asserts this behaviour.
+     */
     @Test
     @DisplayName("Exercise 2: Release on partial consumption")
     void exercise2_releaseOnPartialConsumption() {
@@ -83,6 +114,16 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(released).isTrue();
     }
 
+    /**
+     * Why this is idiomatic: {@code onFinalize(task)} attaches a cleanup action that runs once the
+     * stream is fully consumed. Useful for logging or metrics.
+     *
+     * <p>Alternative: wrap the consumer in {@code try/finally}. Equivalent for synchronous code;
+     * {@code onFinalize} stays inside the stream API.
+     *
+     * <p>Common wrong attempt: assume {@code onFinalize} runs eagerly. The action runs at
+     * completion; lazy until then.
+     */
     @Test
     @DisplayName("Exercise 3: onFinalize for cleanup")
     void exercise3_onFinalize() {
@@ -105,6 +146,17 @@ public class TutorialVStreamAdvanced_Solution {
   @DisplayName("Part 2: StreamTraversal")
   class StreamTraversalExercises {
 
+    /**
+     * Why this is idiomatic: {@code StreamTraversal.forVStream()} is the lazy- traversal cousin of
+     * {@code Traversals.forList} but for VStreams. Stream the focus instead of materialising a
+     * list.
+     *
+     * <p>Alternative: collect to list, traverse, rebuild. Equivalent answer; the stream traversal
+     * stays lazy.
+     *
+     * <p>Common wrong attempt: pair {@code StreamTraversal} with a non-stream source. The traversal
+     * is type-specific; pick the matching factory.
+     */
     @Test
     @DisplayName("Exercise 4: StreamTraversal.forVStream()")
     void exercise4_vstreamTraversal() {
@@ -117,6 +169,16 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(result).containsExactly(10, 20, 30);
     }
 
+    /**
+     * Why this is idiomatic: {@code StreamTraversal.forList().modify(fn, source)} applies a
+     * function across every element and rebuilds the list lazily.
+     *
+     * <p>Alternative: stream-map and {@code toList()}. Same answer; the stream traversal stays
+     * composable with other optic combinators.
+     *
+     * <p>Common wrong attempt: use a regular {@code Traversal} when the source may be huge. The
+     * lazy stream traversal handles size better.
+     */
     @Test
     @DisplayName("Exercise 5: StreamTraversal modify")
     void exercise5_streamTraversalModify() {
@@ -129,6 +191,16 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(result).containsExactly(10, 20, 30, 40);
     }
 
+    /**
+     * Why this is idiomatic: {@code StreamTraversal.andThen(lens)} composes a lazy traversal with a
+     * lens — every element seen through the lens. The result is another stream traversal.
+     *
+     * <p>Alternative: a custom traversal that includes the lens projection. Equivalent; the {@code
+     * andThen} keeps the pieces named.
+     *
+     * <p>Common wrong attempt: forget that the lens is per-element. The lens focuses inside each
+     * element, not over the whole list.
+     */
     @Test
     @DisplayName("Exercise 6: StreamTraversal + Lens composition")
     void exercise6_streamTraversalWithLens() {
@@ -154,6 +226,16 @@ public class TutorialVStreamAdvanced_Solution {
   @DisplayName("Part 3: Reactive Interop")
   class ReactiveInterop {
 
+    /**
+     * Why this is idiomatic: bridge VStream into and out of {@code Flow.Publisher} so reactive
+     * consumers (Reactor, RxJava) can integrate. The round-trip preserves elements.
+     *
+     * <p>Alternative: use a reactive library directly. The bridge keeps the higher-kinded-j layer
+     * for upstream code while presenting a {@code Flow.Publisher} surface to downstream.
+     *
+     * <p>Common wrong attempt: forget the buffer size on {@code fromPublisher}. Pick a sensible
+     * bound based on consumer rate; too small backs up, too large risks memory pressure.
+     */
     @Test
     @DisplayName("Exercise 7: VStream round-trip via Publisher")
     void exercise7_publisherRoundTrip() {
@@ -176,6 +258,17 @@ public class TutorialVStreamAdvanced_Solution {
   @DisplayName("Part 4: Natural Transformations")
   class NaturalTransformationExercises {
 
+    /**
+     * Why this is idiomatic: a {@code NaturalTransformation<ListKind.Witness, VStreamKind.Witness>}
+     * converts {@code Kind} values from one functor to another. The widen/narrow round-trip stays
+     * at the {@code Kind} level.
+     *
+     * <p>Alternative: write a dedicated converter method. Same outcome; the natural-transformation
+     * form is the type-class abstraction.
+     *
+     * <p>Common wrong attempt: skip widen and try to convert concrete values directly. The natural
+     * transformation is at the {@code Kind} layer; widen first.
+     */
     @Test
     @DisplayName("Exercise 8: List -> VStream transformation")
     void exercise8_listToVStream() {
@@ -201,6 +294,16 @@ public class TutorialVStreamAdvanced_Solution {
   @DisplayName("Part 5: VStreamContext")
   class VStreamContextExercises {
 
+    /**
+     * Why this is idiomatic: {@code VStreamContext} is a Layer-2 facade — same pipeline as VStream
+     * but with no widen/narrow. Use it when callers want a cleaner surface.
+     *
+     * <p>Alternative: drop to {@code VStream} directly. Equivalent runtime; the Context layer is
+     * for ergonomics.
+     *
+     * <p>Common wrong attempt: mix Layer-1 ({@code VStream.toList().run()}) with Layer-2 ({@code
+     * VStreamContext.toList()}) in the same pipeline. Pick one style per pipeline.
+     */
     @Test
     @DisplayName("Exercise 9: VStreamContext pipeline")
     void exercise9_contextPipeline() {
@@ -215,6 +318,16 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(result).containsExactly("Even: 2", "Even: 4", "Even: 6");
     }
 
+    /**
+     * Why this is idiomatic: {@code VStreamContext.via(fn)} is the Layer-2 form of {@code flatMap}.
+     * Each element expands to a sub-context; results concatenate.
+     *
+     * <p>Alternative: pull the underlying VStream and call {@code flatMap}. Equivalent; {@code via}
+     * stays inside the Context API.
+     *
+     * <p>Common wrong attempt: return a {@code List} from the lambda. {@code via} needs a {@code
+     * VStreamContext}; lift with {@code VStreamContext.fromList}.
+     */
     @Test
     @DisplayName("Exercise 10: VStreamContext flatMap")
     void exercise10_contextFlatMap() {
@@ -226,6 +339,15 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(result).containsExactly(1, 10, 2, 20, 3, 30);
     }
 
+    /**
+     * Why this is idiomatic: {@code VStreamContext.fold(seed, combiner)} reduces with an identity
+     * and an associative operator. Returns the value directly (no wrapping VTask in Layer-2).
+     *
+     * <p>Alternative: collect to list and sum. Same answer; the fold avoids the intermediate list.
+     *
+     * <p>Common wrong attempt: forget the seed for empty contexts. The fold returns the seed for
+     * empty inputs; pick zero for sum, one for product.
+     */
     @Test
     @DisplayName("Exercise 11: VStreamContext fold")
     void exercise11_contextFold() {
@@ -235,6 +357,18 @@ public class TutorialVStreamAdvanced_Solution {
       assertThat(result).isEqualTo(15);
     }
 
+    /**
+     * Why this is idiomatic: a bracketed VStream wrapped in {@code VStreamContext} gives the
+     * Layer-2 ergonomics with the resource-safety of bracket. The release fires when the consumer
+     * finishes.
+     *
+     * <p>Alternative: build a {@code VStreamContext} that calls bracket internally. Same outcome;
+     * the wrapping form keeps both layers visible.
+     *
+     * <p>Common wrong attempt: miss the {@code VStreamContext.of(bracketed)} lift. The bracketed
+     * VStream needs to enter the Context layer; otherwise downstream Context combinators do not
+     * apply.
+     */
     @Test
     @DisplayName("Exercise 12: bracket + VStreamContext")
     void exercise12_bracketWithContext() {

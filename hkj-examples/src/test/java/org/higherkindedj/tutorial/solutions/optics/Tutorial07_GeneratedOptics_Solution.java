@@ -22,18 +22,21 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 06: Generated Optics - Leveraging Annotation Processing
+ * Solution for Tutorial07 GeneratedOptics — teaching-solution format.
  *
- * <p>Higher-kinded-j provides annotations that automatically generate optics for your types. This
- * eliminates boilerplate and ensures consistency.
+ * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
+ * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
+ * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
+ * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
+ * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
  *
- * <p>Key Annotations: - @GenerateLenses: Creates lenses for all fields in a record
- * - @GeneratePrisms: Creates prisms for all variants of a sealed interface - @GenerateTraversals:
- * Creates traversals for collection fields
+ * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
+ * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
+ * answer and consult the pilot solution for the format guide.
  *
- * <p>Generated classes: - RecordNameLenses: contains lens instances and with* helper methods -
- * InterfaceNamePrisms: contains prism instances for each variant - RecordNameTraversals: contains
- * traversal instances for collections
+ * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
+ * in the book.
  */
 public class Tutorial07_GeneratedOptics_Solution {
 
@@ -96,12 +99,16 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 1: Using @GenerateLenses
+   * Why this is idiomatic: {@code @GenerateLenses} produces a {@code PersonLenses} class with a
+   * static method per field. Reading and writing become {@code PersonLenses.name().get(p)} and
+   * {@code PersonLenses.age().set(31, p)} — the same shape every time.
    *
-   * <p>The @GenerateLenses annotation generates a *Lenses class with: - A lens() method for each
-   * field - A with*() helper method for each field
+   * <p>Alternative: hand-write the lenses (as in Tutorial 01). The annotation produces the same
+   * shape; the generated form keeps the lenses in sync as the record evolves.
    *
-   * <p>Task: Use generated lenses to access and modify fields
+   * <p>Common wrong attempt: try to apply {@code @GenerateLenses} to a local-method record. The
+   * annotation processor cannot generate a companion class for a local record; promote it to a
+   * top-level or nested type.
    */
   @Test
   void exercise1_generatedLenses() {
@@ -144,12 +151,16 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 2: Using @GeneratePrisms
+   * Why this is idiomatic: {@code @GeneratePrisms} on a sealed interface emits one prism per
+   * permitted variant. {@code ResultPrisms.success()} reads as "the success projection of Result",
+   * and {@code build} reverses to the {@code Result} type.
    *
-   * <p>The @GeneratePrisms annotation on a sealed interface generates a *Prisms class with a prism
-   * for each implementation.
+   * <p>Alternative: pattern-match the sealed interface inline. Same answer; the generated prism is
+   * the version that composes with lenses, traversals, and effect paths.
    *
-   * <p>Task: Use generated prisms to work with sum types
+   * <p>Common wrong attempt: rely on {@code instanceof} checks dotted around the call sites. The
+   * pattern repeats and changes shape when a new variant is added; the prisms stay type-safe and
+   * the compiler will flag missing prisms when the sealed interface grows.
    */
   @Test
   void exercise2_generatedPrisms() {
@@ -179,11 +190,17 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 3: Using @GenerateTraversals
+   * Why this is idiomatic: {@code @GenerateTraversals} produces a {@code CartTraversals.items()}
+   * method that walks every element of a {@code List} field. The 10% discount lambda only sees
+   * individual {@code Item}s; the traversal handles the list rebuild.
    *
-   * <p>The @GenerateTraversals annotation generates traversals for List, Set, and Map fields.
+   * <p>Alternative: read the list with a lens and stream-map. Same answer; the generated traversal
+   * stays composable into deeper chains ({@code .andThen(itemPriceLens.asTraversal())}) without
+   * rewriting the read/write.
    *
-   * <p>Task: Use generated traversals to work with collections
+   * <p>Common wrong attempt: assume the annotation generates a setter that takes the new list. It
+   * generates the traversal — apply {@code Traversals.modify} (or compose further) to write through
+   * it.
    */
   @Test
   void exercise3_generatedTraversals() {
@@ -214,11 +231,16 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 4: Combining generated optics
+   * Why this is idiomatic: generated lenses compose with {@code andThen} just like the hand-written
+   * ones. The Employee → Company → Address → city path is one named lens; the call site speaks in
+   * domain terms regardless of how the lenses were produced.
    *
-   * <p>Generated optics compose just like manually created ones.
+   * <p>Alternative: hand-write the path with three explicit field accesses and rebuilds. Same
+   * runtime; the generated form keeps the path stable through schema changes.
    *
-   * <p>Task: Use composition with generated optics
+   * <p>Common wrong attempt: mix generated and hand-written lenses inconsistently and end up with
+   * two competing helpers for the same field. Pick one source of truth per type — the annotation is
+   * the cheaper choice.
    */
   @Test
   void exercise4_combiningGeneratedOptics() {
@@ -276,11 +298,17 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 5: Generated traversals for Map fields
+   * Why this is idiomatic: {@code @GenerateTraversals} on a {@code Map<K, V>} field walks the
+   * values, leaving keys untouched. {@code modify} applies a 10% price uplift to every product in
+   * the inventory in one expression.
    *
-   * <p>@GenerateTraversals also works with Map<K, V> fields, creating traversals over values.
+   * <p>Alternative: rebuild the map with {@code stream().collect(toMap(...))} and a transform.
+   * Equivalent; the traversal preserves entry ordering for ordered map types and stays in sync if
+   * the field type later changes from {@code Map} to a custom container.
    *
-   * <p>Task: Use generated map traversals
+   * <p>Common wrong attempt: try to traverse the keys instead of the values. Map traversals focus
+   * on values by convention; for key transformations prefer rebuilding the map directly or use a
+   * dedicated bi-directional optic.
    */
   @Test
   void exercise5_generatedMapTraversals() {
@@ -316,11 +344,16 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 6: Using with* helpers for convenient updates
+   * Why this is idiomatic: {@code UserLenses.withName(user, "Bob")} reads as a record-update helper
+   * — discoverable through IDE autocomplete on {@code UserLenses.with}. It is the same write as
+   * {@code UserLenses.name().set("Bob", user)} but in a flat, named form.
    *
-   * <p>Generated *Lenses classes include with* methods for more discoverable API.
+   * <p>Alternative: stick with {@code lens.set(value, source)}. The {@code with*} helper is
+   * shorthand; the lens form composes, the helper does not.
    *
-   * <p>Task: Use with* helpers instead of lens.set()
+   * <p>Common wrong attempt: use {@code with*} helpers in a deep update chain ({@code
+   * withName(withEmail(withId(...)))}) instead of composing lenses. The lens chain is one traversal
+   * of the structure; nested {@code with*} calls rebuild it once per field.
    */
   @Test
   void exercise6_withHelpers() {
@@ -369,11 +402,17 @@ public class Tutorial07_GeneratedOptics_Solution {
   }
 
   /**
-   * Exercise 7: Complex scenario with all three annotations
+   * Why this is idiomatic: every level of the notification system is annotated with the matching
+   * optic generator — lenses for records, prisms for the sealed interface, traversals for the
+   * queue. The composed paths read like sentences and the call sites stay short.
    *
-   * <p>Combine @GenerateLenses, @GeneratePrisms, and @GenerateTraversals in a real scenario.
+   * <p>Alternative: hand-roll one optic per field, one prism per variant, one traversal per
+   * collection. The annotations free up that boilerplate so the team can spend attention on the
+   * domain instead.
    *
-   * <p>Task: Model and manipulate a notification system
+   * <p>Common wrong attempt: pick and choose — some fields with lenses, some without. Mixed
+   * conventions make composition unpredictable; keep the annotations consistent across the model so
+   * any path through it composes the same way.
    */
   @Test
   void exercise7_complexScenario() {
