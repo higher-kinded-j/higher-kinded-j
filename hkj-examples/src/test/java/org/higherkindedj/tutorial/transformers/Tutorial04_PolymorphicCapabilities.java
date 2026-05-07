@@ -37,7 +37,27 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 04: Polymorphic Capabilities (MTL) - Writing Stack-Independent Effectful Code
+ * Tutorial 04: Polymorphic Capabilities (MTL) — Writing Stack-Independent Effectful Code
+ *
+ * <p>Pain → Promise. Tutorial 03 showed us that stacking concrete transformers gets uncomfortable:
+ * the witness type leaks into every signature, and the same business logic written against
+ * {@code EitherT<OptionalKind.Witness, AppError, A>} cannot be reused on a different stack. The
+ * MTL version names only the capability we need:
+ *
+ * <pre>
+ *   // Concrete stack — readable but locked-in:
+ *   &lt;A&gt; Kind&lt;EitherTKind.Witness&lt;OptionalKind.Witness, AppError&gt;, A&gt;
+ *       process(...);
+ *
+ *   // Polymorphic over any stack that can read a Config:
+ *   &lt;F, A&gt; Kind&lt;F, A&gt; process(MonadReader&lt;F, Config&gt; R, ...);
+ * </pre>
+ *
+ * <p>Java idiom anchor. {@code MonadReader}, {@code MonadState}, and {@code MonadWriter} are to
+ * effects what an interface is to a class: a capability we depend on without committing to a
+ * specific implementation. Tutorial 04 is the final step of the transformers journey for a
+ * reason — most application code does not need this, but library authors who let callers plug
+ * their own stack underneath always do.
  *
  * <p>Prerequisites: complete Tutorial 01 (When Path Isn't Enough), Tutorial 02 (Async with
  * Absence), and ideally Tutorial 03 (Stacking Transformers) first. This tutorial builds on the raw
