@@ -20,7 +20,32 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 01: When Path Isn't Enough - Async Workflows with Typed Errors
+ * Tutorial 01: When Path Isn't Enough — Async Workflows with Typed Errors
+ *
+ * <p>Pain → Promise. The shape we are wrestling with is {@code CompletableFuture<Either<L, R>>}:
+ * an async result that itself carries a typed error. The imperative version chains {@code
+ * thenCompose} with {@code fold}, manually re-raising the {@code Left} into the next future:
+ *
+ * <pre>
+ *   fetchWeather(city)
+ *     .thenCompose(eitherReport -&gt;
+ *       eitherReport.fold(
+ *         err   -&gt; CompletableFuture.completedFuture(Either.&lt;L, Advice&gt;left(err)),
+ *         report -&gt; buildAdvice(report).thenApply(Either::right)));
+ * </pre>
+ *
+ * <p>The {@code EitherT} version is one fluent comprehension; a {@code Left} short-circuits the
+ * rest automatically:
+ *
+ * <pre>
+ *   For.from(eitherTMonad, EitherT.fromKind(fetchWeather(city)))
+ *      .yield(this::buildAdvice);
+ * </pre>
+ *
+ * <p>Java idiom anchor. {@code EitherT} is the shape {@code CompletableFuture&lt;Either&lt;L,
+ * R&gt;&gt;} collapsed into one composable layer. We treat it as if it were a single monad while
+ * we are inside it, then call {@code .value()} to get the original future-of-either back at the
+ * boundary.
  *
  * <p>The Effect Path API ({@code EitherPath}, {@code MaybePath}, ...) is the recommended starting
  * point for most workflows. It handles the type plumbing for you and reads naturally in Java. But

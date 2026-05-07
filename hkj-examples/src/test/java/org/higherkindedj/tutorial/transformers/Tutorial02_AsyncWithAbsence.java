@@ -22,7 +22,31 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 02: Async with Absence - Composing Future&lt;Optional&gt; chains
+ * Tutorial 02: Async with Absence — Composing Future&lt;Optional&gt; chains
+ *
+ * <p>Pain → Promise. The shape is {@code CompletableFuture<Optional<T>>}. The imperative version
+ * has to remember at every step that an empty inner Optional should not run the next async lookup:
+ *
+ * <pre>
+ *   findUser(id).thenCompose(maybeUser -&gt;
+ *     maybeUser.isEmpty()
+ *       ? CompletableFuture.completedFuture(Optional.&lt;Profile&gt;empty())
+ *       : findProfile(maybeUser.get().id()));
+ * </pre>
+ *
+ * <p>The {@code OptionalT} version is one comprehension; an empty inner Optional short-circuits
+ * the rest automatically:
+ *
+ * <pre>
+ *   For.from(optTMonad, OptionalT.fromKind(findUser(id)))
+ *      .from(user -&gt; OptionalT.fromKind(findProfile(user.id())))
+ *      .yield((user, profile) -&gt; ...);
+ * </pre>
+ *
+ * <p>Java idiom anchor. {@code OptionalT} is to {@code CompletableFuture<Optional<T>>} what
+ * {@code EitherT} is to {@code CompletableFuture<Either<L, R>>}: the doubly-wrapped shape collapsed
+ * into a single layer for as long as we are inside it. {@code MaybeT} is the same shape over
+ * {@code Maybe} instead of {@code Optional}.
  *
  * <p>Many libraries (caching layers, repositories, configuration loaders) return values shaped as
  * {@code CompletableFuture<Optional<T>>}: an asynchronous lookup that may not find anything. The

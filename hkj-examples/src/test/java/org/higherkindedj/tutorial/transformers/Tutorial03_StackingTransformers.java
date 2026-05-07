@@ -20,7 +20,35 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 03: Stacking Transformers - Two Effects in One Workflow
+ * Tutorial 03: Stacking Transformers — Two Effects in One Workflow
+ *
+ * <p>Pain → Promise. The shape we want is "may be absent AND may have failed validation". The
+ * imperative version nests an {@code if (optional.isEmpty())} around a try/catch (or around a
+ * {@code switch} on a sealed error sum), and every step has to remember both exits:
+ *
+ * <pre>
+ *   if (input.isEmpty()) {
+ *     return Optional.empty();        // skipped
+ *   }
+ *   try {
+ *     return Optional.of(parse(input.get()));   // value or thrown error
+ *   } catch (ValidationException e) {
+ *     return Optional.of(Either.left(toError(e)));
+ *   }
+ * </pre>
+ *
+ * <p>The stacked-transformer version is one comprehension. Empty propagates as empty; {@code Left}
+ * propagates as {@code Left}; the happy path looks like ordinary monadic chaining:
+ *
+ * <pre>
+ *   For.from(eitherTOverOptionalMonad, lift(parse(input)))
+ *      .from(value -&gt; lift(validate(value)))
+ *      .yield(...);
+ * </pre>
+ *
+ * <p>Java idiom anchor. A stacked transformer is two effects glued together so a single
+ * comprehension can talk about them both. We pay a more verbose witness type in exchange for not
+ * having to manage the two short-circuit paths by hand.
  *
  * <p>Most workflows need only one transformer. When you genuinely need two effects together (for
  * example, "a value that may be absent AND may have failed validation"), transformers can stack:

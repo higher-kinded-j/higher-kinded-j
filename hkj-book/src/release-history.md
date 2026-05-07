@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.2) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.3) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,28 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### v0.4.3 -- 7 May 2026
+
+**Pluggable HTTP Error Status Strategy, Header Carriers, and Documentation Refresh**
+
+This release introduces pluggable error-to-status mapping for `hkj-spring`, lets domain errors inject custom HTTP headers (`Retry-After`, `WWW-Authenticate`, `Location`, ...), and delivers a comprehensive refresh of the hkj-book: the Effect Path API chapter restructured into five sub-chapters, optics documentation reorganised along Diátaxis lines, the Monad Transformers chapter rebuilt as a coherent learning path with a hands-on tutorial track, the Foundations chapter rewritten around a single recurring "one line, six layers" anchor, and refreshed hands-on materials with tiered hints and per-exercise teaching prose across every tutorial journey.
+
+- [HttpHeaderCarrier](spring/spring_boot_integration.md) -- Mix-in interface for error values to inject custom HTTP headers into the response. All Effect Path return-value handlers now apply carrier headers before writing the JSON body, enabling `429 Too Many Requests` errors to surface `Retry-After`, `401 Unauthorized` errors to surface `WWW-Authenticate`, and `201 Created` / `301 Moved Permanently` outcomes to surface `Location`
+- [ErrorStatusCodeStrategy](spring/spring_boot_integration.md) -- Pluggable strategy bean replacing the hard-coded heuristics in `ErrorStatusCodeMapper`. The default `DefaultErrorStatusCodeStrategy` combines explicit mappings from `hkj.web.error-status-mappings` (by simple or fully-qualified class name) with token-aware heuristics on the simple class name and the configured default status code; teams can supply a custom `ErrorStatusCodeStrategy` bean to override end-to-end
+- [hkj.web.error-status-mappings](spring/spring_boot_integration.md) -- New configuration property for explicit error-class to HTTP-status mappings, supporting both simple and fully-qualified class names. Covers 4xx/5xx codes outside the heuristic table such as `409 Conflict`, `422 Unprocessable Entity`, `429 Too Many Requests`, and `503 Service Unavailable`
+- [Tokenized class-name matching](spring/spring_boot_integration.md) -- `ErrorStatusCodeMapper` now splits class names on CamelCase boundaries and matches whole tokens, eliminating false positives like `RevalidationError` previously matching the `validation` heuristic
+
+### Documentation @ Tutorial Improvements
+- [Effect Path API Restructure](effect/quickstart.md) -- The Effect Path API chapter is reorganised into five sub-chapters -- Quickstart, Core Paths, Optics Integration, Advanced Paths, Reference -- so a Java developer reaches runnable Effect Path code in under five minutes without advanced material blocking the beginner path. New API-level Effect Path quickstart with three runnable examples covering `MaybePath`, `EitherPath`, and `ForPath`
+- [Manual Gradle and Maven Setup](tooling/manual_setup.md) -- Book-level Quickstart trimmed to lead with the recommended `hkj-gradle-plugin` and `hkj-maven-plugin` setup; full manual build-file configuration extracted to a new dedicated page so adopters who must wire dependencies by hand have one canonical reference
+- [Optics Documentation Reorganised](optics/quickstart.md) -- Optics chapter restructured along Diátaxis lines: narrative pages focus on learning, while new dedicated reference pages serve returning readers. New [Quickstart](optics/quickstart.md), [Annotations at a Glance](optics/annotations_at_a_glance.md), [Optic Capabilities](optics/optic_capabilities.md), [Conversions](optics/conversions.md), [Decision Trees](optics/decision_trees.md), [Compiler Errors](optics/compiler_errors.md), and [Production Readiness](optics/production_readiness.md); 
+- [Monad Transformers Learning Path](transformers/quickstart.md) -- Transformers chapter rebuilt as a coherent learning path: new [Quickstart](transformers/quickstart.md), [Transformers at a Glance](transformers/transformers_at_a_glance.md), [Migration Cookbook](transformers/migration_cookbook.md), [When to Drop to Transformers](transformers/when_to_drop_to_transformers.md), [Common Errors](transformers/common_errors.md), and [Transformer Capstone](transformers/transformer_capstone.md). 
+- [Monad Transformers Hands-On Track](tutorials/transformers/transformers_journey.md) -- New tutorial journey in `hkj-examples`: Tutorial 01 (When Path Isn't Enough, EitherT entry), Tutorial 02 (Async with Absence, OptionalT/MaybeT), Tutorial 03 (Stacking Transformers), and Tutorial 04 (Polymorphic Capabilities). Default test task runs solutions; new `tutorialTest` task includes the in-progress exercises with predictable failures
+- [Foundations Chapter Refresh](hkts/one_line_six_layers.md) -- Foundations reframed as the engine-room tour readers reach after shipping with the Effect Path API, Optics, or Monad Transformers, with three reading paths (mechanism tour, generic-code author, library extender) anchored on a single recurring "one line, six layers" service-method example. New pages: [One Line, Six Layers](hkts/one_line_six_layers.md), [Lifting the Hood](hkts/lifting_the_hood.md) (end-to-end trace through `widen` / dispatch / `narrow` with allocation costs), and [Foundations FAQ](hkts/faq.md) (ten direct answers including comparisons with Vavr, Cyclops, Arrow-Kt, and the Valhalla question). 
+- [Hands-On Tutorial Refresh](tutorials/capstone/capstone_journey.md) -- Refreshed every tutorial journey: Tutorial 00 chapter anchor (One Line, Six Layers, setup-check exercise), new [Capstone Journey](tutorials/capstone/capstone_journey.md) building the chapter anchor up to a real workflow, tiered hint structure (Nudge / Strategy / Spoiler) on tutorial files, and hand-rolled per-exercise teaching prose on every `@Test` in every solution file in the *Why this is idiomatic / Alternative / Common wrong attempt* format. New `tutorialProgress` Gradle task counts `answerRequired()` placeholders across journeys and prints a per-journey progress bar
+
+---
 
 ### v0.4.2 -- 18 April 2026
 

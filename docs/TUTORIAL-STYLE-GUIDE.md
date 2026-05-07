@@ -7,17 +7,18 @@ This document defines the house style for Higher-Kinded-J tutorials. Tutorials a
 ### Language and Spelling
 
 - Use **British English** spelling (e.g., "colour", "behaviour", "optimisation", "capitalise")
-- Do not use em dashes (—); use commas or semicolons instead
+- Em dashes (`—`) are acceptable in `@DisplayName` values, Javadoc titles, and parenthetical asides where they improve scanning (for example, "Tutorial 00: One Line, Six Layers — The Whole Stack in a Single Expression"). Avoid using them as a replacement for commas or semicolons in long body prose
 - Do not use emojis in documentation or code comments (exception: a single 🎉 is permitted in the final congratulations message of a tutorial series)
 - Target **Java 25** and embrace modern Java features
 
 ### Tone and Voice
 
 - Be encouraging but not patronising
-- Use second person ("You'll learn...") when addressing the reader
+- Prefer the inclusive first-person plural ("we will widen this to a `Kind`...") in narrative prose. Second person ("you") remains appropriate in tasks and instructions ("Task: extract the value...")
 - Be concise and practical; avoid academic jargon
 - Explain the "why" not just the "what"
 - Assume the reader is a competent Java developer new to functional programming
+- Anchor each abstraction to a familiar Java idiom whenever possible (see "Java Idiom Anchors" below)
 
 ### Modern Java Style
 
@@ -95,6 +96,8 @@ hkj-examples/src/test/java/org/higherkindedj/tutorial/
 - Solution files: `TutorialNN_TopicName_Solution.java`
 - Use PascalCase for topic names with underscores as separators
 - Number tutorials sequentially within each track (01, 02, ..., 10, 11, ...)
+- **Chapter anchors** (Tutorial 00): `Tutorial00_TopicName.java`. A chapter anchor is the optional opening file that touches every concept the rest of the chapter unpacks (for example, `Tutorial00_OneLineSixLayers.java`). It also doubles as a setup check — if it compiles and passes, the rest of the chapter will work
+- **Capstones**: `TutorialCapstone_TopicName.java`. A capstone takes the chapter anchor expression (or another small motif from the chapter) and grows it into a realistic workflow that combines several capabilities. Capstones do not have a number; they always come last in the track
 
 ---
 
@@ -133,19 +136,33 @@ import org.junit.jupiter.api.Test;
 ### Class-Level Javadoc
 
 Every tutorial class must have comprehensive Javadoc that includes:
-1. **Title line**: `Tutorial NN: Topic Name - Brief Description`
-2. **Introduction**: 1-2 paragraphs explaining what the tutorial covers
-3. **Key Concepts**: Bulleted list of concepts with brief explanations
-4. **Prerequisites** (if applicable): Reference to prior tutorials
-5. **Instruction**: Tell users to replace placeholders with working code
+1. **Title line**: `Tutorial NN: Topic Name — Brief Description`
+2. **Pain → Promise** (recommended): A short imperative-Java snippet showing the pain, followed by the Higher-Kinded-J version of the same workflow. This is the single most effective way to motivate the tutorial
+3. **Java idiom anchor** (recommended): Two or three lines linking the new abstraction to a familiar Java type the reader has already used (`Stream`, `Optional`, `CompletableFuture`, `try`/`catch`, ...)
+4. **Introduction**: 1-2 paragraphs explaining what the tutorial covers
+5. **Key Concepts**: Bulleted list of concepts with brief explanations
+6. **Prerequisites** (if applicable): Reference to prior tutorials
+7. **Estimated time**: When the README time band is not obvious from the file alone (`<p>Estimated time: 25-35 minutes`)
+8. **Tiered hints note**: If the file uses tiered hints (Nudge / Strategy / Spoiler), explain the convention once at class level
+9. **Instruction**: Tell users to replace placeholders with working code
 
 ```java
 /**
- * Tutorial 04: Monad - Chaining Dependent Computations
+ * Tutorial 04: Monad — Chaining Dependent Computations
  *
- * <p>A Monad extends Applicative and provides flatMap (also called bind or >>=),
- * which allows you to chain computations where each step depends on the result
- * of the previous step.
+ * <p>Pain → Promise. The imperative version of "first parse, then validate,
+ * then divide" turns into a try/catch ladder with three exits. The HKJ version
+ * is one fluent chain where the first failure short-circuits the rest:
+ *
+ * <pre>
+ *   parse(input)
+ *     .flatMap(this::validatePositive)
+ *     .flatMap(this::divideHundredBy);
+ * </pre>
+ *
+ * <p>Java idiom anchor. {@code flatMap} on {@link Either} is the same idea as
+ * {@link java.util.Optional#flatMap Optional.flatMap}: chain a step that itself
+ * returns the same effect, and let the framework propagate the empty / error case.
  *
  * <p>Key Concepts:
  * <ul>
@@ -161,6 +178,73 @@ Every tutorial class must have comprehensive Javadoc that includes:
 ```
 
 For advanced tutorials, use HTML lists (`<ul>`, `<li>`) for better formatting. For simpler tutorials, plain text with dashes is acceptable.
+
+### @DisplayName
+
+Every tutorial class and every exercise method should carry a JUnit `@DisplayName` so the IDE Test Runner and surefire/Gradle reports show the prose form of the title rather than the raw method name. The display name should match the title in the Javadoc (sans the leading "Exercise N:" prefix when desirable):
+
+```java
+@DisplayName("Tutorial 01: Kind Basics")
+public class Tutorial01_KindBasics {
+
+  @Test
+  @DisplayName("Exercise 1: widen Either to Kind")
+  void exercise1_widenEitherToKind() { ... }
+}
+```
+
+For tutorials with `@Nested` groupings, give the nested class its own `@DisplayName` (for example, `"Part 1: Bridging the gap"`).
+
+### Section Dividers
+
+For visual separation between exercises within a long tutorial file, use ASCII box-drawing dividers as comment lines. Two conventions are in use:
+
+```java
+// ═════════════════════════════════════════════════════════════════════════
+// Exercise 1: Widening a concrete type to Kind
+// ═════════════════════════════════════════════════════════════════════════
+```
+
+```java
+// ─── Exercise 1 ──────────────────────────────────────────────────────────
+```
+
+Pick one style per file and stay consistent. Heavy double-line dividers (`═`) are conventional for top-level exercise headings; light single-line dividers (`─`) are conventional for sub-sections such as domain models or fixtures.
+
+### @Nested Groupings
+
+When a tutorial naturally splits into parts (for example, "Bridging", "Composing", "Recovery"), use `@Nested` inner classes to group exercises rather than long flat files of unrelated tests:
+
+```java
+@Nested
+@DisplayName("Part 1: Bridging the gap")
+class BridgingExercises {
+
+  @Test
+  @DisplayName("Exercise 1: fromKind lifts a Future<Either> into EitherT")
+  void exercise1_fromKindLiftsFutureEither() { ... }
+}
+```
+
+Nested groupings are optional. Use them when:
+- The tutorial has more than ~6 exercises
+- The exercises split into logical phases that share fixtures
+- The IDE Test Runner reads better with the grouping
+
+### Java Idiom Anchors
+
+Most readers come from a "regular Java" background. When introducing an abstraction, name the closest familiar Java idiom in two or three lines and explain what the new shape adds. This is more effective than a definition.
+
+| Abstraction | Familiar Java idiom |
+|---|---|
+| `Kind<F, A>` | `Stream<Order>` is a shape (Stream) holding an element type (Order) |
+| `flatMap` on Either | `Optional.flatMap` |
+| `MaybePath` | a value that may or may not be present (no `null`) |
+| `EitherPath` | typed errors instead of unchecked exceptions |
+| `Lens.modify` | a "with" copy method on a record |
+| `EitherT` | the shape `CompletableFuture<Either<L, R>>` collapsed into one composable layer |
+
+Anchors should appear in the class-level Javadoc, ideally between the Pain → Promise block and the Key Concepts list.
 
 ### The answerRequired() Helper
 
@@ -221,7 +305,40 @@ Use `// TODO:` comments to mark where students need to write code:
 String name = answerRequired();
 ```
 
-Use `// Hint:` comments to provide guidance:
+### Tiered Hints (Nudge / Strategy / Spoiler)
+
+The canonical hint format is a three-line ladder placed in the exercise's Javadoc inside a `<pre>` block, in increasing order of how much it gives away. Readers stop reading as soon as they have what they need:
+
+```java
+/**
+ * Exercise 1: Widening to Kind.
+ *
+ * <p>Every higher-kinded type in this library can be widened to its
+ * {@code Kind} representation.
+ *
+ * <p>Task: widen an {@code Either<String, Integer>} to
+ * {@code Kind<EitherKind.Witness<String>, Integer>}.
+ *
+ * <pre>
+ *   // Nudge:    There is a single helper called EITHER that knows how to widen.
+ *   // Strategy: EITHER exposes a widen() method.
+ *   // Spoiler:  EITHER.widen(either)
+ * </pre>
+ */
+@Test
+@DisplayName("Exercise 1: widen Either to Kind")
+void exercise1_widenEitherToKind() { ... }
+```
+
+Conventions:
+
+- **Nudge** — restates the concept that should fire. No method names, no values
+- **Strategy** — names the method, helper, or value involved
+- **Spoiler** — the literal expression the student would type
+
+Align the three labels so the file reads as a table. When a tutorial uses tiered hints, mention the convention once at class level so readers know they can stop early.
+
+The older single-line `// Hint:` comment style is still acceptable for short utility tutorials, but tiered hints are preferred for any tutorial whose exercises have more than one plausible approach:
 
 ```java
 // TODO: Replace null with chained flatMap operations
@@ -262,6 +379,35 @@ See "Annotations as the Canonical Approach" above for the specific callout requi
 assertThat(updated.name()).isEqualTo("Bob");
 assertThat(updated.age()).isEqualTo(30); // Other fields unchanged
 assertThat(person.name()).isEqualTo("Alice"); // Original unchanged
+```
+
+### Diagnostic Exercises (Things People Get Wrong)
+
+Towards the end of a tutorial, include a **diagnostic exercise** that shows a plausible-looking but wrong attempt and asks the reader to fix it. This converts a "common mistake" panel from passive reading into active practice.
+
+A diagnostic exercise:
+
+- Has a method name beginning with `diagnostic_`, not `exerciseN_`
+- Carries a `@DisplayName` that names both the wrong shape and the lesson (for example, `"Diagnostic: focus narrows; modify inside map preserves the outer record"`)
+- Includes the wrong code as a commented-out block with a short note explaining why it is wrong
+- Asks the student to write the correct shape next to it
+- Optionally demonstrates that the "wrong" tool is actually right for a different goal (so the lesson is "different tools for different jobs", not "this is bad")
+
+```java
+/**
+ * Diagnostic exercise: a wrong attempt and its fix.
+ *
+ * <p>The code below tries to call {@code .focus(FocusPath.of(attributesLens))}
+ * on an {@link EitherPath} hoping to "modify the inner map" — but
+ * {@code EitherPath.focus(FocusPath)} narrows the path to the focused value,
+ * so the outer {@link Item} is no longer in scope.
+ *
+ * <p>The lesson: when we want to update an inner field while keeping the outer
+ * record, we use {@code lens.modify(...)} inside a {@code .map}.
+ */
+@Test
+@DisplayName("Diagnostic: focus narrows; modify inside map preserves the outer record")
+void diagnostic_focusVsModify() { ... }
 ```
 
 ---
@@ -313,6 +459,7 @@ Solution files mirror the tutorial files exactly, with these differences:
 1. Class name ends with `_Solution`
 2. Placeholder comments become solution comments
 3. `answerRequired()` calls are replaced with actual code
+4. Each `@Test` carries a teaching block above it (see "Teaching Solution Format" below)
 
 ```java
 // Tutorial file:
@@ -324,14 +471,46 @@ Kind<EitherKind.Witness<String>, Integer> kind = answerRequired();
 Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(either);
 ```
 
+### Teaching Solution Format
+
+Solution files are not just answer keys; they are the second half of the tutorial. Every `@Test` in a solution file carries a Javadoc block above it in the **Why this is idiomatic / Alternative / Common wrong attempt** format:
+
+```java
+/**
+ * Why this is idiomatic: {@code getOrElse} expresses intent — "give me the
+ * value, or this default if absent" — without ever exposing a {@code null}
+ * or forcing a downstream {@code if}.
+ *
+ * <p>Alternative: {@code path.run().getOrElse(...)} (calling through the
+ * underlying Maybe). Same answer; the {@code MaybePath} method is just sugar.
+ *
+ * <p>Common wrong attempt: {@code path.run().get()}. Calling {@code get()}
+ * on a {@code Nothing} throws — and silently masks the absent case, which
+ * is exactly the problem we are trying to fix.
+ */
+@Test
+@DisplayName("Exercise 1: Layer 1 (Effect)")
+void exercise1_effectType() { ... }
+```
+
+Conventions:
+
+- **Why this is idiomatic** — one or two sentences naming the principle the answer demonstrates. Not "this works"; rather, "this is the shape we want and here is why"
+- **Alternative** — one shape that also passes the test, with a one-line note on the trade-off (usually: "more code, no benefit")
+- **Common wrong attempt** — one plausible mistake and the symptom it produces. This is the same material as a "Things People Get Wrong" panel in prose, but tied to the actual exercise
+
+When the exercise is purely a setup check or there is no meaningful alternative or wrong attempt, a single short paragraph is acceptable.
+
 ### Solution Comments
 
-Use `// SOLUTION:` prefix for solution explanations:
+Use `// SOLUTION:` prefix for solution explanations within the method body:
 
 ```java
 // SOLUTION: Use EITHER.widen() to convert Either to Kind
 Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(either);
 ```
+
+The Javadoc teaching block above the test method does the heavier lifting; in-line `// SOLUTION:` comments should be reserved for non-obvious lines within longer answers.
 
 ---
 
@@ -368,6 +547,18 @@ record ServerError(String message, String stackTrace) implements ApiResponse {}
 
 ## Progressive Learning Design
 
+### Track Shape
+
+A complete tutorial track has three optional bookends around the numbered exercises:
+
+| Position | File | Role |
+|---|---|---|
+| Opening | `Tutorial00_*` | Chapter anchor and setup check. One small expression that touches every layer the chapter unpacks. Doubles as the "your build is configured correctly" smoke test |
+| Body | `Tutorial01_*` ... `TutorialNN_*` | The numbered exercises, in order of increasing complexity |
+| Closing | `TutorialCapstone_*` | The chapter anchor grown up to a realistic workflow that combines several capabilities. No exercise number; always last |
+
+Tracks need not include all three. Use Tutorial 00 when the chapter benefits from a single recurring anchor expression; use a Capstone when there is a meaningful "everything together" workflow worth practising.
+
 ### Tutorial Progression
 
 Tutorials should follow a logical progression:
@@ -403,6 +594,15 @@ Typical estimates:
 - Basic tutorials: 8-10 minutes
 - Intermediate tutorials: 10-12 minutes
 - Advanced tutorials: 12-15 minutes
+- Transformer / capstone tutorials: 25-35 minutes
+
+### Tracking Progress
+
+The `tutorialProgress` Gradle task counts unanswered `answerRequired()` placeholders across every track and prints a per-journey progress bar. Authors should ensure that:
+
+- Every placeholder in an in-progress tutorial uses `answerRequired()` (not `null`, not a thrown exception, not a magic constant). The task counts these and only these
+- The default `test` task excludes in-progress tutorials and runs only solutions; `tutorialTest` includes the in-progress files for readers working through them with predictable failures
+- New tutorial files are picked up automatically (the task scans the `tutorial/` source tree)
 
 ---
 
@@ -561,18 +761,26 @@ When creating a new tutorial, ensure:
 - [ ] Package declaration matches directory structure
 - [ ] Imports are organised (static, java, library, test)
 - [ ] Class-level Javadoc includes title, introduction, and key concepts
-- [ ] `answerRequired()` helper method is defined
+- [ ] Class-level Javadoc opens with a Pain → Promise block where one applies
+- [ ] Class-level Javadoc names a familiar Java idiom anchor
+- [ ] `@DisplayName` on the class and on every `@Test` method
+- [ ] `@Nested` groupings used when the file has more than ~6 exercises that split into phases
+- [ ] `answerRequired()` helper method is defined and used for every placeholder
 - [ ] Each exercise has descriptive Javadoc with Task
-- [ ] TODO and Hint comments are provided
+- [ ] Tiered hints (Nudge / Strategy / Spoiler) supplied in a `<pre>` block, or short single-line `// Hint:` for trivial exercises
 - [ ] Assertions use AssertJ
+- [ ] At least one diagnostic exercise (`diagnostic_*`) where the tutorial covers an easily-confused pair of operations
+- [ ] Section dividers use a single consistent style (heavy `═` or light `─`)
 - [ ] Congratulations block with checkmarks is present
 - [ ] Solution file exists with matching structure
+- [ ] Solution file's every `@Test` has a "Why this is idiomatic / Alternative / Common wrong attempt" teaching block
 - [ ] README.md is updated with the new tutorial
 - [ ] Time estimate is included
 - [ ] British English spelling throughout
 - [ ] No emojis (except final 🎉 if appropriate)
 - [ ] Records used for domain modelling
 - [ ] Modern Java features utilised where appropriate
+- [ ] `var` used sparingly; explicit types in declarations where the type aids learning
 - [ ] Annotations used for optics (except in fundamental-concept tutorials)
 - [ ] Manual implementations have prominent educational callouts
 - [ ] Corresponding doc page has "Hands On Practice" admonishment (top)
@@ -590,6 +798,9 @@ When creating a new tutorial track, ensure:
 - [ ] Consistent naming across the track
 - [ ] Cross-references to prerequisite tutorials
 - [ ] Real-world application tutorial near the end
+- [ ] Tutorial 00 chapter anchor (optional but recommended where the chapter has a recurring motif)
+- [ ] Capstone tutorial (optional but recommended for chapters whose pieces compose)
+- [ ] `tutorialProgress` continues to count placeholders correctly (every in-progress slot is `answerRequired()`)
 
 ---
 
@@ -600,10 +811,12 @@ This tutorial style guide complements the main [STYLE-GUIDE.md](STYLE-GUIDE.md).
 | Aspect | STYLE-GUIDE.md | TUTORIAL-STYLE-GUIDE.md |
 |--------|----------------|-------------------------|
 | Language | British English | British English |
+| Em dashes | Avoid as comma replacement | Acceptable in titles, `@DisplayName`, and parenthetical asides |
 | Emojis | Not permitted | Not permitted (except final 🎉) |
 | Java version | Modern Java | Java 25, modern features |
-| Tone | Practical, accessible | Encouraging, hands-on |
+| Tone | Practical, accessible, "we" voice | Encouraging, hands-on, "we" voice |
 | Structure | Documentation pages | Exercise-based test files |
 | Code format | Triple backticks | Inline Java code |
+| Per-exercise teaching | n/a | "Why this is idiomatic / Alternative / Common wrong attempt" in solution files |
 
 When in doubt about general style questions, defer to STYLE-GUIDE.md.
