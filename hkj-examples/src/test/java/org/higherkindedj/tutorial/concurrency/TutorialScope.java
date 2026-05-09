@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -440,8 +441,7 @@ public class TutorialScope {
   @Test
   @DisplayName("Diagnostic: allSucceed cancels siblings as soon as one fails")
   void diagnostic_siblingsAreCancelledOnFailure() {
-    java.util.concurrent.atomic.AtomicInteger counter =
-        new java.util.concurrent.atomic.AtomicInteger(0);
+    AtomicInteger counter = new AtomicInteger(0);
 
     VTask<String> failsFast =
         VTask.of(

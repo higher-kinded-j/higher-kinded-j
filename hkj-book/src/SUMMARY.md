@@ -130,6 +130,7 @@
     - [MonadState](transformers/mtl_state.md)
     - [MonadWriter](transformers/mtl_writer.md)
     - [Combining Capabilities](transformers/mtl_combining.md)
+  - [Axes of Transformer Transformation](transformers/transformer_axes.md)
   - [Common Compiler Errors](transformers/common_errors.md)
   - [Capstone: A Multi-Capability Workflow](transformers/transformer_capstone.md)
 
