@@ -78,6 +78,7 @@ When position matters:
 - **At and Ixed** – Type classes for indexed access. `At` handles keys that may or may not exist (like Map entries); `Ixed` handles indices that should exist (like List positions).
 - **Advanced Prism Patterns** – Beyond basic sum types: `nearly` matches values close to a target, `doesNotMatch` inverts a Prism's focus, and complex hierarchies compose cleanly.
 - **Profunctor Optics** – Transform the input and output types of optics. Adapt an optic for a different representation without rewriting it.
+- **Polymorphic Optics** – A small escape hatch for the rare cases where the type change is the operation, not an adapter around it. Polymorphic factories for generic wrappers, plus typeclass-driven leaves over `Functor` and `Traverse`.
 ~~~
 
 ---
@@ -91,6 +92,7 @@ When position matters:
 5. [Indexed Access](indexed_access.md) - At and Ixed type classes for indexed access patterns
 6. [Advanced Prism Patterns](advanced_prism_patterns.md) - `nearly`, `doesNotMatch`, and complex matching
 7. [Profunctor Optics](profunctor_optics.md) - Type adaptation with contramap, map, and dimap
+8. [Polymorphic Optics](polymorphic_optics.md) - Type-changing optics for generic wrappers and HKT-typed leaves
 
 ---
 

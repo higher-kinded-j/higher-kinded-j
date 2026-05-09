@@ -223,6 +223,14 @@ Navigating custom container types with Affines:
 - `some(Affine)` composition on path types
 - Composing container-widened paths with standard lens paths
 
+### Tutorial 21: Polymorphic Optics (~12 minutes)
+Type-changing optics for generic wrappers and HKT-typed leaves:
+- `PolyOptics.polyLens` and `polyIso` factories for type-changing updates
+- `PolyOptics.modify`, `set`, `get`, and `modifyF` runners
+- `Optics.mapped(Functor)` as a polymorphic Setter
+- `Optics.traversed(Traverse)` as a polymorphic Traversal under any Applicative
+- Composing monomorphic heads with polymorphic leaves via `Optic#andThen`
+
 ## MTL Tutorial Series
 
 ### Tutorial 02: MTL Basics (~35 minutes)

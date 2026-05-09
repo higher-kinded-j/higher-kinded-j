@@ -282,6 +282,7 @@ Examples demonstrating various traversal patterns over collections and data stru
 | [FreeMonadOpticDSLExample.java](src/main/java/org/higherkindedj/example/optics/fluent/FreeMonadOpticDSLExample.java) | Free monad optic DSL patterns | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.fluent.FreeMonadOpticDSLExample` | [Free Monad DSL](https://higher-kinded-j.github.io/latest/optics/free_monad_dsl.html) |
 | [OpticInterpretersExample.java](src/main/java/org/higherkindedj/example/optics/fluent/OpticInterpretersExample.java) | Shows optic interpreter patterns | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.fluent.OpticInterpretersExample` | [Interpreters](https://higher-kinded-j.github.io/latest/optics/interpreters.html) |
 | [OpticProfunctorExample.java](src/main/java/org/higherkindedj/example/optics/profunctor/OpticProfunctorExample.java) | Demonstrates profunctor optics | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.profunctor.OpticProfunctorExample` | [Profunctor Optics](https://higher-kinded-j.github.io/latest/optics/profunctor_optics.html) |
+| [PolyOpticsExample.java](src/main/java/org/higherkindedj/example/optics/poly/PolyOpticsExample.java) | Polymorphic optics for generic wrappers and Functor/Traverse leaves | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.optics.poly.PolyOpticsExample` | [Polymorphic Optics](https://higher-kinded-j.github.io/latest/optics/polymorphic_optics.html) |
 
 ### Cookbook Recipes
 
@@ -435,6 +436,7 @@ Interactive tutorial examples for learning Higher-Kinded-J concepts.
 | [Tutorial01_ForStateBasics.java](src/test/java/org/higherkindedj/tutorial/expression/Tutorial01_ForStateBasics.java) | ForState comprehension basics with lens-based state | Run via test runner | [ForState Comprehension](https://higher-kinded-j.github.io/latest/functional/forstate_comprehension.html) |
 | [Tutorial04_EnhancedOpticsIntegration.java](src/test/java/org/higherkindedj/tutorial/expression/Tutorial04_EnhancedOpticsIntegration.java) | Enhanced optics: traverseOver, modifyThrough, modifyVia, updateVia, through(Iso) | Run via test runner | [Optics in Comprehensions](https://higher-kinded-j.github.io/latest/functional/for_optics.html) |
 | [Tutorial02_MTLBasics.java](src/test/java/org/higherkindedj/tutorial/mtl/Tutorial02_MTLBasics.java) | MTL pattern basics: MonadReader, MonadState, MonadWriter | Run via test runner | [MTL Capabilities](https://higher-kinded-j.github.io/latest/transformers/mtl_capabilities.html) |
+| [Tutorial21_PolymorphicOptics.java](src/test/java/org/higherkindedj/tutorial/optics/Tutorial21_PolymorphicOptics.java) | Polymorphic optics: polyLens, polyIso, mapped/traversed factories, monomorphic + polymorphic composition | Run via test runner | [Polymorphic Optics](https://higher-kinded-j.github.io/latest/optics/polymorphic_optics.html) |
 
 ---
 

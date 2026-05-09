@@ -400,4 +400,4 @@ This profunctor capability makes higher-kinded-j optics incredibly flexible and 
 ---
 
 **Previous:** [Profunctor Optics](profunctor_optics.md)
-**Next:** [Java-Friendly APIs](ch4_intro.md)
+**Next:** [Polymorphic Optics](polymorphic_optics.md)

@@ -83,6 +83,7 @@
       - [Advanced Prism Patterns: Recipes](optics/advanced_prism_patterns_recipes.md)
     - [Profunctor Optics](optics/profunctor_optics.md)
       - [Profunctor Optics: Recipes](optics/profunctor_optics_recipes.md)
+    - [Polymorphic Optics](optics/polymorphic_optics.md)
   - [Java-Friendly APIs](optics/ch4_intro.md)
     - [Focus DSL](optics/focus_dsl.md)
       - [Navigation and Composition](optics/focus_navigation.md)

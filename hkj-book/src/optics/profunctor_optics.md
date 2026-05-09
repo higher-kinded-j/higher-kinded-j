@@ -351,6 +351,7 @@ public class ApiIntegration {
 
 ~~~admonish tip title="See Also"
 - [Profunctor Optics: Recipes](profunctor_optics_recipes.md), wrapper-type recipes, V1/V2 migration adapters, and a complete runnable example.
+- [Polymorphic Optics](polymorphic_optics.md), the type-changing escape hatch for the smaller set of cases where `dimap` cannot express the operation.
 ~~~
 
 ---
