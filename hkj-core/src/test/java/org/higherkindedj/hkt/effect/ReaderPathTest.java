@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.reader.Reader;
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.focus.FocusPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -310,6 +313,115 @@ class ReaderPathTest {
       assertThatNullPointerException()
           .isThrownBy(() -> path.local(null))
           .withMessageContaining("f must not be null");
+    }
+  }
+
+  // --- magnify() overloads (Issue #506) ---
+
+  @Nested
+  @DisplayName("magnify() - Optic-Aware Environment Adaptation")
+  class MagnifyTests {
+
+    record AppEnv(Config db, String featureFlag) {}
+
+    private static final AppEnv TEST_APP_ENV = new AppEnv(TEST_CONFIG, "FEATURE_X");
+
+    @Test
+    @DisplayName("magnify(Getter) lifts a sub-environment computation into a larger one")
+    void magnifyGetterLiftsComputation() {
+      ReaderPath<Config, String> hostPath = Path.asks(Config::host);
+      Getter<AppEnv, Config> dbGetter = Getter.of(AppEnv::db);
+
+      ReaderPath<AppEnv, String> appHost = hostPath.magnify(dbGetter);
+
+      assertThat(appHost.run(TEST_APP_ENV)).isEqualTo("localhost");
+    }
+
+    @Test
+    @DisplayName("magnify(FocusPath) lifts a sub-environment computation into a larger one")
+    void magnifyFocusPathLiftsComputation() {
+      ReaderPath<Config, String> hostPath = Path.asks(Config::host);
+      FocusPath<AppEnv, Config> dbPath =
+          FocusPath.of(Lens.of(AppEnv::db, (env, c) -> new AppEnv(c, env.featureFlag())));
+
+      ReaderPath<AppEnv, String> appHost = hostPath.magnify(dbPath);
+
+      assertThat(appHost.run(TEST_APP_ENV)).isEqualTo("localhost");
+    }
+
+    @Test
+    @DisplayName("magnify(Getter) is law-equivalent to local(getter::get)")
+    void magnifyGetterEquivalentToLocal() {
+      ReaderPath<Config, Integer> portPath = Path.asks(Config::port);
+      Getter<AppEnv, Config> dbGetter = Getter.of(AppEnv::db);
+
+      ReaderPath<AppEnv, Integer> viaMagnify = portPath.magnify(dbGetter);
+      ReaderPath<AppEnv, Integer> viaLocal = portPath.local(dbGetter::get);
+
+      assertThat(viaMagnify.run(TEST_APP_ENV)).isEqualTo(viaLocal.run(TEST_APP_ENV));
+    }
+
+    @Test
+    @DisplayName("magnify(FocusPath) is law-equivalent to local(path.toLens()::get)")
+    void magnifyFocusPathEquivalentToLocal() {
+      ReaderPath<Config, Boolean> debugPath = Path.asks(Config::debug);
+      Lens<AppEnv, Config> dbLens =
+          Lens.of(AppEnv::db, (env, c) -> new AppEnv(c, env.featureFlag()));
+      FocusPath<AppEnv, Config> dbPath = FocusPath.of(dbLens);
+
+      ReaderPath<AppEnv, Boolean> viaMagnify = debugPath.magnify(dbPath);
+      ReaderPath<AppEnv, Boolean> viaLocal = debugPath.local(dbPath.toLens()::get);
+
+      assertThat(viaMagnify.run(TEST_APP_ENV)).isEqualTo(viaLocal.run(TEST_APP_ENV));
+    }
+
+    @Test
+    @DisplayName("magnify composes: getter chains lift sub-sub-environment paths")
+    void magnifyComposesViaGetterChain() {
+      // ReaderPath that reads a property of the inner-most type:
+      ReaderPath<Config, Integer> portPath = Path.asks(Config::port);
+
+      // Two-step lift: Config <- AppEnv (via getter)
+      Getter<AppEnv, Config> dbGetter = Getter.of(AppEnv::db);
+      ReaderPath<AppEnv, Integer> appPort = portPath.magnify(dbGetter);
+
+      // Now wrap AppEnv in a still larger record and lift again:
+      record Outer(AppEnv app, String tenant) {}
+      Getter<Outer, AppEnv> appGetter = Getter.of(Outer::app);
+      ReaderPath<Outer, Integer> outerPort = appPort.magnify(appGetter);
+
+      Outer outer = new Outer(TEST_APP_ENV, "tenant-1");
+      assertThat(outerPort.run(outer)).isEqualTo(8080);
+    }
+
+    @Test
+    @DisplayName("magnify(Getter) validates non-null getter")
+    void magnifyGetterValidatesNonNull() {
+      ReaderPath<Config, String> path = Path.asks(Config::host);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.magnify((Getter<AppEnv, Config>) null))
+          .withMessageContaining("getter");
+    }
+
+    @Test
+    @DisplayName("magnify(FocusPath) validates non-null path")
+    void magnifyFocusPathValidatesNonNull() {
+      ReaderPath<Config, String> path = Path.asks(Config::host);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.magnify((FocusPath<AppEnv, Config>) null))
+          .withMessageContaining("path");
+    }
+
+    @Test
+    @DisplayName("local(Function) escape hatch remains available alongside magnify")
+    void localEscapeHatchStillWorks() {
+      // Verify that adding magnify did not break or deprecate the existing local API.
+      ReaderPath<Config, String> path = Path.asks(Config::host);
+      ReaderPath<AppEnv, String> adapted = path.local(AppEnv::db);
+
+      assertThat(adapted.run(TEST_APP_ENV)).isEqualTo("localhost");
     }
   }
 

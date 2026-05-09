@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
@@ -279,7 +280,7 @@ public class Tutorial02_FunctorMapping {
   @Test
   @DisplayName("Diagnostic: map with a wrapping function gives nested Eithers")
   void diagnostic_mapVsFlatMap() {
-    java.util.function.Function<String, Either<String, Integer>> parse =
+    Function<String, Either<String, Integer>> parse =
         s -> {
           try {
             return Either.right(Integer.parseInt(s));

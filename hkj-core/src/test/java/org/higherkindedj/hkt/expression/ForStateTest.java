@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
@@ -17,9 +18,13 @@ import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
+import org.higherkindedj.optics.Affine;
+import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -1048,7 +1053,9 @@ class ForStateTest {
       Customer customer =
           new Customer("Alice", new Address("123 Main", "Springfield", "62701"), 100);
 
-      assertThatThrownBy(() -> ForState.withState(idMonad, Id.of(customer)).zoom(null))
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(idMonad, Id.of(customer)).zoom((Lens<Customer, Address>) null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("zoomLens");
     }
@@ -1377,7 +1384,10 @@ class ForStateTest {
       Customer customer =
           new Customer("Alice", new Address("123 Main", "Springfield", "62701"), 100);
 
-      assertThatThrownBy(() -> ForState.withState(maybeMonad, MAYBE.just(customer)).zoom(null))
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(maybeMonad, MAYBE.just(customer))
+                      .zoom((Lens<Customer, Address>) null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("zoomLens");
     }
@@ -1577,6 +1587,395 @@ class ForStateTest {
       assertThat(finalCustomer.address().city()).isEqualTo("SPRINGFIELD");
       assertThat(finalCustomer.address().zip()).isEqualTo("62701-5678");
       assertThat(finalCustomer.loyaltyPoints()).isEqualTo(150);
+    }
+  }
+
+  // --- Optic-polymorphic zoom (Issue #506) ---
+
+  @Nested
+  @DisplayName("Optic-Polymorphic zoom() - FocusPath, Iso")
+  class OpticPolymorphicZoomTests {
+
+    @Test
+    @DisplayName("zoom(FocusPath) narrows state via the wrapped lens")
+    void zoomFocusPathNarrowsViaLens() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+
+      FocusPath<Customer, Address> addressPath = FocusPath.of(addressLens);
+
+      Kind<IdKind.Witness, Customer> result =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(addressPath)
+              .update(streetLens, "456 Oak Ave")
+              .endZoom()
+              .yield();
+
+      Customer finalCustomer = IdKindHelper.ID.unwrap(result);
+      assertThat(finalCustomer.address().street()).isEqualTo("456 Oak Ave");
+      assertThat(finalCustomer.address().city()).isEqualTo("Springfield");
+    }
+
+    @Test
+    @DisplayName("zoom(FocusPath) is behaviourally equivalent to zoom(FocusPath.toLens())")
+    void zoomFocusPathDelegatesToLens() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+      FocusPath<Customer, Address> addressPath = FocusPath.of(addressLens);
+
+      Kind<IdKind.Witness, Customer> viaPath =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(addressPath)
+              .update(cityLens, "Capital City")
+              .endZoom()
+              .yield();
+
+      Kind<IdKind.Witness, Customer> viaLens =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(addressPath.toLens())
+              .update(cityLens, "Capital City")
+              .endZoom()
+              .yield();
+
+      assertThat(IdKindHelper.ID.unwrap(viaPath)).isEqualTo(IdKindHelper.ID.unwrap(viaLens));
+    }
+
+    @Test
+    @DisplayName("zoom(FocusPath) supports nested zoom and endZoom")
+    void zoomFocusPathNestsAndEndZooms() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+      FocusPath<Customer, Address> addressPath = FocusPath.of(addressLens);
+
+      Kind<IdKind.Witness, Customer> result =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(addressPath)
+              .update(streetLens, "456 Oak Ave")
+              .modify(zipLens, z -> z + "-5678")
+              .endZoom()
+              .modify(loyaltyLens, lp -> lp + 50)
+              .yield();
+
+      Customer finalCustomer = IdKindHelper.ID.unwrap(result);
+      assertThat(finalCustomer.address().street()).isEqualTo("456 Oak Ave");
+      assertThat(finalCustomer.address().zip()).isEqualTo("62701-5678");
+      assertThat(finalCustomer.loyaltyPoints()).isEqualTo(150);
+    }
+
+    @Test
+    @DisplayName("zoom(Iso) reconstructs the outer state on endZoom")
+    void zoomIsoReconstructsOuterState() {
+      Customer initial = new Customer("Alice", new Address("123", "City", "00000"), 0);
+
+      // Iso between Customer and a "swapped" representation, just to exercise reverseGet.
+      record CustomerView(int loyaltyPoints, String name, Address address) {}
+      Iso<Customer, CustomerView> swap =
+          Iso.of(
+              c -> new CustomerView(c.loyaltyPoints(), c.name(), c.address()),
+              v -> new Customer(v.name(), v.address(), v.loyaltyPoints()));
+
+      Lens<CustomerView, Integer> viewLoyalty =
+          Lens.of(
+              CustomerView::loyaltyPoints, (v, lp) -> new CustomerView(lp, v.name(), v.address()));
+
+      Kind<IdKind.Witness, Customer> result =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(swap)
+              .update(viewLoyalty, 999)
+              .endZoom()
+              .yield();
+
+      assertThat(IdKindHelper.ID.unwrap(result).loyaltyPoints()).isEqualTo(999);
+      assertThat(IdKindHelper.ID.unwrap(result).name()).isEqualTo("Alice");
+    }
+
+    @Test
+    @DisplayName("zoom(Iso) is behaviourally equivalent to zoom(iso.asLens())")
+    void zoomIsoDelegatesToLens() {
+      Counter initial = new Counter(0, "init");
+
+      // Iso<Counter, Counter> that round-trips through a swap of (value, lastOperation).
+      record Pair(String op, int value) {}
+      Iso<Counter, Pair> iso =
+          Iso.of(c -> new Pair(c.lastOperation(), c.value()), p -> new Counter(p.value(), p.op()));
+
+      Lens<Pair, Integer> pairValue = Lens.of(Pair::value, (p, v) -> new Pair(p.op(), v));
+
+      Kind<IdKind.Witness, Counter> viaIso =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(iso)
+              .update(pairValue, 42)
+              .endZoom()
+              .yield();
+
+      Kind<IdKind.Witness, Counter> viaAsLens =
+          ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+              .zoom(iso.asLens())
+              .update(pairValue, 42)
+              .endZoom()
+              .yield();
+
+      assertThat(IdKindHelper.ID.unwrap(viaIso)).isEqualTo(IdKindHelper.ID.unwrap(viaAsLens));
+    }
+
+    @Test
+    @DisplayName("FilterableSteps.zoom(FocusPath) preserves filtering after endZoom")
+    void filterableZoomFocusPathReturnsFilterableSteps() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+
+      FocusPath<Customer, Address> addressPath = FocusPath.of(addressLens);
+
+      Kind<MaybeKind.Witness, Customer> result =
+          ForState.withState(maybeMonad, MAYBE.just(initial))
+              .zoom(addressPath)
+              .update(streetLens, "Oak Ave")
+              .endZoom()
+              .when(c -> c.address().street().equals("Oak Ave"))
+              .yield();
+
+      Maybe<Customer> outcome = MAYBE.narrow(result);
+      assertThat(outcome.isJust()).isTrue();
+    }
+
+    @Test
+    @DisplayName("FilterableSteps.zoom(Iso) preserves filtering after endZoom")
+    void filterableZoomIsoReturnsFilterableSteps() {
+      Counter initial = new Counter(0, "init");
+
+      record Pair(String op, int value) {}
+      Iso<Counter, Pair> iso =
+          Iso.of(c -> new Pair(c.lastOperation(), c.value()), p -> new Counter(p.value(), p.op()));
+      Lens<Pair, Integer> pairValue = Lens.of(Pair::value, (p, v) -> new Pair(p.op(), v));
+
+      Kind<MaybeKind.Witness, Counter> result =
+          ForState.withState(maybeMonad, MAYBE.just(initial))
+              .zoom(iso)
+              .update(pairValue, 99)
+              .endZoom()
+              .when(c -> c.value() > 0)
+              .yield();
+
+      assertThat(MAYBE.narrow(result).isJust()).isTrue();
+    }
+
+    @Test
+    @DisplayName("FilterableSteps.zoom(FocusPath) when() guard after zoom can short-circuit")
+    void filterableZoomFocusPathWhenCanShortCircuit() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+
+      FocusPath<Customer, Address> addressPath = FocusPath.of(addressLens);
+
+      Kind<MaybeKind.Witness, Customer> result =
+          ForState.withState(maybeMonad, MAYBE.just(initial))
+              .zoom(addressPath)
+              .update(streetLens, "Oak Ave")
+              .endZoom()
+              .when(c -> c.address().city().equals("Nowhere")) // Springfield, fails predicate
+              .yield();
+
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("zoom(FocusPath) throws on null path")
+    void zoomFocusPathThrowsOnNull() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+                      .zoom((FocusPath<Customer, Address>) null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("path");
+    }
+
+    @Test
+    @DisplayName("zoom(Iso) throws on null iso")
+    void zoomIsoThrowsOnNull() {
+      Counter initial = new Counter(0, "init");
+
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
+                      .zoom((Iso<Counter, Counter>) null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("iso");
+    }
+
+    @Test
+    @DisplayName("FilterableSteps.zoom(FocusPath) throws on null path")
+    void filterableZoomFocusPathThrowsOnNull() {
+      Customer initial =
+          new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
+
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(maybeMonad, MAYBE.just(initial))
+                      .zoom((FocusPath<Customer, Address>) null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("path");
+    }
+
+    @Test
+    @DisplayName("FilterableSteps.zoom(Iso) throws on null iso")
+    void filterableZoomIsoThrowsOnNull() {
+      Counter initial = new Counter(0, "init");
+
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(maybeMonad, MAYBE.just(initial))
+                      .zoom((Iso<Counter, Counter>) null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("iso");
+    }
+  }
+
+  @Nested
+  @DisplayName("FilterableSteps zoom(AffinePath) - Optional Sub-State")
+  class FilterableAffineZoomTests {
+
+    /** Customer record with an optional address (for affine zoom tests). */
+    record OptionalAddressCustomer(String name, Optional<Address> address) {}
+
+    @Test
+    @DisplayName("zoom(AffinePath) updates inner state when target is present")
+    void affineZoomUpdatesWhenPresent() {
+      OptionalAddressCustomer initial =
+          new OptionalAddressCustomer(
+              "Alice", Optional.of(new Address("123 Main St", "Springfield", "62701")));
+
+      Affine<OptionalAddressCustomer, Address> addressAffine =
+          Affine.of(
+              OptionalAddressCustomer::address,
+              (c, a) -> new OptionalAddressCustomer(c.name(), Optional.of(a)));
+      AffinePath<OptionalAddressCustomer, Address> addressPath = AffinePath.of(addressAffine);
+
+      Kind<MaybeKind.Witness, OptionalAddressCustomer> result =
+          ForState.withState(maybeMonad, MAYBE.just(initial))
+              .zoom(addressPath)
+              .update(streetLens, "Oak Ave")
+              .endZoom()
+              .yield();
+
+      Maybe<OptionalAddressCustomer> outcome = MAYBE.narrow(result);
+      assertThat(outcome.isJust()).isTrue();
+      Address updated = outcome.orElse(initial).address().orElseThrow();
+      assertThat(updated.street()).isEqualTo("Oak Ave");
+      assertThat(updated.city()).isEqualTo("Springfield");
+    }
+
+    @Test
+    @DisplayName("zoom(AffinePath) short-circuits to zero when target is absent")
+    void affineZoomShortCircuitsWhenAbsent() {
+      OptionalAddressCustomer initial = new OptionalAddressCustomer("Alice", Optional.empty());
+
+      Affine<OptionalAddressCustomer, Address> addressAffine =
+          Affine.of(
+              OptionalAddressCustomer::address,
+              (c, a) -> new OptionalAddressCustomer(c.name(), Optional.of(a)));
+      AffinePath<OptionalAddressCustomer, Address> addressPath = AffinePath.of(addressAffine);
+
+      Kind<MaybeKind.Witness, OptionalAddressCustomer> result =
+          ForState.withState(maybeMonad, MAYBE.just(initial))
+              .zoom(addressPath)
+              .update(streetLens, "Oak Ave")
+              .endZoom()
+              .yield();
+
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("zoom(AffinePath) endZoom returns FilterableSteps so when() remains available")
+    void affineZoomEndZoomPreservesFilterable() {
+      OptionalAddressCustomer initial =
+          new OptionalAddressCustomer(
+              "Alice", Optional.of(new Address("123 Main St", "Springfield", "62701")));
+
+      Affine<OptionalAddressCustomer, Address> addressAffine =
+          Affine.of(
+              OptionalAddressCustomer::address,
+              (c, a) -> new OptionalAddressCustomer(c.name(), Optional.of(a)));
+      AffinePath<OptionalAddressCustomer, Address> addressPath = AffinePath.of(addressAffine);
+
+      Kind<MaybeKind.Witness, OptionalAddressCustomer> result =
+          ForState.withState(maybeMonad, MAYBE.just(initial))
+              .zoom(addressPath)
+              .update(streetLens, "Oak Ave")
+              .endZoom()
+              .when(c -> c.address().isPresent()) // verify FilterableSteps still in scope
+              .yield();
+
+      assertThat(MAYBE.narrow(result).isJust()).isTrue();
+    }
+
+    @Test
+    @DisplayName("zoom(AffinePath) propagates Nothing input unchanged")
+    void affineZoomPropagatesNothingInput() {
+      Affine<OptionalAddressCustomer, Address> addressAffine =
+          Affine.of(
+              OptionalAddressCustomer::address,
+              (c, a) -> new OptionalAddressCustomer(c.name(), Optional.of(a)));
+      AffinePath<OptionalAddressCustomer, Address> addressPath = AffinePath.of(addressAffine);
+
+      Kind<MaybeKind.Witness, OptionalAddressCustomer> result =
+          ForState.withState(maybeMonad, MAYBE.<OptionalAddressCustomer>nothing())
+              .zoom(addressPath)
+              .update(streetLens, "Oak Ave")
+              .endZoom()
+              .yield();
+
+      assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("zoom(AffinePath) throws on null path")
+    void affineZoomThrowsOnNull() {
+      OptionalAddressCustomer initial =
+          new OptionalAddressCustomer(
+              "Alice", Optional.of(new Address("123 Main St", "Springfield", "62701")));
+
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(maybeMonad, MAYBE.just(initial))
+                      .zoom((AffinePath<OptionalAddressCustomer, Address>) null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("path");
+    }
+
+    @Test
+    @DisplayName(
+        "zoom(AffinePath) raises IllegalStateException if a non-deterministic Affine reports the"
+            + " target absent inside the zoom block")
+    void affineZoomRaisesIllegalStateOnInvariantViolation() {
+      // Construct a deliberately non-deterministic Affine: returns Optional.of(...) on the
+      // first call (so the FilterableSteps guard passes) but Optional.empty() on subsequent
+      // calls (when the synthesised lens.get fires inside update/modify). Real Affine
+      // implementations should never behave this way; the test exists to confirm the lens's
+      // orElseThrow message fires with a clear diagnostic when the invariant is violated.
+      AtomicInteger callCount = new AtomicInteger(0);
+      Address present = new Address("123 Main St", "Springfield", "62701");
+      Affine<OptionalAddressCustomer, Address> flakyAffine =
+          Affine.of(
+              c -> callCount.getAndIncrement() == 0 ? Optional.of(present) : Optional.empty(),
+              (c, a) -> new OptionalAddressCustomer(c.name(), Optional.of(a)));
+      AffinePath<OptionalAddressCustomer, Address> flakyPath = AffinePath.of(flakyAffine);
+
+      OptionalAddressCustomer initial = new OptionalAddressCustomer("Alice", Optional.of(present));
+
+      assertThatThrownBy(
+              () ->
+                  ForState.withState(maybeMonad, MAYBE.just(initial))
+                      .zoom(flakyPath)
+                      .update(streetLens, "Oak Ave")
+                      .endZoom()
+                      .yield())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Affine target unexpectedly absent")
+          .hasMessageContaining("non-deterministic Affine");
     }
   }
 }

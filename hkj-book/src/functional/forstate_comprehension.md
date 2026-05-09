@@ -429,6 +429,33 @@ ForState.withState(idMonad, Id.of(customer))
     .yield();
 ```
 
+`zoom` is optic-polymorphic: in addition to a plain `Lens`, it accepts the path types you already use elsewhere.
+
+- **`zoom(FocusPath<S, T>)`** -- pass the `FocusPath` that `@GenerateFocus` emits directly, without unwrapping to a `Lens`.
+- **`zoom(Iso<S, T>)`** -- representation-change zoom. The inner steps operate on an isomorphic shape (a swap, a unit conversion, a wrapper); on `endZoom`, the outer state is reconstructed via `iso.reverseGet`.
+- **`zoom(AffinePath<S, T>)`** -- *only on `FilterableSteps`* (i.e. when the surrounding monad is a `MonadZero` such as `Maybe` or `List`). When the affine target is absent, the comprehension short-circuits via `MonadZero.zero()`, and `endZoom` returns to a `FilterableSteps` so guards (`when`, `matchThen`) remain available.
+
+```java
+// FocusPath: same shape as the Lens form, with a generated path.
+FocusPath<Customer, Address> addressPath = CustomerFocus.address();
+
+ForState.withState(idMonad, Id.of(customer))
+    .zoom(addressPath)
+    .update(streetLens, "456 Oak Ave")
+    .endZoom()
+    .yield();
+
+// AffinePath: short-circuits when the affine target is absent.
+record OptionalAddressCustomer(String name, Optional<Address> address) {}
+AffinePath<OptionalAddressCustomer, Address> optionalAddress = ...;
+
+ForState.withState(maybeMonad, Maybe.just(customer))
+    .zoom(optionalAddress)
+    .update(streetLens, "Oak Ave")
+    .endZoom()
+    .yield();   // Nothing if customer.address() was empty
+```
+
 ### Yielding Results
 
 Every ForState workflow ends with `yield`. Two forms are available:

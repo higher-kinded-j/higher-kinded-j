@@ -7,6 +7,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.focus.FocusPath;
 
 /**
  * Property-based tests for ReaderPath using jQwik.
@@ -166,5 +169,72 @@ class ReaderPathPropertyTest {
 
     assertThat(path.run(TEST_CONFIG)).isEqualTo(8080);
     assertThat(modified.run(TEST_CONFIG)).isEqualTo(8180);
+  }
+
+  // --- magnify() law-equivalence properties (Issue #506) ---
+
+  record AppEnv(Config db, String tenant) {}
+
+  @Provide
+  Arbitrary<AppEnv> appEnvs() {
+    return Arbitraries.strings()
+        .alpha()
+        .ofMinLength(1)
+        .ofMaxLength(10)
+        .flatMap(
+            host ->
+                Arbitraries.integers()
+                    .between(1, 65535)
+                    .flatMap(
+                        port ->
+                            Arbitraries.of(true, false)
+                                .flatMap(
+                                    debug ->
+                                        Arbitraries.strings()
+                                            .alpha()
+                                            .ofMinLength(1)
+                                            .ofMaxLength(10)
+                                            .map(
+                                                tenant ->
+                                                    new AppEnv(
+                                                        new Config(host, port, debug), tenant)))));
+  }
+
+  @Property
+  @Label("magnify(Getter) is law-equivalent to local(getter::get) for any environment")
+  void magnifyGetterEquivalentToLocal(@ForAll("appEnvs") AppEnv env) {
+    ReaderPath<Config, Integer> portPath = ReaderPath.asks(Config::port);
+    Getter<AppEnv, Config> dbGetter = Getter.of(AppEnv::db);
+
+    ReaderPath<AppEnv, Integer> viaMagnify = portPath.magnify(dbGetter);
+    ReaderPath<AppEnv, Integer> viaLocal = portPath.local(dbGetter::get);
+
+    assertThat(viaMagnify.run(env)).isEqualTo(viaLocal.run(env));
+  }
+
+  @Property
+  @Label("magnify(FocusPath) is law-equivalent to local(path.toLens()::get) for any environment")
+  void magnifyFocusPathEquivalentToLocal(@ForAll("appEnvs") AppEnv env) {
+    ReaderPath<Config, String> hostPath = ReaderPath.asks(Config::host);
+    Lens<AppEnv, Config> dbLens = Lens.of(AppEnv::db, (e, c) -> new AppEnv(c, e.tenant()));
+    FocusPath<AppEnv, Config> dbPath = FocusPath.of(dbLens);
+
+    ReaderPath<AppEnv, String> viaMagnify = hostPath.magnify(dbPath);
+    ReaderPath<AppEnv, String> viaLocal = hostPath.local(dbPath.toLens()::get);
+
+    assertThat(viaMagnify.run(env)).isEqualTo(viaLocal.run(env));
+  }
+
+  @Property
+  @Label("magnify composition: magnifying through two getters chains environments")
+  void magnifyComposesAcrossTwoLayers(@ForAll("appEnvs") AppEnv env) {
+    record Outer(AppEnv app, int requestId) {}
+    Outer outer = new Outer(env, 1);
+
+    ReaderPath<Config, Integer> portPath = ReaderPath.asks(Config::port);
+    ReaderPath<AppEnv, Integer> envPort = portPath.magnify(Getter.of(AppEnv::db));
+    ReaderPath<Outer, Integer> outerPort = envPort.magnify(Getter.of(Outer::app));
+
+    assertThat(outerPort.run(outer)).isEqualTo(env.db().port());
   }
 }
