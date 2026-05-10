@@ -132,13 +132,15 @@ EitherBenchmark.leftMap                    thrpt   20  89.123 ± 1.234  ops/us
 
 | Signal | Meaning |
 |--------|---------|
-| Left/Nothing operations 5-10x faster than Right/Just | Instance reuse is working |
+| Left/Nothing operations 5-40x faster than Right/Just | Instance reuse is working |
 | VTask ~10-30% slower than IO for simple ops | Expected virtual thread overhead |
+| VTask blocking I/O 10x+ faster than platform threads at scale | Virtual thread scheduler scaling |
 | Deep chain (50+ steps) completes without error | Stack safety is intact |
 | VStream slower than Java Stream | Expected; virtual thread + pull overhead |
 | parEvalMap scales with concurrency for I/O | Parallel pipeline working correctly |
 | Scope joiners similar speed to Par.all | Minimal Scope abstraction cost |
 | Wrapper overhead < 15% | Acceptable Path wrapper cost |
+| PVector via ListKind 30-70% the throughput of ArrayList | Persistent collection iteration tax |
 
 ### Warning Signs
 
@@ -163,17 +165,24 @@ These types use **instance reuse**: `Left` and `Nothing` operations return the s
 | `leftMap` vs `rightMap` | Left 5-10x faster |
 | `nothingMap` vs `justMap` | Nothing 5-10x faster |
 | `leftLongChain` vs `rightLongChain` | Left 10-50x faster |
+| `constructNothing` vs `constructJust` | Singleton reuse can reach 30-40x |
+
+The "construct" pair is the strongest signal that allocation, not branching, dominates the gap. `constructNothing` returns the cached singleton, whereas `constructJust` allocates a fresh wrapper. On hot paths producing many `Just` or `Right` values, that allocation cost is real.
 
 ### VTask
 
-Virtual thread overhead is the dominant cost for simple operations. For real workloads involving I/O, this overhead is negligible.
+Virtual thread overhead is the dominant cost for simple operations. For real workloads involving I/O, this overhead is negligible, and the scheduling story flips dramatically in VTask's favour.
 
 | Comparison | Expected |
 |------------|----------|
 | Construction (succeed, delay) | Very fast (~100+ ops/us) |
 | VTask vs IO (simple execution) | VTask ~10-30% slower |
 | Deep chains (50+) | Completes without error |
-| High concurrency (1000+ tasks) | VTask scales better than platform threads |
+| Blocking I/O at concurrency 10 | Roughly equivalent to platform threads |
+| Blocking I/O at concurrency 100 | VTask ~3-4x faster |
+| Blocking I/O at concurrency 1000 | VTask 15-20x faster |
+
+The blocking I/O numbers come from `VTaskVsPlatformThreadsBenchmark`. Platform throughput collapses as concurrency grows because OS threads become the bottleneck; virtual thread throughput stays roughly flat because the scheduler parks blocked carriers freely. This is the strongest single argument for VTask in I/O-bound workloads.
 
 ### VStream
 
@@ -194,6 +203,30 @@ VStream's pull-based model adds overhead per element compared to Java Stream's p
 | VTaskPath vs raw VTask | 5-15% |
 | IOPath vs raw IO | 5-15% |
 | ForPath vs direct chaining | 10-25% |
+
+### PCollections via `ListKind`
+
+`PCollectionsHktBenchmark` measures `PVector` against `ArrayList` when both are processed through the standard `ListMonad`/`ListTraverse` pipeline. The widen/narrow boundary itself is free; the cost lives in iteration.
+
+| Comparison | Expected Ratio |
+|------------|---------------|
+| `widenNarrow` PVector vs ArrayList | Indistinguishable, both at the JMH ceiling |
+| `map` / `flatMap` / `foldMap` PVector vs ArrayList | PVector 30-40% the throughput |
+| `traverse` PVector vs ArrayList | PVector ~70% the throughput |
+
+The traverse case is the headline result. The more applicative work an operation does per element, the smaller the gap, because applicative `map2` and `Kind` boxing dominate the underlying iteration cost. See [PCollections Integration](tooling/pcollections_integration.md) for the full table and methodology.
+
+### Free Monad
+
+`Free` trades raw speed for program-as-data: a `Free` programme can be inspected, transformed, or interpreted multiple ways before it is run. That flexibility costs at least three orders of magnitude versus direct function composition.
+
+| Comparison | Expected Ratio |
+|------------|---------------|
+| `directComposition` vs `deepChainExecution` | Direct ~3-4 orders of magnitude faster |
+| `pureTrampolineIntegration` vs `flatMappedTrampolineIntegration` | Pure ~100x faster |
+| `programConstruction` vs `sequentialInterpretation` | Construction far cheaper than interpretation |
+
+If a workload is on a hot path and does not benefit from inspection or alternative interpreters, prefer direct composition. `Free` shines when the same programme is interpreted multiple ways, when the structure is analysed before execution, or when the alternatives would require substantial duplication.
 
 ---
 
@@ -282,10 +315,11 @@ After a successful run, reports are available at:
 
 The benchmarks consistently show that abstraction overhead is measured in **nanoseconds**. Real-world operations — database queries, HTTP calls, file reads — are measured in **milliseconds**. The overhead is three to four orders of magnitude smaller than any I/O operation.
 
-Abstraction overhead matters in exactly two scenarios:
+Abstraction overhead matters in exactly three scenarios:
 
-1. **Tight computational loops** processing millions of items per second with no I/O — use primitives directly
-2. **Very long chains** (hundreds of steps) creating GC pressure — break into named submethods
+1. **Tight computational loops** processing millions of items per second with no I/O. Use primitives directly.
+2. **Very long chains** (hundreds of steps) creating GC pressure. Break into named submethods.
+3. **Reflexive parallelism on trivial work.** `VTaskParBenchmark` shows `par*` variants running thousands of times slower than their sequential equivalents when the per-task work is negligible. Forking, joining, and synchronising all cost more than a few-nanosecond computation. Reach for `Par.zip`, `Par.map2`, or `Scope` only when each branch does enough work to amortise the structured-concurrency cost.
 
 For everything else, the type safety, composability, and testability benefits far outweigh the cost.
 

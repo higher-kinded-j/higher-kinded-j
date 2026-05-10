@@ -25,6 +25,9 @@ dependencies {
   testImplementation(libs.awaitility)
   testImplementation(libs.bundles.jqwik)
   testImplementation(libs.archunit.junit5)
+
+  // PCollections — validates java.util.List/Set HKT compatibility (Phase 1)
+  testImplementation(libs.pcollections)
 }
 
 
