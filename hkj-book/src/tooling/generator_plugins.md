@@ -329,4 +329,4 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 **Previous:** [Diagnostics](diagnostics.md)
-**Next:** [Claude Code Skills](claude_code_skills.md)
+**Next:** [PCollections Integration](pcollections_integration.md)

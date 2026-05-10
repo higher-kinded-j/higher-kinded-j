@@ -19,6 +19,9 @@ dependencies {
     // Eclipse Collections for cross-ecosystem portfolio risk example
     implementation(libs.eclipse.collections)
 
+    // PCollections for the persistent-collections HKT compatibility example (Phase 1)
+    implementation(libs.pcollections)
+
     // Testing dependencies for tutorials
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)

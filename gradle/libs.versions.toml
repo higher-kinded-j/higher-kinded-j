@@ -52,6 +52,7 @@ eclipse-collections = "13.0.0"
 google-guava = "33.5.0-jre"
 apache-commons-collections4 = "4.5.0"
 vavr = "1.0.1"
+pcollections = "5.0.0"
 
 [libraries]
 # Core
@@ -132,6 +133,7 @@ eclipse-collections = { module = "org.eclipse.collections:eclipse-collections", 
 google-guava = { module = "com.google.guava:guava", version.ref = "google-guava" }
 apache-commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "apache-commons-collections4" }
 vavr = { module = "io.vavr:vavr", version.ref = "vavr" }
+pcollections = { module = "org.pcollections:pcollections", version.ref = "pcollections" }
 
 [plugins]
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }

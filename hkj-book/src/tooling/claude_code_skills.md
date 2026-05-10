@@ -203,5 +203,5 @@ Add to `.gitignore` only if your team prefers not to commit generated files. In 
 
 ---
 
-**Previous:** [Traversal Generator Plugins](generator_plugins.md)
+**Previous:** [PCollections Integration](pcollections_integration.md)
 **Next:** [Integration Guides](../spring/ch_intro.md)

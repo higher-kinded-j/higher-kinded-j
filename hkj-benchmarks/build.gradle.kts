@@ -15,6 +15,9 @@ dependencies {
   // Optional: Java Object Layout for allocation analysis
   jmhImplementation(libs.jol.core)
 
+  // PCollections — for HKT compatibility benchmarks (Phase 1)
+  jmhImplementation(libs.pcollections)
+
   // Test dependencies for benchmark assertions
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
@@ -85,6 +88,17 @@ jmh {
 }
 
 tasks {
+  // Coerce a JMH JSON metric value to Double. JMH writes the literal string
+  // "NaN" / "Infinity" (instead of a JSON number) when a benchmark produced
+  // no usable measurement, which would otherwise crash a `value as Number` cast.
+  val asDouble = { v: Any? ->
+    when (v) {
+      is Number -> v.toDouble()
+      is String -> v.toDoubleOrNull() ?: Double.NaN
+      else -> Double.NaN
+    }
+  }
+
   // Short benchmarks for quick local feedback (default depths)
   register("shortBenchmark") {
     group = "benchmark"
@@ -146,11 +160,12 @@ tasks {
             val benchmark = (result["benchmark"] as String).substringAfterLast(".")
             @Suppress("UNCHECKED_CAST")
             val primaryMetric = result["primaryMetric"] as Map<String, Any>
-            val score = (primaryMetric["score"] as Number).toDouble()
-            val scoreError = (primaryMetric["scoreError"] as Number).toDouble()
+            val score = asDouble(primaryMetric["score"])
+            val scoreError = asDouble(primaryMetric["scoreError"])
             val scoreUnit = primaryMetric["scoreUnit"] as String
 
             val formattedScore = when {
+              score.isNaN() -> "NaN"
               score >= 1_000_000 -> "%.2f M".format(score / 1_000_000)
               score >= 1_000 -> "%.2f K".format(score / 1_000)
               else -> "%.2f".format(score)
@@ -199,14 +214,17 @@ tasks {
 
         results.sortedByDescending {
           @Suppress("UNCHECKED_CAST")
-          ((it["primaryMetric"] as Map<String, Any>)["score"] as Number).toDouble()
+          asDouble((it["primaryMetric"] as Map<String, Any>)["score"]).let {
+            if (it.isNaN()) Double.NEGATIVE_INFINITY else it
+          }
         }.forEach { result ->
           val benchmark = (result["benchmark"] as String)
             .removePrefix("org.higherkindedj.benchmarks.")
           @Suppress("UNCHECKED_CAST")
-          val score = ((result["primaryMetric"] as Map<String, Any>)["score"] as Number).toDouble()
+          val score = asDouble((result["primaryMetric"] as Map<String, Any>)["score"])
 
           val formattedScore = when {
+            score.isNaN() -> "NaN"
             score >= 1_000_000 -> "%,.0f M".format(score / 1_000_000)
             score >= 1_000 -> "%,.0f K".format(score / 1_000)
             else -> "%,.2f".format(score)

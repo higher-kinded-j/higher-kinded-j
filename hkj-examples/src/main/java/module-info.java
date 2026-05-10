@@ -17,6 +17,9 @@ module org.higherkindedj.examples {
   requires org.eclipse.collections.api;
   requires org.eclipse.collections.impl;
 
+  // PCollections for the persistent-collections HKT compatibility example
+  requires org.pcollections;
+
   // Export spec interface examples for external types
   exports org.higherkindedj.example.optics.external;
 
