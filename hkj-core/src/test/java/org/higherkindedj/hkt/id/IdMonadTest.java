@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.id.IdAssert.assertThatId;
+import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
 
 import java.util.function.Function;
 import org.assertj.core.api.Assertions;

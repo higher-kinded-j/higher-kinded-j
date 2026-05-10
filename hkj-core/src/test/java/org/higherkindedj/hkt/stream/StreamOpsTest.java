@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.stream.StreamAssert.assertThatStream;
+import static org.higherkindedj.hkt.assertions.StreamAssert.assertThatStream;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.stream.StreamOps.*;
 

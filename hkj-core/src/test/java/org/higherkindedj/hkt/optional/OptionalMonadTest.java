@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
+import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -68,7 +68,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void ofWrapsValueInPresentOptional() {
       var result = optionalMonad.of(DEFAULT_PRESENT_VALUE);
 
-      assertThatOptional(result).isPresent().contains(DEFAULT_PRESENT_VALUE);
+      assertThatOptionalKind(result).isPresent().contains(DEFAULT_PRESENT_VALUE);
     }
 
     @Test
@@ -76,7 +76,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void ofCreatesEmptyOptionalForNull() {
       Kind<OptionalKind.Witness, String> result = optionalMonad.of(null);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -85,7 +85,7 @@ class OptionalMonadTest extends OptionalTestBase {
       var input = presentOf(5);
       var result = optionalMonad.map(Object::toString, input);
 
-      assertThatOptional(result).isPresent().contains("5");
+      assertThatOptionalKind(result).isPresent().contains("5");
     }
 
     @Test
@@ -94,7 +94,7 @@ class OptionalMonadTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Integer> input = emptyOptional();
       var result = optionalMonad.map(Object::toString, input);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -103,7 +103,7 @@ class OptionalMonadTest extends OptionalTestBase {
       var input = presentOf(5);
       var result = optionalMonad.map(x -> null, input);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -115,7 +115,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.ap(funcKind, valueKind);
 
-      assertThatOptional(result).isPresent().contains("N10");
+      assertThatOptionalKind(result).isPresent().contains("N10");
     }
 
     @Test
@@ -126,7 +126,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.ap(funcKind, valueKind);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -138,7 +138,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.ap(funcKind, valueKind);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -149,7 +149,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.ap(funcKind, valueKind);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -161,7 +161,7 @@ class OptionalMonadTest extends OptionalTestBase {
       var presentValue = optionalMonad.of(5);
       var result = optionalMonad.flatMap(safeDivide, presentValue);
 
-      assertThatOptional(result).isPresent().contains(20.0);
+      assertThatOptionalKind(result).isPresent().contains(20.0);
     }
 
     @Test
@@ -173,7 +173,7 @@ class OptionalMonadTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Integer> emptyValue = optionalMonad.of(null);
       var result = optionalMonad.flatMap(safeDivide, emptyValue);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -185,7 +185,7 @@ class OptionalMonadTest extends OptionalTestBase {
       var zeroValue = optionalMonad.of(0);
       var result = optionalMonad.flatMap(safeDivide, zeroValue);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 
@@ -257,7 +257,7 @@ class OptionalMonadTest extends OptionalTestBase {
     @Test
     @DisplayName("raiseError() creates empty Optional")
     void raiseErrorCreatesEmpty() {
-      assertThatOptional(raisedErrorKind).isEmpty();
+      assertThatOptionalKind(raisedErrorKind).isEmpty();
     }
 
     @Test
@@ -266,7 +266,7 @@ class OptionalMonadTest extends OptionalTestBase {
       Function<Unit, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(0);
       var result = optionalMonad.handleErrorWith(emptyVal, handler);
 
-      assertThatOptional(result).isPresent().contains(0);
+      assertThatOptionalKind(result).isPresent().contains(0);
     }
 
     @Test
@@ -276,7 +276,7 @@ class OptionalMonadTest extends OptionalTestBase {
       var result = optionalMonad.handleErrorWith(presentVal, handler);
 
       assertThat(result).isSameAs(presentVal);
-      assertThatOptional(result).isPresent().contains(100);
+      assertThatOptionalKind(result).isPresent().contains(100);
     }
   }
 
@@ -292,7 +292,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
 
-      assertThatOptional(result).isPresent().contains("10x");
+      assertThatOptionalKind(result).isPresent().contains("10x");
     }
 
     @Test
@@ -303,7 +303,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -314,7 +314,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -325,7 +325,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> emptyOptional());
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -339,7 +339,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap3(opt1, opt2, opt3, f);
 
-      assertThatOptional(result).isPresent().contains("1-a-2.5");
+      assertThatOptionalKind(result).isPresent().contains("1-a-2.5");
     }
 
     @Test
@@ -353,7 +353,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap3(opt1, opt2, opt3, f);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -368,7 +368,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap4(opt1, opt2, opt3, opt4, f);
 
-      assertThatOptional(result).isPresent().contains("1-a-2-true");
+      assertThatOptionalKind(result).isPresent().contains("1-a-2-true");
     }
 
     @Test
@@ -383,7 +383,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap4(opt1, opt2, opt3, opt4, f);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -399,7 +399,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
 
-      assertThatOptional(result).isPresent().contains("1-a-2-true-X");
+      assertThatOptionalKind(result).isPresent().contains("1-a-2-true-X");
     }
 
     @Test
@@ -415,7 +415,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -431,7 +431,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
       var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 
@@ -444,7 +444,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void zeroReturnsEmptyOptional() {
       Kind<OptionalKind.Witness, Object> zeroKind = OptionalMonad.INSTANCE.zero();
 
-      assertThatOptional(zeroKind).isEmpty();
+      assertThatOptionalKind(zeroKind).isEmpty();
     }
   }
 
@@ -463,7 +463,7 @@ class OptionalMonadTest extends OptionalTestBase {
       Function<Integer, Kind<OptionalKind.Witness, String>> step2 = y -> presentOf("N" + y);
       var finalResult = optionalMonad.flatMap(step2, step1Result);
 
-      assertThatOptional(finalResult).isPresent().contains("N10");
+      assertThatOptionalKind(finalResult).isPresent().contains("N10");
     }
 
     @Test
@@ -477,7 +477,7 @@ class OptionalMonadTest extends OptionalTestBase {
       Function<Integer, Kind<OptionalKind.Witness, String>> step2 = y -> presentOf("N" + y);
       var finalResult = optionalMonad.flatMap(step2, step1Result);
 
-      assertThatOptional(finalResult).isEmpty();
+      assertThatOptionalKind(finalResult).isEmpty();
     }
 
     @Test
@@ -491,7 +491,7 @@ class OptionalMonadTest extends OptionalTestBase {
       Function<Integer, Kind<OptionalKind.Witness, String>> step2 = y -> presentOf("N" + y);
       var finalResult = optionalMonad.flatMap(step2, step1Result);
 
-      assertThatOptional(finalResult).isEmpty();
+      assertThatOptionalKind(finalResult).isEmpty();
     }
   }
 }

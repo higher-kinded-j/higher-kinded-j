@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.list;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.list.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;

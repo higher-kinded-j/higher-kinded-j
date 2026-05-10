@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.test.assertions.VTaskPathAssert.assertThatVTaskPath;
+import static org.higherkindedj.hkt.assertions.VTaskPathAssert.assertThatVTaskPath;
 
 import java.time.Duration;
 import java.util.Optional;

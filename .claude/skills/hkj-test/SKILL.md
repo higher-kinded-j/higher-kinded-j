@@ -1,6 +1,6 @@
 ---
 name: hkj-test
-description: "Write tests against Higher-Kinded-J types using hkj-test: assertThatEither / assertThatMaybe / assertThatTry / assertThatIO / assertThatVTask / assertThatVStream / assertThatLazy / assertThatValidated / assertThatReader / assertThatWriter / assertThatStateTuple / assertThatEitherT / assertThatMaybeT / assertThatOptionalT / assertThatReaderT / assertThatStateT / assertThatWriterT / assertThatFree / assertThatEitherF, AssertJ fluent assertions for HKJ types, transformer assertion unwrappers, JEP 511 module imports, AssertContract pattern for testing custom AssertJ assertions"
+description: "Write tests against Higher-Kinded-J types using hkj-test: assertThatEither / assertThatMaybe / assertThatTry / assertThatIO / assertThatVTask / assertThatVStream / assertThatVTaskPath / assertThatVStreamPath / assertThatVTaskContext / assertThatLazy / assertThatValidated / assertThatReader / assertThatWriter / assertThatStateTuple / assertThatList / assertThatOptionalKind / assertThatStream / assertThatId / assertThatEitherT / assertThatMaybeT / assertThatOptionalT / assertThatReaderT / assertThatStateT / assertThatWriterT / assertThatFree / assertThatEitherF, AssertJ fluent assertions for HKJ types, transformer assertion unwrappers, Kind-narrowing wrappers (List, OptionalKind, Stream, Id), Path/context assertions (VTaskPath, VStreamPath, VTaskContext), JEP 511 module imports, AssertContract pattern for testing custom AssertJ assertions"
 ---
 
 # Higher-Kinded-J Test Assertions
@@ -55,6 +55,13 @@ Every assertion lives in package `org.higherkindedj.hkt.assertions`. Match the s
 | `IO<T>` | `IOAssert` | `assertThatIO(actual)` |
 | `VTask<T>` | `VTaskAssert` | `assertThatVTask(actual)` |
 | `VStream<A>` | `VStreamAssert` | `assertThatVStream(actual)` |
+| `VTaskPath<T>` | `VTaskPathAssert` | `assertThatVTaskPath(actual)` |
+| `VStreamPath<A>` | `VStreamPathAssert` | `assertThatVStreamPath(actual)` |
+| `VTaskContext<T>` | `VTaskContextAssert` | `assertThatVTaskContext(actual)` |
+| `Kind<ListKind.Witness, T>` | `ListAssert` | `assertThatList(actual)` |
+| `Kind<OptionalKind.Witness, T>` | `OptionalKindAssert` | `assertThatOptionalKind(actual)` |
+| `Kind<StreamKind.Witness, T>` | `StreamAssert` | `assertThatStream(actual)` |
+| `Kind<IdKind.Witness, T>` | `IdAssert` | `assertThatId(actual)` |
 | `Kind<EitherTKind.Witness<F, E>, A>` | `EitherTAssert` | `assertThatEitherT(actual, unwrap)` |
 | `Kind<MaybeTKind.Witness<F>, A>` | `MaybeTAssert` | `assertThatMaybeT(actual, unwrap)` |
 | `Kind<OptionalTKind.Witness<F>, A>` | `OptionalTAssert` | `assertThatOptionalT(actual, unwrap)` |

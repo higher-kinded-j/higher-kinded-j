@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
+import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 
 import java.util.List;
 import java.util.function.Function;
@@ -63,7 +63,7 @@ class OptionalFunctorTest extends OptionalTestBase {
     void mapOnPresentAppliesFunction() {
       Kind<OptionalKind.Witness, String> result = functor.map(validMapper, validKind);
 
-      assertThatOptional(result).isPresent().contains(String.valueOf(DEFAULT_PRESENT_VALUE));
+      assertThatOptionalKind(result).isPresent().contains(String.valueOf(DEFAULT_PRESENT_VALUE));
     }
 
     @Test
@@ -73,7 +73,7 @@ class OptionalFunctorTest extends OptionalTestBase {
 
       Kind<OptionalKind.Witness, String> result = functor.map(validMapper, emptyKind);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -83,7 +83,7 @@ class OptionalFunctorTest extends OptionalTestBase {
 
       Kind<OptionalKind.Witness, String> result = functor.map(nullMapper, validKind);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -92,7 +92,7 @@ class OptionalFunctorTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result =
           functor.map(validMapper.andThen(String::toUpperCase), validKind);
 
-      assertThatOptional(result).isPresent().contains(String.valueOf(DEFAULT_PRESENT_VALUE));
+      assertThatOptionalKind(result).isPresent().contains(String.valueOf(DEFAULT_PRESENT_VALUE));
     }
 
     @Test
@@ -102,7 +102,7 @@ class OptionalFunctorTest extends OptionalTestBase {
 
       Kind<OptionalKind.Witness, Double> result = functor.map(toDouble, validKind);
 
-      assertThatOptional(result).isPresent().contains(DEFAULT_PRESENT_VALUE * 1.5);
+      assertThatOptionalKind(result).isPresent().contains(DEFAULT_PRESENT_VALUE * 1.5);
     }
   }
 
@@ -166,7 +166,7 @@ class OptionalFunctorTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Integer> intermediate = functor.map(doubleFunc, empty);
       Kind<OptionalKind.Witness, String> result = functor.map(stringFunc, intermediate);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -180,7 +180,7 @@ class OptionalFunctorTest extends OptionalTestBase {
           };
 
       Kind<OptionalKind.Witness, String> result = functor.map(complexMapper, validKind);
-      assertThatOptional(result).isPresent().contains("positive:" + DEFAULT_PRESENT_VALUE);
+      assertThatOptionalKind(result).isPresent().contains("positive:" + DEFAULT_PRESENT_VALUE);
     }
 
     @Test
@@ -203,7 +203,7 @@ class OptionalFunctorTest extends OptionalTestBase {
 
       Kind<OptionalKind.Witness, Integer> result = functor.map(lengthFunc, presentString);
 
-      assertThatOptional(result).isPresent().contains(4);
+      assertThatOptionalKind(result).isPresent().contains(4);
     }
 
     @Test
@@ -214,7 +214,7 @@ class OptionalFunctorTest extends OptionalTestBase {
 
       Kind<OptionalKind.Witness, String> result = functor.map(conditionalMapper, validKind);
 
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -294,7 +294,7 @@ class OptionalFunctorTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> stringOptional = functor.map(toString, intOptional);
 
       // Compile-time type safety ensures this works
-      assertThatOptional(stringOptional).isPresent().contains("42");
+      assertThatOptionalKind(stringOptional).isPresent().contains("42");
     }
 
     @Test
@@ -305,7 +305,7 @@ class OptionalFunctorTest extends OptionalTestBase {
 
       Kind<OptionalKind.Witness, Integer> result = functor.map(sizeFunc, listOptional);
 
-      assertThatOptional(result).isPresent().contains(3);
+      assertThatOptionalKind(result).isPresent().contains(3);
     }
   }
 }
