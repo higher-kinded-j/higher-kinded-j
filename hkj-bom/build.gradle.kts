@@ -10,6 +10,7 @@ javaPlatform {
 dependencies {
     constraints {
         api(project(":hkj-core"))
+        api(project(":hkj-test"))
         api(project(":hkj-api"))
         api(project(":hkj-annotations"))
         api(project(":hkj-processor-plugins"))

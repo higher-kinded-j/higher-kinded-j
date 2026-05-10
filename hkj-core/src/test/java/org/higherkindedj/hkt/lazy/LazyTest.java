@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
@@ -196,6 +196,29 @@ class LazyTest extends LazyTestBase {
       assertThat(thrown2).isInstanceOf(IOException.class).hasMessage("Checked Failure");
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThatLazy(lazy).hasFailed();
+    }
+
+    @Test
+    @DisplayName("hasFailed should be false before evaluation")
+    void hasFailedShouldBeFalseBeforeEvaluation() {
+      Lazy<String> lazy = Lazy.defer(successSupplier());
+      assertThat(lazy.hasFailed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasFailed should be false after successful evaluation")
+    void hasFailedShouldBeFalseAfterSuccess() throws Throwable {
+      Lazy<String> lazy = Lazy.defer(successSupplier());
+      lazy.force();
+      assertThat(lazy.hasFailed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasFailed should be true after evaluation throws")
+    void hasFailedShouldBeTrueAfterFailure() {
+      Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
+      catchThrowable(lazy::force);
+      assertThat(lazy.hasFailed()).isTrue();
     }
   }
 

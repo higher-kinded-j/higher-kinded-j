@@ -3,7 +3,7 @@
 ~~~admonish info title="What You'll Learn"
 - What Claude Code skills are and how they help with HKJ development
 - How to install skills into your project with one command
-- What each of the six HKJ skills covers
+- What each of the seven HKJ skills covers
 - How skills trigger automatically and how to invoke them directly
 ~~~
 
@@ -68,7 +68,7 @@ Skills are project-level files that live in your repository's `.claude/skills/` 
 
 ### Gradle
 
-The HKJ Gradle plugin bundles all six skills. Install them with a single task:
+The HKJ Gradle plugin bundles all seven skills. Install them with a single task:
 
 ```bash
 ./gradlew hkjInstallSkills
@@ -110,7 +110,7 @@ rm -rf /tmp/hkj-skills
 ls .claude/skills/hkj-*/SKILL.md
 ```
 
-This should list six `SKILL.md` files. You can also run the diagnostics task (`./gradlew hkjDiagnostics` or `mvn hkj:diagnostics`) which reports skills status.
+This should list seven `SKILL.md` files. You can also run the diagnostics task (`./gradlew hkjDiagnostics` or `mvn hkj:diagnostics`) which reports skills status.
 
 ---
 
@@ -124,6 +124,7 @@ This should list six `SKILL.md` files. You can also run the diagnostics task (`.
 | `hkj-bridge` | Combining effects with optics: `.focus()` on paths, `toEitherPath()`, unified pipelines | `/hkj-bridge` |
 | `hkj-spring` | Spring Boot starter, `Either`/`Validated` responses, `@EnableEffectBoundary`, `@Interpreter` beans | `/hkj-spring` |
 | `hkj-arch` | Functional core / imperative shell design, boundary placement, domain modelling with Java 25 | `/hkj-arch` |
+| `hkj-test` | AssertJ assertion helpers for HKJ types, transformer assertion unwrappers, JEP 511 module imports | `/hkj-test` |
 
 ### How Skills Trigger
 
@@ -152,6 +153,8 @@ Each skill provides condensed reference material optimised for Claude to use whe
 **hkj-spring** covers the starter setup, controller return types (`Either`, `Validated`, `CompletableFuturePath`, `VTaskPath`, `VStreamPath`, `FreePath`), HTTP status code mapping, the `EffectBoundary` adoption ladder (Levels 0-5), `@Interpreter` beans with profile switching, `@EnableEffectBoundary` auto-wiring, and `@EffectTest` test slices. A supporting file walks through the example application.
 
 **hkj-arch** covers the functional core / imperative shell pattern, how Java 25 features (records, sealed interfaces, pattern matching, virtual threads) enable it, mapping HKJ types to core vs shell, boundary design (where to call `.run()` and `.unsafeRun()`), `EffectBoundary` as the named boundary, testing without mocks, and common anti-patterns. Supporting files provide before/after architecture examples and domain modelling patterns.
+
+**hkj-test** covers picking the right assertion class for a given HKJ subject (a 19-row decision table from `Either` through to `Free` and `EitherF`), idioms grouped by type-shape (discriminated unions, `Lazy`, Reader/Writer/State, IO/VTask/VStream, transformers), the transformer-unwrapper pattern, the Java 25 `import module org.higherkindedj.test;` shortcut, and common mistakes (forgetting `whenExecuted()` / `whenRun()`, reusing a stateful assertion, omitting the unwrap function). A supporting file describes the `AssertContract<S, A>` pattern for users writing their own AssertJ extensions.
 
 ---
 

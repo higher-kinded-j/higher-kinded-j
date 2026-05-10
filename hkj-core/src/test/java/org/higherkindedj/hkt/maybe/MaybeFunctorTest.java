@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;

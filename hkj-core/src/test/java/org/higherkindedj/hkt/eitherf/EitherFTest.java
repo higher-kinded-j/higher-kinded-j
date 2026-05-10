@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.eitherf;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.eitherf.EitherFAssert.assertThatEitherF;
+import static org.higherkindedj.hkt.assertions.EitherFAssert.assertThatEitherF;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;

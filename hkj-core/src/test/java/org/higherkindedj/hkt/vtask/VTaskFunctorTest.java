@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.vtask.VTaskAssert.assertThatVTask;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.function.Function;

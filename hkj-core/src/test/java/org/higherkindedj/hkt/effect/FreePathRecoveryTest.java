@@ -9,8 +9,8 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.assertions.FreeAssert;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.free.FreeAssert;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;

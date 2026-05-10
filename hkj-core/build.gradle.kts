@@ -21,6 +21,7 @@ dependencies {
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.assertj.core)
+  testImplementation(project(":hkj-test"))
   testImplementation(libs.awaitility)
   testImplementation(libs.bundles.jqwik)
   testImplementation(libs.archunit.junit5)

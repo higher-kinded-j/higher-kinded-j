@@ -32,6 +32,16 @@ public final class ArchitectureTestBase {
   private static final ImportOption DO_NOT_INCLUDE_PACKAGE_INFO =
       (Location location) -> !location.contains("package-info");
 
+  /**
+   * ImportOption that excludes {@code org.higherkindedj.hkt.assertions}.
+   *
+   * <p>The {@code hkj-test} module ships AssertJ assertion helpers as a published artifact for
+   * library consumers. They are not core library code, so they're excluded from package-structure
+   * and module-cohesion architecture checks.
+   */
+  private static final ImportOption DO_NOT_INCLUDE_TEST_ASSERTIONS =
+      (Location location) -> !location.contains("org/higherkindedj/hkt/assertions/");
+
   /** Cached import of all production classes (no test classes, no package-info). */
   private static volatile JavaClasses productionClasses;
 
@@ -60,6 +70,7 @@ public final class ArchitectureTestBase {
               new ClassFileImporter()
                   .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                   .withImportOption(DO_NOT_INCLUDE_PACKAGE_INFO)
+                  .withImportOption(DO_NOT_INCLUDE_TEST_ASSERTIONS)
                   .importPackages(BASE_PACKAGE);
         }
       }

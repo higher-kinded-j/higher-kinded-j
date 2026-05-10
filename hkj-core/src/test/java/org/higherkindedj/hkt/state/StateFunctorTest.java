@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
+import static org.higherkindedj.hkt.assertions.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.Function;

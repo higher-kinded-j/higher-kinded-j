@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
+import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.List;

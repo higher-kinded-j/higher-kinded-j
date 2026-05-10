@@ -9,6 +9,7 @@ pluginManagement {
 rootProject.name = "higher-kinded-j"
 include(
     "hkj-core",
+    "hkj-test",
     "hkj-processor",
     "hkj-examples",
     "hkj-annotations", "hkj-api",

@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;

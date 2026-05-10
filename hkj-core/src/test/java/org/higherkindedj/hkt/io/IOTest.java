@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.io.IOAssert.assertThatIO;
+import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;

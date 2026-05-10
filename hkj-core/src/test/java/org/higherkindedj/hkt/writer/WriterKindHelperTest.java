@@ -3,8 +3,8 @@
 package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.writerKindHelper;
-import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 
 import java.time.Instant;
 import java.util.ArrayList;

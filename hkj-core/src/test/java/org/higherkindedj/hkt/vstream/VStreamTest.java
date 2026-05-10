@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.vstream.VStreamAssert.assertThatVStream;
+import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;

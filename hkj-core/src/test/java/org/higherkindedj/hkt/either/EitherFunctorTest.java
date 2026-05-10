@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
