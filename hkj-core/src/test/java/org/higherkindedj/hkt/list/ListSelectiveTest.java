@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
-import static org.higherkindedj.hkt.list.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 
 import java.util.Arrays;
 import java.util.List;

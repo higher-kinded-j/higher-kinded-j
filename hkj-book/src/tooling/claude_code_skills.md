@@ -124,7 +124,7 @@ This should list seven `SKILL.md` files. You can also run the diagnostics task (
 | `hkj-bridge` | Combining effects with optics: `.focus()` on paths, `toEitherPath()`, unified pipelines | `/hkj-bridge` |
 | `hkj-spring` | Spring Boot starter, `Either`/`Validated` responses, `@EnableEffectBoundary`, `@Interpreter` beans | `/hkj-spring` |
 | `hkj-arch` | Functional core / imperative shell design, boundary placement, domain modelling with Java 25 | `/hkj-arch` |
-| `hkj-test` | AssertJ assertion helpers for HKJ types, transformer assertion unwrappers, JEP 511 module imports | `/hkj-test` |
+| `hkj-test` | AssertJ assertion helpers for HKJ types (including VTaskPath / VStreamPath / VTaskContext and Kind-narrowing wrappers for List / OptionalKind / Stream / Id), transformer assertion unwrappers, JEP 511 module imports | `/hkj-test` |
 
 ### How Skills Trigger
 
@@ -154,7 +154,7 @@ Each skill provides condensed reference material optimised for Claude to use whe
 
 **hkj-arch** covers the functional core / imperative shell pattern, how Java 25 features (records, sealed interfaces, pattern matching, virtual threads) enable it, mapping HKJ types to core vs shell, boundary design (where to call `.run()` and `.unsafeRun()`), `EffectBoundary` as the named boundary, testing without mocks, and common anti-patterns. Supporting files provide before/after architecture examples and domain modelling patterns.
 
-**hkj-test** covers picking the right assertion class for a given HKJ subject (a 19-row decision table from `Either` through to `Free` and `EitherF`), idioms grouped by type-shape (discriminated unions, `Lazy`, Reader/Writer/State, IO/VTask/VStream, transformers), the transformer-unwrapper pattern, the Java 25 `import module org.higherkindedj.test;` shortcut, and common mistakes (forgetting `whenExecuted()` / `whenRun()`, reusing a stateful assertion, omitting the unwrap function). A supporting file describes the `AssertContract<S, A>` pattern for users writing their own AssertJ extensions.
+**hkj-test** covers picking the right assertion class for a given HKJ subject (a 26-row decision table from `Either` through to `Free`, `EitherF`, the Path/context wrappers `VTaskPath` / `VStreamPath` / `VTaskContext`, and the Kind-narrowing wrappers `ListAssert` / `OptionalKindAssert` / `StreamAssert` / `IdAssert`), idioms grouped by type-shape (discriminated unions, `Lazy`, Reader/Writer/State, IO/VTask/VStream, transformers), the transformer-unwrapper pattern, the Java 25 `import module org.higherkindedj.test;` shortcut, and common mistakes (forgetting `whenExecuted()` / `whenRun()`, reusing a stateful assertion, omitting the unwrap function). A supporting file describes the `AssertContract<S, A>` pattern for users writing their own AssertJ extensions.
 
 ---
 

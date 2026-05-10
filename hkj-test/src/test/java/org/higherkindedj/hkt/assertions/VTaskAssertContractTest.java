@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.assertions;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -131,8 +132,7 @@ class VTaskAssertContractTest
   void runSafe_caches_result_across_chained_calls() {
     // Chaining runSafeSucceeds() twice on the same assert must not re-execute
     // the underlying VTask: the second call hits the runSafeOnce cache.
-    java.util.concurrent.atomic.AtomicInteger runs =
-        new java.util.concurrent.atomic.AtomicInteger();
+    AtomicInteger runs = new AtomicInteger();
     VTask<Integer> counted = VTask.delay(runs::incrementAndGet);
     VTaskAssert.assertThatVTask(counted).runSafeSucceeds().runSafeSucceeds();
     Assertions.assertThat(runs.get()).isEqualTo(1);

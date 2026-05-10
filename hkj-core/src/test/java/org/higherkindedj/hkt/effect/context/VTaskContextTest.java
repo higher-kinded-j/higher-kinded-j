@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.effect.context;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.test.assertions.VTaskContextAssert.assertThatVTaskContext;
+import static org.higherkindedj.hkt.assertions.VTaskContextAssert.assertThatVTaskContext;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;

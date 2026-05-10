@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.stream.StreamAssert.assertThatStream;
+import static org.higherkindedj.hkt.assertions.StreamAssert.assertThatStream;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 
 import java.util.List;

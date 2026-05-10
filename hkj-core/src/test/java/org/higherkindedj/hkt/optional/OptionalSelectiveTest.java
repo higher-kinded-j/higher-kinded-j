@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional;
 
-import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
+import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
@@ -40,7 +40,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
 
       // Then
-      assertThatOptional(result).isPresent().contains("result");
+      assertThatOptionalKind(result).isPresent().contains("result");
     }
 
     @Test
@@ -58,7 +58,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
 
       // Then
-      assertThatOptional(result).isPresent().contains("INPUT");
+      assertThatOptionalKind(result).isPresent().contains("INPUT");
     }
 
     @Test
@@ -75,7 +75,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -92,7 +92,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -110,7 +110,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 
@@ -140,7 +140,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.branch(fab, fl, fr);
 
       // Then
-      assertThatOptional(result).isPresent().contains("Left: 10");
+      assertThatOptionalKind(result).isPresent().contains("Left: 10");
     }
 
     @Test
@@ -165,7 +165,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.branch(fab, fl, fr);
 
       // Then
-      assertThatOptional(result).isPresent().contains("Right: VALUE");
+      assertThatOptionalKind(result).isPresent().contains("Right: VALUE");
     }
 
     @Test
@@ -184,7 +184,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.branch(fab, fl, fr);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -204,7 +204,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.branch(fab, fl, fr);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -224,7 +224,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.branch(fab, fl, fr);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 
@@ -245,7 +245,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS(condition, effect);
 
       // Then: Effect was executed, returns Unit
-      assertThatOptional(result).isPresent().contains(Unit.INSTANCE);
+      assertThatOptionalKind(result).isPresent().contains(Unit.INSTANCE);
     }
 
     @Test
@@ -261,7 +261,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS(condition, effect);
 
       // Then: Effect was skipped, but returns Unit.INSTANCE (not empty)
-      assertThatOptional(result).isPresent().contains(Unit.INSTANCE);
+      assertThatOptionalKind(result).isPresent().contains(Unit.INSTANCE);
     }
 
     @Test
@@ -277,7 +277,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS(condition, effect);
 
       // Then: Returns empty (no condition to evaluate)
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -296,8 +296,8 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> resultEmpty = selective.whenS(emptyCondition, effect);
 
       // Then: False condition returns Unit.INSTANCE, empty condition returns empty
-      assertThatOptional(resultFalse).isPresent().contains(Unit.INSTANCE);
-      assertThatOptional(resultEmpty).isEmpty();
+      assertThatOptionalKind(resultFalse).isPresent().contains(Unit.INSTANCE);
+      assertThatOptionalKind(resultEmpty).isEmpty();
     }
   }
 
@@ -318,7 +318,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS_(condition, effect);
 
       // Then: Effect was executed, result discarded, Unit returned
-      assertThatOptional(result).isPresent().contains(Unit.INSTANCE);
+      assertThatOptionalKind(result).isPresent().contains(Unit.INSTANCE);
     }
 
     @Test
@@ -334,7 +334,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS_(condition, effect);
 
       // Then: Effect skipped, Unit.INSTANCE returned
-      assertThatOptional(result).isPresent().contains(Unit.INSTANCE);
+      assertThatOptionalKind(result).isPresent().contains(Unit.INSTANCE);
     }
 
     @Test
@@ -350,7 +350,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS_(condition, effect);
 
       // Then: Returns empty
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -364,7 +364,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result = selective.whenS_(condition, emptyEffect);
 
       // Then: Returns empty (effect itself was empty)
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 
@@ -386,7 +386,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then
-      assertThatOptional(result).isPresent().contains("then");
+      assertThatOptionalKind(result).isPresent().contains("then");
     }
 
     @Test
@@ -403,7 +403,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then
-      assertThatOptional(result).isPresent().contains("else");
+      assertThatOptionalKind(result).isPresent().contains("else");
     }
 
     @Test
@@ -420,7 +420,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -435,7 +435,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -450,7 +450,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -467,7 +467,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Integer> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then
-      assertThatOptional(result).isPresent().contains(100);
+      assertThatOptionalKind(result).isPresent().contains(100);
     }
   }
 
@@ -498,7 +498,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, String> result = selective.ifS(condition, thenBranch, elseBranch);
 
       // Then: 10 * 2 = 20, which is > 15, so "High"
-      assertThatOptional(result).isPresent().contains("High");
+      assertThatOptionalKind(result).isPresent().contains("High");
     }
 
     @Test
@@ -515,8 +515,8 @@ class OptionalSelectiveTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Unit> result2 = selective.whenS(condition2, result1);
 
       // Then: Both should complete (false condition still returns Unit.INSTANCE)
-      assertThatOptional(result1).isPresent();
-      assertThatOptional(result2).isPresent();
+      assertThatOptionalKind(result1).isPresent();
+      assertThatOptionalKind(result2).isPresent();
     }
   }
 
@@ -539,7 +539,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
 
       // Should produce Optional.empty(), not throw NPE
       Kind<OptionalKind.Witness, String> result = selective.select(fab, ff);
-      assertThatOptional(result).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 }

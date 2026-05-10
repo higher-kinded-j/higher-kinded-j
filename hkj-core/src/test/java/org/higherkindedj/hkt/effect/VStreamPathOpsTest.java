@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.test.assertions.VStreamPathAssert.assertThatVStreamPath;
+import static org.higherkindedj.hkt.assertions.VStreamPathAssert.assertThatVStreamPath;
 
 import java.util.List;
 import org.higherkindedj.hkt.vtask.VTask;
