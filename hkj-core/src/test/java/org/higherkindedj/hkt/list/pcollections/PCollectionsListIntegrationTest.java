@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.list.pcollections;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -84,7 +86,7 @@ class PCollectionsListIntegrationTest {
       PVector<Integer> empty = TreePVector.empty();
       Kind<ListKind.Witness, Integer> widened = LIST.widen(empty);
 
-      assertThat(LIST.narrow(widened)).isEmpty();
+      assertThatList(widened).isEmpty();
     }
   }
 
@@ -104,7 +106,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, Integer> mapped = ListMonad.INSTANCE.map(x -> x * 10, kind);
 
-      assertThat(LIST.narrow(mapped)).containsExactly(10, 20, 30);
+      assertThatList(mapped).containsExactly(10, 20, 30);
     }
 
     @Test
@@ -115,7 +117,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, String> mapped = ListMonad.INSTANCE.map(String::toUpperCase, kind);
 
-      assertThat(LIST.narrow(mapped)).containsExactly("A", "B");
+      assertThatList(mapped).containsExactly("A", "B");
     }
   }
 
@@ -138,7 +140,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, String> result = ListMonad.INSTANCE.flatMap(dup, kind);
 
-      assertThat(LIST.narrow(result)).containsExactly("v1", "v1", "v2", "v2");
+      assertThatList(result).containsExactly("v1", "v1", "v2", "v2");
     }
 
     @Test
@@ -150,7 +152,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, String> result = ListMonad.INSTANCE.ap(ff, fa);
 
-      assertThat(LIST.narrow(result)).containsExactly("n1", "n2", "x2", "x4");
+      assertThatList(result).containsExactly("n1", "n2", "x2", "x4");
     }
 
     @Test
@@ -163,7 +165,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, Integer> result = ListMonad.INSTANCE.flatMap(repeatViaPStack, input);
 
-      assertThat(LIST.narrow(result)).containsExactly(1, 1, 2, 2, 3, 3);
+      assertThatList(result).containsExactly(1, 1, 2, 2, 3, 3);
     }
   }
 
@@ -201,7 +203,7 @@ class PCollectionsListIntegrationTest {
       Kind<OptionalKind.Witness, Kind<ListKind.Witness, Integer>> result =
           ListTraverse.INSTANCE.traverse(OptionalMonad.INSTANCE, failOnTwo, input);
 
-      assertThat(OPTIONAL.narrow(result)).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -247,7 +249,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, String> result = ListSelective.INSTANCE.select(fab, ff);
 
-      assertThat(LIST.narrow(result)).containsExactly("A", "B");
+      assertThatList(result).containsExactly("A", "B");
     }
 
     @Test
@@ -265,7 +267,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, String> result = ListSelective.INSTANCE.select(fab, ff);
 
-      assertThat(LIST.narrow(result)).containsExactly("N1", "X", "N2");
+      assertThatList(result).containsExactly("N1", "X", "N2");
     }
   }
 
@@ -287,7 +289,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, Integer> result = alt.orElse(primary, () -> fallback);
 
-      assertThat(LIST.narrow(result)).containsExactly(1, 2, 3, 4);
+      assertThatList(result).containsExactly(1, 2, 3, 4);
     }
 
     @Test
@@ -298,7 +300,7 @@ class PCollectionsListIntegrationTest {
 
       Kind<ListKind.Witness, Integer> result = alt.orElse(primary, () -> fallback);
 
-      assertThat(LIST.narrow(result)).containsExactly(7, 8, 9);
+      assertThatList(result).containsExactly(7, 8, 9);
     }
   }
 }

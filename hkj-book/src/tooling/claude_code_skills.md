@@ -203,5 +203,5 @@ Add to `.gitignore` only if your team prefers not to commit generated files. In 
 
 ---
 
-**Previous:** [PCollections Integration](pcollections_integration.md)
+**Previous:** [PCollections Optics](pcollections_optics.md)
 **Next:** [Integration Guides](../spring/ch_intro.md)

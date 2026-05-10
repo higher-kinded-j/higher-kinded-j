@@ -18,7 +18,11 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[Diagnostics](diagnostics.md)** -- The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
 
-- **[Traversal Generator Plugins](generator_plugins.md)** -- The 23 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and four third-party libraries. Includes a guide to writing your own generator for custom container types.
+- **[Traversal Generator Plugins](generator_plugins.md)** -- The 30 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and five third-party libraries (Eclipse Collections, Guava, Vavr, Apache Commons, PCollections). Includes a guide to writing your own generator for custom container types.
+
+- **[PCollections Integration](pcollections_integration.md)** -- Tests, benchmarks, and an example that confirm PCollections persistent collections (`PVector`, `PStack`) compose with the existing `ListKind` infrastructure through `java.util.List` compatibility, with no production code changes.
+
+- **[PCollections Optics](pcollections_optics.md)** -- Seven `@GenerateTraversals` plugins that recognise `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap`, and `PSortedMap` fields and generate type-correct traversals against them.
 
 - **[Claude Code Skills](claude_code_skills.md)** -- Seven bundled skills that bring contextual HKJ guidance directly into your editor. Covers Path selection, optics, effect handlers, the effects-optics bridge, Spring Boot integration, functional core / imperative shell architecture, and AssertJ-based testing with hkj-test.
 
@@ -32,8 +36,10 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 3. [Compile-Time Checks](compile_checks.md) - Path type mismatch detection
 4. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
 5. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
-6. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
-7. [Testing With hkj-test](test_assertions.md) - Fluent assertions for HKJ types
+6. [PCollections Integration](pcollections_integration.md) - PCollections compatibility through `ListKind`
+7. [PCollections Optics](pcollections_optics.md) - `@GenerateTraversals` plugins for PCollections types
+8. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
+9. [Testing With hkj-test](test_assertions.md) - Fluent assertions for HKJ types
 
 ---
 

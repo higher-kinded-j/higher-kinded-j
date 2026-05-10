@@ -3,7 +3,7 @@
 ~~~admonish info title="What You'll Learn"
 - What the annotation processor generates for each field type
 - How container cardinality (`ZERO_OR_ONE` vs `ZERO_OR_MORE`) determines the generated path type
-- The full table of supported container types across HKJ, JDK, Eclipse Collections, Guava, Vavr, and Apache Commons
+- The full table of supported container types across HKJ, JDK, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 - How to register your own container types via the `TraversableGenerator` SPI
 ~~~
 

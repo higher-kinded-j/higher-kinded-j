@@ -2,7 +2,7 @@
 
 ~~~admonish info title="What You'll Learn"
 - Which container types `@GenerateTraversals` supports out of the box
-- How to enable third-party collection support (Eclipse Collections, Guava, Vavr, Apache Commons)
+- How to enable third-party collection support (Eclipse Collections, Guava, Vavr, Apache Commons, PCollections)
 - How the plugin discovery mechanism works
 - How to write your own generator for a custom container type
 ~~~
@@ -15,7 +15,7 @@ When you annotate a record with `@GenerateTraversals`, the annotation processor 
 
 Each container type is handled by a **generator plugin**: a small class that implements the `TraversableGenerator` SPI (Service Provider Interface). The processor discovers these plugins at compile time via Java's `ServiceLoader` and delegates code generation to whichever plugin claims support for the field's type.
 
-Higher-Kinded-J ships 23 generator plugins covering JDK types, HKJ core types, and four popular third-party collection libraries.
+Higher-Kinded-J ships 30 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
 
 ---
 
@@ -105,6 +105,24 @@ dependencies {
 |------|-------|
 | `HashBag<A>` | |
 | `UnmodifiableList<A>` | |
+
+#### PCollections
+
+```kotlin
+dependencies {
+    implementation("org.pcollections:pcollections:5.0.0")
+}
+```
+
+| Type | Notes |
+|------|-------|
+| `org.pcollections.PVector<A>` | Reconstructed via `TreePVector.from(Collection)` |
+| `org.pcollections.PStack<A>` | Reconstructed via `ConsPStack.from(Collection)` |
+| `org.pcollections.PSet<A>` | Reconstructed via `HashTreePSet.from(Collection)` |
+| `org.pcollections.PSortedSet<A>` | Natural ordering only; custom comparators are not preserved |
+| `org.pcollections.PBag<A>` | Reconstructed via `HashTreePBag.from(Collection)` |
+| `org.pcollections.PMap<K, V>` | Value-focused; reconstructed via `HashTreePMap.from(Map)` |
+| `org.pcollections.PSortedMap<K, V>` | Value-focused; natural key ordering only |
 
 ---
 
@@ -313,7 +331,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **23 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, and Apache Commons
+* **30 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type

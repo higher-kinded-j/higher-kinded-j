@@ -26,6 +26,13 @@ import org.higherkindedj.optics.processing.generator.hkj.EitherGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.MaybeGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.TryGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.ValidatedGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PBagGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PMapValueGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PSetGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PSortedMapValueGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PSortedSetGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PStackGenerator;
+import org.higherkindedj.optics.processing.generator.pcollections.PVectorGenerator;
 import org.higherkindedj.optics.processing.generator.vavr.VavrListGenerator;
 import org.higherkindedj.optics.processing.generator.vavr.VavrSetGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
@@ -346,6 +353,102 @@ class GeneratorSpiMethodsTest {
               "org.higherkindedj.optics.each.EachInstances",
               "org.apache.commons.collections4.list.UnmodifiableList"),
           gen.getRequiredImports());
+    }
+  }
+
+  @Nested
+  @DisplayName("PCollections generators")
+  class PCollectionsGenerators {
+
+    @Test
+    @DisplayName("PVectorGenerator")
+    void pvector() {
+      var gen = new PVectorGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableCollecting(list -> TreePVector.from(list))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePVector"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("PStackGenerator")
+    void pstack() {
+      var gen = new PStackGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableCollecting(list -> ConsPStack.from(list))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.ConsPStack"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("PSetGenerator")
+    void pset() {
+      var gen = new PSetGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableCollecting(list -> HashTreePSet.from(list))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.HashTreePSet"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("PSortedSetGenerator")
+    void psortedSet() {
+      var gen = new PSortedSetGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableCollecting(list -> TreePSet.from(list))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePSet"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("PBagGenerator")
+    void pbag() {
+      var gen = new PBagGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableCollecting(list -> HashTreePBag.from(list))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.HashTreePBag"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("PMapValueGenerator has no Focus DSL support yet")
+    void pmapValue() {
+      var gen = new PMapValueGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(1, gen.getFocusTypeArgumentIndex());
+      // PMap is not Iterable; the Focus DSL hooks fall back to the SPI default of "no support".
+      assertEquals("", gen.generateOpticExpression());
+      assertEquals(Set.of(), gen.getRequiredImports());
+    }
+
+    @Test
+    @DisplayName("PSortedMapValueGenerator has no Focus DSL support yet")
+    void psortedMapValue() {
+      var gen = new PSortedMapValueGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(1, gen.getFocusTypeArgumentIndex());
+      assertEquals("", gen.generateOpticExpression());
+      assertEquals(Set.of(), gen.getRequiredImports());
     }
   }
 }
