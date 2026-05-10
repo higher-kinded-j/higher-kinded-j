@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
+import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;

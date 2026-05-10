@@ -194,6 +194,19 @@ public final class Lazy<A> {
     return evaluated;
   }
 
+  /**
+   * Returns whether this Lazy computation has been evaluated and threw an exception.
+   *
+   * <p>A Lazy is considered failed only after evaluation has occurred and the underlying
+   * computation produced a {@link Throwable}. An unevaluated Lazy is not considered failed.
+   *
+   * @return {@code true} if the computation has been evaluated and resulted in an exception; {@code
+   *     false} otherwise (unevaluated, or evaluated successfully).
+   */
+  public boolean hasFailed() {
+    return evaluated && exception != null;
+  }
+
   @Override
   public String toString() {
     if (evaluated) {

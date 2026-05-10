@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional_t;
 
+import static org.higherkindedj.hkt.assertions.OptionalTAssert.assertThatOptionalT;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.higherkindedj.hkt.optional_t.OptionalTAssert.assertThatOptionalT;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
 import java.util.Optional;

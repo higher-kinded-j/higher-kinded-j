@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.maybe_t.MaybeTAssert.assertThatMaybeT;
+import static org.higherkindedj.hkt.assertions.MaybeTAssert.assertThatMaybeT;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 

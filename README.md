@@ -398,6 +398,32 @@ For complete documentation, see:
 
 ---
 
+## Testing With hkj-test
+
+The **hkj-test** module ships fluent AssertJ assertion helpers for every HKJ type. Add it as a test dependency:
+
+```gradle
+dependencies {
+    testImplementation("io.github.higher-kinded-j:hkj-test:LATEST_VERSION")
+}
+```
+
+```java
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+
+assertThatEither(result).isRight().hasRight(42);
+assertThatMaybe(value).isJust().hasValue("hello");
+assertThatTry(computation).isFailure().hasExceptionOfType(IOException.class);
+```
+
+Coverage spans the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer (`EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT`, `WriterT`), and the `Free` / `EitherF` algebras. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
+
+For the full reference, see [Testing with hkj-test](https://higher-kinded-j.github.io/latest/tooling/test_assertions.html).
+
+---
+
 ## Learn by Doing
 
 Thirteen interactive tutorial journeys with hands-on exercises:
@@ -431,6 +457,7 @@ graph TD;
     hkj_spring --> hkj_spring_autoconfigure["autoconfigure"];
     hkj_spring --> hkj_spring_starter["starter"];
     hkj_spring --> hkj_spring_example["example"];
+    root --> hkj_test["hkj-test"];
     root --> hkj_openrewrite["hkj-openrewrite"];
     root --> hkj_benchmarks["hkj-benchmarks"];
     root --> hkj_examples["hkj-examples"];
@@ -446,6 +473,7 @@ graph TD;
 * **hkj-gradle-plugin**: Gradle plugin for one-line project setup
 * **hkj-maven-plugin**: Maven plugin for automated build configuration
 * **hkj-spring**: Spring Boot integration (autoconfigure, starter, example)
+* **hkj-test**: AssertJ assertion helpers for HKJ types (test-scope dependency)
 * **hkj-openrewrite**: OpenRewrite recipes for automated migrations
 * **hkj-benchmarks**: JMH benchmarks for performance testing
 * **hkj-examples**: Examples demonstrating all features

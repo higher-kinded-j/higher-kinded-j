@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.assertions.FreeAssert;
 import org.higherkindedj.hkt.eitherf.EitherF;
 import org.higherkindedj.hkt.eitherf.EitherFFunctor;
 import org.higherkindedj.hkt.eitherf.EitherFKind;

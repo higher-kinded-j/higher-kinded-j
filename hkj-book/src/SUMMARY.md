@@ -251,6 +251,7 @@
   - [Diagnostics](tooling/diagnostics.md)
   - [Traversal Generator Plugins](tooling/generator_plugins.md)
   - [Claude Code Skills](tooling/claude_code_skills.md)
+  - [Testing With hkj-test](tooling/test_assertions.md)
 - [Spring Integration](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)

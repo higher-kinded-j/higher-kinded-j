@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;

@@ -20,7 +20,9 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[Traversal Generator Plugins](generator_plugins.md)** -- The 23 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and four third-party libraries. Includes a guide to writing your own generator for custom container types.
 
-- **[Claude Code Skills](claude_code_skills.md)** -- Six bundled skills that bring contextual HKJ guidance directly into your editor. Covers Path selection, optics, effect handlers, the effects-optics bridge, Spring Boot integration, and functional core / imperative shell architecture.
+- **[Claude Code Skills](claude_code_skills.md)** -- Seven bundled skills that bring contextual HKJ guidance directly into your editor. Covers Path selection, optics, effect handlers, the effects-optics bridge, Spring Boot integration, functional core / imperative shell architecture, and AssertJ-based testing with hkj-test.
+
+- **[Testing With hkj-test](test_assertions.md)** -- A test-scope dependency that ships fluent AssertJ helpers for every HKJ type. Replaces hand-written unwrapping with assertions that read like the business intent: `isRight()`, `hasJustValue(...)`, `whenExecuted().hasValue(...)`, and so on across discriminated unions, effect types, and monad transformers.
 ~~~
 
 ## Chapter Contents
@@ -31,6 +33,7 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 4. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
 5. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
 6. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
+7. [Testing With hkj-test](test_assertions.md) - Fluent assertions for HKJ types
 
 ---
 

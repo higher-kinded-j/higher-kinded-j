@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
-import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;

@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;

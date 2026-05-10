@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.vtask.VTaskAssert.assertThatVTask;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.time.Duration;
 import java.util.concurrent.Callable;

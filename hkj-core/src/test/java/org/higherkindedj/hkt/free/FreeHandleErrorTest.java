@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.free;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.free.FreeAssert.assertThatFree;
+import static org.higherkindedj.hkt.assertions.FreeAssert.assertThatFree;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
