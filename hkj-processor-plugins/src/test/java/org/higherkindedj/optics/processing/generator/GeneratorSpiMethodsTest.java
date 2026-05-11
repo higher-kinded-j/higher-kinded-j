@@ -431,24 +431,31 @@ class GeneratorSpiMethodsTest {
     }
 
     @Test
-    @DisplayName("PMapValueGenerator has no Focus DSL support yet")
+    @DisplayName("PMapValueGenerator")
     void pmapValue() {
       var gen = new PMapValueGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(1, gen.getFocusTypeArgumentIndex());
-      // PMap is not Iterable; the Focus DSL hooks fall back to the SPI default of "no support".
-      assertEquals("", gen.generateOpticExpression());
-      assertEquals(Set.of(), gen.getRequiredImports());
+      assertEquals(
+          "EachInstances.mapValuesEachCollecting(map -> HashTreePMap.from(map))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.HashTreePMap"),
+          gen.getRequiredImports());
     }
 
     @Test
-    @DisplayName("PSortedMapValueGenerator has no Focus DSL support yet")
+    @DisplayName("PSortedMapValueGenerator")
     void psortedMapValue() {
       var gen = new PSortedMapValueGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(1, gen.getFocusTypeArgumentIndex());
-      assertEquals("", gen.generateOpticExpression());
-      assertEquals(Set.of(), gen.getRequiredImports());
+      assertEquals(
+          "EachInstances.mapValuesEachCollecting(map -> TreePMap.from(map))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePMap"),
+          gen.getRequiredImports());
     }
   }
 }

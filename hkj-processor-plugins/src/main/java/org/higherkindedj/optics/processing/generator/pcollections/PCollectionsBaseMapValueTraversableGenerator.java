@@ -8,6 +8,7 @@ import com.palantir.javapoet.TypeName;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
@@ -78,12 +79,21 @@ public abstract class PCollectionsBaseMapValueTraversableGenerator
     return 1; // PMap<K, V> focuses on V
   }
 
-  // The Focus DSL hooks (generateOpticExpression / getRequiredImports) are deliberately not
-  // implemented for PCollections map types. There is no library-agnostic
-  // {@code EachInstances.mapValuesEachCollecting(...)} helper, and {@code fromIterableCollecting}
-  // does not apply because Maps are not Iterable. {@code @GenerateTraversals} is fully
-  // supported; {@code @GenerateFocus} navigator generation for these fields is a separate
-  // future change.
+  @Override
+  public String generateOpticExpression() {
+    // Each PCollections map implements java.util.Map, so the single-argument
+    // mapValuesEachCollecting overload (bound M extends Map) applies directly.
+    return "EachInstances.mapValuesEachCollecting(map -> "
+        + constructedType.simpleName()
+        + ".from(map))";
+  }
+
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of(
+        "org.higherkindedj.optics.each.EachInstances",
+        constructedType.packageName() + "." + constructedType.simpleName());
+  }
 
   @Override
   public CodeBlock generateModifyF(

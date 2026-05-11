@@ -3622,4 +3622,122 @@ class TraversalsTest {
       assertThat(outer).isEmpty();
     }
   }
+
+  // =============================================================================
+  // forMapValuesCollecting Tests
+  // =============================================================================
+
+  /** A map-shaped container that is deliberately NOT a {@link java.util.Map}. */
+  record FrozenMap<K, V>(Map<K, V> entries) {}
+
+  @Nested
+  @DisplayName("forMapValuesCollecting Tests")
+  class ForMapValuesCollectingTests {
+
+    @Test
+    @DisplayName("two-arg overload should traverse the values of a non-Map container")
+    void twoArg_getAll() {
+      Traversal<FrozenMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source =
+          new FrozenMap<>(new LinkedHashMap<>(Map.of("a", 1, "b", 2, "c", 3)));
+
+      List<Integer> values = Traversals.getAll(traversal, source);
+
+      assertThat(values).containsExactlyInAnyOrder(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("two-arg overload should modify values and preserve keys")
+    void twoArg_modifyPreservesKeys() {
+      Traversal<FrozenMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source = new FrozenMap<>(Map.of("x", 10, "y", 20));
+
+      FrozenMap<String, Integer> modified = Traversals.modify(traversal, n -> n + 1, source);
+
+      assertThat(modified.entries()).containsOnly(Map.entry("x", 11), Map.entry("y", 21));
+    }
+
+    @Test
+    @DisplayName("two-arg overload should handle an empty container")
+    void twoArg_empty() {
+      Traversal<FrozenMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source = new FrozenMap<>(new HashMap<>());
+
+      FrozenMap<String, Integer> modified = Traversals.modify(traversal, n -> n + 1, source);
+
+      assertThat(Traversals.getAll(traversal, source)).isEmpty();
+      assertThat(modified.entries()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("two-arg overload should compose with filtered")
+    void twoArg_composesWithFiltered() {
+      Traversal<FrozenMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(FrozenMap::entries, FrozenMap::new);
+      Traversal<FrozenMap<String, Integer>, Integer> evenOnly =
+          traversal.andThen(Traversals.filtered(n -> n % 2 == 0));
+
+      FrozenMap<String, Integer> source =
+          new FrozenMap<>(new LinkedHashMap<>(Map.of("a", 1, "b", 2, "c", 3, "d", 4)));
+
+      assertThat(Traversals.getAll(evenOnly, source)).containsExactlyInAnyOrder(2, 4);
+    }
+
+    @Test
+    @DisplayName("two-arg overload should propagate failure in Optional context")
+    void twoArg_failurePropagates() {
+      Traversal<FrozenMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source =
+          new FrozenMap<>(new LinkedHashMap<>(Map.of("a", 1, "b", 2, "c", 3)));
+
+      Kind<OptionalKind.Witness, FrozenMap<String, Integer>> result =
+          traversal.modifyF(
+              n ->
+                  OptionalKindHelper.OPTIONAL.widen(
+                      n == 2 ? Optional.empty() : Optional.of(n * 10)),
+              source,
+              OptionalMonad.INSTANCE);
+
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("single-arg overload should traverse values of a Map subtype")
+    void singleArg_getAll() {
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(map -> new TreeMap<>(map));
+      TreeMap<String, Integer> source = new TreeMap<>(Map.of("a", 1, "b", 2));
+
+      assertThat(Traversals.getAll(traversal, source)).containsExactlyInAnyOrder(1, 2);
+    }
+
+    @Test
+    @DisplayName("single-arg overload should modify values and preserve keys")
+    void singleArg_modify() {
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(map -> new TreeMap<>(map));
+      TreeMap<String, Integer> source = new TreeMap<>(Map.of("a", 1, "b", 2));
+
+      TreeMap<String, Integer> modified = Traversals.modify(traversal, n -> n * 100, source);
+
+      assertThat(modified).containsExactly(Map.entry("a", 100), Map.entry("b", 200));
+    }
+
+    @Test
+    @DisplayName("single-arg overload should handle an empty Map")
+    void singleArg_empty() {
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesCollecting(map -> new TreeMap<>(map));
+      TreeMap<String, Integer> source = new TreeMap<>();
+
+      TreeMap<String, Integer> modified = Traversals.modify(traversal, n -> n * 100, source);
+
+      assertThat(Traversals.getAll(traversal, source)).isEmpty();
+      assertThat(modified).isEmpty();
+    }
+  }
 }

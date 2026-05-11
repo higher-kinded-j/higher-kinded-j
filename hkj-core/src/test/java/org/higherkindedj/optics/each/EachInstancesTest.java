@@ -1278,4 +1278,77 @@ class EachInstancesTest {
       assertThat(each.supportsIndexed()).isFalse();
     }
   }
+
+  // ===== mapValuesEachCollecting Factory =====
+
+  /** A map-shaped container that is deliberately NOT a {@link java.util.Map}. */
+  record FrozenMap<K, V>(Map<K, V> entries) {}
+
+  @Nested
+  @DisplayName("mapValuesEachCollecting Factory")
+  class MapValuesEachCollectingTests {
+
+    @Test
+    @DisplayName("two-arg overload should traverse the values of a non-Map container")
+    void twoArg_traverses() {
+      Each<FrozenMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source =
+          new FrozenMap<>(new LinkedHashMap<>(Map.of("a", 1, "b", 2, "c", 3)));
+
+      List<Integer> values = Traversals.getAll(each.each(), source);
+
+      assertThat(values).containsExactlyInAnyOrder(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("two-arg overload should modify values and preserve keys")
+    void twoArg_modifies() {
+      Each<FrozenMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source = new FrozenMap<>(Map.of("x", 10, "y", 20));
+
+      FrozenMap<String, Integer> modified = Traversals.modify(each.each(), n -> n + 1, source);
+
+      assertThat(modified.entries()).containsOnly(Map.entry("x", 11), Map.entry("y", 21));
+    }
+
+    @Test
+    @DisplayName("two-arg overload should handle an empty container")
+    void twoArg_empty() {
+      Each<FrozenMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachCollecting(FrozenMap::entries, FrozenMap::new);
+      FrozenMap<String, Integer> source = new FrozenMap<>(new HashMap<>());
+
+      assertThat(Traversals.getAll(each.each(), source)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("single-arg overload should traverse and modify a Map subtype")
+    void singleArg_traversesAndModifies() {
+      Each<TreeMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
+      TreeMap<String, Integer> source = new TreeMap<>(Map.of("a", 1, "b", 2));
+
+      assertThat(Traversals.getAll(each.each(), source)).containsExactlyInAnyOrder(1, 2);
+      TreeMap<String, Integer> modified = Traversals.modify(each.each(), n -> n * 100, source);
+      assertThat(modified).containsExactly(Map.entry("a", 100), Map.entry("b", 200));
+    }
+
+    @Test
+    @DisplayName("single-arg overload should handle an empty Map")
+    void singleArg_empty() {
+      Each<TreeMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
+      assertThat(Traversals.getAll(each.each(), new TreeMap<>())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false")
+    void supportsIndexedReturnsFalse() {
+      Each<TreeMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
+      assertThat(each.supportsIndexed()).isFalse();
+    }
+  }
 }

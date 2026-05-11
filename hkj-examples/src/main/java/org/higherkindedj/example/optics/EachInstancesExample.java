@@ -65,6 +65,7 @@ public class EachInstancesExample {
     demonstrateTryEach();
     demonstrateValidatedEach();
     demonstrateIndexedTraversal();
+    demonstrateMapValuesEachCollecting();
     demonstrateFocusDslIntegration();
     demonstrateCustomEach();
   }
@@ -413,6 +414,42 @@ public class EachInstancesExample {
     for (Product product : allProducts.getAll(discounted)) {
       System.out.printf("  %s: £%.2f%n", product.name(), product.price());
     }
+
+    System.out.println();
+  }
+
+  /** A map-shaped container that is not a {@link Map}, used to show the two-argument overload. */
+  private record CurrencyExposure(Map<String, Integer> byCurrency) {}
+
+  /**
+   * Demonstrates {@link EachInstances#mapValuesEachCollecting} — the companion to {@code
+   * fromIterableCollecting} for map-shaped containers. The single-argument overload works for any
+   * {@code java.util.Map} subtype (persistent maps such as PCollections {@code PMap}, Guava {@code
+   * ImmutableMap}, …); the two-argument overload additionally covers map types that are not {@code
+   * java.util.Map}, such as Eclipse Collections {@code ImmutableMap} or Vavr {@code
+   * io.vavr.collection.Map}.
+   */
+  private static void demonstrateMapValuesEachCollecting() {
+    System.out.println("--- Generic Map Values Each (mapValuesEachCollecting) ---");
+
+    // Single-argument overload: M extends Map. Here a TreeMap stands in for a persistent/sorted map
+    // such as PCollections TreePMap (which would use `TreePMap::from`).
+    Each<TreeMap<String, Integer>, Integer> sortedValues =
+        EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
+    TreeMap<String, Integer> prices = new TreeMap<>(Map.of("eur", 100, "gbp", 120, "usd", 110));
+    TreeMap<String, Integer> withVat =
+        Traversals.modify(sortedValues.each(), p -> Math.round(p * 1.2f), prices);
+    System.out.println("Prices: " + prices);
+    System.out.println("With VAT (keys preserved): " + withVat);
+
+    // Two-argument overload: arbitrary map-shaped container that is not a java.util.Map.
+    Each<CurrencyExposure, Integer> exposureValues =
+        EachInstances.mapValuesEachCollecting(CurrencyExposure::byCurrency, CurrencyExposure::new);
+    CurrencyExposure exposure = new CurrencyExposure(Map.of("eur", 5, "usd", 3));
+    CurrencyExposure doubled = Traversals.modify(exposureValues.each(), v -> v * 2, exposure);
+    System.out.println("Exposure: " + exposure.byCurrency());
+    System.out.println("Doubled exposure: " + doubled.byCurrency());
+    System.out.println("Supports indexed: " + exposureValues.supportsIndexed());
 
     System.out.println();
   }

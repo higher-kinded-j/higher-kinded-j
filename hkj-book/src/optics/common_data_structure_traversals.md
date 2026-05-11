@@ -45,6 +45,7 @@ Higher-kinded-j provides factory methods in `Traversals` and dedicated utility c
 |-----------|--------|-------------|----------|
 | **Optional** | `Traversals.forOptional()` | 0 or 1 | Nullable fields, configuration values |
 | **Map Values** | `Traversals.forMapValues()` | 0 to N | Bulk value transforms, preserving keys |
+| **Persistent/3rd-party Map Values** | `Traversals.forMapValuesCollecting(...)` | 0 to N | Same, for `PMap`, Guava/Eclipse/Vavr maps |
 | **Tuple2 Pairs** | `TupleTraversals.both()` | Exactly 2 | Coordinate systems, min/max pairs |
 
 ---
@@ -268,6 +269,38 @@ ServiceRegistry updated = Traversals.modify(
     registry
 );
 ```
+
+### Persistent and Third-Party Maps: `forMapValuesCollecting()`
+
+`forMapValues()` is hard-wired to `java.util.HashMap`. To traverse the values of a *persistent* or *specialised* map — PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map` — use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for non-`Iterable` collections.
+
+For any map type that *implements* `java.util.Map` (PCollections maps, Guava `ImmutableMap`, Apache Commons map decorators, …), pass a single rebuild function:
+
+```java
+import org.pcollections.PMap;
+import org.pcollections.HashTreePMap;
+
+Traversal<PMap<String, Integer>, Integer> pmapValues =
+    Traversals.forMapValuesCollecting(HashTreePMap::from);
+
+PMap<String, Integer> scores =
+    HashTreePMap.<String, Integer>empty().plus("math", 90).plus("science", 95);
+PMap<String, Integer> updated =
+    Traversals.modify(pmapValues, score -> score + 10, scores);   // keys preserved
+```
+
+For map types that are *not* `java.util.Map` (Eclipse Collections `ImmutableMap`, Vavr `Map`), pass a view function as well — one that exposes the container as a JDK `Map`, plus one that rebuilds it:
+
+```java
+// Vavr HashMap
+Traversal<io.vavr.collection.HashMap<String, Integer>, Integer> vavrValues =
+    Traversals.forMapValuesCollecting(
+        io.vavr.collection.HashMap::toJavaMap, io.vavr.collection.HashMap::ofAll);
+```
+
+The same two overloads exist on `EachInstances` for use in the Focus DSL — `EachInstances.mapValuesEachCollecting(HashTreePMap::from)` — which is how `@GenerateFocus` widens `PMap` / `PSortedMap` fields into `TraversalPath`s. See [PCollections Optics](../tooling/pcollections_optics.md).
+
+> Like `forMapValues()`, the value transformation never touches keys. Sorted-map collectors (`TreePMap::from`, Vavr `TreeMap::ofAll`) re-apply natural ordering; custom comparators are not preserved.
 
 ---
 
@@ -538,7 +571,7 @@ Structure traversals extend the traversal pattern to common Java data types:
 | Structure | Traversal | Key Benefit |
 |-----------|-----------|-------------|
 | **Optional** | `forOptional()` | Null-safe composition without `.map()` chains |
-| **Map Values** | `forMapValues()` | Bulk value transformation preserving keys |
+| **Map Values** | `forMapValues()` / `forMapValuesCollecting()` | Bulk value transformation preserving keys, JDK or persistent maps |
 | **Tuple2 Pairs** | `both()` | Parallel operations on homogeneous pairs |
 
 These tools transform how you work with wrapped and paired values:
