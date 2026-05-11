@@ -400,6 +400,79 @@ public final class Traversals {
   }
 
   /**
+   * Creates a {@code Traversal} that focuses on every value of an arbitrary map-shaped container,
+   * reconstructing it via the provided collector.
+   *
+   * <p>The traversal exposes the source as a {@code java.util.Map} via {@code view}, applies the
+   * effectful function to each value while keeping the keys unchanged, then hands the rebuilt JDK
+   * map to {@code rebuild} to produce a fresh instance of the container type {@code M}.
+   *
+   * <p>Use this overload for map types that do <em>not</em> implement {@link Map} — for example
+   * Eclipse Collections {@code ImmutableMap} or Vavr {@code io.vavr.collection.Map}. For types that
+   * already extend {@link Map} (PCollections {@code PMap}, Guava {@code ImmutableMap}, …) prefer
+   * the single-argument {@link #forMapValuesCollecting(Function)}.
+   *
+   * <pre>{@code
+   * // Vavr HashMap
+   * Traversal<io.vavr.collection.HashMap<String, Integer>, Integer> vavrValues =
+   *     Traversals.forMapValuesCollecting(
+   *         io.vavr.collection.HashMap::toJavaMap, io.vavr.collection.HashMap::ofAll);
+   * }</pre>
+   *
+   * @param view A function exposing the map-shaped container as a {@code java.util.Map}.
+   * @param rebuild A function that converts a {@code Map} back into the container type {@code M}.
+   * @param <M> The map-shaped container type.
+   * @param <K> The type of the map's keys.
+   * @param <V> The type of the map's values.
+   * @return A {@code Traversal} for all values of the container.
+   */
+  public static <M, K, V> Traversal<M, V> forMapValuesCollecting(
+      final Function<M, Map<K, V>> view, final Function<Map<K, V>, M> rebuild) {
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, M> modifyF(
+          final Function<V, Kind<F, V>> f, final M source, final Applicative<F> applicative) {
+        final Kind<F, Map<K, V>> traversed = traverseMapValues(view.apply(source), f, applicative);
+        return applicative.map(rebuild, traversed);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on every value of a {@link Map}-implementing
+   * container, reconstructing it via the provided collector. Companion to {@link
+   * #forIterableCollecting} for non-{@code Iterable} containers.
+   *
+   * <p>The traversal applies the effectful function to each value of {@code source} while keeping
+   * the keys unchanged, then hands the rebuilt JDK map to {@code collector} to produce a fresh
+   * instance of {@code M}. The bound {@code M extends Map} keeps the helper applicable to any
+   * persistent or specialised map whose interface inherits from {@link Map}: PCollections {@code
+   * PMap} / {@code PSortedMap}, Guava {@code ImmutableMap}, Apache Commons map decorators, etc. For
+   * map types that are not {@code java.util.Map}s, use {@link #forMapValuesCollecting(Function,
+   * Function)}.
+   *
+   * <pre>{@code
+   * // PCollections HashTreePMap
+   * Traversal<PMap<String, Integer>, Integer> pmapValues =
+   *     Traversals.forMapValuesCollecting(HashTreePMap::from);
+   *
+   * // Guava ImmutableMap
+   * Traversal<ImmutableMap<String, Integer>, Integer> guavaValues =
+   *     Traversals.forMapValuesCollecting(ImmutableMap::copyOf);
+   * }</pre>
+   *
+   * @param collector A function that converts a {@code Map} back into the map type {@code M}.
+   * @param <M> The map type, which must be {@code Map<K, V>}.
+   * @param <K> The type of the map's keys.
+   * @param <V> The type of the map's values.
+   * @return A {@code Traversal} for all values of the map.
+   */
+  public static <M extends Map<K, V>, K, V> Traversal<M, V> forMapValuesCollecting(
+      final Function<Map<K, V>, M> collector) {
+    return forMapValuesCollecting(m -> m, collector);
+  }
+
+  /**
    * Applies an effectful function to each element of a {@link List} and collects the results in a
    * single effect.
    *

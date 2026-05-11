@@ -438,4 +438,65 @@ public final class EachInstances {
       Function<List<A>, C> collector) {
     return () -> Traversals.forIterableCollecting(collector);
   }
+
+  // ===== Generic Map Values =====
+
+  /**
+   * Creates an {@link Each} instance for the values of an arbitrary map-shaped container, given a
+   * function that exposes it as a {@code java.util.Map} and a function that reconstructs it.
+   *
+   * <p>Use this overload for map types that do <em>not</em> implement {@link Map} — for example
+   * Eclipse Collections {@code ImmutableMap} or Vavr {@code io.vavr.collection.Map}. For types that
+   * already extend {@link Map} prefer the single-argument {@link
+   * #mapValuesEachCollecting(Function)}.
+   *
+   * <pre>{@code
+   * // Vavr HashMap
+   * Each<io.vavr.collection.HashMap<String, Integer>, Integer> vavrValues =
+   *     EachInstances.mapValuesEachCollecting(
+   *         io.vavr.collection.HashMap::toJavaMap, io.vavr.collection.HashMap::ofAll);
+   * }</pre>
+   *
+   * @param view A function exposing the map-shaped container as a {@code java.util.Map}.
+   * @param rebuild A function that converts a {@code Map} back into the container type {@code M}.
+   * @param <M> The map-shaped container type.
+   * @param <K> The key type of the map.
+   * @param <V> The value type of the map.
+   * @return An {@code Each} instance for the values of the container.
+   */
+  public static <M, K, V> Each<M, V> mapValuesEachCollecting(
+      Function<M, Map<K, V>> view, Function<Map<K, V>, M> rebuild) {
+    return () -> Traversals.forMapValuesCollecting(view, rebuild);
+  }
+
+  /**
+   * Creates an {@link Each} instance for the values of a {@link Map}-implementing container, given
+   * a function that reconstructs the container from a {@code java.util.Map}. Companion to {@link
+   * #fromIterableCollecting} for non-{@code Iterable} containers.
+   *
+   * <p>The bound {@code M extends Map} keeps the helper applicable to any persistent or specialised
+   * map whose interface inherits from {@link Map}: PCollections {@code PMap} / {@code PSortedMap},
+   * Guava {@code ImmutableMap}, Apache Commons map decorators, etc. For map types that are not
+   * {@code java.util.Map}s, use {@link #mapValuesEachCollecting(Function, Function)}.
+   *
+   * <pre>{@code
+   * // PCollections HashTreePMap
+   * Each<PMap<String, Integer>, Integer> pmapValues =
+   *     EachInstances.mapValuesEachCollecting(HashTreePMap::from);
+   *
+   * // Guava ImmutableMap
+   * Each<ImmutableMap<String, Integer>, Integer> guavaValues =
+   *     EachInstances.mapValuesEachCollecting(ImmutableMap::copyOf);
+   * }</pre>
+   *
+   * @param collector A function that converts a {@code Map} back into the map type {@code M}.
+   * @param <M> The map type, which must be {@code Map<K, V>}.
+   * @param <K> The key type of the map.
+   * @param <V> The value type of the map.
+   * @return An {@code Each} instance for the values of the map.
+   */
+  public static <M extends Map<K, V>, K, V> Each<M, V> mapValuesEachCollecting(
+      Function<Map<K, V>, M> collector) {
+    return () -> Traversals.forMapValuesCollecting(collector);
+  }
 }

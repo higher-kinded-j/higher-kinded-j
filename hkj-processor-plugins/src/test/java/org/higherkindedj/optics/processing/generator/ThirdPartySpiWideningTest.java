@@ -129,4 +129,55 @@ class ThirdPartySpiWideningTest {
       assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", "ImmutableList::copyOf");
     }
   }
+
+  @Nested
+  @DisplayName("PCollections")
+  class PCollections {
+
+    @Test
+    @DisplayName("PMap field should widen to TraversalPath via mapValuesEachCollecting")
+    void pmapNavigator() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.example.Portfolio",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.pcollections.PMap;
+              @GenerateFocus(widenCollections = true)
+              public record Portfolio(String owner, PMap<String, Integer> exposureByCurrency) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(outer);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.PortfolioFocus",
+          "EachInstances.mapValuesEachCollecting(map -> HashTreePMap.from(map))");
+    }
+
+    @Test
+    @DisplayName("PSortedMap field should widen to TraversalPath via TreePMap factory")
+    void psortedMapNavigator() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.example.Ledger",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.pcollections.PSortedMap;
+              @GenerateFocus(widenCollections = true)
+              public record Ledger(String id, PSortedMap<String, Integer> balances) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(outer);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.LedgerFocus",
+          "EachInstances.mapValuesEachCollecting(map -> TreePMap.from(map))");
+    }
+  }
 }

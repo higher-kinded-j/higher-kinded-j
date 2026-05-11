@@ -29,7 +29,7 @@ Map generators focus on the value type (index 1). Keys are passed through unchan
 
 All seven generators run at the default priority and activate automatically once `org.pcollections:pcollections` is on your annotation processor's classpath.
 
-> The five collection-like generators (`PVector` / `PStack` / `PSet` / `PSortedSet` / `PBag`) also participate in `@GenerateFocus` navigator generation via `EachInstances.fromIterableCollecting`. The two map-value generators currently support `@GenerateTraversals` only; Focus DSL navigation through `PMap` / `PSortedMap` value fields would require a dedicated `mapValuesEachCollecting` helper that does not yet exist in `hkj-core`.
+> All seven generators participate in `@GenerateFocus` navigator generation. The five collection-like generators (`PVector` / `PStack` / `PSet` / `PSortedSet` / `PBag`) widen through [`EachInstances.fromIterableCollecting`](../optics/common_data_structure_traversals.md); the two map-value generators widen through [`EachInstances.mapValuesEachCollecting`](../optics/common_data_structure_traversals.md), the map-shaped companion to `fromIterableCollecting`. So `@GenerateFocus` on a record with a `PMap` or `PSortedMap` field produces a navigator returning a `TraversalPath` over the values.
 
 ---
 
@@ -99,12 +99,18 @@ import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.each.Each;
 import org.pcollections.PVector;
 import org.pcollections.TreePVector;
+import org.pcollections.PMap;
+import org.pcollections.HashTreePMap;
 
 Each<PVector<String>, String> pvectorEach =
     EachInstances.fromIterableCollecting(TreePVector::from);
+
+// Persistent maps use the map-shaped companion helper.
+Each<PMap<String, Integer>, Integer> pmapValues =
+    EachInstances.mapValuesEachCollecting(HashTreePMap::from);
 ```
 
-`fromIterableCollecting` accepts any function that builds a persistent collection from a `List`, so the same form covers all the PCollections types. There is no library-specific factory class; the generic helper is the public API.
+`fromIterableCollecting` accepts any function that builds a persistent collection from a `List`; `mapValuesEachCollecting` does the same for any `java.util.Map` subtype, rebuilding the persistent map from a JDK `Map`. The same forms cover all the PCollections types — there is no library-specific factory class; the generic helpers are the public API.
 
 ---
 
@@ -121,7 +127,7 @@ For projects already on Eclipse Collections or Vavr, those existing generators r
 * **Activation is automatic** once PCollections is on the annotation processor classpath
 * **Reconstruction goes through `from(Collection)` / `from(Map)`**, so traversals round-trip cleanly through the persistent type
 * **Sorted variants assume natural ordering**; custom comparators are not preserved by generated code
-* **Use `EachInstances.fromIterableCollecting(TreePVector::from)`** for hand-written optics outside `@GenerateTraversals`
+* **Use `EachInstances.fromIterableCollecting(TreePVector::from)`** (collections) or **`EachInstances.mapValuesEachCollecting(HashTreePMap::from)`** (maps) for hand-written optics outside `@GenerateTraversals`
 ~~~
 
 ~~~admonish tip title="See Also"
