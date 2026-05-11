@@ -180,4 +180,4 @@ laws hold for `PVector` widened through `ListKind`:
 ---
 
 **Previous:** [Traversal Generator Plugins](generator_plugins.md)
-**Next:** [Claude Code Skills](claude_code_skills.md)
+**Next:** [PCollections Optics](pcollections_optics.md)

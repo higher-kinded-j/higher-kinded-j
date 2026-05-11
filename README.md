@@ -143,7 +143,7 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 * **Filtered traversals** for predicate-based focusing within collections
 * **Indexed optics** for position-aware transformations
 * **Focus DSL** for type-safe, fluent path navigation with seamless bridging into external libraries
-* **Custom container types** with automatic `AffinePath` and `TraversalPath` generation via SPI-aware path widening, supporting 23 container types across JDK, Apache Commons, Eclipse Collections, Guava, Vavr, and HKJ native types
+* **Custom container types** with automatic `AffinePath` and `TraversalPath` generation via SPI-aware path widening, supporting 30 container types across JDK, Apache Commons, Eclipse Collections, Guava, Vavr, PCollections, and HKJ native types
 * **Effect integration** bridging optics with the Effect Path API
 
 ### [Effect Handlers](https://higher-kinded-j.github.io/latest/effect/effect_handlers_intro.html)

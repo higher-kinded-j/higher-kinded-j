@@ -251,6 +251,7 @@
   - [Diagnostics](tooling/diagnostics.md)
   - [Traversal Generator Plugins](tooling/generator_plugins.md)
   - [PCollections Integration](tooling/pcollections_integration.md)
+  - [PCollections Optics](tooling/pcollections_optics.md)
   - [Claude Code Skills](tooling/claude_code_skills.md)
   - [Testing With hkj-test](tooling/test_assertions.md)
 - [Spring Integration](spring/ch_intro.md)

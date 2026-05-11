@@ -36,6 +36,7 @@ dependencies {
     testImplementation(libs.google.guava)
     testImplementation(libs.vavr)
     testImplementation(libs.apache.commons.collections4)
+    testImplementation(libs.pcollections)
 }
 
 tasks.test {

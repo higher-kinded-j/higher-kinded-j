@@ -133,15 +133,10 @@ public class TraversalProcessor extends AbstractProcessor {
         return null; // Cannot traverse a raw type.
       }
 
-      // Handle special cases like Either, Validated, and Map which have multiple type arguments.
-      // A more advanced solution would be to add a `getFocusType` method to the SPI.
-      String generatorName = generator.getClass().getSimpleName();
-      int typeArgumentIndex = 0; // Default to the first type argument
-      if (generatorName.equals("EitherGenerator")
-          || generatorName.equals("ValidatedGenerator")
-          || generatorName.equals("MapValueGenerator")) {
-        typeArgumentIndex = 1; // These traverse the second type argument
-      }
+      // Use the SPI's getFocusTypeArgumentIndex() so any generator can declare which type
+      // argument it traverses (V for Map/PMap, R for Either, A for Validated, the default
+      // index 0 for collection-like types).
+      int typeArgumentIndex = generator.getFocusTypeArgumentIndex();
 
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
         return null; // Not enough type arguments for this generator.

@@ -6,7 +6,7 @@ Traversal generator plugins for Higher-Kinded-J's `@GenerateTraversals` annotati
 
 When you annotate a Java record with `@GenerateTraversals`, the `TraversalProcessor` in `hkj-processor` generates traversal optics for each record component whose type is a supported container. The processor discovers generator plugins at compile time via Java's `ServiceLoader` mechanism.
 
-This module ships 23 generators covering JDK collections, Higher-Kinded-J core types, and four popular third-party libraries.
+This module ships 30 generators covering JDK collections, Higher-Kinded-J core types, and five popular third-party libraries.
 
 ## Supported Types
 
@@ -63,6 +63,18 @@ This module ships 23 generators covering JDK collections, Higher-Kinded-J core t
 | `HashBag<A>` | `ApacheHashBagGenerator` |
 | `UnmodifiableList<A>` | `ApacheUnmodifiableListGenerator` |
 
+### PCollections
+
+| Type | Generator | Focus |
+|------|-----------|-------|
+| `org.pcollections.PVector<A>` | `PVectorGenerator` | Each element |
+| `org.pcollections.PStack<A>` | `PStackGenerator` | Each element |
+| `org.pcollections.PSet<A>` | `PSetGenerator` | Each element |
+| `org.pcollections.PSortedSet<A>` | `PSortedSetGenerator` | Each element (natural ordering only) |
+| `org.pcollections.PBag<A>` | `PBagGenerator` | Each element |
+| `org.pcollections.PMap<K, V>` | `PMapValueGenerator` | Each value (index 1) |
+| `org.pcollections.PSortedMap<K, V>` | `PSortedMapValueGenerator` | Each value (index 1, natural key ordering) |
+
 ## Architecture
 
 ```
@@ -78,6 +90,10 @@ TraversableGenerator (SPI interface in hkj-processor)
     │   └── Guava generators (guava/)
     ├── ApacheBaseSingleIterableTraversableGenerator
     │   └── Apache generators (apache/)
+    ├── PCollectionsBaseSingleIterableTraversableGenerator
+    │   └── PCollections collection generators (pcollections/)
+    ├── PCollectionsBaseMapValueTraversableGenerator
+    │   └── PCollections map value generators (pcollections/)
     └── VavrBaseSingleIterableTraversableGenerator
         └── Vavr generators (vavr/)
 ```
@@ -92,7 +108,7 @@ TraversableGenerator (SPI interface in hkj-processor)
 
 If you use the HKJ Gradle or Maven build plugin, `hkj-processor-plugins` is added to your annotation processor path automatically. No additional configuration is needed for JDK types and HKJ core types.
 
-For third-party library support (Eclipse Collections, Guava, Vavr, Apache Commons), simply add the library to your project's dependencies. The generators detect supported types at compile time regardless of whether the library is present at runtime.
+For third-party library support (Eclipse Collections, Guava, Vavr, Apache Commons, PCollections), simply add the library to your project's dependencies. The generators detect supported types at compile time regardless of whether the library is present at runtime.
 
 ### Manual Setup
 

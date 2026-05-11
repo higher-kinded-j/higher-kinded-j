@@ -39,6 +39,13 @@ module org.higherkindedj.processor.plugins {
       org.higherkindedj.optics.processing.generator.hkj.MaybeGenerator,
       org.higherkindedj.optics.processing.generator.hkj.TryGenerator,
       org.higherkindedj.optics.processing.generator.hkj.ValidatedGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PBagGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PMapValueGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PSetGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PSortedMapValueGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PSortedSetGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PStackGenerator,
+      org.higherkindedj.optics.processing.generator.pcollections.PVectorGenerator,
       org.higherkindedj.optics.processing.generator.vavr.VavrListGenerator,
       org.higherkindedj.optics.processing.generator.vavr.VavrSetGenerator;
 }
