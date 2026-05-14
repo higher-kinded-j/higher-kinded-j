@@ -446,6 +446,54 @@ class OptionalMonadTest extends OptionalTestBase {
 
       assertThatOptionalKind(zeroKind).isEmpty();
     }
+
+    @Test
+    @DisplayName("filter keeps a present value matching the predicate")
+    void filterKeepsMatchingPresent() {
+      var input = presentOf(4);
+
+      var result = OptionalMonad.INSTANCE.filter(x -> ((Integer) x) % 2 == 0, input);
+
+      assertThatOptionalKind(result).isPresent().contains(4);
+    }
+
+    @Test
+    @DisplayName("filter drops a present value not matching the predicate")
+    void filterDropsNonMatchingPresent() {
+      var input = presentOf(3);
+
+      var result = OptionalMonad.INSTANCE.filter(x -> ((Integer) x) % 2 == 0, input);
+
+      assertThatOptionalKind(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filter on empty stays empty")
+    void filterOnEmptyStaysEmpty() {
+      Kind<OptionalKind.Witness, Integer> empty = emptyOptional();
+
+      var result = OptionalMonad.INSTANCE.filter(x -> true, empty);
+
+      assertThatOptionalKind(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filter throws NullPointerException when predicate is null")
+    void filterThrowsWhenPredicateIsNull() {
+      var input = presentOf(1);
+
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () -> OptionalMonad.INSTANCE.filter(null, input))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("filter throws NullPointerException when ma is null")
+    void filterThrowsWhenMaIsNull() {
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () -> OptionalMonad.INSTANCE.filter(x -> true, null))
+          .isInstanceOf(NullPointerException.class);
+    }
   }
 
   @Nested

@@ -3,6 +3,7 @@
 ~~~admonish info title="What You'll Learn"
 - How MonadZero combines Monad and Alternative capabilities
 - The role of `zero()` as an absorbing element in monadic sequences
+- Filtering directly with `MonadZero.filter(predicate, ma)`
 - Enabling filtering in for-comprehensions with `when()`
 - Practical examples using List, Maybe, and Optional
 - Writing generic functions for monads with failure semantics
@@ -53,6 +54,12 @@ public interface MonadZero<F> extends Monad<F>, Alternative<F> {
     @Override
     default <A> Kind<F, A> empty() {
         return zero();
+    }
+
+    // Derived from flatMap + of / zero; overridden by List and Stream
+    // for an O(n) single-pass implementation.
+    default <A> Kind<F, A> filter(Predicate<? super A> predicate, Kind<F, A> ma) {
+        return flatMap(a -> predicate.test(a) ? of(a) : zero(), ma);
     }
 }
 ```
@@ -111,18 +118,39 @@ For different types, `zero()` has the natural "empty" semantics:
 
 ---
 
-## Writing Generic Functions
+## Filtering Directly with `filter`
 
-`MonadZero` allows you to write generic functions that work over any monad with a concept of "emptiness":
+`MonadZero` also exposes `filter(predicate, ma)` so you don't need a for-comprehension just to drop unwanted elements. The argument order matches `Monad.flatMap` (predicate first, then the monadic value), not the instance-method style of `Stream.filter` / `Optional.filter`:
 
 ```java
-// A generic "filter" that works with List, Maybe, Optional, or Stream
-public static <F, A> Kind<F, A> filterM(
-    MonadZero<F> mz, Kind<F, A> fa, Predicate<A> predicate) {
-    return mz.flatMap(
-        a -> predicate.test(a) ? mz.of(a) : mz.zero(),
-        fa
-    );
+// List: keep positives
+MonadZero<ListKind.Witness> lz = ListMonad.INSTANCE;
+Kind<ListKind.Witness, Integer> positives =
+    lz.filter(x -> x > 0, LIST.widen(List.of(-1, 2, -3, 4)));   // [2, 4]
+
+// Maybe: keep even values
+MonadZero<MaybeKind.Witness> mz = MaybeMonad.INSTANCE;
+mz.filter(x -> x % 2 == 0, mz.of(4));   // Just(4)
+mz.filter(x -> x % 2 == 0, mz.of(3));   // Nothing
+```
+
+The default implementation is derived from `flatMap` + `of` / `zero` and adds no new algebraic obligations:
+
+```
+filter(p, ma)  ≡  flatMap(a -> p.test(a) ? of(a) : zero(), ma)
+```
+
+`ListMonad` and `StreamMonad` override `filter` to avoid the per-element singleton/empty allocations the derived form would produce — `ListMonad` walks once into a single result list, `StreamMonad` delegates to `Stream.filter` to preserve laziness.
+
+---
+
+## Writing Generic Functions
+
+`MonadZero` lets you write generic functions that work over any monad with a concept of "emptiness". Since `filter` is now part of the interface, generic filtering is just a method call:
+
+```java
+public static <F, A extends Number> Kind<F, A> keepPositive(MonadZero<F> mz, Kind<F, A> fa) {
+    return mz.filter(a -> a.doubleValue() > 0, fa);
 }
 ```
 
@@ -130,7 +158,8 @@ public static <F, A> Kind<F, A> filterM(
 
 ~~~admonish info title="Key Takeaways"
 * **`zero()` is the absorbing element** that terminates a computational path, like multiplying by zero
-* **`.when()` in for-comprehensions** is the primary use case, enabling mid-chain filtering
+* **`filter(predicate, ma)`** drops values that fail the predicate by short-circuiting to `zero()`
+* **`.when()` in for-comprehensions** is built on `filter` and is the idiomatic form for mid-chain guards
 * **Requires `MonadZero`**, not just `Monad`; use `For.from(monadZero, ...)` to unlock filtering
 * **Works uniformly** across List, Maybe, Optional, and Stream
 ~~~

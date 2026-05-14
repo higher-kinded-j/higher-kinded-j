@@ -707,9 +707,7 @@ public final class ForState {
     @Override
     public FilterableSteps<M, S> when(Predicate<S> predicate) {
       Objects.requireNonNull(predicate, "predicate must not be null");
-      Kind<M, S> newState =
-          monad.flatMap(s -> predicate.test(s) ? monad.of(s) : monad.zero(), state);
-      return new ForStateFilterableStepsImpl<>(monad, newState);
+      return new ForStateFilterableStepsImpl<>(monad, monad.filter(predicate, state));
     }
 
     @Override
@@ -867,8 +865,7 @@ public final class ForState {
       Objects.requireNonNull(path, "path must not be null");
       Affine<S, T> affine = path.toAffine();
       // Short-circuit to zero if the affine target is absent in the current state.
-      Kind<M, S> guarded =
-          monad.flatMap(s -> affine.getOptional(s).isPresent() ? monad.of(s) : monad.zero(), state);
+      Kind<M, S> guarded = monad.filter(s -> affine.getOptional(s).isPresent(), state);
       // Synthesise a Lens<S, T> backed by the affine. Pre-condition: getOptional(s) is non-empty
       // because of the guard above; this is enforced by the short-circuit and by AffinePath
       // semantics (set always produces a structure where getOptional returns the new value).

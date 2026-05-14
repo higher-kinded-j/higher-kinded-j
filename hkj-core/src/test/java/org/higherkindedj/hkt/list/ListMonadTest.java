@@ -560,4 +560,67 @@ class ListMonadTest extends ListTestBase {
       assertThatList(flattened).containsExactly(1, 11, 21, 2, 12, 22);
     }
   }
+
+  @Nested
+  @DisplayName("MonadZero filter Tests")
+  class FilterTests {
+
+    @Test
+    @DisplayName("filter retains elements that satisfy the predicate")
+    void filterRetainsElementsThatSatisfyThePredicate() {
+      var input = listOf(-1, 2, -3, 4);
+
+      var result = ListMonad.INSTANCE.filter(x -> x > 0, input);
+
+      assertThatList(result).containsExactly(2, 4);
+    }
+
+    @Test
+    @DisplayName("filter with always-true predicate returns the same list")
+    void filterWithAlwaysTrueReturnsSameList() {
+      var input = listOf(1, 2, 3);
+
+      var result = ListMonad.INSTANCE.filter(x -> true, input);
+
+      assertThatList(result).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("filter with always-false predicate returns zero (empty list)")
+    void filterWithAlwaysFalseReturnsZero() {
+      var input = listOf(1, 2, 3);
+
+      var result = ListMonad.INSTANCE.filter(x -> false, input);
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filter on zero (empty list) is zero")
+    void filterOnZeroIsZero() {
+      Kind<ListKind.Witness, Integer> empty = ListMonad.INSTANCE.zero();
+
+      var result = ListMonad.INSTANCE.filter(x -> x > 0, empty);
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filter throws NullPointerException when predicate is null")
+    void filterThrowsWhenPredicateIsNull() {
+      var input = listOf(1, 2, 3);
+
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () -> ListMonad.INSTANCE.filter(null, input))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("filter throws NullPointerException when ma is null")
+    void filterThrowsWhenMaIsNull() {
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () -> ListMonad.INSTANCE.filter(x -> true, null))
+          .isInstanceOf(NullPointerException.class);
+    }
+  }
 }

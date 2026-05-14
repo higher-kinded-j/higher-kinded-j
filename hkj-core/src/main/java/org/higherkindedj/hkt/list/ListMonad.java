@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
@@ -148,6 +149,34 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   @Override
   public <T> Kind<ListKind.Witness, T> zero() {
     return LIST.widen(Collections.emptyList());
+  }
+
+  /**
+   * Filters a list by retaining only the elements that satisfy {@code predicate}.
+   *
+   * <p>Overrides the default {@code flatMap}-based implementation on {@link MonadZero} to avoid
+   * allocating per-element singleton/empty lists. Walks the input list once and appends matching
+   * elements to a single result list.
+   *
+   * @param predicate the element predicate; must not be null
+   * @param ma the input list; must not be null
+   * @param <A> the element type
+   * @return a list containing only the elements of {@code ma} for which {@code predicate} holds
+   */
+  @Override
+  public <A> Kind<ListKind.Witness, A> filter(
+      Predicate<? super A> predicate, Kind<ListKind.Witness, A> ma) {
+    Validation.function().require(predicate, "predicate", FILTER);
+    Validation.kind().requireNonNull(ma, FILTER);
+
+    List<A> input = LIST.narrow(ma);
+    List<A> result = new ArrayList<>(input.size());
+    for (A a : input) {
+      if (predicate.test(a)) {
+        result.add(a);
+      }
+    }
+    return LIST.widen(result);
   }
 
   // --- Alternative Methods ---

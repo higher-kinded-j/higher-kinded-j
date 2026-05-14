@@ -558,5 +558,84 @@ class StreamMonadTest extends StreamTestBase {
 
       assertThatStream(zero).isEmpty();
     }
+
+    @Test
+    @DisplayName("filter retains elements that satisfy the predicate")
+    void filterRetainsMatching() {
+      Kind<StreamKind.Witness, Integer> input = streamOf(-1, 2, -3, 4);
+
+      var result = streamMonad.filter(x -> x > 0, input);
+
+      assertThatStream(result).containsExactly(2, 4);
+    }
+
+    @Test
+    @DisplayName("filter with always-true predicate is identity")
+    void filterWithAlwaysTrueIsIdentity() {
+      Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
+
+      var result = streamMonad.filter(x -> true, input);
+
+      assertThatStream(result).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("filter with always-false predicate yields zero")
+    void filterWithAlwaysFalseYieldsZero() {
+      Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
+
+      var result = streamMonad.filter(x -> false, input);
+
+      assertThatStream(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filter on zero is zero")
+    void filterOnZeroIsZero() {
+      Kind<StreamKind.Witness, Integer> empty = streamMonad.zero();
+
+      var result = streamMonad.filter(x -> x > 0, empty);
+
+      assertThatStream(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filter is lazy: predicate not invoked before terminal operation")
+    void filterIsLazy() {
+      var calls = new int[] {0};
+      Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
+
+      var result =
+          streamMonad.filter(
+              x -> {
+                calls[0]++;
+                return x > 1;
+              },
+              input);
+
+      // No terminal operation yet — predicate must not have run.
+      assertThat(calls[0]).isZero();
+
+      // Consume: predicate now runs once per element.
+      List<Integer> out = STREAM.narrow(result).collect(Collectors.toList());
+      assertThat(out).containsExactly(2, 3);
+      assertThat(calls[0]).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("filter throws NullPointerException when predicate is null")
+    void filterThrowsWhenPredicateIsNull() {
+      Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
+
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> streamMonad.filter(null, input))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("filter throws NullPointerException when ma is null")
+    void filterThrowsWhenMaIsNull() {
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> streamMonad.filter(x -> true, null))
+          .isInstanceOf(NullPointerException.class);
+    }
   }
 }

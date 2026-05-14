@@ -702,9 +702,7 @@ public final class For {
      * @return The current builder step, with the filter applied.
      */
     public FilterableSteps1<M, A> when(Predicate<A> filter) {
-      Kind<M, A> newComputation =
-          monad.flatMap(a -> filter.test(a) ? monad.of(a) : monad.zero(), this.computation);
-      return new FilterableSteps1<>(monad, newComputation);
+      return new FilterableSteps1<>(monad, monad.filter(filter, this.computation));
     }
 
     /**
