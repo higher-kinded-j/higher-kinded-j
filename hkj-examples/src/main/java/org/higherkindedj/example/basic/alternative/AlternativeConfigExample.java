@@ -4,6 +4,8 @@ package org.higherkindedj.example.basic.alternative;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.List;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -23,7 +25,8 @@ import org.higherkindedj.hkt.maybe.MaybeMonad;
  *   <li><b>orElse()</b>: Combining alternatives with lazy evaluation
  *   <li><b>empty()</b>: Representing the absence of configuration
  *   <li><b>guard()</b>: Conditional validation
- *   <li><b>orElseAll()</b>: Chaining multiple fallback sources
+ *   <li><b>orElseAll()</b>: Chaining multiple fallback sources, either as a static varargs list or
+ *       as a runtime-built {@link Iterable}
  * </ul>
  */
 public class AlternativeConfigExample {
@@ -36,6 +39,7 @@ public class AlternativeConfigExample {
 
     demonstrateBasicOrElse();
     demonstrateOrElseChain();
+    demonstrateOrElseAllIterable();
     demonstrateGuard();
     demonstrateLazyEvaluation();
     demonstrateParserCombinator();
@@ -85,9 +89,46 @@ public class AlternativeConfigExample {
     System.out.println();
   }
 
+  /**
+   * Demonstrates orElseAll(Iterable) for folding a runtime-built collection of alternatives — the
+   * {@code asum}/{@code msum} analogue.
+   *
+   * <p>Unlike the varargs form in {@link #demonstrateOrElseChain()}, the set of sources here is not
+   * known at compile time. We treat each {@link ConfigSource} as a strategy, look it up at runtime,
+   * and fold the resulting candidates with a single call.
+   */
+  private static void demonstrateOrElseAllIterable() {
+    System.out.println("3. orElseAll(Iterable) - Dynamic Source Registry");
+    System.out.println("------------------------------------------------");
+
+    String key = "API_KEY";
+
+    // A registry of sources, as you might receive from SPI, a config file, or a
+    // priority list constructed at startup. The number and order are not fixed.
+    List<Function<String, Kind<MaybeKind.Witness, ConfigValue>>> registry =
+        List.of(
+            AlternativeConfigExample::readFromEnvironment,
+            AlternativeConfigExample::readFromSystemProperty,
+            AlternativeConfigExample::readFromConfigFile,
+            AlternativeConfigExample::readFromDatabase,
+            AlternativeConfigExample::getDefaultValue);
+
+    // Map each strategy to its candidate result, then fold with orElseAll(Iterable).
+    List<Kind<MaybeKind.Witness, ConfigValue>> candidates =
+        registry.stream().map(source -> source.apply(key)).toList();
+
+    Kind<MaybeKind.Witness, ConfigValue> config = alt.orElseAll(candidates);
+
+    Maybe<ConfigValue> result = MAYBE.narrow(config);
+    if (result.isJust()) {
+      System.out.println("  ✓ Loaded: " + result.get());
+    }
+    System.out.println();
+  }
+
   /** Demonstrates guard() for conditional validation. */
   private static void demonstrateGuard() {
-    System.out.println("3. guard() - Conditional Validation");
+    System.out.println("4. guard() - Conditional Validation");
     System.out.println("-----------------------------------");
 
     String key = "MAX_CONNECTIONS";
@@ -117,7 +158,7 @@ public class AlternativeConfigExample {
 
   /** Demonstrates lazy evaluation - fallback not computed unless needed. */
   private static void demonstrateLazyEvaluation() {
-    System.out.println("4. Lazy Evaluation - Efficiency");
+    System.out.println("5. Lazy Evaluation - Efficiency");
     System.out.println("-------------------------------");
 
     boolean[] expensiveCallExecuted = {false};
@@ -142,7 +183,7 @@ public class AlternativeConfigExample {
 
   /** Demonstrates using Alternative for simple parser combinators. */
   private static void demonstrateParserCombinator() {
-    System.out.println("5. Parser Combinator Pattern");
+    System.out.println("6. Parser Combinator Pattern");
     System.out.println("----------------------------");
 
     String input1 = "true";

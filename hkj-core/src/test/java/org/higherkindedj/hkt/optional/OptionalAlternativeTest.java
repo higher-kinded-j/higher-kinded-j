@@ -5,6 +5,9 @@ package org.higherkindedj.hkt.optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
@@ -186,6 +189,71 @@ class OptionalAlternativeTest {
       Optional<Integer> optional = OPTIONAL.narrow(result);
       assertThat(optional).isPresent();
       assertThat(optional.get()).isEqualTo(99);
+    }
+  }
+
+  @Nested
+  @DisplayName("orElseAll(Iterable) Tests")
+  class OrElseAllIterableTests {
+
+    @Test
+    @DisplayName("orElseAll(empty iterable) returns Optional.empty()")
+    void orElseAllEmptyIterableReturnsEmpty() {
+      Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(List.of());
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) returns first present")
+    void orElseAllIterableReturnsFirstPresent() {
+      List<Kind<OptionalKind.Witness, Integer>> candidates =
+          Arrays.asList(alternative.empty(), alternative.of(42), alternative.of(7));
+
+      Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(candidates);
+
+      Optional<Integer> optional = OPTIONAL.narrow(result);
+      assertThat(optional).isPresent();
+      assertThat(optional.get()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) returns Optional.empty() when all empty")
+    void orElseAllIterableAllEmpty() {
+      List<Kind<OptionalKind.Witness, Integer>> candidates =
+          Arrays.asList(alternative.empty(), alternative.empty(), alternative.empty());
+
+      Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(candidates);
+
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) with singleton returns that element")
+    void orElseAllIterableSingleton() {
+      Kind<OptionalKind.Witness, Integer> present = alternative.of(99);
+
+      Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(List.of(present));
+
+      assertThat(OPTIONAL.narrow(result).get()).isEqualTo(99);
+    }
+
+    @Test
+    @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    void orElseAllNullIterableThrows() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> alternative.orElseAll((Iterable<Kind<OptionalKind.Witness, Integer>>) null))
+          .withMessageContaining("alternatives");
+    }
+
+    @Test
+    @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    void orElseAllNullElementThrows() {
+      List<Kind<OptionalKind.Witness, Integer>> candidates = new ArrayList<>();
+      candidates.add(alternative.empty());
+      candidates.add(null);
+
+      assertThatNullPointerException().isThrownBy(() -> alternative.orElseAll(candidates));
     }
   }
 

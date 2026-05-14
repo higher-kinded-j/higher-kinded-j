@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -228,6 +229,32 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
     result.addAll(listA);
     result.addAll(listB);
 
+    return LIST.widen(result);
+  }
+
+  /**
+   * Concatenates an iterable of lists into a single list in one pass.
+   *
+   * <p>Overrides the default {@link org.higherkindedj.hkt.Alternative#orElseAll(Iterable)} to avoid
+   * the quadratic concatenation the derived form would produce (each iteration would copy the
+   * accumulated result alongside the next element). This implementation walks the input once and
+   * appends each element list to a single result {@link ArrayList}.
+   *
+   * @param alternatives the iterable of lists to concatenate; must not be null, and must not
+   *     contain null elements
+   * @param <A> the element type
+   * @return a single list containing every element of every input list, in iteration order
+   * @throws NullPointerException if {@code alternatives} is null or contains a null element
+   */
+  @Override
+  public <A> Kind<ListKind.Witness, A> orElseAll(Iterable<Kind<ListKind.Witness, A>> alternatives) {
+    Objects.requireNonNull(alternatives, "alternatives for orElseAll cannot be null");
+
+    List<A> result = new ArrayList<>();
+    for (Kind<ListKind.Witness, A> alt : alternatives) {
+      Validation.kind().requireNonNull(alt, OR_ELSE_ALL, "element in alternatives");
+      result.addAll(LIST.narrow(alt));
+    }
     return LIST.widen(result);
   }
 }

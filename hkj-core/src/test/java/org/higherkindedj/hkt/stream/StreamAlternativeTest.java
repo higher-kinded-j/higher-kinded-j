@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.stream;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -193,6 +194,102 @@ class StreamAlternativeTest {
       Stream<Integer> resultStream = STREAM.narrow(result);
       List<Integer> list = resultStream.collect(Collectors.toList());
       assertThat(list).containsExactly(1, 2, 3, 4);
+    }
+  }
+
+  @Nested
+  @DisplayName("orElseAll(Iterable) Tests")
+  class OrElseAllIterableTests {
+
+    @Test
+    @DisplayName("orElseAll(empty iterable) returns empty stream")
+    void orElseAllEmptyIterableReturnsEmpty() {
+      Kind<StreamKind.Witness, Integer> result = alternative.orElseAll(List.of());
+      assertThat(STREAM.narrow(result).collect(Collectors.toList())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) concatenates all streams in order")
+    void orElseAllIterableConcatenates() {
+      List<Kind<StreamKind.Witness, Integer>> streams =
+          Arrays.asList(
+              STREAM.widen(Stream.of(1, 2)),
+              STREAM.widen(Stream.of(3)),
+              STREAM.widen(Stream.of(4, 5)));
+
+      Kind<StreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+
+      assertThat(STREAM.narrow(result).collect(Collectors.toList())).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) skips empty streams")
+    void orElseAllIterableSkipsEmpty() {
+      List<Kind<StreamKind.Witness, Integer>> streams =
+          Arrays.asList(
+              alternative.empty(),
+              STREAM.widen(Stream.of(1, 2)),
+              alternative.empty(),
+              STREAM.widen(Stream.of(3)));
+
+      Kind<StreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+
+      assertThat(STREAM.narrow(result).collect(Collectors.toList())).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) preserves laziness — does not consume source streams eagerly")
+    void orElseAllIterablePreservesLaziness() {
+      boolean[] consumed = {false};
+      Stream<Integer> peeking = Stream.of(1, 2, 3).peek(x -> consumed[0] = true);
+      List<Kind<StreamKind.Witness, Integer>> streams =
+          Arrays.asList(STREAM.widen(peeking), STREAM.widen(Stream.of(4)));
+
+      Kind<StreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+
+      assertThat(consumed[0]).isFalse();
+      List<Integer> collected = STREAM.narrow(result).collect(Collectors.toList());
+      assertThat(consumed[0]).isTrue();
+      assertThat(collected).containsExactly(1, 2, 3, 4);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) handles a long iterable without StackOverflowError")
+    void orElseAllIterableLongInput() {
+      List<Kind<StreamKind.Witness, Integer>> streams = new ArrayList<>();
+      for (int i = 0; i < 5_000; i++) {
+        streams.add(STREAM.widen(Stream.of(i)));
+      }
+
+      Kind<StreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+
+      List<Integer> collected = STREAM.narrow(result).collect(Collectors.toList());
+      assertThat(collected).hasSize(5_000);
+      assertThat(collected.get(0)).isEqualTo(0);
+      assertThat(collected.get(4_999)).isEqualTo(4_999);
+    }
+
+    @Test
+    @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    void orElseAllNullIterableThrows() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> alternative.orElseAll((Iterable<Kind<StreamKind.Witness, Integer>>) null))
+          .withMessageContaining("alternatives");
+    }
+
+    @Test
+    @DisplayName("orElseAll(iterable with null element) throws NullPointerException on consumption")
+    void orElseAllNullElementThrows() {
+      List<Kind<StreamKind.Witness, Integer>> streams = new ArrayList<>();
+      streams.add(STREAM.widen(Stream.of(1)));
+      streams.add(null);
+
+      Kind<StreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+      // Validation is deferred until the resulting stream is consumed, which is correct for the
+      // lazy contract — but the consumer is guaranteed to see the failure.
+      assertThatNullPointerException()
+          .isThrownBy(() -> STREAM.narrow(result).collect(Collectors.toList()));
     }
   }
 

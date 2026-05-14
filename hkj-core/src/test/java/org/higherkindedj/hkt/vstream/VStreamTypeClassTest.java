@@ -3,9 +3,12 @@
 package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -459,6 +462,61 @@ class VStreamTypeClassTest {
           alternative.orElse(a, () -> alternative.orElse(b, () -> c));
 
       assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("orElseAll(empty iterable) returns empty stream")
+    void orElseAllEmptyIterableReturnsEmpty() {
+      Kind<VStreamKind.Witness, Integer> result = alternative.orElseAll(List.of());
+      assertThat(VSTREAM.narrow(result).toList().run()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) concatenates all streams in order")
+    void orElseAllIterableConcatenates() {
+      List<Kind<VStreamKind.Witness, Integer>> streams =
+          Arrays.asList(
+              VSTREAM.widen(VStream.of(1, 2)),
+              VSTREAM.widen(VStream.of(3)),
+              VSTREAM.widen(VStream.of(4, 5)));
+
+      Kind<VStreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+
+      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) skips empty streams")
+    void orElseAllIterableSkipsEmpty() {
+      List<Kind<VStreamKind.Witness, Integer>> streams =
+          Arrays.asList(
+              alternative.empty(),
+              VSTREAM.widen(VStream.of(1, 2)),
+              alternative.empty(),
+              VSTREAM.widen(VStream.of(3)));
+
+      Kind<VStreamKind.Witness, Integer> result = alternative.orElseAll(streams);
+
+      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    void orElseAllNullIterableThrows() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> alternative.orElseAll((Iterable<Kind<VStreamKind.Witness, Integer>>) null))
+          .withMessageContaining("alternatives");
+    }
+
+    @Test
+    @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    void orElseAllNullElementThrows() {
+      List<Kind<VStreamKind.Witness, Integer>> streams = new ArrayList<>();
+      streams.add(VSTREAM.widen(VStream.of(1)));
+      streams.add(null);
+
+      assertThatNullPointerException().isThrownBy(() -> alternative.orElseAll(streams));
     }
   }
 }
