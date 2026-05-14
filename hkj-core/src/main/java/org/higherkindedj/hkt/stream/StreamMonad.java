@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -232,6 +233,29 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   @Override
   public <T> Kind<StreamKind.Witness, T> zero() {
     return STREAM.widen(Stream.empty());
+  }
+
+  /**
+   * Filters a stream by retaining only the elements that satisfy {@code predicate}.
+   *
+   * <p>Overrides the default {@code flatMap}-based implementation on {@link MonadZero} to delegate
+   * directly to {@link Stream#filter(Predicate)}, preserving the underlying stream's lazy
+   * evaluation semantics.
+   *
+   * @param predicate the element predicate; must not be null
+   * @param ma the input stream; must not be null
+   * @param <A> the element type
+   * @return a stream containing only the elements of {@code ma} for which {@code predicate} holds.
+   *     Evaluation remains lazy.
+   */
+  @Override
+  public <A> Kind<StreamKind.Witness, A> filter(
+      Predicate<? super A> predicate, Kind<StreamKind.Witness, A> ma) {
+    Validation.function().require(predicate, "predicate", FILTER);
+    Validation.kind().requireNonNull(ma, FILTER);
+
+    Stream<A> input = STREAM.narrow(ma);
+    return STREAM.widen(input.filter(predicate));
   }
 
   // --- Alternative Methods ---

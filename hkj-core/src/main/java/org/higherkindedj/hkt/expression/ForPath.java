@@ -847,9 +847,7 @@ public final class ForPath {
      * @return this step with the filter applied
      */
     public MaybePathSteps1<A> when(Predicate<A> predicate) {
-      Kind<MaybeKind.Witness, A> newComp =
-          MONAD.flatMap(a -> predicate.test(a) ? MONAD.of(a) : MONAD.zero(), computation);
-      return new MaybePathSteps1<>(newComp);
+      return new MaybePathSteps1<>(MONAD.filter(predicate, computation));
     }
 
     /**
@@ -982,9 +980,7 @@ public final class ForPath {
     }
 
     public OptionalPathSteps1<A> when(Predicate<A> predicate) {
-      Kind<OptionalKind.Witness, A> newComp =
-          MONAD.flatMap(a -> predicate.test(a) ? MONAD.of(a) : MONAD.zero(), computation);
-      return new OptionalPathSteps1<>(newComp);
+      return new OptionalPathSteps1<>(MONAD.filter(predicate, computation));
     }
 
     public <T extends WitnessArity<TypeArity.Unary>, C, B>
@@ -1418,9 +1414,7 @@ public final class ForPath {
     }
 
     public NonDetPathSteps1<A> when(Predicate<A> predicate) {
-      Kind<ListKind.Witness, A> newComp =
-          MONAD.flatMap(a -> predicate.test(a) ? MONAD.of(a) : MONAD.zero(), computation);
-      return new NonDetPathSteps1<>(newComp);
+      return new NonDetPathSteps1<>(MONAD.filter(predicate, computation));
     }
 
     public <T extends WitnessArity<TypeArity.Unary>, C, B> NonDetPathSteps2<A, Kind<T, B>> traverse(
