@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.list;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.higherkindedj.hkt.Alternative;
@@ -175,6 +176,92 @@ class ListAlternativeTest {
 
       List<Integer> resultList = LIST.narrow(result);
       assertThat(resultList).containsExactly(1, 2, 3, 4);
+    }
+  }
+
+  @Nested
+  @DisplayName("orElseAll(Iterable) Tests")
+  class OrElseAllIterableTests {
+
+    @Test
+    @DisplayName("orElseAll(empty iterable) returns empty list")
+    void orElseAllEmptyIterableReturnsEmpty() {
+      Kind<ListKind.Witness, Integer> result = alternative.orElseAll(List.of());
+      assertThat(LIST.narrow(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) concatenates all lists in order")
+    void orElseAllIterableConcatenates() {
+      List<Kind<ListKind.Witness, Integer>> lists =
+          Arrays.asList(
+              LIST.widen(Arrays.asList(1, 2)),
+              LIST.widen(Arrays.asList(3)),
+              LIST.widen(Arrays.asList(4, 5)));
+
+      Kind<ListKind.Witness, Integer> result = alternative.orElseAll(lists);
+
+      assertThat(LIST.narrow(result)).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) skips empty lists")
+    void orElseAllIterableSkipsEmpty() {
+      List<Kind<ListKind.Witness, Integer>> lists =
+          Arrays.asList(
+              alternative.empty(),
+              LIST.widen(Arrays.asList(1, 2)),
+              alternative.empty(),
+              LIST.widen(Arrays.asList(3)),
+              alternative.empty());
+
+      Kind<ListKind.Witness, Integer> result = alternative.orElseAll(lists);
+
+      assertThat(LIST.narrow(result)).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) with singleton returns that list")
+    void orElseAllIterableSingleton() {
+      Kind<ListKind.Witness, Integer> single = LIST.widen(Arrays.asList(7, 8, 9));
+
+      Kind<ListKind.Witness, Integer> result = alternative.orElseAll(List.of(single));
+
+      assertThat(LIST.narrow(result)).containsExactly(7, 8, 9);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) handles large input without quadratic blow-up")
+    void orElseAllIterableLargeInput() {
+      List<Kind<ListKind.Witness, Integer>> lists = new ArrayList<>();
+      for (int i = 0; i < 10_000; i++) {
+        lists.add(LIST.widen(Arrays.asList(i)));
+      }
+
+      Kind<ListKind.Witness, Integer> result = alternative.orElseAll(lists);
+
+      List<Integer> resultList = LIST.narrow(result);
+      assertThat(resultList).hasSize(10_000);
+      assertThat(resultList.get(0)).isEqualTo(0);
+      assertThat(resultList.get(9_999)).isEqualTo(9_999);
+    }
+
+    @Test
+    @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    void orElseAllNullIterableThrows() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> alternative.orElseAll((Iterable<Kind<ListKind.Witness, Integer>>) null))
+          .withMessageContaining("alternatives");
+    }
+
+    @Test
+    @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    void orElseAllNullElementThrows() {
+      List<Kind<ListKind.Witness, Integer>> lists = new ArrayList<>();
+      lists.add(LIST.widen(Arrays.asList(1)));
+      lists.add(null);
+
+      assertThatNullPointerException().isThrownBy(() -> alternative.orElseAll(lists));
     }
   }
 

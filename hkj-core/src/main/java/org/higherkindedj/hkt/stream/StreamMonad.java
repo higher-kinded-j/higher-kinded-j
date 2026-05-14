@@ -6,11 +6,13 @@ import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -312,5 +314,37 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
                     }));
 
     return STREAM.widen(concatenated);
+  }
+
+  /**
+   * Concatenates an iterable of streams into a single stream.
+   *
+   * <p>Overrides the default {@link org.higherkindedj.hkt.Alternative#orElseAll(Iterable)} for two
+   * reasons: deeply nested {@link Stream#concat(Stream, Stream)} chains (which the derived form
+   * produces) are documented to risk {@code StackOverflowError} for long inputs, and a single
+   * {@link Stream#flatMap(Function)} preserves the lazy evaluation semantics of {@code Stream}
+   * end-to-end.
+   *
+   * @param alternatives the iterable of streams to concatenate; must not be null, and must not
+   *     contain null elements
+   * @param <A> the element type
+   * @return a single stream that lazily emits every element of every input stream in iteration
+   *     order
+   * @throws NullPointerException if {@code alternatives} is null, or any element is null when
+   *     reached during stream consumption
+   */
+  @Override
+  public <A> Kind<StreamKind.Witness, A> orElseAll(
+      Iterable<Kind<StreamKind.Witness, A>> alternatives) {
+    Objects.requireNonNull(alternatives, "alternatives for orElseAll cannot be null");
+
+    Stream<A> result =
+        StreamSupport.stream(alternatives.spliterator(), false)
+            .flatMap(
+                alt -> {
+                  Validation.kind().requireNonNull(alt, OR_ELSE_ALL, "element in alternatives");
+                  return STREAM.narrow(alt);
+                });
+    return STREAM.widen(result);
   }
 }

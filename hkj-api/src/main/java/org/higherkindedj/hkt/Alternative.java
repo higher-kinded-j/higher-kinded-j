@@ -216,4 +216,70 @@ public interface Alternative<F extends WitnessArity<TypeArity.Unary>> extends Ap
 
     return result;
   }
+
+  /**
+   * Folds an {@link Iterable} of alternatives into a single value by repeatedly applying {@link
+   * #orElse(Kind, Supplier)}, starting from {@link #empty()}.
+   *
+   * <p>This is the {@code Alternative} analogue of folding a monoid, and the dynamically-sized
+   * counterpart to {@link #orElseAll(Kind, Supplier, Supplier...)}. It is useful when the
+   * alternatives are produced at runtime (e.g. mapping a {@code List} of strategies to their
+   * results) and the varargs form is not applicable.
+   *
+   * <p><b>Semantics by type:</b>
+   *
+   * <ul>
+   *   <li><b>Maybe/Optional:</b> Returns the first non-empty value, or {@code empty()} if all are
+   *       empty.
+   *   <li><b>List/Stream/VStream:</b> Concatenates all elements in order.
+   * </ul>
+   *
+   * <p><b>Note on evaluation:</b> The default implementation iterates the entire collection — for
+   * short-circuit types like {@code Maybe} and {@code Optional} it does not stop after the first
+   * non-empty value, and an infinite {@code Iterable} will not terminate. Concrete instances may
+   * provide stronger laziness; in particular, stream-like instances can override this method to
+   * traverse the iterable lazily so that a lazy {@code Iterable} stays lazy end-to-end. If you need
+   * lazy short-circuit evaluation of each candidate, use the varargs {@link #orElseAll(Kind,
+   * Supplier, Supplier...)} form or wrap each candidate in a {@code Supplier} yourself.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
+   * List<Kind<MaybeKind.Witness, String>> candidates = searchStrategies.stream()
+   *     .map(s -> s.search(query))
+   *     .toList();
+   * Kind<MaybeKind.Witness, String> result = alt.orElseAll(candidates);
+   * // result is the first non-empty search result, or Nothing if all failed
+   * }</pre>
+   *
+   * <p>Concrete instances may override with a more efficient single-pass implementation (e.g.
+   * {@code ListMonad} and {@code StreamMonad} avoid the quadratic concatenation the derived form
+   * would produce).
+   *
+   * <p><b>Laws:</b>
+   *
+   * <pre>
+   * orElseAll([])              ≡ empty()                          -- identity
+   * orElseAll([x])             ≡ x                                -- singleton
+   * orElseAll([x, y])          ≡ orElse(x, () -&gt; y)               -- pairwise
+   * </pre>
+   *
+   * @param alternatives A non-null {@link Iterable} of alternative values.
+   * @param <A> The type of the value within the alternatives.
+   * @return A non-null {@link Kind Kind&lt;F, A&gt;} representing the combined result, or {@link
+   *     #empty()} if the iterable is empty.
+   * @throws NullPointerException if {@code alternatives} is null, or if it contains a null element
+   *     (lazy instances may defer this check until the result is consumed).
+   */
+  default <A> Kind<F, A> orElseAll(Iterable<Kind<F, A>> alternatives) {
+    requireNonNull(alternatives, "alternatives for orElseAll cannot be null");
+    Kind<F, A> result = empty();
+    for (Kind<F, A> alt : alternatives) {
+      requireNonNull(alt, "Element in alternatives for orElseAll cannot be null");
+      final Kind<F, A> next = alt;
+      result = orElse(result, () -> next);
+    }
+    return result;
+  }
 }

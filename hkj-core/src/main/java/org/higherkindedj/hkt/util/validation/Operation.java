@@ -50,6 +50,7 @@ public enum Operation {
   TO_EITHER("toEither"),
   MATCH("match"),
   OR_ELSE("orElse"),
+  OR_ELSE_ALL("orElseAll"),
   OR_ELSE_GET("orElseGet"),
   OR_EITHER("orEither"),
   RECOVER_FUNCTION("recoverFunction"),

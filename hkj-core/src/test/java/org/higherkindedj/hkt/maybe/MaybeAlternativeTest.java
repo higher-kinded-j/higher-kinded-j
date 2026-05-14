@@ -4,6 +4,9 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
@@ -184,6 +187,85 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(99);
+    }
+  }
+
+  @Nested
+  @DisplayName("orElseAll(Iterable) Tests")
+  class OrElseAllIterableTests {
+
+    @Test
+    @DisplayName("orElseAll(empty iterable) returns empty()")
+    void orElseAllEmptyIterableReturnsEmpty() {
+      Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(List.of());
+      assertThat(narrowToMaybe(result).isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) returns first Just")
+    void orElseAllIterableReturnsFirstJust() {
+      List<Kind<MaybeKind.Witness, Integer>> candidates =
+          Arrays.asList(alternative.empty(), alternative.of(42), alternative.of(7));
+
+      Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(candidates);
+
+      Maybe<Integer> maybe = narrowToMaybe(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) returns Nothing when all empty")
+    void orElseAllIterableAllEmpty() {
+      List<Kind<MaybeKind.Witness, Integer>> candidates =
+          Arrays.asList(alternative.empty(), alternative.empty(), alternative.empty());
+
+      Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(candidates);
+
+      assertThat(narrowToMaybe(result).isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) with singleton returns that element")
+    void orElseAllIterableSingleton() {
+      Kind<MaybeKind.Witness, Integer> just = alternative.of(99);
+
+      Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(List.of(just));
+
+      assertThat(narrowToMaybe(result).get()).isEqualTo(99);
+    }
+
+    @Test
+    @DisplayName("orElseAll(Iterable) accepts arbitrary Iterable, not just List")
+    void orElseAllAcceptsArbitraryIterable() {
+      List<Kind<MaybeKind.Witness, Integer>> backing = new ArrayList<>();
+      backing.add(alternative.empty());
+      backing.add(alternative.of(123));
+      Iterable<Kind<MaybeKind.Witness, Integer>> iter = backing::iterator;
+
+      Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(iter);
+
+      assertThat(narrowToMaybe(result).get()).isEqualTo(123);
+    }
+
+    @Test
+    @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    void orElseAllNullIterableThrows() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> alternative.orElseAll((Iterable<Kind<MaybeKind.Witness, Integer>>) null))
+          .withMessageContaining("alternatives");
+    }
+
+    @Test
+    @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    void orElseAllNullElementThrows() {
+      List<Kind<MaybeKind.Witness, Integer>> candidates = new ArrayList<>();
+      candidates.add(alternative.empty());
+      candidates.add(null);
+      candidates.add(alternative.of(1));
+
+      assertThatNullPointerException().isThrownBy(() -> alternative.orElseAll(candidates));
     }
   }
 

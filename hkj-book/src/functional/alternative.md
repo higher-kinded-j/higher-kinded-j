@@ -109,6 +109,33 @@ Kind<MaybeKind.Witness, String> config = alt.orElseAll(
 );
 ```
 
+**Folding a dynamic collection with `orElseAll(Iterable)`:**
+
+When the number of alternatives is only known at runtime, pass them as an
+`Iterable`. This is the analogue of Haskell's `asum`/`msum`:
+
+```java
+// Try each registered search strategy and return the first non-empty result.
+List<Kind<MaybeKind.Witness, Result>> candidates = searchStrategies.stream()
+    .map(s -> s.search(query))
+    .toList();
+
+Kind<MaybeKind.Witness, Result> result = alt.orElseAll(candidates);
+// Just(...) of the first strategy that returned a result, or Nothing if all failed.
+```
+
+For `List`, `Stream`, and `VStream` the same call concatenates every input
+into a single result; concrete instances override the default with a
+single-pass implementation to avoid quadratic concatenation.
+
+Unlike the varargs `orElseAll`, the default `Iterable` implementation does not
+short-circuit on the first non-empty value — every element of the iterable
+is iterated and combined into the result. Concrete instances may provide
+stronger laziness: the `StreamMonad` override, for example, traverses the
+iterable lazily so that a lazy `Iterable` stays lazy end-to-end. If you need
+lazy short-circuit evaluation of each candidate, prefer the varargs form or
+wrap each candidate in a `Supplier`.
+
 #### 2. Non-Deterministic Computation with List
 
 Represent all possible outcomes:
@@ -294,7 +321,8 @@ For a complete, runnable example demonstrating Alternative with configuration lo
 
 This example demonstrates:
 - Basic `orElse()` fallback patterns
-- `orElseAll()` for multiple fallback sources
+- `orElseAll()` for multiple fallback sources, both as varargs (lazy
+  short-circuit) and over an `Iterable` (dynamic collections)
 - `guard()` for conditional validation
 - Lazy evaluation benefits
 - Parser combinator patterns using Alternative
