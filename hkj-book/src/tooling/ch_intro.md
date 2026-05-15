@@ -10,9 +10,9 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 ---
 
 ~~~admonish info title="In This Chapter"
-- **[Manual Gradle and Maven Setup](manual_setup.md)** -- Full `build.gradle.kts` and `pom.xml` configuration for projects that cannot use the HKJ build plugin. Covers dependencies, annotation processors, Java preview flags, and snapshot repositories.
+- **[Build Plugins](gradle_plugin.md)** -- One-line setup for Gradle or Maven that configures dependencies, preview features, and compile-time checks automatically. This is the recommended way to add Higher-Kinded-J to a project; reach for it first.
 
-- **[Build Plugins](gradle_plugin.md)** -- One-line setup for Gradle or Maven that configures dependencies, preview features, and compile-time checks automatically. Replaces multi-block boilerplate configuration with a single plugin application.
+- **[Manual Gradle and Maven Setup](manual_setup.md)** -- Full `build.gradle.kts` and `pom.xml` configuration for the projects that cannot use the build plugin (constrained environments, in-house build frameworks, or a conflicting plugin). The fallback, not the starting point.
 
 - **[Compile-Time Checks](compile_checks.md)** -- A javac plugin that detects Path type mismatches at compile time, preventing runtime `IllegalArgumentException` errors. Follows a strict no-false-positives policy.
 
@@ -31,8 +31,8 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 ## Chapter Contents
 
-1. [Manual Gradle and Maven Setup](manual_setup.md) - Full manual build configuration
-2. [Build Plugins](gradle_plugin.md) - One-line project setup for Gradle and Maven
+1. [Build Plugins](gradle_plugin.md) - One-line project setup for Gradle and Maven (recommended)
+2. [Manual Gradle and Maven Setup](manual_setup.md) - Full manual build configuration (fallback)
 3. [Compile-Time Checks](compile_checks.md) - Path type mismatch detection
 4. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
 5. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
@@ -43,4 +43,4 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 ---
 
-**Next:** [Manual Gradle and Maven Setup](manual_setup.md)
+**Next:** [Build Plugins](gradle_plugin.md)

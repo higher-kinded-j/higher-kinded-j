@@ -3,6 +3,7 @@
 
 - [Quickstart](quickstart.md)
 - [Cheat Sheet](cheatsheet.md)
+- [Where to Start](where_to_start.md)
 - [Effect Path API](effect/ch_intro.md)
   - [Quickstart](effect/quickstart.md)
   - [Core Paths](effect/effect_path_overview.md)
@@ -245,8 +246,8 @@
   - [Troubleshooting](tutorials/troubleshooting.md)
 
 - [Tooling](tooling/ch_intro.md)
-  - [Manual Gradle and Maven Setup](tooling/manual_setup.md)
   - [Build Plugins](tooling/gradle_plugin.md)
+  - [Manual Gradle and Maven Setup](tooling/manual_setup.md)
   - [Compile-Time Checks](tooling/compile_checks.md)
   - [Diagnostics](tooling/diagnostics.md)
   - [Traversal Generator Plugins](tooling/generator_plugins.md)

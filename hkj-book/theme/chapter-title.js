@@ -9,6 +9,7 @@
   const CHAPTER_INTRO_PATHS = [
     '/quickstart.html',
     '/cheatsheet.html',
+    '/where_to_start.html',
     '/effect/ch_intro.html',
     '/optics/ch_intro.html',
     '/transformers/ch_intro.html',
