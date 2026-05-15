@@ -46,7 +46,7 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 
 ---
 
-### Path B: Quick Start
+### Path B: Quickstart
 *Get productive with Higher-Kinded-J quickly.*
 
 | Session | Journey | Duration |

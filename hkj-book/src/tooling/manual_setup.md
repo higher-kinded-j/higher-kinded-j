@@ -6,7 +6,7 @@
 - Snapshot repository configuration for both build tools
 ~~~
 
-Most projects should use the [HKJ build plugin](gradle_plugin.md) covered in the next chapter -- a single line replaces all the boilerplate below. This page documents the full manual configuration for projects that cannot use the plugin (constrained environments, in-house build frameworks, or plugins that conflict with the HKJ plugin).
+Most projects should use the [HKJ build plugin](gradle_plugin.md) -- a single line replaces all the boilerplate below. This page documents the full manual configuration for the projects that cannot use the plugin (constrained environments, in-house build frameworks, or plugins that conflict with the HKJ plugin). If the plugin is an option for you, start there instead.
 
 ---
 
@@ -138,5 +138,5 @@ The [HKJ build plugin](gradle_plugin.md) handles all of the above -- dependencie
 
 ---
 
-**Previous:** [Tooling](ch_intro.md)
-**Next:** [Build Plugins](gradle_plugin.md)
+**Previous:** [Build Plugins](gradle_plugin.md)
+**Next:** [Compile-Time Checks](compile_checks.md)

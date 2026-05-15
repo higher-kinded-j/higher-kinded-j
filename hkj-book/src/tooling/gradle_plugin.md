@@ -246,5 +246,5 @@ Projects that cannot apply the Maven plugin should see [Manual Gradle and Maven 
 
 ---
 
-**Previous:** [Manual Gradle and Maven Setup](manual_setup.md)
-**Next:** [Compile-Time Checks](compile_checks.md)
+**Previous:** [Tooling](ch_intro.md)
+**Next:** [Manual Gradle and Maven Setup](manual_setup.md)

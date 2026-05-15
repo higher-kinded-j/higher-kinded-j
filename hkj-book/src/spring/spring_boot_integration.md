@@ -30,7 +30,7 @@ The **hkj-spring-boot-starter** solves these problems by bringing functional pro
 
 ---
 
-## Quick Start {#quick-start}
+## Quickstart {#quickstart}
 
 ### Step 1: Add the Dependency
 
@@ -52,6 +52,64 @@ Or with Maven:
     <version>LATEST_VERSION</version>
 </dependency>
 ```
+
+#### Recommended: align versions with the BOM
+
+A Spring project usually pulls in more than the starter alone -- typically
+`hkj-core` for the Path types your services return, and `hkj-test` for the
+AssertJ helpers in your slice tests. Importing the `hkj-bom` platform pins
+all HKJ modules to one consistent version, so you declare the version once
+and leave it off every individual dependency.
+
+```gradle
+// build.gradle.kts
+dependencies {
+    implementation(platform("io.github.higher-kinded-j:hkj-bom:LATEST_VERSION"))
+
+    implementation("io.github.higher-kinded-j:hkj-spring-boot-starter")
+    implementation("io.github.higher-kinded-j:hkj-core")
+    testImplementation("io.github.higher-kinded-j:hkj-test")
+}
+```
+
+Or with Maven:
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>io.github.higher-kinded-j</groupId>
+            <artifactId>hkj-bom</artifactId>
+            <version>LATEST_VERSION</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+~~~admonish tip title="Already using the HKJ build plugin?"
+The [HKJ Gradle and Maven plugins](../tooling/gradle_plugin.md) import the
+BOM for you and add the starter when Spring integration is enabled, so you
+do not need the version management above. This BOM snippet is for Spring
+projects that wire HKJ in by hand.
+~~~
 
 ### Step 2: Return Functional Types from Controllers
 

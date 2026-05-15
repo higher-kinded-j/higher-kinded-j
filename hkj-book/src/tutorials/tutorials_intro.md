@@ -181,7 +181,7 @@ Tutorial tests are **excluded** from `./gradlew test` because they are incomplet
 
 See the full [Learning Paths](learning_paths.md) guide for detailed sequences. A quick overview:
 
-### Quick Start (2 sessions)
+### Quickstart (2 sessions)
 [Core: Foundations](coretypes/foundations_journey.md) → [Effect API](effect/effect_journey.md)
 
 ### Practical FP (4 sessions)

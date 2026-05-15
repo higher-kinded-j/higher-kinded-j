@@ -208,5 +208,5 @@ In these cases, the checker silently skips the check. Runtime type checking in t
 
 ---
 
-**Previous:** [Build Plugins](gradle_plugin.md)
+**Previous:** [Manual Gradle and Maven Setup](manual_setup.md)
 **Next:** [Diagnostics](diagnostics.md)
