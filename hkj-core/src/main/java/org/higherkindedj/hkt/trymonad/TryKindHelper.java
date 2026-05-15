@@ -63,9 +63,7 @@ public enum TryKindHelper implements TryConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind, TRY_CLASS, TryHolder.class, holder -> ((TryHolder<A>) holder).tryInstance());
+    return Validation.kind().narrowHolder(kind, TRY_CLASS, TryHolder.class, TryHolder::tryInstance);
   }
 
   /**

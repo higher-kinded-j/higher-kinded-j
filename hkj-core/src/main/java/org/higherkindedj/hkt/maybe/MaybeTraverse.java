@@ -27,8 +27,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     return MAYBE.widen(MAYBE.narrow(fa).map(f));
   }

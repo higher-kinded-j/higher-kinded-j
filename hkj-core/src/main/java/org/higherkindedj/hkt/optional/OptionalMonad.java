@@ -117,8 +117,7 @@ public class OptionalMonad extends OptionalFunctor
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()

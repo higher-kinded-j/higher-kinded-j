@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -35,8 +34,7 @@ public class TryFunctor implements Functor<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);

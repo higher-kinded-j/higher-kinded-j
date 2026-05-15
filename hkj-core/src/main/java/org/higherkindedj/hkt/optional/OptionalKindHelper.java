@@ -71,10 +71,6 @@ public enum OptionalKindHelper implements OptionalConverterOps {
   @SuppressWarnings("unchecked")
   public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            OPTIONAL_CLASS,
-            OptionalHolder.class,
-            holder -> ((OptionalHolder<A>) holder).optional());
+        .narrowHolder(kind, OPTIONAL_CLASS, OptionalHolder.class, OptionalHolder::optional);
   }
 }

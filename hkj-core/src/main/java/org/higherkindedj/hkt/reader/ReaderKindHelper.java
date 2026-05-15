@@ -79,11 +79,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
   @SuppressWarnings("unchecked")
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            READER_CLASS,
-            ReaderHolder.class,
-            holder -> ((ReaderHolder<R, A>) holder).reader());
+        .narrowHolder(kind, READER_CLASS, ReaderHolder.class, ReaderHolder::reader);
   }
 
   /**

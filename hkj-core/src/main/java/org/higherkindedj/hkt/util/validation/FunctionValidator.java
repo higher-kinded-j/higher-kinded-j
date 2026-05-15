@@ -6,6 +6,7 @@ import static java.util.Objects.isNull;
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.FOLD_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.HANDLE_ERROR_WITH;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.TRAVERSE;
 
 import java.util.Objects;
@@ -18,10 +19,20 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 
 /**
- * Handles function parameter validations in monad operations.
+ * Handles parameter validations in monad operations.
  *
- * <p>This validator ensures consistent error messaging for function parameters across all monad
- * operations, preventing confusion about which operation failed and why.
+ * <p>Despite the name, this validator is used for any reference parameter that participates in a
+ * monad/functor/applicative operation — functions, monoids, error values, optics, applicatives,
+ * etc. The error message format is parameter-name-led so it reads correctly for any of these:
+ *
+ * <ul>
+ *   <li>{@code require(f, "f", FLAT_MAP)} → {@code "f for flatMap cannot be null"}
+ *   <li>{@code require(monoid, "monoid", OF)} → {@code "monoid for of cannot be null"}
+ *   <li>{@code require(optic, "optic", LIFT_F)} → {@code "optic for liftF cannot be null"}
+ * </ul>
+ *
+ * <p>The class name is retained for source compatibility; if a more neutral name is wanted, an
+ * alias may be introduced in a future release.
  */
 public enum FunctionValidator {
   FUNCTION_VALIDATOR;
@@ -34,21 +45,22 @@ public enum FunctionValidator {
    * @param operation The operation name
    * @param <T> The function type
    * @return The validated function
-   * @throws NullPointerException with context-specific message if function is null Example usage:
+   * @throws NullPointerException with context-specific message if the parameter is null
+   *     <p>Example usage:
    *     <pre>
-   * Validation.functionValidator().require(fn, "runStateTFn", CONSTRUCTION);
-   * // Error: "function runStateTFn for construction cannot be null"
-   *  </pre>
+   * Validation.function().require(fn, "runStateTFn", CONSTRUCTION);
+   * // Error: "runStateTFn for construction cannot be null"
+   *     </pre>
    */
-  public <T> T require(T function, String functionName, Operation operation) {
-    Objects.requireNonNull(functionName, "functionName cannot be null");
+  public <T> T require(T parameter, String parameterName, Operation operation) {
+    Objects.requireNonNull(parameterName, "parameterName cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    if (function == null) {
+    if (parameter == null) {
       throw new NullPointerException(
-          new FunctionContext(functionName, operation.toString()).nullParameterMessage());
+          new FunctionContext(parameterName, operation.toString()).nullParameterMessage());
     }
-    return function;
+    return parameter;
   }
 
   /**
@@ -81,6 +93,24 @@ public enum FunctionValidator {
 
   // ==================== Bulk Validation Helpers ====================
   // These methods reduce boilerplate by combining multiple validations into single calls.
+
+  /**
+   * Validates all parameters for a map operation in a single call.
+   *
+   * <p>This combines function and Kind validation, reducing boilerplate in Functor implementations.
+   *
+   * @param f the mapping function (must be non-null)
+   * @param fa the input Kind (must be non-null)
+   * @param <F> the functor type constructor
+   * @param <A> input type
+   * @param <B> output type
+   * @throws NullPointerException if f or fa is null
+   */
+  public <F extends WitnessArity<?>, A, B> void validateMap(
+      Function<? super A, ? extends B> f, Kind<F, A> fa) {
+    require(f, "f", MAP);
+    Validation.kind().requireNonNull(fa, MAP);
+  }
 
   /**
    * Validates all parameters for a flatMap operation in a single call.
@@ -162,6 +192,11 @@ public enum FunctionValidator {
     require(handler, "handler", HANDLE_ERROR_WITH);
   }
 
+  /**
+   * Context record for parameter validation. Despite the legacy field name {@code functionName},
+   * this carries the name of any reference parameter (function, monoid, error, etc.) — the
+   * generated message is parameter-name-led, e.g. {@code "f for flatMap cannot be null"}.
+   */
   public record FunctionContext(String functionName, String operation) {
 
     public FunctionContext {
@@ -170,7 +205,7 @@ public enum FunctionValidator {
     }
 
     public String nullParameterMessage() {
-      return String.format("Function %s for %s cannot be null", functionName, operation);
+      return String.format("%s for %s cannot be null", functionName, operation);
     }
   }
 }

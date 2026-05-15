@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.function.Function;
@@ -53,8 +52,7 @@ public class VTaskFunctor implements Functor<VTaskKind.Witness> {
   public <A, B> Kind<VTaskKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<VTaskKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     VTask<A> vtaskA = VTASK.narrow(fa);
     VTask<B> vtaskB = vtaskA.map(f);

@@ -67,11 +67,7 @@ public enum TrampolineKindHelper implements TrampolineConverterOps {
   @SuppressWarnings("unchecked")
   public <A> Trampoline<A> narrow(@Nullable Kind<TrampolineKind.Witness, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            TRAMPOLINE_CLASS,
-            TrampolineHolder.class,
-            holder -> ((TrampolineHolder<A>) holder).trampoline());
+        .narrowHolder(kind, TRAMPOLINE_CLASS, TrampolineHolder.class, TrampolineHolder::trampoline);
   }
 
   /**

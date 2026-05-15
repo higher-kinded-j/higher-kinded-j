@@ -134,8 +134,7 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
   public <A, B> Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 

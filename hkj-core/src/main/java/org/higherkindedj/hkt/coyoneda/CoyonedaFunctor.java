@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.coyoneda;
 
 import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -88,8 +87,7 @@ public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A, B> Kind<CoyonedaKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<CoyonedaKind.Witness<F>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Coyoneda<F, A> coyoneda = COYONEDA.narrow(fa);
     Coyoneda<F, B> mapped = coyoneda.map(f);

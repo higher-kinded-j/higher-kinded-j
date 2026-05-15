@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.util.validation;
 
 import java.util.Objects;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
@@ -24,32 +26,75 @@ public enum TransformerValidator {
    *
    * @param monad The outer monad to validate
    * @param transformerClass The class of the transformer (e.g., StateT.class, OptionalT.class)
-   * @param methodName The method name for error context (e.g., "construction", "lift", "map")
+   * @param operation The {@link Operation} for error context (e.g., {@code CONSTRUCTION}, {@code
+   *     LIFT_F}, {@code MAP})
    * @param <F> The monad witness type
    * @return The validated monad
    * @throws NullPointerException with context-specific message if monad is null
    *     <p>Example usage:
    *     <pre>
    * // In constructor
-   * DomainValidator.requireOuterMonad(monadF, StateT.class, "construction");
+   * Validation.transformer().requireOuterMonad(monadF, StateT.class, CONSTRUCTION);
    * // Error: "Outer Monad cannot be null for StateT construction"
    *
    * // In factory method
-   * DomainValidator.requireOuterMonad(outerMonad, OptionalT.class, "lift");
-   * // Error: "Outer Monad cannot be null for OptionalT.lift"
+   * Validation.transformer().requireOuterMonad(outerMonad, OptionalT.class, LIFT_F);
+   * // Error: "Outer Monad cannot be null for OptionalT liftF"
    * </pre>
    */
   public <F extends WitnessArity<TypeArity.Unary>> Monad<F> requireOuterMonad(
-      Monad<F> monad, Class<?> transformerClass, Operation methodName) {
+      Monad<F> monad, Class<?> transformerClass, Operation operation) {
 
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
-    Objects.requireNonNull(methodName, "methodName cannot be null");
+    Objects.requireNonNull(operation, "operation cannot be null");
 
     String transformerName = transformerClass.getSimpleName();
-    String context = transformerName + " " + methodName;
+    String context = transformerName + " " + operation;
 
     var domainContext = new DomainContext("Outer Monad", context);
     return Objects.requireNonNull(monad, domainContext.nullParameterMessage());
+  }
+
+  /**
+   * Validates the outer applicative for transformer construction.
+   *
+   * @param applicative The outer applicative to validate
+   * @param transformerClass The class of the transformer
+   * @param operation The {@link Operation} for error context
+   * @param <F> The applicative witness type
+   * @return The validated applicative
+   * @throws NullPointerException if applicative is null
+   */
+  public <F extends WitnessArity<TypeArity.Unary>> Applicative<F> requireOuterApplicative(
+      Applicative<F> applicative, Class<?> transformerClass, Operation operation) {
+
+    Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
+    Objects.requireNonNull(operation, "operation cannot be null");
+
+    String context = transformerClass.getSimpleName() + " " + operation;
+    var domainContext = new DomainContext("Outer Applicative", context);
+    return Objects.requireNonNull(applicative, domainContext.nullParameterMessage());
+  }
+
+  /**
+   * Validates the outer functor for transformer construction.
+   *
+   * @param functor The outer functor to validate
+   * @param transformerClass The class of the transformer
+   * @param operation The {@link Operation} for error context
+   * @param <F> The functor witness type
+   * @return The validated functor
+   * @throws NullPointerException if functor is null
+   */
+  public <F extends WitnessArity<TypeArity.Unary>> Functor<F> requireOuterFunctor(
+      Functor<F> functor, Class<?> transformerClass, Operation operation) {
+
+    Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
+    Objects.requireNonNull(operation, "operation cannot be null");
+
+    String context = transformerClass.getSimpleName() + " " + operation;
+    var domainContext = new DomainContext("Outer Functor", context);
+    return Objects.requireNonNull(functor, domainContext.nullParameterMessage());
   }
 
   /**
@@ -61,29 +106,30 @@ public enum TransformerValidator {
    * @param component The component to validate
    * @param componentName The name of the component (e.g., "inner Optional", "state function")
    * @param transformerClass The class of the transformer (e.g., OptionalT.class, StateT.class)
-   * @param methodName The method name for context (e.g., "fromOptional", "create")
+   * @param operation The {@link Operation} for context (e.g., {@code FROM_OPTIONAL}, {@code
+   *     CONSTRUCTION})
    * @param <T> The component type
    * @return The validated component
    * @throws NullPointerException with descriptive message if component is null
    *     <p>Example usage:
    *     <pre>
-   * DomainValidator.requireTransformerComponent(
+   * Validation.transformer().requireTransformerComponent(
    *     optional,
    *     "inner Optional",
    *     OptionalT.class,
-   *     "fromOptional"
+   *     FROM_OPTIONAL
    * );
    * // Error: "inner Optional cannot be null for OptionalT.fromOptional"
    * </pre>
    */
   public <T> T requireTransformerComponent(
-      T component, String componentName, Class<?> transformerClass, Operation methodName) {
+      T component, String componentName, Class<?> transformerClass, Operation operation) {
 
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
-    Objects.requireNonNull(methodName, "methodName cannot be null");
+    Objects.requireNonNull(operation, "operation cannot be null");
 
     String transformerName = transformerClass.getSimpleName();
-    String fullContext = transformerName + "." + methodName;
+    String fullContext = transformerName + "." + operation;
 
     var context = DomainContext.transformer(fullContext);
 

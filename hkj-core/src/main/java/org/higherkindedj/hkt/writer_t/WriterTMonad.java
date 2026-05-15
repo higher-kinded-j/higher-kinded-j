@@ -78,8 +78,7 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
   @Override
   public <A, B> Kind<WriterTKind.Witness<F, W>, B> map(
       Function<? super A, ? extends B> f, Kind<WriterTKind.Witness<F, W>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     WriterT<F, W, A> writerT = WRITER_T.narrow(fa);
     Kind<F, Pair<B, W>> mapped =

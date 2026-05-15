@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.constant;
 
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 import static org.higherkindedj.hkt.util.validation.Operation.AP;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP_2;
 
 import java.util.function.BiFunction;
@@ -105,8 +104,7 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   public <A, B> Kind<ConstKind.Witness<M>, B> map(
       Function<? super A, ? extends B> f, Kind<ConstKind.Witness<M>, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     // Since A is phantom in Const<M, A>, we can safely change the type parameter
     // The actual value (type M) remains unchanged

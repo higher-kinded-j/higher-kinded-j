@@ -35,7 +35,7 @@ class ResourceTest {
     void makeValidatesNonNullAcquire() {
       assertThatNullPointerException()
           .isThrownBy(() -> Resource.make(null, s -> {}))
-          .withMessageContaining("acquire must not be null");
+          .withMessageContaining("acquire for");
     }
 
     @Test
@@ -43,7 +43,7 @@ class ResourceTest {
     void makeValidatesNonNullRelease() {
       assertThatNullPointerException()
           .isThrownBy(() -> Resource.make(() -> "test", null))
-          .withMessageContaining("release must not be null");
+          .withMessageContaining("release for");
     }
 
     @Test
@@ -66,7 +66,7 @@ class ResourceTest {
     void fromAutoCloseableValidatesNonNullAcquire() {
       assertThatNullPointerException()
           .isThrownBy(() -> Resource.fromAutoCloseable(null))
-          .withMessageContaining("acquire must not be null");
+          .withMessageContaining("acquire for");
     }
 
     @Test
@@ -156,7 +156,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.use(null))
-          .withMessageContaining("f must not be null");
+          .withMessageContaining("f for");
     }
 
     @Test
@@ -167,9 +167,7 @@ class ResourceTest {
 
       VTask<String> task = resource.use(r -> null);
 
-      assertThatNullPointerException()
-          .isThrownBy(task::run)
-          .withMessageContaining("must not return null");
+      assertThatNullPointerException().isThrownBy(task::run).withMessageContaining("returned null");
       assertThat(released).isTrue(); // Resource should still be released
     }
 
@@ -180,7 +178,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.useSync(null))
-          .withMessageContaining("f must not be null");
+          .withMessageContaining("f for");
     }
 
     @Test
@@ -240,7 +238,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.map(null))
-          .withMessageContaining("f must not be null");
+          .withMessageContaining("f for");
     }
 
     @Test
@@ -349,7 +347,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.flatMap(null))
-          .withMessageContaining("f must not be null");
+          .withMessageContaining("f for");
     }
 
     @Test
@@ -412,7 +410,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> chained.useSync(s -> s).run())
-          .withMessageContaining("must not return null");
+          .withMessageContaining("returned null");
       assertThat(released).isTrue();
     }
 
@@ -526,7 +524,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.and(null))
-          .withMessageContaining("other must not be null");
+          .withMessageContaining("other for");
     }
 
     @Test
@@ -714,7 +712,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> first.and(null, third))
-          .withMessageContaining("second must not be null");
+          .withMessageContaining("second for");
     }
 
     @Test
@@ -725,7 +723,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> first.and(second, null))
-          .withMessageContaining("third must not be null");
+          .withMessageContaining("third for");
     }
 
     @Test
@@ -997,7 +995,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.withFinalizer(null))
-          .withMessageContaining("finalizer must not be null");
+          .withMessageContaining("finalizer for");
     }
 
     @Test
@@ -1007,7 +1005,7 @@ class ResourceTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.onFailure(null))
-          .withMessageContaining("onFailure must not be null");
+          .withMessageContaining("onFailure for");
     }
 
     @Test

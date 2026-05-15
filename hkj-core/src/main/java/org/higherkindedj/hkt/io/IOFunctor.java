@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.*;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
@@ -49,8 +48,7 @@ public class IOFunctor implements Functor<IOKind.Witness> {
   public <A, B> Kind<IOKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<IOKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     IO<A> ioA = IO_OP.narrow(fa);
     IO<B> ioB = ioA.map(f);

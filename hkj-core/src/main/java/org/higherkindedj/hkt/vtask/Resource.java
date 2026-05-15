@@ -2,10 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * A functional resource type that guarantees cleanup via the bracket pattern.
@@ -93,8 +99,8 @@ public final class Resource<A> {
    * @throws NullPointerException if acquire or release is null
    */
   public static <A> Resource<A> make(Callable<A> acquire, Consumer<A> release) {
-    Objects.requireNonNull(acquire, "acquire must not be null");
-    Objects.requireNonNull(release, "release must not be null");
+    Validation.function().require(acquire, "acquire", CONSTRUCTION);
+    Validation.function().require(release, "release", CONSTRUCTION);
     return new Resource<>(acquire, release);
   }
 
@@ -109,7 +115,7 @@ public final class Resource<A> {
    * @throws NullPointerException if acquire is null
    */
   public static <A extends AutoCloseable> Resource<A> fromAutoCloseable(Callable<A> acquire) {
-    Objects.requireNonNull(acquire, "acquire must not be null");
+    Validation.function().require(acquire, "acquire", CONSTRUCTION);
     return new Resource<>(
         acquire,
         resource -> {
@@ -156,13 +162,13 @@ public final class Resource<A> {
    * @throws NullPointerException if f is null
    */
   public <B> VTask<B> use(Function<? super A, ? extends VTask<B>> f) {
-    Objects.requireNonNull(f, "f must not be null");
+    Validation.function().require(f, "f", FLAT_MAP);
 
     return () -> {
       A resource = acquire.call();
       try {
         VTask<B> task = f.apply(resource);
-        Objects.requireNonNull(task, "function must not return null");
+        Objects.requireNonNull(task, "f returned null in Resource.use, which is not allowed");
         return task.execute();
       } finally {
         release.accept(resource);
@@ -181,7 +187,7 @@ public final class Resource<A> {
    * @throws NullPointerException if f is null
    */
   public <B> VTask<B> useSync(Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "f must not be null");
+    Validation.function().require(f, "f", MAP);
     return use(a -> VTask.succeed(f.apply(a)));
   }
 
@@ -199,7 +205,7 @@ public final class Resource<A> {
    * @throws NullPointerException if f is null
    */
   public <B> Resource<B> map(Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "f must not be null");
+    Validation.function().require(f, "f", MAP);
 
     // Use a holder to capture the original resource for release
     @SuppressWarnings("unchecked")
@@ -232,7 +238,7 @@ public final class Resource<A> {
    * @throws NullPointerException if f is null
    */
   public <B> Resource<B> flatMap(Function<? super A, ? extends Resource<B>> f) {
-    Objects.requireNonNull(f, "f must not be null");
+    Validation.function().require(f, "f", FLAT_MAP);
 
     // Holders to capture the outer resource and inner release for proper cleanup
     @SuppressWarnings("unchecked")
@@ -246,7 +252,8 @@ public final class Resource<A> {
           outerHolder[0] = a;
           try {
             Resource<B> resourceB = f.apply(a);
-            Objects.requireNonNull(resourceB, "function must not return null");
+            Objects.requireNonNull(
+                resourceB, "f returned null in Resource.flatMap, which is not allowed");
             innerReleaseHolder[0] = resourceB.release;
             return resourceB.acquire.call();
           } catch (Throwable t) {
@@ -302,7 +309,7 @@ public final class Resource<A> {
    * @throws NullPointerException if other is null
    */
   public <B> Resource<Par.Tuple2<A, B>> and(Resource<B> other) {
-    Objects.requireNonNull(other, "other must not be null");
+    Validation.function().require(other, "other", AP);
 
     return new Resource<>(
         () -> {
@@ -352,8 +359,8 @@ public final class Resource<A> {
    * @throws NullPointerException if second or third is null
    */
   public <B, C> Resource<Par.Tuple3<A, B, C>> and(Resource<B> second, Resource<C> third) {
-    Objects.requireNonNull(second, "second must not be null");
-    Objects.requireNonNull(third, "third must not be null");
+    Validation.function().require(second, "second", AP);
+    Validation.function().require(third, "third", AP);
 
     return new Resource<>(
         () -> {
@@ -422,7 +429,7 @@ public final class Resource<A> {
    * @throws NullPointerException if finalizer is null
    */
   public Resource<A> withFinalizer(Runnable finalizer) {
-    Objects.requireNonNull(finalizer, "finalizer must not be null");
+    Validation.function().require(finalizer, "finalizer", CONSTRUCTION);
 
     return new Resource<>(
         acquire,
@@ -444,7 +451,7 @@ public final class Resource<A> {
    * @return a Resource with failure cleanup added
    */
   public Resource<A> onFailure(Consumer<? super A> onFailure) {
-    Objects.requireNonNull(onFailure, "onFailure must not be null");
+    Validation.function().require(onFailure, "onFailure", CONSTRUCTION);
 
     return new Resource<>(acquire, release);
     // Note: Full implementation would track failure state in use()

@@ -65,8 +65,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, B> Kind<EitherKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<E>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Either<E, A> either = EITHER.narrow(fa);
     Either<E, B> resultEither = either.map(f);

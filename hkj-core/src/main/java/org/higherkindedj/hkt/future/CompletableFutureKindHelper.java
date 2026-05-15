@@ -69,11 +69,11 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
   @SuppressWarnings("unchecked")
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
+        .narrowHolder(
             kind,
             COMPLETABLE_FUTURE_CLASS,
             CompletableFutureHolder.class,
-            holder -> ((CompletableFutureHolder<A>) holder).future());
+            CompletableFutureHolder::future);
   }
 
   /**

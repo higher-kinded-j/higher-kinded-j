@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.trampoline;
 
 import static org.higherkindedj.hkt.trampoline.TrampolineKindHelper.TRAMPOLINE;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -61,8 +60,7 @@ public class TrampolineFunctor implements Functor<TrampolineKind.Witness> {
   public <A, B> Kind<TrampolineKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TrampolineKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Trampoline<A> trampolineA = TRAMPOLINE.narrow(fa);
     Trampoline<B> resultTrampoline = trampolineA.map(f);

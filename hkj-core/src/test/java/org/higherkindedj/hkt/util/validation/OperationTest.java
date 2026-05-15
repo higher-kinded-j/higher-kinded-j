@@ -96,7 +96,9 @@ class OperationTest {
         Arguments.of(MAP_FOURTH, "mapFourth"),
         Arguments.of(MAP_FIFTH, "mapFifth"),
         Arguments.of(MAP_ERROR, "mapError"),
-        Arguments.of(MAP_WRITTEN, "mapWritten"));
+        Arguments.of(MAP_WRITTEN, "mapWritten"),
+        Arguments.of(WIDEN, "widen"),
+        Arguments.of(NARROW, "narrow"));
   }
 
   @Test

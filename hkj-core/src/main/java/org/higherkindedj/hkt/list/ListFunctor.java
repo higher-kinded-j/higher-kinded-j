@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,8 +71,7 @@ class ListFunctor implements Functor<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     List<A> listA = LIST.narrow(fa);
     List<B> listB = new ArrayList<>(listA.size());

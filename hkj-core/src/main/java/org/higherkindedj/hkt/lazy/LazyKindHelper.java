@@ -63,8 +63,7 @@ public enum LazyKindHelper implements LazyConverterOps {
   @SuppressWarnings("unchecked")
   public <A> Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind, LAZY_CLASS, LazyHolder.class, holder -> ((LazyHolder<A>) holder).lazyInstance());
+        .narrowHolder(kind, LAZY_CLASS, LazyHolder.class, LazyHolder::lazyInstance);
   }
 
   /**

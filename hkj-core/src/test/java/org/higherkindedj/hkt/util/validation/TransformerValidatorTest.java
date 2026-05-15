@@ -70,12 +70,12 @@ class TransformerValidatorTest {
     }
 
     @Test
-    @DisplayName("should throw NullPointerException when method name is null")
-    void shouldThrowWhenMethodNameIsNull() {
+    @DisplayName("should throw NullPointerException when operation is null")
+    void shouldThrowWhenOperationIsNull() {
       assertThatNullPointerException()
           .isThrownBy(
               () -> Validation.transformer().requireOuterMonad(TEST_MONAD, StateT.class, null))
-          .withMessage("methodName cannot be null");
+          .withMessage("operation cannot be null");
     }
   }
 
@@ -155,15 +155,15 @@ class TransformerValidatorTest {
     }
 
     @Test
-    @DisplayName("should throw NullPointerException when method name is null")
-    void shouldThrowWhenMethodNameIsNull() {
+    @DisplayName("should throw NullPointerException when operation is null")
+    void shouldThrowWhenOperationIsNull() {
       assertThatNullPointerException()
           .isThrownBy(
               () ->
                   Validation.transformer()
                       .requireTransformerComponent(
                           "component", "inner Optional", OptionalT.class, null))
-          .withMessage("methodName cannot be null");
+          .withMessage("operation cannot be null");
     }
 
     @Test

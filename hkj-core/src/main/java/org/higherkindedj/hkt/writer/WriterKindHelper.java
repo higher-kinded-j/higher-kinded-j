@@ -89,11 +89,7 @@ public enum WriterKindHelper implements WriterConverterOps {
   @SuppressWarnings("unchecked")
   public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            WRITER_CLASS,
-            WriterHolder.class,
-            holder -> ((WriterHolder<W, A>) holder).writer());
+        .narrowHolder(kind, WRITER_CLASS, WriterHolder.class, WriterHolder::writer);
   }
 
   /**

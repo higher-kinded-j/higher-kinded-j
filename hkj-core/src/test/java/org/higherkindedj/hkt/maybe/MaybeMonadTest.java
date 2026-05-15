@@ -301,7 +301,7 @@ class MaybeMonadTest extends MaybeTestBase {
       Function<Integer, Kind<MaybeKind.Witness, String>> testValidFlatMapper =
           i -> MAYBE.widen(Maybe.just("flat:" + i));
       return Stream.of(
-          Arguments.of("Function f", testValidKind, null),
+          Arguments.of("f for", testValidKind, null),
           Arguments.of("Kind", null, testValidFlatMapper));
     }
 

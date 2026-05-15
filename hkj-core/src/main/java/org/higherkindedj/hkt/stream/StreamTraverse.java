@@ -169,8 +169,7 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
   public <A, B> Kind<StreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     return StreamFunctor.INSTANCE.map(f, fa);
   }

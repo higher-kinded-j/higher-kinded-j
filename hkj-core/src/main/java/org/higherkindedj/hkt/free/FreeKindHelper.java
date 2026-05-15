@@ -63,7 +63,6 @@ public enum FreeKindHelper {
   @SuppressWarnings("unchecked")
   public <F extends WitnessArity<TypeArity.Unary>, A> Free<F, A> narrow(
       @Nullable Kind<FreeKind.Witness<F>, A> kind) {
-    return Validation.kind()
-        .narrowWithPattern(kind, Free.class, FreeHolder.class, holder -> holder.free());
+    return Validation.kind().narrowHolder(kind, Free.class, FreeHolder.class, FreeHolder::free);
   }
 }

@@ -279,7 +279,7 @@ class EitherTMonadTest
 
       assertThatThrownBy(() -> eitherTMonad.ap(ff, fa))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage("Function mapper for map cannot be null");
+          .hasMessage("mapper for map cannot be null");
     }
 
     @Test

@@ -264,7 +264,7 @@ class StateTest extends StateTestBase<Integer> {
     void modifyThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.modify(null))
-          .withMessageContaining("Function f for modify cannot be null");
+          .withMessageContaining("f for modify cannot be null");
     }
 
     @Test
@@ -294,7 +294,7 @@ class StateTest extends StateTestBase<Integer> {
     void inspectThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.inspect(null))
-          .withMessageContaining("Function f for inspect cannot be null");
+          .withMessageContaining("f for inspect cannot be null");
     }
   }
 

@@ -82,11 +82,7 @@ public enum ContextKindHelper implements ContextConverterOps {
   @SuppressWarnings("unchecked")
   public <R, A> Context<R, A> narrow(@Nullable Kind<ContextKind.Witness<R>, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            CONTEXT_CLASS,
-            ContextHolder.class,
-            holder -> ((ContextHolder<R, A>) holder).context());
+        .narrowHolder(kind, CONTEXT_CLASS, ContextHolder.class, ContextHolder::context);
   }
 
   /**

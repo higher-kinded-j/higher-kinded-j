@@ -38,8 +38,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
   }

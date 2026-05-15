@@ -78,11 +78,7 @@ public enum StateKindHelper implements StateConverterOps {
   @SuppressWarnings("unchecked")
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            STATE_CLASS,
-            StateHolder.class,
-            holder -> ((StateHolder<S, A>) holder).stateInstance());
+        .narrowHolder(kind, STATE_CLASS, StateHolder.class, StateHolder::stateInstance);
   }
 
   /**

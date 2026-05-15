@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -59,8 +58,7 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Maybe<A> maybeA = MAYBE.narrow(fa);
     Maybe<B> resultMaybe = maybeA.map(f);

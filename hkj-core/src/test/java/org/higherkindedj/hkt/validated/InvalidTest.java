@@ -341,7 +341,7 @@ class InvalidTest {
     void foldValidatesInvalidMapperIsNonNull() {
       assertThatThrownBy(() -> invalidInstance.fold(null, v -> "valid"))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function invalidMapper for fold cannot be null");
+          .hasMessageContaining("invalidMapper for fold cannot be null");
     }
 
     @Test
@@ -349,7 +349,7 @@ class InvalidTest {
     void foldValidatesValidMapperIsNonNull() {
       assertThatThrownBy(() -> invalidInstance.fold(e -> "invalid", null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function validMapper for fold cannot be null");
+          .hasMessageContaining("validMapper for fold cannot be null");
     }
   }
 
