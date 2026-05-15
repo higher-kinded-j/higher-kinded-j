@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vstream;
 
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.function.Function;
@@ -59,8 +58,7 @@ public class VStreamFunctor implements Functor<VStreamKind.Witness> {
   public <A, B> Kind<VStreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     VStream<A> stream = VSTREAM.narrow(fa);
     VStream<B> mapped = stream.map(f);

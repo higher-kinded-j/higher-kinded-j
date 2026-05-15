@@ -64,9 +64,7 @@ public enum ListKindHelper implements ListConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind, LIST_CLASS, ListHolder.class, holder -> ((ListHolder<A>) holder).list());
+    return Validation.kind().narrowHolder(kind, LIST_CLASS, ListHolder.class, ListHolder::list);
   }
 
   /**

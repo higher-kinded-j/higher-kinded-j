@@ -67,8 +67,7 @@ public enum IdTraverse implements Traverse<IdKind.Witness> {
   public <A, B> Kind<IdKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<IdKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     return ID.narrow(fa).map(f);
   }

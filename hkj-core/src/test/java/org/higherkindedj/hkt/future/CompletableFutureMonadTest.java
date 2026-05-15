@@ -360,7 +360,7 @@ class CompletableFutureMonadTest {
       assertThatThrownBy(() -> futureMonad.handleErrorWith(failedKind, null))
           .isInstanceOf(NullPointerException.class)
           .message()
-          .isEqualTo("Function handler for handleErrorWith cannot be null");
+          .isEqualTo("handler for handleErrorWith cannot be null");
     }
 
     @Test
@@ -1091,7 +1091,7 @@ class CompletableFutureMonadTest {
       Kind<CompletableFutureKind.Witness, Integer> input = futureMonad.of(1);
       assertThatThrownBy(() -> futureMonad.flatMap(null, input))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage("Function f for flatMap cannot be null");
+          .hasMessage("f for flatMap cannot be null");
     }
 
     @Test

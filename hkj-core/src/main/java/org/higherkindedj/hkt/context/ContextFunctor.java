@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.context;
 
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -67,8 +66,7 @@ public class ContextFunctor<R> implements Functor<ContextKind.Witness<R>> {
   public <A, B> Kind<ContextKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ContextKind.Witness<R>, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Context<R, A> contextA = CONTEXT.narrow(fa);
     Context<R, B> contextB = contextA.map(f);

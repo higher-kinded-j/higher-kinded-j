@@ -79,8 +79,7 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
   public <A, B> Kind<MaybeTKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeTKind.Witness<F>, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(fa);
     Kind<F, Maybe<B>> newValue = outerMonad.map(maybe -> maybe.map(f), maybeT.value());

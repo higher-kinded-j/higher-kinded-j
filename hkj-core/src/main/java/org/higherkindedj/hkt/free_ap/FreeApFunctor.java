@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.free_ap;
 
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -62,8 +61,7 @@ public class FreeApFunctor<F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A, B> Kind<FreeApKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<FreeApKind.Witness<F>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     FreeAp<F, A> freeAp = FREE_AP.narrow(fa);
     FreeAp<F, B> mapped = freeAp.map(f);

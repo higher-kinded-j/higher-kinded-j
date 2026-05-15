@@ -75,8 +75,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     return OPTIONAL.widen(OPTIONAL.narrow(fa).map(f));
   }

@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -61,8 +60,7 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
   public <A, B> Kind<StateKind.Witness<S>, B> map(
       Function<? super A, ? extends B> f, Kind<StateKind.Witness<S>, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     State<S, A> stateA = STATE.narrow(fa);
     State<S, B> stateB = stateA.map(f);

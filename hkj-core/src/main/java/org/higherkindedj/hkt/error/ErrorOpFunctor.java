@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.error;
 
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
-
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
@@ -39,8 +37,7 @@ public final class ErrorOpFunctor<E> implements Functor<ErrorOpKind.Witness<E>> 
   @SuppressWarnings("unchecked")
   public <A, B> Kind<ErrorOpKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ErrorOpKind.Witness<E>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
     // Safe cast: A is phantom in ErrorOp.Raise (the record holds only the error E, never a
     // value of type A). Changing A to B has no runtime effect — the data is unchanged.
     ErrorOp<E, A> op = ErrorOpKindHelper.ERROR_OP.narrow(fa);

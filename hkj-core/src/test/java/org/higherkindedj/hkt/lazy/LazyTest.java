@@ -412,7 +412,7 @@ class LazyTest extends LazyTestBase {
 
       assertThatNullPointerException()
           .isThrownBy(() -> lazy.flatMap(null))
-          .withMessageContaining("Function f for flatMap cannot be null");
+          .withMessageContaining("f for flatMap cannot be null");
     }
 
     @Test

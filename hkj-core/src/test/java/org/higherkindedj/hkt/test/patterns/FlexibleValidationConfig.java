@@ -178,7 +178,7 @@ public final class FlexibleValidationConfig {
       if (mapHasClassContext && mapContextClass != null) {
         assertThatThrownBy(() -> applicative.map(null, validKind))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Function " + mapFunctionName + " for map cannot be null");
+            .hasMessageContaining(mapFunctionName + " for map cannot be null");
 
         assertThatThrownBy(() -> applicative.map(validMapper, null))
             .isInstanceOf(NullPointerException.class)
@@ -186,7 +186,7 @@ public final class FlexibleValidationConfig {
       } else {
         assertThatThrownBy(() -> applicative.map(null, validKind))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Function " + mapFunctionName + " for map cannot be null");
+            .hasMessageContaining(mapFunctionName + " for map cannot be null");
 
         assertThatThrownBy(() -> applicative.map(validMapper, null))
             .isInstanceOf(NullPointerException.class)
@@ -353,8 +353,7 @@ public final class FlexibleValidationConfig {
       if (flatMapHasClassContext && flatMapContextClass != null) {
         assertThatThrownBy(() -> monad.flatMap(null, validKind))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(
-                "Function " + flatMapFunctionName + " for flatMap cannot be null");
+            .hasMessageContaining(flatMapFunctionName + " for flatMap cannot be null");
 
         assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
             .isInstanceOf(NullPointerException.class)
@@ -362,8 +361,7 @@ public final class FlexibleValidationConfig {
       } else {
         assertThatThrownBy(() -> monad.flatMap(null, validKind))
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining(
-                "Function " + flatMapFunctionName + " for flatMap cannot be null");
+            .hasMessageContaining(flatMapFunctionName + " for flatMap cannot be null");
 
         assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
             .isInstanceOf(NullPointerException.class)

@@ -66,8 +66,7 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
   public <A, B> Kind<VStreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<VStreamKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     return VStreamFunctor.INSTANCE.map(f, fa);
   }

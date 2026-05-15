@@ -82,8 +82,7 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> map(
       Function<? super R_IN, ? extends R_OUT> f, Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     EitherT<F, L, R_IN> eitherT = EITHER_T.narrow(fa);
     Kind<F, Either<L, R_OUT>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());

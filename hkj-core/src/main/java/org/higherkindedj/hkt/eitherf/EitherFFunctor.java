@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.eitherf;
 
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -77,8 +76,7 @@ public final class EitherFFunctor<
   @Override
   public <A, B> Kind<EitherFKind.Witness<F, G>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherFKind.Witness<F, G>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     EitherF<F, G, A> eitherF = EitherFKindHelper.EITHERF.narrow(fa);
     EitherF<F, G, B> mapped =

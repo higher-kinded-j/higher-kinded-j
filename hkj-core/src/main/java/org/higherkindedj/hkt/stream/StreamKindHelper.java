@@ -84,8 +84,7 @@ public enum StreamKindHelper implements StreamConverterOps {
   @SuppressWarnings("unchecked")
   public <A> Stream<A> narrow(@Nullable Kind<StreamKind.Witness, A> kind) {
     return Validation.kind()
-        .narrowWithPattern(
-            kind, STREAM_CLASS, StreamHolder.class, holder -> ((StreamHolder<A>) holder).stream());
+        .narrowHolder(kind, STREAM_CLASS, StreamHolder.class, StreamHolder::stream);
   }
 
   /**

@@ -2,7 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.free_ap;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD_MAP;
+import static org.higherkindedj.hkt.util.validation.Operation.LIFT_F;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP_2;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -13,6 +18,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Free Applicative functor for independent/parallel composition.
@@ -119,7 +125,7 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    */
   record Lift<F extends WitnessArity<TypeArity.Unary>, A>(Kind<F, A> fa) implements FreeAp<F, A> {
     public Lift {
-      requireNonNull(fa, "Lifted Kind cannot be null");
+      Validation.KIND.requireNonNull(fa, CONSTRUCTION, "Lift.fa");
     }
   }
 
@@ -138,8 +144,8 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
   record Ap<F extends WitnessArity<TypeArity.Unary>, X, A>(
       FreeAp<F, Function<X, A>> ff, FreeAp<F, X> fa) implements FreeAp<F, A> {
     public Ap {
-      requireNonNull(ff, "Function FreeAp cannot be null");
-      requireNonNull(fa, "Value FreeAp cannot be null");
+      Validation.FUNCTION.require(ff, "ff", CONSTRUCTION);
+      Validation.FUNCTION.require(fa, "fa", CONSTRUCTION);
     }
   }
 
@@ -165,7 +171,7 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    * @throws NullPointerException if fa is null
    */
   static <F extends WitnessArity<TypeArity.Unary>, A> FreeAp<F, A> lift(Kind<F, A> fa) {
-    requireNonNull(fa, "Kind to lift cannot be null");
+    Validation.KIND.requireNonNull(fa, LIFT_F);
     return new Lift<>(fa);
   }
 
@@ -178,7 +184,7 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    * @throws NullPointerException if f is null
    */
   default <B> FreeAp<F, B> map(Function<? super A, ? extends B> f) {
-    requireNonNull(f, "Map function cannot be null");
+    Validation.FUNCTION.require(f, "f", MAP);
     return ap(pure(f));
   }
 
@@ -194,7 +200,7 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    * @throws NullPointerException if ff is null
    */
   default <B> FreeAp<F, B> ap(FreeAp<F, ? extends Function<? super A, ? extends B>> ff) {
-    requireNonNull(ff, "Function FreeAp cannot be null");
+    Validation.FUNCTION.require(ff, "ff", AP);
     // Need to handle the variance carefully
     @SuppressWarnings("unchecked")
     FreeAp<F, Function<A, B>> safeFF = (FreeAp<F, Function<A, B>>) (FreeAp<F, ?>) ff;
@@ -215,8 +221,8 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    */
   default <B, C> FreeAp<F, C> map2(
       FreeAp<F, B> fb, BiFunction<? super A, ? super B, ? extends C> combine) {
-    requireNonNull(fb, "Second FreeAp cannot be null");
-    requireNonNull(combine, "Combine function cannot be null");
+    Validation.FUNCTION.require(fb, "fb", MAP_2);
+    Validation.FUNCTION.require(combine, "combine", MAP_2);
     return fb.ap(this.map(a -> b -> combine.apply(a, b)));
   }
 
@@ -250,8 +256,8 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    */
   default <G extends WitnessArity<TypeArity.Unary>> Kind<G, A> foldMap(
       Natural<F, G> transform, Applicative<G> applicative) {
-    requireNonNull(transform, "Natural transformation cannot be null");
-    requireNonNull(applicative, "Applicative cannot be null");
+    Validation.FUNCTION.require(transform, "transform", FOLD_MAP);
+    Validation.FUNCTION.require(applicative, "applicative", FOLD_MAP);
     return interpretFreeAp(this, transform, applicative);
   }
 
@@ -337,7 +343,7 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
    * @throws NullPointerException if applicative is null
    */
   default Kind<F, A> retract(Applicative<F> applicative) {
-    requireNonNull(applicative, "Applicative cannot be null");
+    Validation.FUNCTION.require(applicative, "applicative", FOLD_MAP);
     return foldMap(Natural.identity(), applicative);
   }
 }

@@ -272,7 +272,7 @@ class IOFunctorTest extends IOTestBase {
     void mapValidatesNullMapper() {
       assertThatThrownBy(() -> functor.map(null, validKind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function f for map cannot be null");
+          .hasMessageContaining("f for map cannot be null");
     }
 
     @Test

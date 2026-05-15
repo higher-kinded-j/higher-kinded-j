@@ -335,7 +335,7 @@ class TryMonadTest extends TryTestBase {
       Function<String, Kind<TryKind.Witness, Integer>> testValidFlatMapper =
           s -> TRY.widen(Try.success(s.length()));
       return Stream.of(
-          Arguments.of("Function f", testValidKind, null),
+          Arguments.of("f for", testValidKind, null),
           Arguments.of("Kind", null, testValidFlatMapper));
     }
 
@@ -358,7 +358,7 @@ class TryMonadTest extends TryTestBase {
           t -> TRY.widen(Try.success("recovered"));
       return Stream.of(
           Arguments.of("Kind", null, validHandler),
-          Arguments.of("Function handler", testValidKind, null));
+          Arguments.of("handler for", testValidKind, null));
     }
 
     @ParameterizedTest(name = "handleErrorWith validates {0} parameter is non-null")

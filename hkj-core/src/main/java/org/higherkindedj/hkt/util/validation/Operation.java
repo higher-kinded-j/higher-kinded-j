@@ -94,7 +94,9 @@ public enum Operation {
   LOCAL("local"),
   FROM_RUNNABLE("fromRunnable"),
   AND_THEN("andThen"),
-  COMPOSE("compose");
+  COMPOSE("compose"),
+  WIDEN("widen"),
+  NARROW("narrow");
 
   Operation(String label) {
     this.label = label;

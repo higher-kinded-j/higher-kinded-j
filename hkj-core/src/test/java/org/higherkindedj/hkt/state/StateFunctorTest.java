@@ -108,7 +108,7 @@ class StateFunctorTest extends StateTestBase<Integer> {
     void mapShouldValidateMapperIsNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(null, validKind))
-          .withMessageContaining("Function f for map cannot be null");
+          .withMessageContaining("f for map cannot be null");
     }
 
     @Test

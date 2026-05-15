@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_op;
 
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
-
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
@@ -34,8 +32,7 @@ public final class StateOpFunctor<S> implements Functor<StateOpKind.Witness<S>> 
   @Override
   public <A, B> Kind<StateOpKind.Witness<S>, B> map(
       Function<? super A, ? extends B> f, Kind<StateOpKind.Witness<S>, A> fa) {
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
     StateOp<S, A> op = StateOpKindHelper.STATE_OP.narrow(fa);
     return StateOpKindHelper.STATE_OP.widen(op.mapK(f));
   }

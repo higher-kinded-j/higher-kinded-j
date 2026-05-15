@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -72,8 +71,7 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
   public <A, B> Kind<CompletableFutureKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<CompletableFutureKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);

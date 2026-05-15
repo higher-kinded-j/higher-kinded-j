@@ -261,7 +261,7 @@ class ValidTest extends ValidatedTestBase {
     void mapValidatesMapperIsNonNull() {
       assertThatThrownBy(() -> validInstance.map(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function fn for map cannot be null");
+          .hasMessageContaining("fn for map cannot be null");
     }
 
     @Test

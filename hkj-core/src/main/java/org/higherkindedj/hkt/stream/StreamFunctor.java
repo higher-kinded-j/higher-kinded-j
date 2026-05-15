@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.stream;
 
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -112,8 +111,7 @@ class StreamFunctor implements Functor<StreamKind.Witness> {
   public <A, B> Kind<StreamKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.function().require(f, "f", MAP);
-    Validation.kind().requireNonNull(fa, MAP);
+    Validation.function().validateMap(f, fa);
 
     Stream<A> streamA = STREAM.narrow(fa);
     Stream<B> streamB = streamA.map(f);
