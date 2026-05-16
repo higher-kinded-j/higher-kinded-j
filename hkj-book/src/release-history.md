@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.3) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.4) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,28 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### v0.4.4 -- 16 May 2026
+
+**The hkj-test Module, PCollections Integration, and Type Class Enrichments**
+
+This release ships `hkj-test`, a new publishable module providing fluent AssertJ assertion helpers for every public Higher-Kinded-J type, validates and extends PCollections persistent-collection support across the HKT and optics infrastructure, enriches the type class hierarchy with `Alternative.orElseAll(Iterable)` and `MonadZero.filter`, makes `ForState.zoom` and `ReaderPath.magnify` optic-polymorphic, standardises the internal validation package, and refreshes the Tooling chapter to lead with the recommended build-plugin setup.
+
+- [hkj-test Module](tooling/test_assertions.md) -- New publishable module (`io.github.higher-kinded-j:hkj-test`) with 19 user-facing assertion classes covering the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the Reader/Writer/State trio, the effect types (`IO`, `VTask`, `VStream`), every monad transformer, and the `Free`/`EitherF` algebras. Published as a JPMS module (`org.higherkindedj.test`) so a single dependency declaration suffices; Java 25 with `--enable-preview` can `import module org.higherkindedj.test;` to bring every helper into scope. Backed by an `AssertContract<S, A>` contract-test framework holding the module at a 100% line+instruction coverage gate, plus a new `/hkj-test` Claude Code skill
+- [hkj-test Coverage Extension](tooling/test_assertions.md) -- Seven further assertion classes promoted from `hkj-core` test sources into the published artifact: the `List`/`OptionalKind`/`Stream`/`Id` Kind-narrowing wrappers (`assertThatList`, `assertThatOptionalKind`, `assertThatStream`, `assertThatId`) and the `VTaskPath`/`VStreamPath`/`VTaskContext` path-and-context assertions
+- [PCollections HKT Compatibility](tooling/pcollections_integration.md) -- Validates that PCollections persistent collections (`PVector`, `PStack`) work through the existing `ListKind`/`ListMonad`/`ListTraverse`/`ListSelective`/`Alternative` infrastructure via `java.util.List` compatibility with no production code changes, backed by integration tests, jQwik property tests for the Functor/Monad/Foldable laws, JMH benchmarks, and a runnable example
+- [PCollections Optics Generators](tooling/pcollections_optics.md) -- Seven `TraversableGenerator` plugins teaching `@GenerateTraversals` and `@GenerateFocus` to navigate PCollections types (`PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap` values, `PSortedMap` values); auto-discovered when `org.pcollections` is on the annotation-processor classpath. The generator ecosystem grows from 23 to 30 implementations
+- [Traversals.forMapValuesCollecting](optics/common_data_structure_traversals.md) -- Map-shaped companion to `forIterableCollecting`, with a bounded single-arg overload for `java.util.Map` subtypes (PCollections `PMap`/`PSortedMap`, Guava `ImmutableMap`) and an unbounded two-arg overload for non-`java.util.Map` types (Eclipse Collections, Vavr); `EachInstances.mapValuesEachCollecting` mirrors both for the Focus DSL
+- [Alternative.orElseAll(Iterable)](functional/alternative.md) -- Dynamically-sized counterpart to the existing varargs `orElseAll` and analogue of Haskell's `asum`/`msum`, folding an iterable of alternatives via `orElse`. `ListMonad` and `StreamMonad` override it to avoid O(n^2) result copying and deeply-nested `Stream.concat` chains while preserving lazy evaluation
+- [MonadZero.filter](functional/monad_zero.md) -- New default `filter(Predicate, Kind)` derived from `flatMap` + `of`/`zero`, with allocation-free `ListMonad`/`StreamMonad` overrides; the duplicated guard pattern is refactored out of `For.when`, `ForState.when`/`zoom`, and the `ForPath` comprehension builders to call `filter` directly
+- [Axes of Transformer Transformation](transformers/transformer_axes.md) -- `ForState.zoom` now accepts `FocusPath`, `AffinePath` (short-circuiting via `MonadZero.zero()` when the focus is absent), and `Iso` in addition to `Lens`; `ReaderPath` gains optic-aware `magnify(Getter)` and `magnify(FocusPath)` overloads alongside the existing `local(Function)` escape hatch. New chapter plus a `MagnifyServiceLayerExample` and Tutorial 05 (Optic-Polymorphic Zoom and Magnify)
+- Validation package standardised: the `Operation` enum gains `WIDEN`/`NARROW`/`OR_ELSE_ALL`/`FILTER`, `Validation` exposes `KIND`/`FUNCTION`/`TRANSFORMER`/`CORE` static fields, `FunctionValidator` gains `validateMap` (44 Functor/Monad sites migrated), and `KindValidator.narrowWithPattern` is `@Deprecated(forRemoval=true)` for removal in 0.5.0 in favour of the new `narrowHolder`
+
+### Documentation & Tutorial Improvements
+- [Build Plugins as the Documented Default](tooling/gradle_plugin.md) -- The Tooling chapter is reordered so [Build Plugins](tooling/gradle_plugin.md) leads as the recommended path and [Manual Setup](tooling/manual_setup.md) follows as the explicit fallback, with Previous/Next navigation rewired across the chapter to keep the sequence linear. The Spring Boot Quickstart gains an `hkj-bom` option (Gradle and Maven forms) so all HKJ module versions are declared once
+- [Where to Start](where_to_start.md) -- New task-first landing page that asks "what are you trying to do?" before routing to the chapter-level decision trees, with five top-level branches (failure/absence, nested data, async/IO, sequencing, polymorphic code) plus a Combining Tools section covering the most common cross-axis combinations
+
+---
 
 ### v0.4.3 -- 7 May 2026
 

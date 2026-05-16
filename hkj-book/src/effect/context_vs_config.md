@@ -221,18 +221,18 @@ If **no** → Use `ConfigContext` (or plain parameter passing)
 
 ## Detailed Comparison
 
-| Aspect | ConfigContext | Context |
-|--------|---------------|---------|
-| **Underlying mechanism** | `ReaderT` monad transformer | `ScopedValue` API |
-| **Java version required** | Any | Java 21+ (preview), Java 25+ (final) |
-| **Thread inheritance** | No (must pass explicitly) | Yes (automatic) |
-| **Scope definition** | `runWithSync(value)` call | `ScopedValue.where().run()` block |
+| Aspect | ConfigContext | Context                                   |
+|--------|---------------|-------------------------------------------|
+| **Underlying mechanism** | `ReaderT` monad transformer | `ScopedValue` API                         |
+| **Java version required** | Any | Java 25+ (preview)      |
+| **Thread inheritance** | No (must pass explicitly) | Yes (automatic)                           |
+| **Scope definition** | `runWithSync(value)` call | `ScopedValue.where().run()` block         |
 | **Multiple values** | Single `R` type (use record for multiple) | Multiple `ScopedValue`s, each independent |
-| **Type safety** | Compile-time via generics | Runtime via `ScopedValue.get()` |
-| **Effect integration** | Built-in (`IOKind.Witness`) | Convert with `toVTask()` |
-| **Composability** | Via `flatMap`, `map` | Via `flatMap`, `map` |
-| **Testing** | Pass mock at `runWithSync()` | Bind mock in `ScopedValue.where()` |
-| **Layer** | Layer 2 (Effect Context) | Core effect type |
+| **Type safety** | Compile-time via generics | Runtime via `ScopedValue.get()`           |
+| **Effect integration** | Built-in (`IOKind.Witness`) | Convert with `toVTask()`                  |
+| **Composability** | Via `flatMap`, `map` | Via `flatMap`, `map`                      |
+| **Testing** | Pass mock at `runWithSync()` | Bind mock in `ScopedValue.where()`        |
+| **Layer** | Layer 2 (Effect Context) | Core effect type                          |
 
 ---
 

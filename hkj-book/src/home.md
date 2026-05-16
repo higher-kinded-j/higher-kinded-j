@@ -264,6 +264,26 @@ public class UserController {
 
 ---
 
+## [Testing With hkj-test](tooling/test_assertions.md)
+
+The **hkj-test** module ships fluent AssertJ assertion helpers for every Higher-Kinded-J type, so tests read in the same vocabulary as the code under test. Add it as a test-scope dependency and assert directly on the railway:
+
+```java
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+
+assertThatEither(result).isRight().hasRight(42);
+assertThatMaybe(value).isJust().hasValue("hello");
+assertThatTry(computation).isFailure().hasExceptionOfType(IOException.class);
+```
+
+Coverage spans the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer, the `Free` / `EitherF` algebras, the `List` / `OptionalKind` / `Stream` / `Id` Kind-narrowing wrappers, and the `VTaskPath` / `VStreamPath` / `VTaskContext` Path-and-context assertions. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
+
+**[Explore hkj-test →](tooling/test_assertions.md)**
+
+---
+
 ## Getting Started
 
 Ready to start? See the **[Quickstart](quickstart.md)** for Gradle and Maven setup (including required Java 25 preview flags) and your first Effect Paths in 5 minutes.

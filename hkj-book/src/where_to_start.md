@@ -96,7 +96,7 @@ across threads, and you want a sane composition story.
 | Memoise a deferred computation | [`LazyPath`](monads/lazy_monad.md) |
 | Deeply recursive algorithm that would blow the stack | [`TrampolinePath`](effect/path_trampoline.md) |
 
-If you are starting a new service from scratch on Java 21+, default to
+If you are starting a new service from scratch, default to
 [`VTaskPath`](effect/path_vtask.md); it gives you virtual-thread
 concurrency without forcing the rest of your code reactive.
 
@@ -218,9 +218,7 @@ If none of the above fits, you are in one of these situations:
 - **A custom monad with no Path.** Use [`GenericPath<F, A>`](effect/path_generic.md)
   given a `Monad<F>` instance.
 - **You are extending the library itself with a new HKT.** Read
-  [Extending](hkts/extending-simulation.md) and the
-  [0.3.0 migration guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/MIGRATION-0.3.0.md)
-  for the witness arity contract.
+  [Extending](hkts/extending-simulation.md) for the witness arity contract.
 - **You are stuck on a compiler error and the type doesn't make sense.**
   See [Common Compiler Errors](effect/compiler_errors.md) for effects,
   [Optics Compiler Errors](optics/compiler_errors.md) for optics, or
