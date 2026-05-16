@@ -4,6 +4,7 @@ package org.higherkindedj.example.effect;
 
 import java.util.List;
 import java.util.stream.Stream;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.effect.ListPath;
 import org.higherkindedj.hkt.effect.StreamPath;
 
@@ -273,18 +274,27 @@ public class CollectionPathsExample {
 
     System.out.println("Clean records: " + cleanData.run());
 
-    // Pattern 3: Streaming aggregation
+    // Pattern 3: Streaming aggregation - stay inside the path with fold / foldMap
     System.out.println("\nStreaming aggregation:");
 
     StreamPath<Integer> salesData = StreamPath.of(Stream.of(100, 250, 175, 300, 225, 150));
 
-    int total = salesData.toList().stream().mapToInt(i -> i).sum();
-    double average = salesData.toList().stream().mapToInt(i -> i).average().orElse(0);
-    int max = salesData.toList().stream().mapToInt(i -> i).max().orElse(0);
+    // fold: reduce to a single value of the same type
+    int total = salesData.fold(0, Integer::sum);
+    long count = salesData.count();
+    int max = salesData.fold(Integer.MIN_VALUE, Math::max);
 
     System.out.println("  Total: " + total);
-    System.out.println("  Average: " + average);
+    System.out.println("  Average: " + (count == 0 ? 0 : (double) total / count));
     System.out.println("  Max: " + max);
+
+    // foldMap: map then combine via a Monoid (here, build a CSV line)
+    String csv = salesData.foldMap(Monoids.string(), v -> v + " ");
+    System.out.println("  As CSV: " + csv.strip().replace(' ', ','));
+
+    // ListPath shares the same fold family
+    int doubledSum = ListPath.of(1, 2, 3).map(x -> x * 2).fold(0, Integer::sum);
+    System.out.println("  Doubled sum (ListPath): " + doubledSum);
 
     System.out.println();
   }
