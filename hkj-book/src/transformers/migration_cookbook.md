@@ -272,7 +272,7 @@ If none of these apply, stay with the Path type.
 | `path.via(f)`                    | `monad.flatMap(f, kind)` (typically inside `For`) |
 | `path.map(f)`                    | `monad.map(f, kind)` |
 | `path.recoverWith(f)`            | `monad.handleErrorWith(kind, f)` |
-| `WithStatePath.modify(f)`        | `StateT.create(s -> ..., monad)` |
+| `WithStatePath.modify(f)`        | `StateT.create(s -> ...)` |
 | `WriterPath.writer(v, w, mon)`   | `WriterT.writer(monad, v, w)` |
 
 ---

@@ -68,18 +68,16 @@ public enum StateTKindHelper implements StateTConverterOps {
    * Creates a {@link StateT} instance directly from its core state-transition function.
    *
    * @param runStateTFn The non-null function {@code S -> Kind<F, StateTuple<S, A>>}.
-   * @param monadF The non-null {@link Monad} instance for the underlying monad {@code F}.
    * @param <S> The state type.
    * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
    * @return A new, non-null {@link StateT} instance.
-   * @throws NullPointerException if {@code runStateTFn} or {@code monadF} is null.
+   * @throws NullPointerException if {@code runStateTFn} is null.
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> stateT(
-      Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
+      Function<S, Kind<F, StateTuple<S, A>>> runStateTFn) {
     Validation.function().require(runStateTFn, "runStateTFn", Operation.STATE_T);
-    Validation.transformer().requireOuterMonad(monadF, STATE_T_CLASS, Operation.STATE_T);
-    return StateT.create(runStateTFn, monadF);
+    return StateT.create(runStateTFn);
   }
 
   /**
@@ -100,7 +98,7 @@ public enum StateTKindHelper implements StateTConverterOps {
     Validation.kind().requireNonNull(fa, LIFT_F, "source Kind");
 
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.map(a -> StateTuple.of(s, a), fa);
-    return stateT(runFn, monadF);
+    return stateT(runFn);
   }
 
   // --- Runner methods ---
@@ -129,18 +127,19 @@ public enum StateTKindHelper implements StateTConverterOps {
    *
    * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
    * @param initialState The initial state.
+   * @param monadF The non-null {@link Monad} instance for the underlying monad {@code F}.
    * @param <S> The state type.
    * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
    * @return A {@code Kind<F, A>} representing the final value.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is not a valid
    *     {@code StateT} representation.
-   * @throws NullPointerException if {@code kind} is null.
+   * @throws NullPointerException if {@code kind} or {@code monadF} is null.
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, A> evalStateT(
-      Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
+      Kind<StateTKind.Witness<S, F>, A> kind, S initialState, Monad<F> monadF) {
     Validation.kind().requireNonNull(kind, EVAL_STATE_T);
-    return this.narrow(kind).evalStateT(initialState);
+    return this.narrow(kind).evalStateT(initialState, monadF);
   }
 
   /**
@@ -148,17 +147,18 @@ public enum StateTKindHelper implements StateTConverterOps {
    *
    * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
    * @param initialState The initial state.
+   * @param monadF The non-null {@link Monad} instance for the underlying monad {@code F}.
    * @param <S> The state type.
    * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
    * @return A {@code Kind<F, S>} representing the final state.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is not a valid
    *     {@code StateT} representation.
-   * @throws NullPointerException if {@code kind} is null.
+   * @throws NullPointerException if {@code kind} or {@code monadF} is null.
    */
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> execStateT(
-      Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
+      Kind<StateTKind.Witness<S, F>, A> kind, S initialState, Monad<F> monadF) {
     Validation.kind().requireNonNull(kind, EXEC_STATE_T);
-    return this.narrow(kind).execStateT(initialState);
+    return this.narrow(kind).execStateT(initialState, monadF);
   }
 }

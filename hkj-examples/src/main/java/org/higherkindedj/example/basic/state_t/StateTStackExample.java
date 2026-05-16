@@ -35,7 +35,7 @@ public class StateTStackExample {
   // Helper to lift a state function into StateT<List<Integer>, OptionalKind.Witness, A>
   private static <A> Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, A> liftOpt(
       Function<List<Integer>, Kind<OptionalKind.Witness, StateTuple<List<Integer>, A>>> f) {
-    return STATE_T.stateT(f, OPT_MONAD);
+    return STATE_T.stateT(f);
   }
 
   // push operation

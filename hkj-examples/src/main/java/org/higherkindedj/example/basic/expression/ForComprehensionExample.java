@@ -125,11 +125,10 @@ public class ForComprehensionExample {
 
     final Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Unit>> add =
         n ->
-            StateT.create(
-                s -> optionalMonad.of(StateTuple.of(s + n, Unit.INSTANCE)), optionalMonad);
+            StateT.create(s -> optionalMonad.of(StateTuple.of(s + n, Unit.INSTANCE)));
 
     final Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> get =
-        StateT.create(s -> optionalMonad.of(StateTuple.of(s, s)), optionalMonad);
+        StateT.create(s -> optionalMonad.of(StateTuple.of(s, s)));
 
     // ✨ Use `peek` to create a version of `get` that logs the state when it's read.
     final Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> getAndLog =

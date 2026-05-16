@@ -60,11 +60,10 @@ class StateTTest {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
 
-      StateT<String, OptionalKind.Witness, Integer> stateT = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> stateT = StateT.create(runFn);
 
       assertThat(stateT).isNotNull();
       assertThat(stateT.runStateTFn()).isSameAs(runFn);
-      assertThat(stateT.monadF()).isSameAs(outerMonad);
     }
 
     @Test
@@ -73,7 +72,7 @@ class StateTTest {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s + "_modified", initialValue));
 
-      StateT<String, OptionalKind.Witness, Integer> stateT = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> stateT = StateT.create(runFn);
 
       Optional<StateTuple<String, Integer>> result = unwrapT(stateT);
       assertThat(result).isPresent();
@@ -92,7 +91,7 @@ class StateTTest {
     void setUp() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
-      stateT = StateT.create(runFn, outerMonad);
+      stateT = StateT.create(runFn);
     }
 
     @Test
@@ -110,7 +109,7 @@ class StateTTest {
     @Test
     @DisplayName("evalStateT should extract value only")
     void evalStateT_extractsValue() {
-      Kind<OptionalKind.Witness, Integer> result = stateT.evalStateT(initialState);
+      Kind<OptionalKind.Witness, Integer> result = stateT.evalStateT(initialState, outerMonad);
 
       Optional<Integer> unwrapped = OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent().contains(initialValue);
@@ -119,7 +118,7 @@ class StateTTest {
     @Test
     @DisplayName("execStateT should extract state only")
     void execStateT_extractsState() {
-      Kind<OptionalKind.Witness, String> result = stateT.execStateT(initialState);
+      Kind<OptionalKind.Witness, String> result = stateT.execStateT(initialState, outerMonad);
 
       Optional<String> unwrapped = OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent().contains(updatedState);
@@ -132,7 +131,7 @@ class StateTTest {
       // The state in the tuple can be null, but we need to handle it properly
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of("non-null-state", 42));
-      StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn);
 
       Kind<OptionalKind.Witness, StateTuple<String, Integer>> result =
           nullStateT.runStateT(null); // Pass null as initial state
@@ -149,9 +148,9 @@ class StateTTest {
       // Create a StateT that accepts null state and returns a valid StateTuple
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of("non-null-state", 42));
-      StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn);
 
-      Kind<OptionalKind.Witness, Integer> result = nullStateT.evalStateT(null);
+      Kind<OptionalKind.Witness, Integer> result = nullStateT.evalStateT(null, outerMonad);
 
       Optional<Integer> unwrapped = OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent().contains(42);
@@ -162,9 +161,9 @@ class StateTTest {
     void execStateT_worksWithNullState() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(updatedState, 42)); // Use 42 instead of initialValue
-      StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn);
 
-      Kind<OptionalKind.Witness, String> result = nullStateT.execStateT(null);
+      Kind<OptionalKind.Witness, String> result = nullStateT.execStateT(null, outerMonad);
 
       Optional<String> unwrapped = OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent().contains(updatedState);
@@ -189,16 +188,16 @@ class StateTTest {
       runFn2 = s -> outerMonad.of(StateTuple.of("state1", 1));
       runFn3 = s -> outerMonad.of(StateTuple.of("state2", 2));
 
-      stateT1 = StateT.create(runFn1, outerMonad);
-      stateT2 = StateT.create(runFn2, outerMonad);
-      stateT3 = StateT.create(runFn3, outerMonad);
+      stateT1 = StateT.create(runFn1);
+      stateT2 = StateT.create(runFn2);
+      stateT3 = StateT.create(runFn3);
     }
 
     @Test
-    @DisplayName("equals should compare based on function and monad")
-    void equals_comparesFunctionAndMonad() {
+    @DisplayName("equals should compare based on function only")
+    void equals_comparesFunction() {
       // Same function references
-      StateT<String, OptionalKind.Witness, Integer> sameFn = StateT.create(runFn1, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> sameFn = StateT.create(runFn1);
       assertThat(stateT1).isEqualTo(sameFn);
 
       // Different function references
@@ -229,7 +228,7 @@ class StateTTest {
     @Test
     @DisplayName("hashCode should be consistent with equals")
     void hashCode_consistentWithEquals() {
-      StateT<String, OptionalKind.Witness, Integer> sameFn = StateT.create(runFn1, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> sameFn = StateT.create(runFn1);
       assertThat(stateT1.hashCode()).isEqualTo(sameFn.hashCode());
     }
 
@@ -239,7 +238,7 @@ class StateTTest {
       assertThat(stateT1.toString())
           .startsWith("StateT[")
           .contains("runStateTFn=")
-          .contains("monadF=")
+          .doesNotContain("monadF=")
           .endsWith("]");
     }
   }
@@ -256,8 +255,8 @@ class StateTTest {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn2 =
           s -> outerMonad.of(StateTuple.of(s + "_2", initialValue * 2));
 
-      StateT<String, OptionalKind.Witness, Integer> instance1 = StateT.create(runFn1, outerMonad);
-      StateT<String, OptionalKind.Witness, Integer> instance2 = StateT.create(runFn2, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> instance1 = StateT.create(runFn1);
+      StateT<String, OptionalKind.Witness, Integer> instance2 = StateT.create(runFn2);
 
       CoreTypeTest.<String, OptionalKind.Witness, Integer>stateT(StateT.class, outerMonad)
           .withInstance(instance1)
@@ -277,7 +276,7 @@ class StateTTest {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> emptyFn =
           s -> OPTIONAL.widen(Optional.empty());
       StateT<String, OptionalKind.Witness, Integer> emptyStateT =
-          StateT.create(emptyFn, outerMonad);
+          StateT.create(emptyFn);
 
       Optional<StateTuple<String, Integer>> result = unwrapT(emptyStateT);
       assertThat(result).isEmpty();
@@ -289,7 +288,7 @@ class StateTTest {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> statefulFn =
           s -> outerMonad.of(StateTuple.of(s.toUpperCase(), s.length()));
       StateT<String, OptionalKind.Witness, Integer> statefulStateT =
-          StateT.create(statefulFn, outerMonad);
+          StateT.create(statefulFn);
 
       Optional<StateTuple<String, Integer>> result = unwrapT(statefulStateT);
       assertThat(result).isPresent();
@@ -302,7 +301,7 @@ class StateTTest {
     void edgeCase_chainingTransitions() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn1 =
           s -> outerMonad.of(StateTuple.of(s + "_1", 1));
-      StateT<String, OptionalKind.Witness, Integer> stateT1 = StateT.create(runFn1, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> stateT1 = StateT.create(runFn1);
 
       // Execute first transition
       Kind<OptionalKind.Witness, StateTuple<String, Integer>> result1 =
@@ -315,7 +314,7 @@ class StateTTest {
       // Create second transition using intermediate state
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn2 =
           s -> outerMonad.of(StateTuple.of(s + "_2", 2));
-      StateT<String, OptionalKind.Witness, Integer> stateT2 = StateT.create(runFn2, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> stateT2 = StateT.create(runFn2);
 
       // Execute second transition
       Kind<OptionalKind.Witness, StateTuple<String, Integer>> result2 =
@@ -333,7 +332,7 @@ class StateTTest {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> nullValueFn =
           s -> outerMonad.of(StateTuple.of(updatedState, null));
       StateT<String, OptionalKind.Witness, Integer> nullValueStateT =
-          StateT.create(nullValueFn, outerMonad);
+          StateT.create(nullValueFn);
 
       Optional<StateTuple<String, Integer>> result = unwrapT(nullValueStateT);
       assertThat(result).isPresent();
@@ -343,31 +342,26 @@ class StateTTest {
   }
 
   // ==========================================================================
-  // Audit Issue #18: StateT record stores monadF — affects equals/hashCode
+  // Issue #445: monadF removed from StateT record components
   // ==========================================================================
 
   @Nested
-  @DisplayName("Record Equality (audit issue #18)")
+  @DisplayName("Record Equality (issue #445)")
   class RecordEqualityTests {
 
     @Test
-    @DisplayName("two StateT instances with same function and same monad singleton should be equal")
-    void sameLogicSameMonadInstanceShouldBeEqual() {
-      // StateT is a record, so equals/hashCode includes monadF field.
-      // Since Instances.monadError(optional()) is a singleton, both references point to the
-      // same object — this test verifies basic record equality with identical fields.
+    @DisplayName("two StateT instances with the same function should be equal")
+    void sameFunctionShouldBeEqual() {
+      // monadF is no longer a record component, so equals/hashCode depend only on
+      // the state-transition function.
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> fn =
           s -> OPTIONAL.widen(Optional.of(StateTuple.of(s, 42)));
 
-      // Same singleton instance assigned to two variables
-      Monad<OptionalKind.Witness> monad1 = Instances.monadError(optional());
-      Monad<OptionalKind.Witness> monad2 = Instances.monadError(optional());
+      StateT<String, OptionalKind.Witness, Integer> st1 = new StateT<>(fn);
+      StateT<String, OptionalKind.Witness, Integer> st2 = new StateT<>(fn);
 
-      StateT<String, OptionalKind.Witness, Integer> st1 = new StateT<>(fn, monad1);
-      StateT<String, OptionalKind.Witness, Integer> st2 = new StateT<>(fn, monad2);
-
-      // Equal because both share the exact same function and monad instance
       assertThat(st1).isEqualTo(st2);
+      assertThat(st1.hashCode()).isEqualTo(st2.hashCode());
     }
 
     @Test
@@ -375,12 +369,29 @@ class StateTTest {
     void toStringShouldNotLeakMonadDetails() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> fn =
           s -> OPTIONAL.widen(Optional.of(StateTuple.of(s, 42)));
-      StateT<String, OptionalKind.Witness, Integer> st = new StateT<>(fn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = new StateT<>(fn);
 
-      // toString of a record includes all fields — monadF's toString may be confusing
       String str = st.toString();
-      // At minimum the toString should be stable and not throw
       assertThat(str).isNotNull();
+      assertThat(str).doesNotContain("monadF");
+    }
+
+    @Test
+    @DisplayName("evalStateT should reject null monad")
+    void evalStateT_rejectsNullMonad() {
+      StateT<String, OptionalKind.Witness, Integer> st =
+          StateT.create(s -> outerMonad.of(StateTuple.of(s, 42)));
+      assertThatThrownBy(() -> st.evalStateT(initialState, null))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("execStateT should reject null monad")
+    void execStateT_rejectsNullMonad() {
+      StateT<String, OptionalKind.Witness, Integer> st =
+          StateT.create(s -> outerMonad.of(StateTuple.of(s, 42)));
+      assertThatThrownBy(() -> st.execStateT(initialState, null))
+          .isInstanceOf(NullPointerException.class);
     }
   }
 
@@ -393,7 +404,7 @@ class StateTTest {
     void mapT_identity() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
-      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn);
 
       StateT<String, OptionalKind.Witness, Integer> result =
           st.mapT(outerMonad, Function.identity());
@@ -409,7 +420,7 @@ class StateTTest {
     void mapT_crossMonad() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s + "_done", 99));
-      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn);
 
       Monad<IdKind.Witness> idMonad = Instances.monad(id());
       StateT<String, IdKind.Witness, Integer> result =
@@ -432,7 +443,7 @@ class StateTTest {
     void mapT_preservesStateThreading() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s.toUpperCase(), s.length()));
-      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn);
 
       StateT<String, OptionalKind.Witness, Integer> result =
           st.mapT(outerMonad, Function.identity());
@@ -448,7 +459,7 @@ class StateTTest {
     void mapT_preservesEmpty() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> emptyFn =
           s -> OPTIONAL.widen(Optional.empty());
-      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(emptyFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(emptyFn);
 
       StateT<String, OptionalKind.Witness, Integer> result =
           st.mapT(outerMonad, Function.identity());
@@ -462,7 +473,7 @@ class StateTTest {
     void mapT_rejectsNullFunction() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
-      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn);
       assertThatThrownBy(() -> st.mapT(outerMonad, null)).isInstanceOf(NullPointerException.class);
     }
 
@@ -471,7 +482,7 @@ class StateTTest {
     void mapT_rejectsNullMonad() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
-      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn);
       assertThatThrownBy(() -> st.mapT(null, Function.identity()))
           .isInstanceOf(NullPointerException.class);
     }

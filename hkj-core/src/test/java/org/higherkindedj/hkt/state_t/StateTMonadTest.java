@@ -52,7 +52,7 @@ class StateTMonadTest
 
   private <R> StateT<String, OptionalKind.Witness, R> createStateT(
       Function<String, StateTuple<String, R>> localFn) {
-    return StateT.create(s -> outerMonad.of(localFn.apply(s)), outerMonad);
+    return StateT.create(s -> outerMonad.of(localFn.apply(s)));
   }
 
   private <A, B>

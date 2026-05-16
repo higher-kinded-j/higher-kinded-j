@@ -46,7 +46,7 @@ public class StateTMonadState<S, F extends WitnessArity<TypeArity.Unary>> extend
   @Override
   public Kind<StateTKind.Witness<S, F>, S> get() {
     Function<S, Kind<F, StateTuple<S, S>>> runFn = s -> monadF.of(StateTuple.of(s, s));
-    return StateT.<S, F, S>create(runFn, monadF);
+    return StateT.<S, F, S>create(runFn);
   }
 
   /**
@@ -62,6 +62,6 @@ public class StateTMonadState<S, F extends WitnessArity<TypeArity.Unary>> extend
   public Kind<StateTKind.Witness<S, F>, Unit> put(S s) {
     Function<S, Kind<F, StateTuple<S, Unit>>> runFn =
         _ -> monadF.of(StateTuple.of(s, Unit.INSTANCE));
-    return StateT.<S, F, Unit>create(runFn, monadF);
+    return StateT.<S, F, Unit>create(runFn);
   }
 }

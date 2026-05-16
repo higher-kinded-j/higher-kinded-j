@@ -18,7 +18,6 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
-import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,7 +38,7 @@ class StateTKindHelperTest {
 
   private <S, A> StateT<S, OptionalKind.Witness, A> createStateT(
       Function<S, Kind<OptionalKind.Witness, StateTuple<S, A>>> runFn) {
-    return StateT.create(runFn, outerMonad);
+    return StateT.create(runFn);
   }
 
   @Nested
@@ -180,37 +179,24 @@ class StateTKindHelperTest {
   class StateTFactoryMethodTests {
 
     @Test
-    @DisplayName("stateT should create StateT instance from function and monad")
+    @DisplayName("stateT should create StateT instance from function")
     void stateT_shouldCreateInstance() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s + "_modified", 42));
 
-      StateT<String, OptionalKind.Witness, Integer> stateT = STATE_T.stateT(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> stateT = STATE_T.stateT(runFn);
 
       assertThat(stateT).isNotNull();
       assertThat(stateT.runStateTFn()).isSameAs(runFn);
-      assertThat(stateT.monadF()).isSameAs(outerMonad);
     }
 
     @Test
     @DisplayName("stateT should throw when function is null")
     void stateT_nullFunction_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.stateT(null, outerMonad))
+      assertThatThrownBy(() -> STATE_T.stateT(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("runStateTFn")
           .hasMessageContaining("stateT");
-    }
-
-    @Test
-    @DisplayName("stateT should throw when monad is null")
-    void stateT_nullMonad_shouldThrow() {
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(s, 42));
-
-      ValidationTestBuilder.create()
-          .assertTransformerOuterMonadNull(
-              () -> STATE_T.stateT(runFn, null), StateT.class, Operation.STATE_T)
-          .execute();
     }
   }
 
@@ -232,7 +218,7 @@ class StateTKindHelperTest {
       Kind<OptionalKind.Witness, Integer> fa = outerMonad.of(42);
       String testState = "unchanged";
       StateT<String, OptionalKind.Witness, Integer> stateT = STATE_T.liftF(outerMonad, fa);
-      Kind<OptionalKind.Witness, String> finalState = stateT.execStateT(testState);
+      Kind<OptionalKind.Witness, String> finalState = stateT.execStateT(testState, outerMonad);
       assertThat(finalState).isNotNull();
     }
 
@@ -277,7 +263,7 @@ class StateTKindHelperTest {
     void evalStateT_shouldExtractValue() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
 
-      Kind<OptionalKind.Witness, Integer> result = STATE_T.evalStateT(kind, "initial");
+      Kind<OptionalKind.Witness, Integer> result = STATE_T.evalStateT(kind, "initial", outerMonad);
 
       assertThat(result).isNotNull();
     }
@@ -287,7 +273,7 @@ class StateTKindHelperTest {
     void execStateT_shouldExtractState() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
 
-      Kind<OptionalKind.Witness, String> result = STATE_T.execStateT(kind, "initial");
+      Kind<OptionalKind.Witness, String> result = STATE_T.execStateT(kind, "initial", outerMonad);
 
       assertThat(result).isNotNull();
     }
@@ -304,7 +290,7 @@ class StateTKindHelperTest {
     @Test
     @DisplayName("evalStateT should throw when Kind is null")
     void evalStateT_nullKind_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial"))
+      assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial", outerMonad))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
           .hasMessageContaining("evalStateT");
@@ -313,7 +299,7 @@ class StateTKindHelperTest {
     @Test
     @DisplayName("execStateT should throw when Kind is null")
     void execStateT_nullKind_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.execStateT(null, "initial"))
+      assertThatThrownBy(() -> STATE_T.execStateT(null, "initial", outerMonad))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
           .hasMessageContaining("execStateT");

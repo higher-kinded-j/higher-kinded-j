@@ -124,7 +124,7 @@ Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn
     currentState -> Id.of(StateTuple.of(currentState + 1, currentState));
 
 Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
-    STATE_T.stateT(runStateFn, Instances.monad(id()));
+    STATE_T.stateT(runStateFn);
 
 // Run with initial state 10
 Kind<IdKind.Witness, StateTuple<Integer, Integer>> resultIdTuple =

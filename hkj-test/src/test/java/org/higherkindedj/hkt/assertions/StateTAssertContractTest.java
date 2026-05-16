@@ -38,18 +38,18 @@ class StateTAssertContractTest
 
   // Increments state, produces "v"+s
   private static Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mkOk() {
-    return STATE_T.widen(StateT.create(s -> MONAD.of(StateTuple.of(s + 1, "v" + s)), MONAD));
+    return STATE_T.widen(StateT.create(s -> MONAD.of(StateTuple.of(s + 1, "v" + s))));
   }
 
   // Increments state, produces "diff"+s (different value)
   private static Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mkOther() {
-    return STATE_T.widen(StateT.create(s -> MONAD.of(StateTuple.of(s + 2, "diff" + s)), MONAD));
+    return STATE_T.widen(StateT.create(s -> MONAD.of(StateTuple.of(s + 2, "diff" + s))));
   }
 
   // Always returns empty Optional
   private static Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mkEmpty() {
     return STATE_T.widen(
-        StateT.create(s -> OPTIONAL.widen(Optional.<StateTuple<Integer, String>>empty()), MONAD));
+        StateT.create(s -> OPTIONAL.widen(Optional.<StateTuple<Integer, String>>empty())));
   }
 
   private static final Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> OK = mkOk();

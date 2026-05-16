@@ -148,8 +148,7 @@ The fundamental structure is a function `S -> F<StateTuple<S, A>>`:
 StateT<Integer, OptionalKind.Witness, String> computation = StateT.create(
     currentState -> currentState < 0
         ? OPTIONAL.widen(Optional.empty())
-        : OPTIONAL.widen(Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState))),
-    optionalMonad);
+        : OPTIONAL.widen(Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState))));
 ```
 
 ---
@@ -181,12 +180,12 @@ var stateTMonad   = Instances.stateT(optionalMonad);
 var result    = StateTKindHelper.runStateT(computation, 10);
 // → Optional.of(StateTuple(11, "Value: 10"))
 
-// Eval: returns F<A> (discards state)
-var valueOnly = StateTKindHelper.evalStateT(computation, 10);
+// Eval: returns F<A> (discards state) — pass the underlying Monad<F>
+var valueOnly = StateTKindHelper.evalStateT(computation, 10, optionalMonad);
 // → Optional.of("Value: 10")
 
-// Exec: returns F<S> (discards value)
-var stateOnly = StateTKindHelper.execStateT(computation, 10);
+// Exec: returns F<S> (discards value) — pass the underlying Monad<F>
+var stateOnly = StateTKindHelper.execStateT(computation, 10, optionalMonad);
 // → Optional.of(11)
 ```
 
@@ -224,15 +223,13 @@ var mapped = stateTMonad.map(val -> "Computed: " + val, initial);
 ~~~admonish example title="flatMap: sequencing state operations"
 ```java
 var firstStep = StateT.<Integer, OptionalKind.Witness, Integer>create(
-    s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))),
-    optionalMonad);
+    s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))));
 
 Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> secondStepFn =
     prevValue -> StateT.create(
         s -> prevValue > 100
             ? OPTIONAL.widen(Optional.of(StateTuple.of(s + prevValue, "Large: " + prevValue)))
-            : OPTIONAL.widen(Optional.empty()),
-        optionalMonad);
+            : OPTIONAL.widen(Optional.empty()));
 
 var combined = stateTMonad.flatMap(secondStepFn, firstStep);
 // state 15: firstStep → (16, 150), secondStep(150) → (166, "Large: 150")
@@ -249,22 +246,22 @@ Common state operations can be constructed using `StateT.create`:
 ```java
 // get: retrieve the current state as the value
 static <S, F> Kind<StateTKind.Witness<S, F>, S> get(Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(s, s)), monadF);
+    return StateT.create(s -> monadF.of(StateTuple.of(s, s)));
 }
 
 // set: replace the state, return Unit
 static <S, F> Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE)), monadF);
+    return StateT.create(s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE)));
 }
 
 // modify: update the state with a function, return Unit
 static <S, F> Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE)), monadF);
+    return StateT.create(s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE)));
 }
 
 // gets: extract a value derived from the state
 static <S, F, A> Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(s, f.apply(s))), monadF);
+    return StateT.create(s -> monadF.of(StateTuple.of(s, f.apply(s))));
 }
 ```
 
@@ -325,7 +322,7 @@ var emptyPop = OPTIONAL.narrow(StateTKindHelper.runStateT(pop(), Collections.emp
 
 Sometimes you need to change the *outer monad* of a `StateT` without touching the state-threading logic. Perhaps you want to switch from `Optional` to `Id` (guaranteeing a result with a default), or apply a natural transformation to move between effect types.
 
-Because `StateT` stores its `Monad<F>` instance internally, switching from `F` to `G` requires supplying a new `Monad<G>`. This is the one transformer where `mapT` takes an extra parameter:
+Switching from `F` to `G` requires supplying a `Monad<G>` so the resulting `StateT` can be sequenced and evaluated in the new outer monad. This is the one transformer where `mapT` takes an extra parameter:
 
 ```
   state ──> runStateTFn() ──> Kind<F, StateTuple<S, A>> ──> f ──> Kind<G, StateTuple<S, A>>
@@ -350,7 +347,7 @@ The state-threading is completely unaffected.
 ~~~
 
 ~~~admonish warning title="StateT requires a new Monad instance"
-Unlike the other five transformers, `StateT.mapT` takes `Monad<G> monadG` as its first parameter. This is because `StateT` stores the monad instance for internal sequencing; when you switch monads, the new `StateT` needs the new monad to continue operating correctly.
+Unlike the other five transformers, `StateT.mapT` takes `Monad<G> monadG` as its first parameter. The new outer monad must be supplied so that the resulting `StateT` can be sequenced (via `StateTMonad`) and run with `evalStateT`/`execStateT` in monad `G`.
 ~~~
 
 ---

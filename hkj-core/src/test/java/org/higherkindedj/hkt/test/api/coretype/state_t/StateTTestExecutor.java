@@ -96,12 +96,10 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     // Test create() factory method
     assertThat(firstInstance).isNotNull();
     assertThat(firstInstance.runStateTFn()).isNotNull();
-    assertThat(firstInstance.monadF()).isNotNull();
 
     // Test that created instance is valid
     assertThat(secondInstance).isNotNull();
     assertThat(secondInstance.runStateTFn()).isNotNull();
-    assertThat(secondInstance.monadF()).isNotNull();
   }
 
   private void testRunnerMethods() {
@@ -114,32 +112,20 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     assertThat(result).as("runStateT should return non-null result").isNotNull();
 
     // Test evalStateT() - returns Kind<F, A> (extracts value)
-    Kind<F, A> valueResult = firstInstance.evalStateT(testState);
+    Kind<F, A> valueResult = firstInstance.evalStateT(testState, outerMonad);
     assertThat(valueResult).as("evalStateT should return non-null result").isNotNull();
 
     // Test execStateT() - returns Kind<F, S> (extracts state)
-    Kind<F, S> stateResult = firstInstance.execStateT(testState);
+    Kind<F, S> stateResult = firstInstance.execStateT(testState, outerMonad);
     assertThat(stateResult).as("execStateT should return non-null result").isNotNull();
   }
 
   void testValidations() {
-    // Determine which class context to use
-    Class<?> validationContext =
-        (validationStage != null && validationStage.getValidationContext() != null)
-            ? validationStage.getValidationContext()
-            : contextClass;
-
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
     // Test create() null runStateTFn validation - uses FunctionValidator
     builder.assertFunctionNull(
-        () -> StateT.create(null, outerMonad), "runStateTFn", Operation.CONSTRUCTION);
-
-    // Test create() null monad validation - uses DomainValidator.requireOuterMonad
-    builder.assertTransformerOuterMonadNull(
-        () -> StateT.create(s -> outerMonad.of(StateTuple.of(s, null)), null),
-        validationContext,
-        Operation.CONSTRUCTION);
+        () -> StateT.create(null), "runStateTFn", Operation.CONSTRUCTION);
 
     builder.execute();
   }
@@ -151,10 +137,10 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     Kind<F, StateTuple<S, A>> nullStateResult = firstInstance.runStateT(nullState);
     assertThat(nullStateResult).isNotNull();
 
-    Kind<F, A> nullStateValue = firstInstance.evalStateT(nullState);
+    Kind<F, A> nullStateValue = firstInstance.evalStateT(nullState, outerMonad);
     assertThat(nullStateValue).isNotNull();
 
-    Kind<F, S> nullStateExtracted = firstInstance.execStateT(nullState);
+    Kind<F, S> nullStateExtracted = firstInstance.execStateT(nullState, outerMonad);
     assertThat(nullStateExtracted).isNotNull();
 
     // Test toString
@@ -162,7 +148,7 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     assertThat(secondInstance.toString()).isNotNull();
 
     // Test equals and hashCode
-    StateT<S, F, A> anotherInstance = StateT.create(firstInstance.runStateTFn(), outerMonad);
+    StateT<S, F, A> anotherInstance = StateT.create(firstInstance.runStateTFn());
     assertThat(firstInstance).isEqualTo(anotherInstance);
     assertThat(firstInstance.hashCode()).isEqualTo(anotherInstance.hashCode());
   }
