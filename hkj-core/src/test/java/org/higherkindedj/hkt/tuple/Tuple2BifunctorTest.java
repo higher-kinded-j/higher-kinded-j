@@ -129,5 +129,31 @@ class Tuple2BifunctorTest {
           .as("Composition law should hold")
           .isTrue();
     }
+
+    @Test
+    @DisplayName("First Consistency Law: first(f, fab) == bimap(f, id, fab)")
+    void firstConsistencyLaw() {
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Function<String, Integer> f = String::length;
+
+      assertThat(
+              equalityChecker.test(
+                  bifunctor.first(f, tuple), bifunctor.bimap(f, Function.identity(), tuple)))
+          .as("First consistency law should hold")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Second Consistency Law: second(g, fab) == bimap(id, g, fab)")
+    void secondConsistencyLaw() {
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Function<Integer, String> g = n -> "Value:" + n;
+
+      assertThat(
+              equalityChecker.test(
+                  bifunctor.second(g, tuple), bifunctor.bimap(Function.identity(), g, tuple)))
+          .as("Second consistency law should hold")
+          .isTrue();
+    }
   }
 }

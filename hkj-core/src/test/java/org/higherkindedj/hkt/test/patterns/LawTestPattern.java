@@ -538,7 +538,54 @@ public final class LawTestPattern {
   }
 
   /**
-   * Tests all Bifunctor laws (identity and composition) without validation tests.
+   * Tests Bifunctor first-map consistency law only: {@code first(f, fab) == bimap(f, id, fab)}.
+   *
+   * <p>This law states that mapping the first parameter via {@code first} must be equivalent to a
+   * {@code bimap} that applies the function to the first parameter and identity to the second.
+   */
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, C>
+      void testBifunctorFirstConsistencyLaw(
+          Bifunctor<F> bifunctor,
+          Kind2<F, A, B> validKind,
+          Function<A, C> f,
+          BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    Function<B, B> identityB = b -> b;
+
+    Kind2<F, C, B> viaFirst = bifunctor.first(f, validKind);
+    Kind2<F, C, B> viaBimap = bifunctor.bimap(f, identityB, validKind);
+
+    assertThat(equalityChecker.test(viaFirst, viaBimap))
+        .as("Bifunctor First Consistency Law: first(f, fab) == bimap(f, id, fab)")
+        .isTrue();
+  }
+
+  /**
+   * Tests Bifunctor second-map consistency law only: {@code second(g, fab) == bimap(id, g, fab)}.
+   *
+   * <p>This law states that mapping the second parameter via {@code second} must be equivalent to a
+   * {@code bimap} that applies identity to the first parameter and the function to the second.
+   */
+  public static <F extends WitnessArity<TypeArity.Binary>, A, B, D>
+      void testBifunctorSecondConsistencyLaw(
+          Bifunctor<F> bifunctor,
+          Kind2<F, A, B> validKind,
+          Function<B, D> g,
+          BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    Function<A, A> identityA = a -> a;
+
+    Kind2<F, A, D> viaSecond = bifunctor.second(g, validKind);
+    Kind2<F, A, D> viaBimap = bifunctor.bimap(identityA, g, validKind);
+
+    assertThat(equalityChecker.test(viaSecond, viaBimap))
+        .as("Bifunctor Second Consistency Law: second(g, fab) == bimap(id, g, fab)")
+        .isTrue();
+  }
+
+  /**
+   * Tests all Bifunctor laws (identity, composition, and first/second-map consistency) without
+   * validation tests.
    *
    * <p>This method is designed for delegation from TypeClassTestPattern and tests only the
    * algebraic laws without parameter validation.
@@ -554,5 +601,7 @@ public final class LawTestPattern {
 
     testBifunctorIdentityLaw(bifunctor, validKind, equalityChecker);
     testBifunctorCompositionLaw(bifunctor, validKind, f1, f2, g1, g2, equalityChecker);
+    testBifunctorFirstConsistencyLaw(bifunctor, validKind, f1, equalityChecker);
+    testBifunctorSecondConsistencyLaw(bifunctor, validKind, g1, equalityChecker);
   }
 }

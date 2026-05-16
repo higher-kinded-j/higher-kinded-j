@@ -211,5 +211,61 @@ class EitherBifunctorTest {
           .as("Composition law should hold")
           .isTrue();
     }
+
+    @Test
+    @DisplayName("First Consistency Law: first(f, fab) == bimap(f, id, fab) (Left)")
+    void firstConsistencyLawLeft() {
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
+      Function<String, String> f = s -> s + "!";
+
+      assertThat(
+              equalityChecker.test(
+                  bifunctor.first(f, leftEither),
+                  bifunctor.bimap(f, Function.identity(), leftEither)))
+          .as("First consistency law should hold for Left")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("First Consistency Law: first(f, fab) == bimap(f, id, fab) (Right)")
+    void firstConsistencyLawRight() {
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
+      Function<String, String> f = s -> s + "!";
+
+      assertThat(
+              equalityChecker.test(
+                  bifunctor.first(f, rightEither),
+                  bifunctor.bimap(f, Function.identity(), rightEither)))
+          .as("First consistency law should hold for Right")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Second Consistency Law: second(g, fab) == bimap(id, g, fab) (Left)")
+    void secondConsistencyLawLeft() {
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
+      Function<Integer, String> g = n -> "Value:" + n;
+
+      assertThat(
+              equalityChecker.test(
+                  bifunctor.second(g, leftEither),
+                  bifunctor.bimap(Function.identity(), g, leftEither)))
+          .as("Second consistency law should hold for Left")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Second Consistency Law: second(g, fab) == bimap(id, g, fab) (Right)")
+    void secondConsistencyLawRight() {
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
+      Function<Integer, String> g = n -> "Value:" + n;
+
+      assertThat(
+              equalityChecker.test(
+                  bifunctor.second(g, rightEither),
+                  bifunctor.bimap(Function.identity(), g, rightEither)))
+          .as("Second consistency law should hold for Right")
+          .isTrue();
+    }
   }
 }
