@@ -23,7 +23,10 @@ class PathTypeMismatchCheckerTest {
    */
   private Compilation compileWithChecker(JavaFileObject... sources) {
     return javac()
-        .withOptions("-Xplugin:HKJChecker", "--enable-preview", "--release", "25")
+        // Isolate the checker under test: several fixtures here are bare discarded
+        // statements, which the discarded-effect check (rightly) also flags.
+        .withOptions(
+            "-Xplugin:HKJChecker disable=discarded-effect", "--enable-preview", "--release", "25")
         .compile(sources);
   }
 

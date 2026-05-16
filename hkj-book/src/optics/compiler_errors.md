@@ -65,11 +65,19 @@ This page is for the moment a build fails and you want to know what the message 
 
 ## Focus DSL chains
 
-### "Cannot infer type arguments for traverseOver"
+### `traverseOver` and the higher-kinded witness type
 
-**Cause.** Java's type inference cannot resolve the higher-kinded witness type when calling `traverseOver` on a path.
+**Cause.** `traverseOver` is generic in the higher-kinded witness type.
+This is the same phantom-type-parameter family as
+[Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright):
+on the supported compiler `javac` usually resolves the witness from
+context rather than emitting a hard `cannot infer type arguments`
+error. The reliable failure mode is not a guaranteed compile error but
+*ambiguity* in long Focus chains, where the witness should be stated
+explicitly for clarity and to avoid `Object` leaking in.
 
-**Fix.** Provide explicit type parameters:
+**Fix.** State the type parameters explicitly when the witness is not
+obvious from context:
 
 ```java
 TraversalPath<User, Role> allRoles =

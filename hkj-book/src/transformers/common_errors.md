@@ -14,6 +14,13 @@ Transformer code is generic-heavy by nature: a typical signature like `Kind<Eith
 
 ## 1. "Cannot resolve constructor `EitherTMonad`"
 
+~~~admonish tip title="The HKJ checker catches this"
+Flagged at compile time by the `transformer-missing-monad` check
+(companion to javac's own error), naming the required outer `Monad<F>`
+(and `Monoid<W>` for `WriterTMonad`). See
+[Compile-Time Checks](../tooling/compile_checks.md).
+~~~
+
 **The error:**
 
 ```
@@ -68,6 +75,16 @@ For.from(eitherTMonad, validatedET)
     .from(id -> lookupUser(id));   // String vs DomainError mismatch
 ```
 
+~~~admonish note title="This one really is a compile error (unlike Effect §5)"
+Contrast with [Effect §5](../effect/compiler_errors.md#5-the-error-type-is-silently-erased-across-a-chain),
+where the error type is *silently erased*. Here it is **not**: the
+transformer stack encodes `L` inside the witness itself
+(`EitherTKind.Witness<F, L>`), so a step with a different `L` is a
+genuinely different `Kind<…>` type and `For.from(...).from(...)`
+fails to type-check. The compiler does enforce this case; the section
+below is accurate as written.
+~~~
+
 Every step in an `EitherT` comprehension shares the same error type `L`. Mixing a step that fails with `String` and one that fails with `DomainError` will not compile.
 
 **The fix:** unify the error type, either by changing the function or by mapping at the boundary.
@@ -91,6 +108,13 @@ Option 1 is preferred for new code. Option 2 is useful when integrating with cod
 ---
 
 ## 3. "Method `mapT` cannot be applied" on `StateT`
+
+~~~admonish tip title="The HKJ checker catches this"
+Flagged at compile time by the `state-t-mapt-arity` check (companion to
+javac's own error), explaining that only `StateT.mapT` takes the
+leading `Monad<G>`. See
+[Compile-Time Checks](../tooling/compile_checks.md).
+~~~
 
 **The error:**
 
@@ -123,48 +147,62 @@ var taskState = idState.mapT(taskMonad, idKind -> ioToTask.apply(idKind));
 
 ---
 
-## 4. "Cannot infer type-variable `L` for `EitherT.fromEither`"
+## 4. The phantom `L` on `EitherT.fromEither` / `Either.right`
 
-**The error:**
+~~~admonish warning title="No longer a compile error on the supported toolchain"
+Older write-ups described:
 
 ```
-error: method fromEither in class EitherT<F,L,R> cannot be applied to given types;
-    EitherT.fromEither(futureMonad, Either.right(value));
-           ^
+error: method fromEither ... cannot be applied to given types;
   reason: cannot infer type-variable(s) F, L, R
 ```
+
+On the supported compiler this **does not happen**. It is the same
+phantom-type-parameter situation as
+[Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright):
+`Either.right(value)` has no Left, so when nothing constrains `L`
+modern `javac` resolves it to `java.lang.Object` and the code
+**compiles** rather than erroring. The mistake is silent, not loud.
+~~~
 
 **The trigger:**
 
 ```java
-var eitherTMonad =
-    Instances.eitherT(futureMonad);
-
-return For.from(eitherTMonad,
-        EitherT.fromEither(futureMonad, Either.right(validated)));   // L cannot be inferred
-```
-
-`Either.right(value)` has no `Left` value to infer the error type from, so the compiler cannot determine `L` for the resulting `EitherT`. The same problem appears with `Path.right` in the Effect Path API (see [Effect Compiler Errors](../effect/compiler_errors.md#1-cannot-infer-type-arguments-for-pathright)).
-
-**The fix:** add an explicit type witness on the `Either`.
-
-```java
-return For.from(eitherTMonad,
-        EitherT.fromEither(futureMonad, Either.<DomainError, Validated>right(validated)));
-```
-
-Inference works when the surrounding context constrains `L`, for example when assigning to a variable with an explicit type:
-
-```java
+// L bound to DomainError from the typed variable -- fine:
 EitherT<CompletableFutureKind.Witness, DomainError, Validated> step =
-    EitherT.fromEither(futureMonad, Either.right(validated));     // L inferred from variable
+    EitherT.fromEither(futureMonad, Either.right(validated));
+
+// nothing constrains L -> L = Object, compiles silently:
+var step = EitherT.fromEither(futureMonad, Either.right(validated));
 ```
 
-When in doubt, add the witness. It costs nothing at runtime.
+**The fix:** pin `L` with an explicit type witness on the `Either` so
+`Object` never leaks in:
+
+```java
+EitherT.fromEither(futureMonad, Either.<DomainError, Validated>right(validated));
+```
+
+The witness costs nothing at runtime and keeps the error type honest.
+
+~~~admonish note title="Not caught by the HKJ checker"
+This is the excluded inference family (same as
+[Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright)):
+modern `javac` silently resolves `L`, so there is no error for the
+checker to annotate. The witness is the fix. See
+[Compile-Time Checks](../tooling/compile_checks.md) for what the
+checker does and does not cover.
+~~~
 
 ---
 
 ## 5. "Cannot find symbol `.value()`" on a `Kind`
+
+~~~admonish tip title="The HKJ checker catches this"
+Flagged at compile time by the `kind-value-narrow` check (companion to
+javac's own error), pointing to the concrete-transformer narrow. See
+[Compile-Time Checks](../tooling/compile_checks.md).
+~~~
 
 **The error:**
 

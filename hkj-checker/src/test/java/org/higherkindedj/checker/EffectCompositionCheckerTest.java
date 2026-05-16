@@ -97,20 +97,22 @@ class EffectCompositionCheckerTest {
   class ClassHierarchyTests {
 
     @Test
-    @DisplayName("Checker should extend TreeScanner")
-    void extendsTreeScanner() {
-      Assertions.assertThat(EffectCompositionChecker.class.getSuperclass().getSimpleName())
-          .isEqualTo("TreeScanner");
+    @DisplayName("Checker should implement CheckVisitor")
+    void implementsCheckVisitor() {
+      Assertions.assertThat(CheckVisitor.class.isAssignableFrom(EffectCompositionChecker.class))
+          .isTrue();
     }
 
     @Test
-    @DisplayName("Checker should accept Trees in constructor")
+    @DisplayName("every constructor accepts Trees as its first parameter")
     void acceptsTreesInConstructor() {
-      Assertions.assertThat(EffectCompositionChecker.class.getConstructors()).hasSize(1);
-      Assertions.assertThat(
-              EffectCompositionChecker.class.getConstructors()[0].getParameterTypes()[0]
-                  .getSimpleName())
-          .isEqualTo("Trees");
+      var constructors = EffectCompositionChecker.class.getConstructors();
+      Assertions.assertThat(constructors).hasSize(2);
+      Assertions.assertThat(constructors)
+          .allSatisfy(
+              ctor ->
+                  Assertions.assertThat(ctor.getParameterTypes()[0].getSimpleName())
+                      .isEqualTo("Trees"));
     }
   }
 }
