@@ -119,7 +119,12 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *     a valid, non-null {@code StateT} representation.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
    *     not actually an instance of {@link StateT}.
+   * @deprecated since 0.4.5, scheduled for removal in 0.5.0. The wildcard {@code Kind<?, A>}
+   *     parameter bypasses the HKT witness type safety enforced everywhere else in the library, and
+   *     this method has no callers. Use {@link #narrow(Kind)} instead, which enforces the witness
+   *     type at compile time.
    */
+  @Deprecated(since = "0.4.5", forRemoval = true)
   @SuppressWarnings("unchecked")
   static <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> narrowK(
       @Nullable Kind<?, A> kind) {
