@@ -162,9 +162,17 @@ For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
 
 `ForPath` exposes the same capability for Effect Path types, which is usually how application code reaches it.
 
+The collection-style Effect Paths expose this fold directly as a terminal operation: `ListPath` and `StreamPath` both provide `fold(identity, op)` for a same-type reduction and `foldMap(monoid, fn)` for the `Monoid`-driven summary, keeping the reduction inside the path chain instead of unwrapping the collection first.
+
+```java
+String joined = ListPath.of(1, 2, 3).foldMap(Monoids.string(), i -> i + ",");
+// "1,2,3,"
+```
+
 ~~~admonish tip title="See Also"
 - [Traverse Within Comprehensions](for_traverse.md) - the full API with `traverse`, `sequence`, and `flatTraverse`
 - [ForPath Traverse](../effect/forpath_traverse.md) - the same operations through the Effect Path API
+- [Effect Path Cheatsheet](../cheatsheet.md) - the full fold family on `ListPath`, `StreamPath`, and `VStreamPath`
 ~~~
 
 ---

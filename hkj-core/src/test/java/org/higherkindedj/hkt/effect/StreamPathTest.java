@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import org.higherkindedj.hkt.Monoids;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -450,6 +451,124 @@ class StreamPathTest {
       Integer result = path.foldLeft(0, Integer::sum);
 
       assertThat(result).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("foldLeft() throws NullPointerException when f is null")
+    void foldLeftThrowsWhenFunctionNull() {
+      StreamPath<Integer> path = StreamPath.fromList(List.of(1, 2, 3));
+
+      assertThatThrownBy(() -> path.foldLeft(0, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("foldRight() folds from right")
+    void foldRightFoldsFromRight() {
+      StreamPath<String> path = StreamPath.fromList(List.of("a", "b", "c"));
+
+      String result = path.foldRight("", (a, acc) -> a + acc);
+
+      assertThat(result).isEqualTo("abc");
+    }
+
+    @Test
+    @DisplayName("foldRight() returns initial for an empty stream")
+    void foldRightReturnsInitialForEmpty() {
+      StreamPath<String> path = StreamPath.empty();
+
+      assertThat(path.foldRight("z", (a, acc) -> a + acc)).isEqualTo("z");
+    }
+
+    @Test
+    @DisplayName("foldRight() throws NullPointerException when f is null")
+    void foldRightThrowsWhenFunctionNull() {
+      StreamPath<String> path = StreamPath.fromList(List.of("a"));
+
+      assertThatThrownBy(() -> path.foldRight("", null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("fold() reduces multiple elements with identity")
+    void foldReducesMultipleElements() {
+      StreamPath<Integer> path = StreamPath.fromList(List.of(1, 2, 3, 4));
+
+      assertThat(path.fold(0, Integer::sum)).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("fold() returns identity for an empty stream")
+    void foldReturnsIdentityForEmpty() {
+      StreamPath<Integer> path = StreamPath.empty();
+
+      assertThat(path.fold(42, Integer::sum)).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("fold() with a single element combines identity and element")
+    void foldSingleElement() {
+      StreamPath<Integer> path = StreamPath.pure(7);
+
+      assertThat(path.fold(0, Integer::sum)).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("fold() throws NullPointerException when op is null")
+    void foldThrowsWhenOpNull() {
+      StreamPath<Integer> path = StreamPath.fromList(List.of(1, 2, 3));
+
+      assertThatThrownBy(() -> path.fold(0, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("op must not be null");
+    }
+
+    @Test
+    @DisplayName("foldMap() maps and combines via a Monoid (type-changing)")
+    void foldMapCombinesViaMonoid() {
+      StreamPath<Integer> path = StreamPath.fromList(List.of(1, 2, 3));
+
+      String result = path.foldMap(Monoids.string(), i -> i + ",");
+
+      assertThat(result).isEqualTo("1,2,3,");
+    }
+
+    @Test
+    @DisplayName("foldMap() returns monoid identity for an empty stream")
+    void foldMapReturnsEmptyForEmptyStream() {
+      StreamPath<Integer> path = StreamPath.empty();
+
+      assertThat(path.foldMap(Monoids.integerAddition(), i -> i)).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("foldMap() with a single element")
+    void foldMapSingleElement() {
+      StreamPath<Integer> path = StreamPath.pure(5);
+
+      assertThat(path.foldMap(Monoids.integerAddition(), i -> i * 2)).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("foldMap() throws NullPointerException when monoid is null")
+    void foldMapThrowsWhenMonoidNull() {
+      StreamPath<Integer> path = StreamPath.pure(1);
+
+      assertThatThrownBy(() -> path.foldMap(null, i -> i))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("monoid must not be null");
+    }
+
+    @Test
+    @DisplayName("foldMap() throws NullPointerException when f is null")
+    void foldMapThrowsWhenFunctionNull() {
+      StreamPath<Integer> path = StreamPath.pure(1);
+
+      assertThatThrownBy(() -> path.foldMap(Monoids.integerAddition(), null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f must not be null");
     }
   }
 
