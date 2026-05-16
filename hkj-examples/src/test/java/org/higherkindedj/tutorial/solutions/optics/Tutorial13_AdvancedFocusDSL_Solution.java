@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,13 +11,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -132,7 +133,7 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
 
     // SOLUTION: Use modifyF with MaybeMonad
     Kind<MaybeKind.Witness, Config> result =
-        keyPath.modifyF(validateAndTransform, config, MaybeMonad.INSTANCE);
+        keyPath.modifyF(validateAndTransform, config, Instances.monadError(maybe()));
 
     Maybe<Config> maybeConfig = MaybeKindHelper.MAYBE.narrow(result);
     assertThat(maybeConfig.isJust()).isTrue();
@@ -141,7 +142,7 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     Config shortKeyConfig = new Config("abc");
     // SOLUTION: Invalid key returns Nothing
     Kind<MaybeKind.Witness, Config> invalidResult =
-        keyPath.modifyF(validateAndTransform, shortKeyConfig, MaybeMonad.INSTANCE);
+        keyPath.modifyF(validateAndTransform, shortKeyConfig, Instances.monadError(maybe()));
 
     Maybe<Config> invalidMaybe = MaybeKindHelper.MAYBE.narrow(invalidResult);
     assertThat(invalidMaybe.isNothing()).isTrue();

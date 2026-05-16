@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.*;
@@ -12,13 +13,11 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.optional.OptionalSelective;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateTuple;
@@ -236,7 +235,7 @@ class TraversalsTest {
       final Function<Integer, Kind<OptionalKind.Witness, String>> f =
           i -> i > 0 ? OPTIONAL.widen(Optional.of("ok-" + i)) : OPTIONAL.widen(Optional.empty());
       final Kind<OptionalKind.Witness, List<String>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
       final Optional<List<String>> actual = OPTIONAL.narrow(result);
       assertThat(actual).contains(List.of("ok-1", "ok-2", "ok-3"));
     }
@@ -249,7 +248,7 @@ class TraversalsTest {
       final Function<Integer, Kind<OptionalKind.Witness, String>> f =
           i -> i > 0 ? OPTIONAL.widen(Optional.of("ok-" + i)) : OPTIONAL.widen(Optional.empty());
       final Kind<OptionalKind.Witness, List<String>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
       final Optional<List<String>> actual = OPTIONAL.narrow(result);
       assertThat(actual).isEmpty();
     }
@@ -262,7 +261,7 @@ class TraversalsTest {
       final Function<Integer, Kind<ListKind.Witness, Integer>> f =
           i -> ListKindHelper.LIST.widen(List.of(i, i * 10));
       final Kind<ListKind.Witness, List<Integer>> result =
-          Traversals.traverseList(source, f, ListMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadZero(list()));
       final List<List<Integer>> actual = ListKindHelper.LIST.narrow(result);
       assertThat(actual)
           .containsExactlyInAnyOrder(
@@ -277,7 +276,7 @@ class TraversalsTest {
       final Function<Integer, Kind<OptionalKind.Witness, String>> f =
           i -> OPTIONAL.widen(Optional.of("ok"));
       final Kind<OptionalKind.Witness, List<String>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
       final Optional<List<String>> actual = OPTIONAL.narrow(result);
       assertThat(actual).contains(Collections.emptyList());
     }
@@ -290,7 +289,7 @@ class TraversalsTest {
       final Function<Integer, Kind<OptionalKind.Witness, String>> f =
           i -> OPTIONAL.widen(Optional.of("value-" + i));
       final Kind<OptionalKind.Witness, List<String>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
       final Optional<List<String>> actual = OPTIONAL.narrow(result);
       assertThat(actual).contains(List.of("value-42"));
     }
@@ -307,7 +306,7 @@ class TraversalsTest {
             return i > 0 ? OPTIONAL.widen(Optional.of(i)) : OPTIONAL.widen(Optional.empty());
           };
       final Kind<OptionalKind.Witness, List<Integer>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
       final Optional<List<Integer>> actual = OPTIONAL.narrow(result);
       assertThat(actual).isEmpty();
       // With fail-fast semantics, all elements are still processed
@@ -796,7 +795,7 @@ class TraversalsTest {
           };
 
       final Kind<OptionalKind.Witness, List<Integer>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
 
       assertThat(OPTIONAL.narrow(result)).isEmpty();
       // Note: traverseList processes all elements even with Optional
@@ -811,7 +810,7 @@ class TraversalsTest {
           s -> ListKindHelper.LIST.widen(List.of(s, s.toUpperCase()));
 
       final Kind<ListKind.Witness, List<String>> result =
-          Traversals.traverseList(source, f, ListMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadZero(list()));
       final List<List<String>> actual = ListKindHelper.LIST.narrow(result);
 
       assertThat(actual).hasSize(4);
@@ -828,7 +827,7 @@ class TraversalsTest {
           i -> ListKindHelper.LIST.widen(List.of(i, i * 10));
 
       final Kind<ListKind.Witness, List<Integer>> result =
-          Traversals.traverseList(source, f, ListMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadZero(list()));
       final List<List<Integer>> actual = ListKindHelper.LIST.narrow(result);
 
       assertThat(actual).hasSize(8); // 2^3 combinations
@@ -842,7 +841,7 @@ class TraversalsTest {
           s -> OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       final Kind<OptionalKind.Witness, List<String>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
       final Optional<List<String>> actual = OPTIONAL.narrow(result);
 
       assertThat(actual).contains(List.of("Z", "A", "M", "B"));
@@ -1158,7 +1157,7 @@ class TraversalsTest {
           i -> i % 2 == 0 ? OPTIONAL.widen(Optional.empty()) : OPTIONAL.widen(Optional.of(i * 10));
 
       final Kind<OptionalKind.Witness, List<Integer>> result =
-          Traversals.traverseList(source, f, OptionalMonad.INSTANCE);
+          Traversals.traverseList(source, f, Instances.monadError(optional()));
 
       assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
@@ -1225,7 +1224,7 @@ class TraversalsTest {
           };
 
       final Kind<OptionalKind.Witness, List<String>> result =
-          Traversals.traverseList(numbers, classify, OptionalMonad.INSTANCE);
+          Traversals.traverseList(numbers, classify, Instances.monadError(optional()));
 
       assertThat(OPTIONAL.narrow(result))
           .contains(
@@ -3246,7 +3245,7 @@ class TraversalsTest {
           Traversals.traverseOptional(
               source,
               s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase())),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Optional<String>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isPresent();
@@ -3261,7 +3260,7 @@ class TraversalsTest {
           Traversals.traverseOptional(
               source,
               s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase())),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Optional<String>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isPresent();
@@ -3276,7 +3275,7 @@ class TraversalsTest {
           Traversals.<OptionalKind.Witness, String, String>traverseOptional(
               source,
               s -> OptionalKindHelper.OPTIONAL.widen(Optional.<String>empty()),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Optional<String>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3296,7 +3295,7 @@ class TraversalsTest {
     void traverseSet_withId() {
       Set<String> source = new LinkedHashSet<>(List.of("a", "b", "c"));
       Kind<IdKind.Witness, Set<String>> result =
-          Traversals.traverseSet(source, s -> Id.of(s.toUpperCase()), IdMonad.instance());
+          Traversals.traverseSet(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       Set<String> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).containsExactlyInAnyOrder("A", "B", "C");
@@ -3307,7 +3306,7 @@ class TraversalsTest {
     void traverseSet_empty() {
       Set<String> source = new LinkedHashSet<>();
       Kind<IdKind.Witness, Set<String>> result =
-          Traversals.traverseSet(source, s -> Id.of(s.toUpperCase()), IdMonad.instance());
+          Traversals.traverseSet(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       Set<String> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).isEmpty();
@@ -3323,7 +3322,7 @@ class TraversalsTest {
               n ->
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 2 ? Optional.empty() : Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Set<Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3337,7 +3336,7 @@ class TraversalsTest {
           Traversals.traverseSet(
               source,
               n -> OptionalKindHelper.OPTIONAL.widen(Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Set<Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isPresent();
@@ -3358,7 +3357,7 @@ class TraversalsTest {
     void traverseMapValues_withId() {
       Map<String, Integer> source = Map.of("a", 1, "b", 2, "c", 3);
       Kind<IdKind.Witness, Map<String, Integer>> result =
-          Traversals.traverseMapValues(source, n -> Id.of(n * 10), IdMonad.instance());
+          Traversals.traverseMapValues(source, n -> Id.of(n * 10), Instances.monad(id()));
 
       Map<String, Integer> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).containsEntry("a", 10).containsEntry("b", 20).containsEntry("c", 30);
@@ -3369,7 +3368,7 @@ class TraversalsTest {
     void traverseMapValues_empty() {
       Map<String, Integer> source = Map.of();
       Kind<IdKind.Witness, Map<String, Integer>> result =
-          Traversals.traverseMapValues(source, n -> Id.of(n * 10), IdMonad.instance());
+          Traversals.traverseMapValues(source, n -> Id.of(n * 10), Instances.monad(id()));
 
       Map<String, Integer> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).isEmpty();
@@ -3385,7 +3384,7 @@ class TraversalsTest {
               n ->
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 2 ? Optional.empty() : Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Map<String, Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3399,7 +3398,7 @@ class TraversalsTest {
       source.put("farewell", "bye");
 
       Kind<IdKind.Witness, Map<String, String>> result =
-          Traversals.traverseMapValues(source, s -> Id.of(s.toUpperCase()), IdMonad.instance());
+          Traversals.traverseMapValues(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       Map<String, String> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).containsEntry("greeting", "HELLO").containsEntry("farewell", "BYE");
@@ -3419,7 +3418,7 @@ class TraversalsTest {
     void traverseArray_withId() {
       String[] source = {"a", "b", "c"};
       Kind<IdKind.Witness, List<String>> result =
-          Traversals.traverseArray(source, s -> Id.of(s.toUpperCase()), IdMonad.instance());
+          Traversals.traverseArray(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       List<String> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).containsExactly("A", "B", "C");
@@ -3430,7 +3429,7 @@ class TraversalsTest {
     void traverseArray_empty() {
       String[] source = {};
       Kind<IdKind.Witness, List<String>> result =
-          Traversals.traverseArray(source, s -> Id.of(s.toUpperCase()), IdMonad.instance());
+          Traversals.traverseArray(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       List<String> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).isEmpty();
@@ -3446,7 +3445,7 @@ class TraversalsTest {
               n ->
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 2 ? Optional.empty() : Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3457,7 +3456,7 @@ class TraversalsTest {
     void traverseArray_preservesOrder() {
       Integer[] source = {3, 1, 4, 1, 5};
       Kind<IdKind.Witness, List<Integer>> result =
-          Traversals.traverseArray(source, n -> Id.of(n * 2), IdMonad.instance());
+          Traversals.traverseArray(source, n -> Id.of(n * 2), Instances.monad(id()));
 
       List<Integer> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified).containsExactly(6, 2, 8, 2, 10);
@@ -3477,7 +3476,7 @@ class TraversalsTest {
     void traverseTuple2Both_withId() {
       Tuple2<String, String> source = new Tuple2<>("hello", "world");
       Kind<IdKind.Witness, Tuple2<String, String>> result =
-          Traversals.traverseTuple2Both(source, s -> Id.of(s.toUpperCase()), IdMonad.instance());
+          Traversals.traverseTuple2Both(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       Tuple2<String, String> modified = IdKindHelper.ID.narrow(result).value();
       assertThat(modified._1()).isEqualTo("HELLO");
@@ -3494,7 +3493,7 @@ class TraversalsTest {
               n ->
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 1 ? Optional.empty() : Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Tuple2<Integer, Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3510,7 +3509,7 @@ class TraversalsTest {
               n ->
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 2 ? Optional.empty() : Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Tuple2<Integer, Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3524,7 +3523,7 @@ class TraversalsTest {
           Traversals.traverseTuple2Both(
               source,
               n -> OptionalKindHelper.OPTIONAL.widen(Optional.of(n * 10)),
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<Tuple2<Integer, Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isPresent();
@@ -3616,7 +3615,7 @@ class TraversalsTest {
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 2 ? Optional.empty() : Optional.of(n * 10)),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<LinkedHashSet<Integer>> outer = OPTIONAL.narrow(result);
       assertThat(outer).isEmpty();
@@ -3700,7 +3699,7 @@ class TraversalsTest {
                   OptionalKindHelper.OPTIONAL.widen(
                       n == 2 ? Optional.empty() : Optional.of(n * 10)),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       assertThat(OPTIONAL.narrow(result)).isEmpty();
     }

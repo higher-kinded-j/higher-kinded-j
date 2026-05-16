@@ -33,8 +33,8 @@ sealed interface OrderError {
     record OutOfStock(String sku)      implements OrderError {}
 }
 
-var futureMonad  = CompletableFutureMonad.INSTANCE;
-var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, OrderError>(futureMonad);
+var futureMonad  = Instances.monadError(completableFuture());
+var eitherTMonad = Instances.eitherT(futureMonad);
 
 var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(order)))
     .from(validated -> EitherT.fromKind(checkInventory(validated)))
@@ -57,8 +57,8 @@ import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.optional_t.OptionalT;
 import org.higherkindedj.hkt.optional_t.OptionalTMonad;
 
-var futureMonad    = CompletableFutureMonad.INSTANCE;
-var optionalTMonad = new OptionalTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad    = Instances.monadError(completableFuture());
+var optionalTMonad = Instances.optionalT(futureMonad);
 
 var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
     .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))

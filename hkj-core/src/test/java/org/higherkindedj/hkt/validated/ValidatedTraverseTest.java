@@ -4,14 +4,17 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,13 +27,13 @@ class ValidatedTraverseTest extends ValidatedTestBase {
   private static final MaybeKindHelper MAYBE = MaybeKindHelper.MAYBE;
 
   private ValidatedTraverse<String> traverse;
-  private MaybeMonad applicative;
+  private MonadError<MaybeKind.Witness, Unit> applicative;
   private Monoid<String> monoid;
 
   @BeforeEach
   void setUpTraverse() {
     traverse = ValidatedTraverse.instance();
-    applicative = MaybeMonad.INSTANCE;
+    applicative = Instances.monadError(maybe());
     monoid = Monoids.string();
   }
 

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.writer_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
 import java.util.function.Function;
@@ -16,7 +17,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,8 +45,8 @@ class WriterTMonadTest {
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
-    writerMonad = new WriterTMonad<>(idMonad, STRING_MONOID);
+    idMonad = Instances.monad(id());
+    writerMonad = Instances.writerT(idMonad, STRING_MONOID);
   }
 
   /** Extract the Pair<A, W> from a WriterT wrapped in Id. */
@@ -373,14 +374,14 @@ class WriterTMonadTest {
     @Test
     @DisplayName("constructor should reject null outer monad")
     void constructor_shouldRejectNullOuterMonad() {
-      assertThatThrownBy(() -> new WriterTMonad<>(null, STRING_MONOID))
+      assertThatThrownBy(() -> Instances.writerT(null, STRING_MONOID))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("constructor should reject null monoid")
     void constructor_shouldRejectNullMonoid() {
-      assertThatThrownBy(() -> new WriterTMonad<>(idMonad, null))
+      assertThatThrownBy(() -> Instances.writerT(idMonad, null))
           .isInstanceOf(NullPointerException.class);
     }
 

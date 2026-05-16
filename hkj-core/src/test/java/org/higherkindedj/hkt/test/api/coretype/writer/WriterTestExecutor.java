@@ -3,12 +3,15 @@
 package org.higherkindedj.hkt.test.api.coretype.writer;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -16,7 +19,6 @@ import org.higherkindedj.hkt.writer.Writer;
 import org.higherkindedj.hkt.writer.WriterFunctor;
 import org.higherkindedj.hkt.writer.WriterKind;
 import org.higherkindedj.hkt.writer.WriterKindHelper;
-import org.higherkindedj.hkt.writer.WriterMonad;
 
 /**
  * Internal executor for Writer core type tests.
@@ -107,7 +109,7 @@ final class WriterTestExecutor<W, A, B>
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      WriterMonad<W> monad = new WriterMonad<>(monoid);
+      Monad<WriterKind.Witness<W>> monad = Instances.writer(monoid);
       Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.example.payment.model.Customer;
 import org.higherkindedj.example.payment.model.CustomerId;
@@ -61,7 +62,7 @@ public class Tutorial06_AdvancedInterpreters {
    * <p>Task: Combine audit interpreters, interpret the program, and extract the audit log
    *
    * <pre>
-   *   // Strategy: new WriterTMonad<>(IdMonad.instance(), AuditLogMonoid.INSTANCE)
+   *   // Strategy: Instances.writerT(Instances.monad(id()), AuditLogMonoid.INSTANCE)
    * </pre>
    */
   @Test
@@ -74,7 +75,7 @@ public class Tutorial06_AdvancedInterpreters {
     var interpreter = answerRequired();
 
     // TODO: Create a WriterTMonad with IdMonad and AuditLogMonoid
-    // Hint: new WriterTMonad<>(IdMonad.instance(), AuditLogMonoid.INSTANCE)
+    // Hint: Instances.writerT(Instances.monad(id()), AuditLogMonoid.INSTANCE)
     var writerMonad = answerRequired();
 
     // Once you have the interpreter and monad, interpret and extract:
@@ -118,7 +119,7 @@ public class Tutorial06_AdvancedInterpreters {
     var interpreter = answerRequired();
 
     // TODO: Create a ReaderTMonadReader with IdMonad
-    // Hint: new ReaderTMonadReader<>(IdMonad.instance())
+    // Hint: new ReaderTMonadReader<>(Instances.monad(id()))
     var readerMonad = answerRequired();
 
     // Once you have everything, interpret and run with the event log:

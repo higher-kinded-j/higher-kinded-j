@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.web.returnvalue;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,8 +15,8 @@ import java.io.StringWriter;
 import java.util.Map;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.boundary.EffectBoundary;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +66,7 @@ class FreePathReturnValueHandlerHeaderTest {
     handler = new FreePathReturnValueHandler(jsonMapper, 500, false, applicationContext);
 
     // Any FreePath instance suffices — the boundary lookup fails before interpretation runs.
-    freePath = FreePath.pure("ignored", MaybeMonad.INSTANCE);
+    freePath = FreePath.pure("ignored", Instances.monadError(maybe()));
     stringWriter = new StringWriter();
     printWriter = new PrintWriter(stringWriter);
 

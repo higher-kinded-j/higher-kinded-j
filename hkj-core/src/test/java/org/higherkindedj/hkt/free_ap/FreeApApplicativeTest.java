@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.free_ap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.Objects;
@@ -13,8 +14,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +37,8 @@ class FreeApApplicativeTest {
   private Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Integer, String>> functionKind;
   private BiFunction<Integer, Integer, String> combiningFunction;
 
-  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE = MaybeMonad.INSTANCE;
+  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE =
+      Instances.monadError(maybe());
   private static final Natural<MaybeKind.Witness, MaybeKind.Witness> IDENTITY_NAT =
       Natural.identity();
 

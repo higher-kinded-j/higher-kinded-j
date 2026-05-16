@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.free;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.function.Function;
@@ -13,9 +14,9 @@ import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityKindHelper;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -431,7 +432,7 @@ class FreeMonadTest extends FreeTestBase {
             Object value = IDENTITY.narrow(kind).value();
             return IO_OP.widen(IO.delay(() -> value));
           };
-      Kind<IOKind.Witness, A> result = free.foldMap(transform, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, A> result = free.foldMap(transform, Instances.monad(io()));
       return IO_OP.narrow(result).unsafeRunSync();
     }
 
@@ -445,7 +446,7 @@ class FreeMonadTest extends FreeTestBase {
               return IO_OP.widen(IO.delay(() -> value));
             }
           };
-      Kind<IOKind.Witness, A> result = free.foldMap(transform, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, A> result = free.foldMap(transform, Instances.monad(io()));
       return IO_OP.narrow(result).unsafeRunSync();
     }
 

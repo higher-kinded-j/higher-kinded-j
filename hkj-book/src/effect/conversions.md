@@ -345,7 +345,7 @@ Use `OptionalPath` when:
 Kind<MaybeKind.Witness, String> maybeKind = MaybeKind.widen(Maybe.just("hello"));
 GenericPath<MaybeKind.Witness, String> generic = Path.generic(
     maybeKind,
-    MaybeMonad.INSTANCE
+    Instances.monadError(maybe())
 );
 ```
 
@@ -356,7 +356,7 @@ GenericPath<MaybeKind.Witness, String> generic = Path.generic(
 GenericPath<MaybeKind.Witness, Integer> mapped = generic.map(String::length);
 
 GenericPath<MaybeKind.Witness, String> chained = generic.via(s ->
-    Path.generic(MaybeKind.widen(Maybe.just(s.toUpperCase())), MaybeMonad.INSTANCE)
+    Path.generic(MaybeKind.widen(Maybe.just(s.toUpperCase())), Instances.monadError(maybe()))
 );
 
 // Extract the underlying Kind
@@ -477,7 +477,7 @@ OptionalPath<String> fromNullable = Path.optionalOfNullable(possiblyNull);
 ```java
 // Wrap any Kind with its Monad
 Kind<ListKind.Witness, Integer> listKind = ListKind.widen(List.of(1, 2, 3));
-GenericPath<ListKind.Witness, Integer> genericList = Path.generic(listKind, ListMonad.INSTANCE);
+GenericPath<ListKind.Witness, Integer> genericList = Path.generic(listKind, Instances.monadZero(list()));
 ```
 
 ---
@@ -620,7 +620,7 @@ String value = opt.orElseThrow(() -> new NoSuchElementException());
 
 ```java
 GenericPath<MaybeKind.Witness, String> path = Path.generic(
-    MaybeKind.widen(maybe), MaybeMonad.INSTANCE);
+    MaybeKind.widen(maybe), Instances.monadError(maybe()));
 
 // Get underlying Kind
 Kind<MaybeKind.Witness, String> kind = path.runKind();

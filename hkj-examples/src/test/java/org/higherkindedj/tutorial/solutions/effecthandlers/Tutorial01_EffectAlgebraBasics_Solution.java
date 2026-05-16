@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -12,7 +13,7 @@ import org.higherkindedj.hkt.free.ProgramAnalysis;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -59,7 +60,7 @@ public class Tutorial01_EffectAlgebraBasics_Solution {
     Free<IdKind.Witness, String> program = Free.pure("hello");
 
     Id<String> result =
-        IdKindHelper.ID.narrow(program.foldMap(IDENTITY_INTERP, IdMonad.instance()));
+        IdKindHelper.ID.narrow(program.foldMap(IDENTITY_INTERP, Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo("hello");
   }
@@ -81,7 +82,7 @@ public class Tutorial01_EffectAlgebraBasics_Solution {
     Free<IdKind.Witness, Integer> chained = first.flatMap(n -> Free.pure(n + 5));
 
     Id<Integer> result =
-        IdKindHelper.ID.narrow(chained.foldMap(IDENTITY_INTERP, IdMonad.instance()));
+        IdKindHelper.ID.narrow(chained.foldMap(IDENTITY_INTERP, Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo(15);
   }
@@ -102,7 +103,7 @@ public class Tutorial01_EffectAlgebraBasics_Solution {
     Free<IdKind.Witness, String> upperGreeting = greeting.map(String::toUpperCase);
 
     Id<String> result =
-        IdKindHelper.ID.narrow(upperGreeting.foldMap(IDENTITY_INTERP, IdMonad.instance()));
+        IdKindHelper.ID.narrow(upperGreeting.foldMap(IDENTITY_INTERP, Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo("HELLO");
   }

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -10,9 +11,9 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -106,7 +107,7 @@ class IsoTest {
           v -> OptionalKindHelper.OPTIONAL.widen(Optional.of(v * 2));
 
       Kind<OptionalKind.Witness, UserId> result =
-          userIdIso.modifyF(successModifier, userId, OptionalMonad.INSTANCE);
+          userIdIso.modifyF(successModifier, userId, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isPresent().contains(new UserId(84L));
     }
@@ -119,7 +120,7 @@ class IsoTest {
           v -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, UserId> result =
-          userIdIso.modifyF(failureModifier, userId, OptionalMonad.INSTANCE);
+          userIdIso.modifyF(failureModifier, userId, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isEmpty();
     }
@@ -194,7 +195,7 @@ class IsoTest {
           v -> OptionalKindHelper.OPTIONAL.widen(Optional.of(v * 2));
 
       Kind<OptionalKind.Witness, UserId> result =
-          traversal.modifyF(modifier, userId, OptionalMonad.INSTANCE);
+          traversal.modifyF(modifier, userId, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isPresent().contains(new UserId(84L));
     }

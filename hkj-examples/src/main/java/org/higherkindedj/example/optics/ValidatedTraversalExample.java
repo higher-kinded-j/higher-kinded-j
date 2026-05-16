@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
@@ -12,9 +13,9 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.hkt.validated.ValidatedSelective;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -65,7 +66,7 @@ public class ValidatedTraversalExample {
 
   // --- Helper Methods ---
   private static Applicative<ValidatedKind.Witness<String>> getValidatedApplicative() {
-    return ValidatedMonad.instance(Semigroups.string("; "));
+    return Instances.validated(Semigroups.string("; "));
   }
 
   public static Validated<String, Form> validateFormPermissions(Form form) {
@@ -149,7 +150,7 @@ public class ValidatedTraversalExample {
 
     // Use list-based error accumulation instead of string concatenation
     Applicative<ValidatedKind.Witness<List<String>>> listApplicative =
-        ValidatedMonad.instance(Semigroups.list());
+        Instances.validated(Semigroups.list());
 
     Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> listValidation =
         name ->

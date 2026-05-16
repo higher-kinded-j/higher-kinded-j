@@ -4,17 +4,19 @@ package org.higherkindedj.tutorial.solutions.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either_t.EitherT;
 import org.higherkindedj.hkt.either_t.EitherTKind;
-import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,13 +46,14 @@ public class Tutorial03_StackingTransformers_Solution {
     record InvalidInput(String reason) implements AppError {}
   }
 
-  private OptionalMonad optionalMonad;
-  private EitherTMonad<OptionalKind.Witness, AppError> eitherTOverOptional;
+  private MonadError<OptionalKind.Witness, Unit> optionalMonad;
+  private MonadError<EitherTKind.Witness<OptionalKind.Witness, AppError>, AppError>
+      eitherTOverOptional;
 
   @BeforeEach
   void setUp() {
-    optionalMonad = OptionalMonad.INSTANCE;
-    eitherTOverOptional = new EitherTMonad<>(optionalMonad);
+    optionalMonad = Instances.monadError(optional());
+    eitherTOverOptional = Instances.eitherT(optionalMonad);
   }
 
   @Nested

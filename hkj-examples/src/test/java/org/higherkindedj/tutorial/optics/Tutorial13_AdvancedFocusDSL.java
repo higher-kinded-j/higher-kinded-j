@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -140,7 +141,7 @@ public class Tutorial13_AdvancedFocusDSL {
    * <p>Task: Use modifyF to validate and transform a value
    *
    * <pre>
-   *   // Strategy: keyPath.modifyF(validateAndTransform, config, MaybeMonad.INSTANCE)
+   *   // Strategy: keyPath.modifyF(validateAndTransform, config, Instances.monadError(maybe()))
    * </pre>
    */
   @Test
@@ -166,7 +167,8 @@ public class Tutorial13_AdvancedFocusDSL {
         };
 
     // Use modifyF with MaybeMonad to perform the effectful modification
-    // TODO: Replace null with keyPath.modifyF(validateAndTransform, config, MaybeMonad.INSTANCE)
+    // TODO: Replace null with keyPath.modifyF(validateAndTransform, config,
+    // Instances.monadError(maybe()))
     Kind<MaybeKind.Witness, Config> result = answerRequired();
 
     // The result should be Just(Config("ABC123")) because the key is valid
@@ -177,7 +179,7 @@ public class Tutorial13_AdvancedFocusDSL {
     // Now test with an invalid key
     Config shortKeyConfig = new Config("abc");
     // TODO: Replace null with keyPath.modifyF(validateAndTransform, shortKeyConfig,
-    // MaybeMonad.INSTANCE)
+    // Instances.monadError(maybe()))
     Kind<MaybeKind.Witness, Config> invalidResult = answerRequired();
 
     Maybe<Config> invalidMaybe = MaybeKindHelper.MAYBE.narrow(invalidResult);

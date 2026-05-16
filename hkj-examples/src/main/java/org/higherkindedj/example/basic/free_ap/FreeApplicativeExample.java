@@ -3,13 +3,15 @@
 package org.higherkindedj.example.basic.free_ap;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.free_ap.FreeApApplicative;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Demonstrates Free Applicative in Higher-Kinded-J.
@@ -55,7 +57,7 @@ public class FreeApplicativeExample {
     System.out.println("After map: FreeAp containing transformed value");
 
     // Interpret to get the result
-    IdMonad idApp = IdMonad.instance();
+    Monad<IdKind.Witness> idApp = Instances.monad(id());
     Natural<IdKind.Witness, IdKind.Witness> identity = Natural.identity();
 
     Kind<IdKind.Witness, String> result = mapped.foldMap(identity, idApp);
@@ -87,7 +89,7 @@ public class FreeApplicativeExample {
     System.out.println("Combined with map2: name + \" is \" + age + \" years old\"");
 
     // Interpret
-    IdMonad idApp = IdMonad.instance();
+    Monad<IdKind.Witness> idApp = Instances.monad(id());
     Natural<IdKind.Witness, IdKind.Witness> identity = Natural.identity();
 
     Kind<IdKind.Witness, String> result = combined.foldMap(identity, idApp);
@@ -121,7 +123,7 @@ public class FreeApplicativeExample {
     System.out.println("Program: sum all three values");
 
     // Interpret
-    IdMonad idApp = IdMonad.instance();
+    Monad<IdKind.Witness> idApp = Instances.monad(id());
     Natural<IdKind.Witness, IdKind.Witness> identity = Natural.identity();
 
     Kind<IdKind.Witness, Integer> result = sum.foldMap(identity, idApp);
@@ -168,7 +170,7 @@ public class FreeApplicativeExample {
     System.out.println("  A parallel interpreter could fetch both simultaneously.");
 
     // Interpret
-    IdMonad idApp = IdMonad.instance();
+    Monad<IdKind.Witness> idApp = Instances.monad(id());
     Natural<IdKind.Witness, IdKind.Witness> identity = Natural.identity();
 
     Kind<IdKind.Witness, String> result = dashboard.foldMap(identity, idApp);

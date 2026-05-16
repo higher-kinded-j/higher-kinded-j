@@ -3,17 +3,20 @@
 package org.higherkindedj.hkt.test.api.coretype.maybe;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -89,7 +92,7 @@ final class MaybeTestExecutor<T, S>
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      MaybeMonad monad = MaybeMonad.INSTANCE;
+      MonadError<MaybeKind.Witness, Unit> monad = Instances.monadError(maybe());
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

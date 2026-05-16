@@ -4,12 +4,15 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +23,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("EitherMonad Applicative Operations Complete Test Suite")
 class EitherApplicativeTest extends EitherTestBase {
 
-  private EitherMonad<String> applicative;
+  private MonadError<EitherKind.Witness<String>, String> applicative;
   private Applicative<EitherKind.Witness<String>> applicativeTyped;
 
   @BeforeEach
   void setUpApplicative() {
-    applicative = EitherMonad.instance();
+    applicative = Instances.monadError(either());
     applicativeTyped = applicative;
     validateApplicativeFixtures();
   }

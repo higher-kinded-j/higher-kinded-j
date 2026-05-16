@@ -453,7 +453,7 @@ public final class ProfilingOpticInterpreter {
             };
 
         Kind<IdKind.Witness, A> resultKind =
-            program.foldMap(transform, IdMonad.instance());
+            program.foldMap(transform, Instances.monad(id()));
         return IdKindHelper.ID.narrow(resultKind).value();
     }
 
@@ -543,7 +543,7 @@ public final class MockOpticInterpreter<S> {
             };
 
         Kind<IdKind.Witness, A> resultKind =
-            program.foldMap(transform, IdMonad.instance());
+            program.foldMap(transform, Instances.monad(id()));
         return IdKindHelper.ID.narrow(resultKind).value();
     }
 }

@@ -511,4 +511,42 @@ class StateMonadTest extends StateTestBase<Integer> {
           .isSameAs(testException);
     }
   }
+
+  @Nested
+  @DisplayName("instance() factory")
+  class InstanceFactory {
+
+    @Test
+    @DisplayName("returns a non-null, reused singleton across calls and state types")
+    void returnsReusedSingleton() {
+      StateMonad<Integer> a = StateMonad.instance();
+      StateMonad<Integer> b = StateMonad.instance();
+      StateMonad<String> other = StateMonad.instance();
+
+      assertThat(a).isNotNull();
+      assertThat(b).isSameAs(a);
+      // StateMonad carries no per-S state, so one object serves every S.
+      assertThat((Object) other).isSameAs(a);
+    }
+
+    @Test
+    @DisplayName("is a fully functional Monad equivalent to the constructed instance")
+    void isFunctionalAndEquivalent() {
+      StateMonad<Integer> instanceMonad = StateMonad.instance();
+
+      State<Integer, Integer> increment = State.of(s -> new StateTuple<>(s + 1, s + 1));
+      Kind<StateKind.Witness<Integer>, Integer> incKind = STATE.widen(increment);
+
+      Kind<StateKind.Witness<Integer>, String> viaInstance =
+          instanceMonad.flatMap(i -> instanceMonad.of("v" + i), incKind);
+      Kind<StateKind.Witness<Integer>, String> viaCtor =
+          new StateMonad<Integer>().flatMap(i -> instanceMonad.of("v" + i), incKind);
+
+      assertThatStateTuple(runState(viaInstance, getInitialState()))
+          .hasValue("v11") // getInitialState() + 1
+          .hasState(11);
+      // parity with the public constructor
+      assertThatStateTuple(runState(viaCtor, getInitialState())).hasValue("v11").hasState(11);
+    }
+  }
 }

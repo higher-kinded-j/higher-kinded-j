@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.StreamAssert.assertThatStream;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.stream.StreamOps.*;
 
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -498,7 +500,8 @@ class StreamOpsTest extends StreamTestBase {
     void complexPipeline_shouldComposeOperations() {
       // Create range, filter evens, take 3, multiply by 10
       Kind<StreamKind.Witness, Integer> result =
-          StreamMonad.INSTANCE.map(n -> n * 10, take(3, filter(n -> n % 2 == 0, range(1, 20))));
+          Instances.monadZero(stream())
+              .map(n -> n * 10, take(3, filter(n -> n % 2 == 0, range(1, 20))));
 
       assertThat(toList(result)).containsExactly(20, 40, 60);
     }
@@ -533,7 +536,7 @@ class StreamOpsTest extends StreamTestBase {
       Kind<StreamKind.Witness, Integer> pipeline =
           tap(
               n -> debugLog.add(n),
-              StreamMonad.INSTANCE.map(n -> n * n, filter(n -> n > 2, range(1, 6))));
+              Instances.monadZero(stream()).map(n -> n * n, filter(n -> n > 2, range(1, 6))));
 
       List<Integer> result = toList(pipeline);
 

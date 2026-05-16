@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.time.Instant;
@@ -9,9 +10,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -321,7 +323,7 @@ public class EventProcessingExample {
   private static void demonstrateForComprehensionWithMatch() {
     System.out.println("--- For Comprehension with match() ---");
 
-    ListMonad listMonad = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     List<DomainEvent> events =
         List.of(

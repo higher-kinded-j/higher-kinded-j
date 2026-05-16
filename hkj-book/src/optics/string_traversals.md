@@ -280,7 +280,7 @@ Function<String, Kind<OptionalKind.Witness, String>> validateWord = word -> {
 };
 
 Optional<String> validated = OptionalKindHelper.OPTIONAL.narrow(
-    words.modifyF(validateWord, input, OptionalMonad.INSTANCE)
+    words.modifyF(validateWord, input, Instances.monadError(optional()))
 );
 // Returns Optional.empty() if any word contains non-alphanumeric characters
 ```

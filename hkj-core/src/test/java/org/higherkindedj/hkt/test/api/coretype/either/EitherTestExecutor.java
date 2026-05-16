@@ -3,17 +3,19 @@
 package org.higherkindedj.hkt.test.api.coretype.either;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -132,7 +134,7 @@ final class EitherTestExecutor<L, R, S>
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      EitherMonad<L> monad = EitherMonad.instance();
+      MonadError<EitherKind.Witness<L>, L> monad = Instances.monadError(either());
       Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

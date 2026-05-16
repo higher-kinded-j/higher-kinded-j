@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -11,16 +12,17 @@ import java.util.List;
 import java.util.Optional;
 import org.assertj.core.data.Offset;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -74,7 +76,7 @@ class ForIsoIntegrationTest {
   @Nested
   @DisplayName("through() with Identity Monad")
   class ThroughWithIdMonadTests {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     @Test
     @DisplayName("should convert Celsius to Fahrenheit and yield both values")
@@ -140,7 +142,7 @@ class ForIsoIntegrationTest {
   @Nested
   @DisplayName("through() with Maybe Monad")
   class ThroughWithMaybeMonadTests {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     @Test
     @DisplayName("should convert value when applied to Just")
@@ -170,7 +172,7 @@ class ForIsoIntegrationTest {
   @Nested
   @DisplayName("through() with List Monad")
   class ThroughWithListMonadTests {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("should apply Iso to each element in a list")
@@ -191,8 +193,8 @@ class ForIsoIntegrationTest {
   @Nested
   @DisplayName("through() with Filterable Steps")
   class ThroughWithFilterableStepsTests {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("should convert value via Iso on FilterableSteps1")
@@ -255,8 +257,8 @@ class ForIsoIntegrationTest {
   @Nested
   @DisplayName("through() Null Validation")
   class ThroughNullValidationTests {
-    private final IdMonad idMonad = IdMonad.instance();
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
+    private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     @Test
     @DisplayName("should throw NullPointerException when iso is null on MonadicSteps1")
@@ -283,8 +285,8 @@ class ForIsoIntegrationTest {
   @Nested
   @DisplayName("through() Composition Tests")
   class ThroughCompositionTests {
-    private final IdMonad idMonad = IdMonad.instance();
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("should combine through() then focus() for multi-step extraction")

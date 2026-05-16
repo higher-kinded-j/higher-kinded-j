@@ -2,14 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.optional;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/optional_monad.html">Optional Monad</a>} */
 public class OptionalExample {
@@ -29,7 +31,7 @@ public class OptionalExample {
   }
 
   public void mapExample() {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
     // Using OPTIONAL.widen which calls the instance method on OptionalKindHelper.OPTIONAL
     Kind<OptionalKind.Witness, Integer> presentNumber = OPTIONAL.widen(Optional.of(10));
     Kind<OptionalKind.Witness, Integer> emptyNumber = OPTIONAL.widen(Optional.empty());
@@ -51,7 +53,7 @@ public class OptionalExample {
   }
 
   public void flatMapExample() {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
     Kind<OptionalKind.Witness, String> presentInput = OPTIONAL.widen(Optional.of("5"));
     Kind<OptionalKind.Witness, String> emptyInput = OPTIONAL.widen(Optional.empty());
 
@@ -80,7 +82,7 @@ public class OptionalExample {
   }
 
   public void apExample() {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
     Kind<OptionalKind.Witness, Function<Integer, String>> presentFuncKind =
         OPTIONAL.widen(Optional.of(i -> "Value: " + i));
@@ -103,7 +105,7 @@ public class OptionalExample {
   }
 
   public void handleErrorWithExample() {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
     Kind<OptionalKind.Witness, String> presentKind = OPTIONAL.widen(Optional.of("Exists"));
     Kind<OptionalKind.Witness, String> emptyKind = OPTIONAL.widen(Optional.empty());
@@ -122,7 +124,7 @@ public class OptionalExample {
   }
 
   public void monadExample() {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
     Kind<OptionalKind.Witness, Integer> presentIntKind = OPTIONAL.widen(Optional.of(10));
 

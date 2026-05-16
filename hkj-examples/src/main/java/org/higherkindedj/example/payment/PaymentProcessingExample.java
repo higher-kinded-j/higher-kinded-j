@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.payment;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
 import org.higherkindedj.example.payment.interpreter.CapturingNotificationInterpreter;
 import org.higherkindedj.example.payment.interpreter.FixedRiskInterpreter;
@@ -22,10 +24,9 @@ import org.higherkindedj.example.payment.service.PaymentService;
 import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKindHelper;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -103,7 +104,7 @@ public final class PaymentProcessingExample {
     // Interpret into IO and execute
     IO<PaymentResult> io =
         IOKindHelper.IO_OP.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IOMonad.INSTANCE));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(io())));
     PaymentResult result = io.unsafeRunSync();
 
     System.out.println("  Result: " + result);
@@ -126,7 +127,7 @@ public final class PaymentProcessingExample {
 
     Id<PaymentResult> id =
         IdKindHelper.ID.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())));
     PaymentResult result = id.value();
 
     System.out.println("  Result: " + result);
@@ -153,7 +154,7 @@ public final class PaymentProcessingExample {
 
     Id<PaymentResult> id =
         IdKindHelper.ID.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())));
     PaymentResult result = id.value();
 
     System.out.println("  Result: " + result);
@@ -178,7 +179,7 @@ public final class PaymentProcessingExample {
 
     Id<PaymentResult> id =
         IdKindHelper.ID.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())));
     PaymentResult result = id.value();
 
     System.out.println("  Result: " + result);

@@ -4,11 +4,14 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
@@ -20,11 +23,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("WriterMonad Complete Test Suite")
 class WriterMonadTest extends WriterTestBase {
 
-  private WriterMonad<String> monad;
+  private Monad<WriterKind.Witness<String>> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = new WriterMonad<>(STRING_MONOID);
+    monad = Instances.writer(STRING_MONOID);
     validateMonadFixtures();
   }
 

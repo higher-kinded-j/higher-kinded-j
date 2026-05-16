@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
@@ -15,6 +16,7 @@ import org.higherkindedj.hkt.effect.VStreamPathProvider;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.spi.PathProvider;
 import org.higherkindedj.hkt.effect.spi.PathRegistry;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.junit.jupiter.api.AfterEach;
@@ -63,11 +65,11 @@ class VStreamPathProviderTest {
     }
 
     @Test
-    @DisplayName("monad() returns VStreamMonad.INSTANCE")
+    @DisplayName("monad() returns Instances.monad(vstream())")
     void monadReturnsVStreamMonadInstance() {
       VStreamPathProvider provider = new VStreamPathProvider();
 
-      assertThat(provider.monad()).isSameAs(VStreamMonad.INSTANCE);
+      assertThat(provider.monad()).isSameAs(Instances.monad(vstream()));
     }
 
     @Test

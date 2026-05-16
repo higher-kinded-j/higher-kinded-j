@@ -277,7 +277,7 @@ Lens<Player, Integer> scoreLens = Lens.of(
 
 // Add bonus points to all players
 Kind<IdKind.Witness, List<Player>> result =
-    ForTraversal.over(playersTraversal, players, IdMonad.instance())
+    ForTraversal.over(playersTraversal, players, Instances.monad(id()))
         .modify(scoreLens, score -> score + 50)
         .run();
 
@@ -291,7 +291,7 @@ The `filter()` method preserves non-matching elements unchanged whilst applying 
 
 ```java
 Kind<IdKind.Witness, List<Player>> result =
-    ForTraversal.over(playersTraversal, players, IdMonad.instance())
+    ForTraversal.over(playersTraversal, players, Instances.monad(id()))
         .filter(p -> p.score() >= 150)
         .modify(scoreLens, score -> score * 2)
         .run();
@@ -305,7 +305,7 @@ Use `toList()` to collect all focused elements:
 
 ```java
 Kind<IdKind.Witness, List<Player>> allPlayers =
-    ForTraversal.over(playersTraversal, players, IdMonad.instance())
+    ForTraversal.over(playersTraversal, players, Instances.monad(id()))
         .toList();
 ```
 
@@ -327,7 +327,7 @@ List<Player> players = List.of(
 
 // Add position-based bonus (first place gets more)
 Kind<IdKind.Witness, List<Player>> result =
-    ForIndexed.overIndexed(indexedPlayers, players, IdMonad.instance())
+    ForIndexed.overIndexed(indexedPlayers, players, Instances.monad(id()))
         .modify(scoreLens, (index, score) -> score + (100 - index * 10))
         .run();
 
@@ -382,7 +382,7 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 The real power of optics integration emerges when you combine these operations in a single pipeline. Here is a payroll workflow that validates employees, normalises their names, gives everyone a raise, and increases the department budget -- all in one composable chain:
 
 ```java
-MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 Iso<Integer, Double> centsToDollars =
     Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
 

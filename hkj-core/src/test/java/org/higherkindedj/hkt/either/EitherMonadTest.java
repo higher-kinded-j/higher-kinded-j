@@ -4,10 +4,13 @@ package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,11 +21,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("EitherMonad Complete Test Suite")
 class EitherMonadTest extends EitherTestBase {
 
-  private EitherMonad<String> monad;
+  private MonadError<EitherKind.Witness<String>, String> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = EitherMonad.instance();
+    monad = Instances.monadError(either());
     validateMonadFixtures();
   }
 
@@ -239,7 +242,8 @@ class EitherMonadTest extends EitherTestBase {
     @Test
     @DisplayName("Test with different error types")
     void testWithDifferentErrorTypes() {
-      EitherMonad<ComplexTestError> complexMonad = EitherMonad.instance();
+      MonadError<EitherKind.Witness<ComplexTestError>, ComplexTestError> complexMonad =
+          Instances.monadError(either());
       var complexKind = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
 
       Function<Integer, String> mapper = Object::toString;

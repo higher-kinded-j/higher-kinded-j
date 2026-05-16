@@ -4,6 +4,7 @@ package org.higherkindedj.optics.each;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
@@ -19,12 +20,10 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedSelective;
@@ -451,7 +450,7 @@ class VStreamEachTest {
       VStream<Integer> stream = VStream.fromList(List.of(1, 2, 3));
 
       Kind<IdKind.Witness, VStream<Integer>> result =
-          traversal.modifyF(a -> ID.widen(Id.of(a * 10)), stream, IdMonad.instance());
+          traversal.modifyF(a -> ID.widen(Id.of(a * 10)), stream, Instances.monad(id()));
 
       VStream<Integer> modified = ID.narrow(result).value();
       assertThat(modified.toList().run()).containsExactly(10, 20, 30);
@@ -463,7 +462,7 @@ class VStreamEachTest {
       VStream<Integer> stream = VStream.empty();
 
       Kind<IdKind.Witness, VStream<Integer>> result =
-          traversal.modifyF(a -> ID.widen(Id.of(a * 10)), stream, IdMonad.instance());
+          traversal.modifyF(a -> ID.widen(Id.of(a * 10)), stream, Instances.monad(id()));
 
       VStream<Integer> modified = ID.narrow(result).value();
       assertThat(modified.toList().run()).isEmpty();
@@ -478,7 +477,7 @@ class VStreamEachTest {
           n -> MAYBE.widen(Maybe.just(n * 2));
 
       Kind<MaybeKind.Witness, VStream<Integer>> result =
-          traversal.modifyF(safeDouble, stream, MaybeMonad.INSTANCE);
+          traversal.modifyF(safeDouble, stream, Instances.monadError(maybe()));
 
       Maybe<VStream<Integer>> maybeResult = MAYBE.narrow(result);
       assertThat(maybeResult.isJust()).isTrue();
@@ -495,7 +494,7 @@ class VStreamEachTest {
           n -> n > 1 ? MAYBE.widen(Maybe.nothing()) : MAYBE.widen(Maybe.just(n));
 
       Kind<MaybeKind.Witness, VStream<Integer>> result =
-          traversal.modifyF(failOnLarge, stream, MaybeMonad.INSTANCE);
+          traversal.modifyF(failOnLarge, stream, Instances.monadError(maybe()));
 
       Maybe<VStream<Integer>> maybeResult = MAYBE.narrow(result);
       assertThat(maybeResult.isNothing()).isTrue();
@@ -510,7 +509,7 @@ class VStreamEachTest {
           n -> OPTIONAL.widen(Optional.of(n / 2));
 
       Kind<OptionalKind.Witness, VStream<Integer>> result =
-          traversal.modifyF(safeHalf, stream, OptionalMonad.INSTANCE);
+          traversal.modifyF(safeHalf, stream, Instances.monadError(optional()));
 
       Optional<VStream<Integer>> optResult = OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -527,7 +526,7 @@ class VStreamEachTest {
           n -> n % 2 == 0 ? OPTIONAL.widen(Optional.empty()) : OPTIONAL.widen(Optional.of(n));
 
       Kind<OptionalKind.Witness, VStream<Integer>> result =
-          traversal.modifyF(failOnEven, stream, OptionalMonad.INSTANCE);
+          traversal.modifyF(failOnEven, stream, Instances.monadError(optional()));
 
       Optional<VStream<Integer>> optResult = OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();

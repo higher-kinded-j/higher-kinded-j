@@ -3,12 +3,14 @@
 package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadReader;
 import org.higherkindedj.hkt.MonadState;
 import org.higherkindedj.hkt.MonadWriter;
@@ -19,7 +21,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;
 import org.higherkindedj.hkt.reader_t.ReaderTMonadReader;
@@ -29,7 +31,6 @@ import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTMonadState;
 import org.higherkindedj.hkt.writer_t.WriterT;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
-import org.higherkindedj.hkt.writer_t.WriterTMonad;
 import org.higherkindedj.optics.Lens;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,11 +56,11 @@ class ForStateMTLTest {
 
   // --- Fixtures ---
 
-  private IdMonad idMonad;
+  private Monad<IdKind.Witness> idMonad;
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
+    idMonad = Instances.monad(id());
   }
 
   // =========================================================================
@@ -213,7 +214,7 @@ class ForStateMTLTest {
     @Test
     @DisplayName("tell() accumulates output in For comprehension")
     void tellAccumulatesInFor() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, String> result =
           For.from(writer, writer.tell(List.of("step 1")))
@@ -230,7 +231,7 @@ class ForStateMTLTest {
     @Test
     @DisplayName("listen() observes accumulated output")
     void listenObservesOutput() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       var computation = For.from(writer, writer.tell(List.of("entry"))).yield(_ -> 42);
 
@@ -247,7 +248,7 @@ class ForStateMTLTest {
     @Test
     @DisplayName("censor() transforms accumulated output")
     void censorTransformsOutput() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       var computation =
           For.from(writer, writer.tell(List.of("secret: abc123")))
@@ -306,7 +307,7 @@ class ForStateMTLTest {
     @Test
     @DisplayName("Polymorphic function uses MonadWriter and accumulates output")
     void polymorphicWriterFunction() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       var result = auditedProcess(writer, "item-7");
 

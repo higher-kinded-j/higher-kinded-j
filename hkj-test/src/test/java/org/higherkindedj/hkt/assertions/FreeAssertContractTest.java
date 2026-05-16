@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.assertions;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
@@ -9,10 +11,10 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.free_ap.FreeAp;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -71,7 +73,7 @@ class FreeAssertContractTest
           }
         };
     Kind<MaybeKind.Witness, Integer> result =
-        FreeAssert.assertThatFree(PURE_42).interpretedWith(identity, MaybeMonad.INSTANCE);
+        FreeAssert.assertThatFree(PURE_42).interpretedWith(identity, Instances.monadError(maybe()));
     Assertions.assertThat(MaybeKindHelper.MAYBE.narrow(result).get()).isEqualTo(42);
   }
 }

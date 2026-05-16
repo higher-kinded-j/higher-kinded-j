@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.maybe_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -14,16 +15,14 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.maybe_t.MaybeTKind;
-import org.higherkindedj.hkt.maybe_t.MaybeTMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 
 /**
  * see {<a href="https://higher-kinded-j.github.io/maybet_transformer.html">MaybeT Transformer</a>}
@@ -46,7 +45,7 @@ public class MaybeTExample {
 
   public void mapTExample() {
     System.out.println("\n--- mapT: Optional -> Id ---");
-    OptionalMonad optMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optMonad = Instances.monadError(optional());
 
     MaybeT<OptionalKind.Witness, String> mt = MaybeT.just(optMonad, "Hello");
 
@@ -63,7 +62,7 @@ public class MaybeTExample {
   }
 
   public void createExample() {
-    OptionalMonad optMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optMonad = Instances.monadError(optional());
     String presentValue = "Hello";
 
     MaybeT<OptionalKind.Witness, String> mtJust = MaybeT.just(optMonad, presentValue);
@@ -93,9 +92,9 @@ public class MaybeTExample {
   }
 
   public static class MaybeTAsyncExample {
-    Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
+    Monad<CompletableFutureKind.Witness> futureMonad = Instances.monadError(completableFuture());
     MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
-        new MaybeTMonad<>(futureMonad);
+        Instances.maybeT(futureMonad);
 
     Kind<CompletableFutureKind.Witness, Maybe<User>> fetchUserAsync(String userId) {
       System.out.println("Fetching user: " + userId);

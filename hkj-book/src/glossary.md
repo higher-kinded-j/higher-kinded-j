@@ -532,7 +532,7 @@ Kind<ListKind.Witness, Integer> lengths = functor.map(String::length, strings);
 
 **Example:**
 ```java
-Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
 // Chain dependent operations
 Kind<OptionalKind.Witness, String> result =
@@ -636,7 +636,7 @@ String csv = csvConcat.combine("apple", "banana");  // "apple, banana"
 // For error accumulation in Validated
 Semigroup<String> errorAccumulator = Semigroups.string("; ");
 Applicative<Validated.Witness<String>> validator =
-    ValidatedMonad.instance(errorAccumulator);
+    Instances.validated(errorAccumulator);
 // Errors are combined: "Field A is invalid; Field B is required"
 ```
 
@@ -679,6 +679,30 @@ Kind<EitherKind.Witness<String>, Double> result =
 **When To Use:** Workflows that need explicit error handling and recovery (validation, I/O operations, API calls).
 
 **Related:** [MonadError Documentation](functional/monad_error.md)
+
+---
+
+### Instances Facade
+
+**Definition:** A single static entry point, `Instances`, for obtaining any built-in type-class instance, replacing the three legacy idioms (a static `INSTANCE` field, a generic `instance()` method, or an argument-taking constructor) with one predictable shape.
+
+**Core Operations:**
+- `Instances.monad(token)` / `applicative` / `functor` - total lookups (every canonical instance is at least a Monad)
+- `Instances.monadError(token)` / `monadZero` / `alternative` - partial lookups, valid only where the instance implements that capability
+- `Instances.validated(semigroup)` / `writer(monoid)` / `eitherT(outer)` / `maybeT` / `optionalT` / `readerT` / `stateT` / `writerT(outer, monoid)` - argument-carrying re-exports whose required dependency is in the signature
+
+**Example:**
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
+Monad<MaybeKind.Witness>               m = Instances.monad(maybe());
+MonadError<EitherKind.Witness<String>, String> e = Instances.monadError(either()); // String inferred
+MonadError<ValidatedKind.Witness<E>, E> v = Instances.validated(Semigroups.list());
+```
+
+**Why It Matters:** Discoverable by capability via autocomplete; phantom types still infer from the assignment target; compile-time safe (a thin static re-export, not registry/`ServiceLoader`-backed).
+
+**Related:** [Obtaining Instances](functional/instances_facade.md), [Witnesses](#witnessarity)
 
 ---
 
@@ -1004,7 +1028,7 @@ Kind<IOKind.Witness, Unit> printAction =
     IO_KIND.widen(IO.fromRunnable(() -> System.out.println("Hello")));
 
 // Optional as MonadError<..., Unit>
-MonadError<OptionalKind.Witness, Unit> optionalMonad = OptionalMonad.INSTANCE;
+MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 Kind<OptionalKind.Witness, String> empty =
     optionalMonad.raiseError(Unit.INSTANCE);  // Creates Optional.empty()
 ```
@@ -1829,7 +1853,7 @@ public class IOConsoleInterpreter extends ConsoleOpInterpreter<IOKind.Witness> {
 ```java
 var interpreter = Interpreters.combine(consoleInterp, dbInterp);
 IO<String> result = IOKindHelper.IO_OP.narrow(
-    program.foldMap(interpreter, IOMonad.INSTANCE));
+    program.foldMap(interpreter, Instances.monad(io())));
 ```
 
 **How It Works:**

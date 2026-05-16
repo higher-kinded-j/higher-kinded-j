@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.eitherf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherFAssert.assertThatEitherF;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -15,10 +16,10 @@ import org.higherkindedj.hkt.free.test.IdentityKindHelper;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.inject.Inject;
 import org.higherkindedj.hkt.inject.InjectInstances;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -267,7 +268,7 @@ class EitherFTest {
           inject = InjectInstances.injectLeft();
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, Instances.monadError(maybe()));
 
       Natural<IdentityKind.Witness, EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>>
           nat = inject::inject;

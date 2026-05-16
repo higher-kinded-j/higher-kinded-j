@@ -5,13 +5,16 @@ package org.higherkindedj.hkt.lazy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +25,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("LazyMonad Complete Test Suite")
 class LazyMonadTest extends LazyTestBase {
 
-  private LazyMonad lazyMonad;
+  private Monad<LazyKind.Witness> lazyMonad;
   // Declare counters for lazy evaluation tracking
   private AtomicInteger counterA;
   private AtomicInteger counterB;
@@ -48,7 +51,7 @@ class LazyMonadTest extends LazyTestBase {
 
   @BeforeEach
   void setUpMonad() {
-    lazyMonad = LazyMonad.INSTANCE;
+    lazyMonad = Instances.monad(lazy());
     // Initialise counters before each test
     counterA = new AtomicInteger(0);
     counterB = new AtomicInteger(0);

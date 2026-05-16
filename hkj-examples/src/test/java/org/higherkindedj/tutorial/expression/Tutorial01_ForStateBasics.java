@@ -3,20 +3,22 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.util.Traversals;
@@ -119,7 +121,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 1: thread state through three lens updates")
   void exercise1_basicStateUpdate() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     OrderContext initial = OrderContext.start("ORD-100");
 
     // TODO: Build a ForState workflow using idMonad and Id.of(initial)
@@ -155,7 +157,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 2: fromThen runs an effectful computation against state")
   void exercise2_fromThenEffectfulUpdate() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     OrderContext initial = OrderContext.start("ORD-200");
 
     // TODO: Use fromThen to generate confirmationId = "CONF-ORD-200"
@@ -184,7 +186,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 3: modify transforms a state field through a lens")
   void exercise3_modifyField() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     OrderContext initial = OrderContext.start("ORD-300");
 
     // TODO: Use modify to toggle validated from false to true
@@ -213,7 +215,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 4a: when() guard passes on a validated order")
   void exercise4a_whenGuardPasses() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OrderContext validCtx = new OrderContext("ORD-400", true, false, null);
 
     // TODO: Create a workflow with a when() guard on validated, then update processed=true
@@ -240,7 +242,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 4b: when() guard short-circuits to Nothing")
   void exercise4b_whenGuardFails() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OrderContext invalidCtx = OrderContext.start("ORD-401");
 
     // TODO: Same workflow as 4a but with invalidCtx (validated=false)
@@ -288,7 +290,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 5a: matchThen extracts a prism focus into a target lens")
   void exercise5a_matchThenSuccess() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     MatchContext ctx = new MatchContext(new Status.Active("A-001"), null);
 
     // TODO: Use matchThen to extract code from Active status into extractedCode
@@ -314,7 +316,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 5b: matchThen short-circuits when the prism doesn't match")
   void exercise5b_matchThenFailure() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     MatchContext ctx = new MatchContext(new Status.Inactive("retired"), null);
 
     // TODO: Same matchThen as 5a but with Inactive status
@@ -347,7 +349,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 6: traverse applies a function to every element of a collection field")
   void exercise6_traverseBulkOperation() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     TaggedItem item = new TaggedItem("Widget", List.of("sale", "new", "featured"));
 
     // TODO: Use traverse to uppercase all tags
@@ -395,7 +397,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 7: zoom narrows state to a sub-record; endZoom returns to outer")
   void exercise7_zoomIntoSubState() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Customer customer = new Customer("Alice", new Address("123 Main", "Springfield", "62701"));
 
     // TODO: Use zoom to update address fields, then endZoom and update name
@@ -433,7 +435,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 8: combined update / guard / fromThen / yield(projection)")
   void exercise8_combinedWorkflow() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OrderContext initial = OrderContext.start("ORD-800");
 
     // TODO: Build the combined workflow described above
@@ -477,7 +479,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 9a: For.toState bridges from value comprehensions to ForState")
   void exercise9a_basicToStateBridge() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     // TODO: Use For.from() then .toState() to bridge into ForState
     Kind<IdKind.Witness, Dashboard> result =
@@ -503,7 +505,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 9b: For.toState handles multi-value accumulation")
   void exercise9b_multiValueToStateBridge() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     // TODO: Accumulate name and count with For, then bridge to ForState
     Kind<IdKind.Witness, Dashboard> result =
@@ -532,7 +534,7 @@ public class Tutorial01_ForStateBasics {
   @Test
   @DisplayName("Exercise 9c: For.toState preserves MonadZero filtering")
   void exercise9c_filterableToStateBridge() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     // TODO: Bridge from For into ForState with Maybe, then apply a guard
     Kind<MaybeKind.Witness, Dashboard> passResult =

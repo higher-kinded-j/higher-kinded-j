@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.Map;
@@ -11,10 +12,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -82,7 +82,8 @@ public class PrismUsageExample {
     var updatedData =
         IdKindHelper.ID
             .narrow(
-                userToJsonName.modifyF(name -> Id.of(name.toUpperCase()), data, IdMonad.instance()))
+                userToJsonName.modifyF(
+                    name -> Id.of(name.toUpperCase()), data, Instances.monad(id())))
             .value();
 
     System.out.println("After deep `modify`:    " + updatedData);
@@ -105,7 +106,7 @@ public class PrismUsageExample {
                 : VALIDATED.widen(Validated.valid(s));
 
     Applicative<ValidatedKind.Witness<String>> applicative =
-        ValidatedMonad.instance(Semigroups.string("; "));
+        Instances.validated(Semigroups.string("; "));
 
     Kind<ValidatedKind.Witness<String>, JsonObject> validationResult =
         allTopLevelStringValues.modifyF(checkNonEmpty, data, applicative);

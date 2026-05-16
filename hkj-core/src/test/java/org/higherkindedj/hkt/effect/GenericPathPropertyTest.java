@@ -3,15 +3,16 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 
 /**
  * Property-based tests for GenericPath using jQwik.
@@ -22,7 +23,7 @@ import org.higherkindedj.hkt.maybe.MaybeMonad;
  */
 class GenericPathPropertyTest {
 
-  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = MaybeMonad.INSTANCE;
+  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = Instances.monadError(maybe());
 
   @Provide
   Arbitrary<GenericPath<MaybeKind.Witness, Integer>> genericPaths() {

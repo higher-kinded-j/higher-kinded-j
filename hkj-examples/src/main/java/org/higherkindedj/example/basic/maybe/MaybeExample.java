@@ -2,14 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.maybe;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/maybe_monad.html">Maybe Monad</a>} */
 public class MaybeExample {
@@ -18,7 +20,7 @@ public class MaybeExample {
       Kind<MaybeKind.Witness, A> inputKind,
       Function<A, B> mapper,
       B defaultValueOnAbsence,
-      MaybeMonad monad) {
+      MonadError<MaybeKind.Witness, Unit> monad) {
     Kind<MaybeKind.Witness, B> mappedKind = monad.map(mapper, inputKind);
 
     return monad.handleErrorWith(mappedKind, (Unit unitVal) -> monad.of(defaultValueOnAbsence));
@@ -39,7 +41,7 @@ public class MaybeExample {
   }
 
   void monadExample() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     Kind<MaybeKind.Witness, Integer> presentIntKind = MAYBE.just(100);
     Kind<MaybeKind.Witness, Integer> absentIntKind = MAYBE.nothing();
@@ -94,7 +96,7 @@ public class MaybeExample {
   }
 
   void handleErrorWithExample() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     Function<Unit, Kind<MaybeKind.Witness, String>> recover = unitVal -> MAYBE.just("Recovered");
 
     Kind<MaybeKind.Witness, String> handledJust =
@@ -107,7 +109,7 @@ public class MaybeExample {
   }
 
   void apExample() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
     Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
     Kind<MaybeKind.Witness, Function<Integer, String>> justFunc = MAYBE.just(i -> "Result: " + i);
@@ -123,7 +125,7 @@ public class MaybeExample {
   }
 
   void flatMapExample() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     Function<String, Kind<MaybeKind.Witness, Integer>> parseString =
         s -> {
           try {
@@ -144,7 +146,7 @@ public class MaybeExample {
   }
 
   void mapExample() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
     Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
 

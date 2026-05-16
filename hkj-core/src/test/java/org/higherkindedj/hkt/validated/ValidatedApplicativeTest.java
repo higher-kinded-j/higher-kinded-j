@@ -4,10 +4,13 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +26,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
   @BeforeEach
   void setUpApplicative() {
     stringSemigroup = (a, b) -> a + ", " + b;
-    applicative = ValidatedMonad.instance(stringSemigroup);
+    applicative = Instances.validated(stringSemigroup);
   }
 
   @Nested
@@ -271,7 +274,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
     void errorAccumulationOrderMatchesSemigroup() {
       Semigroup<String> reverseSemigroup = (a, b) -> b + ", " + a;
       Applicative<ValidatedKind.Witness<String>> reverseApplicative =
-          ValidatedMonad.instance(reverseSemigroup);
+          Instances.validated(reverseSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> kind1 = invalidKind("error1");
       Kind<ValidatedKind.Witness<String>, Integer> kind2 = invalidKind("error2");

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -12,14 +13,15 @@ import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 
 /**
  * Property-based tests for NaturalTransformation using jQwik.
@@ -48,9 +50,11 @@ import org.higherkindedj.hkt.optional.OptionalMonad;
 class NaturalTransformationPropertyTest {
 
   // Monad instances for testing
-  private static final IdMonad ID_MONAD = IdMonad.instance();
-  private static final MaybeMonad MAYBE_MONAD = MaybeMonad.INSTANCE;
-  private static final OptionalMonad OPTIONAL_MONAD = OptionalMonad.INSTANCE;
+  private static final Monad<IdKind.Witness> ID_MONAD = Instances.monad(id());
+  private static final MonadError<MaybeKind.Witness, Unit> MAYBE_MONAD =
+      Instances.monadError(maybe());
+  private static final MonadError<OptionalKind.Witness, Unit> OPTIONAL_MONAD =
+      Instances.monadError(optional());
 
   // ===== Natural Transformations =====
 

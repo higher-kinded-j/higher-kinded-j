@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trymonad;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/try_monad.html">Try Monad</a>} */
 public class TryExample {
@@ -71,7 +73,7 @@ public class TryExample {
   }
 
   public void basicMonadExample() {
-    TryMonad tryMonad = TryMonad.INSTANCE;
+    MonadError<TryKind.Witness, Throwable> tryMonad = Instances.monadError(try_());
 
     Kind<TryKind.Witness, Integer> tryKind1 = TRY.tryOf(() -> 10 / 2); // Success(5) Kind
     Kind<TryKind.Witness, Integer> tryKind2 = TRY.tryOf(() -> 10 / 0); // Failure(...) Kind

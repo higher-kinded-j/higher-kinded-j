@@ -4,14 +4,17 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -32,12 +35,12 @@ import org.junit.jupiter.api.Test;
 class WriterTest extends WriterTestBase {
 
   // Type class testing fixtures
-  private WriterMonad<String> monad;
+  private Monad<WriterKind.Witness<String>> monad;
   private WriterFunctor<String> functor;
 
   @BeforeEach
   void setUpWriter() {
-    monad = new WriterMonad<>(STRING_MONOID);
+    monad = Instances.writer(STRING_MONOID);
     functor = new WriterFunctor<>();
   }
 

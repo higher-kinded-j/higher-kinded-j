@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -12,7 +13,7 @@ import org.higherkindedj.hkt.MonadState;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +28,7 @@ class StateTMonadStateTest {
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
+    idMonad = Instances.monad(id());
     monadState = new StateTMonadState<>(idMonad);
   }
 

@@ -4,14 +4,17 @@ package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +34,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
    * The Applicative typeclass spelling is {@code app.of(x)}; the concrete-type spelling is shorter
    * when we already know we want an {@code Either}.
    *
-   * <p>Alternative: {@code app.of(42)} via {@code EitherMonad.instance()}. Useful when the
+   * <p>Alternative: {@code app.of(42)} via {@code Instances.monadError(either())}. Useful when the
    * surrounding code is generic in {@code F}.
    *
    * <p>Common wrong attempt: writing {@code Either.<String, Integer>right(42)} when the type can be
@@ -67,7 +70,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
   void exercise2_combiningWithMap2() {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> value2 = Either.right(20);
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Integer> result =
         EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b));
@@ -93,7 +96,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
   void exercise3_map2WithError() {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> error = Either.left("Error occurred");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Integer> result =
         EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(error), (a, b) -> a + b));
@@ -123,7 +126,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, String> name = Either.right("Alice");
     Either<String, Integer> age = Either.right(30);
     Either<String, String> email = Either.right("alice@example.com");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Person> result =
         EITHER.narrow(
@@ -138,8 +141,8 @@ public class Tutorial03_ApplicativeCombining_Solution {
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code ValidatedMonad.instance(semigroup)} parameterises the Applicative
-   * by how to combine errors. The Semigroup is the only thing that changes between "comma-separated
+   * Why this is idiomatic: {@code Instances.validated(semigroup)} parameterises the Applicative by
+   * how to combine errors. The Semigroup is the only thing that changes between "comma-separated
    * string" and "list of typed errors"; the surrounding code is unchanged.
    *
    * <p>Alternative: a different {@link Semigroup} — for example {@code Semigroups.list()} when the
@@ -158,7 +161,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Validated<String, String> email = Validated.invalid("Email is invalid");
 
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedMonad<String> app = ValidatedMonad.instance(stringSemigroup);
+    MonadError<ValidatedKind.Witness<String>, String> app = Instances.validated(stringSemigroup);
 
     Validated<String, FormData> result =
         VALIDATED.narrow(
@@ -191,7 +194,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, String> product = Either.right("Laptop");
     Either<String, Integer> quantity = Either.right(2);
     Either<String, Double> price = Either.right(999.99);
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Order> result =
         EITHER.narrow(
@@ -231,7 +234,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, String> state = Either.right("IL");
     Either<String, String> zip = Either.right("62701");
     Either<String, String> country = Either.right("USA");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Address> result =
         EITHER.narrow(
@@ -274,7 +277,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Validated<String, Integer> ageBad = Validated.invalid("Age must be positive");
 
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedMonad<String> app = ValidatedMonad.instance(stringSemigroup);
+    MonadError<ValidatedKind.Witness<String>, String> app = Instances.validated(stringSemigroup);
 
     Validated<String, Pair> bothValid =
         VALIDATED.narrow(app.map2(VALIDATED.widen(nameOk), VALIDATED.widen(ageOk), Pair::new));

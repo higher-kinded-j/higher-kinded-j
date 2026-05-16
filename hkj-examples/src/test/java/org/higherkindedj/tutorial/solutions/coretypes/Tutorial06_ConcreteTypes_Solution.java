@@ -3,17 +3,20 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -187,7 +190,8 @@ public class Tutorial06_ConcreteTypes_Solution {
 
     // Solution: Use ValidatedMonad to combine all three validations
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedMonad<String> applicative = ValidatedMonad.instance(stringSemigroup);
+    MonadError<ValidatedKind.Witness<String>, String> applicative =
+        Instances.validated(stringSemigroup);
     Validated<String, User> validUser =
         ValidatedKindHelper.VALIDATED.narrow(
             applicative.map3(

@@ -383,7 +383,7 @@ System.out.println("Path focuses on " + count + " elements");
 | Field is `Kind<MaybeKind.Witness, T>` | `traverseOver(MaybeTraverse.INSTANCE)` |
 | Custom traversable type | `traverseOver(YourTraverse.INSTANCE)` |
 
-#### Q: Why use `MaybeMonad.INSTANCE` for `modifyF()` instead of a dedicated Applicative?
+#### Q: Why use `Instances.monadError(maybe())` for `modifyF()` instead of a dedicated Applicative?
 
 `MaybeMonad` extends `Applicative`, so it works for `modifyF()`. Higher-Kinded-J doesn't provide a separate `MaybeApplicative` because:
 - Monad already provides all Applicative operations
@@ -393,7 +393,7 @@ System.out.println("Path focuses on " + count + " elements");
 ```java
 // Use MaybeMonad for Maybe-based validation
 Kind<MaybeKind.Witness, Config> result =
-    keyPath.modifyF(validateKey, config, MaybeMonad.INSTANCE);
+    keyPath.modifyF(validateKey, config, Instances.monadError(maybe()));
 ```
 
 #### Q: Can I use Focus DSL with third-party types?

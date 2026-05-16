@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -11,17 +12,18 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.free.FreeKind;
 import org.higherkindedj.hkt.free.FreeKindHelper;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.junit.jupiter.api.DisplayName;
@@ -37,8 +39,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ForPath FreePath Comprehension Tests")
 class ForPathFreePathTest {
 
-  private static final MaybeMonad FUNCTOR = MaybeMonad.INSTANCE;
-  private static final Monad<MaybeKind.Witness> MONAD = MaybeMonad.INSTANCE;
+  private static final MonadError<MaybeKind.Witness, Unit> FUNCTOR = Instances.monadError(maybe());
+  private static final Monad<MaybeKind.Witness> MONAD = Instances.monadError(maybe());
   private static final Natural<MaybeKind.Witness, MaybeKind.Witness> ID_NAT = Natural.identity();
 
   // Helpers for creating FreePath values backed by Maybe
@@ -401,7 +403,7 @@ class ForPathFreePathTest {
           ForPath.from(just(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       FreePath.<MaybeKind.Witness, Kind<ListKind.Witness, Integer>>liftF(

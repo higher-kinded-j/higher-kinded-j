@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -11,15 +12,17 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/usage=guide.html">Usage Guide</a>} */
 public class GenericExample {
@@ -48,7 +51,7 @@ public class GenericExample {
     // Wrap it into the Higher-Kinded-J Kind type
     // F_WITNESS here is OptionalKind.Witness
     Kind<OptionalKind.Witness, String> optionalKind = OPTIONAL.widen(myOptional);
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
     // --- Using map ---
     Function<String, Integer> lengthFunc = String::length;
     // Apply map using the monad instance
@@ -82,7 +85,7 @@ public class GenericExample {
     System.out.println("Handled Optional: " + handledOptional); // Output: Optional[Default Value]
 
     // Example for IO:
-    IOMonad ioMonad = IOMonad.INSTANCE;
+    Monad<IOKind.Witness> ioMonad = Instances.monad(io());
     Kind<IOKind.Witness, String> ioKind = IO_OP.delay(() -> "Hello from IO!");
     String ioResult = IO_OP.unsafeRunSync(ioKind); // unsafeRunSync is specific to IOKindHelper
     System.out.println(ioResult);
@@ -100,8 +103,9 @@ public class GenericExample {
 
   public void genricExample() {
     // Get instances of the type classes for the specific types (F_WITNESS) we want to use
-    ListMonad listMonad = ListMonad.INSTANCE; // Implements Functor<ListKind.Witness>
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listMonad =
+        Instances.monadZero(list()); // Implements Functor<ListKind.Witness>
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
     ; // Implements Functor<OptionalKind.Witness>
 
     Function<Integer, Integer> doubleFn = x -> x * 2;

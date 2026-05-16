@@ -3,6 +3,7 @@
 package org.higherkindedj.example.optics.profunctor;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -13,7 +14,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Optic;
 import org.higherkindedj.optics.Traversal;
@@ -194,7 +195,7 @@ public class OpticProfunctorExample {
     PersonDto updatedDto =
         ID.narrow(
                 interestsTraversal.modifyF(
-                    interest -> Id.of(interest.toUpperCase()), originalDto, IdMonad.instance()))
+                    interest -> Id.of(interest.toUpperCase()), originalDto, Instances.monad(id())))
             .value();
 
     System.out.println("After dimap-style modification: " + updatedDto);

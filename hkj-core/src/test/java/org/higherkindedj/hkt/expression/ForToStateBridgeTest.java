@@ -4,17 +4,19 @@ package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.BiFunction;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,8 +48,8 @@ class ForToStateBridgeTest {
 
   // --- Monad instances ---
 
-  private final IdMonad idMonad = IdMonad.instance();
-  private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+  private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
+  private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
   // =========================================================================
   // MonadicSteps1.toState()

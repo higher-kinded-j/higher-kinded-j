@@ -61,7 +61,7 @@ Kind<StreamKind.Witness, Object> streamKindEmpty = STREAM.widen(emptyStream);
 Lifts a single value into the `StreamKind` context, creating a singleton stream. A `null` input value results in an empty `StreamKind`.
 
 ```java
-StreamMonad streamMonad = StreamMonad.INSTANCE;
+MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
 Kind<StreamKind.Witness, String> streamKindOneItem = streamMonad.of("hello"); // Contains a stream with one element: "hello"
 Kind<StreamKind.Witness, Integer> streamKindAnotherItem = streamMonad.of(42);  // Contains a stream with one element: 42
@@ -74,7 +74,7 @@ Kind<StreamKind.Witness, Object> streamKindFromNull = streamMonad.of(null); // C
 Creates an empty `StreamKind`, useful for filtering operations or providing a "nothing" value in monadic computations.
 
 ```java
-StreamMonad streamMonad = StreamMonad.INSTANCE;
+MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
 Kind<StreamKind.Witness, String> emptyStreamKind = streamMonad.zero(); // Empty stream
 ```
@@ -124,7 +124,7 @@ The `StreamMonad` provides standard monadic operations, all maintaining lazy eva
 Applies a function `f` to each element of the stream within `fa`, returning a new `StreamKind` containing the transformed elements. The transformation is **lazy** and won't execute until a terminal operation is performed.
 
 ```java
-StreamMonad streamMonad = StreamMonad.INSTANCE;
+MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 Kind<StreamKind.Witness, Integer> numbers = STREAM.widen(Stream.of(1, 2, 3));
 
 Function<Integer, String> intToString = i -> "Number: " + i;
@@ -144,7 +144,7 @@ System.out.println(result);
 Applies a function `f` to each element of the stream within `ma`. The function `f` itself returns a `StreamKind<B>`. `flatMap` then flattens all these resulting streams into a single `StreamKind<B>`. Evaluation remains lazy.
 
 ```java
-StreamMonad streamMonad = StreamMonad.INSTANCE;
+MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 Kind<StreamKind.Witness, Integer> initialValues = STREAM.widen(Stream.of(1, 2, 3));
 
 // Function that takes an integer and returns a stream of itself and itself + 10
@@ -177,7 +177,7 @@ System.out.println(words);
 Applies a stream of functions `ff` to a stream of values `fa`. This results in a new stream where each function from `ff` is applied to each value in `fa` (Cartesian product style). Evaluation remains lazy.
 
 ```java
-StreamMonad streamMonad = StreamMonad.INSTANCE;
+MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
 Function<Integer, String> addPrefix = i -> "Val: " + i;
 Function<Integer, String> multiplyAndString = i -> "Mul: " + (i * 2);
@@ -338,7 +338,7 @@ List<String> log = new ArrayList<>();
 
 Kind<StreamKind.Witness, Integer> pipeline = tap(
     n -> log.add("Processing: " + n),
-    StreamMonad.INSTANCE.map(n -> n * 2, range(1, 4))
+    Instances.monadZero(stream()).map(n -> n * 2, range(1, 4))
 );
 
 // Side effects haven't executed yet (lazy)
@@ -404,7 +404,7 @@ import java.util.function.Function;
 
 public class StreamUsageExample {
    public static void main(String[] args) {
-      StreamMonad streamMonad = StreamMonad.INSTANCE;
+      MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
       // 1. Create a StreamKind using range
       Kind<StreamKind.Witness, Integer> numbersKind = range(1, 11); // 1 through 10

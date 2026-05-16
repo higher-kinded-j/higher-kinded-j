@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.reader;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader.ReaderKind;
-import org.higherkindedj.hkt.reader.ReaderMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/reader_monad.html">Reader Monad</a>} */
 public class ReaderExample {
@@ -21,7 +23,7 @@ public class ReaderExample {
   // Reader that returns the entire configuration environment
   Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = READER.ask();
   // Monad instance for computations depending on AppConfig
-  ReaderMonad<AppConfig> readerMonad = ReaderMonad.instance();
+  Monad<ReaderKind.Witness<AppConfig>> readerMonad = Instances.monad(reader());
   // Example 1: Map the timeout value
   Kind<ReaderKind.Witness<AppConfig>, String> timeoutMessage =
       readerMonad.map(

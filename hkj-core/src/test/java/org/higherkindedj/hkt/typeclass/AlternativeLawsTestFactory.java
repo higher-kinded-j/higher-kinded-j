@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -15,13 +16,11 @@ import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamAlternative;
 import org.higherkindedj.hkt.vstream.VStreamKind;
@@ -124,7 +123,7 @@ class AlternativeLawsTestFactory {
     return Stream.of(
         AlternativeTestData.of(
             "Maybe",
-            MaybeMonad.INSTANCE,
+            Instances.monadZero(maybe()),
             AlternativeSemantics.CHOICE,
             MAYBE.widen(Maybe.just(42)),
             MAYBE.widen(Maybe.just(100)),
@@ -137,7 +136,7 @@ class AlternativeLawsTestFactory {
             }),
         AlternativeTestData.of(
             "Optional",
-            OptionalMonad.INSTANCE,
+            Instances.monadZero(optional()),
             AlternativeSemantics.CHOICE,
             OPTIONAL.widen(Optional.of(42)),
             OPTIONAL.widen(Optional.of(100)),
@@ -150,7 +149,7 @@ class AlternativeLawsTestFactory {
             }),
         AlternativeTestData.of(
             "List",
-            ListMonad.INSTANCE,
+            Instances.monadZero(list()),
             AlternativeSemantics.CONCATENATION,
             LIST.widen(List.of(42)),
             LIST.widen(List.of(100)),

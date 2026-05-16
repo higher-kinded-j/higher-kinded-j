@@ -114,6 +114,29 @@ Getting back to standard Java from any Path:
 
 ---
 
+## Type-Class Instances
+
+One entry point, `Instances.x(...)`, for every type-class instance. See [Obtaining Instances](functional/instances_facade.md).
+
+```java
+import org.higherkindedj.hkt.instances.Instances;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+```
+
+| Need | Call |
+|------|------|
+| `Functor` / `Applicative` / `Monad` | `Instances.monad(maybe())` (also `functor`, `applicative`) |
+| `MonadError` (Maybe, Optional, Try, Either, ...) | `Instances.monadError(optional())` (`E` inferred from target) |
+| `MonadZero` / `Alternative` (Maybe, Optional, List, Stream) | `Instances.monadZero(list())` / `Instances.alternative(maybe())` |
+| Phantom-typed (Either, Reader, Context, State) | `Instances.monad(either())` (`L`/`R`/`S` inferred from target) |
+| `Validated` (needs a `Semigroup`) | `Instances.validated(Semigroups.list())` |
+| `Writer` (needs a `Monoid`) | `Instances.writer(Monoids.string())` |
+| Transformers (need the outer `Monad`) | `Instances.eitherT(outer)`, `maybeT`, `optionalT`, `readerT`, `stateT`, `writerT(outer, monoid)` |
+
+> Tokens: `maybe() io() list() optional() try_() vtask() vstream() lazy() stream() completableFuture() trampoline() id() either() reader() context() state()`. The `monadError`/`monadZero`/`alternative` lookups are partial — only valid where the type implements that capability.
+
+---
+
 ## Type Conversions
 
 | From | To | Method |

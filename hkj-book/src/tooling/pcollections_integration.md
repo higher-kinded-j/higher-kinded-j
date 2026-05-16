@@ -68,7 +68,7 @@ import org.pcollections.TreePVector;
 PVector<Integer> source = TreePVector.from(List.of(1, 2, 3));
 Kind<ListKind.Witness, Integer> kind = LIST.widen(source);
 
-Kind<ListKind.Witness, Integer> doubled = ListMonad.INSTANCE.map(x -> x * 2, kind);
+Kind<ListKind.Witness, Integer> doubled = Instances.monadZero(list()).map(x -> x * 2, kind);
 List<Integer> result = LIST.narrow(doubled); // java.util.List, not PVector
 ```
 
@@ -85,7 +85,7 @@ pipeline of the form:
 
 ```java
 PVector<Integer> in = TreePVector.from(...);
-Kind<ListKind.Witness, Integer> out = ListMonad.INSTANCE.map(x -> x + 1, LIST.widen(in));
+Kind<ListKind.Witness, Integer> out = Instances.monadZero(list()).map(x -> x + 1, LIST.widen(in));
 List<Integer> narrowed = LIST.narrow(out); // not a PVector anymore
 ```
 

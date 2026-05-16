@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.ArrayList;
@@ -11,7 +12,9 @@ import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Property-based tests for Validated Applicative laws using jQwik.
@@ -43,7 +46,8 @@ class ValidatedApplicativePropertyTest {
         }
       };
 
-  private final ValidatedMonad<List<String>> applicative = ValidatedMonad.instance(listSemigroup);
+  private final MonadError<ValidatedKind.Witness<List<String>>, List<String>> applicative =
+      Instances.validated(listSemigroup);
 
   /** Provides arbitrary Validated<List<String>, Integer> values for testing */
   @Provide

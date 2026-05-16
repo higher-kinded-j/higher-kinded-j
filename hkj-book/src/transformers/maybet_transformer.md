@@ -64,8 +64,8 @@ MaybePath<UserPreferences> getPreferences(String userId) {
 ### With raw `MaybeT`
 
 ```java
-var futureMonad = CompletableFutureMonad.INSTANCE;
-var maybeTMonad = new MaybeTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad = Instances.monadError(completableFuture());
+var maybeTMonad = Instances.maybeT(futureMonad);
 
 var prefs = For.from(maybeTMonad, MaybeT.fromKind(fetchUserAsync(userId)))
     .from(user -> MaybeT.fromKind(fetchPreferencesAsync(user.id())))
@@ -137,8 +137,8 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
 The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`. Like `OptionalTMonad`, the error type is `Unit`, signifying that `Nothing` carries no information beyond its occurrence.
 
 ```java
-var futureMonad = CompletableFutureMonad.INSTANCE;
-var maybeTMonad = new MaybeTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad = Instances.monadError(completableFuture());
+var maybeTMonad = Instances.maybeT(futureMonad);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -169,7 +169,7 @@ MaybeT<F, A> concrete                = MAYBE_T.narrow(kind);
 ## Creating MaybeT Instances
 
 ```java
-var optMonad = OptionalMonad.INSTANCE;
+var optMonad = Instances.monadError(optional());
 
 // 1. From a non-null value: F<Just(value)>
 var mtJust = MaybeT.just(optMonad, "Hello");
@@ -203,8 +203,8 @@ var mtFromKind = MaybeT.fromKind(nestedKind);
 **The solution:**
 
 ```java
-var futureMonad = CompletableFutureMonad.INSTANCE;
-var maybeTMonad = new MaybeTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad = Instances.monadError(completableFuture());
+var maybeTMonad = Instances.maybeT(futureMonad);
 
 // Service stubs return Future<Maybe<T>>
 Kind<CompletableFutureKind.Witness, Maybe<User>> fetchUserAsync(String userId) {

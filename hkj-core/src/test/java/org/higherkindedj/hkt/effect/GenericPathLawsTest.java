@@ -3,11 +3,15 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
@@ -41,7 +45,7 @@ import org.junit.jupiter.api.TestFactory;
 class GenericPathLawsTest {
 
   // Use MaybeMonad as the concrete Monad implementation
-  private static final MaybeMonad MONAD = MaybeMonad.INSTANCE;
+  private static final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
 
   // Test values
   private static final int TEST_VALUE = 42;

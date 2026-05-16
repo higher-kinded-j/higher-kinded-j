@@ -108,7 +108,7 @@ Master advanced Focus DSL features including type class integration, monoid aggr
 ```java
 // Validate while modifying
 Either<Error, User> result = path.modifyF(
-    EitherMonad.instance(),
+    Instances.monadError(either()),
     value -> validateAndTransform(value),
     user
 );
@@ -290,7 +290,7 @@ Optional<String> value = affinePath.getOptional(source);
 
 **Solution**: Explicitly specify the monad instance:
 ```java
-path.<EitherKind.Witness<Error>>modifyF(EitherMonad.instance(), ...)
+path.<EitherKind.Witness<Error>>modifyF(Instances.monadError(either()), ...)
 ```
 
 ### 3. Forgetting traverseOver for Kind Fields

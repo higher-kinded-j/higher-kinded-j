@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.state_t;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
@@ -9,23 +10,23 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state_t.StateTKind;
-import org.higherkindedj.hkt.state_t.StateTMonad;
 
 public class StateTExample {
 
   public static void main(String[] args) {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
         currentState -> {
@@ -41,7 +42,8 @@ public class StateTExample {
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> stateTKind = stateTExplicit;
 
-    StateTMonad<Integer, OptionalKind.Witness> stateTMonad = StateTMonad.instance(optionalMonad);
+    Monad<StateTKind.Witness<Integer, OptionalKind.Witness>> stateTMonad =
+        Instances.stateT(optionalMonad);
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> pureStateT =
         stateTMonad.of("pure value");
@@ -175,8 +177,8 @@ public class StateTExample {
   // for internal sequencing.
 
   public static void mapTExample() {
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
-    Monad<IdKind.Witness> idMonad = IdMonad.instance();
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     StateT<Integer, OptionalKind.Witness, String> optionalStateT =
         StateT.create(

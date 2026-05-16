@@ -2,13 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.context;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.context.Context;
 import org.higherkindedj.hkt.context.ContextKind;
 import org.higherkindedj.hkt.context.ContextKindHelper;
-import org.higherkindedj.hkt.context.ContextMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Examples demonstrating basic Context usage with Java's ScopedValue API.
@@ -215,7 +218,7 @@ public class ContextBasicExample {
     System.out.println("--- HKT Type Class Usage ---\n");
 
     // Get the monad instance for Context<String, _>
-    ContextMonad<String> monad = ContextMonad.instance();
+    Monad<ContextKind.Witness<String>> monad = Instances.monad(context());
 
     // Use of (from Applicative) to lift a value
     Kind<ContextKind.Witness<String>, Integer> pureKind = monad.of(42);

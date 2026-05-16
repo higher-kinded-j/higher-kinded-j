@@ -149,6 +149,7 @@
     - [Foundations FAQ](hkts/faq.md)
   - [Type Classes](functional/ch_intro.md)
     - [Functional Api](functional/functional_api.md)
+    - [Obtaining Instances](functional/instances_facade.md)
     - [Functor](functional/functor.md)
     - [Applicative](functional/applicative.md)
     - [Alternative](functional/alternative.md)

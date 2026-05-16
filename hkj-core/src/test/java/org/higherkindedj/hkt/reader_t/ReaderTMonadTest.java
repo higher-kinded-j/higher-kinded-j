@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
@@ -13,8 +14,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,16 +27,16 @@ import org.junit.jupiter.api.Test;
 class ReaderTMonadTest
     extends TypeClassTestBase<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer, String> {
 
-  private Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;
+  private Monad<OptionalKind.Witness> outerMonad = Instances.monadError(optional());
   private Monad<ReaderTKind.Witness<OptionalKind.Witness, String>> readerTMonad =
-      new ReaderTMonad<>(outerMonad);
+      Instances.readerT(outerMonad);
 
   private final String testEnvironment = "test-env";
 
   @BeforeEach
   void setUpMonad() {
-    outerMonad = OptionalMonad.INSTANCE;
-    readerTMonad = new ReaderTMonad<>(outerMonad);
+    outerMonad = Instances.monadError(optional());
+    readerTMonad = Instances.readerT(outerMonad);
   }
 
   private <A> Optional<A> unwrapKindToOptional(
@@ -396,7 +397,7 @@ class ReaderTMonadTest
     void environment_canBeDifferentTypes() {
       // Create ReaderTMonad with Integer environment
       Monad<ReaderTKind.Witness<OptionalKind.Witness, Integer>> intEnvMonad =
-          new ReaderTMonad<>(outerMonad);
+          Instances.readerT(outerMonad);
 
       Kind<ReaderTKind.Witness<OptionalKind.Witness, Integer>, String> readerTWithIntEnv =
           READER_T.widen(ReaderT.reader(outerMonad, (Integer env) -> "Length:" + env));

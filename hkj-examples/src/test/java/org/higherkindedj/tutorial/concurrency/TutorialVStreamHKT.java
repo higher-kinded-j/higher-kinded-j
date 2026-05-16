@@ -3,18 +3,20 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamAlternative;
 import org.higherkindedj.hkt.vstream.VStreamApplicative;
 import org.higherkindedj.hkt.vstream.VStreamFunctor;
 import org.higherkindedj.hkt.vstream.VStreamKind;
-import org.higherkindedj.hkt.vstream.VStreamMonad;
 import org.higherkindedj.hkt.vstream.VStreamTraverse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -191,7 +193,7 @@ public class TutorialVStreamHKT {
     @Test
     @DisplayName("Exercise 6: Monad flatMap via HKT")
     void exercise6_monadFlatMap() {
-      VStreamMonad monad = VStreamMonad.INSTANCE;
+      Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
       Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 
       // TODO: Replace answerRequired() with monad.flatMap(...)
@@ -301,7 +303,7 @@ public class TutorialVStreamHKT {
     @Test
     @DisplayName("Exercise 10: Combine Monad and Foldable")
     void exercise10_combineMonadAndFoldable() {
-      VStreamMonad monad = VStreamMonad.INSTANCE;
+      Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
       VStreamTraverse foldable = VStreamTraverse.INSTANCE;
       Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 

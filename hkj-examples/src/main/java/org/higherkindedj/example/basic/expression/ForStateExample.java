@@ -2,19 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.expression;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -152,7 +154,7 @@ public class ForStateExample {
   /** Example 1: Basic state threading with update, modify, fromThen. */
   private static void basicWorkflow() {
     System.out.println("--- 1. Basic Workflow (Id Monad) ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     OrderContext initial =
         new OrderContext(
@@ -177,7 +179,7 @@ public class ForStateExample {
   /** Example 2: Guards with when() using Maybe monad. */
   private static void guardWorkflow() {
     System.out.println("--- 2. Guard Workflow (Maybe Monad) ---");
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     OrderContext validOrder =
         new OrderContext(
@@ -221,7 +223,7 @@ public class ForStateExample {
   /** Example 3: Pattern matching with matchThen() using Prism. */
   private static void matchThenWorkflow() {
     System.out.println("--- 3. matchThen Workflow (Pattern Matching) ---");
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     OrderContext confirmedOrder =
         new OrderContext(
@@ -279,7 +281,7 @@ public class ForStateExample {
   /** Example 4: Bulk operations with traverse(). */
   private static void traverseWorkflow() {
     System.out.println("--- 4. Traverse Workflow (Bulk Tag Operations) ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     OrderContext order =
         new OrderContext(
@@ -306,7 +308,7 @@ public class ForStateExample {
   /** Example 5: Zooming into nested state with zoom()/endZoom(). */
   private static void zoomWorkflow() {
     System.out.println("--- 5. Zoom Workflow (Nested Address Updates) ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     OrderContext order =
         new OrderContext(
@@ -336,7 +338,7 @@ public class ForStateExample {
   /** Example 6: Combined workflow using all features. */
   private static void combinedWorkflow() {
     System.out.println("--- 6. Combined Workflow (All Features) ---");
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     OrderContext order =
         new OrderContext(

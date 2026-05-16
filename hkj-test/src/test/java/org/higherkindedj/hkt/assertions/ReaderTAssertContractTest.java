@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.ReaderTAssert.ReaderTOptionalAssert;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
@@ -11,8 +12,10 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +28,8 @@ class ReaderTAssertContractTest
         Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>,
         ReaderTOptionalAssert<OptionalKind.Witness, String, Integer>> {
 
-  private static final OptionalMonad MONAD = OptionalMonad.INSTANCE;
+  private static final MonadError<OptionalKind.Witness, Unit> MONAD =
+      Instances.monadError(optional());
 
   private static <T> Optional<T> unwrap(Kind<OptionalKind.Witness, T> k) {
     return OPTIONAL.narrow(k);

@@ -3,11 +3,14 @@
 package org.higherkindedj.hkt.trampoline;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trampoline.TrampolineKindHelper.TRAMPOLINE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,7 +24,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("TrampolineMonad Tests")
 class TrampolineMonadTest extends TrampolineTestBase {
 
-  private final TrampolineMonad monad = TrampolineMonad.INSTANCE;
+  private final Monad<TrampolineKind.Witness> monad = Instances.monad(trampoline());
 
   @Nested
   @DisplayName("of() Tests")
@@ -265,8 +268,8 @@ class TrampolineMonadTest extends TrampolineTestBase {
     @Test
     @DisplayName("INSTANCE singleton is accessible")
     void instanceSingletonAccessible() {
-      assertThat(TrampolineMonad.INSTANCE).isNotNull();
-      assertThat(TrampolineMonad.INSTANCE).isSameAs(monad);
+      assertThat(Instances.monad(trampoline())).isNotNull();
+      assertThat(Instances.monad(trampoline())).isSameAs(monad);
     }
 
     @Test

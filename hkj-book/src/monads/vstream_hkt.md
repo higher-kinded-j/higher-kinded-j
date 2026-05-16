@@ -199,7 +199,7 @@ and flattens the results. This is the monadic bind for VStream, and it preserves
 lazy evaluation throughout.
 
 ```java
-Monad<VStreamKind.Witness> monad = VStreamMonad.INSTANCE;
+Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
 
 Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 
@@ -289,7 +289,7 @@ list first, traverses the list, and reconstructs the result as a VStream.
 
 ```java
 // Traverse with Maybe: if any element maps to Nothing, the whole result is Nothing
-Applicative<MaybeKind.Witness> maybeApp = MaybeMonad.INSTANCE;
+Applicative<MaybeKind.Witness> maybeApp = Instances.monadError(maybe());
 
 Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(2, 4, 6));
 
@@ -320,14 +320,14 @@ Kind<F, Integer> tripleAll(Functor<F> functor, Kind<F, Integer> fa) {
 
 // Works with VStream
 Kind<VStreamKind.Witness, Integer> tripled = tripleAll(
-    VStreamMonad.INSTANCE,
+    Instances.monad(vstream()),
     VSTREAM.widen(VStream.of(1, 2, 3))
 );
 // [3, 6, 9]
 
 // Same function works with Maybe
 Kind<MaybeKind.Witness, Integer> tripledMaybe = tripleAll(
-    MaybeMonad.INSTANCE,
+    Instances.monadError(maybe()),
     MaybeKindHelper.MAYBE.widen(Maybe.just(7))
 );
 // Just(21)
@@ -348,7 +348,7 @@ Kind<F, String> fetchAndFormat(
 
 // With VStream: processes each id, producing a formatted string per element
 Kind<VStreamKind.Witness, String> users = fetchAndFormat(
-    VStreamMonad.INSTANCE,
+    Instances.monad(vstream()),
     VSTREAM.widen(VStream.of(1, 2, 3))
 );
 // ["User1 (id=1)", "User2 (id=2)", "User3 (id=3)"]

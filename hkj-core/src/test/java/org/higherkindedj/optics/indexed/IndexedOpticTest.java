@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.indexed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,9 +14,9 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Optic;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +62,7 @@ class IndexedOpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       Kind<OptionalKind.Witness, Person> result =
-          regularOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          regularOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -78,7 +79,7 @@ class IndexedOpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, Person> result =
-          regularOptic.modifyF(emptyModifier, person, OptionalMonad.INSTANCE);
+          regularOptic.modifyF(emptyModifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isEmpty();
     }
@@ -123,7 +124,7 @@ class IndexedOpticTest {
               };
 
       Kind<OptionalKind.Witness, Person> result =
-          composed.imodifyF(capturingModifier, person, OptionalMonad.INSTANCE);
+          composed.imodifyF(capturingModifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -160,7 +161,7 @@ class IndexedOpticTest {
           emptyModifier = (pair, c) -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, Person> result =
-          composed.imodifyF(emptyModifier, person, OptionalMonad.INSTANCE);
+          composed.imodifyF(emptyModifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isEmpty();
     }
@@ -190,7 +191,7 @@ class IndexedOpticTest {
           };
 
       Kind<OptionalKind.Witness, Person> result =
-          composed.imodifyF(capturingModifier, person, OptionalMonad.INSTANCE);
+          composed.imodifyF(capturingModifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -221,7 +222,7 @@ class IndexedOpticTest {
           (idx, val) -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, Person> result =
-          composed.imodifyF(emptyModifier, person, OptionalMonad.INSTANCE);
+          composed.imodifyF(emptyModifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isEmpty();
     }

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -12,6 +13,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +28,7 @@ class OptionalMonadTest extends OptionalTestBase {
 
   @BeforeEach
   void setUpMonad() {
-    optionalMonad = OptionalMonad.INSTANCE;
+    optionalMonad = Instances.monadError(optional());
     validateMonadFixtures();
   }
 
@@ -442,7 +444,7 @@ class OptionalMonadTest extends OptionalTestBase {
     @Test
     @DisplayName("zero() returns empty Optional")
     void zeroReturnsEmptyOptional() {
-      Kind<OptionalKind.Witness, Object> zeroKind = OptionalMonad.INSTANCE.zero();
+      Kind<OptionalKind.Witness, Object> zeroKind = Instances.monadZero(optional()).zero();
 
       assertThatOptionalKind(zeroKind).isEmpty();
     }
@@ -452,7 +454,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void filterKeepsMatchingPresent() {
       var input = presentOf(4);
 
-      var result = OptionalMonad.INSTANCE.filter(x -> ((Integer) x) % 2 == 0, input);
+      var result = Instances.monadZero(optional()).filter(x -> ((Integer) x) % 2 == 0, input);
 
       assertThatOptionalKind(result).isPresent().contains(4);
     }
@@ -462,7 +464,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void filterDropsNonMatchingPresent() {
       var input = presentOf(3);
 
-      var result = OptionalMonad.INSTANCE.filter(x -> ((Integer) x) % 2 == 0, input);
+      var result = Instances.monadZero(optional()).filter(x -> ((Integer) x) % 2 == 0, input);
 
       assertThatOptionalKind(result).isEmpty();
     }
@@ -472,7 +474,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void filterOnEmptyStaysEmpty() {
       Kind<OptionalKind.Witness, Integer> empty = emptyOptional();
 
-      var result = OptionalMonad.INSTANCE.filter(x -> true, empty);
+      var result = Instances.monadZero(optional()).filter(x -> true, empty);
 
       assertThatOptionalKind(result).isEmpty();
     }
@@ -483,7 +485,7 @@ class OptionalMonadTest extends OptionalTestBase {
       var input = presentOf(1);
 
       org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> OptionalMonad.INSTANCE.filter(null, input))
+              () -> Instances.monadZero(optional()).filter(null, input))
           .isInstanceOf(NullPointerException.class);
     }
 
@@ -491,7 +493,7 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("filter throws NullPointerException when ma is null")
     void filterThrowsWhenMaIsNull() {
       org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> OptionalMonad.INSTANCE.filter(x -> true, null))
+              () -> Instances.monadZero(optional()).filter(x -> true, null))
           .isInstanceOf(NullPointerException.class);
     }
   }

@@ -2,14 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.payment.interpreter;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.Objects;
 import org.higherkindedj.example.payment.effect.FraudCheckOp;
 import org.higherkindedj.example.payment.effect.FraudCheckOpInterpreter;
 import org.higherkindedj.example.payment.model.AuditLog;
 import org.higherkindedj.example.payment.model.RiskScore;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.writer_t.WriterT;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
 import org.jspecify.annotations.NullMarked;
@@ -24,7 +27,7 @@ import org.jspecify.annotations.NullMarked;
 public final class AuditFraudInterpreter
     extends FraudCheckOpInterpreter<WriterTKind.Witness<IdKind.Witness, AuditLog>> {
 
-  private static final IdMonad ID = IdMonad.instance();
+  private static final Monad<IdKind.Witness> ID = Instances.monad(id());
 
   @Override
   protected <A> Kind<WriterTKind.Witness<IdKind.Witness, AuditLog>, A> handleCheckTransaction(

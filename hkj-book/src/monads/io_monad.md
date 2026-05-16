@@ -81,7 +81,7 @@ The following examples build a small program step by step: creating IO actions, 
 Use `IO_OP.delay` to capture side effects. Use `ioMonad.of` for pure values within IO.
 
 ```java
-IOMonad ioMonad = IOMonad.INSTANCE;
+Monad<IOKind.Witness> ioMonad = Instances.monad(io());
 java.util.Scanner scanner = new java.util.Scanner(System.in);
 
 // IO action to print a message — nothing happens yet
@@ -143,7 +143,7 @@ try {
 `map` transforms the result of an IO action *without executing it*. `flatMap` sequences two IO actions — the second can depend on the first's result.
 
 ```java
-IOMonad ioMonad = IOMonad.INSTANCE;
+Monad<IOKind.Witness> ioMonad = Instances.monad(io());
 
 // --- map: transform a result ---
 Kind<IOKind.Witness, String> readLineAction = IO_OP.delay(() -> "Test Input");

@@ -4,12 +4,15 @@ package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.io.IOException;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,11 +25,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 @DisplayName("TryMonad Complete Test Suite")
 class TryMonadTest extends TryTestBase {
 
-  private TryMonad monad;
+  private MonadError<TryKind.Witness, Throwable> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = TryMonad.INSTANCE;
+    monad = Instances.monadError(try_());
   }
 
   @Nested

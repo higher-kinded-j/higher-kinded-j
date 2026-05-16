@@ -3,16 +3,16 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.junit.jupiter.api.DisplayName;
@@ -681,7 +681,9 @@ class ListTraversalsTest {
 
       Kind<ListKind.Witness, List<Integer>> result =
           slice.modifyF(
-              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), numbers, ListMonad.INSTANCE);
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)),
+              numbers,
+              Instances.monadZero(list()));
 
       List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
 
@@ -705,7 +707,9 @@ class ListTraversalsTest {
 
       Kind<ListKind.Witness, List<Integer>> result =
           slice.modifyF(
-              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), empty, ListMonad.INSTANCE);
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)),
+              empty,
+              Instances.monadZero(list()));
 
       List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
 
@@ -724,7 +728,7 @@ class ListTraversalsTest {
           slice.modifyF(
               x -> OptionalKindHelper.OPTIONAL.widen(Optional.of(x * 2)),
               numbers,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -742,7 +746,7 @@ class ListTraversalsTest {
           slice.modifyF(
               x -> OptionalKindHelper.OPTIONAL.widen(Optional.of(x * 2)),
               empty,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -760,7 +764,7 @@ class ListTraversalsTest {
           slice.modifyF(
               x -> OptionalKindHelper.OPTIONAL.widen(Optional.of(x * 2)),
               numbers,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -777,7 +781,9 @@ class ListTraversalsTest {
 
       Kind<ListKind.Witness, List<Integer>> result =
           slice.modifyF(
-              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), numbers, ListMonad.INSTANCE);
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)),
+              numbers,
+              Instances.monadZero(list()));
 
       List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
 
@@ -794,7 +800,9 @@ class ListTraversalsTest {
 
       Kind<ListKind.Witness, List<Integer>> result =
           slice.modifyF(
-              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), empty, ListMonad.INSTANCE);
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)),
+              empty,
+              Instances.monadZero(list()));
 
       List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
 

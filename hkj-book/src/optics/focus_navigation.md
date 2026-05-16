@@ -514,7 +514,7 @@ Navigators work seamlessly with all Focus DSL features:
 ```java
 // With type class operations
 Company validated = CompanyFocus.headquarters().city()
-    .modifyF(this::validateCity, company, EitherMonad.INSTANCE);
+    .modifyF(this::validateCity, company, Instances.monad(either()));
 
 // With conditional modification
 Company updated = CompanyFocus.departments()

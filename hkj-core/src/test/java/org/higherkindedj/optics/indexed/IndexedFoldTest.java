@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.indexed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Map;
@@ -10,9 +11,9 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.util.IndexedTraversals;
 import org.junit.jupiter.api.DisplayName;
@@ -521,7 +522,7 @@ class IndexedFoldTest {
           ifold.imodifyF(
               (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value.toUpperCase())),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<String>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent();
@@ -540,7 +541,7 @@ class IndexedFoldTest {
           ifold.imodifyF(
               (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value * 2)),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent();
@@ -558,7 +559,7 @@ class IndexedFoldTest {
           ifold.imodifyF(
               (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value * 2)),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent();
@@ -575,7 +576,7 @@ class IndexedFoldTest {
           ifold.imodifyF(
               (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(index + value)),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<List<Integer>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent();

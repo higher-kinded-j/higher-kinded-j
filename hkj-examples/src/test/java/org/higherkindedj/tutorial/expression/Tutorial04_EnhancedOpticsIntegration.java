@@ -3,16 +3,19 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.junit.jupiter.api.DisplayName;
@@ -103,7 +106,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 1: Basic traverseOver")
   void exercise1_basicTraverseOver() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
 
     // TODO: Use ForState.withState with idMonad and Id.of(employees).
@@ -130,7 +133,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 2: traverseOver with Maybe Short Circuit")
   void exercise2_traverseOverWithMaybeShortCircuit() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     List<Employee> validEmployees =
         List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
     List<Employee> mixedEmployees =
@@ -169,7 +172,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 3: pure modifyThrough")
   void exercise3_pureModifyThrough() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
 
     // TODO: Use ForState.withState with idMonad and Id.of(employees).
@@ -198,7 +201,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 4: modifyThrough with Lens")
   void exercise4_modifyThroughWithLens() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
 
     // TODO: Use ForState.withState with idMonad and Id.of(employees).
@@ -231,7 +234,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 5: through Iso basics")
   void exercise5_throughIsoBasics() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     // TODO: Use For.from with Id.of(new Celsius(100.0)).
     //   Chain .through(celsiusToFahrenheit) to convert to Fahrenheit.
@@ -263,7 +266,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 6: through Iso with filter")
   void exercise6_throughIsoWithFilter() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     // TODO: Use For.from with MAYBE.just("hello") and through(stringToWrapper).
     //   Add a when() guard that checks if the inner string's length > 3.
@@ -299,7 +302,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 7: modifyVia Iso")
   void exercise7_modifyViaIso() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Employee alice = new Employee("Alice", 50000);
 
     // TODO: Use ForState.withState with idMonad and Id.of(alice).
@@ -331,7 +334,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 8: updateVia Iso")
   void exercise8_updateViaIso() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Employee alice = new Employee("Alice", 50000);
 
     // TODO: Use ForState.withState with idMonad and Id.of(alice).
@@ -366,7 +369,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 9: combined workflow")
   void exercise9_combinedWorkflow() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     List<Employee> employees = List.of(new Employee("alice", 50000), new Employee("bob", 60000));
 
     // TODO: Use ForState.withState with maybeMonad and MAYBE.just(employees).
@@ -413,7 +416,7 @@ public class Tutorial04_EnhancedOpticsIntegration {
   @Test
   @DisplayName("Exercise 10: department payroll")
   void exercise10_departmentPayroll() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     Department engineering =
         new Department(
             "Engineering",

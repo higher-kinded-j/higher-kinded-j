@@ -61,7 +61,7 @@ MaybePath<Kind<ListKind.Witness, Integer>> sequenced =
 // flatTraverse: traverse then flatten
 MaybePath<Kind<ListKind.Witness, Integer>> flat =
     ForPath.from(Path.just(LIST.widen(List.of(1, 2, 3))))
-        .flatTraverse(listTraverse, ListMonad.INSTANCE,
+        .flatTraverse(listTraverse, Instances.monadZero(list()),
             t -> t._1(),
             n -> Path.just(LIST.widen(List.of(n, n * 10))))
         .yield((original, flattened) -> flattened);

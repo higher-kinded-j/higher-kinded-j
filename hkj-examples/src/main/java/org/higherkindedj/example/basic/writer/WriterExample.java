@@ -2,15 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.writer;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.writer.Writer;
 import org.higherkindedj.hkt.writer.WriterKind;
-import org.higherkindedj.hkt.writer.WriterMonad;
 import org.jspecify.annotations.NonNull;
 
 /** see {<a href="https://higher-kinded-j.github.io/writer_monad.html">Writer Monad</a>} */
@@ -18,7 +20,7 @@ public class WriterExample {
 
   Monoid<String> stringMonoid = new StringMonoid();
 
-  WriterMonad<String> writerMonad = new WriterMonad<>(stringMonoid);
+  Monad<WriterKind.Witness<String>> writerMonad = Instances.writer(stringMonoid);
 
   Kind<WriterKind.Witness<String>, Integer> initialValue = WRITER.value(stringMonoid, 5);
 

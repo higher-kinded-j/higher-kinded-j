@@ -3,12 +3,16 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Property-based tests for Maybe Monad laws using jQwik.
@@ -24,7 +28,7 @@ import org.higherkindedj.hkt.Kind;
  */
 class MaybeMonadPropertyTest {
 
-  private final MaybeMonad monad = MaybeMonad.INSTANCE;
+  private final MonadError<MaybeKind.Witness, Unit> monad = Instances.monadError(maybe());
 
   /** Provides arbitrary Maybe<Integer> values for testing */
   @Provide

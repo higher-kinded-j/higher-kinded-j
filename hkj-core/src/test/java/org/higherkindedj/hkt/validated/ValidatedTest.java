@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
@@ -13,7 +14,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +28,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Validated Complete Test Suite")
 class ValidatedTest extends ValidatedTestBase {
 
-  private ValidatedMonad<String> monad;
+  private MonadError<ValidatedKind.Witness<String>, String> monad;
   private Semigroup<String> semigroup;
 
   // Instance fields for test data
@@ -35,7 +39,7 @@ class ValidatedTest extends ValidatedTestBase {
   @BeforeEach
   void setUpValidated() {
     semigroup = createDefaultSemigroup();
-    monad = ValidatedMonad.instance(semigroup);
+    monad = Instances.validated(semigroup);
 
     // Initialise instance fields
     validInstance = Validated.valid(DEFAULT_VALID_VALUE);

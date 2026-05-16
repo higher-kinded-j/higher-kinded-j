@@ -2,16 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.trymonad;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /**
@@ -47,7 +48,7 @@ public class TryTraversalExample {
     final Semigroup<String> stringSemigroup = Semigroups.string("; ");
     // Create the Applicative instance with the error-combining logic.
     Applicative<ValidatedKind.Witness<String>> validatedApplicative =
-        ValidatedMonad.instance(stringSemigroup);
+        Instances.validated(stringSemigroup);
     var hostnameTraversal = ConfigurationTraversals.dbHostname();
 
     System.out.println("--- Running Traversal Scenarios for Try ---");

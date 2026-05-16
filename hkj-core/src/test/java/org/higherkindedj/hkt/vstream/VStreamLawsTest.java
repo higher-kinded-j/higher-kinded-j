@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.Arrays;
@@ -11,6 +12,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -35,7 +38,7 @@ class VStreamLawsTest {
 
   private final VStreamFunctor functor = VStreamFunctor.INSTANCE;
   private final VStreamApplicative applicative = VStreamApplicative.INSTANCE;
-  private final VStreamMonad monad = VStreamMonad.INSTANCE;
+  private final Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
   private final VStreamAlternative alternative = VStreamAlternative.INSTANCE;
 
   // ==================== Test Values ====================

@@ -3,13 +3,14 @@
 package org.higherkindedj.optics.indexed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.util.IndexedTraversals;
 import org.junit.jupiter.api.DisplayName;
@@ -184,7 +185,7 @@ class IndexedLensTest {
                 return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
               },
               user,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<User> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent();
@@ -206,7 +207,7 @@ class IndexedLensTest {
                 return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
               },
               user,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<User> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(unwrapped).isEmpty();
@@ -251,7 +252,7 @@ class IndexedLensTest {
           };
 
       Kind<OptionalKind.Witness, User> result =
-          indexedAgeLens.modifyF(incrementIfValid, user, OptionalMonad.INSTANCE);
+          indexedAgeLens.modifyF(incrementIfValid, user, Instances.monadError(optional()));
 
       Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -277,7 +278,7 @@ class IndexedLensTest {
           };
 
       Kind<OptionalKind.Witness, User> result =
-          indexedAgeLens.modifyF(failOnOldAge, user, OptionalMonad.INSTANCE);
+          indexedAgeLens.modifyF(failOnOldAge, user, Instances.monadError(optional()));
 
       Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -375,7 +376,7 @@ class IndexedLensTest {
           };
 
       Kind<OptionalKind.Witness, User> result =
-          ageLens.modifyF(incrementIfValid, user, OptionalMonad.INSTANCE);
+          ageLens.modifyF(incrementIfValid, user, Instances.monadError(optional()));
 
       Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -398,7 +399,7 @@ class IndexedLensTest {
           };
 
       Kind<OptionalKind.Witness, User> result =
-          ageLens.modifyF(failOnOldAge, user, OptionalMonad.INSTANCE);
+          ageLens.modifyF(failOnOldAge, user, Instances.monadError(optional()));
 
       Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -443,7 +444,7 @@ class IndexedLensTest {
           };
 
       Kind<OptionalKind.Witness, User> result =
-          regularLens.modifyF(incrementIfValid, user, OptionalMonad.INSTANCE);
+          regularLens.modifyF(incrementIfValid, user, Instances.monadError(optional()));
 
       Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -469,7 +470,7 @@ class IndexedLensTest {
           };
 
       Kind<OptionalKind.Witness, User> result =
-          regularLens.modifyF(failOnOldAge, user, OptionalMonad.INSTANCE);
+          regularLens.modifyF(failOnOldAge, user, Instances.monadError(optional()));
 
       Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();

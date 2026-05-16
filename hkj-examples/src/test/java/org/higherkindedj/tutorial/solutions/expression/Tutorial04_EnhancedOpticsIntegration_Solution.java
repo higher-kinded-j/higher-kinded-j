@@ -3,20 +3,23 @@
 package org.higherkindedj.tutorial.solutions.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.util.Traversals;
@@ -85,7 +88,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise1_basicTraverseOver() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
 
     Kind<IdKind.Witness, List<Employee>> result =
@@ -116,7 +119,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise2_traverseOverWithMaybeShortCircuit() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     List<Employee> validEmployees =
         List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
     List<Employee> mixedEmployees =
@@ -159,7 +162,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise3_pureModifyThrough() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
 
     Kind<IdKind.Witness, List<Employee>> result =
@@ -190,7 +193,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise4_modifyThroughWithLens() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     List<Employee> employees = List.of(new Employee("Alice", 50000), new Employee("Bob", 60000));
 
     Kind<IdKind.Witness, List<Employee>> result =
@@ -219,7 +222,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise5_throughIsoBasics() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     Kind<IdKind.Witness, String> result =
         For.from(idMonad, Id.of(new Celsius(100.0)))
@@ -248,7 +251,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise6_throughIsoWithFilter() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     Kind<MaybeKind.Witness, String> passResult =
         For.from((MonadZero<MaybeKind.Witness>) maybeMonad, MAYBE.just("hello"))
@@ -282,7 +285,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise7_modifyViaIso() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Employee alice = new Employee("Alice", 50000);
 
     Kind<IdKind.Witness, Employee> result =
@@ -312,7 +315,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise8_updateViaIso() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Employee alice = new Employee("Alice", 50000);
 
     Kind<IdKind.Witness, Employee> result =
@@ -342,7 +345,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise9_combinedWorkflow() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     List<Employee> employees = List.of(new Employee("alice", 50000), new Employee("bob", 60000));
 
     Kind<MaybeKind.Witness, List<Employee>> result =
@@ -383,7 +386,7 @@ public class Tutorial04_EnhancedOpticsIntegration_Solution {
    */
   @Test
   void exercise10_departmentPayroll() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     Department engineering =
         new Department(
             "Engineering",

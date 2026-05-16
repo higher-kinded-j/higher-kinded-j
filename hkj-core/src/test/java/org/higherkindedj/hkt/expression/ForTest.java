@@ -3,21 +3,22 @@
 package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.Arrays;
 import java.util.Collections;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +31,7 @@ class ForTest {
   @Nested
   @DisplayName("With Identity Monad (Non-Filterable)")
   class ForIdTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     @Test
     @DisplayName("Arity 1: should yield value")
@@ -400,7 +401,7 @@ class ForTest {
   @Nested
   @DisplayName("With List Monad (Filterable)")
   class ForListTest {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("should filter values with 'when'")
@@ -759,7 +760,7 @@ class ForTest {
   @Nested
   @DisplayName("With Maybe Monad (Filterable)")
   class ForMaybeTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     @Test
     @DisplayName("should chain let bindings with Maybe")
@@ -840,7 +841,7 @@ class ForTest {
       Kind<MaybeKind.Witness, String> nothing = MAYBE.nothing();
 
       Kind<MaybeKind.Witness, String> result =
-          For.from(MaybeMonad.INSTANCE, just1)
+          For.from(Instances.monadZero(maybe()), just1)
               .let(i -> "let-val")
               .from(t -> nothing)
               .yield((a, b, c) -> "should not be reached");

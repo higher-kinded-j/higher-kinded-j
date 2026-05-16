@@ -3,14 +3,17 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.NoSuchElementException;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -568,7 +571,7 @@ class CrossPathConversionTest {
   @DisplayName("GenericPath Conversions")
   class GenericPathConversions {
 
-    private static final MaybeMonad MONAD = MaybeMonad.INSTANCE;
+    private static final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
 
     @Test
     @DisplayName("GenericPath(Just) → MaybePath(Just)")

@@ -74,8 +74,8 @@ ReaderPath<AppConfig, ProcessedData> workflow() {
 When the environment must combine with another monad (here `CompletableFuture`):
 
 ```java
-var futureMonad  = CompletableFutureMonad.INSTANCE;
-var readerTMonad = new ReaderTMonad<CompletableFutureKind.Witness, AppConfig>(futureMonad);
+var futureMonad  = Instances.monadError(completableFuture());
+var readerTMonad = Instances.readerT(futureMonad);
 
 ReaderT<CompletableFutureKind.Witness, AppConfig, ServiceData> fetchDataRT(String itemId) {
   return ReaderT.of(config ->
@@ -169,7 +169,7 @@ The `ReaderTMonad<F, R>` class implements `Monad<ReaderTKind.Witness<F, R>>`, pr
 ```java
 record AppConfig(String apiKey) {}
 
-var readerTOptionalMonad = new ReaderTMonad<OptionalKind.Witness, AppConfig>(OptionalMonad.INSTANCE);
+var readerTOptionalMonad = Instances.readerT(Instances.monadError(optional()));
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -200,7 +200,7 @@ The `MonadReader` capability adds `ask()`, `reader(f)`, and `local(f, ma)` on to
 ## Creating ReaderT Instances
 
 ```java
-var optMonad   = OptionalMonad.INSTANCE;
+var optMonad   = Instances.monadError(optional());
 record Config(String setting) {}
 
 // 1. Directly from R -> F<A> function
@@ -236,8 +236,8 @@ record AppConfig(String apiKey, String serviceUrl, ExecutorService executor) {}
 record ServiceData(String rawData) {}
 record ProcessedData(String info) {}
 
-var futureMonad  = CompletableFutureMonad.INSTANCE;
-var readerTMonad = new ReaderTMonad<CompletableFutureKind.Witness, AppConfig>(futureMonad);
+var futureMonad  = Instances.monadError(completableFuture());
+var readerTMonad = Instances.readerT(futureMonad);
 
 ReaderT<CompletableFutureKind.Witness, AppConfig, ServiceData> fetchServiceDataRT(String itemId) {
   return ReaderT.of(config -> FUTURE.widen(

@@ -127,7 +127,7 @@ List<String> codes = List.of("VALID-A", "EXPIRED", "VALID-B", "INVALID");
 Kind<ListKind.Witness, String> codesKind = LIST.widen(codes);
 
 Applicative<ValidatedKind.Witness<String>> validatedApplicative =
-    ValidatedMonad.instance(Semigroups.string("; "));
+    Instances.validated(Semigroups.string("; "));
 
 Kind<ValidatedKind.Witness<String>, Kind<ListKind.Witness, String>> result =
     ListTraverse.INSTANCE.traverse(

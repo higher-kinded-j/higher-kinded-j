@@ -3,15 +3,16 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -302,7 +303,7 @@ class FoldTest {
           item -> OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
 
       Kind<OptionalKind.Witness, Order> result =
-          itemsFold.modifyF(effectfulTransform, order, OptionalMonad.INSTANCE);
+          itemsFold.modifyF(effectfulTransform, order, Instances.monadError(optional()));
 
       Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -330,7 +331,7 @@ class FoldTest {
           };
 
       Kind<OptionalKind.Witness, Order> result =
-          itemsFold.modifyF(failOnCheapItems, order, OptionalMonad.INSTANCE);
+          itemsFold.modifyF(failOnCheapItems, order, Instances.monadError(optional()));
 
       Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -346,7 +347,7 @@ class FoldTest {
           item -> OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
 
       Kind<OptionalKind.Witness, Order> result =
-          itemsFold.modifyF(effectfulTransform, emptyOrder, OptionalMonad.INSTANCE);
+          itemsFold.modifyF(effectfulTransform, emptyOrder, Instances.monadError(optional()));
 
       Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -373,7 +374,7 @@ class FoldTest {
           };
 
       Kind<OptionalKind.Witness, Order> result =
-          itemsFold.modifyF(validatePrice, order, OptionalMonad.INSTANCE);
+          itemsFold.modifyF(validatePrice, order, Instances.monadError(optional()));
 
       Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -1119,7 +1120,7 @@ class FoldTest {
           item -> OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
 
       Kind<OptionalKind.Witness, Order> result =
-          combined.modifyF(validate, order, OptionalMonad.INSTANCE);
+          combined.modifyF(validate, order, Instances.monadError(optional()));
 
       Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();

@@ -79,7 +79,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 // Get the Alternative instance for Maybe
-final Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
+final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
 
 // Simulate trying multiple configuration sources
 Kind<MaybeKind.Witness, String> fromEnv = MAYBE.nothing();      // Not found
@@ -152,7 +152,7 @@ import java.util.List;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 // Get the Alternative instance for List
-final Alternative<ListKind.Witness> alt = ListMonad.INSTANCE;
+final Alternative<ListKind.Witness> alt = Instances.monadZero(list());
 
 // Possible actions
 Kind<ListKind.Witness, String> actions1 = LIST.widen(Arrays.asList("move_left", "move_right"));
@@ -180,7 +180,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-final Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
+final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
 
 // Check authentication
 boolean isAuthenticated = true;
@@ -199,7 +199,7 @@ System.out.println("Failed: " + MAYBE.narrow(failedCheck).isNothing()); // true
 The second argument to `orElse()` is provided via `Supplier`, enabling lazy evaluation:
 
 ```java
-final Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
+final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
 
 Kind<MaybeKind.Witness, String> primary = MAYBE.just("found");
 
@@ -252,7 +252,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 public class ConfigLoader {
-    private final Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
+    private final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
 
     public Kind<MaybeKind.Witness, String> loadConfig(String key) {
         return alt.orElseAll(

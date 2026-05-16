@@ -5,10 +5,13 @@ package org.higherkindedj.hkt.vtask;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,7 +21,7 @@ class VTaskMonadTest {
 
   private static final int TEST_VALUE = 42;
   private static final String TEST_STRING = "hello";
-  private final VTaskMonad monad = VTaskMonad.INSTANCE;
+  private final MonadError<VTaskKind.Witness, Throwable> monad = Instances.monadError(vtask());
 
   @Nested
   @DisplayName("flatMap() Operations")

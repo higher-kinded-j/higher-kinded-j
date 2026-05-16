@@ -3,13 +3,14 @@
 package org.higherkindedj.example.optics;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.time.Instant;
 import java.util.*;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.expression.ForIndexed;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.IndexedLens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -506,7 +507,7 @@ public class IndexedOpticsExample {
     // Example 1: Apply position-based discount using ForIndexed
     // Items at even positions (0, 2, 4) get 10% off
     Kind<IdKind.Witness, List<LineItem>> discountedResult =
-        ForIndexed.overIndexed(itemsIndexed, items, IdMonad.instance())
+        ForIndexed.overIndexed(itemsIndexed, items, Instances.monad(id()))
             .filterIndex(i -> i % 2 == 0)
             .modify(priceLens, (index, price) -> price * 0.9)
             .run();
@@ -526,7 +527,7 @@ public class IndexedOpticsExample {
     // Example 2: Combined index and value filtering
     // Only discount expensive items (>£50) at the first 3 positions
     Kind<IdKind.Witness, List<LineItem>> combinedResult =
-        ForIndexed.overIndexed(itemsIndexed, items, IdMonad.instance())
+        ForIndexed.overIndexed(itemsIndexed, items, Instances.monad(id()))
             .filter((index, item) -> index < 3 && item.price() > 50.0)
             .modify(priceLens, (index, price) -> price * 0.85) // 15% off
             .run();
@@ -546,7 +547,7 @@ public class IndexedOpticsExample {
 
     // Example 3: Collect items with their indices
     Kind<IdKind.Witness, List<Pair<Integer, LineItem>>> indexedListResult =
-        ForIndexed.overIndexed(itemsIndexed, items, IdMonad.instance())
+        ForIndexed.overIndexed(itemsIndexed, items, Instances.monad(id()))
             .filterIndex(i -> i % 2 == 1) // Odd positions only
             .toIndexedList();
 

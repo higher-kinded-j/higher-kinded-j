@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.free_ap;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -22,7 +23,7 @@ import org.higherkindedj.hkt.free_ap.FreeApKindHelper;
 import org.higherkindedj.hkt.free_ap.SelectiveAnalyzer;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Demonstrates permission checking for file operations before execution.
@@ -377,7 +378,7 @@ public class PermissionCheckingExample {
     // Step 3: Execute
     System.out.println("\nStep 3: Execute Program");
     Natural<FileOpKind.Witness, IdKind.Witness> interpreter = createMockInterpreter();
-    Kind<IdKind.Witness, String> result = program.foldMap(interpreter, IdMonad.instance());
+    Kind<IdKind.Witness, String> result = program.foldMap(interpreter, Instances.monad(id()));
     String output = ID.narrow(result).value();
 
     System.out.println("  Result: " + output);

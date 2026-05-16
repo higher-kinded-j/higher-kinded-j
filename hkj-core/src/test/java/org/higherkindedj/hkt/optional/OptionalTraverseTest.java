@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -13,9 +14,9 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ public class OptionalTraverseTest {
 
   private final OptionalTraverse traverse = OptionalTraverse.INSTANCE;
   private final Foldable<OptionalKind.Witness> foldable = OptionalTraverse.INSTANCE;
-  private final Applicative<MaybeKind.Witness> maybeApplicative = MaybeMonad.INSTANCE;
+  private final Applicative<MaybeKind.Witness> maybeApplicative = Instances.monadError(maybe());
 
   // A test function that "validates" an integer, returning a Maybe.
   // It returns Nothing for non-positive numbers.

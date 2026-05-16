@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.GenerateSetters;
 
@@ -188,7 +190,7 @@ public class SetterUsageExample {
         };
 
     Kind<OptionalKind.Witness, User> validUserResult =
-        usernameSetter.modifyF(validateUsername, user, OptionalMonad.INSTANCE);
+        usernameSetter.modifyF(validateUsername, user, Instances.monadError(optional()));
 
     Optional<User> validUser = OptionalKindHelper.OPTIONAL.narrow(validUserResult);
     System.out.println(
@@ -197,7 +199,7 @@ public class SetterUsageExample {
 
     User invalidUser = new User("a", "a@test.com", 0, settings); // Too short
     Kind<OptionalKind.Witness, User> invalidUserResult =
-        usernameSetter.modifyF(validateUsername, invalidUser, OptionalMonad.INSTANCE);
+        usernameSetter.modifyF(validateUsername, invalidUser, Instances.monadError(optional()));
 
     Optional<User> invalidUserOpt = OptionalKindHelper.OPTIONAL.narrow(invalidUserResult);
     System.out.println(
@@ -216,7 +218,7 @@ public class SetterUsageExample {
 
     Product validProduct = new Product("Test", 10.0, 5, List.of());
     Kind<OptionalKind.Witness, Product> validStockResult =
-        stockSetter.modifyF(ensurePositiveStock, validProduct, OptionalMonad.INSTANCE);
+        stockSetter.modifyF(ensurePositiveStock, validProduct, Instances.monadError(optional()));
 
     Optional<Product> validStockOpt = OptionalKindHelper.OPTIONAL.narrow(validStockResult);
     System.out.println(

@@ -4,21 +4,22 @@ package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,7 +67,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("focus() with Identity Monad")
   class FocusWithIdTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     private Lens<User, Address> userAddressLens;
     private Lens<Address, String> addressCityLens;
@@ -202,7 +203,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("focus() with List Monad")
   class FocusWithListTest {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     private Lens<User, Address> userAddressLens;
     private Lens<Address, String> addressCityLens;
@@ -266,7 +267,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("focus() with Maybe Monad")
   class FocusWithMaybeTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     private Lens<User, Address> userAddressLens;
 
@@ -319,7 +320,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("match() with Maybe Monad (Pattern Matching)")
   class MatchWithMaybeTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     private Prism<Result, Success> successPrism;
     private Prism<Result, Failure> failurePrism;
@@ -407,7 +408,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("match() with List Monad")
   class MatchWithListTest {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     private Prism<Result, Success> successPrism;
     private Prism<JsonValue, JsonString> jsonStringPrism;
@@ -496,8 +497,8 @@ class ForOpticTest {
   @Nested
   @DisplayName("Combined focus() and match() Operations")
   class CombinedFocusAndMatchTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     record Container(Result result) {}
 
@@ -563,7 +564,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("focus() at Higher Arities")
   class FocusHigherArityTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     record Level1(Level2 l2) {}
 
@@ -754,7 +755,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("match() at Higher Arities")
   class MatchHigherArityTest {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     sealed interface Outer permits OuterA, OuterB {}
 
@@ -800,7 +801,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("FilterableSteps2 focus() and match() Tests")
   class FilterableSteps2Test {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     record Item(String name, int value) {}
 
@@ -892,7 +893,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("FilterableSteps3 focus() and match() Tests")
   class FilterableSteps3Test {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     record Product(String name, String category, int price) {}
 
@@ -976,7 +977,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("FilterableSteps4 focus() and match() Tests")
   class FilterableSteps4Test {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("focus() should extract value from 4-tuple and add to result")
@@ -1105,7 +1106,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("FilterableSteps5 focus() and match() Tests")
   class FilterableSteps5Test {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("focus() should extract value from 5-tuple into arity 6")
@@ -1172,7 +1173,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("FilterableSteps6 focus() and match() Tests")
   class FilterableSteps6Test {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("focus() should extract value from 6-tuple into arity 7")
@@ -1238,7 +1239,7 @@ class ForOpticTest {
   @Nested
   @DisplayName("FilterableSteps7 focus() and match() Tests")
   class FilterableSteps7Test {
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("focus() should extract value from 7-tuple into arity 8")

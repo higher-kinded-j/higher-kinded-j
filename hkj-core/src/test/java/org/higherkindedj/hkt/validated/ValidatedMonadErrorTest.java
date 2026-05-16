@@ -4,9 +4,12 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +24,7 @@ class ValidatedMonadErrorTest extends ValidatedTestBase {
   @BeforeEach
   void setUpMonadError() {
     Semigroup<String> stringSemigroup = Semigroups.first();
-    monadError = ValidatedMonad.instance(stringSemigroup);
+    monadError = Instances.validated(stringSemigroup);
   }
 
   @Nested

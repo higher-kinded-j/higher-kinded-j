@@ -3,14 +3,16 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.coyoneda.Coyoneda;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
@@ -139,7 +141,7 @@ public class Tutorial09_Coyoneda {
     Coyoneda<ListKind.Witness, String> chained = answerRequired();
 
     // Lower to execute
-    ListMonad listFunctor = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = chained.lower(listFunctor);
 
     // Results: (1*2)+10=12, (2*2)+10=14, (3*2)+10=16, (4*2)+10=18, (5*2)+10=20
@@ -199,7 +201,7 @@ public class Tutorial09_Coyoneda {
     Coyoneda<ListKind.Witness, String> pipeline = answerRequired();
 
     // Execute
-    ListMonad listFunctor = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = pipeline.lower(listFunctor);
 
     assertThat(LIST.narrow(result)).containsExactly("[ALICE]", "[BOB]", "[CHARLIE]");

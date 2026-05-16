@@ -4,16 +4,18 @@ package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -86,13 +88,13 @@ public class Tutorial02_FunctorMapping_Solution {
    * needs it.
    *
    * <p>Common wrong attempt: forgetting the helper exists and trying to get a {@code Functor<List>}
-   * from somewhere. {@code ListMonad.INSTANCE} is both a {@code Functor} and a {@code Monad}; ask
-   * the monad for its {@code map}.
+   * from somewhere. {@code Instances.monadZero(list())} is both a {@code Functor} and a {@code
+   * Monad}; ask the monad for its {@code map}.
    */
   @Test
   @DisplayName("Exercise 3: ListMonad.map doubles each element")
   void exercise3_mapList() {
-    ListMonad monad = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
     Kind<ListKind.Witness, Integer> numbers = LIST.widen(List.of(1, 2, 3, 4, 5));
 
     Kind<ListKind.Witness, Integer> doubled = monad.map(n -> n * 2, numbers);
@@ -164,7 +166,7 @@ public class Tutorial02_FunctorMapping_Solution {
   @Test
   @DisplayName("Exercise 6: method references work with Functor.map")
   void exercise6_methodReferences() {
-    ListMonad monad = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
     Kind<ListKind.Witness, String> words = LIST.widen(List.of("hello", "world", "java"));
 
     Kind<ListKind.Witness, String> uppercase = monad.map(String::toUpperCase, words);

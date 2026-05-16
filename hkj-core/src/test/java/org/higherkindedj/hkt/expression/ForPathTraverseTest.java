@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -29,16 +30,14 @@ import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -115,7 +114,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.just(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       MAYBE.<Kind<ListKind.Witness, Integer>>just(
@@ -180,7 +179,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.present(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       OPTIONAL.widen(
@@ -260,7 +259,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.<String, List<Integer>>right(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       EitherKindHelper.EITHER.widen(
@@ -318,7 +317,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.success(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       TryKindHelper.TRY.widen(
@@ -369,7 +368,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.id(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       IdKindHelper.ID.widen(
@@ -426,7 +425,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.list(MAYBE.just(42)))
               .flatTraverse(
                   maybeTraverse,
-                  MaybeMonad.INSTANCE,
+                  Instances.monadError(maybe()),
                   val -> val,
                   (Integer i) ->
                       LIST.<Kind<MaybeKind.Witness, String>>widen(
@@ -448,7 +447,7 @@ class ForPathTraverseTest {
       GenericPath<IdKind.Witness, List<Integer>> result =
           ForPath.from(
                   Path.generic(
-                      IdKindHelper.ID.widen(Id.of(Arrays.asList(1, 2, 3))), IdMonad.instance()))
+                      IdKindHelper.ID.widen(Id.of(Arrays.asList(1, 2, 3))), Instances.monad(id())))
               .traverse(
                   listTraverse,
                   list -> LIST.widen(list),
@@ -466,7 +465,7 @@ class ForPathTraverseTest {
       Kind<ListKind.Witness, Kind<IdKind.Witness, Integer>> kindList = LIST.widen(listOfIds);
 
       GenericPath<IdKind.Witness, List<Integer>> result =
-          ForPath.from(Path.generic(IdKindHelper.ID.widen(Id.of(kindList)), IdMonad.instance()))
+          ForPath.from(Path.generic(IdKindHelper.ID.widen(Id.of(kindList)), Instances.monad(id())))
               .sequence(listTraverse, Function.identity())
               .yield((original, sequenced) -> LIST.narrow(sequenced));
       List<Integer> list = IdKindHelper.ID.unwrap(result.runKind());
@@ -479,10 +478,10 @@ class ForPathTraverseTest {
       GenericPath<IdKind.Witness, List<Integer>> result =
           ForPath.from(
                   Path.generic(
-                      IdKindHelper.ID.widen(Id.of(Arrays.asList(1, 2, 3))), IdMonad.instance()))
+                      IdKindHelper.ID.widen(Id.of(Arrays.asList(1, 2, 3))), Instances.monad(id())))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       IdKindHelper.ID.widen(
@@ -535,7 +534,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.ioPure(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       IOKindHelper.IO_OP.widen(
@@ -587,7 +586,7 @@ class ForPathTraverseTest {
           ForPath.from(Path.vtaskPure(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       VTaskKindHelper.VTASK.widen(

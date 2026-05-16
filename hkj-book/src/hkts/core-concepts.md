@@ -208,7 +208,7 @@ Higher-Kinded-J provides the `org.higherkindedj.hkt.Unit` type to address this.
     IOKindHelper.unsafeRunSync(printAction); // Executes the print
 
     // Optional treated as MonadError<..., Unit>
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
     Kind<OptionalKind.Witness, String> emptyOptional = optionalMonad.raiseError(Unit.INSTANCE); // Creates Optional.empty()
     ```
 * **Reference:** [`Unit.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/unit/Unit.java)

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.trampoline;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class TrampolineUtilsTest {
 
       final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
-              emptyList, i -> Id.of("item-" + i), IdMonad.instance());
+              emptyList, i -> Id.of("item-" + i), Instances.monad(id()));
 
       final List<String> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).isEmpty();
@@ -50,7 +51,7 @@ class TrampolineUtilsTest {
 
       final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
-              singleList, i -> Id.of("item-" + i), IdMonad.instance());
+              singleList, i -> Id.of("item-" + i), Instances.monad(id()));
 
       final List<String> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).containsExactly("item-42");
@@ -63,7 +64,7 @@ class TrampolineUtilsTest {
 
       final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
-              smallList, i -> Id.of("item-" + i), IdMonad.instance());
+              smallList, i -> Id.of("item-" + i), Instances.monad(id()));
 
       final List<String> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).containsExactly("item-1", "item-2", "item-3", "item-4", "item-5");
@@ -75,7 +76,7 @@ class TrampolineUtilsTest {
       final List<Integer> list = IntStream.range(0, 100).boxed().collect(Collectors.toList());
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.traverseListStackSafe(list, i -> Id.of(i * 2), IdMonad.instance());
+          TrampolineUtils.traverseListStackSafe(list, i -> Id.of(i * 2), Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(100);
@@ -91,7 +92,8 @@ class TrampolineUtilsTest {
           IntStream.range(0, 10_000).boxed().collect(Collectors.toList());
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.traverseListStackSafe(largeList, i -> Id.of(i * 2), IdMonad.instance());
+          TrampolineUtils.traverseListStackSafe(
+              largeList, i -> Id.of(i * 2), Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(10_000);
@@ -107,7 +109,7 @@ class TrampolineUtilsTest {
 
       final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.traverseListStackSafe(
-              veryLargeList, i -> Id.of(i + 1), IdMonad.instance());
+              veryLargeList, i -> Id.of(i + 1), Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(100_000);
@@ -122,7 +124,7 @@ class TrampolineUtilsTest {
 
       final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
-              list, i -> Id.of("element-" + (i * 10)), IdMonad.instance());
+              list, i -> Id.of("element-" + (i * 10)), Instances.monad(id()));
 
       final List<String> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped)
@@ -140,7 +142,7 @@ class TrampolineUtilsTest {
       final List<Kind<IdKind.Witness, Integer>> emptyList = List.of();
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.sequenceStackSafe(emptyList, IdMonad.instance());
+          TrampolineUtils.sequenceStackSafe(emptyList, Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).isEmpty();
@@ -152,7 +154,7 @@ class TrampolineUtilsTest {
       final List<Kind<IdKind.Witness, Integer>> singleList = List.of(Id.of(42));
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.sequenceStackSafe(singleList, IdMonad.instance());
+          TrampolineUtils.sequenceStackSafe(singleList, Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).containsExactly(42);
@@ -165,7 +167,7 @@ class TrampolineUtilsTest {
           List.of(Id.of(1), Id.of(2), Id.of(3), Id.of(4), Id.of(5));
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.sequenceStackSafe(smallList, IdMonad.instance());
+          TrampolineUtils.sequenceStackSafe(smallList, Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).containsExactly(1, 2, 3, 4, 5);
@@ -180,7 +182,7 @@ class TrampolineUtilsTest {
       }
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.sequenceStackSafe(list, IdMonad.instance());
+          TrampolineUtils.sequenceStackSafe(list, Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(100);
@@ -198,7 +200,7 @@ class TrampolineUtilsTest {
       }
 
       final Kind<IdKind.Witness, List<Integer>> result =
-          TrampolineUtils.sequenceStackSafe(largeList, IdMonad.instance());
+          TrampolineUtils.sequenceStackSafe(largeList, Instances.monad(id()));
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(50_000);
@@ -225,7 +227,7 @@ class TrampolineUtilsTest {
                   TrampolineUtils.traverseListStackSafe(
                       listWithNulls,
                       i -> Id.of(i.toString()), // This will throw NPE when i is null
-                      IdMonad.instance()))
+                      Instances.monad(id())))
           .isInstanceOf(NullPointerException.class);
     }
   }

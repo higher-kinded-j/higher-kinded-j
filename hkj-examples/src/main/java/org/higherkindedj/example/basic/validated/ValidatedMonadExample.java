@@ -2,14 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.validated;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -28,8 +31,8 @@ public class ValidatedMonadExample {
   // Define a Semigroup for combining List<String> errors by concatenation.
   private static final Semigroup<List<String>> listSemigroup = Semigroups.list();
 
-  private static final ValidatedMonad<List<String>> validatedMonad =
-      ValidatedMonad.instance(listSemigroup);
+  private static final MonadError<ValidatedKind.Witness<List<String>>, List<String>>
+      validatedMonad = Instances.validated(listSemigroup);
 
   public static void main(String[] args) {
     System.out.println("--- ValidatedMonad Usage Example (with MonadError) ---");

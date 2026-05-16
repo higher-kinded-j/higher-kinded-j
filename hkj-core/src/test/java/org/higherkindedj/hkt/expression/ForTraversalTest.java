@@ -4,12 +4,14 @@ package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOApplicative;
 import org.higherkindedj.hkt.io.IOKind;
@@ -39,14 +41,14 @@ class ForTraversalTest {
 
   // --- Common Test Fixtures ---
 
-  private IdMonad idMonad;
+  private Monad<IdKind.Witness> idMonad;
   private Traversal<List<Player>, Player> playersTraversal;
   private Lens<Player, Integer> scoreLens;
   private Lens<Player, String> nameLens;
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
+    idMonad = Instances.monad(id());
     playersTraversal = Traversals.forList();
     scoreLens = Lens.of(Player::score, (p, s) -> new Player(p.name(), s));
     nameLens = Lens.of(Player::name, (p, n) -> new Player(n, p.score()));

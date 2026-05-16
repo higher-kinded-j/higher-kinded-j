@@ -703,7 +703,7 @@ Function<String, Kind<MaybeKind.Witness, String>> validateApiKey = key -> {
 
 // Apply validation (MaybeMonad extends Applicative)
 Kind<MaybeKind.Witness, Config> result =
-    apiKeyPath.modifyF(validateApiKey, config, MaybeMonad.INSTANCE);
+    apiKeyPath.modifyF(validateApiKey, config, Instances.monadError(maybe()));
 
 Maybe<Config> validated = MaybeKindHelper.MAYBE.narrow(result);
 if (validated.isJust()) {

@@ -3,14 +3,17 @@
 package org.higherkindedj.example.optics.focus;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -178,7 +181,8 @@ public class AsyncFetchExample {
   static void basicAsyncEnrichment() {
     System.out.println("--- Basic Async Enrichment ---");
 
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
 
     // Initial profile with placeholder values
     UserProfile profile = new UserProfile("user123", "", "", ProfileStats.empty());
@@ -206,7 +210,8 @@ public class AsyncFetchExample {
   static void multiFieldAsyncEnrichment() {
     System.out.println("--- Multi-Field Async Enrichment ---");
 
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
 
     // Initial profile
     UserProfile profile = new UserProfile("alice42", "", "", ProfileStats.empty());
@@ -243,7 +248,8 @@ public class AsyncFetchExample {
   static void collectionAsyncEnrichment() {
     System.out.println("--- Collection Async Enrichment ---");
 
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
 
     // Shopping cart with products needing price updates
     ShoppingCart cart =
@@ -290,7 +296,8 @@ public class AsyncFetchExample {
   static void errorHandlingExample() {
     System.out.println("--- Error Handling with Async Operations ---");
 
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
 
     // Test with good and bad IDs
     UserProfile goodProfile = new UserProfile("user999", "", "", ProfileStats.empty());

@@ -4,20 +4,22 @@ package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
-import org.higherkindedj.hkt.list.ListMonad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
@@ -70,9 +72,9 @@ class ForStateTest {
 
   // --- Common Test Fixtures ---
 
-  private IdMonad idMonad;
-  private MaybeMonad maybeMonad;
-  private ListMonad listMonad;
+  private Monad<IdKind.Witness> idMonad;
+  private MonadZero<MaybeKind.Witness> maybeMonad;
+  private MonadZero<ListKind.Witness> listMonad;
 
   private Lens<WorkflowContext, Boolean> validatedLens;
   private Lens<WorkflowContext, Boolean> processedLens;
@@ -97,9 +99,9 @@ class ForStateTest {
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
-    maybeMonad = MaybeMonad.INSTANCE;
-    listMonad = ListMonad.INSTANCE;
+    idMonad = Instances.monad(id());
+    maybeMonad = Instances.monadZero(maybe());
+    listMonad = Instances.monadZero(list());
 
     validatedLens =
         Lens.of(
@@ -169,7 +171,7 @@ class ForStateTest {
     @Test
     @DisplayName("should throw on null monad")
     void withStateThrowsOnNullMonad() {
-      assertThatThrownBy(() -> ForState.withState((IdMonad) null, Id.of("test")))
+      assertThatThrownBy(() -> ForState.withState((Monad<IdKind.Witness>) null, Id.of("test")))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("monad");
     }
@@ -201,7 +203,8 @@ class ForStateTest {
     @Test
     @DisplayName("should throw on null MonadZero")
     void withStateMonadZeroThrowsOnNullMonad() {
-      assertThatThrownBy(() -> ForState.withState((MaybeMonad) null, MAYBE.just("test")))
+      assertThatThrownBy(
+              () -> ForState.withState((MonadZero<MaybeKind.Witness>) null, MAYBE.just("test")))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("monad");
     }

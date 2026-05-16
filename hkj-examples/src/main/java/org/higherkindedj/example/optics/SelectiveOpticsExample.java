@@ -3,6 +3,7 @@
 package org.higherkindedj.example.optics;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
@@ -14,9 +15,9 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdSelective;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.hkt.validated.ValidatedSelective;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
@@ -256,7 +257,7 @@ public class SelectiveOpticsExample {
     Validated<String, Bank> applicativeResult =
         VALIDATED.narrow(
             accountsTraversal.modifyF(
-                validator, bank, ValidatedMonad.instance(Semigroups.string("; "))));
+                validator, bank, Instances.validated(Semigroups.string("; "))));
     System.out.println("Result: " + applicativeResult);
 
     // Approach 2: Selective - can implement early termination

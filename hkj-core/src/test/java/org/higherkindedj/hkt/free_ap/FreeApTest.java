@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.free_ap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
@@ -41,7 +43,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("FreeAp Tests")
 class FreeApTest {
 
-  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE = MaybeMonad.INSTANCE;
+  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE =
+      Instances.monadError(maybe());
 
   // Identity natural transformation for Maybe
   private static final Natural<MaybeKind.Witness, MaybeKind.Witness> IDENTITY_NAT =

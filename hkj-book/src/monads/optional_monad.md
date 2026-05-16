@@ -35,7 +35,7 @@ Optional<User> user = repository.findById(id); // can't pass to lookupAndFormat
 Kind<OptionalKind.Witness, User> userKind = OPTIONAL.widen(repository.findById(id));
 
 // Now it works with any generic function expecting Kind<F, A>
-Kind<OptionalKind.Witness, String> result = lookupAndFormat(userKind, OptionalMonad.INSTANCE);
+Kind<OptionalKind.Witness, String> result = lookupAndFormat(userKind, Instances.monadError(optional()));
 
 // Unwrap back to Optional at the boundary
 Optional<String> name = OPTIONAL.narrow(result);
@@ -84,7 +84,7 @@ The following examples demonstrate the three main workflows: creating optional v
 Use `OPTIONAL.widen` to wrap existing `Optional` values. Use `optionalMonad.of` to lift raw values (null-safe). Use `raiseError` to explicitly represent absence.
 
 ```java
-OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
 // Wrap an existing Optional from a JDK API
 Optional<String> fromDb = Optional.of("Alice");
@@ -109,7 +109,7 @@ Optional<String> result = OPTIONAL.narrow(present);  // Optional.of("Hello")
 `map` transforms the value if present. `flatMap` chains operations that themselves may produce empty. `ap` applies a function-in-Optional to a value-in-Optional. In all cases, empty propagates automatically.
 
 ```java
-OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
 // --- map: transform a present value ---
 OptionalKind<Integer> num = OPTIONAL.widen(Optional.of(42));
@@ -153,7 +153,7 @@ Kind<OptionalKind.Witness, String> noFunc = optionalMonad.ap(
 When an `OptionalKind` is empty, `handleErrorWith` invokes a recovery function. Present values pass through untouched.
 
 ```java
-OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
 Kind<OptionalKind.Witness, String> present = OPTIONAL.widen(Optional.of("Found"));
 Kind<OptionalKind.Witness, String> absent  = OPTIONAL.widen(Optional.empty());

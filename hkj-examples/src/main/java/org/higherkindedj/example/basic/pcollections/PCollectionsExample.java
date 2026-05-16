@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.pcollections;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -10,11 +11,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.pcollections.ConsPStack;
 import org.pcollections.PStack;
 import org.pcollections.PVector;
@@ -55,7 +55,7 @@ public final class PCollectionsExample {
     Kind<ListKind.Witness, Integer> kind = LIST.widen(prices);
 
     Kind<ListKind.Witness, String> formatted =
-        ListMonad.INSTANCE.map(p -> String.format("£%.2f", p / 100.0), kind);
+        Instances.monadZero(list()).map(p -> String.format("£%.2f", p / 100.0), kind);
 
     System.out.println("source PVector  : " + prices);
     System.out.println("after map (List): " + LIST.narrow(formatted));
@@ -71,7 +71,8 @@ public final class PCollectionsExample {
     Function<Integer, Kind<ListKind.Witness, String>> expandViaPStack =
         id -> LIST.widen(ConsPStack.from(List.of("order-" + id + "-A", "order-" + id + "-B")));
 
-    Kind<ListKind.Witness, String> expanded = ListMonad.INSTANCE.flatMap(expandViaPStack, orders);
+    Kind<ListKind.Witness, String> expanded =
+        Instances.monadZero(list()).flatMap(expandViaPStack, orders);
 
     System.out.println("orders   : " + LIST.narrow(orders));
     System.out.println("expanded : " + LIST.narrow(expanded));
@@ -89,9 +90,10 @@ public final class PCollectionsExample {
         i -> OPTIONAL.widen(i > 0 ? Optional.of(i) : Optional.empty());
 
     Kind<OptionalKind.Witness, Kind<ListKind.Witness, Integer>> good =
-        ListTraverse.INSTANCE.traverse(OptionalMonad.INSTANCE, mustBePositive, goodInputs);
+        ListTraverse.INSTANCE.traverse(
+            Instances.monadError(optional()), mustBePositive, goodInputs);
     Kind<OptionalKind.Witness, Kind<ListKind.Witness, Integer>> bad =
-        ListTraverse.INSTANCE.traverse(OptionalMonad.INSTANCE, mustBePositive, badInputs);
+        ListTraverse.INSTANCE.traverse(Instances.monadError(optional()), mustBePositive, badInputs);
 
     System.out.println("good : " + OPTIONAL.narrow(good).map(LIST::narrow));
     System.out.println("bad  : " + OPTIONAL.narrow(bad).map(LIST::narrow));

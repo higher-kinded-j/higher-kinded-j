@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional_t;
 
 import static org.higherkindedj.hkt.assertions.OptionalTAssert.assertThatOptionalT;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
@@ -12,8 +13,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +26,7 @@ import org.junit.jupiter.api.Test;
 // (F=OptionalKind.Witness)
 class OptionalTMonadTest {
 
-  private final Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;
+  private final Monad<OptionalKind.Witness> outerMonad = Instances.monadError(optional());
   private MonadError<OptionalTKind.Witness<OptionalKind.Witness>, Unit> optionalTMonad;
 
   private final String successValue = "SUCCESS";

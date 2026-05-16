@@ -5,16 +5,17 @@ package org.higherkindedj.tutorial.solutions.transformers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either_t.EitherT;
 import org.higherkindedj.hkt.either_t.EitherTKind;
-import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,13 +51,14 @@ public class Tutorial01_WhenPathIsNotEnough_Solution {
 
   record TravelAdvice(String city, String advice) {}
 
-  private CompletableFutureMonad futureMonad;
-  private EitherTMonad<CompletableFutureKind.Witness, WeatherError> eitherTMonad;
+  private MonadError<CompletableFutureKind.Witness, Throwable> futureMonad;
+  private MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, WeatherError>, WeatherError>
+      eitherTMonad;
 
   @BeforeEach
   void setUp() {
-    futureMonad = CompletableFutureMonad.INSTANCE;
-    eitherTMonad = new EitherTMonad<>(futureMonad);
+    futureMonad = Instances.monadError(completableFuture());
+    eitherTMonad = Instances.eitherT(futureMonad);
   }
 
   private Kind<CompletableFutureKind.Witness, Either<WeatherError, WeatherReport>> fetchWeather(

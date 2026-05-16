@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,6 +11,7 @@ import java.util.List;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,7 +24,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
 
   @BeforeEach
   void setUpAlternative() {
-    alternative = MaybeMonad.INSTANCE;
+    alternative = Instances.alternative(maybe());
   }
 
   @Nested

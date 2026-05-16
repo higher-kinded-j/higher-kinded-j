@@ -54,7 +54,7 @@ public Kind<OptionalKind.Witness, User> findUser(int id) { /* ... */ }
 public Kind<OptionalKind.Witness, Account> findAccount(User user) { /* ... */ }
 public Kind<OptionalKind.Witness, Double> getBalance(Account account) { /* ... */ }
 
-Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
 // Happy path
 Kind<OptionalKind.Witness, Double> balance =
@@ -153,7 +153,7 @@ A useful rule of thumb: if we find ourselves writing `applicative.map3(a, b, c, 
 **The solution.**
 
 ```java
-Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
 Kind<OptionalKind.Witness, User> standardUser = OPTIONAL.widen(Optional.of(new User(1, "Alice")));
 Kind<OptionalKind.Witness, User> premiumUser  = OPTIONAL.widen(Optional.of(new User(101, "Bob")));
@@ -236,7 +236,7 @@ public Kind<OptionalKind.Witness, UserOrder> validateAndCombine(User user, Order
     return OPTIONAL.widen(Optional.of(new UserOrder(user, order)));
 }
 
-Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
+Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
 Kind<OptionalKind.Witness, UserOrder> result = monad.flatMap2(
     findUser(1),

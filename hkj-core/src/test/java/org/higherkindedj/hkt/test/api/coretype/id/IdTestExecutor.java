@@ -3,13 +3,15 @@
 package org.higherkindedj.hkt.test.api.coretype.id;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -87,7 +89,7 @@ final class IdTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IdValida
 
     // Map validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getMapContext() != null) {
-      IdMonad monad = IdMonad.instance();
+      Monad<IdKind.Witness> monad = Instances.monad(id());
       Kind<IdKind.Witness, A> kind = IdKindHelper.ID.widen(instance);
       builder.assertMapperNull(() -> monad.map(null, kind), "f", Operation.MAP);
     } else {
@@ -96,7 +98,7 @@ final class IdTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IdValida
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      IdMonad monad = IdMonad.instance();
+      Monad<IdKind.Witness> monad = Instances.monad(id());
       Kind<IdKind.Witness, A> kind = IdKindHelper.ID.widen(instance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

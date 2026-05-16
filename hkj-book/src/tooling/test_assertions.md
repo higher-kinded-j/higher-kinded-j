@@ -178,7 +178,7 @@ import static org.higherkindedj.hkt.assertions.EitherTAssert.assertThatEitherT;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-OptionalMonad outerMonad = OptionalMonad.INSTANCE;
+MonadError<OptionalKind.Witness, Unit> outerMonad = Instances.monadError(optional());
 
 private <E, A> Optional<Either<E, A>> unwrap(Kind<OptionalKind.Witness, Either<E, A>> kind) {
     return OPTIONAL.narrow(kind);

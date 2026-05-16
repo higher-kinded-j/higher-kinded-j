@@ -4,10 +4,11 @@ package org.higherkindedj.hkt.util.validation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,7 @@ class TransformerValidatorTest {
 
   private static final class OptionalT {}
 
-  private static final Monad<?> TEST_MONAD = EitherMonad.instance();
+  private static final Monad<?> TEST_MONAD = Instances.monadError(either());
 
   @Nested
   @DisplayName("requireOuterMonad")

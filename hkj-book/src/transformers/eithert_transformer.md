@@ -75,8 +75,8 @@ Use this whenever the outer monad is one Path already wraps.
 When you need a specific outer monad (here `CompletableFuture`), use `EitherT` with a `For` comprehension:
 
 ```java
-var futureMonad  = CompletableFutureMonad.INSTANCE;
-var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+var futureMonad  = Instances.monadError(completableFuture());
+var eitherTMonad = Instances.eitherT(futureMonad);
 
 var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
     .from(validated -> EitherT.fromKind(checkInventory(validated)))
@@ -151,8 +151,8 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
 The `EitherTMonad<F, L>` class implements `MonadError<EitherTKind.Witness<F, L>, L>`, providing the standard monadic operations for the combined structure. It requires a `Monad<F>` instance for the outer monad:
 
 ```java
-var futureMonad  = CompletableFutureMonad.INSTANCE;
-var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+var futureMonad  = Instances.monadError(completableFuture());
+var eitherTMonad = Instances.eitherT(futureMonad);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -185,7 +185,7 @@ EitherT<F, L, R> concrete                = EITHER_T.narrow(kind);
 `EitherT` provides several factory methods for different starting points:
 
 ```java
-var optMonad = OptionalMonad.INSTANCE;
+var optMonad = Instances.monadError(optional());
 
 // 1. From a pure Right value: F<Right(value)>
 var etRight = EitherT.<OptionalKind.Witness, String, String>right(optMonad, "OK");
@@ -226,8 +226,8 @@ record DomainError(String message) {}
 record ValidatedData(String data) {}
 record ProcessedData(String data) {}
 
-var futureMonad  = CompletableFutureMonad.INSTANCE;
-var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+var futureMonad  = Instances.monadError(completableFuture());
+var eitherTMonad = Instances.eitherT(futureMonad);
 
 // Sync validation returning Either
 Either<DomainError, ValidatedData> validateSync(String input) {

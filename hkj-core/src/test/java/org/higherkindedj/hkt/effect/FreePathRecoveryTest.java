@@ -5,18 +5,20 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.assertions.FreeAssert;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -142,7 +144,7 @@ class FreePathRecoveryTest {
   @DisplayName("Actual error recovery via MonadError (Try)")
   class MonadErrorRecovery {
 
-    private final TryMonad tryMonad = TryMonad.INSTANCE;
+    private final MonadError<TryKind.Witness, Throwable> tryMonad = Instances.monadError(try_());
 
     /** Interpreter that always fails. */
     private final Natural<IdentityKind.Witness, TryKind.Witness> failingInterp =

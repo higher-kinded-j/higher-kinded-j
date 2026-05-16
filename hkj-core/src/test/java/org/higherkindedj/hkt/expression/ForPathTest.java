@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
@@ -17,10 +18,10 @@ import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -721,7 +722,7 @@ class ForPathTest {
     @DisplayName("should throw on null focusPath in GenericPath")
     void throwsOnNullFocusPathGeneric() {
       GenericPath<MaybeKind.Witness, Integer> genericPath =
-          GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE);
+          GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe()));
       var _ =
           assertThrowsExactly(
               NullPointerException.class,
@@ -1717,10 +1718,13 @@ class ForPathTest {
     @DisplayName("Arity 4: should chain four generators and yield")
     void arity4_yield() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
               .yield((a, b, c, d) -> a + b + c + d);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -1731,12 +1735,17 @@ class ForPathTest {
     @DisplayName("Arity 6: should chain six generators and yield")
     void arity6_yield() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -1747,14 +1756,21 @@ class ForPathTest {
     @DisplayName("Arity 8: should chain eight generators and yield")
     void arity8_yield() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), Instances.monadError(maybe())))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -1765,18 +1781,32 @@ class ForPathTest {
     @DisplayName("Arity 12: should chain twelve generators and yield")
     void arity12_yield() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(9), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(11), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(12), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(9), Instances.monadError(maybe())))
+              .from(
+                  t ->
+                      GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
+              .from(
+                  t ->
+                      GenericPath.of(MaybeKindHelper.MAYBE.just(11), Instances.monadError(maybe())))
+              .from(
+                  t ->
+                      GenericPath.of(MaybeKindHelper.MAYBE.just(12), Instances.monadError(maybe())))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -2204,7 +2234,8 @@ class ForPathTest {
     @DisplayName("should support simple yield in Steps1")
     void supportsSimpleYieldInSteps1() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
+          ForPath.from(
+                  GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .yield(a -> a * 2);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2215,8 +2246,11 @@ class ForPathTest {
     @DisplayName("should chain generators with from()")
     void chainsGenerators() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(a * 2), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  a ->
+                      GenericPath.of(
+                          MaybeKindHelper.MAYBE.just(a * 2), Instances.monadError(maybe())))
               .yield((a, b) -> a + b);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2227,7 +2261,8 @@ class ForPathTest {
     @DisplayName("should support let() for pure computations")
     void supportsLet() {
       GenericPath<MaybeKind.Witness, String> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
+          ForPath.from(
+                  GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .let(a -> a * 2)
               .yield((a, b) -> "a=" + a + ", b=" + b);
 
@@ -2241,7 +2276,8 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       GenericPath<MaybeKind.Witness, String> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(user), MaybeMonad.INSTANCE))
+          ForPath.from(
+                  GenericPath.of(MaybeKindHelper.MAYBE.just(user), Instances.monadError(maybe())))
               .focus(addressFocus)
               .yield((u, addr) -> addr.city());
 
@@ -2253,9 +2289,11 @@ class ForPathTest {
     @DisplayName("should support three generators")
     void supportsThreeGenerators() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .yield((a, b, c) -> a + b + c);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2266,8 +2304,10 @@ class ForPathTest {
     @DisplayName("should support yield with BiFunction in Steps2")
     void supportsYieldWithBiFunctionInSteps2() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  a ->
+                      GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .yield((a, b) -> a + b);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2278,8 +2318,10 @@ class ForPathTest {
     @DisplayName("should support yield with tuple function in Steps2")
     void supportsYieldWithTupleInSteps2() {
       GenericPath<MaybeKind.Witness, String> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  a ->
+                      GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .yield(t -> "sum=" + (t._1() + t._2()));
 
       Maybe<String> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2290,8 +2332,10 @@ class ForPathTest {
     @DisplayName("should support let() in Steps2")
     void supportsLetInSteps2() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(10), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+              .from(
+                  a ->
+                      GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .let(t -> t._1() + t._2())
               .yield((a, b, sum) -> sum);
 
@@ -2303,9 +2347,11 @@ class ForPathTest {
     @DisplayName("should support from() in Steps2")
     void supportsFromInSteps2() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .yield((a, b, c) -> a + b + c);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2316,9 +2362,11 @@ class ForPathTest {
     @DisplayName("should support yield with tuple function in Steps3")
     void supportsYieldWithTupleInSteps3() {
       GenericPath<MaybeKind.Witness, String> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), MaybeMonad.INSTANCE))
-              .from(a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), MaybeMonad.INSTANCE))
-              .from(t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
+              .from(
+                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+              .from(
+                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       Maybe<String> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2329,10 +2377,11 @@ class ForPathTest {
     @DisplayName("should short-circuit on Nothing")
     void shortCircuitsOnNothing() {
       GenericPath<MaybeKind.Witness, Integer> result =
-          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), MaybeMonad.INSTANCE))
+          ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .<Integer>from(
                   a ->
-                      GenericPath.of(MaybeKindHelper.MAYBE.<Integer>nothing(), MaybeMonad.INSTANCE))
+                      GenericPath.of(
+                          MaybeKindHelper.MAYBE.<Integer>nothing(), Instances.monadError(maybe())))
               .yield((a, b) -> a + b);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());

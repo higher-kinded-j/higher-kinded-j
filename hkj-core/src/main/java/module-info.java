@@ -29,6 +29,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.future;
   exports org.higherkindedj.hkt.func;
   exports org.higherkindedj.hkt.id;
+  exports org.higherkindedj.hkt.instances;
   exports org.higherkindedj.hkt.io;
   exports org.higherkindedj.hkt.lazy;
   exports org.higherkindedj.hkt.list;

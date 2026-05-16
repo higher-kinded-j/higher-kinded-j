@@ -3,13 +3,16 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.ReaderTAssert.assertThatReaderT;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +22,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ReaderTAssert showcase")
 class ReaderTAssertExample {
 
-  private final OptionalMonad outerMonad = OptionalMonad.INSTANCE;
+  private final MonadError<OptionalKind.Witness, Unit> outerMonad =
+      Instances.monadError(optional());
 
   private <A> Optional<A> unwrap(Kind<OptionalKind.Witness, A> kind) {
     return OPTIONAL.narrow(kind);

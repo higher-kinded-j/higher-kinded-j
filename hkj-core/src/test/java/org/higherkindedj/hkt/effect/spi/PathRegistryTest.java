@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect.spi;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -18,13 +19,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +44,7 @@ class PathRegistryTest {
 
   /** Test implementation of PathProvider for MaybeKind */
   private static class MaybePathProvider implements PathProvider<MaybeKind.Witness> {
-    private static final MaybeMonad MONAD = MaybeMonad.INSTANCE;
+    private static final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
 
     @Override
     public Class<?> witnessType() {
@@ -266,14 +268,14 @@ class PathRegistryTest {
 
             @Override
             public Monad<MaybeKind.Witness> monad() {
-              return MaybeMonad.INSTANCE;
+              return Instances.monadError(maybe());
             }
 
             @Override
             @SuppressWarnings("unchecked")
             public <E> MonadError<MaybeKind.Witness, E> monadError() {
               // MaybeMonad implements MonadError<MaybeKind.Witness, Unit>
-              return (MonadError<MaybeKind.Witness, E>) MaybeMonad.INSTANCE;
+              return (MonadError<MaybeKind.Witness, E>) Instances.monadError(maybe());
             }
           };
 

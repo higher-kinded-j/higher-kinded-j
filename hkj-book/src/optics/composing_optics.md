@@ -247,7 +247,7 @@ int formId = form.formId(); // Clear and direct
 
 // Set up error accumulation properly
 Applicative<ValidatedKind.Witness<String>> validatedApplicative =
-    ValidatedMonad.instance(Semigroups.string("; "));
+    Instances.validated(Semigroups.string("; "));
 
 // Create reusable, well-named compositions
 public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
@@ -385,6 +385,9 @@ With our composed `Traversal`, we can now use `modifyF` to run our validation lo
 
 ```java
 package org.higherkindedj.example.optics;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.instances.Witnesses;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
@@ -441,7 +444,7 @@ public class ValidatedTraversalExample {
 
     // --- Helper Methods ---
     private static Applicative<ValidatedKind.Witness<String>> getValidatedApplicative() {
-        return ValidatedMonad.instance(Semigroups.string("; "));
+        return Instances.validated(Semigroups.string("; "));
     }
 
     public static Validated<String, Form> validateFormPermissions(Form form) {
@@ -527,7 +530,7 @@ public class ValidatedTraversalExample {
 
         // Use list-based error accumulation instead of string concatenation
         Applicative<ValidatedKind.Witness<List<String>>> listApplicative =
-                ValidatedMonad.instance(Semigroups.list());
+                Instances.validated(Semigroups.list());
 
         // Fix: Create a proper function for list validation
         java.util.function.Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> listValidation =
@@ -626,7 +629,7 @@ In the examples above, we used the general `modifyF` method with explicit `Appli
 ```java
 // Traditional approach: requires explicit Applicative setup
 Applicative<ValidatedKind.Witness<String>> applicative =
-    ValidatedMonad.instance(Semigroups.string("; "));
+    Instances.validated(Semigroups.string("; "));
 
 Kind<ValidatedKind.Witness<String>, Form> result =
     FORM_TO_PERMISSION_NAMES.modifyF(

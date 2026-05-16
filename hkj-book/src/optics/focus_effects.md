@@ -46,7 +46,7 @@ Kind<CompletableFutureKind.Witness, Config> asyncResult = configPath.modifyF(
 Kind<IOKind.Witness, User> ioResult = userPath.modifyF(
     name -> IO.of(() -> readFromDatabase(name)),
     user,
-    IOMonad.INSTANCE
+    Instances.monad(io())
 );
 ```
 

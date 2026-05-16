@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.writerKindHelper;
 
 import java.time.Instant;
@@ -12,9 +13,11 @@ import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -493,7 +496,7 @@ class WriterKindHelperTest extends WriterTestBase {
       Kind<WriterKind.Witness<String>, Integer> kind2 = WRITER.widen(writerOf("Log2;", 20));
 
       // Use WriterMonad to combine
-      WriterMonad<String> monad = new WriterMonad<>(STRING_MONOID);
+      Monad<WriterKind.Witness<String>> monad = Instances.writer(STRING_MONOID);
       Kind<WriterKind.Witness<String>, Integer> combined = monad.map2(kind1, kind2, Integer::sum);
 
       // Extract results using runner methods
@@ -524,7 +527,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @Test
     @DisplayName("Runner methods work after flatMap operations")
     void runnerMethodsWorkAfterFlatMapOperations() {
-      WriterMonad<String> monad = new WriterMonad<>(STRING_MONOID);
+      Monad<WriterKind.Witness<String>> monad = Instances.writer(STRING_MONOID);
 
       Kind<WriterKind.Witness<String>, Integer> start = WRITER.widen(writerOf("Start;", 5));
 
@@ -543,7 +546,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @Test
     @DisplayName("Runner methods work with deep operation chains")
     void runnerMethodsWorkWithDeepOperationChains() {
-      WriterMonad<String> monad = new WriterMonad<>(STRING_MONOID);
+      Monad<WriterKind.Witness<String>> monad = Instances.writer(STRING_MONOID);
 
       Kind<WriterKind.Witness<String>, Integer> start = monad.of(1);
 

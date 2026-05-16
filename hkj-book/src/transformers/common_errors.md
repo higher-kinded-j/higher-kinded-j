@@ -18,7 +18,7 @@ Transformer code is generic-heavy by nature: a typical signature like `Kind<Eith
 
 ```
 error: constructor EitherTMonad in class EitherTMonad<F, L> cannot be applied to given types;
-    var eitherTMonad = new EitherTMonad<>();
+    var eitherTMonad = Instances.eitherT();
                        ^
   required: Monad<F>
   found:    no arguments
@@ -29,7 +29,7 @@ error: constructor EitherTMonad in class EitherTMonad<F, L> cannot be applied to
 
 ```java
 var eitherTMonad =
-    new EitherTMonad<CompletableFutureKind.Witness, DomainError>();   // missing argument
+    Instances.eitherT();   // missing argument
 ```
 
 Every transformer monad needs a `Monad<F>` instance for the *outer* effect. The constructor cannot infer it from thin air.
@@ -37,9 +37,9 @@ Every transformer monad needs a `Monad<F>` instance for the *outer* effect. The 
 **The fix:** pass the outer monad to the constructor.
 
 ```java
-var futureMonad  = CompletableFutureMonad.INSTANCE;
+var futureMonad  = Instances.monadError(completableFuture());
 var eitherTMonad =
-    new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+    Instances.eitherT(futureMonad);
 ```
 
 The same rule applies to `OptionalTMonad`, `MaybeTMonad`, `ReaderTMonad`, `StateTMonad`, and `WriterTMonad`. `WriterTMonad` additionally requires a `Monoid<W>` for the output type.
@@ -59,7 +59,7 @@ error: incompatible types: Kind<EitherTKind.Witness<F,String>,User> cannot be co
 
 ```java
 var eitherTMonad =
-    new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+    Instances.eitherT(futureMonad);
 
 // lookupUser returns EitherT<F, String, User>: error type is String, not DomainError
 EitherT<CompletableFutureKind.Witness, String, User> lookupUser(String id) { ... }
@@ -138,7 +138,7 @@ error: method fromEither in class EitherT<F,L,R> cannot be applied to given type
 
 ```java
 var eitherTMonad =
-    new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+    Instances.eitherT(futureMonad);
 
 return For.from(eitherTMonad,
         EitherT.fromEither(futureMonad, Either.right(validated)));   // L cannot be inferred
@@ -223,7 +223,7 @@ error: method from in class For cannot be applied to given types;
 
 ```java
 var eitherTMonad =
-    new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+    Instances.eitherT(futureMonad);
 
 For.from(eitherTMonad, OptionalT.fromKind(future))    // mismatched witness types
     .from(...)
@@ -241,7 +241,7 @@ For.from(eitherTMonad, EitherT.fromKind(fetchEither(...)))
     .yield(...);
 
 // Or build the matching OptionalTMonad and use OptionalT throughout:
-var optionalTMonad = new OptionalTMonad<CompletableFutureKind.Witness>(futureMonad);
+var optionalTMonad = Instances.optionalT(futureMonad);
 For.from(optionalTMonad, OptionalT.fromKind(future))
     .from(...)
     .yield(...);
@@ -255,7 +255,7 @@ If you genuinely need to combine two effect layers (typed errors *and* absence i
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| "constructor cannot be applied", expects `Monad<F>` | Forgot to pass the outer monad | `new EitherTMonad<>(futureMonad)` |
+| "constructor cannot be applied", expects `Monad<F>` | Forgot to pass the outer monad | `Instances.eitherT(futureMonad)` |
 | "incompatible types" with two `EitherTKind.Witness` shapes | Different error types `L` in the chain | Unify the error type or `mapLeft` at the boundary |
 | `mapT` "cannot be applied" on `StateT` | Missing `Monad<G>` first argument | `stateT.mapT(targetMonad, f)` |
 | "cannot infer type-variable" on `Either.right` / `EitherT.fromEither` | No `Left` value to infer `L` from | Add `Either.<E, A>right(...)` |

@@ -3,20 +3,23 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.Arrays;
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -71,7 +74,7 @@ public class Tutorial03_ForTraverseComprehension {
     throw new UnsupportedOperationException("Replace this with your answer");
   }
 
-  private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+  private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
   private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
   // --- Domain models for exercises ---
@@ -343,7 +346,7 @@ public class Tutorial03_ForTraverseComprehension {
     void exercise7_flatTraverse() {
       // TODO: Replace answerRequired() with a comprehension that:
       //       1. For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
-      //       2. .flatTraverse(listTraverse, ListMonad.INSTANCE, list -> LIST.widen(list),
+      //       2. .flatTraverse(listTraverse, Instances.monadZero(list()), list -> LIST.widen(list),
       //            (Integer i) -> MAYBE.<Kind<ListKind.Witness, Integer>>just(
       //                LIST.widen(Arrays.asList(i, i * 10))))
       //       3. .yield((original, traversed) -> LIST.narrow(traversed))

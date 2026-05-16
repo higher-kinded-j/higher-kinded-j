@@ -4,10 +4,13 @@ package org.higherkindedj.hkt.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,11 +27,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("IdMonad Complete Test Suite")
 class IdMonadTest extends IdTestBase {
 
-  private IdMonad monad;
+  private Monad<IdKind.Witness> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = IdMonad.instance();
+    monad = Instances.monad(id());
     validateMonadFixtures();
   }
 

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.OR_ELSE_GET;
@@ -16,9 +17,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -40,7 +44,7 @@ class MaybeTest extends MaybeTestBase {
   private final String justValue = "Present Value";
   private final Maybe<String> justInstance = Maybe.just(justValue);
   private final Maybe<String> nothingInstance = Maybe.nothing();
-  private final MaybeMonad MONAD = MaybeMonad.INSTANCE;
+  private final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
 
   @Nested
   @DisplayName("Complete Type Class Test Suite")

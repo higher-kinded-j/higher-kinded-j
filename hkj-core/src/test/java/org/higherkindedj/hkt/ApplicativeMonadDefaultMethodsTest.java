@@ -3,12 +3,13 @@
 package org.higherkindedj.hkt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,11 +18,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Applicative and Monad Default Methods Tests")
 class ApplicativeMonadDefaultMethodsTest {
 
-  private MaybeMonad monad;
+  private MonadError<MaybeKind.Witness, Unit> monad;
 
   @BeforeEach
   void setUp() {
-    monad = MaybeMonad.INSTANCE;
+    monad = Instances.monadError(maybe());
   }
 
   @Nested

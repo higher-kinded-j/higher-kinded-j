@@ -2,17 +2,20 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.reader_t;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 
 /**
@@ -29,7 +32,7 @@ public class ReaderTExample {
   public void createExample() {
     // --- Setup ---
     // Outer Monad F = OptionalKind.Witness
-    OptionalMonad optMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optMonad = Instances.monadError(optional());
 
     // Environment Type R
     record Config(String setting) {}

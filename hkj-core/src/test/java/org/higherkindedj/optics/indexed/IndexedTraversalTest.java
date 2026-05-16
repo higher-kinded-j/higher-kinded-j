@@ -3,13 +3,14 @@
 package org.higherkindedj.optics.indexed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.*;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.IndexedTraversals;
@@ -101,7 +102,7 @@ class IndexedTraversalTest {
       List<Integer> source = List.of(10, 20, 30);
 
       // Use Optional as the effect - fail if index is 1 and value is 20
-      Applicative<OptionalKind.Witness> optionalApp = OptionalMonad.INSTANCE;
+      Applicative<OptionalKind.Witness> optionalApp = Instances.monadError(optional());
       Kind<OptionalKind.Witness, List<Integer>> result =
           ilist.imodifyF(
               (i, v) -> {

@@ -3,12 +3,15 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Property-based tests for Try Monad laws using jQwik.
@@ -26,7 +29,7 @@ import org.higherkindedj.hkt.Kind;
  */
 class TryMonadPropertyTest {
 
-  private final TryMonad monad = TryMonad.INSTANCE;
+  private final MonadError<TryKind.Witness, Throwable> monad = Instances.monadError(try_());
 
   /**
    * Helper method to compare Try instances semantically.

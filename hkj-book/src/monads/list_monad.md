@@ -33,7 +33,7 @@ Each level of nesting adds another loop. If the number of steps is dynamic, you 
 The `ListMonad` captures this pattern directly. A `List` represents multiple possible values, `flatMap` explores all combinations by applying a function to each element and concatenating the results, and `ap` produces Cartesian products. The nested-loop problem above becomes:
 
 ```java
-ListMonad listMonad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 Kind<ListKind.Witness, String> starts = listMonad.of(start);
 
 Kind<ListKind.Witness, String> step1 = listMonad.flatMap(
@@ -88,7 +88,7 @@ The following examples demonstrate creating list contexts, composing operations,
 - [ListMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/list/ListMonadExample.java)
 
 ```java
-ListMonad listMonad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
 // --- Wrap a standard List into the Kind system ---
 Kind<ListKind.Witness, Integer> numbers = LIST.widen(Arrays.asList(1, 2, 3, 4));
@@ -114,7 +114,7 @@ Kind<ListKind.Witness, String> decorated = listMonad.map(
 `flatMap` is where the non-deterministic power lives. Each element branches into multiple results, and all branches are collected.
 
 ```java
-ListMonad listMonad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 Kind<ListKind.Witness, Integer> values = LIST.widen(Arrays.asList(1, 2, 3));
 
 // Each number branches into itself and itself + 10
@@ -142,7 +142,7 @@ Kind<ListKind.Witness, String> filtered = listMonad.flatMap(evenOnly, values);
 `ap` applies a list of functions to a list of values, producing every combination.
 
 ```java
-ListMonad listMonad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
 Function<Integer, String> addPrefix      = i -> "Val: " + i;
 Function<Integer, String> multiplyString = i -> "Mul: " + (i * 2);
