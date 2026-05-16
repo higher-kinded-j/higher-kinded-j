@@ -645,7 +645,8 @@ public final class TypeClassTestPattern {
   /**
    * Tests Bifunctor laws by delegating to granular law methods in LawTestPattern.
    *
-   * <p>This method tests the Identity and Composition laws without performing validation tests.
+   * <p>This method tests the Identity, Composition, and first/second-map consistency laws without
+   * performing validation tests.
    */
   public static <F extends WitnessArity<TypeArity.Binary>, A, B, C, D, E> void testBifunctorLaws(
       Bifunctor<F> bifunctor,
@@ -660,5 +661,7 @@ public final class TypeClassTestPattern {
     LawTestPattern.testBifunctorIdentityLaw(bifunctor, validKind, equalityChecker);
     LawTestPattern.testBifunctorCompositionLaw(
         bifunctor, validKind, f1, f2, g1, g2, equalityChecker);
+    LawTestPattern.testBifunctorFirstConsistencyLaw(bifunctor, validKind, f1, equalityChecker);
+    LawTestPattern.testBifunctorSecondConsistencyLaw(bifunctor, validKind, g1, equalityChecker);
   }
 }
