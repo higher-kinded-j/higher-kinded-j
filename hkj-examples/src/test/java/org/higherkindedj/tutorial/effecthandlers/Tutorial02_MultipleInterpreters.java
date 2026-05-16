@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
 import org.higherkindedj.example.payment.interpreter.CapturingNotificationInterpreter;
@@ -20,7 +21,7 @@ import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -99,7 +100,8 @@ public class Tutorial02_MultipleInterpreters {
     var notification = new CapturingNotificationInterpreter();
 
     // TODO: Combine interpreters using Interpreters.combine(gateway, fraud, ledger, notification)
-    // Then interpret using PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance())
+    // Then interpret using PaymentEffectsWiring.interpret(program, interpreter,
+    // Instances.monad(id()))
     // Then narrow the result using IdKindHelper.ID.narrow(...)
     PaymentResult result = answerRequired();
 
@@ -129,7 +131,7 @@ public class Tutorial02_MultipleInterpreters {
     var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
     Id<PaymentResult> id =
         IdKindHelper.ID.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())));
 
     assertThat(id.value().isDeclined()).isTrue();
     // High risk means no gateway calls

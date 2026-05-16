@@ -3,15 +3,18 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -297,7 +300,7 @@ public class Tutorial04_MonadChaining {
   @Test
   @DisplayName("Exercise 6: ListMonad.flatMap is a Cartesian product")
   void exercise6_flatMapWithList() {
-    ListMonad monad = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
     Kind<ListKind.Witness, Integer> numbers1 = LIST.widen(List.of(1, 2));
     List<Integer> numbers2 = List.of(10, 20);
 
@@ -329,7 +332,7 @@ public class Tutorial04_MonadChaining {
   void exercise7_flatMap2() {
     Function<String, Either<String, Integer>> getUserAge = id -> Either.right(30);
     Function<String, Either<String, String>> getUserCity = id -> Either.right("New York");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, String> userId = Either.right("user1");
 
@@ -360,7 +363,7 @@ public class Tutorial04_MonadChaining {
    * same thing more directly. (And on {@link org.higherkindedj.hkt.validated.Validated}, only the
    * Applicative form accumulates errors — the Monad form does not.)
    *
-   * <p>Task: write the body using {@code app.map2} on {@code EitherMonad.instance()}.
+   * <p>Task: write the body using {@code app.map2} on {@code Instances.monadError(either())}.
    *
    * <pre>
    *   // Nudge:    Same shape as Tutorial 03 exercise 2, here applied to a Pair.
@@ -374,7 +377,7 @@ public class Tutorial04_MonadChaining {
     record Pair(String name, int age) {}
     Either<String, String> name = Either.right("Alice");
     Either<String, Integer> age = Either.right(30);
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Pair> result = answerRequired();
 

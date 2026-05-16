@@ -342,7 +342,7 @@ CompletableFuture<League> enrichedLeague = CF.narrow(
     LeagueOptics.ALL_PLAYER_SCORES.modifyF(
         score -> CF.widen(fetchBonusPoints.apply(score)),
         league,
-        CompletableFutureMonad.INSTANCE
+        Instances.monadError(completableFuture())
     )
 );
 ```
@@ -659,7 +659,7 @@ public class ConfigValidation {
             ALL_DB_PORTS.modifyF(
                 validatePort, 
                 config, 
-                ValidatedMonad.instance(Semigroups.list())
+                Instances.validated(Semigroups.list())
             )
         );
     }
@@ -673,6 +673,9 @@ This example demonstrates how to use the `with*` helpers for a targeted update a
 
 ```java
 package org.higherkindedj.example.optics;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.instances.Witnesses;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;

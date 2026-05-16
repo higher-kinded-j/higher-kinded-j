@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.expression;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
@@ -17,14 +18,13 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTMonadReader;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state_t.StateTMonadState;
 import org.higherkindedj.hkt.writer_t.WriterT;
-import org.higherkindedj.hkt.writer_t.WriterTMonad;
 
 /**
  * Demonstrates MTL-style capability classes: MonadReader, MonadState, and MonadWriter.
@@ -49,7 +49,7 @@ public class MTLCapabilitiesExample {
   }
 
   public void run() {
-    var idMonad = IdMonad.instance();
+    var idMonad = Instances.monad(id());
 
     System.out.println("=== MTL Capabilities Example ===\n");
 
@@ -91,7 +91,7 @@ public class MTLCapabilitiesExample {
 
     System.out.println("\n--- MonadWriter ---");
 
-    var writerInstance = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+    var writerInstance = Instances.writerT(idMonad, Monoids.<String>list());
 
     // Run a computation that accumulates an audit log
     var auditResult = processOrder(writerInstance, "ORD-42");

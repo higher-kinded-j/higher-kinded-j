@@ -47,7 +47,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import org.higherkindedj.hkt.expression.For;
 // ... other imports
 
-var maybeMonad = MaybeMonad.INSTANCE;
+var maybeMonad = Instances.monadError(maybe());
 var maybeA = MAYBE.just(5);
 var maybeB = MAYBE.just(10);
 var maybeC = MAYBE.just(20);
@@ -72,7 +72,7 @@ The `For` builder supports up to **12 chained bindings** (generators, value bind
 The generated `Steps2`-`Steps12` classes provide the same fluent API seamlessly:
 
 ```java
-var idMonad = IdMonad.instance();
+var idMonad = Instances.monad(id());
 
 Kind<IdKind.Witness, String> result =
     For.from(idMonad, Id.of("Alice"))       // a = "Alice"
@@ -122,7 +122,7 @@ var userRoles = For.from(listMonad, LIST.widen(List.of("userLogin-1", "userLogin
 A `.let()` binding allows you to compute a pure, simple value from the results you've gathered so far and add it to the scope. It does *not* involve a monad. This is equivalent to a **`map`** operation that carries the new value forward.
 
 ```java
-var idMonad = IdMonad.instance();
+var idMonad = Instances.monad(id());
 
 var result = For.from(idMonad, Id.of(10))        // a = 10
     .let(a -> a * 2)                          // b = 20 (a pure calculation)
@@ -166,8 +166,8 @@ import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 // ... other imports
 
 private static void stateTExample() {
-    final var optionalMonad = OptionalMonad.INSTANCE;
-    final var stateTMonad = StateTMonad.<Integer, OptionalKind.Witness>instance(optionalMonad);
+    final var optionalMonad = Instances.monadError(optional());
+    final var stateTMonad = Instances.stateT(optionalMonad);
 
     // Helper: adds a value to the state (an integer)
     final Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Unit>> add =

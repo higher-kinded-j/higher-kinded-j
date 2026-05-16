@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.focus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,10 +15,10 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
@@ -337,7 +338,7 @@ class FocusPathEnhancementsTest {
                   : MaybeKindHelper.MAYBE.widen(Maybe.just(s.toUpperCase()));
 
       Kind<MaybeKind.Witness, Person> result =
-          namePath.modifyF(upperIfNotEmpty, person, MaybeMonad.INSTANCE);
+          namePath.modifyF(upperIfNotEmpty, person, Instances.monadError(maybe()));
 
       Maybe<Person> maybePerson = MaybeKindHelper.MAYBE.narrow(result);
       assertThat(maybePerson.isJust()).isTrue();
@@ -356,7 +357,7 @@ class FocusPathEnhancementsTest {
           s -> MaybeKindHelper.MAYBE.widen(Maybe.just(s.toUpperCase()));
 
       Kind<MaybeKind.Witness, Config> result =
-          apiKeyPath.modifyF(transform, withoutKey, MaybeMonad.INSTANCE);
+          apiKeyPath.modifyF(transform, withoutKey, Instances.monadError(maybe()));
 
       Maybe<Config> maybeConfig = MaybeKindHelper.MAYBE.narrow(result);
       assertThat(maybeConfig.isJust()).isTrue();
@@ -382,7 +383,7 @@ class FocusPathEnhancementsTest {
                   Maybe.just(new Person(p.name(), p.age() + 1, p.address())));
 
       Kind<MaybeKind.Witness, Team> result =
-          membersPath.modifyF(incrementAge, team, MaybeMonad.INSTANCE);
+          membersPath.modifyF(incrementAge, team, Instances.monadError(maybe()));
 
       Maybe<Team> maybeTeam = MaybeKindHelper.MAYBE.narrow(result);
       assertThat(maybeTeam.isJust()).isTrue();

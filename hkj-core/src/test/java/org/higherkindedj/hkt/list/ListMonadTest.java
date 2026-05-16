@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.list;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -11,6 +12,7 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +27,7 @@ class ListMonadTest extends ListTestBase {
 
   @BeforeEach
   void setUpMonad() {
-    listMonad = ListMonad.INSTANCE;
+    listMonad = Instances.monadZero(list());
     validateMonadFixtures();
   }
 
@@ -570,7 +572,7 @@ class ListMonadTest extends ListTestBase {
     void filterRetainsElementsThatSatisfyThePredicate() {
       var input = listOf(-1, 2, -3, 4);
 
-      var result = ListMonad.INSTANCE.filter(x -> x > 0, input);
+      var result = Instances.monadZero(list()).filter(x -> x > 0, input);
 
       assertThatList(result).containsExactly(2, 4);
     }
@@ -580,7 +582,7 @@ class ListMonadTest extends ListTestBase {
     void filterWithAlwaysTrueReturnsSameList() {
       var input = listOf(1, 2, 3);
 
-      var result = ListMonad.INSTANCE.filter(x -> true, input);
+      var result = Instances.monadZero(list()).filter(x -> true, input);
 
       assertThatList(result).containsExactly(1, 2, 3);
     }
@@ -590,7 +592,7 @@ class ListMonadTest extends ListTestBase {
     void filterWithAlwaysFalseReturnsZero() {
       var input = listOf(1, 2, 3);
 
-      var result = ListMonad.INSTANCE.filter(x -> false, input);
+      var result = Instances.monadZero(list()).filter(x -> false, input);
 
       assertThatList(result).isEmpty();
     }
@@ -598,9 +600,9 @@ class ListMonadTest extends ListTestBase {
     @Test
     @DisplayName("filter on zero (empty list) is zero")
     void filterOnZeroIsZero() {
-      Kind<ListKind.Witness, Integer> empty = ListMonad.INSTANCE.zero();
+      Kind<ListKind.Witness, Integer> empty = Instances.monadZero(list()).zero();
 
-      var result = ListMonad.INSTANCE.filter(x -> x > 0, empty);
+      var result = Instances.monadZero(list()).filter(x -> x > 0, empty);
 
       assertThatList(result).isEmpty();
     }
@@ -611,7 +613,7 @@ class ListMonadTest extends ListTestBase {
       var input = listOf(1, 2, 3);
 
       org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> ListMonad.INSTANCE.filter(null, input))
+              () -> Instances.monadZero(list()).filter(null, input))
           .isInstanceOf(NullPointerException.class);
     }
 
@@ -619,7 +621,7 @@ class ListMonadTest extends ListTestBase {
     @DisplayName("filter throws NullPointerException when ma is null")
     void filterThrowsWhenMaIsNull() {
       org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> ListMonad.INSTANCE.filter(x -> true, null))
+              () -> Instances.monadZero(list()).filter(x -> true, null))
           .isInstanceOf(NullPointerException.class);
     }
   }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.expression;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -9,6 +10,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
@@ -19,13 +23,11 @@ import org.higherkindedj.hkt.expression.ForPath;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 
 /**
  * Demonstrates traverse, sequence, and flatTraverse within For and ForPath comprehensions.
@@ -61,7 +63,7 @@ public class ForTraverseComprehensionExample {
    * produces Nothing, causing the entire result to be Nothing).
    */
   private static void traverseWithMaybeExample() {
-    final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     // Success case: all elements double successfully
     Kind<MaybeKind.Witness, List<Integer>> successResult =
@@ -93,7 +95,7 @@ public class ForTraverseComprehensionExample {
    * For comprehension with IdMonad.
    */
   private static void sequenceExample() {
-    final IdMonad idMonad = IdMonad.instance();
+    final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     List<Kind<IdKind.Witness, Integer>> listOfIds = Arrays.asList(Id.of(1), Id.of(2), Id.of(3));
     Kind<ListKind.Witness, Kind<IdKind.Witness, Integer>> kindList = LIST.widen(listOfIds);
@@ -113,13 +115,13 @@ public class ForTraverseComprehensionExample {
    * 2] becomes [1, 10, 2, 20] when each element i maps to [i, i*10].
    */
   private static void flatTraverseExample() {
-    final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     Kind<MaybeKind.Witness, List<Integer>> result =
         For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2)))
             .flatTraverse(
                 ListTraverse.INSTANCE,
-                ListMonad.INSTANCE,
+                Instances.monadZero(list()),
                 list -> LIST.widen(list),
                 (Integer i) ->
                     MAYBE.<Kind<ListKind.Witness, Integer>>just(

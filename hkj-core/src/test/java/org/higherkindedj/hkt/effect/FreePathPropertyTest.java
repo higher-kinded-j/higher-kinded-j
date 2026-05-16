@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
@@ -16,12 +17,10 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonad;
 
 /**
  * Property-based tests for FreePath using jQwik.
@@ -32,7 +31,7 @@ import org.higherkindedj.hkt.trymonad.TryMonad;
 @Label("FreePath Property-Based Tests")
 class FreePathPropertyTest {
 
-  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = MaybeMonad.INSTANCE;
+  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = Instances.monadError(maybe());
   private static final Natural<MaybeKind.Witness, MaybeKind.Witness> IDENTITY_NAT =
       Natural.identity();
 
@@ -40,18 +39,20 @@ class FreePathPropertyTest {
   Arbitrary<FreePath<MaybeKind.Witness, Integer>> freePaths() {
     return Arbitraries.oneOf(
         // Pure values
-        Arbitraries.integers().between(-1000, 1000).map(i -> FreePath.pure(i, MaybeMonad.INSTANCE)),
+        Arbitraries.integers()
+            .between(-1000, 1000)
+            .map(i -> FreePath.pure(i, Instances.monadError(maybe()))),
         // Lifted values (Just)
         Arbitraries.integers()
             .between(-1000, 1000)
-            .map(i -> FreePath.liftF(MAYBE.just(i), MaybeMonad.INSTANCE)),
+            .map(i -> FreePath.liftF(MAYBE.just(i), Instances.monadError(maybe()))),
         // Chained pure values
         Arbitraries.integers()
             .between(-1000, 1000)
             .map(
                 i ->
-                    FreePath.pure(i, MaybeMonad.INSTANCE)
-                        .via(x -> FreePath.pure(x * 2, MaybeMonad.INSTANCE))));
+                    FreePath.pure(i, Instances.monadError(maybe()))
+                        .via(x -> FreePath.pure(x * 2, Instances.monadError(maybe())))));
   }
 
   @Provide
@@ -68,17 +69,17 @@ class FreePathPropertyTest {
   @Provide
   Arbitrary<Function<Integer, FreePath<MaybeKind.Witness, String>>> intToFreeStringFunctions() {
     return Arbitraries.of(
-        i -> FreePath.pure("value:" + i, MaybeMonad.INSTANCE),
-        i -> FreePath.liftF(MAYBE.just("lifted:" + i), MaybeMonad.INSTANCE),
-        i -> FreePath.pure(i > 0 ? "positive" : "non-positive", MaybeMonad.INSTANCE));
+        i -> FreePath.pure("value:" + i, Instances.monadError(maybe())),
+        i -> FreePath.liftF(MAYBE.just("lifted:" + i), Instances.monadError(maybe())),
+        i -> FreePath.pure(i > 0 ? "positive" : "non-positive", Instances.monadError(maybe())));
   }
 
   @Provide
   Arbitrary<Function<String, FreePath<MaybeKind.Witness, String>>> stringToFreeStringFunctions() {
     return Arbitraries.of(
-        s -> FreePath.pure(s.toUpperCase(), MaybeMonad.INSTANCE),
-        s -> FreePath.liftF(MAYBE.just(s + "!"), MaybeMonad.INSTANCE),
-        s -> FreePath.pure(s.isEmpty() ? "empty" : s, MaybeMonad.INSTANCE));
+        s -> FreePath.pure(s.toUpperCase(), Instances.monadError(maybe())),
+        s -> FreePath.liftF(MAYBE.just(s + "!"), Instances.monadError(maybe())),
+        s -> FreePath.pure(s.isEmpty() ? "empty" : s, Instances.monadError(maybe())));
   }
 
   // Helper to run a FreePath and get value
@@ -118,7 +119,8 @@ class FreePathPropertyTest {
       @ForAll("intToFreeStringFunctions")
           Function<Integer, FreePath<MaybeKind.Witness, String>> f) {
 
-    FreePath<MaybeKind.Witness, String> leftSide = FreePath.pure(value, MaybeMonad.INSTANCE).via(f);
+    FreePath<MaybeKind.Witness, String> leftSide =
+        FreePath.pure(value, Instances.monadError(maybe())).via(f);
     FreePath<MaybeKind.Witness, String> rightSide = f.apply(value);
 
     assertThat(run(leftSide)).isEqualTo(run(rightSide));
@@ -128,7 +130,7 @@ class FreePathPropertyTest {
   @Label("Monad Right Identity Law: path.via(x -> FreePath.pure(x)) == path")
   void rightIdentityLaw(@ForAll("freePaths") FreePath<MaybeKind.Witness, Integer> path) {
     FreePath<MaybeKind.Witness, Integer> result =
-        path.via(x -> FreePath.pure(x, MaybeMonad.INSTANCE));
+        path.via(x -> FreePath.pure(x, Instances.monadError(maybe())));
     assertThat(run(result)).isEqualTo(run(path));
   }
 
@@ -151,7 +153,7 @@ class FreePathPropertyTest {
   @Property
   @Label("pure creates a value that can be interpreted")
   void pureCreatesInterpretableValue(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, MaybeMonad.INSTANCE);
+    FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, Instances.monadError(maybe()));
     assertThat(run(path)).isEqualTo(value);
   }
 
@@ -159,7 +161,7 @@ class FreePathPropertyTest {
   @Label("liftF creates a value that can be interpreted")
   void liftFCreatesInterpretableValue(@ForAll @IntRange(min = -100, max = 100) int value) {
     Kind<MaybeKind.Witness, Integer> just = MAYBE.just(value);
-    FreePath<MaybeKind.Witness, Integer> path = FreePath.liftF(just, MaybeMonad.INSTANCE);
+    FreePath<MaybeKind.Witness, Integer> path = FreePath.liftF(just, Instances.monadError(maybe()));
     assertThat(run(path)).isEqualTo(value);
   }
 
@@ -169,8 +171,8 @@ class FreePathPropertyTest {
       @ForAll @IntRange(min = -100, max = 100) int a,
       @ForAll @IntRange(min = -100, max = 100) int b) {
 
-    FreePath<MaybeKind.Witness, Integer> pathA = FreePath.pure(a, MaybeMonad.INSTANCE);
-    FreePath<MaybeKind.Witness, Integer> pathB = FreePath.pure(b, MaybeMonad.INSTANCE);
+    FreePath<MaybeKind.Witness, Integer> pathA = FreePath.pure(a, Instances.monadError(maybe()));
+    FreePath<MaybeKind.Witness, Integer> pathB = FreePath.pure(b, Instances.monadError(maybe()));
 
     FreePath<MaybeKind.Witness, Integer> result = pathA.zipWith(pathB, Integer::sum);
 
@@ -183,8 +185,10 @@ class FreePathPropertyTest {
       @ForAll @IntRange(min = -100, max = 100) int a,
       @ForAll @IntRange(min = -100, max = 100) int b) {
 
-    FreePath<MaybeKind.Witness, Integer> pathA = FreePath.liftF(MAYBE.just(a), MaybeMonad.INSTANCE);
-    FreePath<MaybeKind.Witness, Integer> pathB = FreePath.liftF(MAYBE.just(b), MaybeMonad.INSTANCE);
+    FreePath<MaybeKind.Witness, Integer> pathA =
+        FreePath.liftF(MAYBE.just(a), Instances.monadError(maybe()));
+    FreePath<MaybeKind.Witness, Integer> pathB =
+        FreePath.liftF(MAYBE.just(b), Instances.monadError(maybe()));
 
     FreePath<MaybeKind.Witness, Integer> result = pathA.zipWith(pathB, Integer::sum);
 
@@ -212,8 +216,8 @@ class FreePathPropertyTest {
       @ForAll @IntRange(min = -100, max = 100) int second) {
 
     FreePath<MaybeKind.Witness, Integer> path =
-        FreePath.pure(first, MaybeMonad.INSTANCE)
-            .then(() -> FreePath.pure(second, MaybeMonad.INSTANCE));
+        FreePath.pure(first, Instances.monadError(maybe()))
+            .then(() -> FreePath.pure(second, Instances.monadError(maybe())));
 
     assertThat(run(path)).isEqualTo(second);
   }
@@ -221,7 +225,7 @@ class FreePathPropertyTest {
   @Property
   @Label("toFree returns underlying free monad")
   void toFreeReturnsUnderlyingFree(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, MaybeMonad.INSTANCE);
+    FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, Instances.monadError(maybe()));
 
     var free = path.toFree();
     Kind<MaybeKind.Witness, Integer> result = free.foldMap(IDENTITY_NAT, MAYBE_MONAD);
@@ -232,9 +236,9 @@ class FreePathPropertyTest {
   @Property
   @Label("functor returns the functor instance")
   void functorReturnsInstance(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, MaybeMonad.INSTANCE);
+    FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(value, Instances.monadError(maybe()));
 
-    assertThat(path.functor()).isEqualTo(MaybeMonad.INSTANCE);
+    assertThat(path.functor()).isEqualTo(Instances.monadError(maybe()));
   }
 
   // ===== Error Recovery Properties =====
@@ -254,18 +258,18 @@ class FreePathPropertyTest {
       new Natural<>() {
         @Override
         public <A> Kind<TryKind.Witness, A> apply(Kind<IdKind.Witness, A> fa) {
-          return TryMonad.INSTANCE.raiseError(new RuntimeException("test failure"));
+          return Instances.monadError(try_()).raiseError(new RuntimeException("test failure"));
         }
       };
 
   @Property
   @Label("recover on success is a no-op")
   void recoverOnSuccessIsIdentity(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, Instances.monad(id()));
     FreePath<IdKind.Witness, Integer> recovered = path.recover(_ -> -999);
 
     GenericPath<TryKind.Witness, Integer> result =
-        recovered.foldMap(SUCCESS_TRY_INTERPRETER, TryMonad.INSTANCE);
+        recovered.foldMap(SUCCESS_TRY_INTERPRETER, Instances.monadError(try_()));
     Try<Integer> tryResult = TRY.narrow(result.runKind());
 
     assertThat(tryResult.isSuccess()).isTrue();
@@ -275,11 +279,11 @@ class FreePathPropertyTest {
   @Property
   @Label("recover on failure produces fallback value")
   void recoverOnFailureProducesFallback(@ForAll @IntRange(min = -100, max = 100) int fallback) {
-    FreePath<IdKind.Witness, Integer> path = FreePath.liftF(Id.of(42), IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> path = FreePath.liftF(Id.of(42), Instances.monad(id()));
     FreePath<IdKind.Witness, Integer> recovered = path.recover(_ -> fallback);
 
     GenericPath<TryKind.Witness, Integer> result =
-        recovered.foldMap(FAILING_TRY_INTERPRETER, TryMonad.INSTANCE);
+        recovered.foldMap(FAILING_TRY_INTERPRETER, Instances.monadError(try_()));
     Try<Integer> tryResult = TRY.narrow(result.runKind());
 
     assertThat(tryResult.isSuccess()).isTrue();
@@ -289,11 +293,11 @@ class FreePathPropertyTest {
   @Property
   @Label("attempt on success produces Right")
   void attemptOnSuccessProducesRight(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, Instances.monad(id()));
     FreePath<IdKind.Witness, Either<Throwable, Integer>> attempted = path.attempt();
 
     GenericPath<TryKind.Witness, Either<Throwable, Integer>> result =
-        attempted.foldMap(SUCCESS_TRY_INTERPRETER, TryMonad.INSTANCE);
+        attempted.foldMap(SUCCESS_TRY_INTERPRETER, Instances.monadError(try_()));
     Try<Either<Throwable, Integer>> tryResult = TRY.narrow(result.runKind());
 
     assertThat(tryResult.isSuccess()).isTrue();
@@ -304,11 +308,11 @@ class FreePathPropertyTest {
   @Property
   @Label("attempt on failure produces Left")
   void attemptOnFailureProducesLeft(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<IdKind.Witness, Integer> path = FreePath.liftF(Id.of(value), IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> path = FreePath.liftF(Id.of(value), Instances.monad(id()));
     FreePath<IdKind.Witness, Either<Throwable, Integer>> attempted = path.attempt();
 
     GenericPath<TryKind.Witness, Either<Throwable, Integer>> result =
-        attempted.foldMap(FAILING_TRY_INTERPRETER, TryMonad.INSTANCE);
+        attempted.foldMap(FAILING_TRY_INTERPRETER, Instances.monadError(try_()));
     Try<Either<Throwable, Integer>> tryResult = TRY.narrow(result.runKind());
 
     assertThat(tryResult.isSuccess()).isTrue();
@@ -319,12 +323,12 @@ class FreePathPropertyTest {
   @Property
   @Label("orElse on success preserves original value")
   void orElseOnSuccessPreservesValue(@ForAll @IntRange(min = -100, max = 100) int value) {
-    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, IdMonad.instance());
+    FreePath<IdKind.Witness, Integer> path = FreePath.pure(value, Instances.monad(id()));
     FreePath<IdKind.Witness, Integer> withFallback =
-        path.orElse(() -> FreePath.pure(-999, IdMonad.instance()));
+        path.orElse(() -> FreePath.pure(-999, Instances.monad(id())));
 
     GenericPath<TryKind.Witness, Integer> result =
-        withFallback.foldMap(SUCCESS_TRY_INTERPRETER, TryMonad.INSTANCE);
+        withFallback.foldMap(SUCCESS_TRY_INTERPRETER, Instances.monadError(try_()));
     Try<Integer> tryResult = TRY.narrow(result.runKind());
 
     assertThat(tryResult.isSuccess()).isTrue();

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.set;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.Set;
@@ -9,9 +10,9 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /**
@@ -40,7 +41,7 @@ public class SetTraversalExample {
     // 1. Setup: Define a Semigroup for combining errors and create the Applicative.
     final Semigroup<String> stringSemigroup = Semigroups.string("; ");
     Applicative<ValidatedKind.Witness<String>> validatedApplicative =
-        ValidatedMonad.instance(stringSemigroup);
+        Instances.validated(stringSemigroup);
     var membersTraversal = UserGroupTraversals.memberEmails();
 
     System.out.println("--- Running Traversal Scenarios for Set ---");

@@ -202,7 +202,7 @@ public class IOInterpreter {
                 return Id.of(result);
             };
         return IdKindHelper.ID.narrow(
-            program.foldMap(transform, IdMonad.instance())).value();
+            program.foldMap(transform, Instances.monad(id()))).value();
     }
 }
 ```
@@ -228,7 +228,7 @@ public class TestInterpreter {
                 return Id.of(result);
             };
         return IdKindHelper.ID.narrow(
-            program.foldMap(transform, IdMonad.instance())).value();
+            program.foldMap(transform, Instances.monad(id()))).value();
     }
 
     public List<String> getOutput() { return output; }

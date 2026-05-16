@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.function.Function;
@@ -156,7 +157,7 @@ public class Tutorial06_ConcreteTypes {
    *
    * <pre>
    *   // Nudge:    Use ValidatedMonad with a Semigroup; map3 across the three validations.
-   *   // Strategy: var app = ValidatedMonad.instance(Semigroups.string(", "));
+   *   // Strategy: var app = Instances.validated(Semigroups.string(", "));
    *   //           VALIDATED.narrow(app.map3(VALIDATED.widen(name), VALIDATED.widen(age),
    *   //                                     VALIDATED.widen(email), User::new))
    *   // Spoiler:  see hint above. Same call for valid and invalid inputs.

@@ -4,15 +4,16 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -107,7 +108,8 @@ class SetterTest {
       Function<String, Kind<OptionalKind.Witness, String>> toUpper =
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
-      assertThatThrownBy(() -> nameSetter.modifyF(toUpper, person, OptionalMonad.INSTANCE))
+      assertThatThrownBy(
+              () -> nameSetter.modifyF(toUpper, person, Instances.monadError(optional())))
           .isInstanceOf(UnsupportedOperationException.class)
           .hasMessageContaining("modifyF is not supported for Setters created via of()");
     }
@@ -121,7 +123,7 @@ class SetterTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       Kind<OptionalKind.Witness, String> result =
-          idSetter.modifyF(toUpper, "hello", OptionalMonad.INSTANCE);
+          idSetter.modifyF(toUpper, "hello", Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -143,7 +145,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, String> result =
-          idSetter.modifyF(failIfShort, "hello", OptionalMonad.INSTANCE);
+          idSetter.modifyF(failIfShort, "hello", Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -311,7 +313,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, Person> result =
-          ageSetter.modifyF(incrementIfValid, person, OptionalMonad.INSTANCE);
+          ageSetter.modifyF(incrementIfValid, person, Instances.monadError(optional()));
 
       Optional<Person> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -336,7 +338,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, List<Integer>> result =
-          listSetter.modifyF(doubleIfPositive, numbers, OptionalMonad.INSTANCE);
+          listSetter.modifyF(doubleIfPositive, numbers, Instances.monadError(optional()));
 
       Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -360,7 +362,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, List<Integer>> result =
-          listSetter.modifyF(doubleIfPositive, numbers, OptionalMonad.INSTANCE);
+          listSetter.modifyF(doubleIfPositive, numbers, Instances.monadError(optional()));
 
       Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -384,7 +386,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, Map<String, Integer>> result =
-          mapSetter.modifyF(addBonusIfPassing, scores, OptionalMonad.INSTANCE);
+          mapSetter.modifyF(addBonusIfPassing, scores, Instances.monadError(optional()));
 
       Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -412,7 +414,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, Map<String, Integer>> result =
-          mapSetter.modifyF(addBonusIfPassing, scores, OptionalMonad.INSTANCE);
+          mapSetter.modifyF(addBonusIfPassing, scores, Instances.monadError(optional()));
 
       Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -429,7 +431,7 @@ class SetterTest {
           n -> OptionalKindHelper.OPTIONAL.widen(Optional.of(n * 2));
 
       Kind<OptionalKind.Witness, Map<String, Integer>> result =
-          mapSetter.modifyF(double_, empty, OptionalMonad.INSTANCE);
+          mapSetter.modifyF(double_, empty, Instances.monadError(optional()));
 
       Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -461,7 +463,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, Employee> result =
-          employeeAgeSetter.modifyF(incrementIfValid, employee, OptionalMonad.INSTANCE);
+          employeeAgeSetter.modifyF(incrementIfValid, employee, Instances.monadError(optional()));
 
       Optional<Employee> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
@@ -494,7 +496,7 @@ class SetterTest {
           };
 
       Kind<OptionalKind.Witness, Employee> result =
-          employeeAgeSetter.modifyF(incrementIfValid, employee, OptionalMonad.INSTANCE);
+          employeeAgeSetter.modifyF(incrementIfValid, employee, Instances.monadError(optional()));
 
       Optional<Employee> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
@@ -519,7 +521,7 @@ class SetterTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       Kind<OptionalKind.Witness, Person> result =
-          nameTraversal.modifyF(toUpper, person, OptionalMonad.INSTANCE);
+          nameTraversal.modifyF(toUpper, person, Instances.monadError(optional()));
 
       Optional<Person> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();

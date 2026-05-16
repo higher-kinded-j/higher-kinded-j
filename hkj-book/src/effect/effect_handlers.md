@@ -134,7 +134,7 @@ Interpreters are combined and used with `foldMap`:
 ```java
 var interpreter = Interpreters.combine(consoleInterp, dbInterp);
 IO<String> result = IOKindHelper.IO_OP.narrow(
-    program.foldMap(interpreter, IOMonad.INSTANCE));
+    program.foldMap(interpreter, Instances.monad(io())));
 ```
 
 ~~~admonish warning title="Monad Transformer Limitation"

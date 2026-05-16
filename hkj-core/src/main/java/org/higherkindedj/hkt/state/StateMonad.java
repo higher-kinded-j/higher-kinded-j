@@ -15,12 +15,31 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * instance of this class is specific to a state type {@code S}. It extends {@link
  * StateApplicative}.
  *
+ * <p>{@code StateMonad} is stateless with respect to its phantom state type {@code S}, so a single
+ * shared instance can serve every {@code S}. Prefer the {@link #instance()} factory, consistent
+ * with the other environment-parameterised monads ({@code EitherMonad}, {@code ReaderMonad}, {@code
+ * ContextMonad}); the public constructor is retained for backwards compatibility.
+ *
  * @param <S> The type of the state (fixed for this Monad instance).
  * @see State
  * @see StateKind.Witness
  * @see StateApplicative
  */
 public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness<S>> {
+
+  private static final StateMonad<?> INSTANCE = new StateMonad<>();
+
+  /**
+   * Returns the shared {@code StateMonad} instance for a given state type {@code S}. {@code
+   * StateMonad} carries no per-{@code S} state, so one instance is reused for all {@code S}.
+   *
+   * @param <S> The state type.
+   * @return The shared {@code StateMonad<S>} instance.
+   */
+  @SuppressWarnings("unchecked")
+  public static <S> StateMonad<S> instance() {
+    return (StateMonad<S>) INSTANCE;
+  }
 
   /**
    * Sequentially composes two {@code State} actions, passing the result of the first into a

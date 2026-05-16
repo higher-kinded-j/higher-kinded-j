@@ -3,13 +3,15 @@
 package org.higherkindedj.hkt.free;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,12 +24,12 @@ import org.junit.jupiter.api.Test;
 class FreeFactoryTest {
 
   private FreeFactory<IdKind.Witness> factory;
-  private IdMonad idMonad;
+  private Monad<IdKind.Witness> idMonad;
 
   @BeforeEach
   void setUp() {
     factory = FreeFactory.of();
-    idMonad = IdMonad.instance();
+    idMonad = Instances.monad(id());
   }
 
   @Nested
@@ -45,7 +47,7 @@ class FreeFactoryTest {
     @Test
     @DisplayName("withMonad() creates a factory instance with type inference from monad")
     void withMonadCreatesFactory() {
-      FreeFactory<IdKind.Witness> f = FreeFactory.withMonad(IdMonad.instance());
+      FreeFactory<IdKind.Witness> f = FreeFactory.withMonad(Instances.monad(id()));
       assertThat(f).isNotNull();
     }
   }
@@ -224,7 +226,7 @@ class FreeFactoryTest {
     @DisplayName("factory created with withMonad for clarity")
     void factoryWithMonadForClarity() {
       // Using withMonad makes it clear which monad will be used for interpretation
-      FreeFactory<IdKind.Witness> typedFactory = FreeFactory.withMonad(IdMonad.instance());
+      FreeFactory<IdKind.Witness> typedFactory = FreeFactory.withMonad(Instances.monad(id()));
 
       Free<IdKind.Witness, String> program =
           typedFactory.pure("Hello").map(s -> s + ", World!").map(String::toUpperCase);

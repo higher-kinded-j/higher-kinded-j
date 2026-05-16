@@ -3,17 +3,17 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Traversal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -119,7 +119,7 @@ class StringTraversalsTest {
           charTraversal.modifyF(
               c -> ListKindHelper.LIST.widen(List.of(c, Character.toUpperCase(c))),
               "ab",
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
 
       List<String> resultList = ListKindHelper.LIST.narrow(result);
 
@@ -262,7 +262,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> ListKindHelper.LIST.widen(List.of(word, word.toUpperCase())),
               input,
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
 
       List<String> resultList = ListKindHelper.LIST.narrow(result);
 
@@ -302,7 +302,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -320,7 +320,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               source,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -337,7 +337,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> ListKindHelper.LIST.widen(List.of(word, word.toUpperCase())),
               source,
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
 
       List<String> resultList = ListKindHelper.LIST.narrow(result);
 
@@ -355,7 +355,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               input,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -375,7 +375,7 @@ class StringTraversalsTest {
                       ? OptionalKindHelper.OPTIONAL.widen(Optional.empty())
                       : OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               input,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
 
@@ -394,7 +394,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               emptySource,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(optResult)).contains("");
 
       // Empty string with ListMonad should preserve empty
@@ -402,7 +402,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> ListKindHelper.LIST.widen(List.of(word.toUpperCase())),
               emptySource,
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
       assertThat(ListKindHelper.LIST.narrow(listResult)).containsExactly("");
     }
 
@@ -423,7 +423,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               singleSpace,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(optResult)).contains(" ");
     }
 
@@ -443,7 +443,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> ListKindHelper.LIST.widen(List.of(word, word.toUpperCase())),
               tabsAndSpaces,
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
       assertThat(ListKindHelper.LIST.narrow(listResult)).containsExactly(tabsAndSpaces);
 
       // Verify getAll returns empty
@@ -466,7 +466,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               newlinesOnly,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(optResult)).contains(newlinesOnly);
     }
 
@@ -486,14 +486,14 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               mixed,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(optResult)).contains(mixed);
 
       Kind<ListKind.Witness, String> listResult =
           wordTraversal.modifyF(
               word -> ListKindHelper.LIST.widen(List.of(word.toUpperCase())),
               mixed,
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
       assertThat(ListKindHelper.LIST.narrow(listResult)).containsExactly(mixed);
     }
 
@@ -508,7 +508,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> OptionalKindHelper.OPTIONAL.widen(Optional.of(word.toUpperCase())),
               input,
-              OptionalMonad.INSTANCE);
+              Instances.monadError(optional()));
 
       Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).contains("ALPHA BETA GAMMA");
@@ -525,7 +525,7 @@ class StringTraversalsTest {
           wordTraversal.modifyF(
               word -> ListKindHelper.LIST.widen(List.of(word, word.toUpperCase())),
               input,
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
 
       List<String> resultList = ListKindHelper.LIST.narrow(result);
 
@@ -667,7 +667,7 @@ class StringTraversalsTest {
           lineTraversal.modifyF(
               line -> ListKindHelper.LIST.widen(List.of(line, line.toUpperCase())),
               "a\nb",
-              ListMonad.INSTANCE);
+              Instances.monadZero(list()));
 
       List<String> resultList = ListKindHelper.LIST.narrow(result);
 

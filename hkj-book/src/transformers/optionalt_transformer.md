@@ -68,8 +68,8 @@ Use this whenever the outer monad is one Path already wraps.
 When you need a specific outer monad, use `OptionalT` with a `For` comprehension:
 
 ```java
-var futureMonad    = CompletableFutureMonad.INSTANCE;
-var optionalTMonad = new OptionalTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad    = Instances.monadError(completableFuture());
+var optionalTMonad = Instances.optionalT(futureMonad);
 
 var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
     .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
@@ -142,8 +142,8 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value)
 The `OptionalTMonad<F>` class implements `MonadError<OptionalTKind.Witness<F>, Unit>`. The error type is `Unit`, signifying that an "error" is the `Optional.empty()` state (absence carries no information beyond its occurrence).
 
 ```java
-var futureMonad    = CompletableFutureMonad.INSTANCE;
-var optionalTMonad = new OptionalTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad    = Instances.monadError(completableFuture());
+var optionalTMonad = Instances.optionalT(futureMonad);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -174,7 +174,7 @@ OptionalT<F, A> concrete                = OPTIONAL_T.narrow(kind);
 ## Creating OptionalT Instances
 
 ```java
-var futureMonad = CompletableFutureMonad.INSTANCE;
+var futureMonad = Instances.monadError(completableFuture());
 
 // 1. From an existing F<Optional<A>>
 Kind<CompletableFutureKind.Witness, Optional<String>> fOptional =
@@ -211,8 +211,8 @@ var ot5 = OptionalT.liftF(futureMonad, fValue);
 **The solution:**
 
 ```java
-var futureMonad    = CompletableFutureMonad.INSTANCE;
-var optionalTMonad = new OptionalTMonad<CompletableFutureKind.Witness>(futureMonad);
+var futureMonad    = Instances.monadError(completableFuture());
+var optionalTMonad = Instances.optionalT(futureMonad);
 
 // Service stubs return Future<Optional<T>>
 Kind<CompletableFutureKind.Witness, Optional<User>> fetchUserAsync(String userId) {

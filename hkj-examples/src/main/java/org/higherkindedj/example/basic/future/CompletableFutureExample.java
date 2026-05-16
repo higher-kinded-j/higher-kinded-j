@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -11,8 +12,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /** see {<a href="https://higher-kinded-j.github.io/cf_monad.html">CompletableFuture Monad</a>} */
 public class CompletableFutureExample {
@@ -26,7 +28,8 @@ public class CompletableFutureExample {
 
   public void errorHandlingExample() {
     // Get the MonadError instance
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
     RuntimeException runtimeEx = new IllegalStateException("Processing Failed");
     IOException checkedEx = new IOException("File Not Found");
 
@@ -108,7 +111,8 @@ public class CompletableFutureExample {
 
   public void createExample() {
     // Get the MonadError instance
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
 
     // --- Using of() ---
     // Creates a Kind wrapping an already completed future
@@ -144,7 +148,8 @@ public class CompletableFutureExample {
 
   public void monadExample() {
     // Get the MonadError instance
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
 
     // --- map (thenApply) ---
     Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
@@ -183,7 +188,8 @@ public class CompletableFutureExample {
   }
 
   public void monadUtilityMethodsExample() {
-    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+        Instances.monadError(completableFuture());
     Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
     Function<String, Kind<CompletableFutureKind.Witness, String>> asyncStep2 =
         input -> FUTURE.widen(CompletableFuture.supplyAsync(() -> input + " -> Step2 Done"));

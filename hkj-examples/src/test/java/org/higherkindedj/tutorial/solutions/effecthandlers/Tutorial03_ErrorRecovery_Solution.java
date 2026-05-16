@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -11,7 +12,7 @@ import org.higherkindedj.hkt.free.ProgramAnalyser;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -58,7 +59,7 @@ public class Tutorial03_ErrorRecovery_Solution {
     Free<IdKind.Witness, String> safe =
         program.handleError(Throwable.class, _ -> Free.pure("recovered"));
 
-    Id<String> result = IdKindHelper.ID.narrow(safe.foldMap(IDENTITY, IdMonad.instance()));
+    Id<String> result = IdKindHelper.ID.narrow(safe.foldMap(IDENTITY, Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo("success");
   }
@@ -101,7 +102,8 @@ public class Tutorial03_ErrorRecovery_Solution {
     Free<IdKind.Witness, String> result =
         program.handleError(Throwable.class, _ -> Free.pure("recovered")).map(String::toUpperCase);
 
-    Id<String> interpreted = IdKindHelper.ID.narrow(result.foldMap(IDENTITY, IdMonad.instance()));
+    Id<String> interpreted =
+        IdKindHelper.ID.narrow(result.foldMap(IDENTITY, Instances.monad(id())));
 
     assertThat(interpreted.value()).isEqualTo("HELLO");
   }

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.Optional;
@@ -13,14 +14,14 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
@@ -36,9 +37,9 @@ import org.junit.jupiter.api.Test;
 @DisplayName("GenericPath")
 class GenericPathTest {
 
-  private static final MaybeMonad MONAD = MaybeMonad.INSTANCE;
+  private static final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
   // IdMonad is a pure Monad without MonadError support - use for "without MonadError" tests
-  private static final IdMonad ID_MONAD = IdMonad.instance();
+  private static final Monad<IdKind.Witness> ID_MONAD = Instances.monad(id());
 
   @Nested
   @DisplayName("Factory Methods")
@@ -620,7 +621,8 @@ class GenericPathTest {
   @DisplayName("MonadError Factory Methods")
   class MonadErrorFactoryMethods {
 
-    private static final EitherMonad<String> EITHER_MONAD = EitherMonad.instance();
+    private static final MonadError<EitherKind.Witness<String>, String> EITHER_MONAD =
+        Instances.monadError(either());
 
     @Test
     @DisplayName("of(value, monadError) creates GenericPath with error recovery support")
@@ -667,7 +669,8 @@ class GenericPathTest {
   @DisplayName("Error Recovery Operations")
   class ErrorRecoveryOperations {
 
-    private static final EitherMonad<String> EITHER_MONAD = EitherMonad.instance();
+    private static final MonadError<EitherKind.Witness<String>, String> EITHER_MONAD =
+        Instances.monadError(either());
 
     @Test
     @DisplayName("supportsRecovery() returns true when MonadError provided")
@@ -838,7 +841,7 @@ class GenericPathTest {
       GenericPath<IdKind.Witness, Integer> path = GenericPath.pure(42, ID_MONAD);
 
       // Use raw MonadError cast - exception is thrown before it's actually used
-      MonadError rawMonadError = EitherMonad.instance();
+      MonadError rawMonadError = Instances.monadError(either());
       assertThatThrownBy(() -> path.mapError(Object::toString, rawMonadError))
           .isInstanceOf(UnsupportedOperationException.class)
           .hasMessageContaining("mapError requires MonadError support");
@@ -872,7 +875,8 @@ class GenericPathTest {
   @DisplayName("Natural Transformation Operations")
   class NaturalTransformationOperations {
 
-    private static final EitherMonad<String> EITHER_MONAD = EitherMonad.instance();
+    private static final MonadError<EitherKind.Witness<String>, String> EITHER_MONAD =
+        Instances.monadError(either());
 
     @Test
     @DisplayName("mapK() transforms to different effect type using Monad")

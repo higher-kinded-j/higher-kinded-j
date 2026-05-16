@@ -203,7 +203,7 @@ Kind<IdKind.Witness, List<String>> result =
     TrampolineUtils.traverseListStackSafe(
         largeList,
         i -> Id.of("item-" + i),
-        IdMonad.instance()
+        Instances.monad(id())
     );
 
 List<String> items = IdKindHelper.ID.narrow(result).value();

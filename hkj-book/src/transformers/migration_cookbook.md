@@ -49,7 +49,7 @@ EitherPath<DomainError, Receipt> processOrder(OrderData data) {
 **After (raw `EitherT`, when you must keep `CompletableFuture` as the outer monad):**
 
 ```java
-var eitherTMonad = new EitherTMonad<CompletableFutureKind.Witness, DomainError>(futureMonad);
+var eitherTMonad = Instances.eitherT(futureMonad);
 
 var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
     .from(validated -> EitherT.fromKind(checkInventory(validated)))
@@ -93,7 +93,7 @@ OptionalPath<UserPreferences> getPreferences(String userId) {
 **After (raw `OptionalT`):**
 
 ```java
-var optionalTMonad = new OptionalTMonad<CompletableFutureKind.Witness>(futureMonad);
+var optionalTMonad = Instances.optionalT(futureMonad);
 
 var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
     .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
@@ -134,7 +134,7 @@ ReaderPath<AppConfig, ProcessedData> workflow() {
 **After (raw `ReaderT`, when you must combine the environment with `CompletableFuture`):**
 
 ```java
-var readerT = new ReaderTMonad<CompletableFutureKind.Witness, AppConfig>(futureMonad);
+var readerT = Instances.readerT(futureMonad);
 
 ReaderT<CompletableFutureKind.Witness, AppConfig, ServiceData>
     fetchDataRT(String itemId) {
@@ -191,7 +191,7 @@ WriterPath<List<AuditEntry>, BigDecimal> workflow(BigDecimal price) {
 
 ```java
 var listMonoid  = Monoids.list();
-var writerMonad = new WriterTMonad<IdKind.Witness, List<String>>(IdMonad.instance(), listMonoid);
+var writerMonad = Instances.writerT(Instances.monad(id()), listMonoid);
 
 var workflow = For.from(writerMonad, writerMonad.tell(List.of("Applied 10% discount")))
     .from(_ -> writerMonad.of(new BigDecimal("90.00")))
@@ -236,7 +236,7 @@ WithStatePath<List<Integer>, Integer> workflow() {
 **After (raw `StateT`, when state must combine with another effect):**
 
 ```java
-var stateTMonad = StateTMonad.<List<Integer>, OptionalKind.Witness>instance(OptionalMonad.INSTANCE);
+var stateTMonad = Instances.stateT(Instances.monadError(optional()));
 
 var workflow = For.from(stateTMonad, push(10))
     .from(_ -> push(20))

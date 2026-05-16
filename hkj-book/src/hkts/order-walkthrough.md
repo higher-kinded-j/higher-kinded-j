@@ -107,7 +107,7 @@ The `For` comprehension combined with `toState()` and `ForState` provides a unif
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
-    EitherMonad<OrderError> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
 
     Kind<EitherKind.Witness<OrderError>, OrderResult> result =
         // Gather phase: accumulate address, customer, order

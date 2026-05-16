@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 import static org.higherkindedj.hkt.util.validation.Operation.LIFT_F;
 
@@ -13,8 +14,8 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -33,7 +34,7 @@ class StateTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = OptionalMonad.INSTANCE;
+    outerMonad = Instances.monadError(optional());
   }
 
   private <S, A> StateT<S, OptionalKind.Witness, A> createStateT(

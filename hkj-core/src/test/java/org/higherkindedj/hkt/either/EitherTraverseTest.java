@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.either;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.BiPredicate;
@@ -14,9 +15,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
@@ -40,7 +41,7 @@ class EitherTraverseTest extends EitherTestBase {
   @BeforeEach
   void setUpTraverse() {
     traverse = EitherTraverse.instance();
-    maybeApplicative = MaybeMonad.INSTANCE;
+    maybeApplicative = Instances.monadError(maybe());
     rightKind = validKind;
     leftKind = leftKind(TestErrorType.DEFAULT);
     validTraverseFunction = i -> MAYBE.widen(Maybe.just("Traversed:" + i));

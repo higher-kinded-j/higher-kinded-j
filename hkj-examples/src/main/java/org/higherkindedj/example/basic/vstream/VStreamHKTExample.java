@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.vstream;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.List;
@@ -12,10 +13,10 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamAlternative;
 import org.higherkindedj.hkt.vstream.VStreamKind;
-import org.higherkindedj.hkt.vstream.VStreamMonad;
 import org.higherkindedj.hkt.vstream.VStreamTraverse;
 
 /**
@@ -44,7 +45,7 @@ public class VStreamHKTExample {
 
   /** Demonstrates VStreamMonad flatMap via the HKT interface. */
   void monadFlatMap() {
-    VStreamMonad monad = VStreamMonad.INSTANCE;
+    Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
 
     Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 
@@ -128,7 +129,7 @@ public class VStreamHKTExample {
   void polymorphicFunction() {
     // A generic function that works with ANY Monad
     Kind<VStreamKind.Witness, String> result =
-        greetAll(VStreamMonad.INSTANCE, VSTREAM.widen(VStream.of("Alice", "Bob", "Charlie")));
+        greetAll(Instances.monad(vstream()), VSTREAM.widen(VStream.of("Alice", "Bob", "Charlie")));
 
     System.out.println("Polymorphic greetAll: " + VSTREAM.narrow(result).toList().run());
     // Output: [Hello, Alice!, Hello, Bob!, Hello, Charlie!]

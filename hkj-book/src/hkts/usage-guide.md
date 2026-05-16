@@ -47,12 +47,12 @@ These are concrete classes provided in the corresponding package.
 Examples:
 
 * **`Optional`**: 
-`OptionalMonad optionalMonad = OptionalMonad.INSTANCE;` (This implements `MonadError<OptionalKind.Witness, Unit>`)
-* **`List`**: `ListMonad listMonad = ListMonad.INSTANCE;` (This implements `Monad<ListKind.Witness>`)
-* **`CompletableFuture`**: `CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;` (This implements `MonadError<CompletableFutureKind.Witness, Throwable>`)
-* **`Either<String, ?>`**: `EitherMonad<String> eitherMonad =  EitherMonad.instance();` (This implements `MonadError<EitherKind.Witness<String>, String>`)
-* **`IO`**: `IOMonad ioMonad = IOMonad.INSTANCE;` (This implements `Monad<IOKind.Witness>`)
-* **`Writer<String, ?>`**: `WriterMonad<String> writerMonad = new WriterMonad<>(new StringMonoid());` (This implements `Monad<WriterKind.Witness<String>>`)
+`OptionalMonad optionalMonad = Instances.monadError(optional());` (This implements `MonadError<OptionalKind.Witness, Unit>`)
+* **`List`**: `ListMonad listMonad = Instances.monadZero(list());` (This implements `Monad<ListKind.Witness>`)
+* **`CompletableFuture`**: `CompletableFutureMonad futureMonad = Instances.monadError(completableFuture());` (This implements `MonadError<CompletableFutureKind.Witness, Throwable>`)
+* **`Either<String, ?>`**: `EitherMonad<String> eitherMonad =  Instances.monadError(either());` (This implements `MonadError<EitherKind.Witness<String>, String>`)
+* **`IO`**: `IOMonad ioMonad = Instances.monad(io());` (This implements `Monad<IOKind.Witness>`)
+* **`Writer<String, ?>`**: `WriterMonad<String> writerMonad = Instances.writer(new StringMonoid());` (This implements `Monad<WriterKind.Witness<String>>`)
 ~~~
 
 ~~~admonish title="Step 3: Wrap Your Value (_JavaType<A>_ -> _Kind<F_WITNESS, A>_)"
@@ -82,7 +82,7 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
    ```java
     import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
     // ...
-    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
     Kind<OptionalKind.Witness, String> optionalKind = OPTIONAL.widen(Optional.of("test")); // from previous step
 
     // --- Using map ---
@@ -133,7 +133,7 @@ When we need the underlying Java value back (e.g., to return from a method bound
      // Output: Optional[Default Value]
  
      // Example for IO:
-      IOMonad ioMonad = IOMonad.INSTANCE;
+      Monad<IOKind.Witness> ioMonad = Instances.monad(io());
       Kind<IOKind.Witness, String> ioKind = IO_OP.delay(() -> "Hello from IO!"); 
       // Use IO_OP.delay
       // unsafeRunSync is an instance method on IOKindHelper.IO_OP
@@ -197,8 +197,8 @@ public static <F_WITNESS, A, B> Kind<F_WITNESS, B> mapWithFunctor(
 
 public void genericExample() { 
   // Get instances of the type classes for the specific types (F_WITNESS) we want to use
-  ListMonad listMonad = ListMonad.INSTANCE; // Implements Functor<ListKind.Witness>
-  OptionalMonad optionalMonad = OptionalMonad.INSTANCE; // Implements Functor<OptionalKind.Witness>
+  MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list()); // Implements Functor<ListKind.Witness>
+  MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional()); // Implements Functor<OptionalKind.Witness>
 
   Function<Integer, Integer> doubleFn = x -> x * 2;
 

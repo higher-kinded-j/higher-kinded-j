@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -12,7 +13,7 @@ import org.higherkindedj.hkt.free.ProgramAnalysis;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -85,7 +86,7 @@ public class Tutorial01_EffectAlgebraBasics {
                     return fa;
                   }
                 },
-                IdMonad.instance()));
+                Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo("hello");
   }
@@ -120,7 +121,7 @@ public class Tutorial01_EffectAlgebraBasics {
                     return fa;
                   }
                 },
-                IdMonad.instance()));
+                Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo(15);
   }
@@ -154,7 +155,7 @@ public class Tutorial01_EffectAlgebraBasics {
                     return fa;
                   }
                 },
-                IdMonad.instance()));
+                Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo("HELLO");
   }

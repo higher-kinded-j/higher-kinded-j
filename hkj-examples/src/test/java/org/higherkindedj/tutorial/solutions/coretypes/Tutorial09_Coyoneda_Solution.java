@@ -3,14 +3,16 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.coyoneda.Coyoneda;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
@@ -114,7 +116,7 @@ public class Tutorial09_Coyoneda_Solution {
         coyo.map(x -> x * 2).map(x -> x + 10).map(Object::toString);
 
     // Lower to execute
-    ListMonad listFunctor = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = chained.lower(listFunctor);
 
     assertThat(LIST.narrow(result)).containsExactly("12", "14", "16", "18", "20");
@@ -169,7 +171,7 @@ public class Tutorial09_Coyoneda_Solution {
         Coyoneda.lift(names).map(String::trim).map(String::toUpperCase).map(s -> "[" + s + "]");
 
     // Execute
-    ListMonad listFunctor = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = pipeline.lower(listFunctor);
 
     assertThat(LIST.narrow(result)).containsExactly("[ALICE]", "[BOB]", "[CHARLIE]");

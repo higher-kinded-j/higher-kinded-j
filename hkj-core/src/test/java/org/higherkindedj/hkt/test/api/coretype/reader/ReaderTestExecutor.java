@@ -3,15 +3,17 @@
 package org.higherkindedj.hkt.test.api.coretype.reader;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.reader.ReaderFunctor;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.reader.ReaderKindHelper;
-import org.higherkindedj.hkt.reader.ReaderMonad;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -105,7 +107,7 @@ final class ReaderTestExecutor<R, A, B>
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      ReaderMonad<R> monad = ReaderMonad.instance();
+      Monad<ReaderKind.Witness<R>> monad = Instances.monad(reader());
       Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,8 +16,8 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Composable;
 import org.higherkindedj.hkt.free_ap.FreeAp;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,8 +31,9 @@ import org.junit.jupiter.api.Test;
 @DisplayName("FreeApPath<F, A> Complete Test Suite")
 class FreeApPathTest {
 
-  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = MaybeMonad.INSTANCE;
-  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE = MaybeMonad.INSTANCE;
+  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = Instances.monadError(maybe());
+  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE =
+      Instances.monadError(maybe());
 
   // Identity natural transformation for Maybe
   private static final Natural<MaybeKind.Witness, MaybeKind.Witness> IDENTITY_NAT =
@@ -44,7 +46,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("pure() creates FreeApPath with value")
     void pureCreatesFreeApPath() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo(42);
@@ -63,7 +66,8 @@ class FreeApPathTest {
     void liftFCreatesFreeApPath() {
       Kind<MaybeKind.Witness, Integer> just = MAYBE.just(42);
 
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.liftF(just, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.liftF(just, Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo(42);
@@ -73,7 +77,7 @@ class FreeApPathTest {
     @DisplayName("liftF() validates non-null arguments")
     void liftFValidatesNonNullArguments() {
       assertThatNullPointerException()
-          .isThrownBy(() -> FreeApPath.liftF(null, MaybeMonad.INSTANCE))
+          .isThrownBy(() -> FreeApPath.liftF(null, Instances.monadError(maybe())))
           .withMessageContaining("fa must not be null");
 
       assertThatNullPointerException()
@@ -86,7 +90,8 @@ class FreeApPathTest {
     void ofCreatesFreeApPath() {
       FreeAp<MaybeKind.Witness, Integer> freeAp = FreeAp.pure(42);
 
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.of(freeAp, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.of(freeAp, Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo(42);
@@ -95,7 +100,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("Path.freeApPure() creates FreeApPath with value")
     void pathFreeApPureCreatesFreeApPath() {
-      FreeApPath<MaybeKind.Witness, Integer> path = Path.freeApPure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          Path.freeApPure(42, Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo(42);
@@ -105,7 +111,7 @@ class FreeApPathTest {
     @DisplayName("Path.freeApLift() creates FreeApPath from Kind")
     void pathFreeApLiftCreatesFreeApPath() {
       FreeApPath<MaybeKind.Witness, Integer> path =
-          Path.freeApLift(MAYBE.just(42), MaybeMonad.INSTANCE);
+          Path.freeApLift(MAYBE.just(42), Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo(42);
@@ -116,7 +122,8 @@ class FreeApPathTest {
     void pathFreeApCreatesFromExistingFreeAp() {
       FreeAp<MaybeKind.Witness, Integer> freeAp = FreeAp.pure(42);
 
-      FreeApPath<MaybeKind.Witness, Integer> path = Path.freeAp(freeAp, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          Path.freeAp(freeAp, Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo(42);
@@ -126,7 +133,7 @@ class FreeApPathTest {
     @DisplayName("Path.freeAp() validates non-null arguments")
     void pathFreeApValidatesNonNullArguments() {
       assertThatNullPointerException()
-          .isThrownBy(() -> Path.freeAp(null, MaybeMonad.INSTANCE))
+          .isThrownBy(() -> Path.freeAp(null, Instances.monadError(maybe())))
           .withMessageContaining("freeAp must not be null");
 
       assertThatNullPointerException()
@@ -142,7 +149,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("foldMap() returns GenericPath for Monad target")
     void foldMapReturnsGenericPath() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       GenericPath<MaybeKind.Witness, Integer> result = path.foldMap(IDENTITY_NAT, MAYBE_MONAD);
 
@@ -152,7 +160,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("foldMapKind() returns Kind for Applicative target")
     void foldMapKindReturnsKind() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
 
@@ -163,7 +172,7 @@ class FreeApPathTest {
     @DisplayName("foldMap() interprets lifted value")
     void foldMapInterpretsLiftedValue() {
       FreeApPath<MaybeKind.Witness, Integer> path =
-          FreeApPath.liftF(MAYBE.just(42), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(42), Instances.monadError(maybe()));
 
       GenericPath<MaybeKind.Witness, Integer> result = path.foldMap(IDENTITY_NAT, MAYBE_MONAD);
 
@@ -174,7 +183,7 @@ class FreeApPathTest {
     @DisplayName("foldMapKind() preserves Nothing")
     void foldMapKindPreservesNothing() {
       FreeApPath<MaybeKind.Witness, String> path =
-          FreeApPath.liftF(MAYBE.nothing(), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.nothing(), Instances.monadError(maybe()));
 
       Kind<MaybeKind.Witness, String> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
 
@@ -184,7 +193,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("foldMap() validates non-null arguments")
     void foldMapValidatesNonNullArguments() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThatNullPointerException()
           .isThrownBy(() -> path.foldMap(null, MAYBE_MONAD))
@@ -198,7 +208,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("foldMapKind() validates non-null arguments")
     void foldMapKindValidatesNonNullArguments() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThatNullPointerException()
           .isThrownBy(() -> path.foldMapKind(null, MAYBE_APPLICATIVE))
@@ -212,7 +223,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("foldMapWith() interprets using NaturalTransformation")
     void foldMapWithInterpretsUsingNaturalTransformation() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       NaturalTransformation<MaybeKind.Witness, MaybeKind.Witness> transform =
           new NaturalTransformation<>() {
@@ -235,7 +247,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("map() transforms value")
     void mapTransformsValue() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, String> mapped = path.map(i -> "value: " + i);
 
@@ -247,7 +260,7 @@ class FreeApPathTest {
     @DisplayName("map() chains correctly")
     void mapChainsCorrectly() {
       FreeApPath<MaybeKind.Witness, String> path =
-          FreeApPath.pure("hello", MaybeMonad.INSTANCE)
+          FreeApPath.pure("hello", Instances.monadError(maybe()))
               .map(String::toUpperCase)
               .map(s -> s + "!")
               .map(s -> s.repeat(2));
@@ -259,7 +272,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("map() validates null mapper")
     void mapValidatesNullMapper() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThatNullPointerException()
           .isThrownBy(() -> path.map(null))
@@ -272,7 +286,7 @@ class FreeApPathTest {
       AtomicBoolean observed = new AtomicBoolean(false);
 
       FreeApPath<MaybeKind.Witness, Integer> path =
-          FreeApPath.pure(42, MaybeMonad.INSTANCE).peek(i -> observed.set(true));
+          FreeApPath.pure(42, Instances.monadError(maybe())).peek(i -> observed.set(true));
 
       Kind<MaybeKind.Witness, Integer> result = path.foldMapKind(IDENTITY_NAT, MAYBE_APPLICATIVE);
 
@@ -288,8 +302,10 @@ class FreeApPathTest {
     @Test
     @DisplayName("zipWith() combines two FreeApPaths")
     void zipWithCombinesTwoPaths() {
-      FreeApPath<MaybeKind.Witness, String> first = FreeApPath.pure("hello", MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> second = FreeApPath.pure(3, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, String> first =
+          FreeApPath.pure("hello", Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> second =
+          FreeApPath.pure(3, Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, String> result = first.zipWith(second, (s, n) -> s.repeat(n));
 
@@ -301,21 +317,23 @@ class FreeApPathTest {
     @Test
     @DisplayName("zipWith() validates null parameters")
     void zipWithValidatesNullParameters() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThatNullPointerException()
           .isThrownBy(() -> path.zipWith(null, (a, b) -> a + (Integer) b))
           .withMessageContaining("other must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> path.zipWith(FreeApPath.pure(1, MaybeMonad.INSTANCE), null))
+          .isThrownBy(() -> path.zipWith(FreeApPath.pure(1, Instances.monadError(maybe())), null))
           .withMessageContaining("combiner must not be null");
     }
 
     @Test
     @DisplayName("zipWith() throws when given non-FreeApPath")
     void zipWithThrowsWhenGivenNonFreeApPath() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
       MaybePath<Integer> maybePath = Path.just(10);
 
       assertThatIllegalArgumentException()
@@ -327,9 +345,9 @@ class FreeApPathTest {
     @DisplayName("zipWith() with Nothing propagates Nothing")
     void zipWithNothingPropagatesNothing() {
       FreeApPath<MaybeKind.Witness, Integer> first =
-          FreeApPath.liftF(MAYBE.just(10), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(10), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> second =
-          FreeApPath.liftF(MAYBE.nothing(), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.nothing(), Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, Integer> result = first.zipWith(second, Integer::sum);
 
@@ -346,9 +364,12 @@ class FreeApPathTest {
     @Test
     @DisplayName("zipWith3() combines three FreeApPaths")
     void zipWith3CombinesThreePaths() {
-      FreeApPath<MaybeKind.Witness, Integer> first = FreeApPath.pure(1, MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> second = FreeApPath.pure(2, MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> third = FreeApPath.pure(3, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> first =
+          FreeApPath.pure(1, Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> second =
+          FreeApPath.pure(2, Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> third =
+          FreeApPath.pure(3, Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, Integer> result =
           first.zipWith3(second, third, (a, b, c) -> a + b + c);
@@ -361,8 +382,10 @@ class FreeApPathTest {
     @Test
     @DisplayName("zipWith3() validates null parameters")
     void zipWith3ValidatesNullParameters() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> other = FreeApPath.pure(1, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> other =
+          FreeApPath.pure(1, Instances.monadError(maybe()));
 
       assertThatNullPointerException()
           .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a))
@@ -381,11 +404,11 @@ class FreeApPathTest {
     @DisplayName("zipWith3() with Nothing propagates Nothing")
     void zipWith3NothingPropagatesNothing() {
       FreeApPath<MaybeKind.Witness, Integer> first =
-          FreeApPath.liftF(MAYBE.just(1), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(1), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> second =
-          FreeApPath.liftF(MAYBE.nothing(), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.nothing(), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> third =
-          FreeApPath.liftF(MAYBE.just(3), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(3), Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, Integer> result =
           first.zipWith3(second, third, (a, b, c) -> a + b + c);
@@ -415,9 +438,9 @@ class FreeApPathTest {
           };
 
       FreeApPath<MaybeKind.Witness, Integer> first =
-          FreeApPath.liftF(MAYBE.just(1), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(1), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> second =
-          FreeApPath.liftF(MAYBE.just(2), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(2), Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, Integer> combined = first.zipWith(second, Integer::sum);
 
@@ -442,11 +465,11 @@ class FreeApPathTest {
           };
 
       FreeApPath<MaybeKind.Witness, Integer> first =
-          FreeApPath.liftF(MAYBE.just(1), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(1), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> second =
-          FreeApPath.liftF(MAYBE.just(2), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(2), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> third =
-          FreeApPath.liftF(MAYBE.just(3), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(3), Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, Integer> combined =
           first.zipWith3(second, third, (a, b, c) -> a + b + c);
@@ -465,7 +488,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("toFreeAp() returns underlying FreeAp")
     void toFreeApReturnsUnderlyingFreeAp() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       FreeAp<MaybeKind.Witness, Integer> freeAp = path.toFreeAp();
 
@@ -477,10 +501,11 @@ class FreeApPathTest {
     @Test
     @DisplayName("functor() returns the functor instance")
     void functorReturnsTheFunctorInstance() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThat(path.functor()).isNotNull();
-      assertThat(path.functor()).isEqualTo(MaybeMonad.INSTANCE);
+      assertThat(path.functor()).isEqualTo(Instances.monadError(maybe()));
     }
   }
 
@@ -491,7 +516,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("toString() provides meaningful representation")
     void toStringProvidesMeaningfulRepresentation() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThat(path.toString()).contains("FreeApPath");
     }
@@ -499,7 +525,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("equals() returns true for same instance")
     void equalsReturnsTrueForSameInstance() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThat(path.equals(path)).isTrue();
     }
@@ -507,9 +534,12 @@ class FreeApPathTest {
     @Test
     @DisplayName("equals() compares FreeApPaths correctly")
     void equalsComparesFreeApPaths() {
-      FreeApPath<MaybeKind.Witness, Integer> path1 = FreeApPath.pure(42, MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> path2 = FreeApPath.pure(42, MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> path3 = FreeApPath.pure(99, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path1 =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> path2 =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> path3 =
+          FreeApPath.pure(99, Instances.monadError(maybe()));
 
       assertThat(path1).isEqualTo(path2);
       assertThat(path1).isNotEqualTo(path3);
@@ -520,8 +550,10 @@ class FreeApPathTest {
     @Test
     @DisplayName("hashCode() is consistent with equals")
     void hashCodeIsConsistentWithEquals() {
-      FreeApPath<MaybeKind.Witness, Integer> path1 = FreeApPath.pure(42, MaybeMonad.INSTANCE);
-      FreeApPath<MaybeKind.Witness, Integer> path2 = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path1 =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
+      FreeApPath<MaybeKind.Witness, Integer> path2 =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       assertThat(path1.hashCode()).isEqualTo(path2.hashCode());
     }
@@ -534,7 +566,8 @@ class FreeApPathTest {
     @Test
     @DisplayName("FreeApPath is not a Chainable instance")
     void freeApPathIsNotChainable() {
-      FreeApPath<MaybeKind.Witness, Integer> path = FreeApPath.pure(42, MaybeMonad.INSTANCE);
+      FreeApPath<MaybeKind.Witness, Integer> path =
+          FreeApPath.pure(42, Instances.monadError(maybe()));
 
       // Verify it implements Composable and Combinable but NOT Chainable
       assertThat(path).isInstanceOf(Composable.class);
@@ -552,11 +585,11 @@ class FreeApPathTest {
     void freeApPathCanCombineIndependentValidations() {
       // Simulate validation fields
       FreeApPath<MaybeKind.Witness, String> name =
-          FreeApPath.liftF(MAYBE.just("John"), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just("John"), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> age =
-          FreeApPath.liftF(MAYBE.just(25), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just(25), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, String> email =
-          FreeApPath.liftF(MAYBE.just("john@example.com"), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just("john@example.com"), Instances.monadError(maybe()));
 
       // Combine all validations (would collect all errors in a real validation Applicative)
       FreeApPath<MaybeKind.Witness, String> result =
@@ -573,11 +606,12 @@ class FreeApPathTest {
     @DisplayName("FreeApPath handles failure in any validation")
     void freeApPathHandlesFailureInAnyValidation() {
       FreeApPath<MaybeKind.Witness, String> name =
-          FreeApPath.liftF(MAYBE.just("John"), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just("John"), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, Integer> age =
-          FreeApPath.<MaybeKind.Witness, Integer>liftF(MAYBE.nothing(), MaybeMonad.INSTANCE);
+          FreeApPath.<MaybeKind.Witness, Integer>liftF(
+              MAYBE.nothing(), Instances.monadError(maybe()));
       FreeApPath<MaybeKind.Witness, String> email =
-          FreeApPath.liftF(MAYBE.just("john@example.com"), MaybeMonad.INSTANCE);
+          FreeApPath.liftF(MAYBE.just("john@example.com"), Instances.monadError(maybe()));
 
       FreeApPath<MaybeKind.Witness, String> result =
           name.zipWith3(age, email, (n, a, e) -> n + " is " + a + " years old with email " + e);

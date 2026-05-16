@@ -35,7 +35,7 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
    }
 
    // Test with Id — no effects, fully predictable
-   IdMonad idMonad = IdMonad.instance();
+   Monad<IdKind.Witness> idMonad = Instances.monad(id());
    Kind<IdKind.Witness, String> result = greet(idMonad, idMonad.of("Alice"));
    // result contains "Hello, Alice!"
    ```
@@ -81,7 +81,7 @@ Id<String> idNull = Id.of(null); // Id can wrap null
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
 ```java
-IdMonad idMonad = IdMonad.instance();
+Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
 // of — lift a value into Id
 Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
@@ -116,15 +116,15 @@ This is where Id earns its keep. `StateT<S, IdKind.Witness, A>` behaves exactly 
 
 ```java
 // Create a StateT monad with Id as the inner monad
-StateTMonad<Integer, IdKind.Witness> stateMonadOverId =
-    StateTMonad.instance(IdMonad.instance());
+Monad<StateTKind.Witness<Integer, IdKind.Witness>> stateMonadOverId =
+    Instances.stateT(Instances.monad(id()));
 
 // A stateful computation: increment the state, return the old value
 Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn =
     currentState -> Id.of(StateTuple.of(currentState + 1, currentState));
 
 Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
-    STATE_T.stateT(runStateFn, IdMonad.instance());
+    STATE_T.stateT(runStateFn, Instances.monad(id()));
 
 // Run with initial state 10
 Kind<IdKind.Witness, StateTuple<Integer, Integer>> resultIdTuple =

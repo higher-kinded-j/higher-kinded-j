@@ -195,7 +195,7 @@ Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(either);
 **Solution**: Combinators across multiple inputs live on the `Applicative` typeclass instance. Get the instance, widen the inputs, call the combinator, narrow the result.
 
 ```java
-EitherMonad<String> app = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 Either<String, Integer> sum =
     EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(value2), Integer::sum));
 ```

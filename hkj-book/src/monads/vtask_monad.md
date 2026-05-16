@@ -232,7 +232,7 @@ VTask<Config> withBetterError = loadConfig.mapError(error ->
 For HKT-compatible error handling:
 
 ```java
-VTaskMonad monad = VTaskMonad.INSTANCE;
+MonadError<VTaskKind.Witness, Throwable> monad = Instances.monadError(vtask());
 
 Kind<VTaskKind.Witness, String> taskKind = VTASK.widen(VTask.fail(new IOException("Network error")));
 

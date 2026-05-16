@@ -8,7 +8,7 @@ The Core Types tutorials use the current higher-kinded-j API:
 
 ### List Operations
 - Use `java.util.List` instead of a custom wrapper
-- For typeclass operations, use `ListMonad.INSTANCE` (ListFunctor is package-private)
+- For typeclass operations, use `Instances.monadZero(list())` (ListFunctor is package-private)
 - Widen with `LIST.widen(list)` and narrow with `LIST.narrow(kind)`
 - For simple list transformations, use Java streams
 
@@ -64,7 +64,7 @@ Either<String, String> result = error.map(i -> i.toString());
 
 **Exercise 3:**
 ```java
-ListMonad monad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
 Kind<ListKind.Witness, Integer> doubled = monad.map(n -> n * 2, numbers);
 ```
 
@@ -80,7 +80,7 @@ Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> "Value: " + i
 
 **Exercise 6:**
 ```java
-ListMonad monad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
 Kind<ListKind.Witness, String> uppercase = monad.map(String::toUpperCase, words);
 ```
 
@@ -93,7 +93,7 @@ Either<String, Integer> result = Either.right(42);
 
 **Exercise 2:**
 ```java
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Integer> result = EITHER.narrow(
     applicative.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b)
 );
@@ -101,7 +101,7 @@ Either<String, Integer> result = EITHER.narrow(
 
 **Exercise 3:**
 ```java
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Integer> result = EITHER.narrow(
     applicative.map2(EITHER.widen(value1), EITHER.widen(error), (a, b) -> a + b)
 );
@@ -109,7 +109,7 @@ Either<String, Integer> result = EITHER.narrow(
 
 **Exercise 4:**
 ```java
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Person> result = EITHER.narrow(
     applicative.map3(EITHER.widen(name), EITHER.widen(age), EITHER.widen(email), (n, a, e) -> new Person(n, a, e))
 );
@@ -122,7 +122,7 @@ Validated<String, FormData> result = name.map3(age, email, (n, a, e) -> new Form
 
 **Exercise 6:**
 ```java
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Order> result = EITHER.narrow(
     applicative.map4(EITHER.widen(id), EITHER.widen(product), EITHER.widen(quantity), EITHER.widen(price), (i, p, q, pr) -> new Order(i, p, q, pr))
 );
@@ -130,7 +130,7 @@ Either<String, Order> result = EITHER.narrow(
 
 **Exercise 7:**
 ```java
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Address> result = EITHER.narrow(
     applicative.map5(EITHER.widen(street), EITHER.widen(city), EITHER.widen(state), EITHER.widen(zip), EITHER.widen(country), (s, c, st, z, co) -> new Address(s, c, st, z, co))
 );
@@ -165,13 +165,13 @@ Maybe<String> email = userId.flatMap(findUser).flatMap(user -> user.email());
 
 **Exercise 6:**
 ```java
-ListMonad monad = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
 Kind<ListKind.Witness, String> pairs = monad.flatMap(n1 -> monad.map(n2 -> n1 + "-" + n2, LIST.widen(numbers2)), numbers1);
 ```
 
 **Exercise 7:**
 ```java
-MaybeMonad applicative = MaybeMonad.instance();
+MonadError<MaybeKind.Witness, Unit> applicative = Instances.monadError(maybe());
 return MAYBE.narrow(
     applicative.map2(MAYBE.widen(age), MAYBE.widen(city), (a, c) -> "Age: " + a + ", City: " + c)
 );
@@ -649,7 +649,7 @@ Traversal<EventStream, Double> purchaseAmounts = EventStreamTraversals.events()
 
 **Exercise 4:** flatTraverse — traverse then flatten nested structures.
 ```java
-.flatTraverse(ListTraverse.INSTANCE, ListMonad.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(LIST.widen(List.of(i, i * 10))))
+.flatTraverse(ListTraverse.INSTANCE, Instances.monadZero(list()), a -> LIST.widen(a), (Integer i) -> MAYBE.just(LIST.widen(List.of(i, i * 10))))
 ```
 
 **Exercise 5:** Traverse with Either — traverse collecting errors via Either monad.
@@ -679,7 +679,7 @@ ForPath.from(Path.just(list)).traverse(ListTraverse.INSTANCE, a -> LIST.widen(a)
 
 **Exercise 10:** ForPath flatTraverse — flatTraverse within a ForPath chain.
 ```java
-.flatTraverse(ListTraverse.INSTANCE, ListMonad.INSTANCE, a -> LIST.widen(a), (Integer i) -> MAYBE.just(LIST.widen(List.of(i, i * 10))))
+.flatTraverse(ListTraverse.INSTANCE, Instances.monadZero(list()), a -> LIST.widen(a), (Integer i) -> MAYBE.just(LIST.widen(List.of(i, i * 10))))
 ```
 
 **Exercise 11:** Combined workflow — traverse with multiple steps, guards, and yield.

@@ -3,16 +3,17 @@
 package org.higherkindedj.example.basic.id;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateTKind;
-import org.higherkindedj.hkt.state_t.StateTMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/identity.html">Identity Monad</a>} */
 public class IdExample {
@@ -36,7 +37,7 @@ public class IdExample {
   }
 
   public void monadExample() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     // 1. 'of' (lifting a value)
     Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
@@ -70,8 +71,8 @@ public class IdExample {
   public void transformerExample() {
     // Conceptually, State<S, A> is StateT<S, IdKind.Witness, A>
     // We can create a StateTMonad instance using IdentityMonad as the underlying monad.
-    StateTMonad<Integer, IdKind.Witness> stateMonadOverId =
-        StateTMonad.instance(IdMonad.instance());
+    Monad<StateTKind.Witness<Integer, IdKind.Witness>> stateMonadOverId =
+        Instances.stateT(Instances.monad(id()));
 
     // Example: A "State" computation that increments the state and returns the old state
     Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn =
@@ -79,7 +80,7 @@ public class IdExample {
 
     // Create the StateT (acting as State)
     Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
-        STATE_T.stateT(runStateFn, IdMonad.instance());
+        STATE_T.stateT(runStateFn, Instances.monad(id()));
 
     // Run it
     Integer initialState = 10;

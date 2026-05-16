@@ -3,6 +3,7 @@
 package org.higherkindedj.example.payment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.math.BigDecimal;
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
@@ -21,7 +22,7 @@ import org.higherkindedj.example.payment.model.RiskScore;
 import org.higherkindedj.example.payment.service.PaymentService;
 import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,7 +61,7 @@ class PaymentProcessingTest {
     var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
     return IdKindHelper.ID
         .<PaymentResult>narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()))
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())))
         .value();
   }
 
@@ -257,7 +258,7 @@ class PaymentProcessingTest {
       PaymentResult result =
           IdKindHelper.ID
               .<PaymentResult>narrow(
-                  PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()))
+                  PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())))
               .value();
 
       assertThat(result).isInstanceOf(PaymentResult.Failed.class);
@@ -292,7 +293,7 @@ class PaymentProcessingTest {
       PaymentResult result =
           IdKindHelper.ID
               .<PaymentResult>narrow(
-                  PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()))
+                  PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())))
               .value();
 
       assertThat(result).isInstanceOf(PaymentResult.Approved.class);
@@ -333,12 +334,12 @@ class PaymentProcessingTest {
       PaymentResult result1 =
           IdKindHelper.ID
               .<PaymentResult>narrow(
-                  PaymentEffectsWiring.interpret(program, interp1, IdMonad.instance()))
+                  PaymentEffectsWiring.interpret(program, interp1, Instances.monad(id())))
               .value();
       PaymentResult result2 =
           IdKindHelper.ID
               .<PaymentResult>narrow(
-                  PaymentEffectsWiring.interpret(program, interp2, IdMonad.instance()))
+                  PaymentEffectsWiring.interpret(program, interp2, Instances.monad(id())))
               .value();
 
       // ...both approve the payment (consistent business logic)

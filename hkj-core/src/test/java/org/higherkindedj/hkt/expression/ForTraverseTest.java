@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -11,16 +12,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,7 +41,7 @@ class ForTraverseTest {
   @Nested
   @DisplayName("MonadicSteps1 traverse with Identity Monad")
   class MonadicSteps1TraverseIdTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
     @Test
@@ -117,7 +120,7 @@ class ForTraverseTest {
   @Nested
   @DisplayName("MonadicSteps1 sequence with Identity Monad")
   class MonadicSteps1SequenceIdTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
     @Test
@@ -138,9 +141,9 @@ class ForTraverseTest {
   @Nested
   @DisplayName("MonadicSteps1 flatTraverse with Identity Monad")
   class MonadicSteps1FlatTraverseIdTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("flatTraverse: should traverse and flatten inner lists using Id monad")
@@ -161,7 +164,7 @@ class ForTraverseTest {
   @Nested
   @DisplayName("MonadicSteps1 traverse with Maybe Monad")
   class MonadicSteps1TraverseMaybeTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
     @Test
@@ -205,9 +208,9 @@ class ForTraverseTest {
   @Nested
   @DisplayName("MonadicSteps1 flatTraverse with Maybe Monad")
   class MonadicSteps1FlatTraverseMaybeTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
-    private final ListMonad listMonad = ListMonad.INSTANCE;
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("flatTraverse: should traverse and flatten inner lists")
@@ -248,7 +251,7 @@ class ForTraverseTest {
   @Nested
   @DisplayName("MonadicSteps1 traverse with MaybeTraverse")
   class MonadicSteps1TraverseMaybeTraverseTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
     private final MaybeTraverse maybeTraverse = MaybeTraverse.INSTANCE;
 
     @Test
@@ -283,7 +286,7 @@ class ForTraverseTest {
   @Nested
   @DisplayName("FilterableSteps1 traverse with Maybe Monad")
   class FilterableSteps1TraverseTest {
-    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
     @Test
@@ -321,7 +324,7 @@ class ForTraverseTest {
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       MAYBE.<Kind<ListKind.Witness, Integer>>just(
@@ -336,7 +339,7 @@ class ForTraverseTest {
   @Nested
   @DisplayName("Chained traverse after from")
   class ChainedTraverseTest {
-    private final IdMonad idMonad = IdMonad.instance();
+    private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
     @Test

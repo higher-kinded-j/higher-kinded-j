@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -12,7 +13,7 @@ import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -94,7 +95,7 @@ public class Tutorial04_CombiningEffects_Solution {
     Free<EitherFKind.Witness<IdKind.Witness, IdKind.Witness>, String> program =
         Free.pure("combined");
 
-    Id<String> result = IdKindHelper.ID.narrow(program.foldMap(combined, IdMonad.instance()));
+    Id<String> result = IdKindHelper.ID.narrow(program.foldMap(combined, Instances.monad(id())));
 
     assertThat(result.value()).isEqualTo("combined");
   }

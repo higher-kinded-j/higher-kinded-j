@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.optional_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
@@ -15,7 +16,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional_t.OptionalT;
 import org.higherkindedj.hkt.optional_t.OptionalTKind;
@@ -33,7 +34,7 @@ public class OptionalTExample {
   }
 
   public void createExample() {
-    Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
+    Monad<CompletableFutureKind.Witness> futureMonad = Instances.monadError(completableFuture());
     String presentValue = "Data";
     Integer numericValue = 123;
 
@@ -83,7 +84,8 @@ public class OptionalTExample {
 
   public static class OptionalTAsyncExample {
 
-    static final Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
+    static final Monad<CompletableFutureKind.Witness> futureMonad =
+        Instances.monadError(completableFuture());
     // OptionalTMonad now uses Unit as its error type
     static final OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
         new OptionalTMonad<>(futureMonad);

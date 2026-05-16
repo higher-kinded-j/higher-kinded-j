@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_op;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
@@ -19,8 +20,8 @@ import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.inject.Inject;
 import org.higherkindedj.hkt.inject.InjectInstances;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
@@ -454,7 +455,7 @@ class StateOpTest {
       IOStateOpInterpreter<Person> interpreter = new IOStateOpInterpreter<>(ref);
 
       Free<StateOpKind.Witness<Person>, String> program = StateOps.view(NAME_GETTER);
-      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, Instances.monad(io()));
 
       String value = IO_OP.narrow(result).unsafeRunSync();
       assertThat(value).isEqualTo("Alice");
@@ -469,7 +470,7 @@ class StateOpTest {
 
       Free<StateOpKind.Witness<Person>, String> program =
           StateOps.over(NAME_LENS, String::toUpperCase);
-      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, Instances.monad(io()));
 
       String value = IO_OP.narrow(result).unsafeRunSync();
       assertThat(value).isEqualTo("ALICE");
@@ -483,7 +484,7 @@ class StateOpTest {
       IOStateOpInterpreter<Person> interpreter = new IOStateOpInterpreter<>(ref);
 
       Free<StateOpKind.Witness<Person>, String> program = StateOps.assign(NAME_LENS, "Bob");
-      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, Instances.monad(io()));
 
       String value = IO_OP.narrow(result).unsafeRunSync();
       assertThat(value).isEqualTo("Bob");
@@ -497,7 +498,7 @@ class StateOpTest {
       IOStateOpInterpreter<Person> interpreter = new IOStateOpInterpreter<>(ref);
 
       Free<StateOpKind.Witness<Person>, Person> program = StateOps.getState();
-      Kind<IOKind.Witness, Person> result = program.foldMap(interpreter, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, Person> result = program.foldMap(interpreter, Instances.monad(io()));
 
       Person value = IO_OP.narrow(result).unsafeRunSync();
       assertThat(value).isEqualTo(INITIAL_PERSON);
@@ -513,7 +514,7 @@ class StateOpTest {
           StateOps.<Person, String>assign(NAME_LENS, "Dave")
               .flatMap(_ -> StateOps.view(NAME_GETTER));
 
-      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, IOMonad.INSTANCE);
+      Kind<IOKind.Witness, String> result = program.foldMap(interpreter, Instances.monad(io()));
       String value = IO_OP.narrow(result).unsafeRunSync();
 
       assertThat(value).isEqualTo("Dave");

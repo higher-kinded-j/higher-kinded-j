@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.vstream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.ArrayList;
@@ -13,11 +14,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -154,7 +157,7 @@ class VStreamTypeClassTest {
   @DisplayName("VStreamMonad")
   class VStreamMonadTests {
 
-    private final VStreamMonad monad = VStreamMonad.INSTANCE;
+    private final Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
 
     @Test
     @DisplayName("flatMap with expansion (each element produces multiple)")
@@ -288,7 +291,8 @@ class VStreamTypeClassTest {
   class VStreamTraverseTests {
 
     private final VStreamTraverse traverse = VStreamTraverse.INSTANCE;
-    private final OptionalMonad optionalApplicative = OptionalMonad.INSTANCE;
+    private final MonadError<OptionalKind.Witness, Unit> optionalApplicative =
+        Instances.monadError(optional());
 
     @Test
     @DisplayName("map transforms each element")

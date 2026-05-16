@@ -4,18 +4,21 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,13 +30,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 @DisplayName("ValidatedMonad mapN Methods Complete Test Suite")
 class ValidatedMapNTest {
 
-  private ValidatedMonad<String> monad;
+  private MonadError<ValidatedKind.Witness<String>, String> monad;
   private Semigroup<String> semigroup;
 
   @BeforeEach
   void setUp() {
     semigroup = Semigroups.string(", ");
-    monad = ValidatedMonad.instance(semigroup);
+    monad = Instances.validated(semigroup);
   }
 
   @Nested
@@ -500,7 +503,8 @@ class ValidatedMapNTest {
     @DisplayName("map2 error accumulation respects semigroup order")
     void map2ErrorAccumulationRespectsSemigroupOrder() {
       Semigroup<String> reverseSemigroup = (a, b) -> b + " before " + a;
-      ValidatedMonad<String> reverseMonad = ValidatedMonad.instance(reverseSemigroup);
+      MonadError<ValidatedKind.Witness<String>, String> reverseMonad =
+          Instances.validated(reverseSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("first");
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("second");
@@ -623,7 +627,8 @@ class ValidatedMapNTest {
     @DisplayName("List semigroup accumulates errors into lists")
     void listSemigroupAccumulatesErrorsIntoLists() {
       Semigroup<List<String>> listSemigroup = Semigroups.list();
-      ValidatedMonad<List<String>> listMonad = ValidatedMonad.instance(listSemigroup);
+      MonadError<ValidatedKind.Witness<List<String>>, List<String>> listMonad =
+          Instances.validated(listSemigroup);
 
       Kind<ValidatedKind.Witness<List<String>>, Integer> v1 =
           VALIDATED.widen(Validated.invalid(List.of("error1")));
@@ -644,7 +649,8 @@ class ValidatedMapNTest {
     @DisplayName("First semigroup keeps only first error in map3")
     void firstSemigroupKeepsOnlyFirstErrorInMap3() {
       Semigroup<String> firstSemigroup = Semigroups.first();
-      ValidatedMonad<String> firstMonad = ValidatedMonad.instance(firstSemigroup);
+      MonadError<ValidatedKind.Witness<String>, String> firstMonad =
+          Instances.validated(firstSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
@@ -661,7 +667,8 @@ class ValidatedMapNTest {
     @DisplayName("Last semigroup keeps only last error in map4")
     void lastSemigroupKeepsOnlyLastErrorInMap4() {
       Semigroup<String> lastSemigroup = Semigroups.last();
-      ValidatedMonad<String> lastMonad = ValidatedMonad.instance(lastSemigroup);
+      MonadError<ValidatedKind.Witness<String>, String> lastMonad =
+          Instances.validated(lastSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
@@ -687,7 +694,8 @@ class ValidatedMapNTest {
               return "Error" + (++count) + ":" + a + "+" + b;
             }
           };
-      ValidatedMonad<String> customMonad = ValidatedMonad.instance(countingSemigroup);
+      MonadError<ValidatedKind.Witness<String>, String> customMonad =
+          Instances.validated(countingSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("A");
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("B");

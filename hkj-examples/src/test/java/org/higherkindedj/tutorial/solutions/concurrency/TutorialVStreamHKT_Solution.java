@@ -3,18 +3,20 @@
 package org.higherkindedj.tutorial.solutions.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamAlternative;
 import org.higherkindedj.hkt.vstream.VStreamApplicative;
 import org.higherkindedj.hkt.vstream.VStreamFunctor;
 import org.higherkindedj.hkt.vstream.VStreamKind;
-import org.higherkindedj.hkt.vstream.VStreamMonad;
 import org.higherkindedj.hkt.vstream.VStreamTraverse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -179,7 +181,7 @@ public class TutorialVStreamHKT_Solution {
   class MonadTests {
 
     /**
-     * Why this is idiomatic: {@code VStreamMonad.INSTANCE.flatMap} is the type- class form of
+     * Why this is idiomatic: {@code Instances.monad(vstream()).flatMap} is the type- class form of
      * {@code stream.flatMap}. Each element expands to a sub-stream; the results concatenate.
      *
      * <p>Alternative: {@code stream.flatMap(fn)} on the concrete type. The monad variant enables
@@ -191,7 +193,7 @@ public class TutorialVStreamHKT_Solution {
     @Test
     @DisplayName("Exercise 6: Monad flatMap via HKT")
     void exercise6_monadFlatMap() {
-      VStreamMonad monad = VStreamMonad.INSTANCE;
+      Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
       Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 
       // SOLUTION: Use monad.flatMap to expand each element
@@ -305,7 +307,7 @@ public class TutorialVStreamHKT_Solution {
     @Test
     @DisplayName("Exercise 10: Combine Monad and Foldable")
     void exercise10_combineMonadAndFoldable() {
-      VStreamMonad monad = VStreamMonad.INSTANCE;
+      Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
       VStreamTraverse foldable = VStreamTraverse.INSTANCE;
       Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 

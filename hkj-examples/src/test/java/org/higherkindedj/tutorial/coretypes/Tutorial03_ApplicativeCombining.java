@@ -3,12 +3,17 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -121,7 +126,7 @@ public class Tutorial03_ApplicativeCombining {
   void exercise2_combiningWithMap2() {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> value2 = Either.right(20);
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Integer> result = answerRequired();
 
@@ -150,7 +155,7 @@ public class Tutorial03_ApplicativeCombining {
   void exercise3_map2WithError() {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> error = Either.left("Error occurred");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Integer> result = answerRequired();
 
@@ -183,7 +188,7 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, String> name = Either.right("Alice");
     Either<String, Integer> age = Either.right(30);
     Either<String, String> email = Either.right("alice@example.com");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Person> result = answerRequired();
 
@@ -225,7 +230,7 @@ public class Tutorial03_ApplicativeCombining {
     Validated<String, String> email = Validated.invalid("Email is invalid");
 
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedMonad<String> app = ValidatedMonad.instance(stringSemigroup);
+    MonadError<ValidatedKind.Witness<String>, String> app = Instances.validated(stringSemigroup);
 
     Validated<String, FormData> result = answerRequired();
 
@@ -260,7 +265,7 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, String> product = Either.right("Laptop");
     Either<String, Integer> quantity = Either.right(2);
     Either<String, Double> price = Either.right(999.99);
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Order> result = answerRequired();
 
@@ -301,7 +306,7 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, String> state = Either.right("IL");
     Either<String, String> zip = Either.right("62701");
     Either<String, String> country = Either.right("USA");
-    EitherMonad<String> app = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 
     Either<String, Address> result = answerRequired();
 
@@ -352,7 +357,7 @@ public class Tutorial03_ApplicativeCombining {
     Validated<String, Integer> ageBad = Validated.invalid("Age must be positive");
 
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedMonad<String> app = ValidatedMonad.instance(stringSemigroup);
+    MonadError<ValidatedKind.Witness<String>, String> app = Instances.validated(stringSemigroup);
 
     Validated<String, Pair> bothValid = answerRequired();
     assertThat(bothValid.isValid()).isTrue();

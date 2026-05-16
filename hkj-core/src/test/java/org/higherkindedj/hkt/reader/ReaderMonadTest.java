@@ -4,13 +4,16 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
@@ -23,11 +26,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ReaderMonad Complete Test Suite")
 class ReaderMonadTest extends ReaderTestBase {
 
-  private ReaderMonad<TestConfig> monad;
+  private Monad<ReaderKind.Witness<TestConfig>> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = ReaderMonad.instance();
+    monad = Instances.monad(reader());
     validateMonadFixtures();
   }
 

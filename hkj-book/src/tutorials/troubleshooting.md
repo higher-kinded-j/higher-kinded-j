@@ -120,7 +120,7 @@ Either<String, Integer> resultEither = EITHER.narrow(result);
 Either<String, Integer> result = value1.map2(value2, (a, b) -> a + b);
 
 // ✅ Correct - use the typeclass
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Integer> result = EITHER.narrow(
     applicative.map2(
         EITHER.widen(value1),
@@ -477,7 +477,7 @@ Either<String, Integer> result = Either.right(42)
     .flatMap(i -> Either.right(i + 10));
 
 // Typeclass API (more powerful for generic code)
-EitherMonad<String> monad = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> monad = Instances.monadError(either());
 Either<String, Integer> result = EITHER.narrow(
     monad.flatMap(
         EITHER.widen(Either.right(42)),

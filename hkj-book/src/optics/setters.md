@@ -307,14 +307,14 @@ Function<String, Kind<OptionalKind.Witness, String>> validateUsername = username
 
 User validUser = new User("john_doe", "john@example.com", 10, settings);
 Kind<OptionalKind.Witness, User> result =
-    usernameSetter.modifyF(validateUsername, validUser, OptionalMonad.INSTANCE);
+    usernameSetter.modifyF(validateUsername, validUser, Instances.monadError(optional()));
 
 Optional<User> validated = OptionalKindHelper.OPTIONAL.narrow(result);
 // Result: Optional[User with validated username]
 
 User invalidUser = new User("ab", "a@test.com", 0, settings); // Too short
 Kind<OptionalKind.Witness, User> invalidResult =
-    usernameSetter.modifyF(validateUsername, invalidUser, OptionalMonad.INSTANCE);
+    usernameSetter.modifyF(validateUsername, invalidUser, Instances.monadError(optional()));
 
 Optional<User> invalidValidated = OptionalKindHelper.OPTIONAL.narrow(invalidResult);
 // Result: Optional.empty (validation failed)
@@ -336,7 +336,7 @@ Function<Integer, Kind<OptionalKind.Witness, Integer>> doubleIfPositive = n -> {
 };
 
 Kind<OptionalKind.Witness, List<Integer>> result =
-    listSetter.modifyF(doubleIfPositive, numbers, OptionalMonad.INSTANCE);
+    listSetter.modifyF(doubleIfPositive, numbers, Instances.monadError(optional()));
 
 Optional<List<Integer>> doubled = OptionalKindHelper.OPTIONAL.narrow(result);
 // Result: Optional[[2, 4, 6]]
@@ -344,7 +344,7 @@ Optional<List<Integer>> doubled = OptionalKindHelper.OPTIONAL.narrow(result);
 // With negative number (will fail)
 List<Integer> withNegative = List.of(1, -2, 3);
 Kind<OptionalKind.Witness, List<Integer>> failedResult =
-    listSetter.modifyF(doubleIfPositive, withNegative, OptionalMonad.INSTANCE);
+    listSetter.modifyF(doubleIfPositive, withNegative, Instances.monadError(optional()));
 
 Optional<List<Integer>> failed = OptionalKindHelper.OPTIONAL.narrow(failedResult);
 // Result: Optional.empty (validation failed on -2)
@@ -366,7 +366,7 @@ Function<String, Kind<OptionalKind.Witness, String>> toUpper =
     s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
 Kind<OptionalKind.Witness, User> result =
-    nameTraversal.modifyF(toUpper, user, OptionalMonad.INSTANCE);
+    nameTraversal.modifyF(toUpper, user, Instances.monadError(optional()));
 ```
 
 ---
@@ -586,7 +586,7 @@ List<Integer> largeList = /* thousands of elements */;
 
 // O(n) time complexity, not O(n²)
 Kind<OptionalKind.Witness, List<Integer>> result =
-    listSetter.modifyF(validateAndTransform, largeList, OptionalMonad.INSTANCE);
+    listSetter.modifyF(validateAndTransform, largeList, Instances.monadError(optional()));
 ```
 
 **Best Practice**: Compose Setters at initialisation time, then reuse:
@@ -696,14 +696,14 @@ public class SetterExample {
 
         User validUser = new User("john_doe", "john@example.com", 10, settings);
         Kind<OptionalKind.Witness, User> validResult =
-            usernameSetter.modifyF(validateUsername, validUser, OptionalMonad.INSTANCE);
+            usernameSetter.modifyF(validateUsername, validUser, Instances.monadError(optional()));
 
         Optional<User> validated = OptionalKindHelper.OPTIONAL.narrow(validResult);
         System.out.println("Valid username: " + validated.map(User::username).orElse("INVALID"));
 
         User invalidUser = new User("ab", "a@test.com", 0, settings);
         Kind<OptionalKind.Witness, User> invalidResult =
-            usernameSetter.modifyF(validateUsername, invalidUser, OptionalMonad.INSTANCE);
+            usernameSetter.modifyF(validateUsername, invalidUser, Instances.monadError(optional()));
 
         Optional<User> invalidValidated = OptionalKindHelper.OPTIONAL.narrow(invalidResult);
         System.out.println("Invalid username: " + invalidValidated.map(User::username).orElse("INVALID"));

@@ -3,18 +3,22 @@
 package org.higherkindedj.hkt.test.api.coretype.validated;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.higherkindedj.hkt.validated.*;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 
 /**
  * Internal executor for Validated core type tests.
@@ -129,7 +133,8 @@ final class ValidatedTestExecutor<E, A, B>
     // Map validations - test through monad if ValidatedMonad context, otherwise test directly
     if (validMapContext == ValidatedMonad.class) {
       @SuppressWarnings("unchecked")
-      ValidatedMonad<E> monad = ValidatedMonad.instance((Semigroup<E>) Semigroups.string(","));
+      MonadError<ValidatedKind.Witness<E>, E> monad =
+          Instances.validated((Semigroup<E>) Semigroups.string(","));
       Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(invalidInstance);
       builder.assertMapperNull(() -> monad.map(null, kind), "f", Operation.MAP);
     } else {
@@ -139,7 +144,8 @@ final class ValidatedTestExecutor<E, A, B>
     // FlatMap validations - test through monad if ValidatedMonad context, otherwise test directly
     if (validFlatMapContext == ValidatedMonad.class) {
 
-      ValidatedMonad<E> monad = ValidatedMonad.instance((Semigroup<E>) Semigroups.string(","));
+      MonadError<ValidatedKind.Witness<E>, E> monad =
+          Instances.validated((Semigroup<E>) Semigroups.string(","));
       Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(invalidInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

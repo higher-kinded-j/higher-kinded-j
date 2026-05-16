@@ -154,7 +154,7 @@ record OrderContext(
     int totalCents
 ) {}
 
-MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 Traversal<List<String>, String> listTraversal = Traversals.forList();
 
 Kind<MaybeKind.Witness, String> result =

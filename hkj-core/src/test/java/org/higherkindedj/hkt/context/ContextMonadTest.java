@@ -4,10 +4,13 @@ package org.higherkindedj.hkt.context;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,11 +26,11 @@ class ContextMonadTest {
 
   private static final ScopedValue<String> STRING_KEY = ScopedValue.newInstance();
 
-  private ContextMonad<String> monad;
+  private Monad<ContextKind.Witness<String>> monad;
 
   @BeforeEach
   void setUp() {
-    monad = ContextMonad.instance();
+    monad = Instances.monad(context());
   }
 
   @Nested
@@ -37,8 +40,8 @@ class ContextMonadTest {
     @Test
     @DisplayName("instance() should return singleton")
     void instance_shouldReturnSingleton() {
-      ContextMonad<String> first = ContextMonad.instance();
-      ContextMonad<String> second = ContextMonad.instance();
+      Monad<ContextKind.Witness<String>> first = Instances.monad(context());
+      Monad<ContextKind.Witness<String>> second = Instances.monad(context());
 
       assertThat(first).isSameAs(second);
     }
@@ -46,8 +49,8 @@ class ContextMonadTest {
     @Test
     @DisplayName("instance() should be same across different type parameters")
     void instance_shouldBeSameAcrossTypes() {
-      ContextMonad<String> stringMonad = ContextMonad.instance();
-      ContextMonad<Integer> intMonad = ContextMonad.instance();
+      Monad<ContextKind.Witness<String>> stringMonad = Instances.monad(context());
+      Monad<ContextKind.Witness<Integer>> intMonad = Instances.monad(context());
 
       assertThat((Object) stringMonad).isSameAs(intMonad);
     }

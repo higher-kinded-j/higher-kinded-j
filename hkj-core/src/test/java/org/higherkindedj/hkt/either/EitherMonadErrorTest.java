@@ -4,9 +4,12 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,13 +20,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("EitherMonad Error Handling Complete Test Suite")
 class EitherMonadErrorTest extends EitherTestBase {
 
-  private EitherMonad<String> monadError;
+  private MonadError<EitherKind.Witness<String>, String> monadError;
   private Function<String, Kind<EitherKind.Witness<String>, Integer>> validHandler;
   private Kind<EitherKind.Witness<String>, Integer> validFallback;
 
   @BeforeEach
   void setUpMonadError() {
-    monadError = EitherMonad.instance();
+    monadError = Instances.monadError(either());
     validHandler = err -> monadError.of(-1);
     validFallback = monadError.of(-999);
     validateMonadFixtures();

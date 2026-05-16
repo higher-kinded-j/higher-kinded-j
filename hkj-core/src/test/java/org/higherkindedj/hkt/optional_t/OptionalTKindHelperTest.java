@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.optional_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
@@ -13,9 +14,9 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +30,7 @@ class OptionalTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = IOMonad.INSTANCE;
+    outerMonad = Instances.monad(io());
   }
 
   private <A extends @NonNull Object> OptionalT<IOKind.Witness, A> createConcreteOptionalTSome(

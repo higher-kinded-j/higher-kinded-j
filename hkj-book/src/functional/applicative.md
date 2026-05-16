@@ -97,7 +97,7 @@ public Validated<List<String>, String> validatePassword(String password) {
 
 // An Applicative for Validated, with a Semigroup that concatenates error lists
 Applicative<ValidatedKind.Witness<List<String>>> applicative =
-    ValidatedMonad.instance(Semigroups.list());
+    Instances.validated(Semigroups.list());
 
 // All checks pass
 Kind<ValidatedKind.Witness<List<String>>, User> ok =

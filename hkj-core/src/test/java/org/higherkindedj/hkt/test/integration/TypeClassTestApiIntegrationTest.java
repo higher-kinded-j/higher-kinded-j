@@ -4,15 +4,18 @@ package org.higherkindedj.hkt.test.integration;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +36,7 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("TypeClassTest Fluent API Integration Tests")
 class TypeClassTestApiIntegrationTest {
-  private EitherMonad<String> monad;
+  private MonadError<EitherKind.Witness<String>, String> monad;
   private EitherFunctor<String> functor;
   private Kind<EitherKind.Witness<String>, Integer> validKind;
   private Kind<EitherKind.Witness<String>, Integer> validKind2;
@@ -46,7 +49,7 @@ class TypeClassTestApiIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    monad = EitherMonad.instance();
+    monad = Instances.monadError(either());
     functor = EitherFunctor.instance();
     validKind = EITHER.widen(Either.right(42));
     validKind2 = EITHER.widen(Either.right(24));

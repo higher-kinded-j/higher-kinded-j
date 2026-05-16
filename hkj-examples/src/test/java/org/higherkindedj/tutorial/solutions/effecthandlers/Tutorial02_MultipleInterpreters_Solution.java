@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
 import org.higherkindedj.example.payment.interpreter.CapturingNotificationInterpreter;
@@ -19,7 +20,7 @@ import org.higherkindedj.example.payment.service.PaymentService;
 import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -97,7 +98,7 @@ public class Tutorial02_MultipleInterpreters_Solution {
     var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
     Id<PaymentResult> id =
         IdKindHelper.ID.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())));
     PaymentResult result = id.value();
 
     assertThat(result.isApproved()).isTrue();
@@ -128,7 +129,7 @@ public class Tutorial02_MultipleInterpreters_Solution {
     var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
     Id<PaymentResult> id =
         IdKindHelper.ID.narrow(
-            PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
+            PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())));
 
     assertThat(id.value().isDeclined()).isTrue();
     assertThat(gateway.calls()).isEmpty();

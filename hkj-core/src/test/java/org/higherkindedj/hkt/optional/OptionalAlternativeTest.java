@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,7 +26,7 @@ class OptionalAlternativeTest {
 
   @BeforeEach
   void setUpAlternative() {
-    alternative = OptionalMonad.INSTANCE;
+    alternative = Instances.alternative(optional());
   }
 
   @Nested

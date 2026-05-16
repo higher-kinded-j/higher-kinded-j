@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.free;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -18,10 +19,10 @@ import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityKindHelper;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class FreeTranslateTest {
               };
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, Instances.monadError(maybe()));
 
       Free<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, String> translated =
           Free.translate(pure, nat, functor);
@@ -82,7 +83,7 @@ class FreeTranslateTest {
               };
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, Instances.monadError(maybe()));
 
       Free<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> translated =
           Free.translate(program, nat, functor);
@@ -130,7 +131,7 @@ class FreeTranslateTest {
               };
 
       EitherFFunctor<IdentityKind.Witness, MaybeKind.Witness> functor =
-          EitherFFunctor.of(identityMonad, MaybeMonad.INSTANCE);
+          EitherFFunctor.of(identityMonad, Instances.monadError(maybe()));
 
       Free<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> translated =
           Free.translate(program, nat, functor);

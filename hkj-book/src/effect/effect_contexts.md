@@ -30,7 +30,7 @@ Consider a typical API call. It might fail. It uses IO. You want typed errors. T
 
 ```java
 // Raw transformer: correct but noisy
-EitherTMonad<IOKind.Witness, ApiError> monad = new EitherTMonad<>(IOMonad.INSTANCE);
+MonadError<EitherTKind.Witness<IOKind.Witness, ApiError>, ApiError> monad = Instances.eitherT(Instances.monad(io()));
 
 Kind<EitherTKind.Witness<IOKind.Witness, ApiError>, User> userKind =
     EitherT.fromKind(IO_OP.widen(IO.delay(() -> {

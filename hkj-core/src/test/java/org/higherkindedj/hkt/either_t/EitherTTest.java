@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
@@ -14,8 +15,8 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +42,7 @@ class EitherTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = OptionalMonad.INSTANCE;
+    outerMonad = Instances.monadError(optional());
 
     wrappedRight = OPTIONAL.widen(Optional.of(Either.right(rightValue)));
     wrappedLeft = OPTIONAL.widen(Optional.of(Either.left(leftValue)));

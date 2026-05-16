@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherTAssert.assertThatEitherT;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
@@ -16,8 +17,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,14 +33,14 @@ class EitherTMonadTest
 
   record TestError(String code) {}
 
-  private MonadError<OptionalKind.Witness, Unit> outerMonad = OptionalMonad.INSTANCE;
+  private MonadError<OptionalKind.Witness, Unit> outerMonad = Instances.monadError(optional());
   private MonadError<EitherTKind.Witness<OptionalKind.Witness, TestError>, TestError> eitherTMonad =
-      new EitherTMonad<>(outerMonad);
+      Instances.eitherT(outerMonad);
 
   @BeforeEach
   void setUpMonad() {
-    outerMonad = OptionalMonad.INSTANCE;
-    eitherTMonad = new EitherTMonad<>(outerMonad);
+    outerMonad = Instances.monadError(optional());
+    eitherTMonad = Instances.eitherT(outerMonad);
   }
 
   private <A> Optional<Either<TestError, A>> unwrapKindToOptionalEither(

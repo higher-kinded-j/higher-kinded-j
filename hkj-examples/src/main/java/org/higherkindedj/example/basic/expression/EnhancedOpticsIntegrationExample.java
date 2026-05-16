@@ -2,19 +2,22 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.expression;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
@@ -114,7 +117,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateTraverseOver() {
     System.out.println("--- 1. traverseOver: Validate Employees (Maybe Monad) ---");
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
 
     List<Employee> validTeam = sampleDepartment().employees();
     List<Employee> invalidTeam =
@@ -176,7 +179,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateModifyThrough() {
     System.out.println("--- 2. modifyThrough: Give All Employees a 10% Raise ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     List<Employee> team = sampleDepartment().employees();
 
@@ -205,7 +208,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateModifyThroughWithLens() {
     System.out.println("--- 3. modifyThrough(traversal, lens, modifier): Uppercase Names ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     List<Employee> team = sampleDepartment().employees();
 
@@ -230,7 +233,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateModifyVia() {
     System.out.println("--- 4. modifyVia: Increase Budget by 10% (via Dollars) ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     Department dept = sampleDepartment();
 
@@ -253,7 +256,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateUpdateVia() {
     System.out.println("--- 5. updateVia: Set Budget to $75,000 (via Dollars) ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     Department dept = sampleDepartment();
 
@@ -277,7 +280,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateThrough() {
     System.out.println("--- 6. For.through(Iso): Budget Conversion in Comprehension ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     int budgetInCents = sampleDepartment().budgetInCents();
 
@@ -299,7 +302,7 @@ public class EnhancedOpticsIntegrationExample {
    */
   private static void demonstrateCombinedWorkflow() {
     System.out.println("--- 7. Combined Workflow: Full Department Update ---");
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
     Department dept = sampleDepartment();
 

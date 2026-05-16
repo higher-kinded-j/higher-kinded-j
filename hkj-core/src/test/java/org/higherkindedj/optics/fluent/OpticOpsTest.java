@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.fluent;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.lang.reflect.Constructor;
@@ -15,7 +16,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Affine;
@@ -241,7 +242,7 @@ class OpticOpsTest {
     Person person = new Person("Alice", 25);
 
     // Use Id as the effect type (simple functor)
-    Functor<IdKind.Witness> idFunctor = IdMonad.instance();
+    Functor<IdKind.Witness> idFunctor = Instances.monad(id());
 
     Kind<IdKind.Witness, Person> result =
         OpticOps.modifyF(person, AGE_LENS, age -> Id.of(age + 1), idFunctor);
@@ -256,7 +257,7 @@ class OpticOpsTest {
     Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
 
     // Use Id as the effect type (simple applicative)
-    Applicative<IdKind.Witness> idApplicative = IdMonad.instance();
+    Applicative<IdKind.Witness> idApplicative = Instances.monad(id());
 
     Kind<IdKind.Witness, Team> result =
         OpticOps.modifyAllF(team, ages, age -> Id.of(age + 1), idApplicative);
@@ -421,7 +422,7 @@ class OpticOpsTest {
     Person person = new Person("Alice", 25);
 
     // Use Id as the effect type (simple functor)
-    Functor<IdKind.Witness> idFunctor = IdMonad.instance();
+    Functor<IdKind.Witness> idFunctor = Instances.monad(id());
 
     Kind<IdKind.Witness, Person> result =
         OpticOps.modifying(person).throughF(AGE_LENS, age -> Id.of(age + 1), idFunctor);
@@ -436,7 +437,7 @@ class OpticOpsTest {
     Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
 
     // Use Id as the effect type (simple applicative)
-    Applicative<IdKind.Witness> idApplicative = IdMonad.instance();
+    Applicative<IdKind.Witness> idApplicative = Instances.monad(id());
 
     Kind<IdKind.Witness, Team> result =
         OpticOps.modifying(team).allThroughF(ages, age -> Id.of(age + 1), idApplicative);

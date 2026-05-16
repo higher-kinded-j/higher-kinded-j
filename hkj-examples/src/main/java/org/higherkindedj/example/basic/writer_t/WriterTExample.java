@@ -2,22 +2,23 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.writer_t;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadWriter;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.writer_t.WriterT;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
-import org.higherkindedj.hkt.writer_t.WriterTMonad;
 
 /**
  * Demonstrates WriterT, the monad transformer for accumulating output alongside computation.
@@ -36,8 +37,8 @@ public class WriterTExample {
   }
 
   public void run() {
-    var idMonad = IdMonad.instance();
-    var writerMonad = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+    var idMonad = Instances.monad(id());
+    var writerMonad = Instances.writerT(idMonad, Monoids.<String>list());
 
     System.out.println("=== WriterT Example ===\n");
 
@@ -107,7 +108,7 @@ public class WriterTExample {
 
   /** A multi-step computation that accumulates diagnostic output. */
   static Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, Integer> processWithDiagnostics(
-      WriterTMonad<IdKind.Witness, List<String>> w, int input) {
+      MonadWriter<WriterTKind.Witness<IdKind.Witness, List<String>>, List<String>> w, int input) {
     return For.from(w, w.tell(List.of("Received input: " + input)))
         .let(_ -> input * 2)
         .from(t -> w.tell(List.of("Doubled: " + t._2())))
@@ -123,7 +124,7 @@ public class WriterTExample {
   // when a downstream API expects optional semantics.
 
   void mapTExample() {
-    var idMonad = IdMonad.instance();
+    var idMonad = Instances.monad(id());
 
     WriterT<IdKind.Witness, List<String>, String> idWriter =
         WriterT.writer(idMonad, "result", List.of("step 1", "step 2"));

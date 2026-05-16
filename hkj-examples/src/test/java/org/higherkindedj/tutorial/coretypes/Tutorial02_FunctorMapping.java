@@ -4,14 +4,17 @@ package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.junit.jupiter.api.DisplayName;
@@ -154,7 +157,7 @@ public class Tutorial02_FunctorMapping {
   @Test
   @DisplayName("Exercise 3: ListMonad.map doubles each element")
   void exercise3_mapList() {
-    ListMonad monad = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
     Kind<ListKind.Witness, Integer> numbers = LIST.widen(List.of(1, 2, 3, 4, 5));
 
     Kind<ListKind.Witness, Integer> doubled = answerRequired();
@@ -247,7 +250,7 @@ public class Tutorial02_FunctorMapping {
   @Test
   @DisplayName("Exercise 6: method references work with Functor.map")
   void exercise6_methodReferences() {
-    ListMonad monad = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
     Kind<ListKind.Witness, String> words = LIST.widen(List.of("hello", "world", "java"));
 
     Kind<ListKind.Witness, String> uppercase = answerRequired();

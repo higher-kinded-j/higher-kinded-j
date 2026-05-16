@@ -4,13 +4,16 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,13 +23,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ValidatedMonad Complete Test Suite")
 class ValidatedMonadTest extends ValidatedTestBase {
 
-  private ValidatedMonad<String> monad;
+  private MonadError<ValidatedKind.Witness<String>, String> monad;
   private Semigroup<String> stringSemigroup;
 
   @BeforeEach
   void setUpMonad() {
     stringSemigroup = (a, b) -> a + ", " + b;
-    monad = ValidatedMonad.instance(stringSemigroup);
+    monad = Instances.validated(stringSemigroup);
   }
 
   @Nested

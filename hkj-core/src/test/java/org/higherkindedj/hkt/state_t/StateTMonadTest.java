@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
@@ -13,8 +14,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,14 +28,14 @@ import org.junit.jupiter.api.Test;
 class StateTMonadTest
     extends TypeClassTestBase<StateTKind.Witness<String, OptionalKind.Witness>, Integer, String> {
 
-  private Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;
+  private Monad<OptionalKind.Witness> outerMonad = Instances.monadError(optional());
   private Monad<StateTKind.Witness<String, OptionalKind.Witness>> stateTMonad =
-      StateTMonad.instance(outerMonad);
+      Instances.stateT(outerMonad);
 
   @BeforeEach
   void setUpMonad() {
-    outerMonad = OptionalMonad.INSTANCE;
-    stateTMonad = StateTMonad.instance(outerMonad);
+    outerMonad = Instances.monadError(optional());
+    stateTMonad = Instances.stateT(outerMonad);
   }
 
   private <A> Optional<StateTuple<String, A>> unwrapKindToOptionalStateTuple(

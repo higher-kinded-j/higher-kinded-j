@@ -3,19 +3,21 @@
 package org.higherkindedj.tutorial.solutions.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -81,7 +83,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise1_basicStateUpdate() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     OrderContext initial = OrderContext.start("ORD-100");
 
     Kind<IdKind.Witness, OrderContext> result =
@@ -115,7 +117,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise2_fromThenEffectfulUpdate() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     OrderContext initial = OrderContext.start("ORD-200");
 
     Kind<IdKind.Witness, OrderContext> result =
@@ -144,7 +146,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise3_modifyField() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     OrderContext initial = OrderContext.start("ORD-300");
 
     Kind<IdKind.Witness, OrderContext> result =
@@ -171,7 +173,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise4a_whenGuardPasses() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OrderContext validCtx = new OrderContext("ORD-400", true, false, null);
 
     Kind<MaybeKind.Witness, OrderContext> result =
@@ -201,7 +203,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise4b_whenGuardFails() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OrderContext invalidCtx = OrderContext.start("ORD-401");
 
     Kind<MaybeKind.Witness, OrderContext> result =
@@ -249,7 +251,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise5a_matchThenSuccess() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     MatchContext ctx = new MatchContext(new Status.Active("A-001"), null);
 
     Kind<MaybeKind.Witness, MatchContext> result =
@@ -278,7 +280,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise5b_matchThenFailure() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     MatchContext ctx = new MatchContext(new Status.Inactive("retired"), null);
 
     Kind<MaybeKind.Witness, MatchContext> result =
@@ -312,7 +314,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise6_traverseBulkOperation() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     TaggedItem item = new TaggedItem("Widget", List.of("sale", "new", "featured"));
 
     Traversal<List<String>, String> listTraversal = Traversals.forList();
@@ -359,7 +361,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise7_zoomIntoSubState() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Customer customer = new Customer("Alice", new Address("123 Main", "Springfield", "62701"));
 
     Kind<IdKind.Witness, Customer> result =
@@ -395,7 +397,7 @@ public class Tutorial01_ForStateBasics_Solution {
    */
   @Test
   void exercise8_combinedWorkflow() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OrderContext initial = OrderContext.start("ORD-800");
 
     Kind<MaybeKind.Witness, String> result =

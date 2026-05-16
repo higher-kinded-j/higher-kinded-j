@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,7 +22,7 @@ import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
@@ -353,7 +355,7 @@ public class OpticInterpretersExample {
           };
 
       // Interpret the program using the Id monad
-      Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, IdMonad.instance());
+      Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, Instances.monad(id()));
       return IdKindHelper.ID.narrow(resultKind).value();
     }
 
@@ -431,7 +433,7 @@ public class OpticInterpretersExample {
           };
 
       // Interpret the program using the Id monad
-      Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, IdMonad.instance());
+      Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, Instances.monad(id()));
       return IdKindHelper.ID.narrow(resultKind).value();
     }
 

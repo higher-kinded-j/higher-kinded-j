@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
@@ -15,7 +16,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,12 +40,12 @@ class ReaderTest extends ReaderTestBase {
   private final Reader<TestConfig, String> urlNullReader = readerOf(cfg -> null);
 
   // Type class testing fixtures
-  private ReaderMonad<TestConfig> monad;
+  private Monad<ReaderKind.Witness<TestConfig>> monad;
   private ReaderFunctor<TestConfig> functor;
 
   @BeforeEach
   void setUpReader() {
-    monad = ReaderMonad.instance();
+    monad = Instances.monad(reader());
     functor = new ReaderFunctor<>();
   }
 

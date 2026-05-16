@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,9 +12,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -129,7 +130,7 @@ class AffineTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, UserProfile> successResult =
-          emailAffine.modifyF(successModifier, profile, OptionalMonad.INSTANCE);
+          emailAffine.modifyF(successModifier, profile, Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(successResult))
           .isPresent()
           .get()
@@ -137,7 +138,7 @@ class AffineTest {
           .isEqualTo("ALICE@EXAMPLE.COM");
 
       Kind<OptionalKind.Witness, UserProfile> failureResult =
-          emailAffine.modifyF(failureModifier, profile, OptionalMonad.INSTANCE);
+          emailAffine.modifyF(failureModifier, profile, Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(failureResult)).isEmpty();
     }
 
@@ -150,7 +151,7 @@ class AffineTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       Kind<OptionalKind.Witness, UserProfile> result =
-          emailAffine.modifyF(modifier, profile, OptionalMonad.INSTANCE);
+          emailAffine.modifyF(modifier, profile, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isPresent().contains(profile);
     }

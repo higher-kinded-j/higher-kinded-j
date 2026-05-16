@@ -223,7 +223,7 @@ This guarantees that `listen` faithfully reports what was accumulated. It does n
 
 ```java
 WriterTMonad<IdKind.Witness, List<String>> writerInstance =
-    new WriterTMonad<>(idMonad, listMonoid);
+    Instances.writerT(idMonad, listMonoid);
 
 // Now use it as a MonadWriter:
 Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, Unit> logged =

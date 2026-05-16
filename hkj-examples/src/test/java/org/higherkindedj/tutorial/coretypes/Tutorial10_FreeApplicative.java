@@ -4,12 +4,14 @@ package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +50,7 @@ public class Tutorial10_FreeApplicative {
   }
 
   // Helper for interpreting with Id
-  private static final IdMonad ID_APP = IdMonad.instance();
+  private static final Monad<IdKind.Witness> ID_APP = Instances.monad(id());
   private static final Natural<IdKind.Witness, IdKind.Witness> IDENTITY = Natural.identity();
 
   /**

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.stream;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,7 +27,7 @@ class StreamAlternativeTest {
 
   @BeforeEach
   void setUpAlternative() {
-    alternative = StreamMonad.INSTANCE;
+    alternative = Instances.monadZero(stream());
   }
 
   @Nested

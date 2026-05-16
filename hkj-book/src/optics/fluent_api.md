@@ -204,7 +204,7 @@ Validated<Error, Person> result = OpticOps.modifyF(
 
 // Modify all with effects (e.g., async operations)
 Applicative<CompletableFutureKind.Witness> cfApplicative =
-    CompletableFutureMonad.instance();
+    Instances.monadError(completableFuture());
 
 CompletableFuture<Team> asyncResult = OpticOps.modifyAllF(
     team,
@@ -806,7 +806,7 @@ CompletableFuture<Team> updatePlayerScoresAsync(
     Function<Player, CompletableFuture<Integer>> fetchNewScore
 ) {
     Applicative<CompletableFutureKind.Witness> cfApplicative =
-        CompletableFutureMonad.instance();
+        Instances.monadError(completableFuture());
 
     return OpticOps.modifyAllF(
         team,

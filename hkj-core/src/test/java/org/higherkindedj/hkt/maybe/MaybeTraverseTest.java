@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -11,12 +12,12 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,7 +42,7 @@ class MaybeTraverseTest extends MaybeTestBase {
     Traverse<MaybeKind.Witness> traverseInstance = MaybeTraverse.INSTANCE;
     traverse = traverseInstance;
 
-    validatedApplicative = ValidatedMonad.instance(Monoids.string());
+    validatedApplicative = Instances.validated(Monoids.string());
     justKind = validKind;
     nothingKind = nothingKind();
     validTraverseFunction =

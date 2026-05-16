@@ -93,8 +93,8 @@ A monad transformer `T` takes an outer monad `F` and produces a **new monad** `T
 The same workflow with `EitherT`:
 
 ```java
-EitherTMonad<CompletableFutureKind.Witness, DomainError> eitherTMonad =
-    new EitherTMonad<>(CompletableFutureMonad.INSTANCE);
+MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError> eitherTMonad =
+    Instances.eitherT(Instances.monadError(completableFuture()));
 
 Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Receipt> workflow =
     For.from(eitherTMonad, EitherT.fromKind(fetchUser("user-42")))

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.future;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -15,15 +16,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class CompletableFutureMonadTest {
 
-  private final CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+  private final MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
+      Instances.monadError(completableFuture());
 
   // --- Helper Functions ---
   private <A> CompletableFuture<A> unwrapFuture(Kind<CompletableFutureKind.Witness, A> kind) {

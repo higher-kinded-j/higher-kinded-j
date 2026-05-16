@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -11,6 +12,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,12 +23,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Lazy Applicative Complete Test Suite")
 class LazyApplicativeTest extends LazyTestBase {
 
-  private LazyMonad applicative;
+  private Monad<LazyKind.Witness> applicative;
   private static final AtomicInteger COUNTER = new AtomicInteger(0);
 
   @BeforeEach
   void setUpApplicative() {
-    applicative = LazyMonad.INSTANCE;
+    applicative = Instances.monad(lazy());
     COUNTER.set(0);
   }
 

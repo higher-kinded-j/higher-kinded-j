@@ -4,10 +4,13 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,13 +26,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MaybeMonad Error Handling Complete Test Suite")
 class MaybeMonadErrorTest extends MaybeTestBase {
 
-  private MaybeMonad monadError;
+  private MonadError<MaybeKind.Witness, Unit> monadError;
   private Function<Unit, Kind<MaybeKind.Witness, Integer>> validHandler;
   private Kind<MaybeKind.Witness, Integer> validFallback;
 
   @BeforeEach
   void setUpMonadError() {
-    monadError = MaybeMonad.INSTANCE;
+    monadError = Instances.monadError(maybe());
     validHandler = unit -> monadError.of(-1);
     validFallback = monadError.of(-999);
     validateMonadFixtures();
@@ -219,7 +222,7 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @Test
     @DisplayName("zero() returns Nothing")
     void zeroReturnsNothing() {
-      Kind<MaybeKind.Witness, Integer> zero = monadError.zero();
+      Kind<MaybeKind.Witness, Integer> zero = Instances.monadZero(maybe()).zero();
 
       Maybe<Integer> maybe = narrowToMaybe(zero);
       assertThat(maybe.isNothing()).isTrue();
@@ -515,7 +518,7 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @Test
     @DisplayName("zero() is consistent with raiseError()")
     void zeroIsConsistentWithRaiseError() {
-      Kind<MaybeKind.Witness, Integer> zero = monadError.zero();
+      Kind<MaybeKind.Witness, Integer> zero = Instances.monadZero(maybe()).zero();
       Kind<MaybeKind.Witness, Integer> raised = monadError.raiseError(Unit.INSTANCE);
 
       Maybe<Integer> zeroMaybe = narrowToMaybe(zero);
@@ -529,7 +532,7 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @Test
     @DisplayName("zero() can be recovered")
     void zeroCanBeRecovered() {
-      Kind<MaybeKind.Witness, Integer> zero = monadError.zero();
+      Kind<MaybeKind.Witness, Integer> zero = Instances.monadZero(maybe()).zero();
 
       Kind<MaybeKind.Witness, Integer> recovered =
           monadError.handleErrorWith(zero, unit -> monadError.of(0));

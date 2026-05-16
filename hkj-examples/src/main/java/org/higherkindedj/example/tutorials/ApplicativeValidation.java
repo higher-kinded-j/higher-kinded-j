@@ -3,16 +3,19 @@
 package org.higherkindedj.example.tutorials;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
 import java.util.function.Function;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 
 /**
  * Demonstrates form validation using Applicative patterns with {@link Either} and {@link
@@ -221,7 +224,7 @@ public final class ApplicativeValidation {
     Either<String, String> passwordEither = validatePassword.apply(password).toEither();
 
     // Combine using EitherMonad (Tutorial 03 pattern)
-    EitherMonad<String> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> monad = Instances.monadError(either());
     return EITHER.narrow(
         monad.map4(
             EITHER.widen(usernameEither),
@@ -261,7 +264,7 @@ public final class ApplicativeValidation {
     // Combine using ValidatedMonad with error accumulation (Tutorial 03, 06 pattern)
     // The Semigroup defines how to combine multiple errors
     Semigroup<String> errorCombiner = Semigroups.string(", ");
-    ValidatedMonad<String> monad = ValidatedMonad.instance(errorCombiner);
+    MonadError<ValidatedKind.Witness<String>, String> monad = Instances.validated(errorCombiner);
 
     return VALIDATED.narrow(
         monad.map4(

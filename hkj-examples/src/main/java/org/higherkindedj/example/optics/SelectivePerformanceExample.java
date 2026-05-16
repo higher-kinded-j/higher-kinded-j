@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.id.IdSelective;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -63,7 +65,7 @@ public class SelectivePerformanceExample {
               System.out.println("  Processing: " + item.id());
               return Id.of(item);
             },
-            IdMonad.instance());
+            Instances.monad(id()));
 
     System.out.println("Total operations: " + operationCount.get());
 
@@ -119,7 +121,7 @@ public class SelectivePerformanceExample {
               }
             },
             batch,
-            IdMonad.instance());
+            Instances.monad(id()));
 
     System.out.println("Total items touched: " + operationCount.get());
 
@@ -170,7 +172,7 @@ public class SelectivePerformanceExample {
           }
           return Id.of(item);
         },
-        IdMonad.instance());
+        Instances.monad(id()));
 
     // Selective approach - branches are explicit
     System.out.println("\nSelective approach (explicit branching):");

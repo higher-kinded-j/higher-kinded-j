@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.list.pcollections;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
@@ -16,7 +17,9 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
 import net.jqwik.api.constraints.Size;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
@@ -33,7 +36,7 @@ import org.pcollections.TreePVector;
  */
 class PCollectionsListPropertyTest {
 
-  private final ListMonad monad = ListMonad.INSTANCE;
+  private final MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
   private final ListTraverse traverse = ListTraverse.INSTANCE;
 
   // ---------------------------------------------------------------------

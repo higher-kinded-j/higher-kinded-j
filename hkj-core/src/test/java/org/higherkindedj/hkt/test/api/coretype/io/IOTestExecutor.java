@@ -3,16 +3,18 @@
 package org.higherkindedj.hkt.test.api.coretype.io;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOFunctor;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -99,7 +101,7 @@ final class IOTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IOValida
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      IOMonad monad = IOMonad.INSTANCE;
+      Monad<IOKind.Witness> monad = Instances.monad(io());
       Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

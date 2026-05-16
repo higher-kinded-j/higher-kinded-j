@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.free_ap;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,7 @@ import org.higherkindedj.hkt.free_ap.FreeApKindHelper;
 import org.higherkindedj.hkt.free_ap.SelectiveAnalyzer;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Demonstrates static analysis of Free Applicative programs.
@@ -305,7 +306,7 @@ public class StaticAnalysisExample {
     // Step 3: Execute
     System.out.println("\nStep 3: Execution");
     Natural<DbOpKind.Witness, IdKind.Witness> interpreter = createMockInterpreter();
-    Kind<IdKind.Witness, String> result = program.foldMap(interpreter, IdMonad.instance());
+    Kind<IdKind.Witness, String> result = program.foldMap(interpreter, Instances.monad(id()));
     String output = ID.narrow(result).value();
 
     System.out.println("  Result: " + output);

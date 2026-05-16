@@ -267,7 +267,7 @@ public static final Prism<String, byte[]> SAFE_BASE64_PRISM = Prism.of(
 
 // Use in a traversal that accumulates both successes and failures
 public static AuditResult auditWithErrorReporting(AppConfig config) {
-    var validatedApplicative = ValidatedMonad.instance(Semigroups.list());
+    var validatedApplicative = Instances.validated(Semigroups.list());
   
     Traversal<AppConfig, String> base64Strings = /* ... path to base64 strings ... */;
   

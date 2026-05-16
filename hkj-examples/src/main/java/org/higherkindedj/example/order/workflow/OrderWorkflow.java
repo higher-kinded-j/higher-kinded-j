@@ -3,6 +3,7 @@
 package org.higherkindedj.example.order.workflow;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.time.Instant;
 import java.util.List;
@@ -35,12 +36,13 @@ import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Lens;
 
 /**
@@ -285,7 +287,7 @@ public class OrderWorkflow {
   public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
-    EitherMonad<OrderError> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
 
     // Phase 1 (Gather): use For to accumulate address, customer, and order
     // Phase 2 (Enrich): use toState() to switch to named ForState access
@@ -343,7 +345,7 @@ public class OrderWorkflow {
   }
 
   private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
-    EitherMonad<OrderError> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
     Kind<EitherKind.Witness<OrderError>, Customer> result =
         For.from(monad, lift(lookupCustomer(customerId)))
             .from(found -> lift(validateCustomerEligibility(found)))

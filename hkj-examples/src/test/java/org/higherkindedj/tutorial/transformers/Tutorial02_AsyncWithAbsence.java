@@ -4,13 +4,15 @@ package org.higherkindedj.tutorial.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.optional_t.OptionalT;
@@ -86,12 +88,12 @@ public class Tutorial02_AsyncWithAbsence {
 
   // --- Fixtures ---
 
-  private CompletableFutureMonad futureMonad;
+  private MonadError<CompletableFutureKind.Witness, Throwable> futureMonad;
   private OptionalTMonad<CompletableFutureKind.Witness> optionalTMonad;
 
   @BeforeEach
   void setUp() {
-    futureMonad = CompletableFutureMonad.INSTANCE;
+    futureMonad = Instances.monadError(completableFuture());
     optionalTMonad = new OptionalTMonad<>(futureMonad);
   }
 

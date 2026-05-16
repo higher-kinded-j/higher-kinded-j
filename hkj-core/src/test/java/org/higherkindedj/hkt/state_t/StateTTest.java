@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
@@ -13,9 +14,8 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +38,7 @@ class StateTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = OptionalMonad.INSTANCE;
+    outerMonad = Instances.monadError(optional());
 
     wrappedResult = OPTIONAL.widen(Optional.of(StateTuple.of(updatedState, initialValue)));
     wrappedEmpty = OPTIONAL.widen(Optional.empty());
@@ -354,14 +354,14 @@ class StateTTest {
     @DisplayName("two StateT instances with same function and same monad singleton should be equal")
     void sameLogicSameMonadInstanceShouldBeEqual() {
       // StateT is a record, so equals/hashCode includes monadF field.
-      // Since OptionalMonad.INSTANCE is a singleton, both references point to the
+      // Since Instances.monadError(optional()) is a singleton, both references point to the
       // same object — this test verifies basic record equality with identical fields.
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> fn =
           s -> OPTIONAL.widen(Optional.of(StateTuple.of(s, 42)));
 
       // Same singleton instance assigned to two variables
-      Monad<OptionalKind.Witness> monad1 = OptionalMonad.INSTANCE;
-      Monad<OptionalKind.Witness> monad2 = OptionalMonad.INSTANCE;
+      Monad<OptionalKind.Witness> monad1 = Instances.monadError(optional());
+      Monad<OptionalKind.Witness> monad2 = Instances.monadError(optional());
 
       StateT<String, OptionalKind.Witness, Integer> st1 = new StateT<>(fn, monad1);
       StateT<String, OptionalKind.Witness, Integer> st2 = new StateT<>(fn, monad2);
@@ -411,7 +411,7 @@ class StateTTest {
           s -> outerMonad.of(StateTuple.of(s + "_done", 99));
       StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
 
-      Monad<IdKind.Witness> idMonad = IdMonad.instance();
+      Monad<IdKind.Witness> idMonad = Instances.monad(id());
       StateT<String, IdKind.Witness, Integer> result =
           st.mapT(
               idMonad,

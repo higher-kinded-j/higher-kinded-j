@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
@@ -17,12 +19,11 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.expression.ForPath;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Tutorial 03: For Traverse Comprehension (Solutions)")
 public class Tutorial03_ForTraverseComprehension_Solution {
 
-  private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+  private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
   private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
   // --- Domain models for exercises ---
@@ -375,7 +376,7 @@ public class Tutorial03_ForTraverseComprehension_Solution {
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
               .flatTraverse(
                   listTraverse,
-                  ListMonad.INSTANCE,
+                  Instances.monadZero(list()),
                   list -> LIST.widen(list),
                   (Integer i) ->
                       MAYBE.<Kind<ListKind.Witness, Integer>>just(

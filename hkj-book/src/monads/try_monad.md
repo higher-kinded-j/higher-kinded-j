@@ -192,14 +192,14 @@ Try<Double> recoveredWith2 = result3.recoverWith(recoverWithHandler); // Failure
 
 To use `Try` with generic code expecting `Kind<F, A>`:
 
-1. **Get Instance:**`TryMonad tryMonad = TryMonad.INSTANCE;`
+1. **Get Instance:**`TryMonad tryMonad = Instances.monadError(try_());`
 2. **Wrap(Widen):** Use `TRY.widen(myTry)` or factories like `TRY.tryOf(() -> ...)`.
 3. **Operate:** Use `tryMonad.map(...)`, `tryMonad.flatMap(...)`, `tryMonad.handleErrorWith(...)` etc.
 4. **Unwrap(Narrow):** Use `TRY.narrow(tryKind)` to get the `Try<T>` back.
 
 ```java
 
-TryMonad tryMonad = TryMonad.INSTANCE;
+MonadError<TryKind.Witness, Throwable> tryMonad = Instances.monadError(try_());
 
 Kind<TryKind.Witness, Integer> tryKind1 = TRY.tryOf(() -> 10 / 2); // Success(5) Kind
 Kind<TryKind.Witness, Integer> tryKind2 = TRY.tryOf(() -> 10 / 0); // Failure(...) Kind

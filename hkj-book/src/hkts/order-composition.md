@@ -102,7 +102,7 @@ The order workflow uses a two-phase composition pattern. The `For` comprehension
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
-    EitherMonad<OrderError> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
 
     Kind<EitherKind.Witness<OrderError>, OrderResult> result =
         // Phase 1 (Gather): accumulate address, customer, order via For
@@ -229,7 +229,7 @@ Smaller groups of related steps can use their own `For` comprehension and be cal
 
 ```java
 private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
-    EitherMonad<OrderError> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
     Kind<EitherKind.Witness<OrderError>, Customer> result =
         For.from(monad, lift(lookupCustomer(customerId)))
             .from(found -> lift(validateCustomerEligibility(found)))

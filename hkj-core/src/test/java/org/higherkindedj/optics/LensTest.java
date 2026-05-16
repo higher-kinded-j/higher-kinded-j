@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,9 +15,9 @@ import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdSelective;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,13 +81,13 @@ class LensTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, Street> successResult =
-          streetNameLens.modifyF(successModifier, street, OptionalMonad.INSTANCE);
+          streetNameLens.modifyF(successModifier, street, Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(successResult))
           .isPresent()
           .contains(new Street("MAIN ST"));
 
       Kind<OptionalKind.Witness, Street> failureResult =
-          streetNameLens.modifyF(failureModifier, street, OptionalMonad.INSTANCE);
+          streetNameLens.modifyF(failureModifier, street, Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(failureResult)).isEmpty();
     }
   }
@@ -123,7 +124,7 @@ class LensTest {
       Function<String, Kind<OptionalKind.Witness, String>> modifier =
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
       Kind<OptionalKind.Witness, User> modifiedUser =
-          userStreetNameLens.modifyF(modifier, user, OptionalMonad.INSTANCE);
+          userStreetNameLens.modifyF(modifier, user, Instances.monadError(optional()));
       assertThat(OptionalKindHelper.OPTIONAL.narrow(modifiedUser))
           .isPresent()
           .map(u -> u.address().street().name())
@@ -511,7 +512,7 @@ class LensTest {
                       Optional.of(Pair.of(t.first() + 10, t.second() + 10)));
 
       Kind<OptionalKind.Witness, Range> result =
-          boundsLens.modifyF(modifier, range, OptionalMonad.INSTANCE);
+          boundsLens.modifyF(modifier, range, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()

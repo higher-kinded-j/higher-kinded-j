@@ -79,7 +79,7 @@ Each instance extends (or implements) the existing monad class for its transform
 ### Creating Instances
 
 ```java
-Monad<IdKind.Witness> idMonad = IdMonad.instance();
+Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
 // MonadReader instance backed by ReaderT over Id
 ReaderTMonadReader<IdKind.Witness, AppConfig> readerInstance =
@@ -91,7 +91,7 @@ StateTMonadState<Counter, IdKind.Witness> stateInstance =
 
 // MonadWriter instance backed by WriterT over Id
 WriterTMonad<IdKind.Witness, List<String>> writerInstance =
-    new WriterTMonad<>(idMonad, listMonoid);
+    Instances.writerT(idMonad, listMonoid);
 ```
 
 For production use, substitute the `Id` monad with `CompletableFuture`, `VTask`, or any other outer monad to combine the MTL capability with async execution or error handling.

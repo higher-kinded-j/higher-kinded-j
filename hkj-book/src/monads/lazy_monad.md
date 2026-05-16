@@ -135,7 +135,7 @@ Exceptions follow the same rule: if the computation throws on the first `force()
 `LazyMonad` lets you chain transformations without triggering evaluation. Only the final `force()` runs the entire pipeline.
 
 ```java
-LazyMonad lazyMonad = LazyMonad.INSTANCE;
+Monad<LazyKind.Witness> lazyMonad = Instances.monad(lazy());
 AtomicInteger counter = new AtomicInteger(0);
 
 Kind<LazyKind.Witness, Integer> base = LAZY.defer(() -> {

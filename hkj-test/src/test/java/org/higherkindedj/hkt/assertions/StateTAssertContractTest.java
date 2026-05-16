@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.StateTAssert.StateTOptionalAssert;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
@@ -11,8 +12,10 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state_t.StateTKind;
@@ -26,7 +29,8 @@ class StateTAssertContractTest
         Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>,
         StateTOptionalAssert<Integer, OptionalKind.Witness, String>> {
 
-  private static final OptionalMonad MONAD = OptionalMonad.INSTANCE;
+  private static final MonadError<OptionalKind.Witness, Unit> MONAD =
+      Instances.monadError(optional());
 
   private static <T> Optional<T> unwrap(Kind<OptionalKind.Witness, T> k) {
     return OPTIONAL.narrow(k);

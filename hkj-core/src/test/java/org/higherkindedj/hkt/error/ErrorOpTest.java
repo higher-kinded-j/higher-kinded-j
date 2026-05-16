@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.error;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import org.higherkindedj.hkt.Kind;
@@ -15,9 +16,9 @@ import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.inject.Inject;
 import org.higherkindedj.hkt.inject.InjectInstances;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -82,12 +83,13 @@ class ErrorOpTest {
               ErrorOp<RuntimeException, A> op = ErrorOpKindHelper.ERROR_OP.narrow(fa);
               return switch (op) {
                 case ErrorOp.Raise<RuntimeException, A> raise ->
-                    TryMonad.INSTANCE.raiseError(raise.error());
+                    Instances.monadError(try_()).raiseError(raise.error());
               };
             }
           };
 
-      Kind<TryKind.Witness, String> result = program.foldMap(interpreter, TryMonad.INSTANCE);
+      Kind<TryKind.Witness, String> result =
+          program.foldMap(interpreter, Instances.monadError(try_()));
 
       Try<String> tryResult = TRY.narrow(result);
       assertThat(tryResult.isFailure()).isTrue();

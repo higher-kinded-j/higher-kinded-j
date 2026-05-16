@@ -69,7 +69,7 @@ The following examples build on a running scenario: an async service that fetche
 ```java
 public void createExample() {
    // Get the MonadError instance
-   CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
 
    // --- Lift a pure value into an already-completed future ---
    Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("Success!");
@@ -106,7 +106,7 @@ These examples show how the type class instance composes async operations — th
 
 ```java
 public void monadExample() {
-   CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
 
    // --- map: transform the result when it completes ---
    Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
@@ -156,7 +156,7 @@ This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which retu
 
 ```java
  public void errorHandlingExample(){
-   CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
 
    Kind<CompletableFutureKind.Witness, String> failedKind =
            futureMonad.raiseError(new IllegalStateException("Processing Failed"));

@@ -72,7 +72,7 @@ import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
-MonadError<EitherKind.Witness<String>, String> me = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> me = Instances.monadError(either());
 
 public Kind<EitherKind.Witness<String>, Config> parseConfig(String path) {
     if (!Files.exists(Path.of(path))) {
@@ -150,7 +150,7 @@ public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends 
 **The solution.** `handleError` takes a function `E -> A` and lifts the result back into the monad for us.
 
 ```java
-MonadError<EitherKind.Witness<String>, String> me = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> me = Instances.monadError(either());
 
 Kind<EitherKind.Witness<String>, Integer> safeDivide(int a, int b) {
     return b == 0

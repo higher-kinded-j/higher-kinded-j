@@ -255,7 +255,7 @@ var interpreter = Interpreters.combine(
     new ProductionNotificationInterpreter());
 
 IO<PaymentResult> io = IOKindHelper.IO_OP.narrow(
-    PaymentEffectsWiring.interpret(program, interpreter, IOMonad.INSTANCE));
+    PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(io())));
 PaymentResult result = io.unsafeRunSync();
 ```
 
@@ -276,7 +276,7 @@ void processPayment_highRisk_declines() {
     var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
 
     PaymentResult result = IdKindHelper.ID.<PaymentResult>narrow(
-        PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()))
+        PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())))
         .value();
 
     assertThat(result.isDeclined()).isTrue();

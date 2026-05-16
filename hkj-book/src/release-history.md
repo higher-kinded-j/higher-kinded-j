@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.4) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.5) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,20 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### v0.4.5-SNAPSHOT -- unreleased
+
+**A Uniform `Instances` Facade for Type-Class Lookup**
+
+This release introduces `Instances`, a single static entry point for obtaining any built-in type-class instance, replacing the three inconsistent legacy idioms (a static `INSTANCE` field, a generic `instance()` method, or an argument-taking constructor) with one predictable shape discovered by capability through IDE autocomplete. The whole codebase — tests, runnable examples, and the book — is migrated to the one idiom.
+
+- [Obtaining Instances](functional/instances_facade.md) -- New `org.higherkindedj.hkt.instances` package with the `Instances` facade and the `Witnesses` typed-token helper. `Instances.monad/applicative/functor(token)` are total (every canonical instance is at least a `Monad`); a single token yields all three by Java subtyping. Phantom-typed witnesses (`Either`, `Reader`, `Context`, `State`) still infer their type parameter from the assignment target, matching `EitherMonad.<L>instance()` behaviour. The facade is a thin static re-export of the existing accessors — not Spring-wired, not `PathRegistry`/`ServiceLoader`-backed — so compile-time safety is preserved and no built-in instance can be missing at runtime ([#522](https://github.com/higher-kinded-j/higher-kinded-j/issues/522))
+- [Partial capability lookups](functional/instances_facade.md) -- `Instances.monadError`, `monadZero` and `alternative` for canonical instances that implement the richer capability (e.g. `Maybe`, `Optional`, `Try`, `Either`, `List`, `Stream`). The error type `E` of `monadError` is inferred from the assignment target; asking for a capability the instance does not have fails fast with a `ClassCastException`, exactly as calling a non-existent method would
+- [Argument-carrying re-exports](functional/instances_facade.md) -- `Instances.validated(Semigroup)`, `writer(Monoid)`, `eitherT(outer)`, `maybeT(outer)`, `optionalT(outer)`, `readerT(outer)`, `stateT(outer)` and `writerT(outer, Monoid)`. The structurally-required dependency is now a compiler-enforced, self-documenting method parameter instead of something discovered by reading a constructor
+- One-idiom migration -- The `Instances` facade is adopted across ~196 test files, 66 runnable examples, and 71 book pages so the documentation and examples teach a single way to obtain an instance. The `MonadReader`/`MonadState` MTL capability classes and `Traverse`/`Selective`/`Foldable` remain a separate surface, intentionally out of scope for this facade and tracked separately
+- Reference material -- New [glossary](glossary.md) entry, a Type-Class Instances section in the [cheat sheet](cheatsheet.md), and a `InstancesFacadeExample` runnable example
+
+---
 
 ### v0.4.4 -- 16 May 2026
 

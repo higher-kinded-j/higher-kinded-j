@@ -4,11 +4,14 @@ package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,12 +21,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Lazy Functor Complete Test Suite")
 class LazyFunctorTest extends LazyTestBase {
 
-  private LazyMonad functor;
+  private Monad<LazyKind.Witness> functor;
   private static final AtomicInteger COUNTER = new AtomicInteger(0);
 
   @BeforeEach
   void setUpFunctor() {
-    functor = LazyMonad.INSTANCE;
+    functor = Instances.monad(lazy());
     COUNTER.set(0);
   }
 

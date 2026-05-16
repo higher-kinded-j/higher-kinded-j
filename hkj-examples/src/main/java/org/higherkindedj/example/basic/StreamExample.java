@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.stream.StreamOps.*;
 
@@ -10,8 +11,9 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.stream.StreamKind;
-import org.higherkindedj.hkt.stream.StreamMonad;
 import org.higherkindedj.hkt.tuple.Tuple2;
 
 /**
@@ -49,7 +51,7 @@ public class StreamExample {
 
   /** Demonstrates basic Functor and Monad operations with Streams. */
   public void basicStreamOperations() {
-    StreamMonad streamMonad = StreamMonad.INSTANCE;
+    MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
     // Create a Stream and wrap it in Kind
     Stream<Integer> numbers = Stream.of(1, 2, 3, 4, 5);
@@ -125,7 +127,9 @@ public class StreamExample {
 
     // Create a stream with side effects using tap
     Kind<StreamKind.Witness, Integer> stream =
-        tap(n -> log.add("Processing: " + n), StreamMonad.INSTANCE.map(n -> n * 2, range(1, 4)));
+        tap(
+            n -> log.add("Processing: " + n),
+            Instances.monadZero(stream()).map(n -> n * 2, range(1, 4)));
 
     System.out.println("Stream created, log size: " + log.size());
     // Output: 0 (stream is lazy, tap hasn't executed yet)
@@ -173,7 +177,7 @@ public class StreamExample {
 
   /** Shows using Stream with generic type class constraints. */
   public void genericFunctorExample() {
-    StreamMonad streamMonad = StreamMonad.INSTANCE;
+    MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
     // Generic function that works with any Functor
     Function<Integer, Integer> square = n -> n * n;

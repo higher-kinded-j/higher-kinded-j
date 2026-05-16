@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.state_t;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
@@ -11,22 +12,25 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateTKind;
-import org.higherkindedj.hkt.state_t.StateTMonad;
 
 /**
  * see {<a href="https://higher-kinded-j.github.io/statet_transformer.html">StateT Transformer</a>}
  */
 public class StateTStackExample {
 
-  private static final OptionalMonad OPT_MONAD = OptionalMonad.INSTANCE;
+  private static final MonadError<OptionalKind.Witness, Unit> OPT_MONAD =
+      Instances.monadError(optional());
   ;
-  private static final StateTMonad<List<Integer>, OptionalKind.Witness> ST_OPT_MONAD =
-      StateTMonad.instance(OPT_MONAD);
+  private static final Monad<StateTKind.Witness<List<Integer>, OptionalKind.Witness>> ST_OPT_MONAD =
+      Instances.stateT(OPT_MONAD);
 
   // Helper to lift a state function into StateT<List<Integer>, OptionalKind.Witness, A>
   private static <A> Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, A> liftOpt(

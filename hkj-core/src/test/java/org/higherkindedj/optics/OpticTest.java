@@ -3,13 +3,14 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -59,7 +60,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       Kind<OptionalKind.Witness, Employee> result =
-          employeeNameOptic.modifyF(modifier, employee, OptionalMonad.INSTANCE);
+          employeeNameOptic.modifyF(modifier, employee, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -81,7 +82,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.empty());
 
       Kind<OptionalKind.Witness, Employee> result =
-          employeeNameOptic.modifyF(emptyModifier, employee, OptionalMonad.INSTANCE);
+          employeeNameOptic.modifyF(emptyModifier, employee, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isEmpty();
     }
@@ -104,7 +105,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of("Mr. " + s));
 
       Kind<OptionalKind.Witness, Person> result =
-          employeeNameOptic.modifyF(modifier, employee, OptionalMonad.INSTANCE);
+          employeeNameOptic.modifyF(modifier, employee, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -123,7 +124,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s + " Jr."));
 
       Kind<OptionalKind.Witness, Person> result =
-          unwrappedNameOptic.modifyF(modifier, wrappedPerson, OptionalMonad.INSTANCE);
+          unwrappedNameOptic.modifyF(modifier, wrappedPerson, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -148,7 +149,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toLowerCase()));
 
       Kind<OptionalKind.Witness, Wrapper<Person>> result =
-          wrappingNameOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          wrappingNameOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -167,7 +168,7 @@ class OpticTest {
           a -> OptionalKindHelper.OPTIONAL.widen(Optional.of(a + 1));
 
       Kind<OptionalKind.Witness, String> result =
-          ageToStringOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          ageToStringOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result)).isPresent().contains("Age: 41");
     }
@@ -191,7 +192,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
 
       Kind<OptionalKind.Witness, String> result =
-          employeeToDescriptionOptic.modifyF(modifier, employee, OptionalMonad.INSTANCE);
+          employeeToDescriptionOptic.modifyF(modifier, employee, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -210,10 +211,10 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of("Ms. " + s));
 
       Kind<OptionalKind.Witness, Person> originalResult =
-          nameOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          nameOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       Kind<OptionalKind.Witness, Person> dimappedResult =
-          identityDimapped.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          identityDimapped.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(dimappedResult))
           .isEqualTo(OptionalKindHelper.OPTIONAL.narrow(originalResult));
@@ -236,7 +237,7 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s + " (verified)"));
 
       Kind<OptionalKind.Witness, Output> result =
-          complexOptic.modifyF(modifier, input, OptionalMonad.INSTANCE);
+          complexOptic.modifyF(modifier, input, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(result))
           .isPresent()
@@ -258,13 +259,13 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s + "!"));
 
       Kind<OptionalKind.Witness, Person> original =
-          nameOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          nameOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       Optic<Person, Person, String, String> contramappedWithIdentity =
           nameOptic.contramap(Function.identity());
 
       Kind<OptionalKind.Witness, Person> contramapped =
-          contramappedWithIdentity.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          contramappedWithIdentity.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(contramapped))
           .isEqualTo(OptionalKindHelper.OPTIONAL.narrow(original));
@@ -279,12 +280,12 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s + "?"));
 
       Kind<OptionalKind.Witness, Person> original =
-          nameOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          nameOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       Optic<Person, Person, String, String> mappedWithIdentity = nameOptic.map(Function.identity());
 
       Kind<OptionalKind.Witness, Person> mapped =
-          mappedWithIdentity.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          mappedWithIdentity.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(mapped))
           .isEqualTo(OptionalKindHelper.OPTIONAL.narrow(original));
@@ -299,13 +300,13 @@ class OpticTest {
           s -> OptionalKindHelper.OPTIONAL.widen(Optional.of("[" + s + "]"));
 
       Kind<OptionalKind.Witness, Person> original =
-          nameOptic.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          nameOptic.modifyF(modifier, person, Instances.monadError(optional()));
 
       Optic<Person, Person, String, String> dimappedWithIdentities =
           nameOptic.dimap(Function.identity(), Function.identity());
 
       Kind<OptionalKind.Witness, Person> dimapped =
-          dimappedWithIdentities.modifyF(modifier, person, OptionalMonad.INSTANCE);
+          dimappedWithIdentities.modifyF(modifier, person, Instances.monadError(optional()));
 
       assertThat(OptionalKindHelper.OPTIONAL.narrow(dimapped))
           .isEqualTo(OptionalKindHelper.OPTIONAL.narrow(original));

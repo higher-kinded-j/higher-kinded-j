@@ -82,9 +82,9 @@ WriterPath<List<String>, BigDecimal> workflow(BigDecimal price) {
 When accumulation must combine with another monad (here `Id` for a pure example, but the same shape works over `CompletableFuture`):
 
 ```java
-var idMonad     = IdMonad.instance();
+var idMonad     = Instances.monad(id());
 var listMonoid  = Monoids.list();
-var writerMonad = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, listMonoid);
+var writerMonad = Instances.writerT(idMonad, listMonoid);
 
 var workflow = For.from(writerMonad, writerMonad.tell(List.of("Applied 10% discount")))
     .from(_ -> writerMonad.of(new BigDecimal("90.00")))
@@ -159,8 +159,8 @@ Monoid<String> stringMonoid = new Monoid<>() {
     public String combine(String a, String b)  { return a + b; }
 };
 
-var idMonad     = IdMonad.instance();
-var writerMonad = new WriterTMonad<IdKind.Witness, String>(idMonad, stringMonoid);
+var idMonad     = Instances.monad(id());
+var writerMonad = Instances.writerT(idMonad, stringMonoid);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -209,7 +209,7 @@ Without a `Monoid`, `WriterT` cannot combine the output from `flatMap` chains. T
 ## Creating WriterT Instances
 
 ```java
-var idMonad      = IdMonad.instance();
+var idMonad      = Instances.monad(id());
 Monoid<String> stringMonoid = /* as above */;
 
 // 1. Pure value with empty output
@@ -245,9 +245,9 @@ var fromKind = WriterT.fromKind(idMonad.of(Pair.of(42, "restored; ")));
 **The solution:**
 
 ```java
-var idMonad    = IdMonad.instance();
+var idMonad    = Instances.monad(id());
 var listMonoid = Monoids.list();
-var audit      = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, listMonoid);
+var audit      = Instances.writerT(idMonad, listMonoid);
 
 var workflow = For.from(audit, audit.tell(List.of("Validated order")))
     .from(_ -> audit.of("order-123"))

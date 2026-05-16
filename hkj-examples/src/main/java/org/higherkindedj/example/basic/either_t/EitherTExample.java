@@ -4,6 +4,7 @@ package org.higherkindedj.example.basic.either_t;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -13,9 +14,8 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either_t.EitherT;
 import org.higherkindedj.hkt.either_t.EitherTKind;
-import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 
@@ -29,9 +29,9 @@ public class EitherTExample {
   record ProcessedData(String data) {}
 
   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
-      CompletableFutureMonad.INSTANCE;
+      Instances.monadError(completableFuture());
   MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
-      eitherTMonad = new EitherTMonad<>(futureMonad);
+      eitherTMonad = Instances.eitherT(futureMonad);
 
   // --- Workflow Steps (now purer, without logging) ---
 

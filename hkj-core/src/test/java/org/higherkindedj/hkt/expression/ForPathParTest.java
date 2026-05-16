@@ -3,9 +3,11 @@
 package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.effect.IOPath;
@@ -20,7 +22,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
@@ -302,7 +304,7 @@ class ForPathParTest {
     @Test
     @DisplayName("par(2): should combine two GenericPath values")
     void par2_combine() {
-      IdMonad idMonad = IdMonad.instance();
+      Monad<IdKind.Witness> idMonad = Instances.monad(id());
       GenericPath<IdKind.Witness, String> result =
           ForPath.par(Path.genericPure(1, idMonad), Path.genericPure("x", idMonad))
               .yield((a, b) -> a + b);
@@ -312,7 +314,7 @@ class ForPathParTest {
     @Test
     @DisplayName("par(3): should combine three GenericPath values")
     void par3_combine() {
-      IdMonad idMonad = IdMonad.instance();
+      Monad<IdKind.Witness> idMonad = Instances.monad(id());
       GenericPath<IdKind.Witness, Integer> result =
           ForPath.par(
                   Path.genericPure(1, idMonad),

@@ -4,11 +4,14 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Property-based tests for Either Monad laws using jQwik.
@@ -26,7 +29,8 @@ import org.higherkindedj.hkt.Kind;
  */
 class EitherMonadPropertyTest {
 
-  private final EitherMonad<String> monad = EitherMonad.instance();
+  private final MonadError<EitherKind.Witness<String>, String> monad =
+      Instances.monadError(either());
 
   /** Provides arbitrary Either<String, Integer> values for testing */
   @Provide

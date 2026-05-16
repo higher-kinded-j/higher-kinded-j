@@ -145,7 +145,7 @@ var interpreter = Interpreters.combine(
 
 // One call interprets the entire composed program
 IO<PaymentResult> result = IOKindHelper.IO_OP.narrow(
-    program.foldMap(interpreter, IOMonad.INSTANCE));
+    program.foldMap(interpreter, Instances.monad(io())));
 ```
 
 Overloads support 2, 3, and 4 effects. Internally, `combine` pattern-matches on `Left`/`Right` at each nesting level and delegates to the corresponding interpreter.

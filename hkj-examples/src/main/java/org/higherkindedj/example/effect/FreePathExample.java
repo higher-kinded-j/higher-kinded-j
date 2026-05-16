@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.effect;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.ArrayList;
@@ -18,12 +19,11 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.FreeApPath;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKindHelper;
-import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 
 /**
  * Examples demonstrating FreePath and FreeApPath for building DSLs.
@@ -56,7 +56,7 @@ public class FreePathExample {
   private static void basicFreePathExample() {
     System.out.println("--- Basic FreePath Usage ---");
 
-    Monad<MaybeKind.Witness> monad = MaybeMonad.INSTANCE;
+    Monad<MaybeKind.Witness> monad = Instances.monadError(maybe());
 
     // Create a FreePath with a pure value
     FreePath<MaybeKind.Witness, Integer> pure = FreePath.pure(42, monad);
@@ -146,7 +146,7 @@ public class FreePathExample {
     Natural<ConsoleOpWitness, IO.Witness> testInterpreter = createTestConsoleInterpreter("Alice");
 
     GenericPath<IO.Witness, String> interpreted =
-        program.foldMap(testInterpreter, IOMonad.INSTANCE);
+        program.foldMap(testInterpreter, Instances.monad(io()));
     String result = IOKindHelper.IO_OP.narrow(interpreted.runKind()).unsafeRunSync();
 
     System.out.println("\nProgram returned: " + result);
@@ -245,7 +245,8 @@ public class FreePathExample {
     Map<String, String> store = new HashMap<>();
     Natural<KVStoreWitness, IO.Witness> interpreter = createKVInterpreter(store);
 
-    GenericPath<IO.Witness, String> interpreted = program.foldMap(interpreter, IOMonad.INSTANCE);
+    GenericPath<IO.Witness, String> interpreted =
+        program.foldMap(interpreter, Instances.monad(io()));
     String result = IOKindHelper.IO_OP.narrow(interpreted.runKind()).unsafeRunSync();
 
     System.out.println("\nProgram returned: " + result);
@@ -295,7 +296,7 @@ public class FreePathExample {
     // FreeApPath is for independent computations that can run in parallel
     // Unlike FreePath, operations don't depend on each other's results
 
-    Monad<MaybeKind.Witness> monad = MaybeMonad.INSTANCE;
+    Monad<MaybeKind.Witness> monad = Instances.monadError(maybe());
     Natural<MaybeKind.Witness, MaybeKind.Witness> identity = Natural.identity();
 
     // Create independent computations
@@ -343,7 +344,7 @@ public class FreePathExample {
         createRecordingInterpreter(operations);
 
     GenericPath<IO.Witness, String> testRun =
-        program.foldMap(recordingInterpreter, IOMonad.INSTANCE);
+        program.foldMap(recordingInterpreter, Instances.monad(io()));
     String testResult = IOKindHelper.IO_OP.narrow(testRun.runKind()).unsafeRunSync();
 
     System.out.println("Test result: " + testResult);

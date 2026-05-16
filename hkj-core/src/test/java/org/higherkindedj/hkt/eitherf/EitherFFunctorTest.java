@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.eitherf;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -11,10 +12,10 @@ import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityKindHelper;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,7 +28,7 @@ class EitherFFunctorTest {
 
   @BeforeEach
   void setUp() {
-    functor = EitherFFunctor.of(IdentityMonad.INSTANCE, MaybeMonad.INSTANCE);
+    functor = EitherFFunctor.of(IdentityMonad.INSTANCE, Instances.monadError(maybe()));
   }
 
   private Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> leftKind(
@@ -170,7 +171,7 @@ class EitherFFunctorTest {
     @Test
     @DisplayName("Constructor rejects null functorF")
     void constructorRejectsNullFunctorF() {
-      assertThatThrownBy(() -> EitherFFunctor.of(null, MaybeMonad.INSTANCE))
+      assertThatThrownBy(() -> EitherFFunctor.of(null, Instances.monadError(maybe())))
           .isInstanceOf(NullPointerException.class);
     }
 

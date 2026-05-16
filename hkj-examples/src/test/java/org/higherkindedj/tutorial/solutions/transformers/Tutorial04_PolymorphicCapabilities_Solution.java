@@ -3,12 +3,14 @@
 package org.higherkindedj.tutorial.solutions.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadReader;
 import org.higherkindedj.hkt.MonadState;
 import org.higherkindedj.hkt.MonadWriter;
@@ -20,7 +22,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;
 import org.higherkindedj.hkt.reader_t.ReaderTMonadReader;
@@ -30,7 +32,6 @@ import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTMonadState;
 import org.higherkindedj.hkt.writer_t.WriterT;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
-import org.higherkindedj.hkt.writer_t.WriterTMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,11 +61,11 @@ public class Tutorial04_PolymorphicCapabilities_Solution {
 
   record Counter(int count, int total) {}
 
-  private IdMonad idMonad;
+  private Monad<IdKind.Witness> idMonad;
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
+    idMonad = Instances.monad(id());
   }
 
   // ===========================================================================
@@ -314,7 +315,7 @@ public class Tutorial04_PolymorphicCapabilities_Solution {
     @Test
     @DisplayName("Exercise 9: Append output with tell()")
     void exercise9_tellAppendsOutput() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       // SOLUTION: Use writer.tell() to append a single entry
       Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, Unit> result =
@@ -339,7 +340,7 @@ public class Tutorial04_PolymorphicCapabilities_Solution {
     @Test
     @DisplayName("Exercise 10: Accumulate entries with For")
     void exercise10_accumulateWithFor() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       // SOLUTION: Chain three tell() calls in a For comprehension
       Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, String> result =
@@ -367,7 +368,7 @@ public class Tutorial04_PolymorphicCapabilities_Solution {
     @Test
     @DisplayName("Exercise 11: Transform output with censor()")
     void exercise11_censorTransformsOutput() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       var computation =
           For.from(writer, writer.tell(List.of("hello")))
@@ -457,7 +458,7 @@ public class Tutorial04_PolymorphicCapabilities_Solution {
     @Test
     @DisplayName("Exercise 14: Polymorphic writer function")
     void exercise14_polymorphicWriter() {
-      var writer = new WriterTMonad<IdKind.Witness, List<String>>(idMonad, Monoids.list());
+      var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
       // SOLUTION: Call the polymorphic auditedProcess method
       Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, String> result =

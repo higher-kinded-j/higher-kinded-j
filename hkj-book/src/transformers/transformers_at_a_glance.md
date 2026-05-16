@@ -110,41 +110,41 @@ Each example below is the shortest snippet that exercises the transformer's prim
 ### EitherT
 
 ```java
-var monad   = new EitherTMonad<CompletableFutureKind.Witness, String>(CompletableFutureMonad.INSTANCE);
-var success = EitherT.right(CompletableFutureMonad.INSTANCE, 42);
-var failed  = EitherT.left(CompletableFutureMonad.INSTANCE, "oops");
+var monad   = Instances.eitherT(Instances.monadError(completableFuture()));
+var success = EitherT.right(Instances.monadError(completableFuture()), 42);
+var failed  = EitherT.left(Instances.monadError(completableFuture()), "oops");
 ```
 
 ### OptionalT
 
 ```java
-var monad   = new OptionalTMonad<CompletableFutureKind.Witness>(CompletableFutureMonad.INSTANCE);
-var present = OptionalT.some(CompletableFutureMonad.INSTANCE, 42);
-var absent  = OptionalT.none(CompletableFutureMonad.INSTANCE);
+var monad   = Instances.optionalT(Instances.monadError(completableFuture()));
+var present = OptionalT.some(Instances.monadError(completableFuture()), 42);
+var absent  = OptionalT.none(Instances.monadError(completableFuture()));
 ```
 
 ### MaybeT
 
 ```java
-var monad = new MaybeTMonad<CompletableFutureKind.Witness>(CompletableFutureMonad.INSTANCE);
-var just  = MaybeT.just(CompletableFutureMonad.INSTANCE, 42);
-var none  = MaybeT.nothing(CompletableFutureMonad.INSTANCE);
+var monad = Instances.maybeT(Instances.monadError(completableFuture()));
+var just  = MaybeT.just(Instances.monadError(completableFuture()), 42);
+var none  = MaybeT.nothing(Instances.monadError(completableFuture()));
 ```
 
 ### ReaderT
 
 ```java
-var monad  = new ReaderTMonad<CompletableFutureKind.Witness, AppConfig>(CompletableFutureMonad.INSTANCE);
+var monad  = Instances.readerT(Instances.monadError(completableFuture()));
 var reader = ReaderT.<CompletableFutureKind.Witness, AppConfig, String>reader(
-    CompletableFutureMonad.INSTANCE,
+    Instances.monadError(completableFuture()),
     config -> config.dbUrl());
 ```
 
 ### StateT
 
 ```java
-var optMonad = OptionalMonad.INSTANCE;
-var stMonad  = StateTMonad.<Integer, OptionalKind.Witness>instance(optMonad);
+var optMonad = Instances.monadError(optional());
+var stMonad  = Instances.stateT(optMonad);
 var counter  = StateT.create(
     (Integer s) -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s))),
     optMonad);
@@ -154,8 +154,8 @@ var counter  = StateT.create(
 
 ```java
 var listMonoid = Monoids.list();
-var monad      = new WriterTMonad<IdKind.Witness, List<String>>(IdMonad.instance(), listMonoid);
-var logged     = WriterT.tell(IdMonad.instance(), List.of("started"));
+var monad      = Instances.writerT(Instances.monad(id()), listMonoid);
+var logged     = WriterT.tell(Instances.monad(id()), List.of("started"));
 ```
 
 ---

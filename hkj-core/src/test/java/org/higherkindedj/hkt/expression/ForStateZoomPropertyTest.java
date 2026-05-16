@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import net.jqwik.api.Arbitraries;
@@ -14,10 +15,11 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
 import net.jqwik.api.constraints.StringLength;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -53,7 +55,7 @@ class ForStateZoomPropertyTest {
   private static final Lens<SwappedCounter, Integer> swappedValueLens =
       Lens.of(SwappedCounter::value, (s, v) -> new SwappedCounter(s.label(), v));
 
-  private final IdMonad idMonad = IdMonad.instance();
+  private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
   @Provide
   Arbitrary<Counter> counters() {

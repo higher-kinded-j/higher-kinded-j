@@ -86,7 +86,7 @@ import java.util.List;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-final ListMonad listMonad = ListMonad.INSTANCE;
+final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
 final Kind<ListKind.Witness, Integer> list1 = LIST.widen(Arrays.asList(1, 2, 3));
 final Kind<ListKind.Witness, Integer> list2 = LIST.widen(Arrays.asList(10, 20));
@@ -124,12 +124,12 @@ For different types, `zero()` has the natural "empty" semantics:
 
 ```java
 // List: keep positives
-MonadZero<ListKind.Witness> lz = ListMonad.INSTANCE;
+MonadZero<ListKind.Witness> lz = Instances.monadZero(list());
 Kind<ListKind.Witness, Integer> positives =
     lz.filter(x -> x > 0, LIST.widen(List.of(-1, 2, -3, 4)));   // [2, 4]
 
 // Maybe: keep even values
-MonadZero<MaybeKind.Witness> mz = MaybeMonad.INSTANCE;
+MonadZero<MaybeKind.Witness> mz = Instances.monadError(maybe());
 mz.filter(x -> x % 2 == 0, mz.of(4));   // Just(4)
 mz.filter(x -> x % 2 == 0, mz.of(3));   // Nothing
 ```

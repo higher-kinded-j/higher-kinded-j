@@ -2,14 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.focus;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -94,7 +96,7 @@ public class ValidationPipelineExample {
 
     // Validate and transform valid config
     Kind<MaybeKind.Witness, Config> validResult =
-        apiKeyPath.modifyF(validateApiKey, validConfig, MaybeMonad.INSTANCE);
+        apiKeyPath.modifyF(validateApiKey, validConfig, Instances.monadError(maybe()));
 
     Maybe<Config> validMaybe = MaybeKindHelper.MAYBE.narrow(validResult);
     System.out.println("Valid config result: " + (validMaybe.isJust() ? "Success" : "Failure"));
@@ -104,7 +106,7 @@ public class ValidationPipelineExample {
 
     // Validate invalid config
     Kind<MaybeKind.Witness, Config> invalidResult =
-        apiKeyPath.modifyF(validateApiKey, invalidConfig, MaybeMonad.INSTANCE);
+        apiKeyPath.modifyF(validateApiKey, invalidConfig, Instances.monadError(maybe()));
 
     Maybe<Config> invalidMaybe = MaybeKindHelper.MAYBE.narrow(invalidResult);
     System.out.println("Invalid config result: " + (invalidMaybe.isJust() ? "Success" : "Failure"));
@@ -194,7 +196,7 @@ public class ValidationPipelineExample {
 
     // Chain validations: username -> email -> age
     Kind<MaybeKind.Witness, UserProfile> step1 =
-        usernamePath.modifyF(validateUsername, profile, MaybeMonad.INSTANCE);
+        usernamePath.modifyF(validateUsername, profile, Instances.monadError(maybe()));
 
     Maybe<UserProfile> afterUsername = MaybeKindHelper.MAYBE.narrow(step1);
     if (afterUsername.isNothing()) {
@@ -203,7 +205,7 @@ public class ValidationPipelineExample {
     }
 
     Kind<MaybeKind.Witness, UserProfile> step2 =
-        emailPath.modifyF(validateEmail, afterUsername.get(), MaybeMonad.INSTANCE);
+        emailPath.modifyF(validateEmail, afterUsername.get(), Instances.monadError(maybe()));
 
     Maybe<UserProfile> afterEmail = MaybeKindHelper.MAYBE.narrow(step2);
     if (afterEmail.isNothing()) {
@@ -212,7 +214,7 @@ public class ValidationPipelineExample {
     }
 
     Kind<MaybeKind.Witness, UserProfile> step3 =
-        agePath.modifyF(validateAge, afterEmail.get(), MaybeMonad.INSTANCE);
+        agePath.modifyF(validateAge, afterEmail.get(), Instances.monadError(maybe()));
 
     Maybe<UserProfile> result = MaybeKindHelper.MAYBE.narrow(step3);
     if (result.isJust()) {

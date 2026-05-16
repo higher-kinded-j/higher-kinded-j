@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Map;
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
@@ -28,7 +29,7 @@ import org.higherkindedj.example.payment.service.PaymentService;
 import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKindHelper;
 import org.higherkindedj.hkt.reader_t.ReaderTMonadReader;
@@ -97,7 +98,7 @@ public class Tutorial06_AdvancedInterpreters_Solution {
     PaymentResult result =
         IdKindHelper.ID
             .<PaymentResult>narrow(
-                PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()))
+                PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())))
             .value();
 
     // Verify audit trail: all operations were recorded
@@ -142,7 +143,7 @@ public class Tutorial06_AdvancedInterpreters_Solution {
             new ReplayNotificationInterpreter());
 
     ReaderTMonadReader<IdKind.Witness, EventLog> readerMonad =
-        new ReaderTMonadReader<>(IdMonad.instance());
+        new ReaderTMonadReader<>(Instances.monad(id()));
 
     var resultKind = PaymentEffectsWiring.interpret(program, interpreter, readerMonad);
     ReaderT<IdKind.Witness, EventLog, PaymentResult> readerT =

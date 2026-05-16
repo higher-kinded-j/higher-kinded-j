@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.maybe_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.MaybeTAssert.assertThatMaybeT;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -15,9 +16,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,14 +30,14 @@ import org.junit.jupiter.api.Test;
 class MaybeTMonadTest
     extends TypeClassTestBase<MaybeTKind.Witness<OptionalKind.Witness>, Integer, String> {
 
-  private MonadError<OptionalKind.Witness, Unit> outerMonad = OptionalMonad.INSTANCE;
+  private MonadError<OptionalKind.Witness, Unit> outerMonad = Instances.monadError(optional());
   private MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> maybeTMonad =
-      new MaybeTMonad<>(outerMonad);
+      Instances.maybeT(outerMonad);
 
   @BeforeEach
   void setUpMonad() {
-    outerMonad = OptionalMonad.INSTANCE;
-    maybeTMonad = new MaybeTMonad<>(outerMonad);
+    outerMonad = Instances.monadError(optional());
+    maybeTMonad = Instances.maybeT(outerMonad);
   }
 
   private <A> Optional<Maybe<A>> unwrapKindToOptionalMaybe(

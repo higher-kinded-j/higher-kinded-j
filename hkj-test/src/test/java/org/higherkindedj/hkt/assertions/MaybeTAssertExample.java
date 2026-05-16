@@ -3,16 +3,19 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.MaybeTAssert.assertThatMaybeT;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.maybe_t.MaybeTKind;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +23,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MaybeTAssert showcase")
 class MaybeTAssertExample {
 
-  private final OptionalMonad outerMonad = OptionalMonad.INSTANCE;
+  private final MonadError<OptionalKind.Witness, Unit> outerMonad =
+      Instances.monadError(optional());
 
   private <A> Optional<Maybe<A>> unwrap(Kind<OptionalKind.Witness, Maybe<A>> kind) {
     return OPTIONAL.narrow(kind);

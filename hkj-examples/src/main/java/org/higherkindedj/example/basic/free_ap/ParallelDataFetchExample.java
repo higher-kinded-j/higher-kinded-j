@@ -3,12 +3,14 @@
 package org.higherkindedj.example.basic.free_ap;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
@@ -18,7 +20,7 @@ import org.higherkindedj.hkt.free_ap.FreeApKind;
 import org.higherkindedj.hkt.free_ap.FreeApKindHelper;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /**
  * Extended example demonstrating Free Applicative for parallel data fetching.
@@ -292,7 +294,7 @@ public class ParallelDataFetchExample {
 
     // Create interpreter
     Natural<FetchOpKind.Witness, IdKind.Witness> interpreter = createInterpreter(db);
-    IdMonad idApp = IdMonad.instance();
+    Monad<IdKind.Witness> idApp = Instances.monad(id());
 
     // Execute the program
     System.out.println("Now interpreting the program...\n");

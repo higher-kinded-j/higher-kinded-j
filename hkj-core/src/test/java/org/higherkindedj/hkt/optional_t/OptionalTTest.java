@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.optional_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
@@ -14,8 +15,8 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,7 +41,7 @@ class OptionalTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = OptionalMonad.INSTANCE;
+    outerMonad = Instances.monadError(optional());
 
     wrappedPresent = OPTIONAL.widen(Optional.of(Optional.of(presentValue)));
     wrappedEmpty = OPTIONAL.widen(Optional.of(Optional.empty()));

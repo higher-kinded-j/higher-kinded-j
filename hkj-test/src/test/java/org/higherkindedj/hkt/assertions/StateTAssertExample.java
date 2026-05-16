@@ -3,14 +3,17 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.StateTAssert.assertThatStateT;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state_t.StateTKind;
@@ -21,7 +24,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("StateTAssert showcase")
 class StateTAssertExample {
 
-  private final OptionalMonad outerMonad = OptionalMonad.INSTANCE;
+  private final MonadError<OptionalKind.Witness, Unit> outerMonad =
+      Instances.monadError(optional());
 
   private <A> Optional<StateTuple<Integer, A>> unwrap(
       Kind<OptionalKind.Witness, StateTuple<Integer, A>> kind) {

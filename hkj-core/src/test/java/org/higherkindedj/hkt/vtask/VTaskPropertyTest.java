@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.Objects;
@@ -10,6 +11,8 @@ import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trymonad.Try;
 
 /**
@@ -39,7 +42,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  */
 class VTaskPropertyTest {
 
-  private final VTaskMonad monad = VTaskMonad.INSTANCE;
+  private final MonadError<VTaskKind.Witness, Throwable> monad = Instances.monadError(vtask());
   private final VTaskFunctor functor = VTaskFunctor.INSTANCE;
 
   // ==================== Helper Methods ====================

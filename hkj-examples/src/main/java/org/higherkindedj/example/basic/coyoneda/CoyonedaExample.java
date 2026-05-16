@@ -2,14 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.coyoneda;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.coyoneda.Coyoneda;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
@@ -110,7 +112,7 @@ public class CoyonedaExample {
     System.out.println("\nNo processing has happened yet! Now lowering...\n");
 
     // NOW the composed function is applied - in ONE traversal
-    ListMonad listFunctor = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = step3.lower(listFunctor);
 
     System.out.println("\nResult: " + LIST.narrow(result));
@@ -171,7 +173,7 @@ public class CoyonedaExample {
     System.out.println("Pipeline created (no execution yet)");
 
     // Execute the pipeline
-    ListMonad listFunctor = ListMonad.INSTANCE;
+    MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = pipeline.lower(listFunctor);
     System.out.println("Result: " + LIST.narrow(result));
 

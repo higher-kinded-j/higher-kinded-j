@@ -15,7 +15,7 @@ a `Monad` instance, letting you use Path operations on custom types.
 ## Creation
 
 ```java
-Monad<ListKind.Witness> listMonad = ListMonad.INSTANCE;
+Monad<ListKind.Witness> listMonad = Instances.monadZero(list());
 Kind<ListKind.Witness, Integer> listKind =
     ListKindHelper.LIST.widen(List.of(1, 2, 3));
 

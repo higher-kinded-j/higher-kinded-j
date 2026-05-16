@@ -2,15 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.alternative;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 
 /**
  * Demonstrates the Alternative type class with a practical configuration loading example.
@@ -32,7 +33,7 @@ import org.higherkindedj.hkt.maybe.MaybeMonad;
 public class AlternativeConfigExample {
 
   // Alternative instance for Maybe
-  private static final Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
+  private static final Alternative<MaybeKind.Witness> alt = Instances.alternative(maybe());
 
   public static void main(String[] args) {
     System.out.println("=== Alternative Type Class Example: Configuration Loading ===\n");
@@ -137,15 +138,16 @@ public class AlternativeConfigExample {
 
     // Validate that the config value is reasonable
     Kind<MaybeKind.Witness, ConfigValue> validated =
-        MaybeMonad.INSTANCE.flatMap(
-            value -> {
-              int maxConn = Integer.parseInt(value.value());
-              boolean isValid = maxConn > 0 && maxConn <= 1000;
+        Instances.monadError(maybe())
+            .flatMap(
+                value -> {
+                  int maxConn = Integer.parseInt(value.value());
+                  boolean isValid = maxConn > 0 && maxConn <= 1000;
 
-              // guard(true) returns Just(Unit), guard(false) returns Nothing
-              return MaybeMonad.INSTANCE.map(unit -> value, alt.guard(isValid));
-            },
-            config);
+                  // guard(true) returns Just(Unit), guard(false) returns Nothing
+                  return Instances.monadError(maybe()).map(unit -> value, alt.guard(isValid));
+                },
+                config);
 
     Maybe<ConfigValue> result = MAYBE.narrow(validated);
     if (result.isJust()) {

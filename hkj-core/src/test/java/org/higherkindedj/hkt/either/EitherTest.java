@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
@@ -11,8 +12,10 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -40,12 +43,12 @@ class EitherTest extends EitherTestBase {
   private final Either<String, Integer> rightNullInstance = Either.right(null);
 
   // Type class testing fixtures
-  private EitherMonad<String> monad;
+  private MonadError<EitherKind.Witness<String>, String> monad;
   private EitherFunctor<String> functor;
 
   @BeforeEach
   void setUpEither() {
-    monad = EitherMonad.instance();
+    monad = Instances.monadError(either());
     functor = EitherFunctor.instance();
   }
 

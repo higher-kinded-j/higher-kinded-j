@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
@@ -18,8 +19,8 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -86,7 +87,8 @@ class BulkValidatorTest {
   @Nested
   @DisplayName("FunctionValidator.validateTraverse")
   class ValidateTraverse {
-    private final Applicative<EitherKind.Witness<String>> applicative = EitherMonad.instance();
+    private final Applicative<EitherKind.Witness<String>> applicative =
+        Instances.monadError(either());
 
     @Test
     void happyPath() {
@@ -288,7 +290,8 @@ class BulkValidatorTest {
   @Nested
   @DisplayName("TransformerValidator.requireOuterApplicative")
   class RequireOuterApplicative {
-    private final Applicative<EitherKind.Witness<String>> applicative = EitherMonad.instance();
+    private final Applicative<EitherKind.Witness<String>> applicative =
+        Instances.monadError(either());
 
     @Test
     void returnsApplicative() {
@@ -310,7 +313,7 @@ class BulkValidatorTest {
   @Nested
   @DisplayName("TransformerValidator.requireOuterFunctor")
   class RequireOuterFunctor {
-    private final Functor<EitherKind.Witness<String>> functor = EitherMonad.instance();
+    private final Functor<EitherKind.Witness<String>> functor = Instances.monadError(either());
 
     @Test
     void returnsFunctor() {

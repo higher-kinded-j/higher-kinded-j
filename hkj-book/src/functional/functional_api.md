@@ -78,6 +78,7 @@ The `hkj-api` module contains the heart of the Higher-Kinded-J library: a set of
 * **`Kind<F, A>`** -- The foundational interface that emulates a higher-kinded type. It represents a type `F` that is generic over a type `A`. For example, `Kind<ListKind.Witness, String>` represents a `List<String>`. This interface is the common currency for all functional abstractions in the library.
 
 ~~~admonish tip title="See Also"
+- [Obtaining Instances](instances_facade.md) - The uniform `Instances` facade for getting any instance below
 - [Choosing Your Abstraction Level](abstraction_levels.md) - Decision flowchart for Applicative vs Selective vs Monad
 - [For Comprehension](for_comprehension.md) - Readable syntax for composing monadic operations
 - [Natural Transformation](natural_transformation.md) - Polymorphic functions between type constructors
@@ -86,4 +87,4 @@ The `hkj-api` module contains the heart of the Higher-Kinded-J library: a set of
 ---
 
 **Previous:** [Introduction](ch_intro.md)
-**Next:** [Functor](functor.md)
+**Next:** [Obtaining Instances](instances_facade.md)

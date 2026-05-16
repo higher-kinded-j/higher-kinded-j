@@ -5,15 +5,18 @@ package org.higherkindedj.hkt.io;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
@@ -25,11 +28,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("IOMonad Complete Test Suite")
 class IOMonadTest extends IOTestBase {
 
-  private IOMonad monad;
+  private Monad<IOKind.Witness> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = IOMonad.INSTANCE;
+    monad = Instances.monad(io());
     validateMonadFixtures();
   }
 

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -20,10 +21,9 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
-import org.higherkindedj.hkt.list.ListMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryFunctor;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -109,12 +109,12 @@ class FunctorLawsTestFactory {
             }),
         FunctorTestData.of(
             "List",
-            ListMonad.INSTANCE,
+            Instances.monadZero(list()),
             LIST.widen(List.of(42)),
             kind -> LIST.narrow(kind).isEmpty() ? -1 : LIST.narrow(kind).get(0)),
         FunctorTestData.of(
             "Optional",
-            OptionalMonad.INSTANCE,
+            Instances.monadError(optional()),
             OPTIONAL.widen(Optional.of(42)),
             kind -> OPTIONAL.narrow(kind).orElse(-1)),
         FunctorTestData.of(

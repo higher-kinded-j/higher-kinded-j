@@ -2,14 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect.spi;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
+
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 
 /**
  * Test PathProvider implementation for Optional to enable SPI discovery testing.
@@ -33,6 +35,6 @@ public class TestOptionalPathProvider implements PathProvider<OptionalKind.Witne
 
   @Override
   public Monad<OptionalKind.Witness> monad() {
-    return OptionalMonad.INSTANCE;
+    return Instances.monadError(optional());
   }
 }

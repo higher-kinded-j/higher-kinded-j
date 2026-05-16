@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.list.pcollections;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -16,12 +17,11 @@ import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.list.ListSelective;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -104,7 +104,7 @@ class PCollectionsListIntegrationTest {
       PVector<Integer> input = TreePVector.from(List.of(1, 2, 3));
       Kind<ListKind.Witness, Integer> kind = LIST.widen(input);
 
-      Kind<ListKind.Witness, Integer> mapped = ListMonad.INSTANCE.map(x -> x * 10, kind);
+      Kind<ListKind.Witness, Integer> mapped = Instances.monadZero(list()).map(x -> x * 10, kind);
 
       assertThatList(mapped).containsExactly(10, 20, 30);
     }
@@ -115,7 +115,8 @@ class PCollectionsListIntegrationTest {
       PStack<String> input = ConsPStack.from(List.of("a", "b"));
       Kind<ListKind.Witness, String> kind = LIST.widen(input);
 
-      Kind<ListKind.Witness, String> mapped = ListMonad.INSTANCE.map(String::toUpperCase, kind);
+      Kind<ListKind.Witness, String> mapped =
+          Instances.monadZero(list()).map(String::toUpperCase, kind);
 
       assertThatList(mapped).containsExactly("A", "B");
     }
@@ -138,7 +139,7 @@ class PCollectionsListIntegrationTest {
       Function<Integer, Kind<ListKind.Witness, String>> dup =
           i -> LIST.widen(TreePVector.from(List.of("v" + i, "v" + i)));
 
-      Kind<ListKind.Witness, String> result = ListMonad.INSTANCE.flatMap(dup, kind);
+      Kind<ListKind.Witness, String> result = Instances.monadZero(list()).flatMap(dup, kind);
 
       assertThatList(result).containsExactly("v1", "v1", "v2", "v2");
     }
@@ -150,7 +151,7 @@ class PCollectionsListIntegrationTest {
           LIST.widen(TreePVector.from(List.of(i -> "n" + i, i -> "x" + (i * 2))));
       Kind<ListKind.Witness, Integer> fa = LIST.widen(TreePVector.from(List.of(1, 2)));
 
-      Kind<ListKind.Witness, String> result = ListMonad.INSTANCE.ap(ff, fa);
+      Kind<ListKind.Witness, String> result = Instances.monadZero(list()).ap(ff, fa);
 
       assertThatList(result).containsExactly("n1", "n2", "x2", "x4");
     }
@@ -163,7 +164,8 @@ class PCollectionsListIntegrationTest {
       Function<Integer, Kind<ListKind.Witness, Integer>> repeatViaPStack =
           i -> LIST.widen(ConsPStack.from(List.of(i, i)));
 
-      Kind<ListKind.Witness, Integer> result = ListMonad.INSTANCE.flatMap(repeatViaPStack, input);
+      Kind<ListKind.Witness, Integer> result =
+          Instances.monadZero(list()).flatMap(repeatViaPStack, input);
 
       assertThatList(result).containsExactly(1, 1, 2, 2, 3, 3);
     }
@@ -186,7 +188,7 @@ class PCollectionsListIntegrationTest {
           i -> OPTIONAL.widen(Optional.of(i + 1));
 
       Kind<OptionalKind.Witness, Kind<ListKind.Witness, Integer>> result =
-          ListTraverse.INSTANCE.traverse(OptionalMonad.INSTANCE, safeInc, input);
+          ListTraverse.INSTANCE.traverse(Instances.monadError(optional()), safeInc, input);
 
       Optional<List<Integer>> narrowed = OPTIONAL.narrow(result).map(LIST::narrow);
       assertThat(narrowed).hasValue(List.of(2, 3, 4));
@@ -201,7 +203,7 @@ class PCollectionsListIntegrationTest {
           i -> OPTIONAL.widen(i == 2 ? Optional.empty() : Optional.of(i));
 
       Kind<OptionalKind.Witness, Kind<ListKind.Witness, Integer>> result =
-          ListTraverse.INSTANCE.traverse(OptionalMonad.INSTANCE, failOnTwo, input);
+          ListTraverse.INSTANCE.traverse(Instances.monadError(optional()), failOnTwo, input);
 
       assertThatOptionalKind(result).isEmpty();
     }
@@ -279,7 +281,7 @@ class PCollectionsListIntegrationTest {
   @DisplayName("Alternative operations via ListMonad")
   class AlternativeOps {
 
-    private final Alternative<ListKind.Witness> alt = ListMonad.INSTANCE;
+    private final Alternative<ListKind.Witness> alt = Instances.monadZero(list());
 
     @Test
     @DisplayName("orElse concatenates a PVector with a PStack alternative")

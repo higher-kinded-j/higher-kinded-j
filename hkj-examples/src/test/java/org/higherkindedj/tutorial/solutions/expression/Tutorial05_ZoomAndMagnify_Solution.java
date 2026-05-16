@@ -3,19 +3,21 @@
 package org.higherkindedj.tutorial.solutions.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.effect.ReaderPath;
 import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
@@ -80,7 +82,7 @@ public class Tutorial05_ZoomAndMagnify_Solution {
   @Test
   @DisplayName("Exercise 1: zoom(FocusPath) narrows state via a generated path")
   void exercise1_zoomFocusPath() {
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Customer initial =
         new Customer("Alice", new Address("123 Main St", "Springfield", "62701"), 100);
     FocusPath<Customer, Address> addressPath = FocusPath.of(addressLens);
@@ -126,7 +128,7 @@ public class Tutorial05_ZoomAndMagnify_Solution {
         Lens.of(
             CustomerView::loyaltyPoints, (v, lp) -> new CustomerView(lp, v.name(), v.address()));
 
-    IdMonad idMonad = IdMonad.instance();
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     Customer initial = new Customer("Alice", new Address("123", "Springfield", "00000"), 0);
 
     // SOLUTION: zoom(iso) operates on the iso's target type for the duration of the block.
@@ -160,7 +162,7 @@ public class Tutorial05_ZoomAndMagnify_Solution {
   @Test
   @DisplayName("Exercise 3: zoom(AffinePath) updates inner state when target is present")
   void exercise3_zoomAffinePathPresent() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OptionalAddressCustomer initial =
         new OptionalAddressCustomer(
             "Alice", Optional.of(new Address("123 Main St", "Springfield", "62701")));
@@ -199,7 +201,7 @@ public class Tutorial05_ZoomAndMagnify_Solution {
   @Test
   @DisplayName("Exercise 4: zoom(AffinePath) short-circuits to Nothing when target is absent")
   void exercise4_zoomAffinePathAbsent() {
-    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
+    MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
     OptionalAddressCustomer initial = new OptionalAddressCustomer("Alice", Optional.empty());
     AffinePath<OptionalAddressCustomer, Address> addressPath = AffinePath.of(optionalAddressAffine);
 

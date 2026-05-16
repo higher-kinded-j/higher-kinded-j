@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.effecthandlers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -12,7 +13,7 @@ import org.higherkindedj.hkt.free.ProgramAnalyser;
 import org.higherkindedj.hkt.free.ProgramAnalysis;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -47,7 +48,7 @@ public class Tutorial05_ProgramInspection {
         @Override
         public <A, B> Kind<IdKind.Witness, B> map(
             Function<? super A, ? extends B> f, Kind<IdKind.Witness, A> fa) {
-          return IdMonad.instance().map(f, fa);
+          return Instances.monad(id()).map(f, fa);
         }
       };
 

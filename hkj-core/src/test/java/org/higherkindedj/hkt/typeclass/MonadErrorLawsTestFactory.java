@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
@@ -17,23 +18,21 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.instances.Witnesses;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonad;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskKind;
-import org.higherkindedj.hkt.vtask.VTaskMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -102,7 +101,7 @@ class MonadErrorLawsTestFactory {
     return Stream.of(
         MonadErrorTestData.of(
             "Maybe",
-            MaybeMonad.INSTANCE,
+            Instances.monadError(maybe()),
             MAYBE.widen(Maybe.just(42)),
             Unit.INSTANCE,
             new EqualityChecker<MaybeKind.Witness>() {
@@ -114,7 +113,7 @@ class MonadErrorLawsTestFactory {
             }),
         MonadErrorTestData.of(
             "Either",
-            EitherMonad.<String>instance(),
+            Instances.monadError(Witnesses.<String>either()),
             EITHER.widen(Either.right(42)),
             "test error",
             new EqualityChecker<EitherKind.Witness<String>>() {
@@ -126,7 +125,7 @@ class MonadErrorLawsTestFactory {
             }),
         MonadErrorTestData.of(
             "Try",
-            TryMonad.INSTANCE,
+            Instances.monadError(try_()),
             TRY.widen(Try.success(42)),
             new RuntimeException("test error"),
             new EqualityChecker<TryKind.Witness>() {
@@ -153,7 +152,7 @@ class MonadErrorLawsTestFactory {
             }),
         MonadErrorTestData.of(
             "Optional",
-            OptionalMonad.INSTANCE,
+            Instances.monadError(optional()),
             OPTIONAL.widen(Optional.of(42)),
             Unit.INSTANCE,
             new EqualityChecker<OptionalKind.Witness>() {
@@ -165,7 +164,7 @@ class MonadErrorLawsTestFactory {
             }),
         MonadErrorTestData.of(
             "Validated",
-            ValidatedMonad.instance(listSemigroup()),
+            Instances.validated(listSemigroup()),
             VALIDATED.widen(Validated.valid(42)),
             List.of("test error"),
             new EqualityChecker<ValidatedKind.Witness<List<String>>>() {
@@ -178,7 +177,7 @@ class MonadErrorLawsTestFactory {
             }),
         MonadErrorTestData.of(
             "VTask",
-            VTaskMonad.INSTANCE,
+            Instances.monadError(vtask()),
             VTASK.widen(VTask.succeed(42)),
             new RuntimeException("test error"),
             new EqualityChecker<VTaskKind.Witness>() {

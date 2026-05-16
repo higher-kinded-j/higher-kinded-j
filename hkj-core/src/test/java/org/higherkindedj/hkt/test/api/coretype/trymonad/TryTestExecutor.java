@@ -3,15 +3,19 @@
 package org.higherkindedj.hkt.test.api.coretype.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.trymonad.*;
+import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
@@ -135,7 +139,7 @@ final class TryTestExecutor<T, S> extends BaseCoreTypeTestExecutor<T, S, TryVali
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      TryMonad monad = TryMonad.INSTANCE;
+      MonadError<TryKind.Witness, Throwable> monad = Instances.monadError(try_());
       Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
       builder.assertFlatMapperNull(() -> monad.flatMap(null, kind), "f", Operation.FLAT_MAP);
     } else {

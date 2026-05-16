@@ -167,5 +167,5 @@ Practice Functor mapping in [Tutorial 02: Functor Mapping](https://github.com/hi
 
 ---
 
-**Previous:** [Functional API](functional_api.md)
+**Previous:** [Obtaining Instances](instances_facade.md)
 **Next:** [Applicative](applicative.md)

@@ -4,11 +4,15 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,11 +26,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 @DisplayName("MaybeMonad Complete Test Suite")
 class MaybeMonadTest extends MaybeTestBase {
 
-  private MaybeMonad monad;
+  private MonadError<MaybeKind.Witness, Unit> monad;
 
   @BeforeEach
   void setUpMonad() {
-    monad = MaybeMonad.INSTANCE;
+    monad = Instances.monadError(maybe());
     validateMonadFixtures();
   }
 

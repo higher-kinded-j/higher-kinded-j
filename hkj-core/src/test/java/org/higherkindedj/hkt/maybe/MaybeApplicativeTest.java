@@ -3,13 +3,17 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +24,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MaybeMonad Applicative Operations Complete Test Suite")
 class MaybeApplicativeTest extends MaybeTestBase {
 
-  private MaybeMonad applicative;
+  private MonadError<MaybeKind.Witness, Unit> applicative;
   private Applicative<MaybeKind.Witness> applicativeTyped;
 
   @BeforeEach
   void setUpApplicative() {
-    applicative = MaybeMonad.INSTANCE;
+    applicative = Instances.monadError(maybe());
     applicativeTyped = applicative;
     validateApplicativeFixtures();
   }

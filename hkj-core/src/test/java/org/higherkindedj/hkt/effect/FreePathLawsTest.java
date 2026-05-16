@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
@@ -10,8 +11,8 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
@@ -26,7 +27,7 @@ import org.junit.jupiter.api.TestFactory;
 class FreePathLawsTest {
 
   private static final int TEST_VALUE = 42;
-  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = MaybeMonad.INSTANCE;
+  private static final Monad<MaybeKind.Witness> MAYBE_MONAD = Instances.monadError(maybe());
   private static final Natural<MaybeKind.Witness, MaybeKind.Witness> IDENTITY_NAT =
       Natural.identity();
 
@@ -53,7 +54,7 @@ class FreePathLawsTest {
               "Identity law holds for pure value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> result = path.map(Function.identity());
                 assertThat(run(result)).isEqualTo(run(path));
               }),
@@ -61,7 +62,7 @@ class FreePathLawsTest {
               "Identity law holds for lifted value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.liftF(MAYBE.just(TEST_VALUE), MaybeMonad.INSTANCE);
+                    FreePath.liftF(MAYBE.just(TEST_VALUE), Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> result = path.map(Function.identity());
                 assertThat(run(result)).isEqualTo(run(path));
               }),
@@ -69,8 +70,8 @@ class FreePathLawsTest {
               "Identity law holds for chained value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE)
-                        .via(x -> FreePath.pure(x * 2, MaybeMonad.INSTANCE));
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()))
+                        .via(x -> FreePath.pure(x * 2, Instances.monadError(maybe())));
                 FreePath<MaybeKind.Witness, Integer> result = path.map(Function.identity());
                 assertThat(run(result)).isEqualTo(run(path));
               }));
@@ -84,7 +85,7 @@ class FreePathLawsTest {
               "Composition law holds for pure value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> leftSide = path.map(ADD_ONE).map(DOUBLE);
                 FreePath<MaybeKind.Witness, Integer> rightSide = path.map(ADD_ONE.andThen(DOUBLE));
                 assertThat(run(leftSide)).isEqualTo(run(rightSide));
@@ -93,7 +94,7 @@ class FreePathLawsTest {
               "Composition with type-changing functions",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> leftSide =
                     path.map(INT_TO_STRING).map(STRING_LENGTH);
                 FreePath<MaybeKind.Witness, Integer> rightSide =
@@ -104,7 +105,7 @@ class FreePathLawsTest {
               "Composition law holds for lifted value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.liftF(MAYBE.just(TEST_VALUE), MaybeMonad.INSTANCE);
+                    FreePath.liftF(MAYBE.just(TEST_VALUE), Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> leftSide = path.map(ADD_ONE).map(DOUBLE);
                 FreePath<MaybeKind.Witness, Integer> rightSide = path.map(ADD_ONE.andThen(DOUBLE));
                 assertThat(run(leftSide)).isEqualTo(run(rightSide));
@@ -117,13 +118,13 @@ class FreePathLawsTest {
   class MonadLawsTests {
 
     private final Function<Integer, FreePath<MaybeKind.Witness, String>> intToFreeString =
-        x -> FreePath.pure("result:" + x, MaybeMonad.INSTANCE);
+        x -> FreePath.pure("result:" + x, Instances.monadError(maybe()));
 
     private final Function<String, FreePath<MaybeKind.Witness, Integer>> stringToFreeInt =
-        s -> FreePath.pure(s.length(), MaybeMonad.INSTANCE);
+        s -> FreePath.pure(s.length(), Instances.monadError(maybe()));
 
     private final Function<Integer, FreePath<MaybeKind.Witness, Integer>> liftedDouble =
-        x -> FreePath.liftF(MAYBE.just(x * 2), MaybeMonad.INSTANCE);
+        x -> FreePath.liftF(MAYBE.just(x * 2), Instances.monadError(maybe()));
 
     @TestFactory
     @DisplayName("Left Identity Law: FreePath.pure(a).via(f) == f(a)")
@@ -134,7 +135,7 @@ class FreePathLawsTest {
               () -> {
                 int value = 10;
                 FreePath<MaybeKind.Witness, String> leftSide =
-                    FreePath.pure(value, MaybeMonad.INSTANCE).via(intToFreeString);
+                    FreePath.pure(value, Instances.monadError(maybe())).via(intToFreeString);
                 FreePath<MaybeKind.Witness, String> rightSide = intToFreeString.apply(value);
                 assertThat(run(leftSide)).isEqualTo(run(rightSide));
               }),
@@ -143,7 +144,7 @@ class FreePathLawsTest {
               () -> {
                 int value = 10;
                 FreePath<MaybeKind.Witness, Integer> leftSide =
-                    FreePath.pure(value, MaybeMonad.INSTANCE).via(liftedDouble);
+                    FreePath.pure(value, Instances.monadError(maybe())).via(liftedDouble);
                 FreePath<MaybeKind.Witness, Integer> rightSide = liftedDouble.apply(value);
                 assertThat(run(leftSide)).isEqualTo(run(rightSide));
               }));
@@ -157,18 +158,18 @@ class FreePathLawsTest {
               "Right identity holds for pure value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> result =
-                    path.via(x -> FreePath.pure(x, MaybeMonad.INSTANCE));
+                    path.via(x -> FreePath.pure(x, Instances.monadError(maybe())));
                 assertThat(run(result)).isEqualTo(run(path));
               }),
           DynamicTest.dynamicTest(
               "Right identity holds for lifted value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.liftF(MAYBE.just(TEST_VALUE), MaybeMonad.INSTANCE);
+                    FreePath.liftF(MAYBE.just(TEST_VALUE), Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> result =
-                    path.via(x -> FreePath.pure(x, MaybeMonad.INSTANCE));
+                    path.via(x -> FreePath.pure(x, Instances.monadError(maybe())));
                 assertThat(run(result)).isEqualTo(run(path));
               }));
     }
@@ -180,7 +181,8 @@ class FreePathLawsTest {
           DynamicTest.dynamicTest(
               "Associativity holds for pure value",
               () -> {
-                FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(10, MaybeMonad.INSTANCE);
+                FreePath<MaybeKind.Witness, Integer> path =
+                    FreePath.pure(10, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> leftSide =
                     path.via(intToFreeString).via(stringToFreeInt);
                 FreePath<MaybeKind.Witness, Integer> rightSide =
@@ -191,7 +193,7 @@ class FreePathLawsTest {
               "Associativity holds for lifted value",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.liftF(MAYBE.just(10), MaybeMonad.INSTANCE);
+                    FreePath.liftF(MAYBE.just(10), Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> leftSide =
                     path.via(intToFreeString).via(stringToFreeInt);
                 FreePath<MaybeKind.Witness, Integer> rightSide =
@@ -201,11 +203,12 @@ class FreePathLawsTest {
           DynamicTest.dynamicTest(
               "Associativity with lifted functions",
               () -> {
-                FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(5, MaybeMonad.INSTANCE);
+                FreePath<MaybeKind.Witness, Integer> path =
+                    FreePath.pure(5, Instances.monadError(maybe()));
                 Function<Integer, FreePath<MaybeKind.Witness, Integer>> f =
-                    x -> FreePath.liftF(MAYBE.just(x + 1), MaybeMonad.INSTANCE);
+                    x -> FreePath.liftF(MAYBE.just(x + 1), Instances.monadError(maybe()));
                 Function<Integer, FreePath<MaybeKind.Witness, Integer>> g =
-                    x -> FreePath.liftF(MAYBE.just(x * 2), MaybeMonad.INSTANCE);
+                    x -> FreePath.liftF(MAYBE.just(x * 2), Instances.monadError(maybe()));
 
                 FreePath<MaybeKind.Witness, Integer> leftSide = path.via(f).via(g);
                 FreePath<MaybeKind.Witness, Integer> rightSide = path.via(x -> f.apply(x).via(g));
@@ -226,7 +229,7 @@ class FreePathLawsTest {
               "foldMap preserves pure values",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
                 assertThat(run(path)).isEqualTo(TEST_VALUE);
               }),
           DynamicTest.dynamicTest(
@@ -234,23 +237,25 @@ class FreePathLawsTest {
               () -> {
                 Kind<MaybeKind.Witness, Integer> just = MAYBE.just(TEST_VALUE);
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.liftF(just, MaybeMonad.INSTANCE);
+                    FreePath.liftF(just, Instances.monadError(maybe()));
                 assertThat(run(path)).isEqualTo(TEST_VALUE);
               }),
           DynamicTest.dynamicTest(
               "foldMap preserves chained operations",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(10, MaybeMonad.INSTANCE)
-                        .via(x -> FreePath.pure(x * 2, MaybeMonad.INSTANCE))
-                        .via(x -> FreePath.pure(x + 1, MaybeMonad.INSTANCE));
+                    FreePath.pure(10, Instances.monadError(maybe()))
+                        .via(x -> FreePath.pure(x * 2, Instances.monadError(maybe())))
+                        .via(x -> FreePath.pure(x + 1, Instances.monadError(maybe())));
                 assertThat(run(path)).isEqualTo(21);
               }),
           DynamicTest.dynamicTest(
               "foldMap preserves map operations",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(10, MaybeMonad.INSTANCE).map(x -> x * 2).map(x -> x + 1);
+                    FreePath.pure(10, Instances.monadError(maybe()))
+                        .map(x -> x * 2)
+                        .map(x -> x + 1);
                 assertThat(run(path)).isEqualTo(21);
               }));
     }
@@ -267,8 +272,10 @@ class FreePathLawsTest {
           DynamicTest.dynamicTest(
               "zipWith combines pure values",
               () -> {
-                FreePath<MaybeKind.Witness, Integer> a = FreePath.pure(10, MaybeMonad.INSTANCE);
-                FreePath<MaybeKind.Witness, Integer> b = FreePath.pure(20, MaybeMonad.INSTANCE);
+                FreePath<MaybeKind.Witness, Integer> a =
+                    FreePath.pure(10, Instances.monadError(maybe()));
+                FreePath<MaybeKind.Witness, Integer> b =
+                    FreePath.pure(20, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> result = a.zipWith(b, Integer::sum);
                 assertThat(run(result)).isEqualTo(30);
               }),
@@ -276,17 +283,19 @@ class FreePathLawsTest {
               "zipWith combines lifted values",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> a =
-                    FreePath.liftF(MAYBE.just(10), MaybeMonad.INSTANCE);
+                    FreePath.liftF(MAYBE.just(10), Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> b =
-                    FreePath.liftF(MAYBE.just(20), MaybeMonad.INSTANCE);
+                    FreePath.liftF(MAYBE.just(20), Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, Integer> result = a.zipWith(b, Integer::sum);
                 assertThat(run(result)).isEqualTo(30);
               }),
           DynamicTest.dynamicTest(
               "zipWith with type-changing combiner",
               () -> {
-                FreePath<MaybeKind.Witness, String> a = FreePath.pure("hello", MaybeMonad.INSTANCE);
-                FreePath<MaybeKind.Witness, Integer> b = FreePath.pure(3, MaybeMonad.INSTANCE);
+                FreePath<MaybeKind.Witness, String> a =
+                    FreePath.pure("hello", Instances.monadError(maybe()));
+                FreePath<MaybeKind.Witness, Integer> b =
+                    FreePath.pure(3, Instances.monadError(maybe()));
                 FreePath<MaybeKind.Witness, String> result = a.zipWith(b, (s, n) -> s.repeat(n));
                 assertThat(run(result)).isEqualTo("hellohellohello");
               }));
@@ -305,7 +314,7 @@ class FreePathLawsTest {
               "toFree returns underlying Free",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
                 var free = path.toFree();
                 Kind<MaybeKind.Witness, Integer> result = free.foldMap(IDENTITY_NAT, MAYBE_MONAD);
                 assertThat(MAYBE.narrow(result).get()).isEqualTo(TEST_VALUE);
@@ -314,8 +323,8 @@ class FreePathLawsTest {
               "functor returns the functor instance",
               () -> {
                 FreePath<MaybeKind.Witness, Integer> path =
-                    FreePath.pure(TEST_VALUE, MaybeMonad.INSTANCE);
-                assertThat(path.functor()).isEqualTo(MaybeMonad.INSTANCE);
+                    FreePath.pure(TEST_VALUE, Instances.monadError(maybe()));
+                assertThat(path.functor()).isEqualTo(Instances.monadError(maybe()));
               }));
     }
   }

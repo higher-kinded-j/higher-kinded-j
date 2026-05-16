@@ -2,14 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind; // For ListKind.Witness
-import org.higherkindedj.hkt.list.ListMonad;
 import org.jspecify.annotations.NonNull; // Assuming usage
 
 /**
@@ -19,7 +20,7 @@ import org.jspecify.annotations.NonNull; // Assuming usage
 public class MonadSimulation {
 
   // Get the singleton instance of ListMonad
-  private static final Monad<ListKind.Witness> listMonad = ListMonad.INSTANCE;
+  private static final Monad<ListKind.Witness> listMonad = Instances.monadZero(list());
 
   /**
    * Simulates the 'of' (or 'pure') operation of a Monad. It takes a simple value and lifts it into

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import org.higherkindedj.hkt.Functor;
@@ -11,6 +12,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +30,7 @@ class ValidatedFunctorTest extends ValidatedTestBase {
     // Use standard Semigroups.first() as a simple semigroup
     // Note: For Functor operations, the semigroup isn't used, but we need one for construction
     stringSemigroup = Semigroups.first();
-    functor = ValidatedMonad.instance(stringSemigroup);
+    functor = Instances.validated(stringSemigroup);
   }
 
   @Nested

@@ -3,6 +3,7 @@
 package org.higherkindedj.example.basic.reader_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
 import java.util.concurrent.CompletableFuture;
@@ -12,10 +13,9 @@ import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;
-import org.higherkindedj.hkt.reader_t.ReaderTMonad;
 
 /**
  * see {<a href="https://higher-kinded-j.github.io/readert_transformer.html">ReaderT
@@ -24,10 +24,11 @@ import org.higherkindedj.hkt.reader_t.ReaderTMonad;
 public class ReaderTAsyncExample {
   // --- Monad Setup ---
   // Outer Monad F = CompletableFutureKind.Witness
-  static final Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
+  static final Monad<CompletableFutureKind.Witness> futureMonad =
+      Instances.monadError(completableFuture());
   // ReaderTMonad for AppConfig and CompletableFutureKind
-  static final ReaderTMonad<CompletableFutureKind.Witness, AppConfig> cfReaderTMonad =
-      new ReaderTMonad<>(futureMonad);
+  static final Monad<ReaderTKind.Witness<CompletableFutureKind.Witness, AppConfig>> cfReaderTMonad =
+      Instances.readerT(futureMonad);
 
   // Simulates an async call to an external service
   public static Kind<CompletableFutureKind.Witness, ServiceData> fetchExternalData(

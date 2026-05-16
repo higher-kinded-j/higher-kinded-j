@@ -3,13 +3,15 @@
 package org.higherkindedj.example.basic.either;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
 
 /** see {<a href="https://higher-kinded-j.github.io/either_monad.html">Either Monad</a>} */
 public class EitherExample {
@@ -104,7 +106,7 @@ public class EitherExample {
 
   public void basicMonadExample() {
 
-    EitherMonad<String> eitherMonad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> eitherMonad = Instances.monadError(either());
 
     Either<String, Integer> myEither = Either.right(10);
     // F_WITNESS is EitherKind.Witness<String>, A is Integer

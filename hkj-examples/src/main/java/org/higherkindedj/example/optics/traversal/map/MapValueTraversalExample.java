@@ -3,10 +3,11 @@
 package org.higherkindedj.example.optics.traversal.map;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Map;
 import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /** A runnable example demonstrating how to traverse the values of a {@link Map}. */
@@ -39,7 +40,7 @@ public class MapValueTraversalExample {
                 flagsTraversal.modifyF(
                     currentValue -> Id.of(false), // The function to apply to each value
                     initialToggles,
-                    IdMonad.instance()))
+                    Instances.monad(id())))
             .value();
     System.out.println("Result (disabling all flags): " + updatedToggles);
     // Expected: FeatureToggles[environment=production, flags={enable-new-dashboard=false,

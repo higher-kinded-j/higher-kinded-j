@@ -91,7 +91,7 @@ Let's build a registration validator that validates username, email, and age —
 Each validator is an independent function that returns `Validated<List<String>, T>`:
 
 ```java
-ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance(Semigroups.list());
+ValidatedMonad<List<String>> validatedMonad = Instances.validated(Semigroups.list());
 
 static Validated<List<String>, String> validateName(String name) {
     return (name == null || name.isBlank())

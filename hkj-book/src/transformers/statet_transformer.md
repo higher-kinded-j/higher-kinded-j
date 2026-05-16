@@ -76,8 +76,8 @@ WithStatePath<List<Integer>, Integer> workflow() {
 When state must combine with another effect (here `Optional`):
 
 ```java
-var optMonad    = OptionalMonad.INSTANCE;
-var stateTMonad = StateTMonad.<List<Integer>, OptionalKind.Witness>instance(optMonad);
+var optMonad    = Instances.monadError(optional());
+var stateTMonad = Instances.stateT(optMonad);
 
 var computation = For.from(stateTMonad, push(10))
     .from(_ -> push(20))
@@ -159,8 +159,8 @@ StateT<Integer, OptionalKind.Witness, String> computation = StateT.create(
 The `StateTMonad<S, F>` class implements `Monad<StateTKind.Witness<S, F>>`. It requires a `Monad<F>` instance for the underlying monad:
 
 ```java
-var optionalMonad = OptionalMonad.INSTANCE;
-var stateTMonad   = StateTMonad.<Integer, OptionalKind.Witness>instance(optionalMonad);
+var optionalMonad = Instances.monadError(optional());
+var stateTMonad   = Instances.stateT(optionalMonad);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -281,9 +281,9 @@ static <S, F, A> Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<
 **The solution:**
 
 ```java
-private static final OptionalMonad OPT_MONAD = OptionalMonad.INSTANCE;
+private static final MonadError<OptionalKind.Witness, Unit> OPT_MONAD = Instances.monadError(optional());
 private static final StateTMonad<List<Integer>, OptionalKind.Witness> ST_OPT_MONAD =
-    StateTMonad.instance(OPT_MONAD);
+    Instances.stateT(OPT_MONAD);
 
 static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(Integer value) {
   return StateTKindHelper.stateT(stack -> {
@@ -335,7 +335,7 @@ Because `StateT` stores its `Monad<F>` instance internally, switching from `F` t
 
 ```java
 StateT<Integer, OptionalKind.Witness, String> optStateT = ...;
-var idMonad = IdMonad.instance();
+var idMonad = Instances.monad(id());
 
 var idStateT = optStateT.mapT(idMonad, optKind -> {
   Optional<StateTuple<Integer, String>> opt = OPTIONAL.narrow(optKind);

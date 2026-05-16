@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.free;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -13,7 +14,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
-import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class ProgramAnalyserTest {
         @Override
         public <A, B> Kind<IdKind.Witness, B> map(
             Function<? super A, ? extends B> f, Kind<IdKind.Witness, A> fa) {
-          return IdMonad.instance().map(f, fa);
+          return Instances.monad(id()).map(f, fa);
         }
       };
 

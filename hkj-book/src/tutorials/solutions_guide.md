@@ -84,7 +84,7 @@ Either<String, Integer> result = value1.flatMap(a ->
 );
 
 // Provided solution (using map2 - more idiomatic for Applicative)
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 Either<String, Integer> result = EITHER.narrow(
     applicative.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b)
 );
@@ -119,7 +119,7 @@ When studying a solution, add your own comments explaining what each part does:
 
 ```java
 // Create the Applicative instance for Either with String errors
-EitherMonad<String> applicative = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
 
 // Widen both Either values to Kind for generic processing
 // Combine them using map2 (because they're independent)
@@ -161,7 +161,7 @@ Either<String, String> result = EITHER.narrow(mapped);
 
 ```java
 // Get the Monad instance for Either with String errors
-EitherMonad<String> monad = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> monad = Instances.monadError(either());
 
 // Use it to perform monadic operations
 monad.flatMap(...);

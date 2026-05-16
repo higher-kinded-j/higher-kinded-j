@@ -2,22 +2,24 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.io;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.Scanner;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {
 
   static Scanner scanner = new Scanner(System.in);
   // Get the IOMonad instance
-  IOMonad ioMonad = IOMonad.INSTANCE;
+  Monad<IOKind.Witness> ioMonad = Instances.monad(io());
 
   // IO action to print a message
   Kind<IOKind.Witness, Unit> printHello =

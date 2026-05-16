@@ -114,7 +114,7 @@ Monoid<String> logMonoid = new Monoid<>() {
     public String combine(String x, String y) { return x + y; }
 };
 
-var monad = new WriterMonad<>(logMonoid);
+var monad = Instances.writer(logMonoid);
 ```
 
 **Step 2 -- Define pricing steps as functions**

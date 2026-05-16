@@ -2,16 +2,18 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.lazy;
 
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.lazy.LazyKind;
-import org.higherkindedj.hkt.lazy.LazyMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/lazy_monad.html">Lazy Monad</a>} */
 public class LazyExample {
@@ -79,7 +81,7 @@ public class LazyExample {
     }
 
     // Using LazyMonad (map and flatMap)
-    LazyMonad lazyMonad = LazyMonad.INSTANCE;
+    Monad<LazyKind.Witness> lazyMonad = Instances.monad(lazy());
     counter.set(0); // Reset counter for this example
 
     Kind<LazyKind.Witness, Integer> initialLazy =

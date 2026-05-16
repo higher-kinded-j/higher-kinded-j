@@ -167,7 +167,7 @@ Three different errors, one chain, no `if`, no `try`. The `Left` reaches the end
 When we want to write code that is generic over the container, we go through `EitherMonad`. It implements `MonadError<EitherKind.Witness<L>, L>` for any chosen left type `L`.
 
 ```java
-EitherMonad<String> eitherMonad = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> eitherMonad = Instances.monadError(either());
 
 // Widen
 Either<String, Integer> myEither = Either.right(10);

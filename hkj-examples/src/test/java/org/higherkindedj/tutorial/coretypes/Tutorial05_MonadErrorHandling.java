@@ -4,12 +4,14 @@ package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,7 +63,7 @@ public class Tutorial05_MonadErrorHandling {
   @Test
   @DisplayName("Exercise 1: raiseError lifts an error into the failure channel")
   void exercise1_raisingErrors() {
-    EitherMonad<String> monad = EitherMonad.instance();
+    MonadError<EitherKind.Witness<String>, String> monad = Instances.monadError(either());
 
     // TODO: Replace null with code that raises an error "Invalid input"
     // Hint: Use monad.raiseError(...)

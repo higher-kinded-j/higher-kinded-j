@@ -7,7 +7,7 @@ The `traverse()`, `sequence()`, and `flatTraverse()` methods allow bulk operatio
 Apply an effectful function to each element of a traversable structure. The `traverse()` method extracts a `Kind<T, C>` from the current tuple, applies `f: C -> Kind<M, B>` to each element, and collects the results as `Kind<T, B>`, all within the enclosing monad.
 
 ```java
-var maybeMonad = MaybeMonad.INSTANCE;
+var maybeMonad = Instances.monadError(maybe());
 var listTraverse = ListTraverse.INSTANCE;
 
 Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
@@ -44,7 +44,7 @@ Like `traverse`, but flattens nested structures using an inner monad. This is us
 ```java
 Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
     For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
-        .flatTraverse(listTraverse, ListMonad.INSTANCE,
+        .flatTraverse(listTraverse, Instances.monadZero(list()),
             t -> t._1(),
             n -> MAYBE.just(LIST.widen(List.of(n, n * 10))))
         .yield((original, flattened) -> flattened);

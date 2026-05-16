@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 
 import org.higherkindedj.hkt.Kind;
@@ -11,9 +12,9 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,7 +30,7 @@ class MaybeTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = OptionalMonad.INSTANCE;
+    outerMonad = Instances.monadError(optional());
   }
 
   private <A> MaybeT<OptionalKind.Witness, A> createMaybeT(Maybe<A> maybe) {

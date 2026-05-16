@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
@@ -11,10 +12,10 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +36,7 @@ class TryTraverseTest extends TryTestBase {
   @BeforeEach
   void setUpTraverse() {
     traverse = TryTraverse.INSTANCE;
-    maybeApplicative = MaybeMonad.INSTANCE;
+    maybeApplicative = Instances.monadError(maybe());
   }
 
   // Override to use Integer for Traverse tests

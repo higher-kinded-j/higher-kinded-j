@@ -3,13 +3,15 @@
 package org.higherkindedj.tutorial.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.context.Context;
 import org.higherkindedj.hkt.context.ContextKind;
 import org.higherkindedj.hkt.context.ContextKindHelper;
-import org.higherkindedj.hkt.context.ContextMonad;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -288,7 +290,7 @@ public class Tutorial02_ContextComposition {
     @Test
     @DisplayName("Exercise 8: Using Monad.of()")
     void exercise8_monadOf() {
-      ContextMonad<String> monad = ContextMonad.instance();
+      Monad<ContextKind.Witness<String>> monad = Instances.monad(context());
 
       // TODO: Replace answerRequired() with monad.of(42)
       Kind<ContextKind.Witness<String>, Integer> pureKind = answerRequired();
@@ -310,7 +312,7 @@ public class Tutorial02_ContextComposition {
     @Test
     @DisplayName("Exercise 9: Using Functor.map() through monad")
     void exercise9_functorMap() throws Exception {
-      ContextMonad<String> monad = ContextMonad.instance();
+      Monad<ContextKind.Witness<String>> monad = Instances.monad(context());
 
       Context<String, String> getName = Context.ask(USER_NAME);
       Kind<ContextKind.Witness<String>, String> nameKind = ContextKindHelper.CONTEXT.widen(getName);
@@ -336,7 +338,7 @@ public class Tutorial02_ContextComposition {
     @Test
     @DisplayName("Exercise 10: Using Monad.flatMap()")
     void exercise10_monadFlatMap() throws Exception {
-      ContextMonad<String> monad = ContextMonad.instance();
+      Monad<ContextKind.Witness<String>> monad = Instances.monad(context());
 
       Context<String, String> getName = Context.ask(USER_NAME);
       Kind<ContextKind.Witness<String>, String> nameKind = ContextKindHelper.CONTEXT.widen(getName);

@@ -24,7 +24,7 @@ This page is the engine-room tour. Nothing new is introduced; everything below i
 ```java
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
-EitherMonad<String> monad = EitherMonad.instance();
+MonadError<EitherKind.Witness<String>, String> monad = Instances.monadError(either());
 
 Either<String, Integer> start = Either.right(10);
 Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(start);
