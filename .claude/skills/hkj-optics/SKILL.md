@@ -189,7 +189,7 @@ The processor generates a companion class with the requested prisms and lenses.
 Fields of these types are automatically recognised by `@GenerateFocus`:
 
 **Zero-or-one (-> AffinePath):** `Optional`, `Either`, `Try`, `Validated`, `Maybe`
-**Zero-or-more (-> TraversalPath):** `List`, `Set`, `Map`, `T[]`, plus Eclipse Collections, Guava, Vavr, Apache Commons types (23 total via SPI)
+**Zero-or-more (-> TraversalPath):** `List`, `Set`, `Map`, `T[]`, plus Eclipse Collections, Guava, Vavr, Apache Commons, PCollections types (30 total via SPI)
 
 Nested containers like `Optional<List<String>>` are detected automatically with composed widening.
 

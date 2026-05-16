@@ -418,7 +418,7 @@ assertThatMaybe(value).isJust().hasValue("hello");
 assertThatTry(computation).isFailure().hasExceptionOfType(IOException.class);
 ```
 
-Coverage spans the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer (`EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT`, `WriterT`), and the `Free` / `EitherF` algebras. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
+Coverage spans the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer (`EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT`, `WriterT`), the `Free` / `EitherF` algebras, the `List` / `OptionalKind` / `Stream` / `Id` Kind-narrowing wrappers, and the `VTaskPath` / `VStreamPath` / `VTaskContext` Path-and-context assertions. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
 
 For the full reference, see [Testing with hkj-test](https://higher-kinded-j.github.io/latest/tooling/test_assertions.html).
 

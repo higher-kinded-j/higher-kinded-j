@@ -77,7 +77,7 @@ Type-safe structural navigation integrated with Effect Paths:
 
 SPI-aware container widening automatically selects the correct path type based on container cardinality. Annotate with `@GenerateFocus(widenCollections = true)` and the processor infers `AffinePath` for `ZERO_OR_ONE` containers and `TraversalPath` for `ZERO_OR_MORE` containers, eliminating manual `.each()` and `.some()` calls. Nested containers like `Optional<List<String>>` resolve correctly through recursive cardinality analysis.
 
-23 `TraversableGenerator` plugins across 6 library families: JDK (Array, List, Set, Optional, MapValue), Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, and HKJ native (Either, Maybe, Try, Validated).
+30 `TraversableGenerator` plugins across 7 library families: JDK (Array, List, Set, Optional, MapValue), Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, PCollections (PVector, PStack, PSet, PSortedSet, PBag, PMap values, PSortedMap values), and HKJ native (Either, Maybe, Try, Validated).
 
 ```java
 userService.findById(userId)           // EitherPath<Error, User>
@@ -139,12 +139,16 @@ Annotation-driven boilerplate elimination:
 - `@GenerateFocus` - Generates FocusPath accessors
 - `@GenerateTraversals` - Generates TraversalPath for collections
 - **ForPath step classes** - Steps 2-12 auto-generated for all 10 Path types
-- **TraversableGenerator SPI** - 23 generator plugins across 6 library families (JDK, Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, HKJ native) with cardinality-based path widening, priority system, and wildcard type resolution
+- **TraversableGenerator SPI** - 30 generator plugins across 7 library families (JDK, Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, PCollections, HKJ native) with cardinality-based path widening, priority system, and wildcard type resolution
 
 ## Compile-Time Safety
 
 - **hkj-checker** - Compiler plugin that detects Path type mismatches at compile time (e.g. using `EitherPath` where `MaybePath` expected)
 - **hkj-openrewrite** - Automated code migration recipes
+
+## Testing
+
+`hkj-test` - a publishable, test-scope module of fluent AssertJ assertion helpers covering every public type: discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), effect types (`IO`, `VTask`, `VStream`), the Reader/Writer/State trio, every monad transformer, the `Free`/`EitherF` algebras, the `List`/`OptionalKind`/`Stream`/`Id` Kind-narrowing wrappers, and the `VTaskPath`/`VStreamPath`/`VTaskContext` Path-and-context assertions. Entry methods follow `assertThatEither`, `assertThatMaybe`, `assertThatTry`, etc. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope.
 
 ## Installation
 
@@ -164,6 +168,7 @@ dependencies {
 - `hkj-checker` - Compile-time checker plugin
 - `hkj-openrewrite` - Code migration recipes
 - `hkj-spring:starter` - Spring Boot integration
+- `hkj-test` - Fluent AssertJ assertion helpers for every HKJ type (test scope)
 - `hkj-gradle-plugin` / `hkj-maven-plugin` - Build plugins
 - `hkj-bom` - Bill of Materials for version alignment
 
@@ -186,6 +191,7 @@ dependencies {
 - Resilience: https://higher-kinded-j.github.io/latest/resilience/resilience_intro.html
 - Tutorials: https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html
 - Spring Boot: https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html
+- Testing (hkj-test): https://higher-kinded-j.github.io/latest/tooling/test_assertions.html
 - Examples: https://higher-kinded-j.github.io/latest/examples/ch_intro.html
 
 ## Source Code
@@ -206,3 +212,4 @@ Use this library when you need:
 - Code generation for lenses/prisms on Java records and sealed interfaces
 - Compile-time checking for Path type correctness
 - Functional patterns in Spring Boot applications
+- Fluent AssertJ assertions for HKJ types in tests (hkj-test)

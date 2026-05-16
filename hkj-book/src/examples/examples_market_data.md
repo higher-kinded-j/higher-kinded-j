@@ -29,7 +29,7 @@ piece out, and know that failures will not hide.
 
 ## The Scenario
 
-It's Monday morning. You're the lead engineer on the market data team at a mid-size trading
+You're the lead engineer on the market data team at a mid-size trading
 firm. Three exchange feeds (NYSE, LSE, and the Tokyo Stock Exchange) push tens of thousands
 of price ticks per second into your system. Each tick is raw: just a symbol, a bid, an ask,
 a volume, and a timestamp. Before anyone can act on this data, your pipeline must:

@@ -166,7 +166,7 @@ Java's evolution toward Data Oriented Programming provides exactly the building 
 | **Sealed interfaces** | Exhaustive type hierarchies | Closed sets of operations (effect algebras) |
 | **Pattern matching** | Deconstructing data | Interpreting operations in handlers |
 
-This is not exotic functional programming imported from Haskell. It is standard Java 21+ patterns applied to domain workflows. A `switch` expression over a sealed interface is how you write an interpreter:
+This is not exotic functional programming imported from Haskell. It is standard Java 25+ patterns applied to domain workflows. A `switch` expression over a sealed interface is how you write an interpreter:
 
 ```java
 // This is just pattern matching, standard Java DOP
