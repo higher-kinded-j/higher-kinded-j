@@ -284,14 +284,14 @@ class ForTraverseTest {
   }
 
   @Nested
-  @DisplayName("FilterableSteps1 traverse with Maybe Monad")
-  class FilterableSteps1TraverseTest {
+  @DisplayName("MonadicSteps1 traverse/sequence/flatTraverse with Maybe Monad")
+  class MonadicSteps1TraverseSequenceFlatTraverseMaybeTest {
     private final MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
     private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
     @Test
-    @DisplayName("traverse: should work on filterable comprehension")
-    void traverseOnFilterable() {
+    @DisplayName("traverse: should work on a MonadicSteps1 comprehension")
+    void traverseOnMonadicSteps1() {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
               .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
@@ -302,8 +302,8 @@ class ForTraverseTest {
     }
 
     @Test
-    @DisplayName("sequence: should work on filterable comprehension")
-    void sequenceOnFilterable() {
+    @DisplayName("sequence: should work on a MonadicSteps1 comprehension")
+    void sequenceOnMonadicSteps1() {
       List<Kind<MaybeKind.Witness, Integer>> listOfMaybes =
           Arrays.asList(MAYBE.just(1), MAYBE.just(2), MAYBE.just(3));
       Kind<ListKind.Witness, Kind<MaybeKind.Witness, Integer>> kindList = LIST.widen(listOfMaybes);
@@ -318,8 +318,8 @@ class ForTraverseTest {
     }
 
     @Test
-    @DisplayName("flatTraverse: should work on filterable comprehension")
-    void flatTraverseOnFilterable() {
+    @DisplayName("flatTraverse: should work on a MonadicSteps1 comprehension")
+    void flatTraverseOnMonadicSteps1() {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2)))
               .flatTraverse(
@@ -355,6 +355,144 @@ class ForTraverseTest {
                     return a + ":" + tList;
                   });
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("10:[20, 22, 24]");
+    }
+  }
+
+  @Nested
+  @DisplayName("FilterableSteps1 traverse / sequence / flatTraverse via MonadZero")
+  class FilterableSteps1TraverseMonadZeroTest {
+    private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
+    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
+    private final ListTraverse listTraverse = ListTraverse.INSTANCE;
+
+    @Test
+    @DisplayName("traverse: should traverse a list applying a Maybe effect to each element")
+    void filterableTraverse() {
+      Kind<MaybeKind.Witness, List<Integer>> result =
+          For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
+              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
+              .yield((original, traversed) -> LIST.narrow(traversed));
+      Maybe<List<Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).containsExactly(2, 4, 6);
+    }
+
+    @Test
+    @DisplayName("traverse: should short-circuit when an element returns Nothing")
+    void filterableTraverseNothing() {
+      Kind<MaybeKind.Witness, List<Integer>> result =
+          For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
+              .traverse(
+                  listTraverse,
+                  list -> LIST.widen(list),
+                  (Integer i) -> i == 2 ? MAYBE.<Integer>nothing() : MAYBE.just(i * 2))
+              .yield((original, traversed) -> LIST.narrow(traversed));
+      assertThat(MAYBE.narrow(result).isJust()).isFalse();
+    }
+
+    @Test
+    @DisplayName("traverse: should reject null arguments")
+    void filterableTraverseNullArgs() {
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .traverse(null, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i)))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("traversable");
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .traverse(listTraverse, null, (Integer i) -> MAYBE.just(i)))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("extractor");
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .traverse(listTraverse, list -> LIST.widen(list), null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("function");
+    }
+
+    @Test
+    @DisplayName("sequence: should turn List<Maybe<Int>> into Maybe<List<Int>>")
+    void filterableSequence() {
+      List<Kind<MaybeKind.Witness, Integer>> listOfMaybes =
+          Arrays.asList(MAYBE.just(1), MAYBE.just(2), MAYBE.just(3));
+      Kind<ListKind.Witness, Kind<MaybeKind.Witness, Integer>> kindList = LIST.widen(listOfMaybes);
+
+      Kind<MaybeKind.Witness, List<Integer>> result =
+          For.from(maybeMonad, MAYBE.just(kindList))
+              .sequence(listTraverse, Function.identity())
+              .yield((original, sequenced) -> LIST.narrow(sequenced));
+
+      Maybe<List<Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("sequence: should reject null arguments")
+    void filterableSequenceNullArgs() {
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(MAYBE.just(1)))))
+                      .sequence(null, Function.identity()))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("traversable");
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(MAYBE.just(1)))))
+                      .sequence(listTraverse, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("extractor");
+    }
+
+    @Test
+    @DisplayName("flatTraverse: should traverse and flatten inner lists")
+    void filterableFlatTraverse() {
+      Kind<MaybeKind.Witness, List<Integer>> result =
+          For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
+              .flatTraverse(
+                  listTraverse,
+                  listMonad,
+                  list -> LIST.widen(list),
+                  (Integer i) -> MAYBE.just(LIST.widen(Arrays.asList(i, i * 10))))
+              .yield((original, traversed) -> LIST.narrow(traversed));
+      Maybe<List<Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).containsExactly(1, 10, 2, 20, 3, 30);
+    }
+
+    @Test
+    @DisplayName("flatTraverse: should reject null arguments")
+    void filterableFlatTraverseNullArgs() {
+      Function<List<Integer>, Kind<ListKind.Witness, Integer>> extractor = list -> LIST.widen(list);
+      Function<Integer, Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>>> f =
+          i -> MAYBE.just(LIST.widen(List.of(i)));
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .flatTraverse(null, listMonad, extractor, f))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("traversable");
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .flatTraverse(listTraverse, null, extractor, f))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("innerMonad");
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .flatTraverse(listTraverse, listMonad, null, f))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("extractor");
+      assertThatThrownBy(
+              () ->
+                  For.from(maybeMonad, MAYBE.just(List.of(1)))
+                      .flatTraverse(listTraverse, listMonad, extractor, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("function");
     }
   }
 }
