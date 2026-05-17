@@ -256,6 +256,6 @@ public final class IdPath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "IdPath(" + value.value() + ")";
+    return "IdPath(" + String.valueOf(value.value()) + ")";
   }
 }

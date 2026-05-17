@@ -376,6 +376,15 @@ public final class LazyPath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "LazyPath(" + lazy + ")";
+    if (!lazy.isEvaluated()) {
+      return "LazyPath(" + PathToString.DEFERRED + ")";
+    }
+    try {
+      // Already evaluated: force() returns the memoised value (or rethrows the cached failure)
+      // without re-running the computation.
+      return "LazyPath(" + lazy.force() + ")";
+    } catch (Throwable t) {
+      return "LazyPath(" + PathToString.FAILED + ")";
+    }
   }
 }

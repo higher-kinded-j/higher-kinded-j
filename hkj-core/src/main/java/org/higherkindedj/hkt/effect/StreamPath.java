@@ -523,7 +523,7 @@ public final class StreamPath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "StreamPath(<stream>)";
+    return "StreamPath(" + PathToString.STREAM + ")";
   }
 
   // Note: equals and hashCode not implemented because streams are not comparable

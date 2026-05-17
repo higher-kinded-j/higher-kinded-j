@@ -360,6 +360,6 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
 
   @Override
   public String toString() {
-    return "VTaskPath(<deferred>)";
+    return "VTaskPath(" + PathToString.DEFERRED + ")";
   }
 }

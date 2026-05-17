@@ -700,10 +700,10 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   public String toString() {
     if (future.isDone()) {
       if (future.isCompletedExceptionally()) {
-        return "CompletableFuturePath(<failed>)";
+        return "CompletableFuturePath(" + PathToString.FAILED + ")";
       }
       return "CompletableFuturePath(" + future.join() + ")";
     }
-    return "CompletableFuturePath(<pending>)";
+    return "CompletableFuturePath(" + PathToString.PENDING + ")";
   }
 }
