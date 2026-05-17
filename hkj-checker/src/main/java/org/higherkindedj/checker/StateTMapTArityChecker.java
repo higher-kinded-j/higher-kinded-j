@@ -39,7 +39,11 @@ public final class StateTMapTArityChecker implements CheckVisitor {
   private final Trees trees;
   private final Diagnostic.Kind severity;
 
-  /** Creates a checker reporting at {@link Diagnostic.Kind#ERROR}. */
+  /**
+   * Creates a checker reporting at {@link Diagnostic.Kind#ERROR}.
+   *
+   * @param trees the {@link Trees} utility for AST and type resolution
+   */
   public StateTMapTArityChecker(Trees trees) {
     this(trees, Diagnostic.Kind.ERROR);
   }

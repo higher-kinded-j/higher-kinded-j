@@ -51,7 +51,12 @@ public final class ErrorTypeMismatchChecker implements CheckVisitor {
   private final Types types;
   private final Diagnostic.Kind severity;
 
-  /** Creates a checker reporting at {@link Diagnostic.Kind#WARNING} (sole-signal soak default). */
+  /**
+   * Creates a checker reporting at {@link Diagnostic.Kind#WARNING} (sole-signal soak default).
+   *
+   * @param trees the {@link Trees} utility for AST and type resolution
+   * @param types the {@link Types} utility for type operations
+   */
   public ErrorTypeMismatchChecker(Trees trees, Types types) {
     this(trees, types, Diagnostic.Kind.WARNING);
   }

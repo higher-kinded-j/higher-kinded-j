@@ -43,7 +43,11 @@ public final class MigrationNudgeChecker implements CheckVisitor {
   private final Trees trees;
   private final Diagnostic.Kind severity;
 
-  /** Creates a checker reporting at {@link Diagnostic.Kind#WARNING} (advisory default). */
+  /**
+   * Creates a checker reporting at {@link Diagnostic.Kind#WARNING} (advisory default).
+   *
+   * @param trees the {@link Trees} utility for AST and type resolution
+   */
   public MigrationNudgeChecker(Trees trees) {
     this(trees, Diagnostic.Kind.WARNING);
   }

@@ -67,36 +67,74 @@ public class ErrorStatusFixtureController {
   /** Sealed domain-error hierarchy that exercises every supported mapping rule. */
   public sealed interface DomainError {
 
-    /** Heuristic match → 404. */
+    /**
+     * Heuristic match → 404.
+     *
+     * @param userId the missing user identifier
+     */
     record UserNotFoundError(String userId) implements DomainError {}
 
-    /** Heuristic match → 400. */
+    /**
+     * Heuristic match → 400.
+     *
+     * @param field the invalid field name
+     */
     record ValidationError(String field) implements DomainError {}
 
-    /** Heuristic match (token "Invalid") → 400. */
+    /**
+     * Heuristic match (token "Invalid") → 400.
+     *
+     * @param code the invalid MFA code
+     */
     record MfaCodeInvalidError(String code) implements DomainError {}
 
-    /** Heuristic match → 403. */
+    /**
+     * Heuristic match → 403.
+     *
+     * @param action the forbidden action
+     */
     record ForbiddenAction(String action) implements DomainError {}
 
-    /** Heuristic match → 403. */
+    /**
+     * Heuristic match → 403.
+     *
+     * @param reason the authorization failure reason
+     */
     record AuthorizationError(String reason) implements DomainError {}
 
-    /** Heuristic match → 401. */
+    /**
+     * Heuristic match → 401.
+     *
+     * @param reason the authentication failure reason
+     */
     record AuthenticationError(String reason) implements DomainError {}
 
-    /** Heuristic match → 401. */
+    /**
+     * Heuristic match → 401.
+     *
+     * @param reason the unauthorized access reason
+     */
     record UnauthorizedAccess(String reason) implements DomainError {}
 
-    /** Requires explicit mapping → 409. */
+    /**
+     * Requires explicit mapping → 409.
+     *
+     * @param userId the already-enrolled user identifier
+     */
     record MfaAlreadyEnrolledError(String userId) implements DomainError {}
 
-    /** Requires explicit mapping → 422. */
+    /**
+     * Requires explicit mapping → 422.
+     *
+     * @param reason the payment decline reason
+     */
     record PaymentDeclinedError(String reason) implements DomainError {}
 
     /**
      * Requires explicit mapping → 429 and surfaces a {@code Retry-After} header by implementing
      * {@link HttpHeaderCarrier}.
+     *
+     * @param retryAfterSeconds the number of seconds to wait before retrying
      */
     record MfaThrottledError(int retryAfterSeconds) implements DomainError, HttpHeaderCarrier {
       @Override
@@ -105,7 +143,11 @@ public class ErrorStatusFixtureController {
       }
     }
 
-    /** No heuristic, no mapping → falls back to the configured default. */
+    /**
+     * No heuristic, no mapping → falls back to the configured default.
+     *
+     * @param detail the opaque error detail
+     */
     record UnmappedError(String detail) implements DomainError {}
   }
 }

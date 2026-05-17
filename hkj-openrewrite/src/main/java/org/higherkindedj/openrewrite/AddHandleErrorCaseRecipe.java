@@ -32,7 +32,7 @@ import org.openrewrite.marker.Markers;
  *
  * <p>Matched switches are marked with a search result comment so they appear in recipe run reports.
  *
- * @see org.higherkindedj.hkt.free.Free
+ * @see "org.higherkindedj.hkt.free.Free"
  */
 public class AddHandleErrorCaseRecipe extends Recipe {
 
