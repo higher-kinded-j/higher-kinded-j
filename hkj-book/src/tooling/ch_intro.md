@@ -16,6 +16,8 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[Compile-Time Checks](compile_checks.md)** -- A javac plugin that detects Path type mismatches at compile time, preventing runtime `IllegalArgumentException` errors. Follows a strict no-false-positives policy.
 
+- **[Migration Recipes](openrewrite.md)** -- The `hkj-openrewrite` recipe catalogue for upgrading between Higher-Kinded-J releases. Covers the 0.2.x to 0.3.0 arity migration, detection-only effect-algebra helpers, and the 0.5.0 deprecation renames; runnable from Gradle or Maven.
+
 - **[Diagnostics](diagnostics.md)** -- The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
 
 - **[Traversal Generator Plugins](generator_plugins.md)** -- The 30 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and five third-party libraries (Eclipse Collections, Guava, Vavr, Apache Commons, PCollections). Includes a guide to writing your own generator for custom container types.
@@ -34,12 +36,13 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 1. [Build Plugins](gradle_plugin.md) - One-line project setup for Gradle and Maven (recommended)
 2. [Manual Gradle and Maven Setup](manual_setup.md) - Full manual build configuration (fallback)
 3. [Compile-Time Checks](compile_checks.md) - Path type mismatch detection
-4. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
-5. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
-6. [PCollections Integration](pcollections_integration.md) - PCollections compatibility through `ListKind`
-7. [PCollections Optics](pcollections_optics.md) - `@GenerateTraversals` plugins for PCollections types
-8. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
-9. [Testing With hkj-test](test_assertions.md) - Fluent assertions for HKJ types
+4. [Migration Recipes](openrewrite.md) - OpenRewrite recipes for upgrading between releases
+5. [Diagnostics](diagnostics.md) - Configuration reporting and troubleshooting
+6. [Traversal Generator Plugins](generator_plugins.md) - Supported types and custom generators
+7. [PCollections Integration](pcollections_integration.md) - PCollections compatibility through `ListKind`
+8. [PCollections Optics](pcollections_optics.md) - `@GenerateTraversals` plugins for PCollections types
+9. [Claude Code Skills](claude_code_skills.md) - In-editor guidance via Claude Code
+10. [Testing With hkj-test](test_assertions.md) - Fluent assertions for HKJ types
 
 ---
 

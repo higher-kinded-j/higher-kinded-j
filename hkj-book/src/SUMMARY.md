@@ -250,6 +250,7 @@
   - [Build Plugins](tooling/gradle_plugin.md)
   - [Manual Gradle and Maven Setup](tooling/manual_setup.md)
   - [Compile-Time Checks](tooling/compile_checks.md)
+  - [Migration Recipes](tooling/openrewrite.md)
   - [Diagnostics](tooling/diagnostics.md)
   - [Traversal Generator Plugins](tooling/generator_plugins.md)
   - [PCollections Integration](tooling/pcollections_integration.md)

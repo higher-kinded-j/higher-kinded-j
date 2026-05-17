@@ -108,5 +108,5 @@ If any of these are missing, check your `hkj { }` block for `checks { pathTypeMi
 
 ---
 
-**Previous:** [Compile-Time Checks](compile_checks.md)
+**Previous:** [Migration Recipes](openrewrite.md)
 **Next:** [Traversal Generator Plugins](generator_plugins.md)
