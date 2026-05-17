@@ -12,7 +12,7 @@ import java.util.Objects;
 import javax.tools.Diagnostic;
 
 /**
- * A {@link TreeScanner} that detects effect composition errors at compile time.
+ * A {@link CheckVisitor} that detects effect composition errors at compile time.
  *
  * <p>This checker validates:
  *

@@ -26,8 +26,8 @@ import org.openrewrite.marker.Markers;
  * <p>Any call to {@code InjectInstances.injectLeft()}, {@code InjectInstances.injectRight()}, or
  * {@code InjectInstances.injectRightThen()} is flagged.
  *
- * @see org.higherkindedj.hkt.inject.InjectInstances
- * @see org.higherkindedj.hkt.effect.annotation.ComposeEffects
+ * @see "org.higherkindedj.hkt.inject.InjectInstances"
+ * @see "org.higherkindedj.hkt.effect.annotation.ComposeEffects"
  */
 public class DetectInjectBoilerplateRecipe extends Recipe {
 

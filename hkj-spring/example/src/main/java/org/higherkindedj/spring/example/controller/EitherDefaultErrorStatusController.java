@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code @WebMvcTest} requires the controller to be independently resolvable by Spring's bean
  * registration machinery.
  *
- * @see org.higherkindedj.spring.example.EitherDefaultErrorStatusSliceTest
+ * @see "org.higherkindedj.spring.example.EitherDefaultErrorStatusSliceTest"
  */
 @RestController
 @RequestMapping("/api/either-status")
@@ -36,10 +36,25 @@ public class EitherDefaultErrorStatusController {
   /** Sealed domain error hierarchy with variants that do and do not match heuristics. */
   public sealed interface DomainError
       permits DomainError.NotFoundErr, DomainError.Dup, DomainError.Pers {
+    /**
+     * Error variant matching the {@code NotFound} heuristic (mapped to 404).
+     *
+     * @param id the missing resource identifier
+     */
     record NotFoundErr(String id) implements DomainError {}
 
+    /**
+     * Error variant matching no heuristic (falls back to the configured default status).
+     *
+     * @param id the conflicting resource identifier
+     */
     record Dup(String id) implements DomainError {}
 
+    /**
+     * Error variant matching no heuristic (falls back to the configured default status).
+     *
+     * @param op the persistence operation that failed
+     */
     record Pers(String op) implements DomainError {}
   }
 

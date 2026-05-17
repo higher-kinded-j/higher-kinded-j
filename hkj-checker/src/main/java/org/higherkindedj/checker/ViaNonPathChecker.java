@@ -42,7 +42,13 @@ public final class ViaNonPathChecker implements CheckVisitor {
   private final Elements elements;
   private final Diagnostic.Kind severity;
 
-  /** Creates a checker reporting at {@link Diagnostic.Kind#ERROR}. */
+  /**
+   * Creates a checker reporting at {@link Diagnostic.Kind#ERROR}.
+   *
+   * @param trees the {@link Trees} utility for AST and type resolution
+   * @param types the {@link Types} utility for type operations
+   * @param elements the {@link Elements} utility for element operations
+   */
   public ViaNonPathChecker(Trees trees, Types types, Elements elements) {
     this(trees, types, elements, Diagnostic.Kind.ERROR);
   }

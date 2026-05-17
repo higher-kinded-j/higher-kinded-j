@@ -41,7 +41,13 @@ public final class MapReturnsPathChecker implements CheckVisitor {
   private final Elements elements;
   private final Diagnostic.Kind severity;
 
-  /** Creates a checker reporting at {@link Diagnostic.Kind#WARNING} (sole-signal soak default). */
+  /**
+   * Creates a checker reporting at {@link Diagnostic.Kind#WARNING} (sole-signal soak default).
+   *
+   * @param trees the {@link Trees} utility for AST and type resolution
+   * @param types the {@link Types} utility for type operations
+   * @param elements the {@link Elements} utility for element operations
+   */
   public MapReturnsPathChecker(Trees trees, Types types, Elements elements) {
     this(trees, types, elements, Diagnostic.Kind.WARNING);
   }

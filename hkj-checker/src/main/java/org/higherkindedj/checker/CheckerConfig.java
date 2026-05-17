@@ -93,7 +93,11 @@ public final class CheckerConfig {
     this.perCheckSeverity = perCheckSeverity;
   }
 
-  /** Returns the default configuration: all checks enabled, global severity {@code error}. */
+  /**
+   * Returns the default configuration: all checks enabled, global severity {@code error}.
+   *
+   * @return the default configuration
+   */
   public static CheckerConfig defaults() {
     return new CheckerConfig(Set.of(), Diagnostic.Kind.ERROR, Map.of());
   }

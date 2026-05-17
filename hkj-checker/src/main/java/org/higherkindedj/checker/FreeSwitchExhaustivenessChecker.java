@@ -44,7 +44,11 @@ public final class FreeSwitchExhaustivenessChecker implements CheckVisitor {
   private final Trees trees;
   private final Diagnostic.Kind severity;
 
-  /** Creates a checker reporting at {@link Diagnostic.Kind#ERROR}. */
+  /**
+   * Creates a checker reporting at {@link Diagnostic.Kind#ERROR}.
+   *
+   * @param trees the {@link Trees} utility for AST and type resolution
+   */
   public FreeSwitchExhaustivenessChecker(Trees trees) {
     this(trees, Diagnostic.Kind.ERROR);
   }

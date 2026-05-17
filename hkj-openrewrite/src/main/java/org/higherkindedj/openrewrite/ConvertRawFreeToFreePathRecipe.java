@@ -27,8 +27,8 @@ import org.openrewrite.marker.Markers;
  *
  * <p>Detected calls are annotated with a TODO comment indicating the migration opportunity.
  *
- * @see org.higherkindedj.hkt.free.Free
- * @see org.higherkindedj.hkt.effect.FreePath
+ * @see "org.higherkindedj.hkt.free.Free"
+ * @see "org.higherkindedj.hkt.effect.FreePath"
  */
 public class ConvertRawFreeToFreePathRecipe extends Recipe {
 
