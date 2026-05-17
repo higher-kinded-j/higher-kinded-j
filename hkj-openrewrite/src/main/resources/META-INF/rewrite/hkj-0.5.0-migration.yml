@@ -1,0 +1,59 @@
+# Higher-Kinded-J 0.5.0 Migration Recipes
+# Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements.
+# These are pure method renames with compatible signatures.
+#
+# Usage:
+#   rewrite {
+#     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0")
+#   }
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0
+displayName: Migrate Higher-Kinded-J APIs deprecated for removal in 0.5.0
+description: >-
+  Rewrites call sites of Higher-Kinded-J methods deprecated for removal in
+  0.5.0 to their replacements: StateTKind.narrowK -> StateTKind.narrow and
+  KindValidator.narrowWithPattern -> KindValidator.narrowHolder. Both are
+  signature-compatible renames.
+tags:
+  - higher-kinded-j
+  - migration
+  - deprecation
+recipeList:
+  - org.higherkindedj.openrewrite.RenameStateTKindNarrowK
+  - org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.RenameStateTKindNarrowK
+displayName: StateTKind.narrowK -> StateTKind.narrow
+description: >-
+  StateTKind.narrowK was deprecated since 0.4.5 and scheduled for removal in
+  0.5.0; its wildcard Kind parameter bypasses witness type safety. Replace
+  call sites with the type-safe StateTKind.narrow.
+tags:
+  - higher-kinded-j
+  - deprecation
+recipeList:
+  - org.openrewrite.java.ChangeMethodName:
+      methodPattern: org.higherkindedj.hkt.state_t.StateTKind narrowK(..)
+      newMethodName: narrow
+      ignoreDefinition: true
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern
+displayName: KindValidator.narrowWithPattern -> KindValidator.narrowHolder
+description: >-
+  KindValidator.narrowWithPattern was deprecated since 0.4.4 and scheduled
+  for removal in 0.5.0. The replacement narrowHolder has an identical
+  signature; this is a pure rename.
+tags:
+  - higher-kinded-j
+  - deprecation
+recipeList:
+  - org.openrewrite.java.ChangeMethodName:
+      methodPattern: org.higherkindedj.hkt.util.validation.KindValidator narrowWithPattern(..)
+      newMethodName: narrowHolder
+      ignoreDefinition: true

@@ -3,8 +3,9 @@
 package org.higherkindedj.openrewrite;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
@@ -24,16 +25,24 @@ import org.openrewrite.java.tree.TypeTree;
 import org.openrewrite.marker.Markers;
 
 /**
- * Recipe that adds {@code F extends WitnessArity<TypeArity.Unary>} bounds to generic type
- * parameters that are used with Kind or HKT type class interfaces.
+ * Recipe that adds {@code F extends WitnessArity<TypeArity.Unary>} (or {@code
+ * WitnessArity<TypeArity.Binary>}) bounds to generic type parameters that are used with {@code
+ * Kind}/{@code Kind2} or HKT type class interfaces.
  *
- * <p>This recipe identifies type parameters that need bounds by looking for:
+ * <p>A type parameter needs a bound when it appears as the witness position (first type argument)
+ * of any of the following, anywhere in its declaring scope — including method parameters, return
+ * types, fields, local variables, the class hierarchy, nested generic positions, and wildcard
+ * bounds:
  *
  * <ul>
- *   <li>Parameters used as the first type argument to Kind&lt;F, ?&gt;
- *   <li>Parameters used with type class interfaces like Monad&lt;F&gt;, Functor&lt;F&gt;, etc.
- *   <li>Parameters used as the F in transformer types like MaybeT&lt;F, ?&gt;
+ *   <li>{@code Kind<F, ?>} / unary type classes (e.g. {@code Monad<F>}) / transformers — emits
+ *       {@code WitnessArity<TypeArity.Unary>}
+ *   <li>{@code Kind2<F, ?, ?>} / binary type classes ({@code Bifunctor<F>}, {@code Profunctor<F>})
+ *       — emits {@code WitnessArity<TypeArity.Binary>}
  * </ul>
+ *
+ * <p>When a type parameter already has a bound, {@code WitnessArity} is appended as an intersection
+ * bound.
  */
 public class AddArityBoundsToTypeParametersRecipe extends Recipe {
 
@@ -42,9 +51,11 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
 
   private static final String WITNESS_ARITY_FQN = "org.higherkindedj.hkt.WitnessArity";
   private static final String TYPE_ARITY_FQN = "org.higherkindedj.hkt.TypeArity";
+  private static final String KIND_FQN = "org.higherkindedj.hkt.Kind";
+  private static final String KIND2_FQN = "org.higherkindedj.hkt.Kind2";
 
-  /** Type class interfaces that indicate the type parameter needs WitnessArity bound. */
-  private static final Set<String> TYPE_CLASS_INTERFACES =
+  /** Unary type class interfaces: the first type argument is a {@code TypeArity.Unary} witness. */
+  private static final Set<String> UNARY_TYPE_CLASSES =
       Set.of(
           "org.higherkindedj.hkt.Functor",
           "org.higherkindedj.hkt.Applicative",
@@ -60,7 +71,13 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
           "org.higherkindedj.hkt.Selective",
           "org.higherkindedj.hkt.SemigroupK");
 
-  /** Transformer types where the F parameter needs WitnessArity bound. */
+  /**
+   * Binary type class interfaces: the first type argument is a {@code TypeArity.Binary} witness.
+   */
+  private static final Set<String> BINARY_TYPE_CLASSES =
+      Set.of("org.higherkindedj.hkt.Bifunctor", "org.higherkindedj.hkt.Profunctor");
+
+  /** Transformer types where the (unary) F parameter needs a WitnessArity bound. */
   private static final Set<String> TRANSFORMER_TYPES =
       Set.of(
           "org.higherkindedj.hkt.maybe_t.MaybeT",
@@ -74,6 +91,11 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
           "org.higherkindedj.hkt.state_t.StateT",
           "org.higherkindedj.hkt.state_t.StateTKind");
 
+  private enum Arity {
+    UNARY,
+    BINARY
+  }
+
   @Override
   public String getDisplayName() {
     return "Add arity bounds to type parameters";
@@ -81,9 +103,10 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
 
   @Override
   public String getDescription() {
-    return "Adds 'extends WitnessArity<TypeArity.Unary>' bounds to generic type parameters "
-        + "that are used with Kind<F, ?> or type class interfaces like Monad<F>. "
-        + "For type parameters that already have bounds, adds WitnessArity as an additional bound.";
+    return "Adds 'extends WitnessArity<TypeArity.Unary>' (or TypeArity.Binary for Kind2 and "
+        + "binary type classes) bounds to generic type parameters used as a witness with Kind, "
+        + "Kind2, type classes, or transformers. For type parameters that already have bounds, "
+        + "adds WitnessArity as an additional intersection bound.";
   }
 
   @Override
@@ -95,37 +118,35 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
   public TreeVisitor<?, ExecutionContext> getVisitor() {
     return new JavaIsoVisitor<>() {
 
-      // Track which type parameter names need bounds in the current context
-      private final Set<String> paramsNeedingBounds = new HashSet<>();
+      // Type parameter name -> required arity, for the type parameters in scope.
+      private final Map<String, Arity> paramArity = new HashMap<>();
 
       @Override
       public J.MethodDeclaration visitMethodDeclaration(
           J.MethodDeclaration method, ExecutionContext ctx) {
 
-        // Clear and populate params needing bounds for this method
-        paramsNeedingBounds.clear();
-
+        Map<String, Arity> methodParams = new HashMap<>();
         if (method.getTypeParameters() != null) {
           for (J.TypeParameter tp : method.getTypeParameters()) {
-            String paramName = getTypeParameterName(tp);
-            if (paramName != null
-                && !hasWitnessArityBound(tp)
-                && isUsedWithKindOrTypeClass(paramName, method)) {
-              paramsNeedingBounds.add(paramName);
+            String name = getTypeParameterName(tp);
+            if (name != null && !hasWitnessArityBound(tp)) {
+              Arity arity = scanArity(name, method, ctx);
+              if (arity != null) {
+                methodParams.put(name, arity);
+              }
             }
           }
         }
 
-        // If any params need bounds, schedule imports
-        if (!paramsNeedingBounds.isEmpty()) {
+        paramArity.putAll(methodParams);
+        if (!methodParams.isEmpty()) {
           doAfterVisit(new AddImport<>(WITNESS_ARITY_FQN, null, false));
           doAfterVisit(new AddImport<>(TYPE_ARITY_FQN, null, false));
         }
 
-        // Visit children (will process type parameters)
         J.MethodDeclaration md = super.visitMethodDeclaration(method, ctx);
 
-        paramsNeedingBounds.clear();
+        methodParams.keySet().forEach(paramArity::remove);
         return md;
       }
 
@@ -133,35 +154,28 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
       public J.ClassDeclaration visitClassDeclaration(
           J.ClassDeclaration classDecl, ExecutionContext ctx) {
 
-        // Clear and populate params needing bounds for this class
-        Set<String> classParamsNeedingBounds = new HashSet<>();
-
+        Map<String, Arity> classParams = new HashMap<>();
         if (classDecl.getTypeParameters() != null) {
           for (J.TypeParameter tp : classDecl.getTypeParameters()) {
-            String paramName = getTypeParameterName(tp);
-            if (paramName != null
-                && !hasWitnessArityBound(tp)
-                && isUsedInClassHierarchy(paramName, classDecl)) {
-              classParamsNeedingBounds.add(paramName);
+            String name = getTypeParameterName(tp);
+            if (name != null && !hasWitnessArityBound(tp)) {
+              Arity arity = scanArity(name, classDecl, ctx);
+              if (arity != null) {
+                classParams.put(name, arity);
+              }
             }
           }
         }
 
-        // Merge with existing (in case of nested contexts)
-        paramsNeedingBounds.addAll(classParamsNeedingBounds);
-
-        // If any params need bounds, schedule imports
-        if (!classParamsNeedingBounds.isEmpty()) {
+        paramArity.putAll(classParams);
+        if (!classParams.isEmpty()) {
           doAfterVisit(new AddImport<>(WITNESS_ARITY_FQN, null, false));
           doAfterVisit(new AddImport<>(TYPE_ARITY_FQN, null, false));
         }
 
-        // Visit children
         J.ClassDeclaration cd = super.visitClassDeclaration(classDecl, ctx);
 
-        // Remove class-level params (keep method-level if in nested context)
-        paramsNeedingBounds.removeAll(classParamsNeedingBounds);
-
+        classParams.keySet().forEach(paramArity::remove);
         return cd;
       }
 
@@ -169,218 +183,216 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
       public J.TypeParameter visitTypeParameter(J.TypeParameter typeParam, ExecutionContext ctx) {
         J.TypeParameter tp = super.visitTypeParameter(typeParam, ctx);
 
-        String paramName = getTypeParameterName(tp);
-        if (paramName == null) {
+        String name = getTypeParameterName(tp);
+        if (name == null || !paramArity.containsKey(name) || hasWitnessArityBound(tp)) {
           return tp;
         }
 
-        // Check if this parameter needs a WitnessArity bound
-        if (!paramsNeedingBounds.contains(paramName)) {
-          return tp;
+        TypeTree witnessArityBound = createWitnessArityBound(paramArity.get(name));
+
+        JContainer<TypeTree> existing = tp.getPadding().getBounds();
+        boolean hasExistingBounds = existing != null && !existing.getElements().isEmpty();
+
+        if (hasExistingBounds) {
+          // Append as an intersection bound: `T extends Existing & WitnessArity<...>`.
+          // The "&" separator is emitted by the printer; we only own the surrounding
+          // spaces (trailing space on the previous bound, leading space on ours).
+          List<JRightPadded<TypeTree>> elements =
+              new ArrayList<>(existing.getPadding().getElements());
+          int lastIdx = elements.size() - 1;
+          elements.set(lastIdx, elements.get(lastIdx).withAfter(Space.SINGLE_SPACE));
+          elements.add(
+              new JRightPadded<>(
+                  witnessArityBound.withPrefix(Space.SINGLE_SPACE), Space.EMPTY, Markers.EMPTY));
+          return tp.getPadding()
+              .withBounds(JContainer.build(existing.getBefore(), elements, Markers.EMPTY));
         }
 
-        // Already has WitnessArity bound
-        if (hasWitnessArityBound(tp)) {
-          return tp;
-        }
-
-        // Build the WitnessArity<TypeArity.Unary> bound AST manually
-        TypeTree witnessArityBound = createWitnessArityBound();
-
-        // Build new bounds list
-        List<TypeTree> newBounds = new ArrayList<>();
-        if (tp.getBounds() != null) {
-          newBounds.addAll(tp.getBounds());
-        }
-        newBounds.add(witnessArityBound);
-
-        // Return modified type parameter with the new bound
-        return tp.withBounds(newBounds);
+        // No existing bounds: render `T extends WitnessArity<...>`. The container's
+        // before-space is the space before `extends`; the element prefix is the
+        // space after `extends`.
+        JRightPadded<TypeTree> only =
+            new JRightPadded<>(
+                witnessArityBound.withPrefix(Space.SINGLE_SPACE), Space.EMPTY, Markers.EMPTY);
+        return tp.getPadding()
+            .withBounds(JContainer.build(Space.SINGLE_SPACE, List.of(only), Markers.EMPTY));
       }
 
       /**
-       * Creates the AST for WitnessArity&lt;TypeArity.Unary&gt;.
-       *
-       * <p>Constructs: J.ParameterizedType with J.Identifier "WitnessArity" and type argument
-       * J.FieldAccess "TypeArity.Unary"
+       * Scans an entire declaration subtree (method or class) for any witness-position use of the
+       * named type parameter. Returns the required arity, or {@code null} if the parameter is not
+       * used as a witness. {@code BINARY} wins if the parameter is used both ways.
        */
-      private TypeTree createWitnessArityBound() {
-        // Create TypeArity.Unary as a FieldAccess
+      private Arity scanArity(String paramName, J scope, ExecutionContext ctx) {
+        Arity[] found = new Arity[1];
+        new JavaIsoVisitor<ExecutionContext>() {
+          @Override
+          public J.ClassDeclaration visitClassDeclaration(
+              J.ClassDeclaration cd, ExecutionContext c) {
+            // Do not descend into a nested type that shadows the parameter name.
+            return cd != scope && declaresTypeParam(cd.getTypeParameters(), paramName)
+                ? cd
+                : super.visitClassDeclaration(cd, c);
+          }
+
+          @Override
+          public J.MethodDeclaration visitMethodDeclaration(
+              J.MethodDeclaration md, ExecutionContext c) {
+            // Do not descend into a method that shadows the parameter name with
+            // its own generic parameter of the same name.
+            return md != scope && declaresTypeParam(md.getTypeParameters(), paramName)
+                ? md
+                : super.visitMethodDeclaration(md, c);
+          }
+
+          @Override
+          public J.ParameterizedType visitParameterizedType(
+              J.ParameterizedType pt, ExecutionContext c) {
+            Arity a = arityIfWitness(paramName, pt);
+            if (a == Arity.BINARY) {
+              found[0] = Arity.BINARY;
+            } else if (a == Arity.UNARY && found[0] == null) {
+              found[0] = Arity.UNARY;
+            }
+            return super.visitParameterizedType(pt, c);
+          }
+        }.visit(scope, ctx);
+        return found[0];
+      }
+
+      private boolean declaresTypeParam(List<J.TypeParameter> typeParams, String name) {
+        if (typeParams == null) {
+          return false;
+        }
+        for (J.TypeParameter tp : typeParams) {
+          if (name.equals(getTypeParameterName(tp))) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      /**
+       * If {@code pt} is a recognised HKT carrier whose first type argument is the named parameter
+       * (directly or as a wildcard bound), returns the arity that carrier implies; else null.
+       */
+      private Arity arityIfWitness(String paramName, J.ParameterizedType pt) {
+        Arity carrierArity = carrierArity(pt);
+        if (carrierArity == null) {
+          return null;
+        }
+        List<Expression> args = pt.getTypeParameters();
+        if (args == null || args.isEmpty()) {
+          return null;
+        }
+        return referencesParam(args.get(0), paramName) ? carrierArity : null;
+      }
+
+      /** Classifies the carrier type of a parameterized type as unary, binary, or not a carrier. */
+      private Arity carrierArity(J.ParameterizedType pt) {
+        // Prefer resolved type information when available.
+        if (pt.getType() instanceof JavaType.Parameterized p) {
+          String fqn = p.getFullyQualifiedName();
+          if (KIND2_FQN.equals(fqn) || BINARY_TYPE_CLASSES.contains(fqn)) {
+            return Arity.BINARY;
+          }
+          if (KIND_FQN.equals(fqn)
+              || UNARY_TYPE_CLASSES.contains(fqn)
+              || TRANSFORMER_TYPES.contains(fqn)) {
+            return Arity.UNARY;
+          }
+        }
+        // Fall back to the simple name from the AST.
+        String name = extractTypeName(pt.getClazz());
+        if (name == null) {
+          return null;
+        }
+        if ("Kind2".equals(name) || endsWithSimpleName(BINARY_TYPE_CLASSES, name)) {
+          return Arity.BINARY;
+        }
+        if ("Kind".equals(name)
+            || endsWithSimpleName(UNARY_TYPE_CLASSES, name)
+            || endsWithSimpleName(TRANSFORMER_TYPES, name)) {
+          return Arity.UNARY;
+        }
+        return null;
+      }
+
+      private boolean endsWithSimpleName(Set<String> fqns, String simpleName) {
+        return fqns.stream().anyMatch(fqn -> fqn.endsWith("." + simpleName));
+      }
+
+      /** True if the expression is the type parameter, or a wildcard bounded by it. */
+      private boolean referencesParam(Expression arg, String paramName) {
+        if (arg instanceof J.Identifier id) {
+          return paramName.equals(id.getSimpleName());
+        }
+        if (arg instanceof J.Wildcard w && w.getBoundedType() instanceof J.Identifier id) {
+          return paramName.equals(id.getSimpleName());
+        }
+        if (arg.getType() instanceof JavaType.GenericTypeVariable gtv) {
+          return paramName.equals(gtv.getName());
+        }
+        return false;
+      }
+
+      private TypeTree createWitnessArityBound(Arity arity) {
         J.Identifier typeArityId =
             new J.Identifier(
                 Tree.randomId(), Space.EMPTY, Markers.EMPTY, List.of(), "TypeArity", null, null);
 
-        J.Identifier unaryId =
+        J.Identifier arityId =
             new J.Identifier(
-                Tree.randomId(), Space.EMPTY, Markers.EMPTY, List.of(), "Unary", null, null);
+                Tree.randomId(),
+                Space.EMPTY,
+                Markers.EMPTY,
+                List.of(),
+                arity == Arity.BINARY ? "Binary" : "Unary",
+                null,
+                null);
 
-        J.FieldAccess typeArityUnary =
+        J.FieldAccess typeArityArity =
             new J.FieldAccess(
                 Tree.randomId(),
                 Space.EMPTY,
                 Markers.EMPTY,
                 typeArityId,
-                JLeftPadded.build(unaryId),
+                JLeftPadded.build(arityId),
                 null);
 
-        // Create WitnessArity identifier
+        // Surrounding whitespace is owned by the enclosing JRightPadded element prefix.
         J.Identifier witnessArityId =
             new J.Identifier(
-                Tree.randomId(),
-                Space.SINGLE_SPACE,
-                Markers.EMPTY,
-                List.of(),
-                "WitnessArity",
-                null,
-                null);
+                Tree.randomId(), Space.EMPTY, Markers.EMPTY, List.of(), "WitnessArity", null, null);
 
-        // Create the parameterized type WitnessArity<TypeArity.Unary>
-        // Type arguments are wrapped in JContainer<Expression>
         JRightPadded<Expression> typeArg =
-            new JRightPadded<>(typeArityUnary, Space.EMPTY, Markers.EMPTY);
+            new JRightPadded<>(typeArityArity, Space.EMPTY, Markers.EMPTY);
 
         JContainer<Expression> typeArguments =
             JContainer.build(Space.EMPTY, List.of(typeArg), Markers.EMPTY);
 
         return new J.ParameterizedType(
-            Tree.randomId(),
-            Space.SINGLE_SPACE,
-            Markers.EMPTY,
-            witnessArityId,
-            typeArguments,
-            null);
+            Tree.randomId(), Space.EMPTY, Markers.EMPTY, witnessArityId, typeArguments, null);
       }
 
       private boolean hasWitnessArityBound(J.TypeParameter tp) {
         if (tp.getBounds() == null || tp.getBounds().isEmpty()) {
           return false;
         }
-
         for (TypeTree bound : tp.getBounds()) {
-          // Check by type information
           JavaType type = bound.getType();
-          String fqn = getFullyQualifiedName(type);
-          if (WITNESS_ARITY_FQN.equals(fqn)) {
+          if (WITNESS_ARITY_FQN.equals(getFullyQualifiedName(type))) {
             return true;
           }
-
-          // Check by AST structure (when type info isn't resolved)
-          if (bound instanceof J.ParameterizedType pt) {
-            if (pt.getClazz() instanceof J.Identifier id) {
-              if ("WitnessArity".equals(id.getSimpleName())) {
-                return true;
-              }
-            }
-          } else if (bound instanceof J.Identifier id) {
-            if ("WitnessArity".equals(id.getSimpleName())) {
-              return true;
-            }
+          if (bound instanceof J.ParameterizedType pt
+              && pt.getClazz() instanceof J.Identifier id
+              && "WitnessArity".equals(id.getSimpleName())) {
+            return true;
           }
-        }
-        return false;
-      }
-
-      private boolean isUsedWithKindOrTypeClass(String paramName, J.MethodDeclaration md) {
-        // Check method parameters
-        if (md.getParameters() != null) {
-          for (Object param : md.getParameters()) {
-            if (param instanceof J.VariableDeclarations vd) {
-              if (usesTypeParamWithKindOrTypeClass(paramName, vd.getTypeExpression())) {
-                return true;
-              }
-            }
-          }
-        }
-
-        // Check return type
-        if (md.getReturnTypeExpression() != null) {
-          if (usesTypeParamWithKindOrTypeClass(paramName, md.getReturnTypeExpression())) {
+          if (bound instanceof J.Identifier id && "WitnessArity".equals(id.getSimpleName())) {
             return true;
           }
         }
-
-        return false;
-      }
-
-      private boolean isUsedInClassHierarchy(String paramName, J.ClassDeclaration cd) {
-        // Check extends clause
-        if (cd.getExtends() != null) {
-          if (usesTypeParamWithKindOrTypeClass(paramName, cd.getExtends())) {
-            return true;
-          }
-        }
-
-        // Check implements clauses
-        if (cd.getImplements() != null) {
-          for (TypeTree impl : cd.getImplements()) {
-            if (usesTypeParamWithKindOrTypeClass(paramName, impl)) {
-              return true;
-            }
-          }
-        }
-
-        return false;
-      }
-
-      private boolean usesTypeParamWithKindOrTypeClass(String paramName, TypeTree typeTree) {
-        if (typeTree == null) {
-          return false;
-        }
-
-        // Check AST structure first (more reliable when type info isn't available)
-        if (typeTree instanceof J.ParameterizedType pt) {
-          String typeName = extractTypeName(pt.getClazz());
-          if (typeName != null) {
-            // Check if it's Kind<F, ?> or a type class
-            if ("Kind".equals(typeName)
-                || TYPE_CLASS_INTERFACES.stream().anyMatch(fqn -> fqn.endsWith("." + typeName))
-                || TRANSFORMER_TYPES.stream().anyMatch(fqn -> fqn.endsWith("." + typeName))) {
-              // Check if first type argument matches our param
-              List<Expression> typeParams = pt.getTypeParameters();
-              if (typeParams != null && !typeParams.isEmpty()) {
-                Expression firstArg = typeParams.get(0);
-                if (firstArg instanceof J.Identifier id) {
-                  if (id.getSimpleName().equals(paramName)) {
-                    return true;
-                  }
-                }
-              }
-            }
-          }
-
-          // Recursively check type arguments
-          List<Expression> typeParams = pt.getTypeParameters();
-          if (typeParams != null) {
-            for (Expression arg : typeParams) {
-              if (arg instanceof TypeTree tt && usesTypeParamWithKindOrTypeClass(paramName, tt)) {
-                return true;
-              }
-            }
-          }
-        }
-
-        // Also check by type information if available
-        JavaType type = typeTree.getType();
-        if (type instanceof JavaType.Parameterized parameterized) {
-          String fqn = parameterized.getFullyQualifiedName();
-
-          // Check if it's a type class interface or Kind
-          if (TYPE_CLASS_INTERFACES.contains(fqn)
-              || TRANSFORMER_TYPES.contains(fqn)
-              || "org.higherkindedj.hkt.Kind".equals(fqn)) {
-            // Check if the first type argument matches our param
-            List<JavaType> typeArgs = parameterized.getTypeParameters();
-            if (!typeArgs.isEmpty()) {
-              JavaType firstArg = typeArgs.get(0);
-              if (firstArg instanceof JavaType.GenericTypeVariable gtv) {
-                if (gtv.getName().equals(paramName)) {
-                  return true;
-                }
-              }
-            }
-          }
-        }
-
         return false;
       }
 
