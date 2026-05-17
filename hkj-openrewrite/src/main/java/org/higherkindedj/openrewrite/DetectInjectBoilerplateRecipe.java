@@ -8,9 +8,9 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaIsoVisitor;
+import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.J;
-import org.openrewrite.java.tree.TextComment;
-import org.openrewrite.marker.Markers;
+import org.openrewrite.marker.SearchResult;
 
 /**
  * Recipe that identifies manual {@code Inject} instance construction and suggests using the
@@ -24,7 +24,15 @@ import org.openrewrite.marker.Markers;
  * <h2>Detection Pattern</h2>
  *
  * <p>Any call to {@code InjectInstances.injectLeft()}, {@code InjectInstances.injectRight()}, or
- * {@code InjectInstances.injectRightThen()} is flagged.
+ * {@code InjectInstances.injectRightThen()} is flagged with an OpenRewrite {@link
+ * org.openrewrite.marker.SearchResult} marker.
+ *
+ * <h2>Why this is detection-only</h2>
+ *
+ * <p>The {@code Support} class produced by {@code @ComposeEffects} is generated per composition,
+ * with class and accessor names derived from the user's effect set and nesting order. The correct
+ * replacement therefore cannot be synthesised generically, so this recipe flags the boilerplate for
+ * a human to replace rather than risking an incorrect automated rewrite.
  *
  * @see "org.higherkindedj.hkt.inject.InjectInstances"
  * @see "org.higherkindedj.hkt.effect.annotation.ComposeEffects"
@@ -34,8 +42,11 @@ public class DetectInjectBoilerplateRecipe extends Recipe {
   /** Creates a new instance of this recipe. */
   public DetectInjectBoilerplateRecipe() {}
 
-  private static final Set<String> INJECT_METHODS =
-      Set.of("injectLeft", "injectRight", "injectRightThen");
+  private static final List<MethodMatcher> INJECT_MATCHERS =
+      List.of(
+          new MethodMatcher("org.higherkindedj.hkt.inject.InjectInstances injectLeft(..)"),
+          new MethodMatcher("org.higherkindedj.hkt.inject.InjectInstances injectRight(..)"),
+          new MethodMatcher("org.higherkindedj.hkt.inject.InjectInstances injectRightThen(..)"));
 
   @Override
   public String getDisplayName() {
@@ -50,6 +61,11 @@ public class DetectInjectBoilerplateRecipe extends Recipe {
   }
 
   @Override
+  public Set<String> getTags() {
+    return Set.of("higher-kinded-j", "effects", "inject", "migration");
+  }
+
+  @Override
   public TreeVisitor<?, ExecutionContext> getVisitor() {
     return new JavaIsoVisitor<>() {
 
@@ -58,27 +74,14 @@ public class DetectInjectBoilerplateRecipe extends Recipe {
           J.MethodInvocation method, ExecutionContext ctx) {
         J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
 
-        if (isInjectInstancesCall(mi)) {
-          return mi.withPrefix(
-              mi.getPrefix()
-                  .withComments(
-                      List.of(
-                          new TextComment(
-                              false,
-                              " TODO: Consider using @ComposeEffects generated Support class instead of manual InjectInstances",
-                              "",
-                              Markers.EMPTY))));
+        if (INJECT_MATCHERS.stream().anyMatch(m -> m.matches(mi))) {
+          return SearchResult.found(
+              mi,
+              "Consider the @ComposeEffects generated Support class instead of manual"
+                  + " InjectInstances");
         }
 
         return mi;
-      }
-
-      private boolean isInjectInstancesCall(J.MethodInvocation mi) {
-        if (mi.getSelect() == null) return false;
-        String selectStr = mi.getSelect().toString();
-        boolean isOnInjectInstances =
-            selectStr.equals("InjectInstances") || selectStr.endsWith(".InjectInstances");
-        return isOnInjectInstances && INJECT_METHODS.contains(mi.getSimpleName());
       }
     };
   }
