@@ -7,6 +7,7 @@ import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.ReturnTree;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
@@ -35,7 +36,7 @@ import javax.tools.Diagnostic;
  * <p>This checker follows a <b>no false positives</b> policy: if a type cannot be resolved, the
  * check is silently skipped.
  */
-public class PathTypeMismatchChecker extends TreeScanner<Void, Void> {
+public class PathTypeMismatchChecker implements CheckVisitor {
 
   private static final Set<String> CHECKED_METHODS =
       Set.of("via", "flatMap", "then", "zipWith", "zipWith3", "recoverWith", "orElse");
@@ -48,23 +49,34 @@ public class PathTypeMismatchChecker extends TreeScanner<Void, Void> {
       Set.of("via", "flatMap", "then", "recoverWith", "orElse");
 
   private final Trees trees;
+  private final Diagnostic.Kind severity;
 
   /**
-   * Creates a new checker using the given Trees instance.
+   * Creates a new checker that reports at {@link Diagnostic.Kind#ERROR}.
    *
    * @param trees the Trees utility from the javac task; must not be null
    */
   public PathTypeMismatchChecker(Trees trees) {
+    this(trees, Diagnostic.Kind.ERROR);
+  }
+
+  /**
+   * Creates a new checker reporting at the given severity.
+   *
+   * @param trees the Trees utility from the javac task; must not be null
+   * @param severity the severity at which mismatches are reported
+   */
+  public PathTypeMismatchChecker(Trees trees, Diagnostic.Kind severity) {
     this.trees = trees;
+    this.severity = severity;
   }
 
   @Override
-  public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
+  public void onMethodInvocation(MethodInvocationTree node, TreePath path) {
     String methodName = extractMethodName(node);
     if (methodName != null && CHECKED_METHODS.contains(methodName)) {
       checkPathTypeMismatch(node, methodName);
     }
-    return super.visitMethodInvocation(node, unused);
   }
 
   private void checkPathTypeMismatch(MethodInvocationTree node, String methodName) {
@@ -242,7 +254,7 @@ public class PathTypeMismatchChecker extends TreeScanner<Void, Void> {
   private void reportMismatch(
       MethodInvocationTree node, String methodName, String expectedType, String actualType) {
     String message = DiagnosticMessages.pathTypeMismatch(methodName, expectedType, actualType);
-    trees.printMessage(Diagnostic.Kind.ERROR, message, node, null);
+    trees.printMessage(severity, message, node, null);
   }
 
   /**

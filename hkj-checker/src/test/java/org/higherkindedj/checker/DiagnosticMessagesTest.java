@@ -71,5 +71,30 @@ class DiagnosticMessagesTest {
       String message = DiagnosticMessages.pathTypeMismatch("custom", "TypeA", "TypeB");
       assertThat(message).isNotEmpty();
     }
+
+    @Test
+    @DisplayName("appends a documentation link to the compiler-errors page")
+    void pathTypeMismatch_includesDocLink() {
+      String message = DiagnosticMessages.pathTypeMismatch("via", "MaybePath", "IOPath");
+
+      assertThat(message)
+          .contains("See: ")
+          .contains("https://higher-kinded-j.github.io/latest/effect/compiler_errors.html");
+    }
+  }
+
+  @Nested
+  @DisplayName("withDocLink")
+  class WithDocLink {
+
+    @Test
+    @DisplayName("appends 'See: <base><relativePath>'")
+    void withDocLink_appendsPointer() {
+      String result = DiagnosticMessages.withDocLink("Something went wrong.", "effect/foo.html");
+
+      assertThat(result)
+          .isEqualTo(
+              "Something went wrong. See: https://higher-kinded-j.github.io/latest/effect/foo.html");
+    }
   }
 }
