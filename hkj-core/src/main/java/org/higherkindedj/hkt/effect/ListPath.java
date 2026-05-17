@@ -588,6 +588,6 @@ public final class ListPath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "ListPath(" + list + ")";
+    return "ListPath(" + PathToString.elements(list) + ")";
   }
 }

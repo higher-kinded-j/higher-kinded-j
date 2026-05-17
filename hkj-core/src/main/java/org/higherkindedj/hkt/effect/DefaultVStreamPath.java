@@ -394,6 +394,6 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
 
   @Override
   public String toString() {
-    return "VStreamPath(<stream>)";
+    return "VStreamPath(" + PathToString.STREAM + ")";
   }
 }

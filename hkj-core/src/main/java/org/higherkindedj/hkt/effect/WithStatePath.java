@@ -379,6 +379,6 @@ public final class WithStatePath<S, A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "WithStatePath(" + state + ")";
+    return "WithStatePath(" + PathToString.DEFERRED + ")";
   }
 }

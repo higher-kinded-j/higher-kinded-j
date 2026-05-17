@@ -819,6 +819,6 @@ public final class IOPath<A> implements Effectful<A> {
 
   @Override
   public String toString() {
-    return "IOPath(<deferred>)";
+    return "IOPath(" + PathToString.DEFERRED + ")";
   }
 }

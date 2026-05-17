@@ -363,6 +363,9 @@ public final class WriterPath<W, A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "WriterPath(log=" + writer.log() + ", value=" + writer.value() + ")";
+    W log = writer.log();
+    String renderedLog =
+        log instanceof java.util.Collection<?> c ? PathToString.elements(c) : String.valueOf(log);
+    return "WriterPath(log=" + renderedLog + ", value=" + writer.value() + ")";
   }
 }

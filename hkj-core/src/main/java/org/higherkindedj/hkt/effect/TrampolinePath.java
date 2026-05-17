@@ -242,6 +242,6 @@ public final class TrampolinePath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "TrampolinePath(...)";
+    return "TrampolinePath(" + PathToString.DEFERRED + ")";
   }
 }

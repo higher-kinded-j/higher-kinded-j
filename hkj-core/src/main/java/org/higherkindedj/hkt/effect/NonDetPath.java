@@ -422,6 +422,6 @@ public final class NonDetPath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "NonDetPath(" + list + ")";
+    return "NonDetPath(" + PathToString.elements(list) + ")";
   }
 }

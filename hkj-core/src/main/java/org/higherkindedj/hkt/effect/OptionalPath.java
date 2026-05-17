@@ -383,6 +383,6 @@ public final class OptionalPath<A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "OptionalPath(" + value.map(Object::toString).orElse("empty") + ")";
+    return "OptionalPath(" + value.map(Object::toString).orElse(PathToString.EMPTY) + ")";
   }
 }

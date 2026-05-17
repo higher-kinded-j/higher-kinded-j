@@ -406,6 +406,6 @@ public final class ReaderPath<R, A> implements Chainable<A> {
 
   @Override
   public String toString() {
-    return "ReaderPath(" + reader + ")";
+    return "ReaderPath(" + PathToString.DEFERRED + ")";
   }
 }
