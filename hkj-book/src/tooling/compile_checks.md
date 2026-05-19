@@ -165,4 +165,4 @@ anything the compiler cannot see.
 ---
 
 **Previous:** [Manual Gradle and Maven Setup](manual_setup.md)
-**Next:** [Diagnostics](diagnostics.md)
+**Next:** [Migration Recipes](openrewrite.md)

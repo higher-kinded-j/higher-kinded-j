@@ -10,11 +10,10 @@
  *
  * <ul>
  *   <li>{@code org.higherkindedj.openrewrite.AddArityBounds} - Complete arity migration recipe
- *   <li>{@code org.higherkindedj.openrewrite.AddWitnessArityImports} - Adds required imports
  *   <li>{@code org.higherkindedj.openrewrite.AddWitnessArityToWitness} - Adds WitnessArity to
- *       witness classes
+ *       witness classes (and the required imports)
  *   <li>{@code org.higherkindedj.openrewrite.AddArityBoundsToTypeParameters} - Adds bounds to type
- *       parameters
+ *       parameters (and the required imports)
  * </ul>
  *
  * <h2>Effect Algebra Migration</h2>
@@ -32,14 +31,33 @@
  *       construction
  * </ul>
  *
+ * <p>The three effect-algebra recipes are detection-only: they tag call sites with an OpenRewrite
+ * search-result marker rather than rewriting source, because the migration target is user-specific
+ * generated code (see each recipe's Javadoc).
+ *
+ * <h2>0.5.0 Deprecation Migration</h2>
+ *
+ * <p>Rewrites usages of APIs deprecated for removal in 0.5.0 to their signature-compatible
+ * replacements.
+ *
+ * <ul>
+ *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0} - Runs all 0.5.0
+ *       deprecation renames
+ *   <li>{@code org.higherkindedj.openrewrite.RenameStateTKindNarrowK} - {@code StateTKind.narrowK}
+ *       to {@code StateTKind.narrow}
+ *   <li>{@code org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern} - {@code
+ *       KindValidator.narrowWithPattern} to {@code KindValidator.narrowHolder}
+ * </ul>
+ *
  * <h2>Usage</h2>
  *
  * <pre>{@code
  * plugins {
- *     id("org.openrewrite.rewrite") version "7.21.0"
+ *     id("org.openrewrite.rewrite") version "7.28.1"
  * }
  *
  * dependencies {
+ *     // 0.3.0 or later; the recipes remain available in newer releases.
  *     rewrite("io.github.higher-kinded-j:hkj-openrewrite:0.3.0")
  * }
  *

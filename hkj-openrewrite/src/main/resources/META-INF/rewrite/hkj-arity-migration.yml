@@ -11,44 +11,27 @@
 type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.AddArityBounds
 displayName: Add WitnessArity bounds (0.2.x to 0.3.0)
-description: >
+description: >-
   Migrates Higher-Kinded-J code from 0.2.x to 0.3.0 by adding WitnessArity
   bounds to witness types and type parameters that use Kind. This was required
-  when the type arity system (WitnessArity, TypeArity) was introduced.
+  when the type arity system (WitnessArity, TypeArity) was introduced. The
+  required imports are added automatically by the sub-recipes.
 tags:
   - higher-kinded-j
   - migration
   - arity
 recipeList:
-  - org.higherkindedj.openrewrite.AddWitnessArityImports
   - org.higherkindedj.openrewrite.AddWitnessArityToWitness
   - org.higherkindedj.openrewrite.AddArityBoundsToTypeParameters
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
-name: org.higherkindedj.openrewrite.AddWitnessArityImports
-displayName: Add WitnessArity and TypeArity imports
-description: >
-  Adds imports for org.higherkindedj.hkt.WitnessArity and
-  org.higherkindedj.hkt.TypeArity to files that reference them.
-tags:
-  - higher-kinded-j
-  - imports
-recipeList:
-  - org.openrewrite.java.AddImport:
-      type: org.higherkindedj.hkt.WitnessArity
-      onlyIfReferenced: true
-  - org.openrewrite.java.AddImport:
-      type: org.higherkindedj.hkt.TypeArity
-      onlyIfReferenced: true
-
----
-type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.AddWitnessArityToWitness
 displayName: Add WitnessArity to witness classes
-description: >
-  Adds 'implements WitnessArity<TypeArity.Unary>' or 'implements WitnessArity<TypeArity.Binary>'
-  to witness class definitions that implement Kind or Kind2.
+description: >-
+  Adds 'implements WitnessArity<TypeArity.Unary>' or 'implements
+  WitnessArity<TypeArity.Binary>' to witness class definitions that implement
+  Kind or Kind2. Required imports are added automatically.
 tags:
   - higher-kinded-j
   - witness
@@ -59,9 +42,11 @@ recipeList:
 type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.AddArityBoundsToTypeParameters
 displayName: Add arity bounds to type parameters
-description: >
-  Adds 'F extends WitnessArity<TypeArity.Unary>' bounds to generic type parameters
-  that are used with Kind<F, ?> or type class interfaces like Monad<F>.
+description: >-
+  Adds 'F extends WitnessArity<TypeArity.Unary>' (or TypeArity.Binary for
+  Kind2 and binary type classes) bounds to generic type parameters used as a
+  witness with Kind, Kind2, type classes, or transformers. Required imports
+  are added automatically.
 tags:
   - higher-kinded-j
   - bounds

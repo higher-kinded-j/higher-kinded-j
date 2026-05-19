@@ -36,6 +36,15 @@ This release grows the `hkj-checker` javac plugin from a single Path-type-mismat
 - Recipe consolidation -- `migration-nudge` folds the `ConvertRawFreeToFreePath` and `DetectInjectBoilerplate` OpenRewrite diagnoses into advisory compile-time nudges; `free-switch-exhaustive` and `witness-arity` do the same for the Free-switch and `WitnessArity` recipes
 - Documentation -- `tooling/compile_checks.md` is now the authoritative checker catalogue (every check, its default severity, and the configuration grammar); the effect/transformers/optics *Common Compiler Errors* chapters were corrected where they described errors modern javac no longer emits and cross-linked to the catalogue
 
+**Hardened `hkj-openrewrite` Recipes**
+
+This release audits and hardens the `hkj-openrewrite` migration recipes — correctness fixes, broader detection, type-safe matching, new 0.5.0 deprecation recipes, and a near-quadrupled test suite (9 → 34 tests).
+
+- Arity bounds -- `AddArityBoundsToTypeParameters` now emits `TypeArity.Binary` for `Kind2`, `Bifunctor` and `Profunctor` (previously always `Unary`, which generated incorrect bounds), detects witness use across fields, local variables, the class hierarchy, nested generics and wildcard bounds (not just method signatures), and no longer emits malformed output (`<Fextends  …>`); the existing-bound intersection case is also fixed
+- Type-safe detection -- `ConvertRawFreeToFreePath` and `DetectInjectBoilerplate` use a type-attributed `MethodMatcher` instead of rendered-string matching (a user type named `Free`, fully-qualified calls, or static imports no longer mis-fire or get missed); `AddHandleErrorCase` now also handles switch *expressions* with whole-word case matching; the three detect-only recipes emit OpenRewrite search-result markers instead of rewriting source with TODO comments
+- 0.5.0 deprecation migration -- New `MigrateDeprecationsTo0_5_0` recipe group renames `StateTKind.narrowK` → `narrow` and `KindValidator.narrowWithPattern` → `narrowHolder`
+- Docs and packaging -- The orphaned root `MIGRATION-0.3.0.md` is consolidated into a comprehensive `hkj-openrewrite/README.md` covering every recipe group; a new recipe-catalogue test validates that all recipes load from the classpath resources (the path both the Gradle and Maven plugins use), which uncovered and fixed a pre-existing invalid `AddWitnessArityImports` recipe — it listed a visitor as a recipe, so the `AddArityBounds` composite had been failing validation in every shipped release
+
 ---
 
 ### v0.4.4 -- 16 May 2026

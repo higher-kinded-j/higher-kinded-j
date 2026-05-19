@@ -53,4 +53,132 @@ class AddHandleErrorCaseRecipeTest implements RewriteTest {
             }
             """));
   }
+
+  @Test
+  void flagsFreeSwitchMissingHandleErrorAndAp() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            sealed interface Free permits Free.Pure, Free.Suspend, Free.FlatMapped {
+                record Pure() implements Free {}
+                record Suspend() implements Free {}
+                record FlatMapped() implements Free {}
+            }
+            """),
+        java(
+            """
+            package test;
+
+            public class Interpreter {
+                public int interpret(Free free) {
+                    return switch (free) {
+                        case Free.Pure p -> 1;
+                        case Free.Suspend s -> 2;
+                        case Free.FlatMapped f -> 3;
+                    };
+                }
+            }
+            """,
+            """
+            package test;
+
+            public class Interpreter {
+                public int interpret(Free free) {
+                    return /*~~(Free switch is missing HandleError and/or Ap case(s))~~>*/switch (free) {
+                        case Free.Pure p -> 1;
+                        case Free.Suspend s -> 2;
+                        case Free.FlatMapped f -> 3;
+                    };
+                }
+            }
+            """));
+  }
+
+  @Test
+  void doesNotFlagCompleteFreeSwitch() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            sealed interface Free
+                permits Free.Pure, Free.Suspend, Free.FlatMapped, Free.HandleError, Free.Ap {
+                record Pure() implements Free {}
+                record Suspend() implements Free {}
+                record FlatMapped() implements Free {}
+                record HandleError() implements Free {}
+                record Ap() implements Free {}
+            }
+            """),
+        java(
+            """
+            package test;
+
+            public class Interpreter {
+                public int interpret(Free free) {
+                    return switch (free) {
+                        case Free.Pure p -> 1;
+                        case Free.Suspend s -> 2;
+                        case Free.FlatMapped f -> 3;
+                        case Free.HandleError h -> 4;
+                        case Free.Ap a -> 5;
+                    };
+                }
+            }
+            """));
+  }
+
+  @Test
+  void apMatchingUsesWordBoundaryAndDoesNotFalseMatchApply() {
+    // The switch has Pure/Suspend/FlatMapped/HandleError plus an "Apply" case but no
+    // real "Ap" case. A naive substring check on "Ap" would wrongly treat this as
+    // complete; word-boundary matching keeps it correctly flagged as missing Ap.
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            sealed interface Free
+                permits Free.Pure, Free.Suspend, Free.FlatMapped, Free.HandleError, Free.Apply {
+                record Pure() implements Free {}
+                record Suspend() implements Free {}
+                record FlatMapped() implements Free {}
+                record HandleError() implements Free {}
+                record Apply() implements Free {}
+            }
+            """),
+        java(
+            """
+            package test;
+
+            public class Interpreter {
+                public int interpret(Free free) {
+                    return switch (free) {
+                        case Free.Pure p -> 1;
+                        case Free.Suspend s -> 2;
+                        case Free.FlatMapped f -> 3;
+                        case Free.HandleError h -> 4;
+                        case Free.Apply a -> 5;
+                    };
+                }
+            }
+            """,
+            """
+            package test;
+
+            public class Interpreter {
+                public int interpret(Free free) {
+                    return /*~~(Free switch is missing HandleError and/or Ap case(s))~~>*/switch (free) {
+                        case Free.Pure p -> 1;
+                        case Free.Suspend s -> 2;
+                        case Free.FlatMapped f -> 3;
+                        case Free.HandleError h -> 4;
+                        case Free.Apply a -> 5;
+                    };
+                }
+            }
+            """));
+  }
 }
