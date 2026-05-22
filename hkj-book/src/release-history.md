@@ -12,7 +12,7 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
-### v0.4.5-SNAPSHOT -- unreleased
+### v0.4.5 -- 22 May 2026
 
 **A Uniform `Instances` Facade for Type-Class Lookup**
 
@@ -44,6 +44,14 @@ This release audits and hardens the `hkj-openrewrite` migration recipes — corr
 - Type-safe detection -- `ConvertRawFreeToFreePath` and `DetectInjectBoilerplate` use a type-attributed `MethodMatcher` instead of rendered-string matching (a user type named `Free`, fully-qualified calls, or static imports no longer mis-fire or get missed); `AddHandleErrorCase` now also handles switch *expressions* with whole-word case matching; the three detect-only recipes emit OpenRewrite search-result markers instead of rewriting source with TODO comments
 - 0.5.0 deprecation migration -- New `MigrateDeprecationsTo0_5_0` recipe group renames `StateTKind.narrowK` → `narrow` and `KindValidator.narrowWithPattern` → `narrowHolder`
 - Docs and packaging -- The orphaned root `MIGRATION-0.3.0.md` is consolidated into a comprehensive `hkj-openrewrite/README.md` covering every recipe group; a new recipe-catalogue test validates that all recipes load from the classpath resources (the path both the Gradle and Maven plugins use), which uncovered and fixed a pre-existing invalid `AddWitnessArityImports` recipe — it listed a visitor as a recipe, so the `AddArityBounds` composite had been failing validation in every shipped release
+
+**Library and Build Refinements**
+
+This release also marks one wildcard-witness escape hatch for removal, makes the Java 25 toolchain self-provisioning, and lands the module-internal foundation for batched optic data access.
+
+- `StateTKind.narrowK` deprecation -- `StateTKind.narrowK` accepts a wildcard-witness `Kind<?, A>`, bypassing the HKT witness type safety enforced everywhere else in the library; it has no callers and the type-safe `narrow(Kind)` already covers the use case. It is now `@Deprecated(forRemoval = true)` for removal in 0.5.0, with the `MigrateDeprecationsTo0_5_0` OpenRewrite recipe automating the `narrowK` → `narrow` rename ([#455](https://github.com/higher-kinded-j/higher-kinded-j/issues/455))
+- Java 25 toolchain auto-provisioning -- `settings.gradle.kts` applies the `foojay-resolver-convention` plugin so Gradle downloads and provisions a matching Java 25 JDK automatically when the build machine does not already have one, removing a manual setup step for new contributors
+- Request-batching substrate -- New module-internal `org.higherkindedj.optics.fetch` package: a free-applicative-style `Fetch<K, V, A>` (`Done`/`Blocked`) and `FetchApplicative` that plug into the optic `modifyF` seam so a traversal whose focused values are loaded from a backend coalesces those N loads into one batched call (the classic N+1), with a transport- and datastore-neutral `BatchLoader` contract and round-based `runCached`/`runAsync` runners carrying a per-run request cache. The package is intentionally not exported — it is the foundation for later data-access capabilities and carries no public API yet ([#539](https://github.com/higher-kinded-j/higher-kinded-j/issues/539))
 
 ---
 
@@ -235,7 +243,7 @@ This release extends for-comprehension arity to 12, simplifies the VTask API, ad
 - [Stack Archetypes](transformers/archetypes.md) -- 7 named transformer stack archetypes with colour-coded railway diagrams
 - [Migration Cookbook](migration_cookbook.md) -- 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
 - [Compiler Error Guide](compiler_errors.md) -- Solutions for the 5 most common Effect Path compiler errors
-- [Effects-Optics Capstone](capstone_focus_effect.md) -- Combined effects and optics pipeline example
+- [Effects-Optics Capstone](effect/capstone_focus_effect.md) -- Combined effects and optics pipeline example
 - Railway operator diagrams for all 8 Effect Path operators and for EitherT, MaybeT, OptionalT transformers
 - JUnit 6.0.2 upgrade (from 5.14.1) across all test modules
 - Golden file test infrastructure with automated sync verification and pitest mutation coverage improvements
