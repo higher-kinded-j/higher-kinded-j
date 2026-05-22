@@ -50,6 +50,8 @@ tasks.javadoc {
 tasks.test {
   useJUnitPlatform()
   finalizedBy(tasks.jacocoTestReport)
+  // Headroom for large-N stack-safety stress tests (e.g. 200,000-element traversals).
+  maxHeapSize = "1g"
  // jvmArgs = listOf("--add-opens", "org.higherkindedj.hkj/org.higherkindedj.internal=ALL-UNNAMED")
 
   // Note: Parallel execution disabled due to:
