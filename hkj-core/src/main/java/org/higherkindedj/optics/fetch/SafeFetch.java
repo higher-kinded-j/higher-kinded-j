@@ -16,7 +16,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 
 /**
- * Capability A, slice 1: railway-safe runners.
+ * Railway-safe runners for {@link Fetch}.
  *
  * <p>The substrate runners ({@link Fetch#runCached} / {@link Fetch#runAsync}) signal an
  * infrastructure failure (a resolver that throws, a missing key, a loader future that completes
@@ -24,7 +24,7 @@ import org.higherkindedj.hkt.either.Either;
  * onto the value channel: the run never throws, and its outcome is an {@link Either} whose {@code
  * Left} is the failure and whose {@code Right} is the {@link Fetch.RunResult}.
  *
- * <p>This is the run-boundary half of A1's error channel. Per-key domain failures (a backend that
+ * <p>This is the run-boundary form of the error channel. Per-key domain failures (a backend that
  * reports "not found" for one key while succeeding for others) are a separate, finer-grained
  * concern handled by running with a {@code V} of {@code Either<E, ...>}.
  */
@@ -80,6 +80,36 @@ public final class SafeFetch {
       return CompletableFuture.completedFuture(Either.left(failure));
     }
     return railwayify(run.orTimeout(timeout.toNanos(), TimeUnit.NANOSECONDS));
+  }
+
+  /**
+   * Runs {@link Guards#runCached} without throwing. A {@link GuardViolationException} (or any other
+   * {@code RuntimeException} from the run) is returned as {@code Either.left}; a completed run is
+   * returned as {@code Either.right}.
+   */
+  public static <K, V, A> Either<Throwable, Fetch.RunResult<K, A>> runCachedWithGuard(
+      Fetch<K, V, A> fetch, Function<Set<K>, Map<K, V>> resolver, Guard<K> guard) {
+    try {
+      return Either.right(Guards.runCached(fetch, resolver, guard));
+    } catch (RuntimeException failure) {
+      return Either.left(failure);
+    }
+  }
+
+  /**
+   * Runs {@link Guards#runAsync} without ever producing a failed future. A guard refusal completes
+   * the returned future <em>normally</em> with {@code Either.left(GuardViolationException)}.
+   */
+  public static <K, V, A>
+      CompletableFuture<Either<Throwable, Fetch.RunResult<K, A>>> runAsyncWithGuard(
+          Fetch<K, V, A> fetch, BatchLoader<K, V> loader, Map<K, V> cache, Guard<K> guard) {
+    CompletableFuture<Fetch.RunResult<K, A>> run;
+    try {
+      run = Guards.runAsync(fetch, loader, cache, guard);
+    } catch (RuntimeException failure) {
+      return CompletableFuture.completedFuture(Either.left(failure));
+    }
+    return railwayify(run);
   }
 
   /** Moves a run's exceptional completion onto the value channel as {@code Either.left}. */

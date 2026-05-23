@@ -1,0 +1,28 @@
+@startuml optic_batching_guard
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title The guard interposes at the round boundary
+
+participant "Caller" as C
+participant "Runner" as R
+participant "Guard" as G
+participant "Resolver" as B
+
+C -> R : runCached(program, resolver, guard)
+loop per round
+  R -> R : compute uncached keyset
+  R -> G : check(keys, roundIndex)
+  alt keys within budget
+    G --> R : pass
+    R -> B : resolver(keys)
+    B --> R : values
+  else budget exceeded
+    G --> R : throw GuardViolationException
+    R -X B : not called
+    R --> C : exception (or Either.left via SafeFetch)
+  end
+end
+R --> C : RunResult
+
+@enduml

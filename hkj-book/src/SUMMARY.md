@@ -102,6 +102,7 @@
     - [Core Type Integration](optics/core_type_integration.md)
     - [Optics Extensions](optics/optics_extensions.md)
     - [Optic-Driven Batching](optics/optic_batching.md)
+    - [Plan Introspection and Guardrails](optics/optic_batching_guardrails.md)
     - [Cookbook](optics/cookbook.md)
     - [Auditing Complex Data](optics/auditing_complex_data_example.md)
   - [Advanced Optics](optics/ch6_intro.md)

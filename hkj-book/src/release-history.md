@@ -26,6 +26,17 @@ This release adds the user-facing surface around the `org.higherkindedj.optics.f
 - Tutorial 21: New tutorial journey (exercise + teaching-solution) covering the four pieces (same-type batching, heterogeneous fetch, multi-source routing, railway errors) with five exercises and tiered hints; the solution carries the *Why this is idiomatic / Alternative / Common wrong attempt* commentary per exercise
 - Architecture-rule update: The `optics.fetch` package is exempted from the "no specific HKT type dependencies" rule alongside the existing `optics.util`, `optics.extensions`, and `optics.fluent` exemptions, on the same basis: `SafeFetch`'s railway runner is built around `Either` by design
 
+**Plan Introspection and Guardrails for Optic Batching**
+
+The audit and safety-rail layer on top of [Optic-Driven Batching](optics/optic_batching.md): a way to fold a `Fetch` program into a structural plan without I/O, and a per-round guard that interposes between the program and its resolver to refuse runaway batches before they leave the JVM. Both compose with `SafeFetch` so refusal is a value, not a thrown exception.
+
+- [Plan Introspection and Guardrails](optics/optic_batching_guardrails.md): New chapter under Optics / Integration and Recipes covering the offline `Plans.preflight` walk, the per-round `Guard` family, and the railway-safe refusal pattern.
+- `Plans.preflight`: Folds a `Fetch` program into a `Plan<K>` with zero I/O. Each round's keyset is recorded in dispatch order; round 1 is universally observable, and later rounds are walked on stub values when the program's combine logic tolerates `null` (a `Plan.truncated()` flag is the honest signal otherwise).
+- `Guards.maxKeysPerRound` / `maxRounds` / `maxBackendCalls` / `audit` / `none`: Standard guards that pass or refuse a round at the runner boundary; compose with `Guard::and`. A refusal aborts the run with `GuardViolationException` carrying the offending `roundIndex` and `pendingKeys`.
+- `Guards.runCached` / `runAsync`: Drop-in replacements for the substrate runners with the guard interposed; the resolver is never called for a refused round.
+- `SafeFetch.runCachedWithGuard` / `runAsyncWithGuard`: Railway variants that capture a refusal as `Either.left(GuardViolationException)`; the run never throws and the safe-async future never completes exceptionally.
+- Tutorial 22 (exercise + teaching solution) covering the five pieces (preflight, truncation, refusal, audit, railway capture).
+
 ---
 
 ### v0.4.5 (22 May 2026)
@@ -59,7 +70,6 @@ This release audits and hardens the `hkj-openrewrite` migration recipes — corr
 - Arity bounds: `AddArityBoundsToTypeParameters` now emits `TypeArity.Binary` for `Kind2`, `Bifunctor` and `Profunctor` (previously always `Unary`, which generated incorrect bounds), detects witness use across fields, local variables, the class hierarchy, nested generics and wildcard bounds (not just method signatures), and no longer emits malformed output (`<Fextends  …>`); the existing-bound intersection case is also fixed
 - Type-safe detection: `ConvertRawFreeToFreePath` and `DetectInjectBoilerplate` use a type-attributed `MethodMatcher` instead of rendered-string matching (a user type named `Free`, fully-qualified calls, or static imports no longer mis-fire or get missed); `AddHandleErrorCase` now also handles switch *expressions* with whole-word case matching; the three detect-only recipes emit OpenRewrite search-result markers instead of rewriting source with TODO comments
 - 0.5.0 deprecation migration: New `MigrateDeprecationsTo0_5_0` recipe group renames `StateTKind.narrowK` → `narrow` and `KindValidator.narrowWithPattern` → `narrowHolder`
-- Docs and packaging: The orphaned root `MIGRATION-0.3.0.md` is consolidated into a comprehensive `hkj-openrewrite/README.md` covering every recipe group; a new recipe-catalogue test validates that all recipes load from the classpath resources (the path both the Gradle and Maven plugins use), which uncovered and fixed a pre-existing invalid `AddWitnessArityImports` recipe — it listed a visitor as a recipe, so the `AddArityBounds` composite had been failing validation in every shipped release
 
 **Library and Build Refinements**
 
@@ -258,7 +268,7 @@ This release extends for-comprehension arity to 12, simplifies the VTask API, ad
 - [Cheat Sheet](cheatsheet.md): Quick-reference for Path types, operators, escape hatches, and type conversions
 - [Stack Archetypes](transformers/archetypes.md): 7 named transformer stack archetypes with colour-coded railway diagrams
 - [Migration Cookbook](migration_cookbook.md): 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
-- [Compiler Error Guide](compiler_errors.md): Solutions for the 5 most common Effect Path compiler errors
+- [Compiler Error Guide](effect/compiler_errors.md): Solutions for the 5 most common Effect Path compiler errors
 - [Effects-Optics Capstone](effect/capstone_focus_effect.md): Combined effects and optics pipeline example
 - Railway operator diagrams for all 8 Effect Path operators and for EitherT, MaybeT, OptionalT transformers
 - JUnit 6.0.2 upgrade (from 5.14.1) across all test modules

@@ -15,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * Capability A, A2: multi-source batching.
+ * Multi-source batching: combine per-source {@link BatchLoader}s into one.
  *
  * <p>The substrate's {@link Fetch} is single-family: one round hands one key set to one resolver.
  * Real programs draw from several backends at once (users <em>and</em> products <em>and</em>
