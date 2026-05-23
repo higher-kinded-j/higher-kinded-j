@@ -15,9 +15,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Hand this to {@code Optic.modifyF(f, source, applicative)} where {@code f} maps each focused
  * element to a {@link Fetch} request. Because {@link #ap} merges the pending request sets of
- * independent arguments, an optic {@code Traversal} over N elements produces a single {@link
- * Fetch.Blocked} node carrying all N (deduplicated) keys: one batched backend call instead of N.
- * The optic core is untouched; only the supplied applicative changes.
+ * independent arguments, an optic {@code Traversal} over N elements produces a single {@link Fetch}
+ * node carrying all N (deduplicated) keys: one batched backend call instead of N. The optic core is
+ * untouched; only the supplied applicative changes.
  *
  * @param <K> request key type
  * @param <V> resolved value type

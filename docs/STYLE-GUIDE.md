@@ -6,6 +6,10 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
 
 - Use **British English** spelling and punctuation (e.g., "colour", "behaviour", "optimisation")
 - Do not use em dashes (—); use commas or semicolons instead
+- Avoid double-hyphen separators (` -- `) too, since they render as en-dashes and read like em-dashes. Prefer:
+  - A **colon** (`: `) to introduce an expansion after a label (e.g. "`SafeFetch`: Total runner that captures..."). This is the standard form for label-and-description bullets and for "See Also" link descriptions
+  - **Parentheses** for asides and dates after a heading (e.g. "`### v0.4.5 (22 May 2026)`", "`### v0.4.6-SNAPSHOT (unreleased)`"). Also for short parenthetical lists inside prose ("five sub-chapters (Quickstart, Core Paths, ..., Reference)")
+  - A **full stop** when the dash is really separating two complete thoughts, and treating them as two sentences reads more naturally
 - Do not use emojis in documentation
 - Keep explanations practical and focused on Java developers
 - Avoid academic jargon; prefer accessible explanations

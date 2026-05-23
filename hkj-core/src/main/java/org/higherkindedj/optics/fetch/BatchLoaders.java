@@ -2,6 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.fetch;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -79,5 +85,48 @@ public final class BatchLoaders {
   public static <K, V> BatchLoader<K, V> fromAsyncResolver(
       Function<Set<K>, CompletableFuture<Map<K, V>>> asyncResolver) {
     return asyncResolver::apply;
+  }
+
+  /**
+   * Decorates a {@link BatchLoader} so that no single dispatch carries more than {@code
+   * maxBatchSize} keys. A larger key set is split into bounded chunks, each loaded concurrently,
+   * and the results merged. Useful where a backend caps how many keys one query may carry (the
+   * length of an {@code IN}/{@code $in} list, a URL, a request body).
+   *
+   * @param loader the loader to bound
+   * @param maxBatchSize the largest key set a single dispatch may carry; must be at least 1
+   * @throws IllegalArgumentException if {@code maxBatchSize} is below 1
+   */
+  public static <K, V> BatchLoader<K, V> chunked(BatchLoader<K, V> loader, int maxBatchSize) {
+    requireNonNull(loader, "loader");
+    if (maxBatchSize < 1) {
+      throw new IllegalArgumentException("maxBatchSize must be at least 1, was " + maxBatchSize);
+    }
+    return keys -> {
+      if (keys.size() <= maxBatchSize) {
+        return loader.loadAll(keys);
+      }
+      List<CompletableFuture<Map<K, V>>> dispatches = new ArrayList<>();
+      Set<K> chunk = LinkedHashSet.newLinkedHashSet(maxBatchSize);
+      for (K key : keys) {
+        chunk.add(key);
+        if (chunk.size() == maxBatchSize) {
+          dispatches.add(loader.loadAll(chunk));
+          chunk = LinkedHashSet.newLinkedHashSet(maxBatchSize);
+        }
+      }
+      if (!chunk.isEmpty()) {
+        dispatches.add(loader.loadAll(chunk));
+      }
+      return CompletableFuture.allOf(dispatches.toArray(new CompletableFuture<?>[0]))
+          .thenApply(
+              ignored -> {
+                Map<K, V> merged = new HashMap<>();
+                for (CompletableFuture<Map<K, V>> dispatch : dispatches) {
+                  merged.putAll(dispatch.join());
+                }
+                return merged;
+              });
+    };
   }
 }

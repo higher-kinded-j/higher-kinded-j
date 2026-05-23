@@ -1,0 +1,30 @@
+@startuml optic_batching_n_plus_one
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title N+1 vs Batched: same shape, two strategies
+
+participant "Caller" as C
+participant "Traversal\nover N ids" as T
+participant "Backend" as B
+
+== Without batching (N+1) ==
+C -> T : modifyF(loadOne, ids)
+loop N times (one per focus)
+    T -> B : loadOne(id)
+    B --> T : entity
+end
+T --> C : List<entity>
+
+== With FetchApplicative (one round) ==
+C -> T : modifyF(Fetch.fetch, ids,\n   FetchApplicative)
+note right of T
+  ap() merges pending
+  request sets, so foci
+  share a single round
+end note
+T -> B : batchResolver({id_1, ..., id_N})
+B --> T : Map<id, entity>
+T --> C : List<entity>
+
+@enduml

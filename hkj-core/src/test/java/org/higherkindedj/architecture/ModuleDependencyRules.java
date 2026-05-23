@@ -71,7 +71,9 @@ class ModuleDependencyRules {
    * <p>Core optics (Lens, Prism, Traversal, etc.) should work through the generic Kind interface.
    * However, utility and extension classes in optics.util and optics.extensions are specifically
    * designed to provide convenient operations for specific HKT types (like EitherTraversals,
-   * MaybeTraversals, etc.) and are excluded from this rule.
+   * MaybeTraversals, etc.) and are excluded from this rule. The optics.fetch package is excluded
+   * for the same reason: its railway runner (SafeFetch) is built around Either as the value-channel
+   * failure type.
    */
   @Test
   @DisplayName("Optics classes should not depend on specific HKT type implementations")
@@ -88,6 +90,8 @@ class ModuleDependencyRules {
         .resideOutsideOfPackage("..optics.extensions..")
         .and()
         .resideOutsideOfPackage("..optics.fluent..")
+        .and()
+        .resideOutsideOfPackage("..optics.fetch..")
         .should()
         .dependOnClassesThat()
         .resideInAnyPackage(

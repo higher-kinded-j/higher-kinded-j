@@ -37,18 +37,7 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
  * @param <V> resolved value type
  * @param <A> result type
  */
-public sealed interface Fetch<K, V, A> permits Fetch.Done, Fetch.Blocked {
-
-  /** A completed computation with no outstanding requests. */
-  record Done<K, V, A>(A value) implements Fetch<K, V, A> {}
-
-  /**
-   * A computation blocked on a tree of pending requests, with a continuation that resumes (stack-
-   * safely, via a {@link Trampoline}) once those requests have been resolved.
-   */
-  record Blocked<K, V, A>(
-      PendingKeys<K> pending, Function<Map<K, V>, Trampoline<Fetch<K, V, A>>> resume)
-      implements Fetch<K, V, A> {}
+public sealed interface Fetch<K, V, A> permits Done, Blocked {
 
   /** Lifts a pure value (no requests). */
   static <K, V, A> Fetch<K, V, A> done(A value) {

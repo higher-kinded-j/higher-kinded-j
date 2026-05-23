@@ -1,0 +1,52 @@
+@startuml optic_batching_pipeline
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title The batching pipeline: optic + strategy + runner
+
+skinparam componentStyle rectangle
+
+package "Shape" {
+  [Traversal\n(or any Optic)] as OP
+}
+
+package "Strategy" {
+  [FetchApplicative] as FA
+  note right of FA
+    ap() unions the pending
+    request sets of independent
+    arguments into one round.
+  end note
+}
+
+package "Program" {
+  [Fetch<K, V, A>] as F
+  note right of F
+    A value, not an action.
+    Inspect, cache, replay.
+  end note
+}
+
+package "Runners" {
+  [Fetch.runCached] as RC
+  [Fetch.runAsync] as RA
+  [SafeFetch.runCached] as SC
+}
+
+package "Backends" {
+  [BatchLoader] as BL
+  [SourceRouter.routed] as SR
+  [BatchLoaders.chunked] as BC
+}
+
+OP --> FA : modifyF(f, s, applicative)
+FA --> F : produces
+F --> RC : sync
+F --> RA : async
+F --> SC : railway (Either)
+RC --> BL : per round,\none keyset, one call
+RA --> BL
+RA --> SR : fan out per source
+RA --> BC : cap dispatch size
+
+@enduml
