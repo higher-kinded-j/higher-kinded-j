@@ -15,7 +15,7 @@ import org.higherkindedj.hkt.util.FList;
 import org.higherkindedj.optics.Optic;
 
 /**
- * Capability A release: optic builders for heterogeneous fetch.
+ * Optic builders for heterogeneous fetch.
  *
  * <p>The base {@link Optic Optic&lt;S, T, A, B&gt;} is type-changing ({@code modifyF} maps {@code A
  * → Kind<F, B>}), so heterogeneous fetch is mechanically supported. But the code-generated {@code

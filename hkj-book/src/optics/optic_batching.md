@@ -195,4 +195,4 @@ Practice the four pieces (batching, heterogeneous fetch, multi-source routing, r
 
 ---
 
-[Previous: Optics Extensions](optics_extensions.md) | [Next: Cookbook](cookbook.md)
+[Previous: Optics Extensions](optics_extensions.md) | [Next: Plan Introspection and Guardrails](optic_batching_guardrails.md)

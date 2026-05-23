@@ -1,0 +1,33 @@
+@startuml optic_batching_preflight
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title Two ways to ask a program "what would you do?"
+
+participant "Caller" as C
+participant "Fetch program" as P
+participant "Runner" as R
+participant "Backend" as B
+
+== Online: Fetch.runCached (real I/O) ==
+C -> R : runCached(program, resolver)
+R -> P : pending()
+P --> R : { id_1, ..., id_N }
+R -> B : resolver({ id_1, ..., id_N })
+B --> R : { id_1: v_1, ..., id_N: v_N }
+R --> C : RunResult(value, rounds=1, fetchedBatches=[...])
+
+== Offline: Plans.preflight (no I/O) ==
+C -> R : preflight(program)
+R -> P : pending()
+P --> R : { id_1, ..., id_N }
+note right of R
+  Resume with stub nulls.
+  No backend, no values,
+  no side effects.
+end note
+R -> P : resume(stub map)
+P --> R : Done (or another Blocked)
+R --> C : Plan(fetchedBatches=[...], truncated=?)
+
+@enduml

@@ -22,6 +22,15 @@
  * org.higherkindedj.optics.fetch.FetchOptics#fetchEach} builds a type-changing list traversal so
  * heterogeneous fetch ({@code Id -> Entity}) is ergonomic over an optic.
  *
+ * <p>{@link org.higherkindedj.optics.fetch.Plans#preflight Plans.preflight} folds a program into a
+ * {@link org.higherkindedj.optics.fetch.Plan} without I/O: each round's keyset, in dispatch order,
+ * for audit logs, dry-run output, or pre-dispatch budgeting. {@link
+ * org.higherkindedj.optics.fetch.Guards} interposes a {@link org.higherkindedj.optics.fetch.Guard}
+ * at the round boundary to enforce a per-round budget online ({@code maxKeysPerRound}, {@code
+ * maxRounds}, {@code maxBackendCalls}, {@code audit}); a guard that refuses aborts the run with
+ * {@link org.higherkindedj.optics.fetch.GuardViolationException}, which {@link
+ * org.higherkindedj.optics.fetch.SafeFetch#runCachedWithGuard} translates to {@code Either.left}.
+ *
  * <p>The Applicative/Monad batching boundary is explicit: {@link
  * org.higherkindedj.optics.fetch.Fetch#flatMap} cannot coalesce across a data dependency and is
  * resolved in multiple rounds; applicative composition is resolved in one.
@@ -46,7 +55,10 @@
  * org.higherkindedj.optics.fetch.BatchLoader}, {@link org.higherkindedj.optics.fetch.BatchLoaders},
  * {@link org.higherkindedj.optics.fetch.SafeFetch}, {@link
  * org.higherkindedj.optics.fetch.SourceRouter}, {@link org.higherkindedj.optics.fetch.FetchOptics},
- * the HKT plumbing ({@link org.higherkindedj.optics.fetch.FetchKind} / {@link
+ * {@link org.higherkindedj.optics.fetch.Plan} / {@link org.higherkindedj.optics.fetch.Plans},
+ * {@link org.higherkindedj.optics.fetch.Guard} / {@link org.higherkindedj.optics.fetch.Guards} /
+ * {@link org.higherkindedj.optics.fetch.GuardViolationException}, the HKT plumbing ({@link
+ * org.higherkindedj.optics.fetch.FetchKind} / {@link
  * org.higherkindedj.optics.fetch.FetchKindHelper}), and {@link
  * org.higherkindedj.optics.fetch.MissingKeyException}. The {@code Done}/{@code Blocked} ADT and
  * {@link org.higherkindedj.optics.fetch.PendingKeys} are deliberately package-private: consumers

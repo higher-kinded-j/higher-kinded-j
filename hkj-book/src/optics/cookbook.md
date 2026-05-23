@@ -846,5 +846,5 @@ Practice real-world optics patterns in [Tutorial 08: Real World Optics](https://
 
 ---
 
-**Previous:** [Optic-Driven Batching](optic_batching.md)
+**Previous:** [Plan Introspection and Guardrails](optic_batching_guardrails.md)
 **Next:** [Auditing Complex Data](auditing_complex_data_example.md)
