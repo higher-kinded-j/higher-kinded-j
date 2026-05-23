@@ -1,0 +1,30 @@
+@startuml optic_batching_rounds
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title Applicative collapses, flatMap doesn't
+
+participant "Program" as P
+participant "Runner" as R
+participant "Backend" as B
+
+== Pure applicative (N foci, 1 round) ==
+P -> R : ap(ap(f, fetch a),\n     fetch b), fetch c)
+R -> B : { a, b, c }
+B --> R : { a:..., b:..., c:... }
+R --> P : value
+
+== flatMap dependency chain (3 rounds) ==
+P -> R : fetch(a).flatMap(\n   x -> fetch(x.next))
+R -> B : { a }
+B --> R : { a:... }
+note right of R
+  Now we know what to ask for next.
+end note
+R -> B : { a.next }
+B --> R : { a.next:... }
+R -> B : { a.next.next }
+B --> R : { ... }
+R --> P : value
+
+@enduml
