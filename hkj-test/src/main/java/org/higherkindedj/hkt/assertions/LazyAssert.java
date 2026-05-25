@@ -5,7 +5,10 @@ package org.higherkindedj.hkt.assertions;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.lazy.Lazy;
+import org.higherkindedj.hkt.lazy.LazyKind;
+import org.higherkindedj.hkt.lazy.LazyKindHelper;
 
 /**
  * Custom AssertJ assertions for {@link Lazy} instances.
@@ -16,6 +19,11 @@ import org.higherkindedj.hkt.lazy.Lazy;
  * @param <T> The type of the value held by the Lazy
  */
 public class LazyAssert<T> extends AbstractAssert<LazyAssert<T>, Lazy<T>> {
+
+  /** Entry point accepting a {@code Kind<LazyKind.Witness, T>}. */
+  public static <T> LazyAssert<T> assertThatLazy(Kind<LazyKind.Witness, T> actual) {
+    return new LazyAssert<>(LazyKindHelper.LAZY.narrow(actual));
+  }
 
   /** Entry point. */
   public static <T> LazyAssert<T> assertThatLazy(Lazy<T> actual) {

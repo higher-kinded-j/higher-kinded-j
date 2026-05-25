@@ -9,16 +9,20 @@ import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("Lazy Functor Complete Test Suite")
+@DisplayName("LazyFunctor")
 class LazyFunctorTest extends LazyTestBase {
 
   private Monad<LazyKind.Witness> functor;
@@ -31,21 +35,26 @@ class LazyFunctorTest extends LazyTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Functor Test Suite")
-  class CompleteFunctorTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() // Add this line - Lazy has special exception semantics
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<LazyKind.Witness, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<LazyKind.Witness, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Lazy.defer(0)", LAZY.widen(Lazy.defer(() -> 0))),
+          Arguments.of("Lazy.defer(42)", LAZY.widen(Lazy.defer(() -> 42))),
+          Arguments.of("Lazy.defer(-1)", LAZY.widen(Lazy.defer(() -> -1))));
     }
   }
 
@@ -160,41 +169,6 @@ class LazyFunctorTest extends LazyTestBase {
   }
 
   @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
-
-    @Test
-    @DisplayName("Identity Law: map(id, fa) == fa")
-    void identityLaw() throws Throwable {
-      Function<Integer, Integer> identity = i -> i;
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(identity, validKind);
-
-      assertThat(equalityChecker.test(mapped, validKind))
-          .as("map(id, fa) should equal fa")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Composition Law: map(g ∘ f, fa) == map(g, map(f, fa))")
-    void compositionLaw() throws Throwable {
-      Function<Integer, String> f = validMapper;
-      Function<String, String> g = secondMapper;
-
-      // Left side: map(g ∘ f, fa)
-      Function<Integer, String> composed = i -> g.apply(f.apply(i));
-      Kind<LazyKind.Witness, String> leftSide = functor.map(composed, validKind);
-
-      // Right side: map(g, map(f, fa))
-      Kind<LazyKind.Witness, String> intermediate = functor.map(f, validKind);
-      Kind<LazyKind.Witness, String> rightSide = functor.map(g, intermediate);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("map(g ∘ f, fa) should equal map(g, map(f, fa))")
-          .isTrue();
-    }
-  }
-
-  @Nested
   @DisplayName("Memoisation Behaviour")
   class MemoisationBehaviour {
 
@@ -299,59 +273,6 @@ class LazyFunctorTest extends LazyTestBase {
 
       Lazy<Integer> result = narrowToLazy(mapped3);
       assertThatLazy(result).whenForcedHasValue(String.valueOf(DEFAULT_LAZY_VALUE).length());
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyOperations()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyValidations()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Exception propagation is already thoroughly tested in MapOperations
-      // Lazy has special semantics - exceptions are memoized and thrown at force() time
-      // See MapOperations tests for comprehensive exception handling coverage
-      assertThat(true)
-          .as("Exception propagation for Lazy is tested in MapOperations nested class")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
     }
   }
 }

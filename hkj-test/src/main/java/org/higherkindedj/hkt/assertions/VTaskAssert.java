@@ -6,9 +6,12 @@ import java.time.Duration;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
+import org.higherkindedj.hkt.vtask.VTaskKind;
+import org.higherkindedj.hkt.vtask.VTaskKindHelper;
 
 /**
  * Custom AssertJ assertions for {@link VTask} instances.
@@ -16,6 +19,11 @@ import org.higherkindedj.hkt.vtask.VTaskExecutionException;
  * @param <T> The type of the value produced by the VTask computation
  */
 public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
+
+  /** Entry point accepting a {@code Kind<VTaskKind.Witness, T>}. */
+  public static <T> VTaskAssert<T> assertThatVTask(Kind<VTaskKind.Witness, T> actual) {
+    return new VTaskAssert<>(VTaskKindHelper.VTASK.narrow(actual));
+  }
 
   /** Entry point. */
   public static <T> VTaskAssert<T> assertThatVTask(VTask<T> actual) {

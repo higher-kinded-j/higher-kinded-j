@@ -9,17 +9,21 @@ import static org.higherkindedj.hkt.assertions.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("StateMonad<S> Complete Test Suite")
+@DisplayName("StateMonad")
 class StateMonadTest extends StateTestBase<Integer> {
 
   private StateMonad<Integer> monad;
@@ -31,38 +35,42 @@ class StateMonadTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<StateKind.Witness<Integer>>monad(StateMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .withApFrom(StateApplicative.class)
-          .withFlatMapFrom(StateMonad.class)
-          .selectTests()
-          .skipExceptions() // Skip because State is lazy
-          .test();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      Monad<StateKind.Witness<Integer>> m = monad;
+      MonadLaws.assertLeftIdentity(m, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(StateMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<StateKind.Witness<Integer>, Integer> ma) {
+      Monad<StateKind.Witness<Integer>> m = monad;
+      MonadLaws.assertRightIdentity(m, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<StateKind.Witness<Integer>, Integer> ma) {
+      Monad<StateKind.Witness<Integer>> m = monad;
+      MonadLaws.assertAssociativity(m, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of(
+              "State(s -> (s, 42))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s, 42)))),
+          Arguments.of(
+              "State(s -> (s+1, s))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s + 1, s)))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -226,39 +234,12 @@ class StateMonadTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("Individual Test Components")
-  class IndividualComponents {
+  @DisplayName("Exception Propagation (State-specific, on run)")
+  class ExceptionPropagation {
 
     @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<StateKind.Witness<Integer>>monad(StateMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<StateKind.Witness<Integer>>monad(StateMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .withApFrom(StateApplicative.class)
-          .withFlatMapFrom(StateMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
+    @DisplayName("Functions throwing during run() propagate")
+    void exceptionsThrownInRunPropagate() {
       // State is lazy, so exceptions are thrown during execution, not construction
       RuntimeException testException = new RuntimeException("Test exception");
 
@@ -294,66 +275,6 @@ class StateMonadTest extends StateTestBase<Integer> {
       assertThatThrownBy(() -> runState(apResult, getInitialState()))
           .as("ap should propagate exceptions during execution")
           .isSameAs(testException);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<StateKind.Witness<Integer>>monad(StateMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
-    }
-  }
-
-  @Nested
-  @DisplayName("Monad Laws")
-  class MonadLaws {
-
-    @Test
-    @DisplayName("Left identity: flatMap(of(a), f) == f(a)")
-    void leftIdentityLaw() {
-      Integer value = testValue;
-      Kind<StateKind.Witness<Integer>, Integer> ofValue = monad.of(value);
-      Kind<StateKind.Witness<Integer>, String> leftSide = monad.flatMap(testFunction, ofValue);
-      Kind<StateKind.Witness<Integer>, String> rightSide = testFunction.apply(value);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Monad Left Identity: flatMap(of(a), f) == f(a)")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Right identity: flatMap(m, of) == m")
-    void rightIdentityLaw() {
-      Function<Integer, Kind<StateKind.Witness<Integer>, Integer>> ofFunction = a -> monad.of(a);
-      Kind<StateKind.Witness<Integer>, Integer> leftSide = monad.flatMap(ofFunction, validKind);
-
-      assertThat(equalityChecker.test(leftSide, validKind))
-          .as("Monad Right Identity: flatMap(m, of) == m")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-    void associativityLaw() {
-      // Left side: flatMap(flatMap(m, f), g)
-      Kind<StateKind.Witness<Integer>, String> intermediate =
-          monad.flatMap(testFunction, validKind);
-      Kind<StateKind.Witness<Integer>, String> leftSide =
-          monad.flatMap(chainFunction, intermediate);
-
-      // Right side: flatMap(m, a -> flatMap(f(a), g))
-      Function<Integer, Kind<StateKind.Witness<Integer>, String>> combined =
-          a -> monad.flatMap(chainFunction, testFunction.apply(a));
-      Kind<StateKind.Witness<Integer>, String> rightSide = monad.flatMap(combined, validKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Monad Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-          .isTrue();
     }
   }
 

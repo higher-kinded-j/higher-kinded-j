@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Invalid Complete Test Suite")
 class InvalidTest {
 
-  private Invalid<String, Integer> invalidInstance;
+  private Validated<String, Integer> invalidInstance;
   private Semigroup<String> semigroup;
 
   @BeforeEach
@@ -386,7 +386,7 @@ class InvalidTest {
     @Test
     @DisplayName("Record accessor returns error")
     void recordAccessorReturnsError() {
-      assertThat(invalidInstance.error()).isEqualTo("test-error");
+      assertThat(invalidInstance.getError()).isEqualTo("test-error");
     }
   }
 }

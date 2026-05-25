@@ -8,18 +8,23 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,6 +33,14 @@ class CompletableFutureMonadTest {
 
   private final MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
       Instances.monadError(completableFuture());
+
+  /**
+   * Equality on Kind&lt;CF, ?&gt; by joining both sides and comparing the values. Used for law
+   * verification on completed futures.
+   */
+  private final BiPredicate<
+          Kind<CompletableFutureKind.Witness, ?>, Kind<CompletableFutureKind.Witness, ?>>
+      eq = (k1, k2) -> Objects.equals(FUTURE.join(k1), FUTURE.join(k2));
 
   // --- Helper Functions ---
   private <A> CompletableFuture<A> unwrapFuture(Kind<CompletableFutureKind.Witness, A> kind) {
@@ -718,176 +731,87 @@ class CompletableFutureMonadTest {
 
   @Nested
   @DisplayName("Functor Laws")
-  class FunctorLaws {
-    RuntimeException failException = new RuntimeException("Fail");
-    Kind<CompletableFutureKind.Witness, Integer> fa = futureMonad.of(10);
-    Kind<CompletableFutureKind.Witness, Integer> faFail = futureMonad.raiseError(failException);
+  class FunctorLawTests {
+    final Kind<CompletableFutureKind.Witness, Integer> fa = futureMonad.of(10);
 
     @Test
-    @DisplayName("1. Identity: map(id, fa) == fa")
+    @DisplayName("Identity: map(id, fa) == fa")
     void identity() {
-      assertThat(joinFuture(futureMonad.map(Function.identity(), fa))).isEqualTo(joinFuture(fa));
-      assertThatThrownBy(() -> joinFuture(futureMonad.map(Function.identity(), faFail)))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(failException);
-      assertThatThrownBy(() -> joinFuture(faFail))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(failException);
+      FunctorLaws.assertIdentity(futureMonad, fa, eq);
     }
 
     @Test
-    @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
+    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
     void composition() {
-      Function<Integer, String> f_func = i -> "v" + i;
-      Function<String, String> g_func = s -> s + "!";
-
-      Kind<CompletableFutureKind.Witness, String> leftSide =
-          futureMonad.map(g_func.compose(f_func), fa);
-      Kind<CompletableFutureKind.Witness, String> rightSide =
-          futureMonad.map(g_func, futureMonad.map(f_func, fa));
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(rightSide));
-
-      Kind<CompletableFutureKind.Witness, String> leftSideFail =
-          futureMonad.map(g_func.compose(f_func), faFail);
-      Kind<CompletableFutureKind.Witness, String> rightSideFail =
-          futureMonad.map(g_func, futureMonad.map(f_func, faFail));
-      assertThatThrownBy(() -> joinFuture(leftSideFail))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(failException);
-      assertThatThrownBy(() -> joinFuture(rightSideFail))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(failException);
+      FunctorLaws.assertComposition(futureMonad, fa, i -> "v" + i, (String s) -> s + "!", eq);
     }
   }
 
-  // Applicative and Monad Laws also need their Kind types updated to .Witness
-  // This will be similar to the changes in FunctorLaws and the other test sections.
-  // For brevity, I'll show one example from Applicative and one from Monad.
-
   @Nested
   @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
-    int x = 5;
-    Function<Integer, String> f_func = i -> "f" + i;
-
-    RuntimeException vException = new RuntimeException("VFail");
-    RuntimeException fException = new RuntimeException("FFail");
-
-    Kind<CompletableFutureKind.Witness, Integer> v = futureMonad.of(x);
-    Kind<CompletableFutureKind.Witness, Integer> vFail = futureMonad.raiseError(vException);
-    Kind<CompletableFutureKind.Witness, Function<Integer, String>> fKind = futureMonad.of(f_func);
-    Kind<CompletableFutureKind.Witness, Function<Integer, String>> fKindFail =
-        futureMonad.raiseError(fException);
-
-    // ... (gKind, gKindFail if used in full law tests)
+  class ApplicativeLawTests {
+    final int x = 5;
+    final Function<Integer, String> f_func = i -> "f" + i;
+    final Kind<CompletableFutureKind.Witness, Integer> v = futureMonad.of(x);
+    final Kind<CompletableFutureKind.Witness, Function<Integer, String>> fKind =
+        futureMonad.of(f_func);
 
     @Test
-    @DisplayName("1. Identity: ap(of(id), v) == v")
+    @DisplayName("Identity: ap(of(id), v) == v")
     void identity() {
+      ApplicativeLaws.assertIdentity(futureMonad, v, eq);
+    }
+
+    @Test
+    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      ApplicativeLaws.assertHomomorphism(futureMonad, x, f_func, eq);
+    }
+
+    @Test
+    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
+    void interchange() {
+      ApplicativeLaws.assertInterchange(futureMonad, fKind, 10, eq);
+    }
+
+    @Test
+    @DisplayName("Composition")
+    void composition() {
+      Kind<CompletableFutureKind.Witness, Function<String, String>> gKind =
+          futureMonad.of(s -> s + "g");
+      ApplicativeLaws.assertComposition(futureMonad, gKind, fKind, v, eq);
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative failure propagation")
+  class ApplicativeFailureTests {
+    final RuntimeException vException = new RuntimeException("VFail");
+    final RuntimeException fException = new RuntimeException("FFail");
+    final Kind<CompletableFutureKind.Witness, Integer> v = futureMonad.of(5);
+    final Kind<CompletableFutureKind.Witness, Integer> vFail = futureMonad.raiseError(vException);
+    final Kind<CompletableFutureKind.Witness, Function<Integer, String>> fKind =
+        futureMonad.of(i -> "f" + i);
+    final Kind<CompletableFutureKind.Witness, Function<Integer, String>> fKindFail =
+        futureMonad.raiseError(fException);
+
+    @Test
+    @DisplayName("ap(of(id), vFail) propagates the value failure")
+    void identityPropagatesVFailure() {
       Kind<CompletableFutureKind.Witness, Function<Integer, Integer>> idFuncKind =
           futureMonad.of(Function.identity());
-      assertThat(joinFuture(futureMonad.ap(idFuncKind, v))).isEqualTo(joinFuture(v));
       assertThatThrownBy(() -> joinFuture(futureMonad.ap(idFuncKind, vFail)))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(vException);
     }
 
     @Test
-    @DisplayName("2. Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      Kind<CompletableFutureKind.Witness, Function<Integer, String>> apFunc =
-          futureMonad.of(f_func);
-      Kind<CompletableFutureKind.Witness, Integer> apVal = futureMonad.of(x);
-      Kind<CompletableFutureKind.Witness, String> leftSide = futureMonad.ap(apFunc, apVal);
-      Kind<CompletableFutureKind.Witness, String> rightSide = futureMonad.of(f_func.apply(x));
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(rightSide));
-    }
-
-    @Test
-    @DisplayName("3. Interchange: ap(fKind, of(y)) == ap(of(f -> f(y)), fKind)")
-    void interchange() {
-      int y = 10;
-      Kind<CompletableFutureKind.Witness, String> leftSide =
-          futureMonad.ap(fKind, futureMonad.of(y));
-
-      Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<CompletableFutureKind.Witness, Function<Function<Integer, String>, String>> evalKind =
-          futureMonad.of(evalWithY);
-      Kind<CompletableFutureKind.Witness, String> rightSide = futureMonad.ap(evalKind, fKind);
-
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(rightSide));
-
-      Kind<CompletableFutureKind.Witness, String> leftSideFail =
-          futureMonad.ap(fKindFail, futureMonad.of(y));
-      Kind<CompletableFutureKind.Witness, String> rightSideFail =
-          futureMonad.ap(evalKind, fKindFail);
-      assertThatThrownBy(() -> joinFuture(leftSideFail))
+    @DisplayName("ap propagates failure when function or value fails")
+    void apPropagatesFailures() {
+      assertThatThrownBy(() -> joinFuture(futureMonad.ap(fKindFail, v)))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(fException);
-      assertThatThrownBy(() -> joinFuture(rightSideFail))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(fException);
-    }
-
-    @Test
-    @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
-    void composition() {
-      Function<String, String> g_func = s -> s + "g";
-      Kind<CompletableFutureKind.Witness, Function<String, String>> gKind =
-          futureMonad.of(g_func); // MODIFIED
-      RuntimeException gException = new RuntimeException("GFail");
-      Kind<CompletableFutureKind.Witness, Function<String, String>> gKindFail =
-          futureMonad.raiseError(gException); // MODIFIED
-
-      Function<
-              Function<String, String>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          composeMap = gg -> ff -> gg.compose(ff);
-
-      Kind<
-              CompletableFutureKind.Witness,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          mappedCompose = futureMonad.map(composeMap, gKind);
-      Kind<CompletableFutureKind.Witness, Function<Integer, String>> ap1 =
-          futureMonad.ap(mappedCompose, fKind);
-      Kind<CompletableFutureKind.Witness, String> leftSide = futureMonad.ap(ap1, v);
-
-      Kind<CompletableFutureKind.Witness, String> innerAp = futureMonad.ap(fKind, v);
-      Kind<CompletableFutureKind.Witness, String> rightSide = futureMonad.ap(gKind, innerAp);
-
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(rightSide));
-
-      // Failure cases
-      Kind<CompletableFutureKind.Witness, String> leftSideFailG =
-          futureMonad.ap(futureMonad.ap(futureMonad.map(composeMap, gKindFail), fKind), v);
-      Kind<CompletableFutureKind.Witness, String> rightSideFailG =
-          futureMonad.ap(gKindFail, futureMonad.ap(fKind, v));
-      assertThatThrownBy(() -> joinFuture(leftSideFailG))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(gException);
-      assertThatThrownBy(() -> joinFuture(rightSideFailG))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(gException);
-
-      Kind<CompletableFutureKind.Witness, String> leftSideFailF =
-          futureMonad.ap(futureMonad.ap(futureMonad.map(composeMap, gKind), fKindFail), v);
-      Kind<CompletableFutureKind.Witness, String> rightSideFailF =
-          futureMonad.ap(gKind, futureMonad.ap(fKindFail, v));
-      assertThatThrownBy(() -> joinFuture(leftSideFailF))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(fException);
-      assertThatThrownBy(() -> joinFuture(rightSideFailF))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(fException);
-
-      Kind<CompletableFutureKind.Witness, String> leftSideFailV =
-          futureMonad.ap(futureMonad.ap(futureMonad.map(composeMap, gKind), fKind), vFail);
-      Kind<CompletableFutureKind.Witness, String> rightSideFailV =
-          futureMonad.ap(gKind, futureMonad.ap(fKind, vFail));
-      assertThatThrownBy(() -> joinFuture(leftSideFailV))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(vException);
-      assertThatThrownBy(() -> joinFuture(rightSideFailV))
+      assertThatThrownBy(() -> joinFuture(futureMonad.ap(fKind, vFail)))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(vException);
     }
@@ -895,67 +819,65 @@ class CompletableFutureMonadTest {
 
   @Nested
   @DisplayName("Monad Laws")
-  class MonadLaws {
-    int value = 5;
-    RuntimeException mException = new RuntimeException("MFail");
-    Kind<CompletableFutureKind.Witness, Integer> mValue = futureMonad.of(value);
-    Kind<CompletableFutureKind.Witness, Integer> mValueFail = futureMonad.raiseError(mException);
-
-    Function<Integer, Kind<CompletableFutureKind.Witness, String>> f_law =
+  class MonadLawTests {
+    final int value = 5;
+    final Kind<CompletableFutureKind.Witness, Integer> mValue = futureMonad.of(value);
+    final Function<Integer, Kind<CompletableFutureKind.Witness, String>> f_law =
         i -> futureMonad.of("v" + i);
-    Function<String, Kind<CompletableFutureKind.Witness, String>> g_law =
+    final Function<String, Kind<CompletableFutureKind.Witness, String>> g_law =
         s -> futureMonad.of(s + "!");
 
     @Test
-    @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
+    @DisplayName("Left Identity: flatMap(f, of(a)) == f(a)")
     void leftIdentity() {
-      Kind<CompletableFutureKind.Witness, Integer> ofValue = futureMonad.of(value);
-      Kind<CompletableFutureKind.Witness, String> leftSide = futureMonad.flatMap(f_law, ofValue);
-      Kind<CompletableFutureKind.Witness, String> rightSide = f_law.apply(value);
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(rightSide));
+      MonadLaws.assertLeftIdentity(futureMonad, value, f_law, eq);
     }
 
     @Test
-    @DisplayName("2. Right Identity: flatMap(m, of) == m")
+    @DisplayName("Right Identity: flatMap(of, m) == m")
     void rightIdentity() {
-      Function<Integer, Kind<CompletableFutureKind.Witness, Integer>> ofFunc =
-          i -> futureMonad.of(i);
-      Kind<CompletableFutureKind.Witness, Integer> leftSide = futureMonad.flatMap(ofFunc, mValue);
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(mValue));
+      MonadLaws.assertRightIdentity(futureMonad, mValue, eq);
+    }
 
-      Kind<CompletableFutureKind.Witness, Integer> leftSideFail =
-          futureMonad.flatMap(ofFunc, mValueFail);
-      assertThatThrownBy(() -> joinFuture(leftSideFail))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(mException);
-      assertThatThrownBy(() -> joinFuture(mValueFail))
+    @Test
+    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
+    void associativity() {
+      MonadLaws.assertAssociativity(futureMonad, mValue, f_law, g_law, eq);
+    }
+  }
+
+  @Nested
+  @DisplayName("Monad failure propagation")
+  class MonadFailureTests {
+    final RuntimeException mException = new RuntimeException("MFail");
+    final Kind<CompletableFutureKind.Witness, Integer> mValueFail =
+        futureMonad.raiseError(mException);
+    final Function<Integer, Kind<CompletableFutureKind.Witness, String>> f_law =
+        i -> futureMonad.of("v" + i);
+    final Function<String, Kind<CompletableFutureKind.Witness, String>> g_law =
+        s -> futureMonad.of(s + "!");
+
+    @Test
+    @DisplayName("flatMap propagates the source failure")
+    void flatMapPropagatesFailure() {
+      Function<Integer, Kind<CompletableFutureKind.Witness, Integer>> ofFunc = futureMonad::of;
+      assertThatThrownBy(() -> joinFuture(futureMonad.flatMap(ofFunc, mValueFail)))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mException);
     }
 
     @Test
-    @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-    void associativity() {
-      Kind<CompletableFutureKind.Witness, String> innerFlatMap = futureMonad.flatMap(f_law, mValue);
-      Kind<CompletableFutureKind.Witness, String> leftSide =
-          futureMonad.flatMap(g_law, innerFlatMap);
-
-      Function<Integer, Kind<CompletableFutureKind.Witness, String>> rightSideFunc =
-          a -> futureMonad.flatMap(g_law, f_law.apply(a));
-      Kind<CompletableFutureKind.Witness, String> rightSide =
-          futureMonad.flatMap(rightSideFunc, mValue);
-      assertThat(joinFuture(leftSide)).isEqualTo(joinFuture(rightSide));
-
-      Kind<CompletableFutureKind.Witness, String> innerFlatMapFail =
-          futureMonad.flatMap(f_law, mValueFail);
-      Kind<CompletableFutureKind.Witness, String> leftSideFail =
-          futureMonad.flatMap(g_law, innerFlatMapFail);
-      Kind<CompletableFutureKind.Witness, String> rightSideFail =
-          futureMonad.flatMap(rightSideFunc, mValueFail);
-      assertThatThrownBy(() -> joinFuture(leftSideFail))
+    @DisplayName("Associative chain over a failure propagates the failure")
+    void associativeChainOverFailure() {
+      assertThatThrownBy(
+              () -> joinFuture(futureMonad.flatMap(g_law, futureMonad.flatMap(f_law, mValueFail))))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mException);
-      assertThatThrownBy(() -> joinFuture(rightSideFail))
+      assertThatThrownBy(
+              () ->
+                  joinFuture(
+                      futureMonad.flatMap(
+                          a -> futureMonad.flatMap(g_law, f_law.apply(a)), mValueFail)))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mException);
     }

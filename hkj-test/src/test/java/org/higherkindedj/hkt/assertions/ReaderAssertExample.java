@@ -3,8 +3,11 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.Reader;
+import org.higherkindedj.hkt.reader.ReaderKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -38,5 +41,14 @@ class ReaderAssertExample {
     Reader<Config, Integer> always7 = Reader.of(cfg -> 7);
 
     assertThatReader(always7).isConstantFor(new Config("a", 1), new Config("b", 2));
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<ReaderKind.Witness<R>, A> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Reader<Config, Integer> reader = Reader.of(Config::limit);
+    Kind<ReaderKind.Witness<Config>, Integer> kind = READER.widen(reader);
+
+    assertThatReader(kind).whenRunWith(new Config("x", 99)).produces(99);
   }
 }

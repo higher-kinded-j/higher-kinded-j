@@ -21,4 +21,5 @@ module org.higherkindedj.test {
   requires transitive org.assertj.core;
 
   exports org.higherkindedj.hkt.assertions;
+  exports org.higherkindedj.hkt.laws;
 }

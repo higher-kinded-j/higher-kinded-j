@@ -7,16 +7,19 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.SelectiveLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ReaderSelective Complete Test Suite")
 class ReaderSelectiveTest extends ReaderTestBase {
@@ -71,96 +74,28 @@ class ReaderSelectiveTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite Using New API")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Selective test pattern")
-    void runCompleteSelectiveTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>selective(ReaderSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .withLawsTesting("test-string", i -> "mapped:" + i, equalityChecker)
-          .selectTests()
-          .skipExceptions()
-          .and()
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withSelectFrom(ReaderSelective.class)
-          .withBranchFrom(ReaderSelective.class)
-          .withWhenSFrom(ReaderSelective.class)
-          .withIfSFrom(ReaderSelective.class)
-          .done()
-          .testAll();
+    @ParameterizedTest(name = "left-pure holds on value {0}")
+    @MethodSource("values")
+    void leftPure(Integer value) {
+      SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
-    @Test
-    @DisplayName("Selective testing - operations only")
-    void selectiveTestingOperationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>selective(ReaderSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .selectTests()
-          .skipValidations()
-          .skipLaws()
-          .skipExceptions() //  Reader has lazy evaluation
-          .test();
+    @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
+    @MethodSource("strings")
+    void rightPure(String value) {
+      SelectiveLaws.<ReaderKind.Witness<TestConfig>, Integer, String>assertRightPure(
+          selective, value, selective.of(validMapper), equalityChecker);
     }
 
-    @Test
-    @DisplayName("Quick smoke test - operations and validations")
-    void quickSmokeTest() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>selective(ReaderSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withSelectFrom(ReaderSelective.class)
-          .withBranchFrom(ReaderSelective.class)
-          .withWhenSFrom(ReaderSelective.class)
-          .withIfSFrom(ReaderSelective.class)
-          .done()
-          .testOperationsAndValidations();
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42));
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(ReaderSelectiveTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    static Stream<Arguments> strings() {
+      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
     }
   }
 
@@ -597,80 +532,6 @@ class ReaderSelectiveTest extends ReaderTestBase {
         String value2 = reader.run(ALTERNATIVE_CONFIG);
         assertThat(value2).isEqualTo("low:5");
       }
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>selective(ReaderSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .<String>withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>selective(ReaderSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withSelectFrom(ReaderSelective.class)
-          .withBranchFrom(ReaderSelective.class)
-          .withWhenSFrom(ReaderSelective.class)
-          .withIfSFrom(ReaderSelective.class)
-          .done()
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Reader is Lazy evaluation
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>selective(ReaderSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .withLawsTesting("test-string", i -> "mapped:" + i, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
     }
   }
 

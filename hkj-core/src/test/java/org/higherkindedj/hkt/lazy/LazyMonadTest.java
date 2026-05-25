@@ -10,17 +10,20 @@ import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("LazyMonad Complete Test Suite")
 class LazyMonadTest extends LazyTestBase {
@@ -62,38 +65,36 @@ class LazyMonadTest extends LazyTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<LazyKind.Witness>monad(LazyMonad.class)
-          .<Integer>instance(lazyMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(LazyMonad.class)
-          .withApFrom(LazyMonad.class)
-          .withFlatMapFrom(LazyMonad.class)
-          .selectTests()
-          .skipExceptions() // Skip generic exception tests - Lazy has special semantics
-          .test();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(lazyMonad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(LazyMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<LazyKind.Witness, Integer> ma) {
+      MonadLaws.assertRightIdentity(lazyMonad, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<LazyKind.Witness, Integer> ma) {
+      MonadLaws.assertAssociativity(lazyMonad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Lazy.defer(0)", LAZY.widen(Lazy.defer(() -> 0))),
+          Arguments.of("Lazy.defer(42)", LAZY.widen(Lazy.defer(() -> 42))),
+          Arguments.of("Lazy.defer(-1)", LAZY.widen(Lazy.defer(() -> -1))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -192,62 +193,6 @@ class LazyMonadTest extends LazyTestBase {
       assertThatLazy(narrowToLazy(result)).whenForcedHasValue("1,2");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<LazyKind.Witness>monad(LazyMonad.class)
-          .<Integer>instance(lazyMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<LazyKind.Witness>monad(LazyMonad.class)
-          .<Integer>instance(lazyMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(LazyMonad.class)
-          .withApFrom(LazyMonad.class)
-          .withFlatMapFrom(LazyMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Lazy has special exception semantics - exceptions are memoized
-      // and thrown at force() time. The generic exception tests don't account
-      // for this, so we skip them. Exception propagation is already thoroughly
-      // tested in the EdgeCasesTests nested class with proper force() calls.
-      assertThat(true)
-          .as("Exception propagation for Lazy is tested in EdgeCasesTests nested class")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<LazyKind.Witness>monad(LazyMonad.class)
-          .<Integer>instance(lazyMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
     }
   }
 

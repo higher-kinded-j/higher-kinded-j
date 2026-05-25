@@ -8,16 +8,22 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.*;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("ValidatedApplicative Complete Test Suite")
+@DisplayName("ValidatedApplicative")
 class ValidatedApplicativeTest extends ValidatedTestBase {
 
   private Applicative<ValidatedKind.Witness<String>> applicative;
@@ -30,18 +36,47 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(DEFAULT_VALID_VALUE, validMapper, equalityChecker)
-          .testAll();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<ValidatedKind.Witness<String>, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<ValidatedKind.Witness<String>, Integer> w) {
+      Kind<ValidatedKind.Witness<String>, Function<String, String>> u =
+          VALIDATED.widen(Validated.<String, Function<String, String>>valid(s -> "u(" + s + ")"));
+      Kind<ValidatedKind.Witness<String>, Function<Integer, String>> v =
+          VALIDATED.widen(Validated.<String, Function<Integer, String>>valid(i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Valid(0)", VALIDATED.widen(Validated.<String, Integer>valid(0))),
+          Arguments.of("Valid(42)", VALIDATED.widen(Validated.<String, Integer>valid(42))),
+          Arguments.of("Valid(-1)", VALIDATED.widen(Validated.<String, Integer>valid(-1))),
+          Arguments.of("Invalid(\"e\")", VALIDATED.widen(Validated.<String, Integer>invalid("e"))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 

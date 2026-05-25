@@ -15,6 +15,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -315,40 +318,79 @@ class ReaderTMonadTest
   }
 
   @Nested
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
+
+    @Test
+    @DisplayName("Identity holds for valid and empty-outer fixtures")
+    void identity() {
+      FunctorLaws.assertIdentity(readerTMonad, validKind, equalityChecker);
+      FunctorLaws.assertIdentity(readerTMonad, emptyT(), equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
+    void composition() {
+      FunctorLaws.assertComposition(
+          readerTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLawTests {
+
+    @Test
+    @DisplayName("Identity: ap(of(id), v) == v")
+    void identity() {
+      ApplicativeLaws.assertIdentity(readerTMonad, validKind, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      ApplicativeLaws.assertHomomorphism(readerTMonad, testValue, validMapper, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
+    void interchange() {
+      ApplicativeLaws.assertInterchange(
+          readerTMonad, validFunctionKind, testValue, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition")
+    void composition() {
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Function<String, String>> u =
+          readerT(secondMapper);
+      ApplicativeLaws.assertComposition(
+          readerTMonad, u, validFunctionKind, validKind, equalityChecker);
+    }
+  }
+
+  @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
     @Test
     @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      var ofValue = readerTMonad.of(testValue);
-      var leftSide = readerTMonad.flatMap(testFunction, ofValue);
-      var rightSide = testFunction.apply(testValue);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertLeftIdentity(readerTMonad, testValue, testFunction, equalityChecker);
     }
 
     @Test
-    @DisplayName("Right Identity: flatMap(m, of) == m")
+    @DisplayName("Right Identity holds for valid and empty-outer fixtures")
     void rightIdentity() {
-      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>> ofFunc =
-          i -> readerTMonad.of(i);
-
-      assertThat(equalityChecker.test(readerTMonad.flatMap(ofFunc, validKind), validKind)).isTrue();
-      assertThat(equalityChecker.test(readerTMonad.flatMap(ofFunc, emptyT()), emptyT())).isTrue();
+      MonadLaws.assertRightIdentity(readerTMonad, validKind, equalityChecker);
+      MonadLaws.assertRightIdentity(readerTMonad, emptyT(), equalityChecker);
     }
 
     @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
     void associativity() {
-      var innerFlatMap = readerTMonad.flatMap(testFunction, validKind);
-      var leftSide = readerTMonad.flatMap(chainFunction, innerFlatMap);
-
-      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String>>
-          rightSideFunc = a -> readerTMonad.flatMap(chainFunction, testFunction.apply(a));
-      var rightSide = readerTMonad.flatMap(rightSideFunc, validKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertAssociativity(
+          readerTMonad, validKind, testFunction, chainFunction, equalityChecker);
     }
   }
 

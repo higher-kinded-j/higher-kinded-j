@@ -2,25 +2,28 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("EitherMonad Applicative Operations Complete Test Suite")
+@DisplayName("EitherApplicative")
 class EitherApplicativeTest extends EitherTestBase {
 
   private MonadError<EitherKind.Witness<String>, String> applicative;
@@ -34,34 +37,48 @@ class EitherApplicativeTest extends EitherTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Applicative Test Suite")
-  class CompleteApplicativeTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>applicative(EitherMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(EitherFunctor.class)
-          .withApFrom(EitherMonad.class)
-          .testAll();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<EitherKind.Witness<String>, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicativeTyped, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(EitherApplicativeTest.class);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicativeTyped, value, validMapper, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(
+          applicativeTyped, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<EitherKind.Witness<String>, Integer> w) {
+      Kind<EitherKind.Witness<String>, Function<String, String>> u =
+          EITHER.widen(Either.<String, Function<String, String>>right(s -> "u(" + s + ")"));
+      Kind<EitherKind.Witness<String>, Function<Integer, String>> v =
+          EITHER.widen(Either.<String, Function<Integer, String>>right(i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicativeTyped, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Right(0)", EITHER.widen(Either.<String, Integer>right(0))),
+          Arguments.of("Right(42)", EITHER.widen(Either.<String, Integer>right(42))),
+          Arguments.of("Right(-1)", EITHER.widen(Either.<String, Integer>right(-1))),
+          Arguments.of("Left(\"err\")", EITHER.widen(Either.<String, Integer>left("err"))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -135,68 +152,6 @@ class EitherApplicativeTest extends EitherTestBase {
       var result = applicative.map4(r1, r2, r3, r4, combiner);
 
       assertThatEither(narrowToEither(result)).isRight().hasRight("test:1:3.14:true");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>applicative(EitherMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>applicative(EitherMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(EitherFunctor.class)
-          .withApFrom(EitherMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>applicative(EitherMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>applicative(EitherMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .testLaws();
-    }
-
-    @Test
-    @DisplayName("Test Functor composition law with both mappers")
-    void testFunctorCompositionLaw() {
-      var composed = validMapper.andThen(secondMapper);
-      var leftSide = applicative.map(composed, validKind);
-
-      var intermediate = applicative.map(validMapper, validKind);
-      var rightSide = applicative.map(secondMapper, intermediate);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).as("Functor Composition Law").isTrue();
     }
   }
 

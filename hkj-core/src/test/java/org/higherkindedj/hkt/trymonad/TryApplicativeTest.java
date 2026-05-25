@@ -7,15 +7,18 @@ import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("TryApplicative Complete Test Suite")
+@DisplayName("TryApplicative")
 class TryApplicativeTest extends TryTestBase {
 
   private TryApplicative applicative;
@@ -26,102 +29,46 @@ class TryApplicativeTest extends TryTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativePattern() {
-      TypeClassTest.<TryKind.Witness>applicative(TryApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(TryFunctor.class)
-          .withApFrom(TryApplicative.class)
-          .testValidations();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<TryKind.Witness, String> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Verify Applicative operations")
-    void verifyApplicativeOperations() {
-      TypeClassTest.<TryKind.Witness>applicative(TryApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+    @ParameterizedTest(name = "homomorphism holds on \"{0}\"")
+    @MethodSource("values")
+    void homomorphism(String value) {
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Verify Applicative validations")
-    void verifyApplicativeValidations() {
-      TypeClassTest.<TryKind.Witness>applicative(TryApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(TryFunctor.class)
-          .withApFrom(TryApplicative.class)
-          .withMap2From(Applicative.class)
-          .testValidations();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<TryKind.Witness>applicative(TryApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyOperations()
-          .test();
+    @ParameterizedTest(name = "interchange holds on \"{0}\"")
+    @MethodSource("values")
+    void interchange(String value) {
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<TryKind.Witness>applicative(TryApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(TryFunctor.class)
-          .withApFrom(TryApplicative.class)
-          .withMap2From(Applicative.class)
-          .selectTests()
-          .onlyValidations()
-          .test();
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<TryKind.Witness, String> w) {
+      Kind<TryKind.Witness, Function<Integer, String>> u = TRY.widen(Try.success(i -> "u" + i));
+      Kind<TryKind.Witness, Function<String, Integer>> v = TRY.widen(Try.success(String::length));
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test exception propagation only - N/A for Try (captures exceptions by design)")
-    void testExceptionPropagationOnly() {
-      // Try captures exceptions rather than propagating them
-      // This is the core feature of Try, so standard exception propagation tests don't apply
-      // See ExceptionPropagationTests nested class for Try-specific exception handling tests
+    static Stream<Arguments> fixtures() {
+      RuntimeException ex = new RuntimeException("test");
+      return Stream.of(
+          Arguments.of("Success(\"\")", TRY.widen(Try.success(""))),
+          Arguments.of("Success(\"hi\")", TRY.widen(Try.success("hi"))),
+          Arguments.of("Success(\"abcde\")", TRY.widen(Try.success("abcde"))),
+          Arguments.of("Failure(ex)", TRY.<String>widen(Try.failure(ex))));
     }
 
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<TryKind.Witness>applicative(TryApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(""), Arguments.of("hi"), Arguments.of("abcde"));
     }
   }
 

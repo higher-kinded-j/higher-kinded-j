@@ -4,8 +4,11 @@ package org.higherkindedj.hkt.assertions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -45,5 +48,13 @@ class MaybeAssertExample {
     Maybe<Object> result = Maybe.just(new Object());
 
     assertThatMaybe(result).isJust().hasValueNonNull();
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<MaybeKind.Witness, T> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<MaybeKind.Witness, Integer> kind = MAYBE.widen(Maybe.just(7));
+
+    assertThatMaybe(kind).isJust().hasValue(7);
   }
 }

@@ -3,9 +3,12 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,5 +40,13 @@ class ValidatedAssertExample {
     assertThatValidated(result)
         .isInvalid()
         .hasErrorSatisfying(errors -> errors.size() == 2, "two errors collected");
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<ValidatedKind.Witness<E>, A> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(99));
+
+    assertThatValidated(kind).isValid().hasValue(99);
   }
 }

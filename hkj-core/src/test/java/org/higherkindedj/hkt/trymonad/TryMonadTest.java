@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,7 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("TryMonad Complete Test Suite")
+@DisplayName("TryMonad")
 class TryMonadTest extends TryTestBase {
 
   private MonadError<TryKind.Witness, Throwable> monad;
@@ -33,111 +33,38 @@ class TryMonadTest extends TryTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadPattern() {
-      TypeClassTest.<TryKind.Witness>monad(TryMonad.class)
-          .<String>instance(monad)
-          .<Integer>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(TryFunctor.class)
-          .withApFrom(TryApplicative.class)
-          .withFlatMapFrom(TryMonad.class)
-          .selectTests()
-          .skipExceptions() // Try captures exceptions, not propagates
-          .test();
+    @ParameterizedTest(name = "left identity holds on value \"{0}\"")
+    @MethodSource("values")
+    void leftIdentity(String value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Verify Monad operations")
-    void verifyMonadOperations() {
-      TypeClassTest.<TryKind.Witness>monad(TryMonad.class)
-          .<String>instance(monad)
-          .<Integer>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<TryKind.Witness, String> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Verify Monad validations")
-    void verifyMonadValidations() {
-      TypeClassTest.<TryKind.Witness>monad(TryMonad.class)
-          .<String>instance(monad)
-          .<Integer>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(TryFunctor.class)
-          .withApFrom(TryApplicative.class)
-          .withFlatMapFrom(TryMonad.class)
-          .testValidations();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<TryKind.Witness>monad(TryMonad.class)
-          .<String>instance(monad)
-          .<Integer>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyOperations()
-          .test();
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<TryKind.Witness, String> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<TryKind.Witness>monad(TryMonad.class)
-          .<String>instance(monad)
-          .<Integer>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(TryFunctor.class)
-          .withApFrom(TryApplicative.class)
-          .withFlatMapFrom(TryMonad.class)
-          .selectTests()
-          .onlyValidations()
-          .test();
+    static Stream<Arguments> fixtures() {
+      RuntimeException ex = new RuntimeException("test");
+      return Stream.of(
+          Arguments.of("Success(\"\")", TRY.widen(Try.success(""))),
+          Arguments.of("Success(\"hi\")", TRY.widen(Try.success("hi"))),
+          Arguments.of("Success(\"abcdefg\")", TRY.widen(Try.success("abcdefg"))),
+          Arguments.of("Failure(ex)", TRY.<String>widen(Try.failure(ex))));
     }
 
-    @Test
-    @DisplayName("Test exception propagation only - N/A for Try (captures exceptions by design)")
-    void testExceptionPropagationOnly() {
-      // Try captures exceptions rather than propagating them
-      // This is the core feature of Try, so standard exception propagation tests don't apply
-      // See ExceptionPropagationTests nested class for Try-specific exception handling tests
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<TryKind.Witness>monad(TryMonad.class)
-          .<String>instance(monad)
-          .<Integer>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(""), Arguments.of("hi"), Arguments.of("abcdefg"));
     }
   }
 

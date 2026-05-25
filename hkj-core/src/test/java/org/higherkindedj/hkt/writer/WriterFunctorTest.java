@@ -9,20 +9,19 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * Comprehensive test suite for WriterFunctor using standardised patterns.
- *
- * <p>Tests Functor operations (map) for Writer with String logs.
- */
-@DisplayName("WriterFunctor<W> Complete Test Suite")
+@DisplayName("WriterFunctor")
 class WriterFunctorTest extends WriterTestBase {
 
   private WriterFunctor<String> functor;
@@ -33,74 +32,26 @@ class WriterFunctorTest extends WriterTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<WriterKind.Witness<String>>functor(WriterFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .testAll();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>functor(WriterFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyOperations()
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<WriterKind.Witness<String>, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>functor(WriterFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyValidations()
-          .test();
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<WriterKind.Witness<String>, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>functor(WriterFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyExceptions()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>functor(WriterFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Writer(\"\", 0)", WRITER.widen(new Writer<String, Integer>("", 0))),
+          Arguments.of("Writer(\"log\", 42)", WRITER.widen(new Writer<String, Integer>("log", 42))),
+          Arguments.of("Writer(\"x\", -1)", WRITER.widen(new Writer<String, Integer>("x", -1))));
     }
   }
 

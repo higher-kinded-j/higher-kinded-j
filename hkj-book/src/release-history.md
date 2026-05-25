@@ -37,6 +37,10 @@ The audit and safety-rail layer on top of [Optic-Driven Batching](optics/optic_b
 - `SafeFetch.runCachedWithGuard` / `runAsyncWithGuard`: Railway variants that capture a refusal as `Either.left(GuardViolationException)`; the run never throws and the safe-async future never completes exceptionally.
 - Tutorial 22 (exercise + teaching solution) covering the five pieces (preflight, truncation, refusal, audit, railway capture).
 
+**Test-suite consolidation (internal)**
+
+Mostly an internal refactor of the hkj-core test suite — net −822 lines while preserving 100% JaCoCo coverage. The one user-visible piece is in `hkj-test`: new reusable law helpers (`FunctorLaws`, `ApplicativeLaws`, `MonadLaws`, `SelectiveLaws`) and a `KindEquivalence.byEqualsAfter` helper that downstream users can call to verify their own type-class instances. The Kind-accepting overloads on `EitherAssert` / `MaybeAssert` / `TryAssert` / `IOAssert` / `LazyAssert` / `ReaderAssert` / `ValidatedAssert` / `WriterAssert` / `VStreamAssert` / `VTaskAssert` now match the auto-narrowing pattern of `ListAssert` / `OptionalKindAssert` / `StreamAssert` / `IdAssert`.
+
 ---
 
 ### v0.4.5 (22 May 2026)

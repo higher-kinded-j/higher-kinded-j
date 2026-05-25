@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Valid Complete Test Suite")
 class ValidTest extends ValidatedTestBase {
 
-  private Valid<String, Integer> validInstance;
+  private Validated<String, Integer> validInstance;
   private Semigroup<String> semigroup;
 
   @BeforeEach
@@ -63,10 +63,8 @@ class ValidTest extends ValidatedTestBase {
       Valid<String, Integer> valid = new Valid<>(DEFAULT_VALID_VALUE);
 
       assertThat(valid.value()).isEqualTo(DEFAULT_VALID_VALUE);
-      assertThatValidated(valid)
-          .isValid()
-          .hasValue(DEFAULT_VALID_VALUE)
-          .hasValueOfType(Integer.class);
+      Validated<String, Integer> v = valid;
+      assertThatValidated(v).isValid().hasValue(DEFAULT_VALID_VALUE).hasValueOfType(Integer.class);
     }
 
     @Test
@@ -448,13 +446,13 @@ class ValidTest extends ValidatedTestBase {
     @Test
     @DisplayName("record accessor returns value")
     void recordAccessorReturnsValue() {
-      assertThat(validInstance.value()).isEqualTo(DEFAULT_VALID_VALUE);
+      assertThat(validInstance.get()).isEqualTo(DEFAULT_VALID_VALUE);
     }
 
     @Test
     @DisplayName("Valid with different value types")
     void validWithDifferentValueTypes() {
-      Valid<String, String> stringValid = new Valid<>("hello");
+      Validated<String, String> stringValid = new Valid<>("hello");
 
       assertThatValidated(stringValid).isValid().hasValue("hello").hasValueOfType(String.class);
     }

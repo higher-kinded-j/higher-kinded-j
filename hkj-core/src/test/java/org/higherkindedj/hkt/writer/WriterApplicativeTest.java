@@ -8,20 +8,18 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * Comprehensive test suite for WriterApplicative using standardised patterns.
- *
- * <p>Tests Applicative operations (of, ap, map2) for Writer with String logs.
- */
-@DisplayName("WriterApplicative<W> Complete Test Suite")
+@DisplayName("WriterApplicative")
 class WriterApplicativeTest extends WriterTestBase {
 
   private WriterApplicative<String> applicative;
@@ -32,81 +30,46 @@ class WriterApplicativeTest extends WriterTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<WriterKind.Witness<String>>applicative(WriterApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(WriterFunctor.class)
-          .withApFrom(WriterApplicative.class)
-          .withMap2From(Applicative.class)
-          .testAll();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>applicative(WriterApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyOperations()
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<WriterKind.Witness<String>, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>applicative(WriterApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(WriterFunctor.class)
-          .withApFrom(WriterApplicative.class)
-          .selectTests()
-          .onlyValidations()
-          .test();
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>applicative(WriterApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyExceptions()
-          .test();
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>applicative(WriterApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<WriterKind.Witness<String>, Integer> w) {
+      Kind<WriterKind.Witness<String>, Function<String, String>> u =
+          WRITER.widen(new Writer<String, Function<String, String>>("u", s -> "u(" + s + ")"));
+      Kind<WriterKind.Witness<String>, Function<Integer, String>> v =
+          WRITER.widen(new Writer<String, Function<Integer, String>>("v", i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Writer(\"\", 0)", WRITER.widen(new Writer<String, Integer>("", 0))),
+          Arguments.of("Writer(\"log\", 42)", WRITER.widen(new Writer<String, Integer>("log", 42))),
+          Arguments.of("Writer(\"x\", -1)", WRITER.widen(new Writer<String, Integer>("x", -1))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 

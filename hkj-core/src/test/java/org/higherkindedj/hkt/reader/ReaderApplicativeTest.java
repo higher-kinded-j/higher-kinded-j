@@ -4,25 +4,23 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * ReaderApplicative type class test using standardised patterns.
- *
- * <p>Tests the Applicative implementation for Reader with proper handling of lazy evaluation
- * semantics.
- */
-@DisplayName("ReaderApplicative<R> Type Class - Standardised Test Suite")
+@DisplayName("ReaderApplicative")
 class ReaderApplicativeTest extends ReaderTestBase {
 
   private ReaderApplicative<TestConfig> applicative;
@@ -35,25 +33,47 @@ class ReaderApplicativeTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withMap2From(Applicative.class)
-          .selectTests()
-          .skipExceptions() // Reader is lazy - exceptions only thrown on run()
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> w) {
+      Kind<ReaderKind.Witness<TestConfig>, Function<String, String>> u =
+          READER.reader((TestConfig cfg) -> s -> "u(" + s + ")");
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> v =
+          READER.reader((TestConfig cfg) -> i -> "v" + i);
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("reader(url length)", READER.reader((TestConfig cfg) -> cfg.url().length())),
+          Arguments.of("pure(42)", READER.reader((TestConfig cfg) -> 42)),
+          Arguments.of(
+              "reader(maxConnections)", READER.reader((TestConfig cfg) -> cfg.maxConnections())));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -136,51 +156,6 @@ class ReaderApplicativeTest extends ReaderTestBase {
       assertThatReader(reader)
           .whenRunWith(TEST_CONFIG)
           .produces(DEFAULT_URL + " with maxConnections " + DEFAULT_MAX_CONNECTIONS);
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Test Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyOperations()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withMap2From(Applicative.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
     }
   }
 

@@ -3,8 +3,11 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
+import static org.higherkindedj.hkt.lazy.LazyKindHelper.LAZY;
 
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.lazy.Lazy;
+import org.higherkindedj.hkt.lazy.LazyKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -38,5 +41,13 @@ class LazyAssertExample {
             });
 
     assertThatLazy(lazy).whenForcedThrows(IllegalStateException.class);
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<LazyKind.Witness, T> directly without manual narrowing")
+  void acceptsKindDirectly() throws Throwable {
+    Kind<LazyKind.Witness, String> kind = LAZY.widen(Lazy.defer(() -> "computed"));
+
+    assertThatLazy(kind).whenForcedHasValue("computed");
   }
 }

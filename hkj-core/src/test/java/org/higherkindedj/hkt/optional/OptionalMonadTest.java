@@ -5,8 +5,11 @@ package org.higherkindedj.hkt.optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
@@ -14,14 +17,16 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("OptionalMonad Complete Test Suite")
+@DisplayName("OptionalMonad")
 class OptionalMonadTest extends OptionalTestBase {
 
   private MonadError<OptionalKind.Witness, Unit> optionalMonad;
@@ -33,31 +38,38 @@ class OptionalMonadTest extends OptionalTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<OptionalKind.Witness>monad(OptionalMonad.class)
-          .<Integer>instance(optionalMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testAll();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(optionalMonad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(OptionalMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<OptionalKind.Witness, Integer> ma) {
+      MonadLaws.assertRightIdentity(optionalMonad, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<OptionalKind.Witness, Integer> ma) {
+      MonadLaws.assertAssociativity(
+          optionalMonad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("present(0)", OPTIONAL.widen(Optional.of(0))),
+          Arguments.of("present(42)", OPTIONAL.widen(Optional.of(42))),
+          Arguments.of("present(-1)", OPTIONAL.widen(Optional.of(-1))),
+          Arguments.of("empty", OPTIONAL.<Integer>widen(Optional.empty())));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -188,56 +200,6 @@ class OptionalMonadTest extends OptionalTestBase {
       var result = optionalMonad.flatMap(safeDivide, zeroValue);
 
       assertThatOptionalKind(result).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<OptionalKind.Witness>monad(OptionalMonad.class)
-          .<Integer>instance(optionalMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<OptionalKind.Witness>monad(OptionalMonad.class)
-          .<Integer>instance(optionalMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<OptionalKind.Witness>monad(OptionalMonad.class)
-          .<Integer>instance(optionalMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<OptionalKind.Witness>monad(OptionalMonad.class)
-          .<Integer>instance(optionalMonad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
     }
   }
 

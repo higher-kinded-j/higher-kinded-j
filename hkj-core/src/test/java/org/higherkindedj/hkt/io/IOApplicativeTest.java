@@ -10,18 +10,21 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("IOApplicative Complete Test Suite")
+@DisplayName("IOApplicative")
 class IOApplicativeTest extends IOTestBase {
 
   private final IOApplicative applicative = IOApplicative.INSTANCE;
@@ -34,38 +37,46 @@ class IOApplicativeTest extends IOTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Applicative Test Suite")
-  class CompleteApplicativeTestSuite {
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      // IO has lazy evaluation, so we skip default exception tests
-      // and provide our own in EdgeCasesTests
-      TypeClassTest.<IOKind.Witness>applicative(IOApplicative.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .selectTests()
-          .skipExceptions()
-          .and()
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IOFunctor.class)
-          .withApFrom(IOApplicative.class)
-          .testAll();
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<IOKind.Witness, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicativeTyped, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(IOApplicativeTest.class);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicativeTyped, value, validMapper, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(
+          applicativeTyped, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<IOKind.Witness, Integer> w) {
+      Kind<IOKind.Witness, Function<String, String>> u =
+          IO_OP.widen(IO.delay(() -> s -> "u(" + s + ")"));
+      Kind<IOKind.Witness, Function<Integer, String>> v = IO_OP.widen(IO.delay(() -> i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicativeTyped, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("IO(0)", IO_OP.widen(IO.delay(() -> 0))),
+          Arguments.of("IO(42)", IO_OP.widen(IO.delay(() -> 42))),
+          Arguments.of("IO(-1)", IO_OP.widen(IO.delay(() -> -1))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -217,65 +228,6 @@ class IOApplicativeTest extends IOTestBase {
       Kind<IOKind.Witness, String> result = applicative.map4(io1, io2, io3, io4, combiner);
 
       assertThatIO(narrowToIO(result)).hasValue("test:1:3.14:true");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<IOKind.Witness>applicative(IOApplicative.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<IOKind.Witness>applicative(IOApplicative.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IOFunctor.class)
-          .withApFrom(IOApplicative.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Note: Default exception tests don't work with IO's lazy evaluation
-      // See EdgeCasesTests nested class for IO-specific exception tests
-      // This test intentionally empty - use EdgeCasesTests for exception verification
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<IOKind.Witness>applicative(IOApplicative.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .testLaws();
-    }
-
-    @Test
-    @DisplayName("Test Functor composition law with both mappers")
-    void testFunctorCompositionLaw() {
-      Function<Integer, String> composed = validMapper.andThen(secondMapper);
-      Kind<IOKind.Witness, String> leftSide = applicative.map(composed, validKind);
-
-      Kind<IOKind.Witness, String> intermediate = applicative.map(validMapper, validKind);
-      Kind<IOKind.Witness, String> rightSide = applicative.map(secondMapper, intermediate);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).as("Functor Composition Law").isTrue();
     }
   }
 

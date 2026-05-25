@@ -6,7 +6,10 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOKindHelper;
 
 /**
  * Custom AssertJ assertions for {@link IO} instances.
@@ -14,6 +17,11 @@ import org.higherkindedj.hkt.io.IO;
  * @param <T> The type of the value produced by the IO computation
  */
 public class IOAssert<T> extends AbstractAssert<IOAssert<T>, IO<T>> {
+
+  /** Entry point accepting a {@code Kind<IOKind.Witness, T>}. */
+  public static <T> IOAssert<T> assertThatIO(Kind<IOKind.Witness, T> actual) {
+    return new IOAssert<>(IOKindHelper.IO_OP.narrow(actual));
+  }
 
   /** Entry point. */
   public static <T> IOAssert<T> assertThatIO(IO<T> actual) {

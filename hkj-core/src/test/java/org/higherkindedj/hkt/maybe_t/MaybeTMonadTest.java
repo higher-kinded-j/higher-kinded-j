@@ -17,6 +17,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
@@ -437,42 +440,80 @@ class MaybeTMonadTest
   }
 
   @Nested
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
+
+    @Test
+    @DisplayName("Identity holds for Just, Nothing, and empty-outer fixtures")
+    void identity() {
+      FunctorLaws.assertIdentity(maybeTMonad, validKind, equalityChecker);
+      FunctorLaws.assertIdentity(maybeTMonad, nothingT(), equalityChecker);
+      FunctorLaws.assertIdentity(maybeTMonad, emptyT(), equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
+    void composition() {
+      FunctorLaws.assertComposition(
+          maybeTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLawTests {
+
+    @Test
+    @DisplayName("Identity: ap(of(id), v) == v")
+    void identity() {
+      ApplicativeLaws.assertIdentity(maybeTMonad, validKind, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      ApplicativeLaws.assertHomomorphism(maybeTMonad, testValue, validMapper, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
+    void interchange() {
+      ApplicativeLaws.assertInterchange(maybeTMonad, validFunctionKind, testValue, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition")
+    void composition() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<String, String>> u =
+          justT(secondMapper);
+      ApplicativeLaws.assertComposition(
+          maybeTMonad, u, validFunctionKind, validKind, equalityChecker);
+    }
+  }
+
+  @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
     @Test
     @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      var ofValue = maybeTMonad.of(testValue);
-      var leftSide = maybeTMonad.flatMap(testFunction, ofValue);
-      var rightSide = testFunction.apply(testValue);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertLeftIdentity(maybeTMonad, testValue, testFunction, equalityChecker);
     }
 
     @Test
-    @DisplayName("Right Identity: flatMap(m, of) == m")
+    @DisplayName("Right Identity holds for Just, Nothing, and empty-outer fixtures")
     void rightIdentity() {
-      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> ofFunc =
-          i -> maybeTMonad.of(i);
-
-      assertThat(equalityChecker.test(maybeTMonad.flatMap(ofFunc, validKind), validKind)).isTrue();
-      assertThat(equalityChecker.test(maybeTMonad.flatMap(ofFunc, nothingT()), nothingT()))
-          .isTrue();
-      assertThat(equalityChecker.test(maybeTMonad.flatMap(ofFunc, emptyT()), emptyT())).isTrue();
+      MonadLaws.assertRightIdentity(maybeTMonad, validKind, equalityChecker);
+      MonadLaws.assertRightIdentity(maybeTMonad, nothingT(), equalityChecker);
+      MonadLaws.assertRightIdentity(maybeTMonad, emptyT(), equalityChecker);
     }
 
     @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
     void associativity() {
-      var innerFlatMap = maybeTMonad.flatMap(testFunction, validKind);
-      var leftSide = maybeTMonad.flatMap(chainFunction, innerFlatMap);
-
-      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> rightSideFunc =
-          a -> maybeTMonad.flatMap(chainFunction, testFunction.apply(a));
-      var rightSide = maybeTMonad.flatMap(rightSideFunc, validKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertAssociativity(
+          maybeTMonad, validKind, testFunction, chainFunction, equalityChecker);
     }
   }
 

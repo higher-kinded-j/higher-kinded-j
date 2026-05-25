@@ -5,18 +5,49 @@ package org.higherkindedj.hkt.optional;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.laws.SelectiveLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("OptionalSelective Tests")
 class OptionalSelectiveTest extends OptionalTestBase {
 
   private final Selective<OptionalKind.Witness> selective = OptionalSelective.INSTANCE;
+
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "left-pure holds on value {0}")
+    @MethodSource("values")
+    void leftPure(Integer value) {
+      SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
+    }
+
+    @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
+    @MethodSource("strings")
+    void rightPure(String value) {
+      SelectiveLaws.<OptionalKind.Witness, Integer, String>assertRightPure(
+          selective, value, selective.of(validMapper), equalityChecker);
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42));
+    }
+
+    static Stream<Arguments> strings() {
+      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+    }
+  }
 
   @Nested
   @DisplayName("select() - Core selective operation")

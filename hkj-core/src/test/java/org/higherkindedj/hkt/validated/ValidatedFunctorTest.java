@@ -7,19 +7,24 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("ValidatedFunctor Complete Test Suite")
+@DisplayName("ValidatedFunctor")
 class ValidatedFunctorTest extends ValidatedTestBase {
 
   private Functor<ValidatedKind.Witness<String>> functor;
@@ -27,26 +32,32 @@ class ValidatedFunctorTest extends ValidatedTestBase {
 
   @BeforeEach
   void setUpFunctor() {
-    // Use standard Semigroups.first() as a simple semigroup
-    // Note: For Functor operations, the semigroup isn't used, but we need one for construction
     stringSemigroup = Semigroups.first();
     functor = Instances.validated(stringSemigroup);
   }
 
   @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .testAll();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<ValidatedKind.Witness<String>, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<ValidatedKind.Witness<String>, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Valid(0)", VALIDATED.widen(Validated.<String, Integer>valid(0))),
+          Arguments.of("Valid(42)", VALIDATED.widen(Validated.<String, Integer>valid(42))),
+          Arguments.of("Valid(-1)", VALIDATED.widen(Validated.<String, Integer>valid(-1))),
+          Arguments.of("Invalid(\"e\")", VALIDATED.widen(Validated.<String, Integer>invalid("e"))));
     }
   }
 
