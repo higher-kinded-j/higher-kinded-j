@@ -29,6 +29,8 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  *   <li>{@code MonadicStepsN} and {@code FilterableStepsN} classes for the {@code For}
  *       comprehension builder
  *   <li>{@code *PathStepsN} classes for each ForPath effect type
+ *   <li>{@code CoupledLenses} with {@code coupled3} .. {@code coupledN} static factories for N-ary
+ *       coupled lens groups (the arity ladder above {@link org.higherkindedj.optics.Lens#paired})
  * </ul>
  */
 @AutoService(Processor.class)
@@ -85,6 +87,7 @@ public class ForComprehensionProcessor extends AbstractProcessor {
         runTupleGenerator(minArity, maxArity, element);
         runForStepGenerator(minArity, maxArity, element);
         runForPathStepGenerator(minArity, maxArity, element);
+        runCoupledLensGenerator(minArity, maxArity, element);
       }
     }
     return true;
@@ -114,6 +117,15 @@ public class ForComprehensionProcessor extends AbstractProcessor {
       ForPathStepGenerator.generate(minArity, maxArity, processingEnv);
     } catch (Exception e) {
       error("Could not generate ForPath step classes: " + e.getMessage(), element);
+    }
+  }
+
+  @ExcludeFromJacocoGeneratedReport
+  private void runCoupledLensGenerator(int minArity, int maxArity, Element element) {
+    try {
+      CoupledLensGenerator.generate(minArity, maxArity, processingEnv);
+    } catch (Exception e) {
+      error("Could not generate CoupledLenses class: " + e.getMessage(), element);
     }
   }
 
