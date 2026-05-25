@@ -36,9 +36,9 @@ final class CoupledLensGenerator {
   };
 
   /**
-   * Cross-field invariants past 5 are rare and past 9 vanishing; the ladder caps at the smaller
-   * of the two name arrays so raising one without the other can never push past the safe range.
-   * To grow the ladder, append entries to both arrays (the cap moves up automatically).
+   * Cross-field invariants past 5 are rare and past 9 vanishing; the ladder caps at the smaller of
+   * the two name arrays so raising one without the other can never push past the safe range. To
+   * grow the ladder, append entries to both arrays (the cap moves up automatically).
    */
   static final int MAX_SUPPORTED_ARITY = Math.min(TYPE_PARAMS.length, ORDINAL_LOWER.length);
 
