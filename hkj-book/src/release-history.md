@@ -41,6 +41,15 @@ The audit and safety-rail layer on top of [Optic-Driven Batching](optics/optic_b
 
 Mostly an internal refactor of the hkj-core test suite — net −822 lines while preserving 100% JaCoCo coverage. The one user-visible piece is in `hkj-test`: new reusable law helpers (`FunctorLaws`, `ApplicativeLaws`, `MonadLaws`, `SelectiveLaws`) and a `KindEquivalence.byEqualsAfter` helper that downstream users can call to verify their own type-class instances. The Kind-accepting overloads on `EitherAssert` / `MaybeAssert` / `TryAssert` / `IOAssert` / `LazyAssert` / `ReaderAssert` / `ValidatedAssert` / `WriterAssert` / `VStreamAssert` / `VTaskAssert` now match the auto-narrowing pattern of `ListAssert` / `OptionalKindAssert` / `StreamAssert` / `IdAssert`.
 
+**N-ary Coupled Lenses**
+
+The arity ladder above `Lens.paired`: a record with three or more cross-field invariants can now be updated atomically through a single `coupled3`..`coupled9` call instead of nested `paired` workarounds.
+
+- [Coupled Fields chapter](optics/coupled_fields.md): "Three or More Coupled Fields" section rewritten to show the new ladder; the old "nest pairs / feature request" guidance is replaced.
+- `CoupledLenses.coupled3` ... `coupled9` (in `org.higherkindedj.optics.util`): seven static factories, each with two overloads mirroring `Lens.paired` exactly (preserving form taking `(S, A, B, ...) -> S`; simple form taking the constructor reference `(A, B, ...) -> S`). Returns `Lens<S, TupleN<...>>` reconstructed atomically.
+- `hkj-processor` adds `CoupledLensGenerator`, wired into the existing `@GenerateForComprehensions` trigger alongside the Tuple/For-step generators. Generation caps at arity 9 (cross-field invariants past that point are vanishing in practice); raising the cap is a one-line change to the generator.
+- Tutorial 23 (exercise + teaching solution) demonstrating `coupled3` on a 3-field monotonic invariant and `coupled5` on the same shape at higher arity, including the canonical "chained set throws" failure mode that coupled lenses sidestep.
+
 ---
 
 ### v0.4.5 (22 May 2026)
