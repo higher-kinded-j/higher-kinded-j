@@ -3,9 +3,12 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -55,5 +58,13 @@ class EitherAssertExample {
                 Assertions.assertThat(error)
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("boom"));
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<EitherKind.Witness<L>, R> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(Either.right(99));
+
+    assertThatEither(kind).isRight().hasRight(99);
   }
 }

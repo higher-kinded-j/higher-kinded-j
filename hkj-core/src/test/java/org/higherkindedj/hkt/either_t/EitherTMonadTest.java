@@ -18,6 +18,9 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -459,42 +462,81 @@ class EitherTMonadTest
   }
 
   @Nested
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
+
+    @Test
+    @DisplayName("Identity holds for Right, Left, and empty-outer fixtures")
+    void identity() {
+      FunctorLaws.assertIdentity(eitherTMonad, validKind, equalityChecker);
+      FunctorLaws.assertIdentity(eitherTMonad, leftT("E"), equalityChecker);
+      FunctorLaws.assertIdentity(eitherTMonad, emptyT(), equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
+    void composition() {
+      FunctorLaws.assertComposition(
+          eitherTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLawTests {
+
+    @Test
+    @DisplayName("Identity: ap(of(id), v) == v")
+    void identity() {
+      ApplicativeLaws.assertIdentity(eitherTMonad, validKind, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      ApplicativeLaws.assertHomomorphism(eitherTMonad, testValue, validMapper, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
+    void interchange() {
+      ApplicativeLaws.assertInterchange(
+          eitherTMonad, validFunctionKind, testValue, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition")
+    void composition() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Function<String, String>> u =
+          rightT(secondMapper);
+      ApplicativeLaws.assertComposition(
+          eitherTMonad, u, validFunctionKind, validKind, equalityChecker);
+    }
+  }
+
+  @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
     @Test
     @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      var ofValue = eitherTMonad.of(testValue);
-      var leftSide = eitherTMonad.flatMap(testFunction, ofValue);
-      var rightSide = testFunction.apply(testValue);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertLeftIdentity(eitherTMonad, testValue, testFunction, equalityChecker);
     }
 
     @Test
-    @DisplayName("Right Identity: flatMap(m, of) == m")
+    @DisplayName("Right Identity holds for Right, Left, and empty-outer fixtures")
     void rightIdentity() {
-      Function<Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer>>
-          ofFunc = i -> eitherTMonad.of(i);
-
-      assertThat(equalityChecker.test(eitherTMonad.flatMap(ofFunc, validKind), validKind)).isTrue();
-      assertThat(equalityChecker.test(eitherTMonad.flatMap(ofFunc, leftT("E")), leftT("E")))
-          .isTrue();
-      assertThat(equalityChecker.test(eitherTMonad.flatMap(ofFunc, emptyT()), emptyT())).isTrue();
+      MonadLaws.assertRightIdentity(eitherTMonad, validKind, equalityChecker);
+      MonadLaws.assertRightIdentity(eitherTMonad, leftT("E"), equalityChecker);
+      MonadLaws.assertRightIdentity(eitherTMonad, emptyT(), equalityChecker);
     }
 
     @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
     void associativity() {
-      var innerFlatMap = eitherTMonad.flatMap(testFunction, validKind);
-      var leftSide = eitherTMonad.flatMap(chainFunction, innerFlatMap);
-
-      Function<Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String>>
-          rightSideFunc = a -> eitherTMonad.flatMap(chainFunction, testFunction.apply(a));
-      var rightSide = eitherTMonad.flatMap(rightSideFunc, validKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertAssociativity(
+          eitherTMonad, validKind, testFunction, chainFunction, equalityChecker);
     }
   }
 

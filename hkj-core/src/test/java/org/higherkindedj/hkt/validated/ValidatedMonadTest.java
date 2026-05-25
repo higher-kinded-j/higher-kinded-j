@@ -9,18 +9,23 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("ValidatedMonad Complete Test Suite")
+@DisplayName("ValidatedMonad")
 class ValidatedMonadTest extends ValidatedTestBase {
 
   private MonadError<ValidatedKind.Witness<String>, String> monad;
@@ -33,19 +38,37 @@ class ValidatedMonadTest extends ValidatedTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testAll();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<ValidatedKind.Witness<String>, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<ValidatedKind.Witness<String>, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Valid(0)", VALIDATED.widen(Validated.<String, Integer>valid(0))),
+          Arguments.of("Valid(42)", VALIDATED.widen(Validated.<String, Integer>valid(42))),
+          Arguments.of("Valid(-1)", VALIDATED.widen(Validated.<String, Integer>valid(-1))),
+          Arguments.of("Invalid(\"e\")", VALIDATED.widen(Validated.<String, Integer>invalid("e"))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 

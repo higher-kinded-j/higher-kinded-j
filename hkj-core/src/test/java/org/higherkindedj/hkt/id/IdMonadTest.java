@@ -4,27 +4,26 @@ package org.higherkindedj.hkt.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * Comprehensive test suite for IdMonad implementation.
- *
- * <p>Tests the Monad type class implementation for Id, including all inherited operations from
- * Functor and Applicative, as well as Monad-specific operations and laws.
- */
-@DisplayName("IdMonad Complete Test Suite")
+@DisplayName("IdMonad")
 class IdMonadTest extends IdTestBase {
 
   private Monad<IdKind.Witness> monad;
@@ -36,48 +35,36 @@ class IdMonadTest extends IdTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testAll();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Run complete Monad test pattern with validation contexts")
-    void runCompleteMonadTestPatternWithValidationContexts() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IdMonad.class)
-          .withApFrom(IdMonad.class)
-          .withFlatMapFrom(IdMonad.class)
-          .testAll();
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<IdKind.Witness, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(IdMonadTest.class);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<IdKind.Witness, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Id(0)", ID.widen(Id.of(0))),
+          Arguments.of("Id(42)", ID.widen(Id.of(42))),
+          Arguments.of("Id(-1)", ID.widen(Id.of(-1))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 

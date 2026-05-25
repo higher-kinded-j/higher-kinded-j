@@ -4,9 +4,11 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
@@ -14,14 +16,16 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("MaybeMonad Applicative Operations Complete Test Suite")
+@DisplayName("MaybeApplicative")
 class MaybeApplicativeTest extends MaybeTestBase {
 
   private MonadError<MaybeKind.Witness, Unit> applicative;
@@ -35,34 +39,47 @@ class MaybeApplicativeTest extends MaybeTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Applicative Test Suite")
-  class CompleteApplicativeTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<MaybeKind.Witness>applicative(MaybeMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .testAll();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<MaybeKind.Witness, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicativeTyped, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(MaybeApplicativeTest.class);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicativeTyped, value, validMapper, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(
+          applicativeTyped, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<MaybeKind.Witness, Integer> w) {
+      Kind<MaybeKind.Witness, Function<String, String>> u =
+          MAYBE.widen(Maybe.just(s -> "u(" + s + ")"));
+      Kind<MaybeKind.Witness, Function<Integer, String>> v = MAYBE.widen(Maybe.just(i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicativeTyped, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Just(0)", MAYBE.widen(Maybe.just(0))),
+          Arguments.of("Just(42)", MAYBE.widen(Maybe.just(42))),
+          Arguments.of("Just(-1)", MAYBE.widen(Maybe.just(-1))),
+          Arguments.of("Nothing", MAYBE.<Integer>widen(Maybe.nothing())));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -171,68 +188,6 @@ class MaybeApplicativeTest extends MaybeTestBase {
       Maybe<String> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo("test:1:3.14:true");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<MaybeKind.Witness>applicative(MaybeMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<MaybeKind.Witness>applicative(MaybeMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<MaybeKind.Witness>applicative(MaybeMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<MaybeKind.Witness>applicative(MaybeMonad.class)
-          .<Integer>instance(applicativeTyped)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .testLaws();
-    }
-
-    @Test
-    @DisplayName("Test Functor composition law with both mappers")
-    void testFunctorCompositionLaw() {
-      Function<Integer, String> composed = validMapper.andThen(secondMapper);
-      Kind<MaybeKind.Witness, String> leftSide = applicative.map(composed, validKind);
-
-      Kind<MaybeKind.Witness, String> intermediate = applicative.map(validMapper, validKind);
-      Kind<MaybeKind.Witness, String> rightSide = applicative.map(secondMapper, intermediate);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).as("Functor Composition Law").isTrue();
     }
   }
 

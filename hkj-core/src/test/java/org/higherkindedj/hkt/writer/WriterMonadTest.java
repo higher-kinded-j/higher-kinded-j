@@ -9,18 +9,21 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("WriterMonad Complete Test Suite")
+@DisplayName("WriterMonad")
 class WriterMonadTest extends WriterTestBase {
 
   private Monad<WriterKind.Witness<String>> monad;
@@ -32,36 +35,36 @@ class WriterMonadTest extends WriterTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(WriterFunctor.class)
-          .withApFrom(WriterApplicative.class)
-          .withFlatMapFrom(WriterMonad.class)
-          .testAll();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(WriterMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<WriterKind.Witness<String>, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<WriterKind.Witness<String>, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Writer(\"\", 0)", WRITER.widen(new Writer<String, Integer>("", 0))),
+          Arguments.of("Writer(\"log\", 42)", WRITER.widen(new Writer<String, Integer>("log", 42))),
+          Arguments.of("Writer(\"x\", -1)", WRITER.widen(new Writer<String, Integer>("x", -1))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -146,61 +149,6 @@ class WriterMonadTest extends WriterTestBase {
 
       Writer<String, String> writer = narrowToWriter(result);
       assertThatWriter(writer).hasLog("L1;L2;").hasValue("test:10");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(WriterFunctor.class)
-          .withApFrom(WriterApplicative.class)
-          .withFlatMapFrom(WriterMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
     }
   }
 

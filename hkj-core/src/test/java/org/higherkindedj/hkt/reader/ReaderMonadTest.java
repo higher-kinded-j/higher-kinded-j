@@ -9,21 +9,24 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("ReaderMonad Complete Test Suite")
+@DisplayName("ReaderMonad")
 class ReaderMonadTest extends ReaderTestBase {
 
   private Monad<ReaderKind.Witness<TestConfig>> monad;
@@ -35,38 +38,37 @@ class ReaderMonadTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withFlatMapFrom(ReaderMonad.class)
-          .selectTests()
-          .skipExceptions() // Reader is lazy - exceptions only thrown on run()
-          .test();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(ReaderMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("reader(url length)", READER.reader((TestConfig cfg) -> cfg.url().length())),
+          Arguments.of("pure(42)", READER.reader((TestConfig cfg) -> 42)),
+          Arguments.of(
+              "reader(maxConnections)", READER.reader((TestConfig cfg) -> cfg.maxConnections())));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -160,70 +162,6 @@ class ReaderMonadTest extends ReaderTestBase {
 
       assertThat(runReader(result, TEST_CONFIG))
           .isEqualTo(DEFAULT_MAX_CONNECTIONS + "," + (DEFAULT_MAX_CONNECTIONS * 2));
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withFlatMapFrom(ReaderMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Reader is lazy - exceptions only occur when run() is called
-      // Exception propagation is thoroughly tested in EdgeCasesTests
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withFlatMapFrom(ReaderMonad.class)
-          .selectTests()
-          .skipExceptions()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
     }
   }
 

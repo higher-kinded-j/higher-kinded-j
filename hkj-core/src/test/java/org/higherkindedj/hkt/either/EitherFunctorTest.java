@@ -6,170 +6,99 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.Functor;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("EitherFunctor Complete Test Suite")
+@DisplayName("EitherFunctor")
 class EitherFunctorTest extends EitherTestBase {
 
   private EitherFunctor<String> functor;
-  private Functor<EitherKind.Witness<String>> functorTyped;
 
   @BeforeEach
-  void setUpFunctor() {
+  void setUp() {
     functor = new EitherFunctor<>();
-    functorTyped = functor;
   }
 
   @Nested
-  @DisplayName("Complete Functor Test Suite")
-  class CompleteFunctorTestSuite {
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-          .<Integer>instance(functorTyped)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .testAll();
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<EitherKind.Witness<String>, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(EitherFunctorTest.class);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<EitherKind.Witness<String>, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Right(0)", EITHER.widen(Either.<String, Integer>right(0))),
+          Arguments.of("Right(42)", EITHER.widen(Either.<String, Integer>right(42))),
+          Arguments.of("Right(-1)", EITHER.widen(Either.<String, Integer>right(-1))),
+          Arguments.of("Left(\"err\")", EITHER.widen(Either.<String, Integer>left("err"))));
     }
   }
 
   @Nested
-  @DisplayName("Operation Tests")
-  class OperationTests {
+  @DisplayName("Operations")
+  class Operations {
+
     @Test
-    @DisplayName("map() on Right applies function")
     void mapOnRightAppliesFunction() {
       var result = functor.map(validMapper, validKind);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("42");
+      assertThatEither(result).isRight().hasRight("42");
     }
 
     @Test
-    @DisplayName("map() on Left passes through unchanged")
     void mapOnLeftPassesThrough() {
       Kind<EitherKind.Witness<String>, Integer> leftKind = leftKind(TestErrorType.ERROR_1);
-
       var result = functor.map(validMapper, leftKind);
-
-      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.ERROR_1.message());
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.ERROR_1.message());
     }
 
     @Test
-    @DisplayName("map() with null values in Right")
     void mapWithNullValuesInRight() {
       Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind((Integer) null);
-      Function<Integer, String> nullSafeMapper = i -> String.valueOf(i);
-
-      var result = functor.map(nullSafeMapper, rightNull);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("null");
+      var result = functor.map(i -> String.valueOf(i), rightNull);
+      assertThatEither(result).isRight().hasRight("null");
     }
   }
 
   @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-          .<Integer>instance(functorTyped)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .testOperations();
-    }
+  @DisplayName("Edge cases")
+  class EdgeCases {
 
     @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-          .<Integer>instance(functorTyped)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-          .<Integer>instance(functorTyped)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-          .<Integer>instance(functorTyped)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .testLaws();
-    }
-  }
-
-  @Nested
-  @DisplayName("Edge Cases Tests")
-  class EdgeCasesTests {
-    @Test
-    @DisplayName("Test with different error types")
-    void testWithDifferentErrorTypes() {
-      EitherFunctor<ComplexTestError> complexFunctor = new EitherFunctor<>();
-      Functor<EitherKind.Witness<ComplexTestError>> complexFunctorTyped = complexFunctor;
-      var complexKind = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
-
-      TypeClassTest.<EitherKind.Witness<ComplexTestError>>functor(EitherFunctor.class)
-          .<Integer>instance(complexFunctorTyped)
-          .<String>withKind(complexKind)
-          .withMapper(validMapper)
-          .testOperations();
-
-      TypeClassTest.<EitherKind.Witness<ComplexTestError>>functor(EitherFunctor.class)
-          .<Integer>instance(complexFunctorTyped)
-          .<String>withKind(complexKind)
-          .withMapper(validMapper)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test with complex transformations")
-    void testComplexTransformations() {
-      Function<Integer, String> complexMapper =
+    void mapWithComplexBranchingTransformation() {
+      Function<Integer, String> complex =
           i -> {
             if (i < 0) return "negative";
             if (i == 0) return "zero";
             return "positive:" + i;
           };
+      var result = functor.map(complex, validKind);
+      assertThatEither(result).isRight().hasRight("positive:42");
+    }
 
-      var result = functor.map(complexMapper, validKind);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("positive:42");
+    @Test
+    void worksWithDifferentErrorTypes() {
+      EitherFunctor<ComplexTestError> complexFunctor = new EitherFunctor<>();
+      var complexKind = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
+      var result = complexFunctor.map(validMapper, complexKind);
+      assertThatEither(result).isRight().hasRight("100");
     }
   }
 }

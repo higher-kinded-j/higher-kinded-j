@@ -5,8 +5,11 @@ package org.higherkindedj.hkt.context;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -180,58 +183,48 @@ class ContextApplicativeTest {
   }
 
   @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
+  @DisplayName("Laws")
+  class Laws {
+
+    private final BiPredicate<
+            Kind<ContextKind.Witness<String>, ?>, Kind<ContextKind.Witness<String>, ?>>
+        eq =
+            (k1, k2) -> {
+              try {
+                return ScopedValue.where(STRING_KEY, "test")
+                    .call(() -> Objects.equals(CONTEXT.narrow(k1).run(), CONTEXT.narrow(k2).run()));
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            };
 
     @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identityLaw() {
+    void identity() {
       Kind<ContextKind.Witness<String>, Integer> v = CONTEXT.succeed(42);
-      Kind<ContextKind.Witness<String>, Function<Integer, Integer>> ff =
-          applicative.of(Function.identity());
-
-      Kind<ContextKind.Witness<String>, Integer> result = applicative.ap(ff, v);
-
-      Context<String, Integer> vCtx = CONTEXT.narrow(v);
-      Context<String, Integer> resultCtx = CONTEXT.narrow(result);
-
-      assertThat(resultCtx.run()).isEqualTo(vCtx.run());
+      ApplicativeLaws.assertIdentity(applicative, v, eq);
     }
 
     @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphismLaw() {
+    void homomorphism() {
       Function<Integer, String> f = n -> "Number: " + n;
-      Integer x = 42;
-
-      Kind<ContextKind.Witness<String>, Function<Integer, String>> pureF = applicative.of(f);
-      Kind<ContextKind.Witness<String>, Integer> pureX = applicative.of(x);
-
-      Kind<ContextKind.Witness<String>, String> left = applicative.ap(pureF, pureX);
-      Kind<ContextKind.Witness<String>, String> right = applicative.of(f.apply(x));
-
-      Context<String, String> leftCtx = CONTEXT.narrow(left);
-      Context<String, String> rightCtx = CONTEXT.narrow(right);
-
-      assertThat(leftCtx.run()).isEqualTo(rightCtx.run());
+      ApplicativeLaws.assertHomomorphism(applicative, 42, f, eq);
     }
 
     @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchangeLaw() {
+    void interchange() {
       Kind<ContextKind.Witness<String>, Function<Integer, String>> u =
           CONTEXT.succeed(n -> "Result: " + n);
-      Integer y = 42;
+      ApplicativeLaws.assertInterchange(applicative, u, 42, eq);
+    }
 
-      Kind<ContextKind.Witness<String>, String> left = applicative.ap(u, applicative.of(y));
-      Kind<ContextKind.Witness<String>, Function<Function<Integer, String>, String>> flipper =
-          applicative.of(f -> f.apply(y));
-      Kind<ContextKind.Witness<String>, String> right = applicative.ap(flipper, u);
-
-      Context<String, String> leftCtx = CONTEXT.narrow(left);
-      Context<String, String> rightCtx = CONTEXT.narrow(right);
-
-      assertThat(leftCtx.run()).isEqualTo(rightCtx.run());
+    @Test
+    void composition() {
+      Kind<ContextKind.Witness<String>, Function<String, Integer>> u =
+          CONTEXT.succeed(String::length);
+      Kind<ContextKind.Witness<String>, Function<Integer, String>> v =
+          CONTEXT.succeed(n -> "Result: " + n);
+      Kind<ContextKind.Witness<String>, Integer> w = CONTEXT.succeed(42);
+      ApplicativeLaws.assertComposition(applicative, u, v, w, eq);
     }
   }
 

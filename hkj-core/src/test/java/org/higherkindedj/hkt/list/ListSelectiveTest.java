@@ -7,18 +7,49 @@ import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.laws.SelectiveLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ListSelective Tests")
 class ListSelectiveTest extends ListTestBase {
 
   private final Selective<ListKind.Witness> selective = ListSelective.INSTANCE;
+
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "left-pure holds on value {0}")
+    @MethodSource("values")
+    void leftPure(Integer value) {
+      SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
+    }
+
+    @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
+    @MethodSource("strings")
+    void rightPure(String value) {
+      SelectiveLaws.<ListKind.Witness, Integer, String>assertRightPure(
+          selective, value, selective.of(validMapper), equalityChecker);
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42));
+    }
+
+    static Stream<Arguments> strings() {
+      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+    }
+  }
 
   @Nested
   @DisplayName("select() - Core selective operation")

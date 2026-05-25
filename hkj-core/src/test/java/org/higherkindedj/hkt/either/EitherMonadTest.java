@@ -4,260 +4,155 @@ package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.instances.Witnesses.either;
 
-import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("EitherMonad Complete Test Suite")
+@DisplayName("EitherMonad")
 class EitherMonadTest extends EitherTestBase {
 
   private MonadError<EitherKind.Witness<String>, String> monad;
 
   @BeforeEach
-  void setUpMonad() {
+  void setUp() {
     monad = Instances.monadError(either());
     validateMonadFixtures();
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(EitherFunctor.class)
-          .withApFrom(EitherMonad.class)
-          .withFlatMapFrom(EitherMonad.class)
-          .testAll();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(EitherMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<EitherKind.Witness<String>, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<EitherKind.Witness<String>, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Right(0)", EITHER.widen(Either.<String, Integer>right(0))),
+          Arguments.of("Right(42)", EITHER.widen(Either.<String, Integer>right(42))),
+          Arguments.of("Right(-1)", EITHER.widen(Either.<String, Integer>right(-1))),
+          Arguments.of("Left(\"err\")", EITHER.widen(Either.<String, Integer>left("err"))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
   @Nested
-  @DisplayName("Operation Tests")
-  class OperationTests {
+  @DisplayName("flatMap operations")
+  class FlatMapOperations {
 
     @Test
-    @DisplayName("flatMap() on Right applies function")
     void flatMapOnRightAppliesFunction() {
       var result = monad.flatMap(validFlatMapper, validKind);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("flat:42");
+      assertThatEither(result).isRight().hasRight("flat:42");
     }
 
     @Test
-    @DisplayName("flatMap() on Right can return Left")
     void flatMapOnRightCanReturnLeft() {
-      Function<Integer, Either<String, String>> errorMapper =
-          i -> Either.left(TestErrorType.VALIDATION.message());
-
-      var result = monad.flatMap(i -> EITHER.widen(errorMapper.apply(i)), validKind);
-
-      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.VALIDATION.message());
+      var result =
+          monad.flatMap(
+              i -> EITHER.widen(Either.<String, String>left(TestErrorType.VALIDATION.message())),
+              validKind);
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.VALIDATION.message());
     }
 
     @Test
-    @DisplayName("flatMap() on Left passes through unchanged")
     void flatMapOnLeftPassesThrough() {
       Kind<EitherKind.Witness<String>, Integer> leftKind = leftKind(TestErrorType.ERROR_1);
-
       var result = monad.flatMap(validFlatMapper, leftKind);
-
-      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.ERROR_1.message());
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.ERROR_1.message());
     }
+  }
+
+  @Nested
+  @DisplayName("of and ap")
+  class OfAndApOperations {
 
     @Test
-    @DisplayName("of() creates Right instances")
-    void ofCreatesRightInstances() {
+    void ofCreatesRightInstance() {
       var result = monad.of("success");
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("success");
+      assertThatEither(result).isRight().hasRight("success");
     }
 
     @Test
-    @DisplayName("ap() applies function to value - both Right")
-    void apAppliesFunctionToValue() {
-      Kind<EitherKind.Witness<String>, Function<Integer, String>> funcKind =
-          monad.of(i -> "value:" + i);
-      Kind<EitherKind.Witness<String>, Integer> valueKind = monad.of(DEFAULT_RIGHT_VALUE);
-
+    void apAppliesFunctionWhenBothRight() {
+      var funcKind = monad.<Function<Integer, String>>of(i -> "value:" + i);
+      var valueKind = monad.of(DEFAULT_RIGHT_VALUE);
       var result = monad.ap(funcKind, valueKind);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("value:42");
+      assertThatEither(result).isRight().hasRight("value:42");
     }
 
     @Test
-    @DisplayName("ap() propagates Left from function")
     void apPropagatesLeftFromFunction() {
       Kind<EitherKind.Witness<String>, Function<Integer, String>> funcKind =
           leftKind(TestErrorType.FUNCTION_ERROR);
-      Kind<EitherKind.Witness<String>, Integer> valueKind = monad.of(DEFAULT_RIGHT_VALUE);
-
-      Kind<EitherKind.Witness<String>, String> result = monad.ap(funcKind, valueKind);
-
-      assertThatEither(narrowToEither(result))
-          .isLeft()
-          .hasLeft(TestErrorType.FUNCTION_ERROR.message());
+      var valueKind = monad.of(DEFAULT_RIGHT_VALUE);
+      var result = monad.ap(funcKind, valueKind);
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.FUNCTION_ERROR.message());
     }
 
     @Test
-    @DisplayName("map2() combines two Right values")
     void map2CombinesTwoRightValues() {
       var r1 = monad.of(10);
       var r2 = monad.of("test");
-
       var result = monad.map2(r1, r2, (i, s) -> s + ":" + i);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight("test:10");
+      assertThatEither(result).isRight().hasRight("test:10");
     }
   }
 
   @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
+  @DisplayName("Edge cases")
+  class EdgeCases {
 
     @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(EitherFunctor.class)
-          .withApFrom(EitherMonad.class)
-          .withFlatMapFrom(EitherMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
-    }
-  }
-
-  @Nested
-  @DisplayName("Edge Cases Tests")
-  class EdgeCasesTests {
-
-    @Test
-    @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() {
-      var start = rightKind(1);
-
-      var result = start;
+      Kind<EitherKind.Witness<String>, Integer> result = rightKind(1);
       for (int i = 0; i < 10; i++) {
         final int increment = i;
         result = monad.flatMap(x -> monad.of(x + increment), result);
       }
-
-      assertThatEither(narrowToEither(result))
-          .isRight()
-          .hasRight(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
+      assertThatEither(result).isRight().hasRight(46);
     }
 
     @Test
-    @DisplayName("flatMap with early Left short-circuits")
     void flatMapWithEarlyLeftShortCircuits() {
-      var start = rightKind(1);
-
-      var result = start;
+      Kind<EitherKind.Witness<String>, Integer> result = rightKind(1);
       for (int i = 0; i < 10; i++) {
         final int index = i;
         result =
             monad.flatMap(
-                x -> {
-                  if (index == 5) {
-                    return leftKind(TestErrorType.VALIDATION);
-                  }
-                  return monad.of(x + index);
-                },
-                result);
+                x -> index == 5 ? leftKind(TestErrorType.VALIDATION) : monad.of(x + index), result);
       }
-
-      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.VALIDATION.message());
-    }
-
-    @Test
-    @DisplayName("Test with different error types")
-    void testWithDifferentErrorTypes() {
-      MonadError<EitherKind.Witness<ComplexTestError>, ComplexTestError> complexMonad =
-          Instances.monadError(either());
-      var complexKind = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
-
-      Function<Integer, String> mapper = Object::toString;
-      Function<Integer, Kind<EitherKind.Witness<ComplexTestError>, String>> flatMapper =
-          i -> EITHER.widen(Either.right("flat:" + i));
-      Kind<EitherKind.Witness<ComplexTestError>, Function<Integer, String>> functionKind =
-          complexMonad.of(mapper);
-      BiFunction<Integer, Integer, String> combiningFunction = (a, b) -> a + "," + b;
-
-      TypeClassTest.<EitherKind.Witness<ComplexTestError>>monad(EitherMonad.class)
-          .<Integer>instance(complexMonad)
-          .<String>withKind(complexKind)
-          .withMonadOperations(complexKind, mapper, flatMapper, functionKind, combiningFunction)
-          .testOperations();
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.VALIDATION.message());
     }
   }
 }

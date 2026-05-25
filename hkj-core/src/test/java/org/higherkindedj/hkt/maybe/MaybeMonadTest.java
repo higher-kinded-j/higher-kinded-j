@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
@@ -13,8 +13,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,302 +22,210 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("MaybeMonad Complete Test Suite")
+@DisplayName("MaybeMonad")
 class MaybeMonadTest extends MaybeTestBase {
 
   private MonadError<MaybeKind.Witness, Unit> monad;
 
   @BeforeEach
-  void setUpMonad() {
+  void setUp() {
     monad = Instances.monadError(maybe());
     validateMonadFixtures();
   }
 
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .testAll();
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(MaybeMonadTest.class);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("fixtures")
+    void rightIdentity(String label, Kind<MaybeKind.Witness, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("fixtures")
+    void associativity(String label, Kind<MaybeKind.Witness, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Just(0)", MAYBE.widen(Maybe.just(0))),
+          Arguments.of("Just(42)", MAYBE.widen(Maybe.just(42))),
+          Arguments.of("Just(-1)", MAYBE.widen(Maybe.just(-1))),
+          Arguments.of("Nothing", MAYBE.<Integer>widen(Maybe.nothing())));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
   @Nested
-  @DisplayName("Operation Tests")
-  class OperationTests {
+  @DisplayName("flatMap operations")
+  class FlatMapOperations {
 
     @Test
-    @DisplayName("flatMap() on Just applies function")
     void flatMapOnJustAppliesFunction() {
       Kind<MaybeKind.Witness, String> result = monad.flatMap(validFlatMapper, validKind);
-
-      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("flat:" + DEFAULT_JUST_VALUE);
+      assertThatMaybe(result).isJust().hasValue("flat:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
-    @DisplayName("flatMap() on Just can return Nothing")
     void flatMapOnJustCanReturnNothing() {
       Function<Integer, Kind<MaybeKind.Witness, String>> nothingMapper = i -> nothingKind();
-
       Kind<MaybeKind.Witness, String> result = monad.flatMap(nothingMapper, validKind);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
-    @DisplayName("flatMap() on Nothing returns Nothing")
     void flatMapOnNothingReturnsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
-
-      Kind<MaybeKind.Witness, String> result = monad.flatMap(validFlatMapper, nothing);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+      Kind<MaybeKind.Witness, String> result = monad.flatMap(validFlatMapper, nothingKind());
+      assertThatMaybe(result).isNothing();
     }
+  }
+
+  @Nested
+  @DisplayName("of operations")
+  class OfOperations {
 
     @Test
-    @DisplayName("of() creates Just instances for non-null")
-    void ofCreatesJustInstances() {
+    void ofCreatesJustForNonNull() {
       Kind<MaybeKind.Witness, String> result = monad.of("success");
-
-      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("success");
+      assertThatMaybe(result).isJust().hasValue("success");
     }
 
     @Test
-    @DisplayName("of() creates Nothing for null")
     void ofCreatesNothingForNull() {
       Kind<MaybeKind.Witness, String> result = monad.of(null);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+      assertThatMaybe(result).isNothing();
     }
+  }
+
+  @Nested
+  @DisplayName("ap operations")
+  class ApOperations {
 
     @Test
-    @DisplayName("ap() applies function in Just to value in Just")
     void apAppliesFunctionToValue() {
       Kind<MaybeKind.Witness, String> result = monad.ap(validFunctionKind, validKind);
-
-      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(String.valueOf(DEFAULT_JUST_VALUE));
+      assertThatMaybe(result).isJust().hasValue(String.valueOf(DEFAULT_JUST_VALUE));
     }
 
     @Test
-    @DisplayName("ap() returns Nothing when function is Nothing")
     void apReturnsNothingWhenFunctionIsNothing() {
-      Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = nothingKind();
-
-      Kind<MaybeKind.Witness, String> result = monad.ap(nothingFunc, validKind);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+      Kind<MaybeKind.Witness, Function<Integer, String>> nothingFn = nothingKind();
+      Kind<MaybeKind.Witness, String> result = monad.ap(nothingFn, validKind);
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
-    @DisplayName("ap() returns Nothing when argument is Nothing")
     void apReturnsNothingWhenArgumentIsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
-
-      Kind<MaybeKind.Witness, String> result = monad.ap(validFunctionKind, nothing);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+      Kind<MaybeKind.Witness, String> result = monad.ap(validFunctionKind, nothingKind());
+      assertThatMaybe(result).isNothing();
     }
+  }
+
+  @Nested
+  @DisplayName("map2 operations")
+  class Map2Operations {
 
     @Test
-    @DisplayName("map2() combines two Just values")
     void map2CombinesTwoJustValues() {
       Kind<MaybeKind.Witness, String> result =
           monad.map2(validKind, validKind2, validCombiningFunction);
-
-      assertThatMaybe(narrowToMaybe(result))
+      assertThatMaybe(result)
           .isJust()
           .hasValue("Result:" + DEFAULT_JUST_VALUE + "," + ALTERNATIVE_JUST_VALUE);
     }
 
     @Test
-    @DisplayName("map2() returns Nothing if first argument is Nothing")
     void map2ReturnsNothingIfFirstIsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
-
       Kind<MaybeKind.Witness, String> result =
-          monad.map2(nothing, validKind2, validCombiningFunction);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+          monad.map2(nothingKind(), validKind2, validCombiningFunction);
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
-    @DisplayName("map2() returns Nothing if second argument is Nothing")
     void map2ReturnsNothingIfSecondIsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
-
       Kind<MaybeKind.Witness, String> result =
-          monad.map2(validKind, nothing, validCombiningFunction);
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+          monad.map2(validKind, nothingKind(), validCombiningFunction);
+      assertThatMaybe(result).isNothing();
     }
   }
 
   @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
+  @DisplayName("Edge cases")
+  class EdgeCases {
 
     @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
-    }
-  }
-
-  @Nested
-  @DisplayName("Edge Cases Tests")
-  class EdgeCasesTests {
-
-    @Test
-    @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() {
-      Kind<MaybeKind.Witness, Integer> start = justKind(1);
-
-      Kind<MaybeKind.Witness, Integer> result = start;
+      Kind<MaybeKind.Witness, Integer> result = justKind(1);
       for (int i = 0; i < 10; i++) {
         final int increment = i;
         result = monad.flatMap(x -> monad.of(x + increment), result);
       }
-
-      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
+      assertThatMaybe(result).isJust().hasValue(46);
     }
 
     @Test
-    @DisplayName("flatMap with early Nothing short-circuits")
     void flatMapWithEarlyNothingShortCircuits() {
-      Kind<MaybeKind.Witness, Integer> start = justKind(1);
-
-      Kind<MaybeKind.Witness, Integer> result = start;
+      Kind<MaybeKind.Witness, Integer> result = justKind(1);
       for (int i = 0; i < 10; i++) {
         final int index = i;
         result =
-            monad.flatMap(
-                x -> {
-                  if (index == 5) {
-                    return nothingKind();
-                  }
-                  return monad.of(x + index);
-                },
-                result);
+            monad.flatMap(x -> index == 5 ? this.<Integer>nothing() : monad.of(x + index), result);
       }
-
-      assertThatMaybe(narrowToMaybe(result)).isNothing();
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
-    @DisplayName("Chaining map and flatMap operations")
     void chainingMapAndFlatMap() {
       Kind<MaybeKind.Witness, Integer> start = justKind(10);
-
       Kind<MaybeKind.Witness, String> result =
           monad.flatMap(
               i ->
                   monad.map(
                       str -> str.toUpperCase(), monad.map(x -> "value:" + x, monad.of(i * 2))),
               start);
-
-      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("VALUE:20");
+      assertThatMaybe(result).isJust().hasValue("VALUE:20");
     }
 
     @Test
-    @DisplayName("Nested Maybe handling")
-    void nestedMaybeHandling() {
-      // Maybe<Maybe<Integer>> flattened to Maybe<Integer>
+    void nestedMaybeFlattens() {
       Kind<MaybeKind.Witness, Kind<MaybeKind.Witness, Integer>> nested =
           justKind(justKind(DEFAULT_JUST_VALUE));
-
       Kind<MaybeKind.Witness, Integer> flattened = monad.flatMap(inner -> inner, nested);
-
       assertThatMaybe(narrowToMaybe(flattened)).isJust().hasValue(DEFAULT_JUST_VALUE);
     }
 
-    private static Stream<Arguments> flatMapNullParameters() {
-      Kind<MaybeKind.Witness, Integer> testValidKind = MAYBE.widen(Maybe.just(42));
-      Function<Integer, Kind<MaybeKind.Witness, String>> testValidFlatMapper =
-          i -> MAYBE.widen(Maybe.just("flat:" + i));
-      return Stream.of(
-          Arguments.of("f for", testValidKind, null),
-          Arguments.of("Kind", null, testValidFlatMapper));
-    }
-
-    @ParameterizedTest(name = "flatMap validates {0} parameter is non-null")
+    @ParameterizedTest(name = "flatMap rejects null {0} parameter")
     @MethodSource("flatMapNullParameters")
-    @DisplayName("flatMap validates null parameters")
-    void flatMapWithNullParametersValidatesCorrectly(
-        String expectedMessagePart,
+    void flatMapRejectsNullParameter(
+        String label,
         Kind<MaybeKind.Witness, Integer> kind,
         Function<Integer, Kind<MaybeKind.Witness, String>> function) {
       assertThatThrownBy(() -> monad.flatMap(function, kind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(expectedMessagePart);
+          .hasMessageContaining(label);
+    }
+
+    static Stream<Arguments> flatMapNullParameters() {
+      Kind<MaybeKind.Witness, Integer> okKind = MAYBE.widen(Maybe.just(42));
+      Function<Integer, Kind<MaybeKind.Witness, String>> okFn =
+          i -> MAYBE.widen(Maybe.just("flat:" + i));
+      return Stream.of(Arguments.of("f for", okKind, null), Arguments.of("Kind", null, okFn));
+    }
+
+    private <A> Kind<MaybeKind.Witness, A> nothing() {
+      return nothingKind();
     }
   }
 }

@@ -4,9 +4,12 @@ package org.higherkindedj.hkt.assertions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.io.IOException;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.trymonad.TryKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -51,5 +54,13 @@ class TryAssertExample {
     Try<String> result = Try.of(() -> "abc".toUpperCase());
 
     assertThatTry(result).isSuccess().hasValueSatisfying(s -> assertThat(s).isEqualTo("ABC"));
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<TryKind.Witness, T> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<TryKind.Witness, Integer> kind = TRY.widen(Try.success(11));
+
+    assertThatTry(kind).isSuccess().hasValue(11);
   }
 }

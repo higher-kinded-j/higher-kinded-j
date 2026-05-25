@@ -3,9 +3,12 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
+import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.List;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -43,5 +46,13 @@ class VStreamAssertExample {
     VStream<Integer> stream = VStream.fail(new IllegalStateException("bad"));
 
     assertThatVStream(stream).failsWithExceptionType(IllegalStateException.class);
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<VStreamKind.Witness, A> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<VStreamKind.Witness, Integer> kind = VSTREAM.widen(VStream.of(1, 2, 3));
+
+    assertThatVStream(kind).producesElements(1, 2, 3);
   }
 }

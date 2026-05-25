@@ -3,8 +3,11 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.writer.Writer;
+import org.higherkindedj.hkt.writer.WriterKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,5 +37,14 @@ class WriterAssertExample {
     Writer<String, Integer> writer = new Writer<>("ok", 100);
 
     assertThatWriter(writer).valueMatches(v -> v >= 100);
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<WriterKind.Witness<W>, A> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Writer<String, Integer> writer = new Writer<>("log", 99);
+    Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
+
+    assertThatWriter(kind).hasValue(99).hasLog("log");
   }
 }

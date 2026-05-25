@@ -7,16 +7,19 @@ import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.laws.SelectiveLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("IdSelective Complete Test Suite")
 class IdSelectiveTest extends IdTestBase {
@@ -74,92 +77,28 @@ class IdSelectiveTest extends IdTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Test Suite Using New API")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Selective test pattern")
-    void runCompleteSelectiveTestPattern() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .withLawsTesting(TEST_RESULT, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IdMonad.class)
-          .withApFrom(IdMonad.class)
-          .withSelectFrom(IdSelective.class)
-          .withBranchFrom(IdSelective.class)
-          .withWhenSFrom(IdSelective.class)
-          .withIfSFrom(IdSelective.class)
-          .done()
-          .testAll();
+    @ParameterizedTest(name = "left-pure holds on value {0}")
+    @MethodSource("values")
+    void leftPure(Integer value) {
+      SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
-    @Test
-    @DisplayName("Selective testing - operations only")
-    void selectiveTestingOperationsOnly() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .selectTests()
-          .skipValidations()
-          .skipLaws()
-          .test();
+    @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
+    @MethodSource("strings")
+    void rightPure(String value) {
+      SelectiveLaws.<IdKind.Witness, Integer, String>assertRightPure(
+          selective, value, selective.of(validMapper), equalityChecker);
     }
 
-    @Test
-    @DisplayName("Quick smoke test - operations and validations")
-    void quickSmokeTest() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IdMonad.class)
-          .withApFrom(IdMonad.class)
-          .withSelectFrom(IdSelective.class)
-          .withBranchFrom(IdSelective.class)
-          .withWhenSFrom(IdSelective.class)
-          .withIfSFrom(IdSelective.class)
-          .done()
-          .testOperationsAndValidations();
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42));
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(IdSelectiveTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    static Stream<Arguments> strings() {
+      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
     }
   }
 
@@ -333,91 +272,6 @@ class IdSelectiveTest extends IdTestBase {
         result = selective.ifS(conditionFalse, thenBranch, elseBranch);
         assertThat(result).isSameAs(elseBranch);
       }
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IdMonad.class)
-          .withApFrom(IdMonad.class)
-          .withSelectFrom(IdSelective.class)
-          .withBranchFrom(IdSelective.class)
-          .withWhenSFrom(IdSelective.class)
-          .withIfSFrom(IdSelective.class)
-          .done()
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .testExceptions();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
-          .<Integer>instance(selective)
-          .<String>withKind(validKind)
-          .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
-          .withOperations(
-              leftHandlerKind,
-              rightHandlerKind,
-              conditionTrue,
-              unitEffectKind,
-              thenBranch,
-              elseBranch)
-          .withLawsTesting(TEST_RESULT, validMapper, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
     }
   }
 

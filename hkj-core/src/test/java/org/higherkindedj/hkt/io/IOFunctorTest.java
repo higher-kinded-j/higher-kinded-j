@@ -9,16 +9,19 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.data.TestFunctions;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("IOFunctor Complete Test Suite")
+@DisplayName("IOFunctor")
 class IOFunctorTest extends IOTestBase {
 
   private final IOFunctor functor = IOFunctor.INSTANCE;
@@ -29,35 +32,26 @@ class IOFunctorTest extends IOTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Functor Test Suite")
-  class CompleteFunctorTestSuite {
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      // IO has lazy evaluation, so we skip default exception tests
-      // and provide our own in ExceptionPropagationTests
-      TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions()
-          .and()
-          .testAll();
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<IOKind.Witness, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(IOFunctorTest.class);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<IOKind.Witness, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
+    }
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("IO(0)", IO_OP.widen(IO.delay(() -> 0))),
+          Arguments.of("IO(42)", IO_OP.widen(IO.delay(() -> 42))),
+          Arguments.of("IO(-1)", IO_OP.widen(IO.delay(() -> -1))));
     }
   }
 
@@ -138,50 +132,6 @@ class IOFunctorTest extends IOTestBase {
 
       Kind<IOKind.Witness, String> result = functor.map(complexMapper, validKind);
       assertThatIO(narrowToIO(result)).hasValue("positive:" + DEFAULT_IO_VALUE);
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Note: Default exception tests don't work with IO's lazy evaluation
-      // See EdgeCasesTests nested class for IO-specific exception tests
-      // This test intentionally empty - use EdgeCasesTests for exception verification
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .testLaws();
     }
   }
 

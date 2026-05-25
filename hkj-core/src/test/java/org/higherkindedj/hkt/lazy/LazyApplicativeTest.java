@@ -10,15 +10,18 @@ import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("Lazy Applicative Complete Test Suite")
 class LazyApplicativeTest extends LazyTestBase {
@@ -33,40 +36,46 @@ class LazyApplicativeTest extends LazyTestBase {
   }
 
   @Nested
-  @DisplayName("Complete LazyApplicative Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative tests using standard pattern")
-    void runCompleteApplicativeTestsUsingStandardPattern() {
-      validateApplicativeFixtures();
-
-      TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .skipExceptions() // Skip generic exception tests - Lazy has special semantics
-          .skipValidations() // Skip generic validations - tested in ValidationTests with correct
-          // expectations
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<LazyKind.Witness, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Run complete Applicative tests with laws")
-    void runCompleteApplicativeTestsWithLaws() {
-      validateApplicativeFixtures();
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
+    }
 
-      TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .selectTests()
-          .skipExceptions() // Skip generic exception tests - Lazy has special semantics
-          .skipValidations() // Skip generic validations - tested in ValidationTests with correct
-          // expectations
-          .test();
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<LazyKind.Witness, Integer> w) {
+      Kind<LazyKind.Witness, Function<String, String>> u =
+          LAZY.widen(Lazy.defer(() -> (Function<String, String>) s -> "u(" + s + ")"));
+      Kind<LazyKind.Witness, Function<Integer, String>> v =
+          LAZY.widen(Lazy.defer(() -> (Function<Integer, String>) i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("Lazy.defer(0)", LAZY.widen(Lazy.defer(() -> 0))),
+          Arguments.of("Lazy.defer(42)", LAZY.widen(Lazy.defer(() -> 42))),
+          Arguments.of("Lazy.defer(-1)", LAZY.widen(Lazy.defer(() -> -1))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -355,65 +364,6 @@ class LazyApplicativeTest extends LazyTestBase {
   }
 
   @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
-
-    @Test
-    @DisplayName("Identity Law: ap(of(id), fa) == fa")
-    void identityLaw() throws Throwable {
-      Function<Integer, Integer> identity = i -> i;
-      Kind<LazyKind.Witness, Function<Integer, Integer>> idFunc = applicative.of(identity);
-      Kind<LazyKind.Witness, Integer> result = applicative.ap(idFunc, validKind);
-
-      assertThat(equalityChecker.test(result, validKind))
-          .as("ap(of(id), fa) should equal fa")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Homomorphism Law: ap(of(f), of(x)) == of(f(x))")
-    void homomorphismLaw() throws Throwable {
-      Integer testValue = DEFAULT_LAZY_VALUE;
-      Function<Integer, String> testFunction = validMapper;
-
-      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = applicative.of(testFunction);
-      Kind<LazyKind.Witness, Integer> valueKind = applicative.of(testValue);
-
-      // Left side: ap(of(f), of(x))
-      Kind<LazyKind.Witness, String> leftSide = applicative.ap(funcKind, valueKind);
-
-      // Right side: of(f(x))
-      Kind<LazyKind.Witness, String> rightSide = applicative.of(testFunction.apply(testValue));
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("ap(of(f), of(x)) should equal of(f(x))")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Interchange Law: ap(ff, of(x)) == ap(of(f -> f(x)), ff)")
-    void interchangeLaw() throws Throwable {
-      Integer testValue = DEFAULT_LAZY_VALUE;
-      Function<Integer, String> testFunction = validMapper;
-      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = applicative.of(testFunction);
-      Kind<LazyKind.Witness, Integer> valueKind = applicative.of(testValue);
-
-      // Left side: ap(ff, of(x))
-      Kind<LazyKind.Witness, String> leftSide = applicative.ap(funcKind, valueKind);
-
-      // Right side: ap(of(f -> f(x)), ff)
-      Function<Function<Integer, String>, String> applyToValue = f -> f.apply(testValue);
-      Kind<LazyKind.Witness, Function<Function<Integer, String>, String>> applyFunc =
-          applicative.of(applyToValue);
-      Kind<LazyKind.Witness, String> rightSide = applicative.ap(applyFunc, funcKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("ap(ff, of(x)) should equal ap(of(f -> f(x)), ff)")
-          .isTrue();
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
 
@@ -452,74 +402,6 @@ class LazyApplicativeTest extends LazyTestBase {
       applicative.map2(kind1, kind2, (i1, i2) -> i1 + "," + i2);
 
       assertThat(sideEffect.get()).isZero();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      validateApplicativeFixtures();
-
-      TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyOperations()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      validateApplicativeFixtures();
-
-      // Note: The generic validation test expects ALL operations (including inherited map from
-      // Functor)
-      // to use the same class context. Since LazyMonad implements both map and ap operations,
-      // we need to configure validation to use LazyMonad.class for all operations.
-      TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(LazyMonad.class)
-          .withApFrom(LazyMonad.class)
-          .withMap2From(Applicative.class)
-          .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      // Note: Lazy has special exception semantics - exceptions are memoized
-      // and thrown at force() time. The generic exception tests don't account
-      // for this, so we skip them and test exceptions in dedicated test methods.
-      assertThat(true)
-          .as(
-              "Exception propagation for Lazy is tested in ApOperation and Map2Operation nested"
-                  + " classes")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      validateApplicativeFixtures();
-
-      TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
     }
   }
 }

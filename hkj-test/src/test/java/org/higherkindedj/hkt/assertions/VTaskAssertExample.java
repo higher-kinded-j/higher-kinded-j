@@ -3,9 +3,12 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.time.Duration;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -47,5 +50,13 @@ class VTaskAssertExample {
     VTask<String> task = VTask.delay(() -> "ok");
 
     assertThatVTask(task).runSafeSucceeds();
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<VTaskKind.Witness, T> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.delay(() -> 99));
+
+    assertThatVTask(kind).whenRun().succeeds().hasValue(99);
   }
 }

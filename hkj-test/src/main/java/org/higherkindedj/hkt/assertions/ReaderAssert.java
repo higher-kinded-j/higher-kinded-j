@@ -6,7 +6,10 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.Reader;
+import org.higherkindedj.hkt.reader.ReaderKind;
+import org.higherkindedj.hkt.reader.ReaderKindHelper;
 
 /**
  * Custom AssertJ assertions for {@link Reader} instances.
@@ -15,6 +18,11 @@ import org.higherkindedj.hkt.reader.Reader;
  * @param <A> The type of the value produced by the Reader
  */
 public class ReaderAssert<R, A> extends AbstractAssert<ReaderAssert<R, A>, Reader<R, A>> {
+
+  /** Entry point accepting a {@code Kind<ReaderKind.Witness<R>, A>}. */
+  public static <R, A> ReaderAssert<R, A> assertThatReader(Kind<ReaderKind.Witness<R>, A> actual) {
+    return new ReaderAssert<>(ReaderKindHelper.READER.narrow(actual));
+  }
 
   /** Entry point. */
   public static <R, A> ReaderAssert<R, A> assertThatReader(Reader<R, A> actual) {

@@ -5,9 +5,12 @@ package org.higherkindedj.hkt.assertions;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.validated.Invalid;
 import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.validated.ValidatedKindHelper;
 
 /**
  * Fluent assertion utilities for {@link Validated} types. Provides a convenient API for testing
@@ -28,6 +31,20 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
    */
   public static <E, A> ValidatedAssert<E, A> assertThatValidated(Validated<E, A> validated) {
     return new ValidatedAssert<>(validated);
+  }
+
+  /**
+   * Creates a new ValidatedAssert from a {@code Kind<ValidatedKind.Witness<E>, A>}, narrowing
+   * internally.
+   *
+   * @param actual the Validated value in its Kind representation
+   * @param <E> the error type
+   * @param <A> the value type
+   * @return a new ValidatedAssert instance
+   */
+  public static <E, A> ValidatedAssert<E, A> assertThatValidated(
+      Kind<ValidatedKind.Witness<E>, A> actual) {
+    return new ValidatedAssert<>(ValidatedKindHelper.VALIDATED.narrow(actual));
   }
 
   /**

@@ -8,10 +8,13 @@ import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -212,50 +215,32 @@ class VTaskMonadTest {
   }
 
   @Nested
-  @DisplayName("Monad Laws")
-  class MonadLaws {
+  @DisplayName("Laws")
+  class Laws {
+
+    private final BiPredicate<Kind<VTaskKind.Witness, ?>, Kind<VTaskKind.Witness, ?>> eq =
+        (k1, k2) -> Objects.equals(VTASK.narrow(k1).run(), VTASK.narrow(k2).run());
+
+    private final Function<Integer, Kind<VTaskKind.Witness, String>> f =
+        i -> VTASK.widen(VTask.succeed("Value: " + i));
+    private final Function<String, Kind<VTaskKind.Witness, Integer>> g =
+        s -> VTASK.widen(VTask.succeed(s.length()));
 
     @Test
-    @DisplayName("Left identity: flatMap(f, of(a)) == f(a)")
-    void leftIdentityLaw() {
-      Function<Integer, Kind<VTaskKind.Witness, String>> f =
-          i -> VTASK.widen(VTask.succeed("Value: " + i));
-
-      Kind<VTaskKind.Witness, String> flatMapResult = monad.flatMap(f, monad.of(TEST_VALUE));
-      Kind<VTaskKind.Witness, String> directResult = f.apply(TEST_VALUE);
-
-      assertThat(VTASK.narrow(flatMapResult).run()).isEqualTo(VTASK.narrow(directResult).run());
+    void leftIdentity() {
+      MonadLaws.assertLeftIdentity(monad, TEST_VALUE, f, eq);
     }
 
     @Test
-    @DisplayName("Right identity: flatMap(of, ma) == ma")
-    void rightIdentityLaw() {
-      VTask<Integer> original = VTask.succeed(TEST_VALUE);
-      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(original);
-      Function<Integer, Kind<VTaskKind.Witness, Integer>> ofFunc = monad::of;
-
-      Kind<VTaskKind.Witness, Integer> result = monad.flatMap(ofFunc, ma);
-
-      assertThat(VTASK.narrow(result).run()).isEqualTo(original.run());
-    }
-
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, ma)) == flatMap(x -> flatMap(g, f(x)), ma)")
-    void associativityLaw() {
+    void rightIdentity() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
-      Function<Integer, Kind<VTaskKind.Witness, String>> f =
-          i -> VTASK.widen(VTask.succeed("Value: " + i));
-      Function<String, Kind<VTaskKind.Witness, Integer>> g =
-          s -> VTASK.widen(VTask.succeed(s.length()));
+      MonadLaws.assertRightIdentity(monad, ma, eq);
+    }
 
-      // Left side: flatMap(g, flatMap(f, ma))
-      Kind<VTaskKind.Witness, Integer> leftSide = monad.flatMap(g, monad.flatMap(f, ma));
-
-      // Right side: flatMap(x -> flatMap(g, f(x)), ma)
-      Kind<VTaskKind.Witness, Integer> rightSide =
-          monad.flatMap(x -> monad.flatMap(g, f.apply(x)), ma);
-
-      assertThat(VTASK.narrow(leftSide).run()).isEqualTo(VTASK.narrow(rightSide).run());
+    @Test
+    void associativity() {
+      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
+      MonadLaws.assertAssociativity(monad, ma, f, g, eq);
     }
   }
 }

@@ -2,149 +2,61 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.*;
-import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Label;
+import net.jqwik.api.Property;
+import net.jqwik.api.Provide;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 
 /**
- * Property-based tests for Maybe Functor laws using jQwik.
- *
- * <p>This test class demonstrates the use of property-based testing to verify Functor laws hold for
- * all possible inputs, providing more comprehensive coverage than example-based tests.
+ * Property-based Functor-law verification for {@link MaybeFunctor}, sharing the laws spec with POC
+ * 1.
  */
 class MaybeFunctorPropertyTest {
 
-  private final MaybeFunctor functor = MaybeFunctor.INSTANCE;
+  private final MaybeFunctor functor = new MaybeFunctor();
 
-  /** Provides arbitrary Maybe<Integer> values for testing */
+  private final BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> eq =
+      KindEquivalence.byEqualsAfter(MAYBE::narrow);
+
   @Provide
-  Arbitrary<Maybe<Integer>> maybeInts() {
+  Arbitrary<Kind<MaybeKind.Witness, Integer>> maybeKinds() {
     return Arbitraries.integers()
         .between(-1000, 1000)
-        .injectNull(0.1) // 10% chance of null
-        .map(i -> i == null ? Maybe.nothing() : Maybe.just(i));
+        .injectNull(0.1)
+        .map(i -> i == null ? MAYBE.<Integer>widen(Maybe.nothing()) : MAYBE.widen(Maybe.just(i)));
   }
 
-  /** Provides arbitrary functions for Integer -> String transformations */
   @Provide
-  Arbitrary<Function<Integer, String>> intToStringFunctions() {
-    return Arbitraries.of(
-        i -> "value:" + i, i -> String.valueOf(i * 2), i -> "test-" + i, Object::toString);
+  Arbitrary<Function<Integer, String>> intToString() {
+    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
   }
 
-  /** Provides arbitrary functions for String -> Integer transformations */
   @Provide
-  Arbitrary<Function<String, Integer>> stringToIntFunctions() {
-    return Arbitraries.of(String::length, String::hashCode, s -> s.isEmpty() ? 0 : 1);
+  Arbitrary<Function<String, Integer>> stringToInt() {
+    return Arbitraries.of(String::length, s -> s.isEmpty() ? 0 : 1, String::hashCode);
   }
 
-  /**
-   * Property: Functor Identity Law
-   *
-   * <p>For all values {@code fa}, mapping the identity function should return the original value:
-   * {@code map(id, fa) == fa}
-   */
   @Property
-  @Label("Functor Identity Law: map(id) = id")
-  void functorIdentityLaw(@ForAll("maybeInts") Maybe<Integer> maybe) {
-    Kind<MaybeKind.Witness, Integer> kindMaybe = MAYBE.widen(maybe);
-    Function<Integer, Integer> identity = x -> x;
-
-    Kind<MaybeKind.Witness, Integer> result = functor.map(identity, kindMaybe);
-
-    assertThat(MAYBE.narrow(result)).isEqualTo(maybe);
+  @Label("Functor identity: map(id, fa) == fa")
+  void identity(@ForAll("maybeKinds") Kind<MaybeKind.Witness, Integer> fa) {
+    FunctorLaws.assertIdentity(functor, fa, eq);
   }
 
-  /**
-   * Property: Functor Composition Law
-   *
-   * <p>For all values {@code fa} and functions {@code f} and {@code g}: {@code map(g ∘ f, fa) ==
-   * map(g, map(f, fa))}
-   */
   @Property
-  @Label("Functor Composition Law: map(g ∘ f) = map(g) ∘ map(f)")
-  void functorCompositionLaw(
-      @ForAll("maybeInts") Maybe<Integer> maybe,
-      @ForAll("intToStringFunctions") Function<Integer, String> f,
-      @ForAll("stringToIntFunctions") Function<String, Integer> g) {
-
-    Kind<MaybeKind.Witness, Integer> kindMaybe = MAYBE.widen(maybe);
-
-    // Left side: map(g ∘ f)
-    Function<Integer, Integer> composed = i -> g.apply(f.apply(i));
-    Kind<MaybeKind.Witness, Integer> leftSide = functor.map(composed, kindMaybe);
-
-    // Right side: map(g, map(f, fa))
-    Kind<MaybeKind.Witness, String> intermediate = functor.map(f, kindMaybe);
-    Kind<MaybeKind.Witness, Integer> rightSide = functor.map(g, intermediate);
-
-    assertThat(MAYBE.narrow(leftSide)).isEqualTo(MAYBE.narrow(rightSide));
-  }
-
-  /**
-   * Property: map preserves Nothing
-   *
-   * <p>Mapping any function over Nothing should always return Nothing.
-   */
-  @Property
-  @Label("Mapping over Nothing always returns Nothing")
-  void mapPreservesNothing(@ForAll("intToStringFunctions") Function<Integer, String> f) {
-    Maybe<Integer> nothing = Maybe.nothing();
-    Kind<MaybeKind.Witness, Integer> kindNothing = MAYBE.widen(nothing);
-
-    Kind<MaybeKind.Witness, String> result = functor.map(f, kindNothing);
-
-    assertThat(MAYBE.narrow(result).isNothing()).isTrue();
-  }
-
-  /**
-   * Property: map applies function to Just values
-   *
-   * <p>Mapping a function over Just(x) should return Just(f(x)).
-   */
-  @Property
-  @Label("Mapping over Just applies the function")
-  void mapAppliesFunctionToJust(
-      @ForAll @IntRange(min = -100, max = 100) int value,
-      @ForAll("intToStringFunctions") Function<Integer, String> f) {
-
-    Maybe<Integer> just = Maybe.just(value);
-    Kind<MaybeKind.Witness, Integer> kindJust = MAYBE.widen(just);
-
-    Kind<MaybeKind.Witness, String> result = functor.map(f, kindJust);
-    Maybe<String> narrowed = MAYBE.narrow(result);
-
-    assertThat(narrowed.isJust()).isTrue();
-    assertThat(narrowed.get()).isEqualTo(f.apply(value));
-  }
-
-  /**
-   * Property: Multiple maps can be composed
-   *
-   * <p>Demonstrates that mapping multiple times is equivalent to a single composed map.
-   */
-  @Property(tries = 50)
-  @Label("Multiple maps compose correctly")
-  void multipleMapsCompose(@ForAll("maybeInts") Maybe<Integer> maybe) {
-    Kind<MaybeKind.Witness, Integer> kindMaybe = MAYBE.widen(maybe);
-
-    Function<Integer, Integer> addOne = x -> x + 1;
-    Function<Integer, Integer> double_ = x -> x * 2;
-    Function<Integer, Integer> subtract3 = x -> x - 3;
-
-    // Apply functions one at a time
-    Kind<MaybeKind.Witness, Integer> step1 = functor.map(addOne, kindMaybe);
-    Kind<MaybeKind.Witness, Integer> step2 = functor.map(double_, step1);
-    Kind<MaybeKind.Witness, Integer> step3 = functor.map(subtract3, step2);
-
-    // Apply composed function
-    Function<Integer, Integer> composed = x -> subtract3.apply(double_.apply(addOne.apply(x)));
-    Kind<MaybeKind.Witness, Integer> composedResult = functor.map(composed, kindMaybe);
-
-    assertThat(MAYBE.narrow(step3)).isEqualTo(MAYBE.narrow(composedResult));
+  @Label("Functor composition: map(g∘f, fa) == map(g, map(f, fa))")
+  void composition(
+      @ForAll("maybeKinds") Kind<MaybeKind.Witness, Integer> fa,
+      @ForAll("intToString") Function<Integer, String> f,
+      @ForAll("stringToInt") Function<String, Integer> g) {
+    FunctorLaws.assertComposition(functor, fa, f, g, eq);
   }
 }

@@ -8,12 +8,17 @@ import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
 import java.util.Optional;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -310,77 +315,112 @@ class OptionalTMonadTest {
   }
 
   @Nested
-  @DisplayName("Monad Laws")
-  class MonadLaws {
-    int value = 5;
-    Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mVal = someT(value);
-    Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mValNone = noneT();
-    Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mValOuterEmpty = outerEmptyT();
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mVal = someT(5);
+    final Function<Integer, String> f = Object::toString;
+    final Function<String, String> g = s -> s + "!";
+    final BiPredicate<
+            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
+            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
+        eq = KindEquivalence.byEqualsAfter(OptionalTMonadTest.this::unwrapKindToOptionalOptional);
 
-    Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> fLaw =
+    @Test
+    @DisplayName("Identity holds for Some, None, and empty-outer fixtures")
+    void identity() {
+      FunctorLaws.assertIdentity(optionalTMonad, mVal, eq);
+      FunctorLaws.assertIdentity(optionalTMonad, noneT(), eq);
+      FunctorLaws.assertIdentity(optionalTMonad, outerEmptyT(), eq);
+    }
+
+    @Test
+    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
+    void composition() {
+      FunctorLaws.assertComposition(optionalTMonad, mVal, f, g, eq);
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLawTests {
+    final int value = 5;
+    final Function<Integer, String> f = Object::toString;
+    final Function<String, String> g = s -> s + "!";
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> u = someT(f);
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<String, String>> uG = someT(g);
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> w = someT(value);
+    final BiPredicate<
+            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
+            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
+        eq = KindEquivalence.byEqualsAfter(OptionalTMonadTest.this::unwrapKindToOptionalOptional);
+
+    @Test
+    @DisplayName("Identity: ap(of(id), v) == v")
+    void identity() {
+      ApplicativeLaws.assertIdentity(optionalTMonad, w, eq);
+    }
+
+    @Test
+    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      ApplicativeLaws.assertHomomorphism(optionalTMonad, value, f, eq);
+    }
+
+    @Test
+    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
+    void interchange() {
+      ApplicativeLaws.assertInterchange(optionalTMonad, u, value, eq);
+    }
+
+    @Test
+    @DisplayName("Composition")
+    void composition() {
+      ApplicativeLaws.assertComposition(optionalTMonad, uG, u, w, eq);
+    }
+  }
+
+  @Nested
+  @DisplayName("Monad Laws")
+  class MonadLawTests {
+    final int value = 5;
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mVal = someT(value);
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mValNone = noneT();
+    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mValOuterEmpty = outerEmptyT();
+
+    final Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> fLaw =
         i -> someT("v" + i);
-    Function<String, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> gLaw =
+    final Function<String, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> gLaw =
         s -> someT(s + "!");
 
-    @Test
-    @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> ofValue = ofT(value);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> leftSide =
-          optionalTMonad.flatMap(fLaw, ofValue);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> rightSide = fLaw.apply(value);
-      assertOptionalTEquals(leftSide, rightSide);
+    final BiPredicate<
+            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
+            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
+        eq = KindEquivalence.byEqualsAfter(OptionalTMonadTest.this::unwrapKindToOptionalOptional);
 
-      // Test with of(null) which becomes None
+    @Test
+    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
+    void leftIdentity() {
+      MonadLaws.assertLeftIdentity(optionalTMonad, value, fLaw, eq);
+
       Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> fLawHandlesNull =
           i -> (i == null) ? noneT() : someT("v" + i);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> leftSideOfNull =
-          optionalTMonad.flatMap(fLawHandlesNull, ofT(null));
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> rightSideOfNull =
-          fLawHandlesNull.apply(null);
-      assertOptionalTEquals(leftSideOfNull, rightSideOfNull);
+      MonadLaws.assertLeftIdentity(optionalTMonad, null, fLawHandlesNull, eq);
     }
 
     @Test
-    @DisplayName("2. Right Identity: flatMap(m, of) == m")
+    @DisplayName("Right Identity holds for Some, None, and empty-outer fixtures")
     void rightIdentity() {
-      Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> ofFunc =
-          optionalTMonad::of; // or `v -> ofT(v)`
-
-      assertOptionalTEquals(optionalTMonad.flatMap(ofFunc, mVal), mVal);
-      assertOptionalTEquals(optionalTMonad.flatMap(ofFunc, mValNone), mValNone);
-      assertOptionalTEquals(optionalTMonad.flatMap(ofFunc, mValOuterEmpty), mValOuterEmpty);
+      MonadLaws.assertRightIdentity(optionalTMonad, mVal, eq);
+      MonadLaws.assertRightIdentity(optionalTMonad, mValNone, eq);
+      MonadLaws.assertRightIdentity(optionalTMonad, mValOuterEmpty, eq);
     }
 
     @Test
-    @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    @DisplayName("Associativity holds for Some, None, and empty-outer fixtures")
     void associativity() {
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> innerLeft =
-          optionalTMonad.flatMap(fLaw, mVal);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> leftSide =
-          optionalTMonad.flatMap(gLaw, innerLeft);
-
-      Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> rightSideFunc =
-          a -> optionalTMonad.flatMap(gLaw, fLaw.apply(a));
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> rightSide =
-          optionalTMonad.flatMap(rightSideFunc, mVal);
-      assertOptionalTEquals(leftSide, rightSide);
-
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> innerNone =
-          optionalTMonad.flatMap(fLaw, mValNone);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> leftSideNone =
-          optionalTMonad.flatMap(gLaw, innerNone);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> rightSideNone =
-          optionalTMonad.flatMap(rightSideFunc, mValNone);
-      assertOptionalTEquals(leftSideNone, rightSideNone);
-
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> innerOuterEmpty =
-          optionalTMonad.flatMap(fLaw, mValOuterEmpty);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> leftSideOuterEmpty =
-          optionalTMonad.flatMap(gLaw, innerOuterEmpty);
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> rightSideOuterEmpty =
-          optionalTMonad.flatMap(rightSideFunc, mValOuterEmpty);
-      assertOptionalTEquals(leftSideOuterEmpty, rightSideOuterEmpty);
+      MonadLaws.assertAssociativity(optionalTMonad, mVal, fLaw, gLaw, eq);
+      MonadLaws.assertAssociativity(optionalTMonad, mValNone, fLaw, gLaw, eq);
+      MonadLaws.assertAssociativity(optionalTMonad, mValOuterEmpty, fLaw, gLaw, eq);
     }
   }
 }

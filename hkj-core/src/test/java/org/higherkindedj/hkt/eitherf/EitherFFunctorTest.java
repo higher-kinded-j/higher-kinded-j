@@ -6,13 +6,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityKindHelper;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
@@ -20,6 +24,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("EitherFFunctor Test Suite")
 class EitherFFunctorTest {
@@ -96,71 +103,41 @@ class EitherFFunctorTest {
   }
 
   @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Identity law: map(id, fa) == fa for Left")
-    void identityLawForLeft() {
-      var kind = leftKind(42);
-      Function<Integer, Integer> id = Function.identity();
+    private final BiPredicate<
+            Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, ?>,
+            Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, ?>>
+        eq = KindEquivalence.byEqualsAfter(EitherFKindHelper.EITHERF::narrow);
 
-      var result = functor.map(id, kind);
-
-      EitherF<IdentityKind.Witness, MaybeKind.Witness, Integer> mapped =
-          EitherFKindHelper.EITHERF.narrow(result);
-      assertThat(mapped).isInstanceOf(EitherF.Left.class);
-      assertThat(extractLeft(mapped)).isEqualTo(42);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(
+        String label,
+        Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, eq);
     }
 
-    @Test
-    @DisplayName("Identity law: map(id, fa) == fa for Right")
-    void identityLawForRight() {
-      var kind = rightKind(42);
-      Function<Integer, Integer> id = Function.identity();
-
-      var result = functor.map(id, kind);
-
-      EitherF<IdentityKind.Witness, MaybeKind.Witness, Integer> mapped =
-          EitherFKindHelper.EITHERF.narrow(result);
-      assertThat(mapped).isInstanceOf(EitherF.Right.class);
-      assertThat(extractRight(mapped)).isEqualTo(42);
-    }
-
-    @Test
-    @DisplayName("Composition law: map(g.compose(f)) == map(g, map(f)) for Left")
-    void compositionLawForLeft() {
-      var kind = leftKind(42);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(
+        String label,
+        Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> fa) {
       Function<Integer, String> f = Object::toString;
       Function<String, Integer> g = String::length;
-
-      var composed = functor.map(g.compose(f), kind);
-      var chained = functor.map(g, functor.map(f, kind));
-
-      EitherF<IdentityKind.Witness, MaybeKind.Witness, Integer> composedEf =
-          EitherFKindHelper.EITHERF.narrow(composed);
-      EitherF<IdentityKind.Witness, MaybeKind.Witness, Integer> chainedEf =
-          EitherFKindHelper.EITHERF.narrow(chained);
-
-      assertThat(extractLeft(composedEf)).isEqualTo(extractLeft(chainedEf));
+      FunctorLaws.assertComposition(functor, fa, f, g, eq);
     }
 
-    @Test
-    @DisplayName("Composition law: map(g.compose(f)) == map(g, map(f)) for Right")
-    void compositionLawForRight() {
-      var kind = rightKind(42);
-      Function<Integer, String> f = Object::toString;
-      Function<String, Integer> g = String::length;
-
-      var composed = functor.map(g.compose(f), kind);
-      var chained = functor.map(g, functor.map(f, kind));
-
-      EitherF<IdentityKind.Witness, MaybeKind.Witness, Integer> composedEf =
-          EitherFKindHelper.EITHERF.narrow(composed);
-      EitherF<IdentityKind.Witness, MaybeKind.Witness, Integer> chainedEf =
-          EitherFKindHelper.EITHERF.narrow(chained);
-
-      assertThat(extractRight(composedEf)).isEqualTo(extractRight(chainedEf));
+    static Stream<Arguments> fixtures() {
+      Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> leftFixture =
+          EitherFKindHelper.EITHERF.widen(
+              EitherF.left(IdentityKindHelper.IDENTITY.widen(new Identity<>(42))));
+      Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, Integer> rightFixture =
+          EitherFKindHelper.EITHERF.widen(
+              EitherF.right(MaybeKindHelper.MAYBE.widen(Maybe.just(42))));
+      return Stream.of(
+          Arguments.of("Left(42)", leftFixture), Arguments.of("Right(42)", rightFixture));
     }
   }
 

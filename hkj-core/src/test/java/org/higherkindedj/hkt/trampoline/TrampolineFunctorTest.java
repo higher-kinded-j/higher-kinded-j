@@ -5,8 +5,11 @@ package org.higherkindedj.hkt.trampoline;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trampoline.TrampolineKindHelper.TRAMPOLINE;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -139,32 +142,24 @@ class TrampolineFunctorTest extends TrampolineTestBase {
   }
 
   @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
+  @DisplayName("Laws")
+  class Laws {
+
+    private final BiPredicate<Kind<TrampolineKind.Witness, ?>, Kind<TrampolineKind.Witness, ?>> eq =
+        (k1, k2) -> Objects.equals(TRAMPOLINE.narrow(k1).run(), TRAMPOLINE.narrow(k2).run());
 
     @Test
-    @DisplayName("Identity law: map(id, fa) == fa")
-    void identityLaw() {
+    void identity() {
       Kind<TrampolineKind.Witness, Integer> fa = TRAMPOLINE.widen(Trampoline.done(42));
-      Kind<TrampolineKind.Witness, Integer> mapped = functor.map(x -> x, fa);
-
-      assertThat(TRAMPOLINE.narrow(mapped).run()).isEqualTo(TRAMPOLINE.narrow(fa).run());
+      FunctorLaws.assertIdentity(functor, fa, eq);
     }
 
     @Test
-    @DisplayName("Composition law: map(f . g, fa) == map(f, map(g, fa))")
-    void compositionLaw() {
+    void composition() {
       Kind<TrampolineKind.Witness, Integer> fa = TRAMPOLINE.widen(Trampoline.done(10));
-      Function<Integer, Integer> f = x -> x * 2;
-      Function<Integer, Integer> g = x -> x + 5;
-
-      // Left side: map(f . g, fa)
-      Kind<TrampolineKind.Witness, Integer> left = functor.map(x -> f.apply(g.apply(x)), fa);
-
-      // Right side: map(f, map(g, fa))
-      Kind<TrampolineKind.Witness, Integer> right = functor.map(f, functor.map(g, fa));
-
-      assertThat(TRAMPOLINE.narrow(left).run()).isEqualTo(TRAMPOLINE.narrow(right).run());
+      Function<Integer, Integer> f = x -> x + 5;
+      Function<Integer, Integer> g = x -> x * 2;
+      FunctorLaws.assertComposition(functor, fa, f, g, eq);
     }
   }
 

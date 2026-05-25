@@ -6,7 +6,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamKind;
+import org.higherkindedj.hkt.vstream.VStreamKindHelper;
 
 /**
  * Custom AssertJ assertions for {@link VStream} instances.
@@ -14,6 +17,11 @@ import org.higherkindedj.hkt.vstream.VStream;
  * @param <A> The type of elements produced by the VStream
  */
 public class VStreamAssert<A> extends AbstractAssert<VStreamAssert<A>, VStream<A>> {
+
+  /** Entry point accepting a {@code Kind<VStreamKind.Witness, A>}. */
+  public static <A> VStreamAssert<A> assertThatVStream(Kind<VStreamKind.Witness, A> actual) {
+    return new VStreamAssert<>(VStreamKindHelper.VSTREAM.narrow(actual));
+  }
 
   /** Entry point. */
   public static <A> VStreamAssert<A> assertThatVStream(VStream<A> actual) {

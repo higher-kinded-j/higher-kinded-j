@@ -15,6 +15,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
@@ -330,39 +333,76 @@ class StateTMonadTest
   }
 
   @Nested
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
+
+    @Test
+    @DisplayName("Identity: map(id, fa) == fa")
+    void identity() {
+      FunctorLaws.assertIdentity(stateTMonad, validKind, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
+    void composition() {
+      FunctorLaws.assertComposition(
+          stateTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLawTests {
+
+    @Test
+    @DisplayName("Identity: ap(of(id), v) == v")
+    void identity() {
+      ApplicativeLaws.assertIdentity(stateTMonad, validKind, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      ApplicativeLaws.assertHomomorphism(stateTMonad, testValue, validMapper, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
+    void interchange() {
+      ApplicativeLaws.assertInterchange(stateTMonad, validFunctionKind, testValue, equalityChecker);
+    }
+
+    @Test
+    @DisplayName("Composition")
+    void composition() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Function<String, String>> u =
+          pureT(secondMapper);
+      ApplicativeLaws.assertComposition(
+          stateTMonad, u, validFunctionKind, validKind, equalityChecker);
+    }
+  }
+
+  @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
     @Test
     @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      var ofValue = stateTMonad.of(testValue);
-      var leftSide = stateTMonad.flatMap(testFunction, ofValue);
-      var rightSide = testFunction.apply(testValue);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertLeftIdentity(stateTMonad, testValue, testFunction, equalityChecker);
     }
 
     @Test
     @DisplayName("Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
-      Function<Integer, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer>> ofFunc =
-          i -> stateTMonad.of(i);
-
-      assertThat(equalityChecker.test(stateTMonad.flatMap(ofFunc, validKind), validKind)).isTrue();
+      MonadLaws.assertRightIdentity(stateTMonad, validKind, equalityChecker);
     }
 
     @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
     void associativity() {
-      var innerFlatMap = stateTMonad.flatMap(testFunction, validKind);
-      var leftSide = stateTMonad.flatMap(chainFunction, innerFlatMap);
-
-      Function<Integer, Kind<StateTKind.Witness<String, OptionalKind.Witness>, String>>
-          rightSideFunc = a -> stateTMonad.flatMap(chainFunction, testFunction.apply(a));
-      var rightSide = stateTMonad.flatMap(rightSideFunc, validKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      MonadLaws.assertAssociativity(
+          stateTMonad, validKind, testFunction, chainFunction, equalityChecker);
     }
   }
 

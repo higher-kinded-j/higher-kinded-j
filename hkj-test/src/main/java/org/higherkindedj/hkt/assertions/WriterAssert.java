@@ -7,7 +7,10 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.writer.Writer;
+import org.higherkindedj.hkt.writer.WriterKind;
+import org.higherkindedj.hkt.writer.WriterKindHelper;
 
 /**
  * Custom AssertJ assertions for {@link Writer} instances.
@@ -16,6 +19,11 @@ import org.higherkindedj.hkt.writer.Writer;
  * @param <A> The type of the value
  */
 public class WriterAssert<W, A> extends AbstractAssert<WriterAssert<W, A>, Writer<W, A>> {
+
+  /** Entry point accepting a {@code Kind<WriterKind.Witness<W>, A>}. */
+  public static <W, A> WriterAssert<W, A> assertThatWriter(Kind<WriterKind.Witness<W>, A> actual) {
+    return new WriterAssert<>(WriterKindHelper.WRITER.narrow(actual));
+  }
 
   /** Entry point. */
   public static <W, A> WriterAssert<W, A> assertThatWriter(Writer<W, A> actual) {

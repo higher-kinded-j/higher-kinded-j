@@ -7,16 +7,21 @@ import static org.higherkindedj.hkt.assertions.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
+import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("StateFunctor<S> Complete Test Suite")
+@DisplayName("StateFunctor")
 class StateFunctorTest extends StateTestBase<Integer> {
 
   private StateFunctor<Integer> functor;
@@ -27,21 +32,34 @@ class StateFunctorTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<StateKind.Witness<Integer>>functor(StateFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() // State is lazy - exceptions deferred until run()
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<StateKind.Witness<Integer>, Integer> fa) {
+      Functor<StateKind.Witness<Integer>> f = functor;
+      FunctorLaws.assertIdentity(f, fa, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<StateKind.Witness<Integer>, Integer> fa) {
+      Functor<StateKind.Witness<Integer>> f = functor;
+      FunctorLaws.assertComposition(f, fa, validMapper, secondMapper, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of(
+              "State(s -> (s, 42))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s, 42)))),
+          Arguments.of(
+              "State(s -> (s+1, s))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s + 1, s)))),
+          Arguments.of(
+              "State(s -> (s*2, -s))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s * 2, -s)))));
     }
   }
 
@@ -160,56 +178,6 @@ class StateFunctorTest extends StateTestBase<Integer> {
       // Evaluation produces correct result
       StateTuple<Integer, Integer> result = runState(computation, getInitialState());
       assertThatStateTuple(result).hasValue(8); // "Value: 2".length() = 8
-    }
-  }
-
-  @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
-
-    @Test
-    @DisplayName("Identity law: map(id) == id")
-    void identityLaw() {
-      Function<Integer, Integer> identity = i -> i;
-      Kind<StateKind.Witness<Integer>, Integer> mapped = functor.map(identity, validKind);
-
-      assertThat(equalityChecker.test(mapped, validKind))
-          .as("Functor Identity Law: map(id, fa) == fa")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Composition law: map(g . f) == map(g) . map(f)")
-    void compositionLaw() {
-      Function<Integer, String> f = validMapper;
-      Function<String, String> g = secondMapper;
-
-      // Left side: map(g ∘ f)
-      Function<Integer, String> composed = i -> g.apply(f.apply(i));
-      Kind<StateKind.Witness<Integer>, String> leftSide = functor.map(composed, validKind);
-
-      // Right side: map(g, map(f, validKind))
-      Kind<StateKind.Witness<Integer>, String> intermediate = functor.map(f, validKind);
-      Kind<StateKind.Witness<Integer>, String> rightSide = functor.map(g, intermediate);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Functor Composition Law: map(g ∘ f, fa) == map(g, map(f, fa))")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("map preserves structure")
-    void mapPreservesStructure() {
-      State<Integer, Integer> state = State.of(s -> new StateTuple<>(42, 100));
-      Kind<StateKind.Witness<Integer>, Integer> kind = STATE.widen(state);
-
-      Kind<StateKind.Witness<Integer>, String> mapped = functor.map(validMapper, kind);
-
-      StateTuple<Integer, String> result = runState(mapped, getInitialState());
-      assertThatStateTuple(result)
-          .hasValue("42")
-          .hasStateSatisfying(
-              s -> assertThat(s).as("State should be preserved by map").isEqualTo(100));
     }
   }
 

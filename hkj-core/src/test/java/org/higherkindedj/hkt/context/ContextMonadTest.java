@@ -6,15 +6,22 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Comprehensive test suite for {@link ContextMonad}.
@@ -148,61 +155,56 @@ class ContextMonadTest {
   }
 
   @Nested
-  @DisplayName("Monad Laws")
-  class MonadLaws {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Left identity: flatMap(f, of(a)) == f(a)")
-    void leftIdentityLaw() {
-      Integer a = 42;
-      Function<Integer, Kind<ContextKind.Witness<String>, String>> f =
-          n -> CONTEXT.succeed("Number: " + n);
+    private final BiPredicate<
+            Kind<ContextKind.Witness<String>, ?>, Kind<ContextKind.Witness<String>, ?>>
+        eq =
+            (k1, k2) -> {
+              try {
+                return ScopedValue.where(STRING_KEY, "test")
+                    .call(() -> Objects.equals(CONTEXT.narrow(k1).run(), CONTEXT.narrow(k2).run()));
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            };
 
-      Kind<ContextKind.Witness<String>, String> left = monad.flatMap(f, monad.of(a));
-      Kind<ContextKind.Witness<String>, String> right = f.apply(a);
+    private final Function<Integer, Kind<ContextKind.Witness<String>, String>> intToCtx =
+        n -> CONTEXT.succeed("Number: " + n);
 
-      Context<String, String> leftCtx = CONTEXT.narrow(left);
-      Context<String, String> rightCtx = CONTEXT.narrow(right);
+    private final Function<String, Kind<ContextKind.Witness<String>, String>> upper =
+        s -> CONTEXT.succeed(s.toUpperCase());
 
-      assertThat(leftCtx.run()).isEqualTo(rightCtx.run());
+    private final Function<String, Kind<ContextKind.Witness<String>, Integer>> length =
+        s -> CONTEXT.succeed(s.length());
+
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, intToCtx, eq);
     }
 
-    @Test
-    @DisplayName("Right identity: flatMap(of, m) == m")
-    void rightIdentityLaw() throws Exception {
-      Kind<ContextKind.Witness<String>, String> m = CONTEXT.ask(STRING_KEY);
-
-      Kind<ContextKind.Witness<String>, String> left = monad.flatMap(monad::of, m);
-
-      String value = "test";
-      String mResult = ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(m).run());
-      String leftResult =
-          ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(left).run());
-
-      assertThat(leftResult).isEqualTo(mResult);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("stringFixtures")
+    void rightIdentity(String label, Kind<ContextKind.Witness<String>, String> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, eq);
     }
 
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
-    void associativityLaw() throws Exception {
-      Kind<ContextKind.Witness<String>, String> m = CONTEXT.ask(STRING_KEY);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("stringFixtures")
+    void associativity(String label, Kind<ContextKind.Witness<String>, String> ma) {
+      MonadLaws.assertAssociativity(monad, ma, upper, length, eq);
+    }
 
-      Function<String, Kind<ContextKind.Witness<String>, String>> f =
-          s -> CONTEXT.succeed(s.toUpperCase());
-      Function<String, Kind<ContextKind.Witness<String>, Integer>> g =
-          s -> CONTEXT.succeed(s.length());
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
+    }
 
-      Kind<ContextKind.Witness<String>, Integer> left = monad.flatMap(g, monad.flatMap(f, m));
-      Kind<ContextKind.Witness<String>, Integer> right =
-          monad.flatMap(a -> monad.flatMap(g, f.apply(a)), m);
-
-      String value = "test";
-      Integer leftResult =
-          ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(left).run());
-      Integer rightResult =
-          ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(right).run());
-
-      assertThat(leftResult).isEqualTo(rightResult);
+    static Stream<Arguments> stringFixtures() {
+      return Stream.of(
+          Arguments.of("succeed(\"hello\")", CONTEXT.<String, String>succeed("hello")),
+          Arguments.of("ask(STRING_KEY)", CONTEXT.<String>ask(STRING_KEY)));
     }
   }
 

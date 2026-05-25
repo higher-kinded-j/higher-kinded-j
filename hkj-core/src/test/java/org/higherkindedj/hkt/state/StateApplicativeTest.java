@@ -8,17 +8,21 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("StateApplicative<S> Complete Test Suite")
+@DisplayName("StateApplicative")
 class StateApplicativeTest extends StateTestBase<Integer> {
 
   private StateApplicative<Integer> applicative;
@@ -29,25 +33,57 @@ class StateApplicativeTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<StateKind.Witness<Integer>>applicative(StateApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .withApFrom(StateApplicative.class)
-          .withMap2From(Applicative.class)
-          .selectTests()
-          .skipExceptions() // State is lazy - exceptions deferred until run()
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<StateKind.Witness<Integer>, Integer> v) {
+      Applicative<StateKind.Witness<Integer>> ap = applicative;
+      ApplicativeLaws.assertIdentity(ap, v, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("values")
+    void homomorphism(Integer value) {
+      Applicative<StateKind.Witness<Integer>> ap = applicative;
+      ApplicativeLaws.assertHomomorphism(ap, value, validMapper, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("values")
+    void interchange(Integer value) {
+      Applicative<StateKind.Witness<Integer>> ap = applicative;
+      ApplicativeLaws.assertInterchange(ap, validFunctionKind, value, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<StateKind.Witness<Integer>, Integer> w) {
+      Applicative<StateKind.Witness<Integer>> ap = applicative;
+      Kind<StateKind.Witness<Integer>, Function<String, String>> u =
+          STATE.widen(
+              State.<Integer, Function<String, String>>of(
+                  s -> new StateTuple<>((Function<String, String>) str -> "u(" + str + ")", s)));
+      Kind<StateKind.Witness<Integer>, Function<Integer, String>> v =
+          STATE.widen(
+              State.<Integer, Function<Integer, String>>of(
+                  s -> new StateTuple<>((Function<Integer, String>) i -> "v" + i, s)));
+      ApplicativeLaws.assertComposition(ap, u, v, w, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of(
+              "State(s -> (s, 42))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s, 42)))),
+          Arguments.of(
+              "State(s -> (s+1, s))",
+              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s + 1, s)))));
+    }
+
+    static Stream<Arguments> values() {
+      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -242,87 +278,6 @@ class StateApplicativeTest extends StateTestBase<Integer> {
       assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("Exception should be thrown during run()")
           .isSameAs(testException);
-    }
-  }
-
-  @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
-
-    @Test
-    @DisplayName("Identity law: ap(of(id), v) == v")
-    void identityLaw() {
-      Function<Integer, Integer> identity = i -> i;
-      Kind<StateKind.Witness<Integer>, Function<Integer, Integer>> idFunc =
-          applicative.of(identity);
-      Kind<StateKind.Witness<Integer>, Integer> result = applicative.ap(idFunc, validKind);
-
-      assertThat(equalityChecker.test(result, validKind))
-          .as("Applicative Identity Law: ap(of(id), fa) == fa")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Homomorphism law: ap(of(f), of(x)) == of(f(x))")
-    void homomorphismLaw() {
-      Function<Integer, String> f = validMapper;
-      Integer x = testValue;
-
-      Kind<StateKind.Witness<Integer>, Function<Integer, String>> funcKind = applicative.of(f);
-      Kind<StateKind.Witness<Integer>, Integer> valueKind = applicative.of(x);
-
-      // Left side: ap(of(f), of(x))
-      Kind<StateKind.Witness<Integer>, String> leftSide = applicative.ap(funcKind, valueKind);
-
-      // Right side: of(f(x))
-      Kind<StateKind.Witness<Integer>, String> rightSide = applicative.of(f.apply(x));
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Applicative Homomorphism Law: ap(of(f), of(x)) == of(f(x))")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Interchange law: ap(ff, of(x)) == ap(of(f -> f(x)), ff)")
-    void interchangeLaw() {
-      Integer x = testValue;
-      Kind<StateKind.Witness<Integer>, Function<Integer, String>> funcKind =
-          applicative.of(validMapper);
-      Kind<StateKind.Witness<Integer>, Integer> valueKind = applicative.of(x);
-
-      // Left side: ap(ff, of(x))
-      Kind<StateKind.Witness<Integer>, String> leftSide = applicative.ap(funcKind, valueKind);
-
-      // Right side: ap(of(f -> f(x)), ff)
-      Function<Function<Integer, String>, String> applyToValue = f -> f.apply(x);
-      Kind<StateKind.Witness<Integer>, Function<Function<Integer, String>, String>> applyFunc =
-          applicative.of(applyToValue);
-      Kind<StateKind.Witness<Integer>, String> rightSide = applicative.ap(applyFunc, funcKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Applicative Interchange Law: ap(ff, of(x)) == ap(of(f -> f(x)), ff)")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("map2 should be consistent with ap")
-    void map2ConsistentWithAp() {
-      BiFunction<Integer, Integer, String> combiner = (i1, i2) -> i1 + "+" + i2;
-
-      // Using map2
-      Kind<StateKind.Witness<Integer>, String> viaMap2 =
-          applicative.map2(validKind, validKind2, combiner);
-
-      // Using ap
-      Function<Integer, Function<Integer, String>> curriedCombiner =
-          i1 -> i2 -> combiner.apply(i1, i2);
-      Kind<StateKind.Witness<Integer>, Function<Integer, String>> partiallyApplied =
-          applicative.map(curriedCombiner, validKind);
-      Kind<StateKind.Witness<Integer>, String> viaAp = applicative.ap(partiallyApplied, validKind2);
-
-      assertThat(equalityChecker.test(viaMap2, viaAp))
-          .as("map2 should be consistent with ap")
-          .isTrue();
     }
   }
 

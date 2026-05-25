@@ -3,9 +3,12 @@
 package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -50,5 +53,13 @@ class IOAssertExample {
     assertThatIO(effect)
         .throwsException(IllegalStateException.class)
         .withMessageContaining("kaboom");
+  }
+
+  @Test
+  @DisplayName("Accepts Kind<IOKind.Witness, T> directly without manual narrowing")
+  void acceptsKindDirectly() {
+    Kind<IOKind.Witness, Integer> kind = IO_OP.widen(IO.delay(() -> 99));
+
+    assertThatIO(kind).whenExecuted().hasValue(99);
   }
 }

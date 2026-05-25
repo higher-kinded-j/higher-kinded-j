@@ -7,8 +7,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -144,93 +147,40 @@ class VTaskApplicativeTest {
   }
 
   @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
+  @DisplayName("Laws")
+  class Laws {
+
+    private final BiPredicate<Kind<VTaskKind.Witness, ?>, Kind<VTaskKind.Witness, ?>> eq =
+        (k1, k2) -> Objects.equals(VTASK.narrow(k1).run(), VTASK.narrow(k2).run());
 
     @Test
-    @DisplayName("Identity law: ap(of(id), fa) == fa")
-    void identityLaw() {
-      VTask<Integer> original = VTask.succeed(TEST_VALUE);
-      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(original);
-      Kind<VTaskKind.Witness, Function<Integer, Integer>> identity =
-          applicative.of(Function.identity());
-
-      Kind<VTaskKind.Witness, Integer> result = applicative.ap(identity, fa);
-
-      assertThat(VTASK.narrow(result).run()).isEqualTo(original.run());
+    void identity() {
+      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(VTask.succeed(TEST_VALUE));
+      ApplicativeLaws.assertIdentity(applicative, fa, eq);
     }
 
     @Test
-    @DisplayName("Homomorphism law: ap(of(f), of(x)) == of(f(x))")
-    void homomorphismLaw() {
+    void homomorphism() {
       Function<Integer, String> f = Object::toString;
-      Kind<VTaskKind.Witness, Function<Integer, String>> ff = applicative.of(f);
-      Kind<VTaskKind.Witness, Integer> fx = applicative.of(TEST_VALUE);
-
-      Kind<VTaskKind.Witness, String> apResult = applicative.ap(ff, fx);
-      Kind<VTaskKind.Witness, String> directResult = applicative.of(f.apply(TEST_VALUE));
-
-      assertThat(VTASK.narrow(apResult).run()).isEqualTo(VTASK.narrow(directResult).run());
+      ApplicativeLaws.assertHomomorphism(applicative, TEST_VALUE, f, eq);
     }
 
     @Test
-    @DisplayName("Interchange law: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchangeLaw() {
+    void interchange() {
       Function<Integer, String> f = i -> "Result:" + i;
       Kind<VTaskKind.Witness, Function<Integer, String>> u = VTASK.widen(VTask.succeed(f));
-      int y = TEST_VALUE;
-
-      // Left side: ap(u, of(y))
-      Kind<VTaskKind.Witness, String> leftSide = applicative.ap(u, applicative.of(y));
-
-      // Right side: ap(of(f -> f(y)), u)
-      Function<Function<Integer, String>, String> applyY = fn -> fn.apply(y);
-      Kind<VTaskKind.Witness, Function<Function<Integer, String>, String>> ofApplyY =
-          applicative.of(applyY);
-      Kind<VTaskKind.Witness, String> rightSide = applicative.ap(ofApplyY, u);
-
-      assertThat(VTASK.narrow(leftSide).run()).isEqualTo(VTASK.narrow(rightSide).run());
+      ApplicativeLaws.assertInterchange(applicative, u, TEST_VALUE, eq);
     }
 
     @Test
-    @DisplayName("Composition law: ap(ap(ap(of(compose), u), v), w) == ap(u, ap(v, w))")
-    void compositionLaw() {
-      // u: VTask<Function<String, Integer>> - converts String to its length
-      Function<String, Integer> stringToLength = String::length;
+    void composition() {
       Kind<VTaskKind.Witness, Function<String, Integer>> u =
-          VTASK.widen(VTask.succeed(stringToLength));
-
-      // v: VTask<Function<Integer, String>> - converts Integer to String
+          VTASK.widen(VTask.succeed(String::length));
       Function<Integer, String> intToString = i -> "Value:" + i;
       Kind<VTaskKind.Witness, Function<Integer, String>> v =
           VTASK.widen(VTask.succeed(intToString));
-
-      // w: VTask<Integer> - the value to transform
       Kind<VTaskKind.Witness, Integer> w = VTASK.widen(VTask.succeed(TEST_VALUE));
-
-      // compose: (b -> c) -> (a -> b) -> (a -> c)
-      Function<
-              Function<String, Integer>,
-              Function<Function<Integer, String>, Function<Integer, Integer>>>
-          compose = bc -> ab -> a -> bc.apply(ab.apply(a));
-
-      // Left side: ap(ap(ap(of(compose), u), v), w)
-      Kind<
-              VTaskKind.Witness,
-              Function<
-                  Function<String, Integer>,
-                  Function<Function<Integer, String>, Function<Integer, Integer>>>>
-          ofCompose = applicative.of(compose);
-      Kind<VTaskKind.Witness, Function<Function<Integer, String>, Function<Integer, Integer>>>
-          step1 = applicative.ap(ofCompose, u);
-      Kind<VTaskKind.Witness, Function<Integer, Integer>> step2 = applicative.ap(step1, v);
-      Kind<VTaskKind.Witness, Integer> leftSide = applicative.ap(step2, w);
-
-      // Right side: ap(u, ap(v, w))
-      Kind<VTaskKind.Witness, String> innerAp = applicative.ap(v, w);
-      Kind<VTaskKind.Witness, Integer> rightSide = applicative.ap(u, innerAp);
-
-      assertThat(VTASK.narrow(leftSide).run()).isEqualTo(VTASK.narrow(rightSide).run());
+      ApplicativeLaws.assertComposition(applicative, u, v, w, eq);
     }
   }
 }

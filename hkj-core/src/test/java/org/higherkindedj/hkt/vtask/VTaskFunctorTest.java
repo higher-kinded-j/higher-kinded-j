@@ -7,8 +7,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -146,36 +149,22 @@ class VTaskFunctorTest {
   }
 
   @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
+  @DisplayName("Laws")
+  class Laws {
+
+    private final BiPredicate<Kind<VTaskKind.Witness, ?>, Kind<VTaskKind.Witness, ?>> eq =
+        (k1, k2) -> Objects.equals(VTASK.narrow(k1).run(), VTASK.narrow(k2).run());
 
     @Test
-    @DisplayName("Identity law: map(id, fa) == fa")
-    void identityLaw() {
-      VTask<Integer> original = VTask.succeed(TEST_VALUE);
-      Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(original);
-      Function<Integer, Integer> identity = Function.identity();
-
-      Kind<VTaskKind.Witness, Integer> result = functor.map(identity, kind);
-
-      assertThat(VTASK.narrow(result).run()).isEqualTo(original.run());
+    void identity() {
+      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(VTask.succeed(TEST_VALUE));
+      FunctorLaws.assertIdentity(functor, fa, eq);
     }
 
     @Test
-    @DisplayName("Composition law: map(g.f, fa) == map(g, map(f, fa))")
-    void compositionLaw() {
-      VTask<Integer> original = VTask.succeed(TEST_VALUE);
-      Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(original);
-
-      // Compose directly
-      Function<Integer, Integer> composed = intToString.andThen(stringLength);
-      Kind<VTaskKind.Witness, Integer> directResult = functor.map(composed, kind);
-
-      // Compose via map
-      Kind<VTaskKind.Witness, String> intermediate = functor.map(intToString, kind);
-      Kind<VTaskKind.Witness, Integer> chainedResult = functor.map(stringLength, intermediate);
-
-      assertThat(VTASK.narrow(directResult).run()).isEqualTo(VTASK.narrow(chainedResult).run());
+    void composition() {
+      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(VTask.succeed(TEST_VALUE));
+      FunctorLaws.assertComposition(functor, fa, intToString, stringLength, eq);
     }
   }
 }

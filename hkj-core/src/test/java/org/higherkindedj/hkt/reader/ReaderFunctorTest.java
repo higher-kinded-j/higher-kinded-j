@@ -4,22 +4,22 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * ReaderFunctor type class test using standardised patterns.
- *
- * <p>Tests the Functor implementation for Reader with proper handling of lazy evaluation semantics.
- */
-@DisplayName("ReaderFunctor<R> Type Class - Standardised Test Suite")
+@DisplayName("ReaderFunctor")
 class ReaderFunctorTest extends ReaderTestBase {
 
   private ReaderFunctor<TestConfig> functor;
@@ -30,21 +30,27 @@ class ReaderFunctorTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() // Reader is lazy - exceptions only thrown on run()
-          .test();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("fixtures")
+    void identity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("fixtures")
+    void composition(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
+    }
+
+    static Stream<Arguments> fixtures() {
+      return Stream.of(
+          Arguments.of("reader(url length)", READER.reader((TestConfig cfg) -> cfg.url().length())),
+          Arguments.of("pure(42)", READER.reader((TestConfig cfg) -> 42)),
+          Arguments.of(
+              "reader(maxConnections)", READER.reader((TestConfig cfg) -> cfg.maxConnections())));
     }
   }
 
@@ -109,49 +115,6 @@ class ReaderFunctorTest extends ReaderTestBase {
       assertThat(equalityChecker.test(result, validKind))
           .as("map with identity should be equivalent to original")
           .isTrue();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Test Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyOperations()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .selectTests()
-          .onlyValidations()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
     }
   }
 
