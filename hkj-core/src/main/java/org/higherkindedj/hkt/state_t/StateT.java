@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.state_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.EVAL_STATE_T;
+import static org.higherkindedj.hkt.util.validation.Operation.EXEC_STATE_T;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP_T;
 
 import java.util.function.Function;
@@ -48,6 +50,25 @@ public record StateT<S, F extends WitnessArity<TypeArity.Unary>, A>(
   }
 
   /**
+   * Accessor for the stored {@link Monad} instance.
+   *
+   * <p>This explicit accessor overrides the record's auto-generated accessor solely to carry the
+   * {@link Deprecated} annotation; the runtime behaviour is identical to the implicit accessor.
+   *
+   * @return The {@link Monad} instance for the underlying monad {@code F}.
+   * @deprecated since 0.4.6, scheduled for removal in 0.5.0. The {@code monadF} record component
+   *     itself will be removed in 0.5.0 so that two {@code StateT} values with the same state
+   *     function are considered equal regardless of which {@link Monad} instance they were
+   *     constructed with. Pass the {@link Monad} explicitly to {@link #evalStateT(Object, Monad)}
+   *     and {@link #execStateT(Object, Monad)} instead. See <a
+   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/445">issue #445</a>.
+   */
+  @Deprecated(since = "0.4.6", forRemoval = true)
+  public Monad<F> monadF() {
+    return monadF;
+  }
+
+  /**
    * Factory method to create a StateT instance. This delegates to the record's canonical
    * constructor.
    *
@@ -80,9 +101,31 @@ public record StateT<S, F extends WitnessArity<TypeArity.Unary>, A>(
    *
    * @param initialState The initial state.
    * @return The final value within the underlying monad F.
+   * @deprecated since 0.4.6, scheduled for removal in 0.5.0. The {@code monadF} record component is
+   *     being removed; pass the {@link Monad} explicitly via {@link #evalStateT(Object, Monad)}.
+   *     See <a href="https://github.com/higher-kinded-j/higher-kinded-j/issues/445">issue #445</a>.
    */
+  @Deprecated(since = "0.4.6", forRemoval = true)
   public Kind<F, A> evalStateT(S initialState) {
     return this.monadF.map(StateTuple::value, runStateT(initialState));
+  }
+
+  /**
+   * Runs the stateful computation and extracts only the final value, discarding the state.
+   *
+   * <p>This overload accepts the {@link Monad} instance explicitly rather than relying on the
+   * record's stored {@code monadF} component. New code should prefer this form; the no-monad
+   * overload is deprecated for removal in 0.5.0 when {@code monadF} is dropped from the record
+   * components.
+   *
+   * @param initialState The initial state.
+   * @param monad The {@link Monad} instance for the underlying monad {@code F}. Must not be null.
+   * @return The final value within the underlying monad F.
+   * @throws NullPointerException if {@code monad} is null.
+   */
+  public Kind<F, A> evalStateT(S initialState, Monad<F> monad) {
+    Validation.transformer().requireOuterMonad(monad, STATE_T_CLASS, EVAL_STATE_T);
+    return monad.map(StateTuple::value, runStateT(initialState));
   }
 
   /**
@@ -127,8 +170,30 @@ public record StateT<S, F extends WitnessArity<TypeArity.Unary>, A>(
    *
    * @param initialState The initial state.
    * @return The final state within the underlying monad F.
+   * @deprecated since 0.4.6, scheduled for removal in 0.5.0. The {@code monadF} record component is
+   *     being removed; pass the {@link Monad} explicitly via {@link #execStateT(Object, Monad)}.
+   *     See <a href="https://github.com/higher-kinded-j/higher-kinded-j/issues/445">issue #445</a>.
    */
+  @Deprecated(since = "0.4.6", forRemoval = true)
   public Kind<F, S> execStateT(S initialState) {
     return this.monadF.map(StateTuple::state, runStateT(initialState));
+  }
+
+  /**
+   * Runs the stateful computation and extracts only the final state, discarding the value.
+   *
+   * <p>This overload accepts the {@link Monad} instance explicitly rather than relying on the
+   * record's stored {@code monadF} component. New code should prefer this form; the no-monad
+   * overload is deprecated for removal in 0.5.0 when {@code monadF} is dropped from the record
+   * components.
+   *
+   * @param initialState The initial state.
+   * @param monad The {@link Monad} instance for the underlying monad {@code F}. Must not be null.
+   * @return The final state within the underlying monad F.
+   * @throws NullPointerException if {@code monad} is null.
+   */
+  public Kind<F, S> execStateT(S initialState, Monad<F> monad) {
+    Validation.transformer().requireOuterMonad(monad, STATE_T_CLASS, EXEC_STATE_T);
+    return monad.map(StateTuple::state, runStateT(initialState));
   }
 }

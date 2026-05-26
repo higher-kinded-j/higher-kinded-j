@@ -92,10 +92,13 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     if (includeEdgeCases) testEdgeCases();
   }
 
+  @SuppressWarnings({"deprecation", "removal"})
   private void testFactoryMethods() {
     // Test create() factory method
     assertThat(firstInstance).isNotNull();
     assertThat(firstInstance.runStateTFn()).isNotNull();
+    // monadF() is deprecated for removal in 0.5.0 (issue #445) but still asserts non-null while
+    // the record component exists in 0.4.6.
     assertThat(firstInstance.monadF()).isNotNull();
 
     // Test that created instance is valid
@@ -113,12 +116,12 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     Kind<F, StateTuple<S, A>> result = firstInstance.runStateT(testState);
     assertThat(result).as("runStateT should return non-null result").isNotNull();
 
-    // Test evalStateT() - returns Kind<F, A> (extracts value)
-    Kind<F, A> valueResult = firstInstance.evalStateT(testState);
+    // Test evalStateT(state, monad) - returns Kind<F, A> (extracts value)
+    Kind<F, A> valueResult = firstInstance.evalStateT(testState, outerMonad);
     assertThat(valueResult).as("evalStateT should return non-null result").isNotNull();
 
-    // Test execStateT() - returns Kind<F, S> (extracts state)
-    Kind<F, S> stateResult = firstInstance.execStateT(testState);
+    // Test execStateT(state, monad) - returns Kind<F, S> (extracts state)
+    Kind<F, S> stateResult = firstInstance.execStateT(testState, outerMonad);
     assertThat(stateResult).as("execStateT should return non-null result").isNotNull();
   }
 
@@ -151,10 +154,10 @@ final class StateTTestExecutor<S, F extends WitnessArity<TypeArity.Unary>, A, B>
     Kind<F, StateTuple<S, A>> nullStateResult = firstInstance.runStateT(nullState);
     assertThat(nullStateResult).isNotNull();
 
-    Kind<F, A> nullStateValue = firstInstance.evalStateT(nullState);
+    Kind<F, A> nullStateValue = firstInstance.evalStateT(nullState, outerMonad);
     assertThat(nullStateValue).isNotNull();
 
-    Kind<F, S> nullStateExtracted = firstInstance.execStateT(nullState);
+    Kind<F, S> nullStateExtracted = firstInstance.execStateT(nullState, outerMonad);
     assertThat(nullStateExtracted).isNotNull();
 
     // Test toString

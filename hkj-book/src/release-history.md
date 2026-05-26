@@ -50,6 +50,14 @@ The arity ladder above `Lens.paired`: a record with three or more cross-field in
 - `hkj-processor` adds `CoupledLensGenerator`, wired into the existing `@GenerateForComprehensions` trigger alongside the Tuple/For-step generators. Generation caps at arity 9 (cross-field invariants past that point are vanishing in practice); raising the cap is a one-line change to the generator.
 - Tutorial 23 (exercise + teaching solution) demonstrating `coupled3` on a 3-field monotonic invariant and `coupled5` on the same shape at higher arity, including the canonical "chained set throws" failure mode that coupled lenses sidestep.
 
+**API Deprecations Ahead of 0.5.0**
+
+This release prepares users for a record-shape change to `StateT` that lands in 0.5.0. The single-argument runner methods and the explicit `monadF()` accessor are deprecated now so call sites can migrate ahead of time; the record component itself stays in place until 0.5.0.
+
+- `StateT` runner methods accept an explicit `Monad<F>`: new overloads `StateT.evalStateT(state, monad)` and `StateT.execStateT(state, monad)` use the supplied monad rather than the one stored on the record. The matching helpers `StateTKindHelper.evalStateT(kind, state, monad)` and `execStateT(kind, state, monad)` are added on the same shape. New code should prefer these overloads; the single-argument forms are deprecated for removal in 0.5.0 ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445))
+- `StateT.monadF()` deprecation: the explicit accessor is now `@Deprecated(forRemoval = true)`. In 0.5.0 the `monadF` record component itself is removed so that two `StateT` values with the same state function are considered equal regardless of which `Monad` instance they were constructed with. `equals`, `hashCode`, and `toString` therefore change in 0.5.0; until then the record-generated implementations still discriminate on the stored monad, which is the underlying defect the deprecation is staging
+- Internal call sites in `MutableContext.evalWith` and `execWith` are migrated to the new two-argument overloads; library builds emit no deprecation warnings of their own
+
 ---
 
 ### v0.4.5 (22 May 2026)

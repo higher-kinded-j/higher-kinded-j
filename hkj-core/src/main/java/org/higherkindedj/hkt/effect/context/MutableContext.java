@@ -255,7 +255,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
    */
   @SuppressWarnings("unchecked")
   public IOPath<A> evalWith(S initialState) {
-    Kind<F, A> result = transformer.evalStateT(initialState);
+    Kind<F, A> result = transformer.evalStateT(initialState, outerMonad);
     IO<A> io = IO_OP.narrow((Kind<IOKind.Witness, A>) result);
     return Path.ioPath(io);
   }
@@ -269,7 +269,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
    */
   @SuppressWarnings("unchecked")
   public IOPath<S> execWith(S initialState) {
-    Kind<F, S> result = transformer.execStateT(initialState);
+    Kind<F, S> result = transformer.execStateT(initialState, outerMonad);
     IO<S> io = IO_OP.narrow((Kind<IOKind.Witness, S>) result);
     return Path.ioPath(io);
   }

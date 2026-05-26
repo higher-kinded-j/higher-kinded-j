@@ -136,11 +136,40 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is not a valid
    *     {@code StateT} representation.
    * @throws NullPointerException if {@code kind} is null.
+   * @deprecated since 0.4.6, scheduled for removal in 0.5.0. Pass the {@link Monad} explicitly via
+   *     {@link #evalStateT(Kind, Object, Monad)}. See <a
+   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/445">issue #445</a>.
    */
+  @Deprecated(since = "0.4.6", forRemoval = true)
+  @SuppressWarnings("removal")
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, A> evalStateT(
       Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     Validation.kind().requireNonNull(kind, EVAL_STATE_T);
     return this.narrow(kind).evalStateT(initialState);
+  }
+
+  /**
+   * Runs the {@link StateT} computation and extracts the final value.
+   *
+   * <p>This overload accepts the {@link Monad} instance explicitly rather than relying on the
+   * {@code StateT}'s stored {@code monadF} record component, which is deprecated for removal in
+   * 0.5.0.
+   *
+   * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
+   * @param initialState The initial state.
+   * @param monad The non-null {@link Monad} instance for the underlying monad {@code F}.
+   * @param <S> The state type.
+   * @param <F> The higher-kinded type witness for the underlying monad.
+   * @param <A> The value type.
+   * @return A {@code Kind<F, A>} representing the final value.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is not a valid
+   *     {@code StateT} representation.
+   * @throws NullPointerException if {@code kind} or {@code monad} is null.
+   */
+  public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, A> evalStateT(
+      Kind<StateTKind.Witness<S, F>, A> kind, S initialState, Monad<F> monad) {
+    Validation.kind().requireNonNull(kind, EVAL_STATE_T);
+    return this.narrow(kind).evalStateT(initialState, monad);
   }
 
   /**
@@ -155,10 +184,39 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is not a valid
    *     {@code StateT} representation.
    * @throws NullPointerException if {@code kind} is null.
+   * @deprecated since 0.4.6, scheduled for removal in 0.5.0. Pass the {@link Monad} explicitly via
+   *     {@link #execStateT(Kind, Object, Monad)}. See <a
+   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/445">issue #445</a>.
    */
+  @Deprecated(since = "0.4.6", forRemoval = true)
+  @SuppressWarnings("removal")
   public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> execStateT(
       Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     Validation.kind().requireNonNull(kind, EXEC_STATE_T);
     return this.narrow(kind).execStateT(initialState);
+  }
+
+  /**
+   * Runs the {@link StateT} computation and extracts the final state.
+   *
+   * <p>This overload accepts the {@link Monad} instance explicitly rather than relying on the
+   * {@code StateT}'s stored {@code monadF} record component, which is deprecated for removal in
+   * 0.5.0.
+   *
+   * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
+   * @param initialState The initial state.
+   * @param monad The non-null {@link Monad} instance for the underlying monad {@code F}.
+   * @param <S> The state type.
+   * @param <F> The higher-kinded type witness for the underlying monad.
+   * @param <A> The value type.
+   * @return A {@code Kind<F, S>} representing the final state.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is not a valid
+   *     {@code StateT} representation.
+   * @throws NullPointerException if {@code kind} or {@code monad} is null.
+   */
+  public <S, F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> execStateT(
+      Kind<StateTKind.Witness<S, F>, A> kind, S initialState, Monad<F> monad) {
+    Validation.kind().requireNonNull(kind, EXEC_STATE_T);
+    return this.narrow(kind).execStateT(initialState, monad);
   }
 }
