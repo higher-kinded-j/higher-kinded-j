@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateTKindHelper Tests ")
 // (F=OptionalKind.Witness)
+@SuppressWarnings({"deprecation", "removal"})
 class StateTKindHelperTest {
 
   private static final String TYPE_NAME = "StateT";
@@ -316,6 +317,64 @@ class StateTKindHelperTest {
       assertThatThrownBy(() -> STATE_T.execStateT(null, "initial"))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
+          .hasMessageContaining("execStateT");
+    }
+
+    @Test
+    @DisplayName("evalStateT(kind, state, monad) should extract value via helper")
+    void evalStateTWithExplicitMonad_shouldExtractValue() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
+
+      Kind<OptionalKind.Witness, Integer> result = STATE_T.evalStateT(kind, "initial", outerMonad);
+
+      assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("execStateT(kind, state, monad) should extract state via helper")
+    void execStateTWithExplicitMonad_shouldExtractState() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
+
+      Kind<OptionalKind.Witness, String> result = STATE_T.execStateT(kind, "initial", outerMonad);
+
+      assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("evalStateT(kind, state, monad) should throw when Kind is null")
+    void evalStateTWithExplicitMonad_nullKind_shouldThrow() {
+      assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial", outerMonad))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("evalStateT");
+    }
+
+    @Test
+    @DisplayName("execStateT(kind, state, monad) should throw when Kind is null")
+    void execStateTWithExplicitMonad_nullKind_shouldThrow() {
+      assertThatThrownBy(() -> STATE_T.execStateT(null, "initial", outerMonad))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("execStateT");
+    }
+
+    @Test
+    @DisplayName("evalStateT(kind, state, monad) should throw when monad is null")
+    void evalStateTWithExplicitMonad_nullMonad_shouldThrow() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
+      assertThatThrownBy(() -> STATE_T.evalStateT(kind, "initial", null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("StateT")
+          .hasMessageContaining("evalStateT");
+    }
+
+    @Test
+    @DisplayName("execStateT(kind, state, monad) should throw when monad is null")
+    void execStateTWithExplicitMonad_nullMonad_shouldThrow() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
+      assertThatThrownBy(() -> STATE_T.execStateT(kind, "initial", null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("StateT")
           .hasMessageContaining("execStateT");
     }
   }

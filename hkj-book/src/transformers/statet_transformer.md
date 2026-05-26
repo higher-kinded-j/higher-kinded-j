@@ -182,13 +182,17 @@ var result    = StateTKindHelper.runStateT(computation, 10);
 // → Optional.of(StateTuple(11, "Value: 10"))
 
 // Eval: returns F<A> (discards state)
-var valueOnly = StateTKindHelper.evalStateT(computation, 10);
+var valueOnly = StateTKindHelper.evalStateT(computation, 10, optionalMonad);
 // → Optional.of("Value: 10")
 
 // Exec: returns F<S> (discards value)
-var stateOnly = StateTKindHelper.execStateT(computation, 10);
+var stateOnly = StateTKindHelper.execStateT(computation, 10, optionalMonad);
 // → Optional.of(11)
 ```
+
+~~~admonish note title="0.4.6 API Note"
+`evalStateT` and `execStateT` now take the `Monad<F>` as an explicit argument. The single-argument forms (`evalStateT(computation, 10)`, `execStateT(computation, 10)`) and the matching instance methods on `StateT` are deprecated for removal in 0.5.0, when the stored `monadF` record component is dropped so that two `StateT` values with the same state function compare equal regardless of the `Monad` instance they were built with. See the v0.4.6 entry in the [release history](../release-history.md) and [issue #445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445).
+~~~
 
 ---
 

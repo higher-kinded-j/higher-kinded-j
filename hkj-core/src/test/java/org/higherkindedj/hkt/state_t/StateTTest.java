@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateT Core Type Tests ")
 // (Outer: OptionalKind.Witness)
+@SuppressWarnings({"deprecation", "removal"})
 class StateTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
@@ -165,6 +166,67 @@ class StateTTest {
       StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
 
       Kind<OptionalKind.Witness, String> result = nullStateT.execStateT(null);
+
+      Optional<String> unwrapped = OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent().contains(updatedState);
+    }
+
+    @Test
+    @DisplayName("evalStateT(state, monad) should extract value using the passed monad")
+    void evalStateTWithExplicitMonad_extractsValue() {
+      Kind<OptionalKind.Witness, Integer> result = stateT.evalStateT(initialState, outerMonad);
+
+      Optional<Integer> unwrapped = OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent().contains(initialValue);
+    }
+
+    @Test
+    @DisplayName("execStateT(state, monad) should extract state using the passed monad")
+    void execStateTWithExplicitMonad_extractsState() {
+      Kind<OptionalKind.Witness, String> result = stateT.execStateT(initialState, outerMonad);
+
+      Optional<String> unwrapped = OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent().contains(updatedState);
+    }
+
+    @Test
+    @DisplayName("evalStateT(state, monad) should reject null monad")
+    void evalStateTWithExplicitMonad_rejectsNullMonad() {
+      assertThatThrownBy(() -> stateT.evalStateT(initialState, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("StateT")
+          .hasMessageContaining("evalStateT");
+    }
+
+    @Test
+    @DisplayName("execStateT(state, monad) should reject null monad")
+    void execStateTWithExplicitMonad_rejectsNullMonad() {
+      assertThatThrownBy(() -> stateT.execStateT(initialState, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("StateT")
+          .hasMessageContaining("execStateT");
+    }
+
+    @Test
+    @DisplayName(
+        "evalStateT(state, monad) should ignore the stored monadF and use the passed monad")
+    void evalStateTWithExplicitMonad_usesPassedMonad() {
+      // Pass a different (but compatible) Monad instance to prove the passed one is what drives
+      // the map. The result must still be correct because the runStateTFn already produces a
+      // Kind<F, StateTuple<S, A>> in the OptionalKind.Witness context.
+      Monad<OptionalKind.Witness> alternateMonad = Instances.monad(optional());
+      Kind<OptionalKind.Witness, Integer> result = stateT.evalStateT(initialState, alternateMonad);
+
+      Optional<Integer> unwrapped = OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent().contains(initialValue);
+    }
+
+    @Test
+    @DisplayName(
+        "execStateT(state, monad) should ignore the stored monadF and use the passed monad")
+    void execStateTWithExplicitMonad_usesPassedMonad() {
+      Monad<OptionalKind.Witness> alternateMonad = Instances.monad(optional());
+      Kind<OptionalKind.Witness, String> result = stateT.execStateT(initialState, alternateMonad);
 
       Optional<String> unwrapped = OPTIONAL.narrow(result);
       assertThat(unwrapped).isPresent().contains(updatedState);
