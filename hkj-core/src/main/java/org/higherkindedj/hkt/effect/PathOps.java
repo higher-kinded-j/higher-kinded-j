@@ -290,14 +290,13 @@ public final class PathOps {
     List<A> results = new ArrayList<>(paths.size());
     for (TryPath<A> path : paths) {
       Try<A> tryValue = path.run();
-      // Use fold to safely extract value or return failure
       TryPath<List<A>> maybeFailure =
-          tryValue.fold(
+          tryValue.foldFailureFirst(
+              ex -> new TryPath<>(Try.failure(ex)),
               a -> {
                 results.add(a);
                 return null; // continue processing
-              },
-              ex -> new TryPath<>(Try.failure(ex)));
+              });
       if (maybeFailure != null) {
         return maybeFailure;
       }
@@ -323,14 +322,13 @@ public final class PathOps {
     for (A item : items) {
       TryPath<B> path = f.apply(item);
       Try<B> tryValue = path.run();
-      // Use fold to safely extract value or return failure
       TryPath<List<B>> maybeFailure =
-          tryValue.fold(
+          tryValue.foldFailureFirst(
+              ex -> new TryPath<>(Try.failure(ex)),
               b -> {
                 results.add(b);
                 return null; // continue processing
-              },
-              ex -> new TryPath<>(Try.failure(ex)));
+              });
       if (maybeFailure != null) {
         return maybeFailure;
       }

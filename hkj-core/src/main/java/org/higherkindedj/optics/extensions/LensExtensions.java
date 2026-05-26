@@ -174,7 +174,7 @@ public final class LensExtensions {
    */
   public static <S, A> Try<S> modifyTry(Lens<S, A> lens, Function<A, Try<A>> f, S source) {
     return f.apply(lens.get(source))
-        .fold(newValue -> Try.success(lens.set(newValue, source)), Try::failure);
+        .foldFailureFirst(Try::failure, newValue -> Try.success(lens.set(newValue, source)));
   }
 
   /**

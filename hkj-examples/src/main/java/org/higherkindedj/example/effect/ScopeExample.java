@@ -262,9 +262,9 @@ public class ScopeExample {
     Try<List<String>> result = withTimeout.runSafe();
 
     String message =
-        result.fold(
-            value -> "Success: " + value,
-            error -> "Timed out: " + error.getClass().getSimpleName());
+        result.foldFailureFirst(
+            error -> "Timed out: " + error.getClass().getSimpleName(),
+            value -> "Success: " + value);
     System.out.println(message);
 
     // Timeout with recovery
@@ -353,12 +353,12 @@ public class ScopeExample {
     long elapsed = System.currentTimeMillis() - start;
 
     String message =
-        result.fold(
+        result.foldFailureFirst(
+            error -> "Dashboard failed: " + error.getMessage(),
             d ->
                 String.format(
                     "Dashboard loaded:%n  User: %s%n  Orders: %s%n  Notifications: %d",
-                    d.userName, d.recentOrders, d.notificationCount),
-            error -> "Dashboard failed: " + error.getMessage());
+                    d.userName, d.recentOrders, d.notificationCount));
     System.out.println(message);
     System.out.println("Total time: " + elapsed + "ms (parallel fetch, ~150ms expected)\n");
 
@@ -368,8 +368,8 @@ public class ScopeExample {
     Try<Dashboard> failResult = failingDashboard.runSafe();
 
     String failMessage =
-        failResult.fold(
-            d -> "Dashboard: " + d.userName, error -> "Expected failure: " + error.getMessage());
+        failResult.foldFailureFirst(
+            error -> "Expected failure: " + error.getMessage(), d -> "Dashboard: " + d.userName);
     System.out.println(failMessage + "\n");
   }
 

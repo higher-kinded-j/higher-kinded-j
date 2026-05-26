@@ -122,11 +122,15 @@ final class TryTestExecutor<T, S> extends BaseCoreTypeTestExecutor<T, S, TryVali
 
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
-    // Fold validations
+    // Fold validations (canonical error-first method)
     builder.assertFunctionNull(
-        () -> successInstance.fold(null, failureMapper), "successMapper", Operation.FOLD);
+        () -> successInstance.foldFailureFirst(null, successMapper),
+        "failureMapper",
+        Operation.FOLD);
     builder.assertFunctionNull(
-        () -> successInstance.fold(successMapper, null), "failureMapper", Operation.FOLD);
+        () -> successInstance.foldFailureFirst(failureMapper, null),
+        "successMapper",
+        Operation.FOLD);
 
     // Map validations - test through the Functor interface if custom context provided
     if (validationStage != null && validationStage.getMapContext() != null) {
@@ -239,12 +243,12 @@ final class TryTestExecutor<T, S> extends BaseCoreTypeTestExecutor<T, S, TryVali
     Function<T, String> successMapper = t -> "Success: " + t;
     Function<Throwable, String> failureMapper = t -> "Failure: " + t.getMessage();
 
-    // Test fold on Success
-    String successResult = successInstance.fold(successMapper, failureMapper);
+    // Test foldFailureFirst on Success
+    String successResult = successInstance.foldFailureFirst(failureMapper, successMapper);
     assertThat(successResult).isNotNull().startsWith("Success:");
 
-    // Test fold on Failure
-    String failureResult = failureInstance.fold(successMapper, failureMapper);
+    // Test foldFailureFirst on Failure
+    String failureResult = failureInstance.foldFailureFirst(failureMapper, successMapper);
     assertThat(failureResult).isNotNull().startsWith("Failure:");
   }
 

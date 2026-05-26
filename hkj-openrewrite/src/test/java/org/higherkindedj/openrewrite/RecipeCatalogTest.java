@@ -70,7 +70,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.AddWitnessArityToWitnessClass",
             "org.higherkindedj.openrewrite.AddHandleErrorCaseRecipe",
             "org.higherkindedj.openrewrite.ConvertRawFreeToFreePathRecipe",
-            "org.higherkindedj.openrewrite.DetectInjectBoilerplateRecipe");
+            "org.higherkindedj.openrewrite.DetectInjectBoilerplateRecipe",
+            "org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe");
   }
 
   @Test

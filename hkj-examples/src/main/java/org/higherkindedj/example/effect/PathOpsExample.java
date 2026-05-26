@@ -249,7 +249,9 @@ public class PathOpsExample {
     TryPath<String> allFailResult = PathOps.firstSuccess(allFail);
     System.out.println(
         "All fail: "
-            + allFailResult.run().fold(s -> "Success: " + s, t -> "Failure: " + t.getMessage()));
+            + allFailResult
+                .run()
+                .foldFailureFirst(t -> "Failure: " + t.getMessage(), s -> "Success: " + s));
     // Failure: Final error
 
     // First succeeds - others not tried

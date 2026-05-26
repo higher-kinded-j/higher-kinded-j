@@ -150,9 +150,9 @@ try {
 
 // 2. runSafe() - returns Try<A> for safe error handling
 Try<Integer> tryResult = computation.runSafe();
-tryResult.fold(
-    value -> System.out.println("Success: " + value),
-    error -> System.err.println("Failure: " + error.getMessage())
+tryResult.foldFailureFirst(
+    error -> System.err.println("Failure: " + error.getMessage()),
+    value -> System.out.println("Success: " + value)
 );
 
 // 3. runAsync() - returns CompletableFuture<A> for async composition
@@ -263,9 +263,9 @@ VTask<Data> withTimeout = slowOperation.timeout(Duration.ofSeconds(2));
 
 // Option 1: Use runSafe() for functional error handling (preferred)
 Try<Data> result = withTimeout.runSafe();
-result.fold(
-    data -> System.out.println("Got data: " + data),
-    error -> System.err.println("Operation timed out: " + error.getMessage())
+result.foldFailureFirst(
+    error -> System.err.println("Operation timed out: " + error.getMessage()),
+    data -> System.out.println("Got data: " + data)
 );
 
 // Option 2: Use run() — TimeoutException is wrapped in VTaskExecutionException

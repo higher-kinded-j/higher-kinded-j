@@ -291,12 +291,12 @@ class EffectPathFocusTest {
         assertThat(result.run().isSuccess()).isTrue();
         result
             .run()
-            .fold(
+            .foldFailureFirst(
+                ex -> null,
                 value -> {
                   assertThat(value).isEqualTo("Alice");
                   return null;
-                },
-                ex -> null);
+                });
       }
 
       @Test
@@ -311,12 +311,12 @@ class EffectPathFocusTest {
         assertThat(result.run().isFailure()).isTrue();
         result
             .run()
-            .fold(
-                value -> null,
+            .foldFailureFirst(
                 ex -> {
                   assertThat(ex).isSameAs(exception);
                   return null;
-                });
+                },
+                value -> null);
       }
 
       @Test
@@ -359,12 +359,12 @@ class EffectPathFocusTest {
         assertThat(result.run().isSuccess()).isTrue();
         result
             .run()
-            .fold(
+            .foldFailureFirst(
+                ex -> null,
                 value -> {
                   assertThat(value).isEqualTo("alice@example.com");
                   return null;
-                },
-                ex -> null);
+                });
       }
 
       @Test
@@ -380,12 +380,12 @@ class EffectPathFocusTest {
         assertThat(result.run().isFailure()).isTrue();
         result
             .run()
-            .fold(
-                value -> null,
+            .foldFailureFirst(
                 ex -> {
                   assertThat(ex).isSameAs(originalException);
                   return null;
-                });
+                },
+                value -> null);
       }
 
       @Test
@@ -401,13 +401,13 @@ class EffectPathFocusTest {
         assertThat(result.run().isFailure()).isTrue();
         result
             .run()
-            .fold(
-                value -> null,
+            .foldFailureFirst(
                 ex -> {
                   assertThat(ex).isInstanceOf(IllegalStateException.class);
                   assertThat(ex.getMessage()).isEqualTo("Email not configured");
                   return null;
-                });
+                },
+                value -> null);
       }
 
       @Test

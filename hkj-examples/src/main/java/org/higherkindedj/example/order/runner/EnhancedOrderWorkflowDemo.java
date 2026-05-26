@@ -117,7 +117,11 @@ public class EnhancedOrderWorkflowDemo {
             () -> {
               var result = workflow.process(request).run().runSafe();
 
-              result.fold(
+              result.foldFailureFirst(
+                  error -> {
+                    System.out.println("  Execution error: " + error.getMessage());
+                    return null;
+                  },
                   either ->
                       either.fold(
                           error -> {
@@ -128,11 +132,7 @@ public class EnhancedOrderWorkflowDemo {
                             System.out.println("  Order successful!");
                             System.out.println("    " + success);
                             return null;
-                          }),
-                  error -> {
-                    System.out.println("  Execution error: " + error.getMessage());
-                    return null;
-                  });
+                          }));
             });
 
     long elapsed = System.currentTimeMillis() - start;
@@ -177,7 +177,11 @@ public class EnhancedOrderWorkflowDemo {
               var result =
                   workflow.reserveInventoryParallel(orderId, validatedLines).run().runSafe();
 
-              result.fold(
+              result.foldFailureFirst(
+                  error -> {
+                    System.out.println("  Execution error: " + error.getMessage());
+                    return null;
+                  },
                   either ->
                       either.fold(
                           error -> {
@@ -191,11 +195,7 @@ public class EnhancedOrderWorkflowDemo {
                             System.out.println("    - First warehouse to respond won");
                             System.out.println("    - Other tasks were automatically cancelled");
                             return null;
-                          }),
-                  error -> {
-                    System.out.println("  Execution error: " + error.getMessage());
-                    return null;
-                  });
+                          }));
             });
 
     long elapsed = System.currentTimeMillis() - start;

@@ -42,8 +42,8 @@ public class VTaskContextAssert<T> extends AbstractAssert<VTaskContextAssert<T>,
       long startNanos = System.nanoTime();
       Try<T> result = actual.run();
       executionTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-      executedValue = result.fold(v -> v, e -> null);
-      executedException = result.fold(v -> null, e -> e);
+      executedValue = result.foldFailureFirst(e -> null, v -> v);
+      executedException = result.foldFailureFirst(e -> e, v -> null);
       hasBeenExecuted = true;
     }
     return this;
@@ -164,13 +164,13 @@ public class VTaskContextAssert<T> extends AbstractAssert<VTaskContextAssert<T>,
     boolean otherSucceeded = otherResult.isSuccess();
 
     if (executedException != null) {
-      T otherValue = otherResult.fold(v -> v, e -> null);
+      T otherValue = otherResult.foldFailureFirst(e -> null, v -> v);
       Assertions.assertThat(otherSucceeded)
           .withFailMessage(
               "Expected both VTaskContexts to fail, but other succeeded with: %s", otherValue)
           .isFalse();
     } else {
-      String otherFailureMessage = otherResult.fold(v -> null, Throwable::getMessage);
+      String otherFailureMessage = otherResult.foldFailureFirst(Throwable::getMessage, v -> null);
       Assertions.assertThat(otherSucceeded)
           .withFailMessage(
               "Expected both VTaskContexts to succeed, but other failed with: %s",

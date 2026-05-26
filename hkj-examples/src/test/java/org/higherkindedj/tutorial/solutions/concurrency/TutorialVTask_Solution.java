@@ -124,7 +124,8 @@ public class TutorialVTask_Solution {
       boolean isFailure = result.isFailure();
       assertThat(isFailure).isTrue();
 
-      String errorMessage = result.fold(value -> "no error", error -> error.getMessage());
+      String errorMessage =
+          result.foldFailureFirst(error -> error.getMessage(), value -> "no error");
       assertThat(errorMessage).isEqualTo("Database connection failed");
     }
 

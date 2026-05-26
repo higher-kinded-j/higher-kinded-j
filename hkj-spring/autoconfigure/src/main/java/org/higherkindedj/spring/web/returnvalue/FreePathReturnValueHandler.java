@@ -116,14 +116,14 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
 
     // Interpret the program via the boundary
     Try<?> result = boundary.runSafe(freePath.toFree());
-    result.fold(
-        value -> {
-          writeSuccessResponse(value, response, successStatus);
-          return null;
-        },
+    result.foldFailureFirst(
         throwable -> {
           log.error("FreePath interpretation failed in controller method", throwable);
           writeFailureResponse(throwable, response);
+          return null;
+        },
+        value -> {
+          writeSuccessResponse(value, response, successStatus);
           return null;
         });
   }

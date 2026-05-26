@@ -404,7 +404,7 @@ public final class VTaskContext<A> {
    */
   public A runOrElseGet(Function<? super Throwable, ? extends A> errorHandler) {
     Objects.requireNonNull(errorHandler, "errorHandler must not be null");
-    return run().fold(a -> a, errorHandler);
+    return run().foldFailureFirst(errorHandler, a -> a);
   }
 
   // ===== Access to Underlying Path =====

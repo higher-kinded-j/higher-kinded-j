@@ -139,21 +139,26 @@ Try<Double> result3 = inputFailure.flatMap(safeDivide); // Failure(RuntimeExcept
 ~~~
 
 ----
-### Handling Failures (`fold`, `recover`, `recoverWith`)
+### Handling Failures (`foldFailureFirst`, `recover`, `recoverWith`)
 
-~~~admonish title="_fold(successFunc, failureFunc)_"
+~~~admonish title="_foldFailureFirst(failureFunc, successFunc)_"
 
 - [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
-Safely handles both cases by applying one of two functions.
+Safely handles both cases by applying one of two functions. The failure mapper is supplied first, matching the error-first ordering of `Either.fold`, `Validated.fold`, and `EitherF.fold`.
 
 ```java
-String message = result2.fold(
-    successValue -> "Succeeded with " + successValue,
-    failureThrowable -> "Failed with " + failureThrowable.getMessage()
+String message = result2.foldFailureFirst(
+    failureThrowable -> "Failed with " + failureThrowable.getMessage(),
+    successValue -> "Succeeded with " + successValue
 ); // "Failed with Div by zero"
 
 ```
+~~~
+
+~~~admonish warning title="`fold` is deprecated for removal in 0.5.0"
+
+The legacy `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` are success-first, which is inconsistent with the error-first ordering used by `Either`, `Validated`, `EitherF`, `EitherPath`, and `ValidationPath`. Both are `@Deprecated(forRemoval = true)` since 0.4.6 and are removed in 0.5.0. Use `foldFailureFirst(failureMapper, successMapper)` instead; the rename is intentional so that no call site can silently flip behaviour after an argument swap. The canonical name `fold` is planned to be reintroduced with the error-first argument order in 0.6.0. See [#452](https://github.com/higher-kinded-j/higher-kinded-j/issues/452).
 ~~~
 
 ~~~admonish title="_recover(recoveryFunc)_"

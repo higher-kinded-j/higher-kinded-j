@@ -33,14 +33,14 @@ public class TryGeneratorTest {
     final String expectedBody =
         """
         final Try<Double> tryA = source.result();
-        return tryA.fold(
+        return tryA.foldFailureFirst(
+            cause -> {
+                return applicative.of(source);
+            },
             successValue -> {
                 final var g_of_b = f.apply(successValue);
                 @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, Double>) g_of_b;
                 return applicative.map(newValue -> new Computation(Try.success(newValue)), g_of_b_casted);
-            },
-            cause -> {
-                return applicative.of(source);
             }
         );
         """;

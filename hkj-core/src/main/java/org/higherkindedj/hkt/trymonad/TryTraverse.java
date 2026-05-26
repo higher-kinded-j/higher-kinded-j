@@ -79,12 +79,12 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
     Validation.function().validateTraverse(applicative, f, ta);
 
     return TRY.narrow(ta)
-        .fold(
-            // Success case: Apply the effectful function and wrap the result in a Success.
-            successValue -> applicative.map(b -> TRY.widen(Try.success(b)), f.apply(successValue)),
-
+        .foldFailureFirst(
             // Failure case: Lift the Failure directly into the applicative context.
-            cause -> applicative.of(TRY.widen(Try.failure(cause))));
+            cause -> applicative.of(TRY.widen(Try.failure(cause))),
+
+            // Success case: Apply the effectful function and wrap the result in a Success.
+            successValue -> applicative.map(b -> TRY.widen(Try.success(b)), f.apply(successValue)));
   }
 
   /**
@@ -119,6 +119,6 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
 
     // If the Try is a Success, apply the function `f` to the value.
     // If it's a Failure, return the identity element of the Monoid.
-    return TRY.narrow(fa).fold(f, cause -> monoid.empty());
+    return TRY.narrow(fa).foldFailureFirst(cause -> monoid.empty(), f);
   }
 }

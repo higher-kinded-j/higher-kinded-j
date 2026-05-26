@@ -102,14 +102,14 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
     // Execute the deferred IO at the edge and convert result to HTTP response
     ioPath
         .runSafe()
-        .fold(
-            value -> {
-              writeSuccessResponse(value, response, successStatus);
-              return null;
-            },
+        .foldFailureFirst(
             throwable -> {
               log.error("IOPath execution failed in controller method", throwable);
               writeFailureResponse(throwable, response);
+              return null;
+            },
+            value -> {
+              writeSuccessResponse(value, response, successStatus);
               return null;
             });
   }

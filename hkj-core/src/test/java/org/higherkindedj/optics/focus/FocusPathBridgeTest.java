@@ -169,12 +169,12 @@ class FocusPathBridgeTest {
       assertThat(result.run().isSuccess()).isTrue();
       result
           .run()
-          .fold(
+          .foldFailureFirst(
+              ex -> null,
               value -> {
                 assertThat(value).isEqualTo("Elm St");
                 return null;
-              },
-              ex -> null);
+              });
     }
 
     @Test
@@ -189,12 +189,12 @@ class FocusPathBridgeTest {
       assertThat(result.run().isSuccess()).isTrue();
       result
           .run()
-          .fold(
+          .foldFailureFirst(
+              ex -> null,
               value -> {
                 assertThat(value).isEqualTo(123);
                 return null;
-              },
-              ex -> null);
+              });
     }
 
     @Test
@@ -209,12 +209,12 @@ class FocusPathBridgeTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .fold(
-              value -> null,
+          .foldFailureFirst(
               ex -> {
                 assertThat(ex).isInstanceOf(NumberFormatException.class);
                 return null;
-              });
+              },
+              value -> null);
     }
 
     @Test

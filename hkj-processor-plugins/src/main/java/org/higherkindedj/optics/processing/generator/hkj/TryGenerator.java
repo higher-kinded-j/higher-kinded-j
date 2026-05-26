@@ -22,7 +22,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Try}. This
- * version uses the safe `fold` method to avoid unhandled checked exceptions.
+ * version uses the safe `foldFailureFirst` method to avoid unhandled checked exceptions.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class TryGenerator extends BaseTraversableGenerator {
@@ -72,22 +72,22 @@ public class TryGenerator extends BaseTraversableGenerator {
 
     return CodeBlock.builder()
         .addStatement("final $T<$T> tryA = source.$L()", Try.class, genericTypeName, componentName)
-        // Use the safe `fold` method to handle both cases without throwing exceptions.
+        // Use the safe `foldFailureFirst` method to handle both cases without throwing exceptions.
         .addStatement(
-            "return tryA.fold(\n"
+            "return tryA.foldFailureFirst(\n"
+                + "    cause -> {$>\n"
+                + "        // Case 1: The Try is a Failure. The traversal has no effect.\n"
+                + "        // Return the original, unchanged source record lifted into the"
+                + " applicative.\n"
+                + "        return applicative.of(source);$<\n"
+                + "}, \n"
                 + "    successValue -> {$>\n"
-                + "        // Case 1: The Try is a Success. Apply the effectful function.\n"
+                + "        // Case 2: The Try is a Success. Apply the effectful function.\n"
                 + "        final var g_of_b = f.apply(successValue);\n"
                 + "        @SuppressWarnings(\"unchecked\") final var g_of_b_casted = ($T)"
                 + " g_of_b;\n"
                 + "        // Map over the effect to reconstruct the record with the new value.\n"
                 + "        return applicative.map(newValue -> new $T($L), g_of_b_casted);$<\n"
-                + "}, \n"
-                + "    cause -> {$>\n"
-                + "        // Case 2: The Try is a Failure. The traversal has no effect.\n"
-                + "        // Return the original, unchanged source record lifted into the"
-                + " applicative.\n"
-                + "        return applicative.of(source);\n"
                 + "    }\n"
                 + ")",
             // Type for the g_of_b_casted variable

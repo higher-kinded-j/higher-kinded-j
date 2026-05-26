@@ -13,9 +13,10 @@ name: org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0
 displayName: Migrate Higher-Kinded-J APIs deprecated for removal in 0.5.0
 description: >-
   Rewrites call sites of Higher-Kinded-J methods deprecated for removal in
-  0.5.0 to their replacements: StateTKind.narrowK -> StateTKind.narrow and
-  KindValidator.narrowWithPattern -> KindValidator.narrowHolder. Both are
-  signature-compatible renames.
+  0.5.0 to their replacements: StateTKind.narrowK -> StateTKind.narrow,
+  KindValidator.narrowWithPattern -> KindValidator.narrowHolder, and
+  Try.fold / TryPath.fold (success-first) -> foldFailureFirst (error-first,
+  with arguments swapped).
 tags:
   - higher-kinded-j
   - migration
@@ -23,6 +24,7 @@ tags:
 recipeList:
   - org.higherkindedj.openrewrite.RenameStateTKindNarrowK
   - org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern
+  - org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe
 
 ---
 type: specs.openrewrite.org/v1beta/recipe

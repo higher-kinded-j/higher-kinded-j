@@ -100,6 +100,31 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   }
 
   /**
+   * Folds both cases of this path into a single value, applying the failure mapper first to match
+   * the error-first ordering of {@code EitherPath.fold}, {@code ValidationPath.fold}, {@code
+   * Either.fold}, and {@code Validated.fold}.
+   *
+   * <p>This method is named {@code foldFailureFirst} rather than overloading {@code fold} so the
+   * argument-order swap surfaces as a compile error rather than a silent runtime inversion for
+   * parameter-ignoring lambdas and {@code Object}-typed method references. The canonical name
+   * {@code fold} is planned to be reintroduced with the error-first argument order in 0.6.0.
+   *
+   * @param failureMapper the function to apply if this path contains an exception; must not be null
+   * @param successMapper the function to apply if this path contains a value; must not be null
+   * @param <B> the result type
+   * @return the result of applying the appropriate function
+   * @throws NullPointerException if either mapper is null
+   * @since 0.4.6
+   */
+  public <B> B foldFailureFirst(
+      Function<? super Throwable, ? extends B> failureMapper,
+      Function<? super A, ? extends B> successMapper) {
+    Objects.requireNonNull(failureMapper, "failureMapper must not be null");
+    Objects.requireNonNull(successMapper, "successMapper must not be null");
+    return value.foldFailureFirst(failureMapper, successMapper);
+  }
+
+  /**
    * Folds both cases of this path into a single value.
    *
    * @param successMapper the function to apply if this path contains a value; must not be null
@@ -107,13 +132,22 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * @param <B> the result type
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
+   * @deprecated since 0.4.6, for removal in 0.5.0. Use {@link #foldFailureFirst(Function,
+   *     Function)} instead, which matches the error-first ordering of {@code EitherPath.fold},
+   *     {@code ValidationPath.fold}, {@code Either.fold}, and {@code Validated.fold}. A naked
+   *     argument swap on this method would silently invert behaviour for parameter-ignoring lambdas
+   *     and {@code Object}-typed method references, so the replacement is published under a new
+   *     name to force every call site through a compile error. The canonical name {@code fold} is
+   *     planned to be reintroduced with the error-first argument order in 0.6.0. See <a
+   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/452">#452</a>.
    */
+  @Deprecated(forRemoval = true, since = "0.4.6")
   public <B> B fold(
       Function<? super A, ? extends B> successMapper,
       Function<? super Throwable, ? extends B> failureMapper) {
     Objects.requireNonNull(successMapper, "successMapper must not be null");
     Objects.requireNonNull(failureMapper, "failureMapper must not be null");
-    return value.fold(successMapper, failureMapper);
+    return value.foldFailureFirst(failureMapper, successMapper);
   }
 
   /**
@@ -122,7 +156,8 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * @return a MaybePath containing the value, or empty if this contains an exception
    */
   public MaybePath<A> toMaybePath() {
-    return value.fold(a -> new MaybePath<>(Maybe.just(a)), ex -> new MaybePath<>(Maybe.nothing()));
+    return value.foldFailureFirst(
+        ex -> new MaybePath<>(Maybe.nothing()), a -> new MaybePath<>(Maybe.just(a)));
   }
 
   /**
@@ -138,9 +173,9 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   public <E> EitherPath<E, A> toEitherPath(
       Function<? super Throwable, ? extends E> exceptionToError) {
     Objects.requireNonNull(exceptionToError, "exceptionToError must not be null");
-    return value.fold(
-        a -> new EitherPath<>(Either.right(a)),
-        ex -> new EitherPath<>(Either.left(exceptionToError.apply(ex))));
+    return value.foldFailureFirst(
+        ex -> new EitherPath<>(Either.left(exceptionToError.apply(ex))),
+        a -> new EitherPath<>(Either.right(a)));
   }
 
   /**
@@ -158,9 +193,9 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
       Function<? super Throwable, ? extends E> exceptionToError, Semigroup<E> semigroup) {
     Objects.requireNonNull(exceptionToError, "exceptionToError must not be null");
     Objects.requireNonNull(semigroup, "semigroup must not be null");
-    return value.fold(
-        a -> new ValidationPath<>(Validated.valid(a), semigroup),
-        ex -> new ValidationPath<>(Validated.invalid(exceptionToError.apply(ex)), semigroup));
+    return value.foldFailureFirst(
+        ex -> new ValidationPath<>(Validated.invalid(exceptionToError.apply(ex)), semigroup),
+        a -> new ValidationPath<>(Validated.valid(a), semigroup));
   }
 
   /**
@@ -169,8 +204,8 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * @return an OptionalPath containing the value if Success, or empty if Failure
    */
   public OptionalPath<A> toOptionalPath() {
-    return value.fold(
-        a -> new OptionalPath<>(Optional.of(a)), _ -> new OptionalPath<>(Optional.empty()));
+    return value.foldFailureFirst(
+        _ -> new OptionalPath<>(Optional.empty()), a -> new OptionalPath<>(Optional.of(a)));
   }
 
   // ===== Composable implementation =====
@@ -203,12 +238,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    */
   public TryPath<A> peekFailure(Consumer<? super Throwable> consumer) {
     Objects.requireNonNull(consumer, "consumer must not be null");
-    value.fold(
-        a -> null, // Success case - do nothing
+    value.foldFailureFirst(
         ex -> {
           consumer.accept(ex);
           return null;
-        });
+        },
+        a -> null); // Success case - do nothing
     return this;
   }
 
@@ -227,12 +262,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
     @SuppressWarnings("unchecked")
     TryPath<B> typedOther = (TryPath<B>) otherTry;
 
-    return this.value.fold(
+    return this.value.foldFailureFirst(
+        ex -> new TryPath<>(Try.failure(ex)),
         a ->
-            typedOther.value.fold(
-                b -> new TryPath<>(Try.of(() -> combiner.apply(a, b))),
-                ex -> new TryPath<>(Try.failure(ex))),
-        ex -> new TryPath<>(Try.failure(ex)));
+            typedOther.value.foldFailureFirst(
+                ex -> new TryPath<>(Try.failure(ex)),
+                b -> new TryPath<>(Try.of(() -> combiner.apply(a, b)))));
   }
 
   /**
@@ -254,15 +289,15 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
-    return this.value.fold(
+    return this.value.foldFailureFirst(
+        ex -> new TryPath<>(Try.failure(ex)),
         a ->
-            second.value.fold(
+            second.value.foldFailureFirst(
+                ex -> new TryPath<>(Try.failure(ex)),
                 b ->
-                    third.value.fold(
-                        c -> new TryPath<>(Try.of(() -> combiner.apply(a, b, c))),
-                        ex -> new TryPath<>(Try.failure(ex))),
-                ex -> new TryPath<>(Try.failure(ex))),
-        ex -> new TryPath<>(Try.failure(ex)));
+                    third.value.foldFailureFirst(
+                        ex -> new TryPath<>(Try.failure(ex)),
+                        c -> new TryPath<>(Try.of(() -> combiner.apply(a, b, c))))));
   }
 
   // ===== Chainable implementation =====
@@ -334,8 +369,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   public TryPath<A> recoverWith(
       Function<? super Throwable, ? extends Recoverable<Throwable, A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
-    return value.fold(
-        a -> this,
+    return value.foldFailureFirst(
         ex -> {
           Recoverable<Throwable, A> result = recovery.apply(ex);
           Objects.requireNonNull(result, "recovery must not return null");
@@ -346,7 +380,8 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
           @SuppressWarnings("unchecked")
           TryPath<A> typedResult = (TryPath<A>) tryPath;
           return typedResult;
-        });
+        },
+        a -> this);
   }
 
   @Override
@@ -388,7 +423,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    */
   public TryPath<A> mapException(Function<? super Throwable, ? extends Throwable> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return value.fold(a -> this, ex -> new TryPath<>(Try.failure(mapper.apply(ex))));
+    return value.foldFailureFirst(ex -> new TryPath<>(Try.failure(mapper.apply(ex))), a -> this);
   }
 
   // ===== FocusPath Bridge Methods =====
