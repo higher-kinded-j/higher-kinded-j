@@ -755,11 +755,11 @@ class PrismsTest {
       Try<Integer> result = prism.build(100);
       assertThat(result.isSuccess()).isTrue();
       Integer value =
-          result.fold(
-              v -> v,
+          result.foldFailureFirst(
               error -> {
                 throw new AssertionError("Expected success", error);
-              });
+              },
+              v -> v);
       assertThat(value).isEqualTo(100);
     }
 
@@ -805,11 +805,11 @@ class PrismsTest {
       Try<Integer> result = prism.build(error);
       assertThat(result.isFailure()).isTrue();
       Throwable actual =
-          result.fold(
+          result.foldFailureFirst(
+              failure -> failure,
               success -> {
                 throw new AssertionError();
-              },
-              failure -> failure);
+              });
       assertThat(actual).isEqualTo(error);
     }
 

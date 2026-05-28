@@ -60,7 +60,8 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
     Try<A> tryA = TRY.narrow(fa);
 
     Try<B> resultTry =
-        tryF.fold(f -> tryA.fold(a -> Try.of(() -> f.apply(a)), Try::failure), Try::failure);
+        tryF.foldFailureFirst(
+            Try::failure, f -> tryA.foldFailureFirst(Try::failure, a -> Try.of(() -> f.apply(a))));
     return TRY.widen(resultTry);
   }
 }

@@ -232,13 +232,13 @@ class TryPathPropertyTest {
     assertThat(result.run().isFailure()).isTrue();
     result
         .run()
-        .fold(
-            v -> null,
+        .foldFailureFirst(
             e -> {
               assertThat(e).isInstanceOf(IllegalStateException.class);
               assertThat(e.getMessage()).contains("wrapped");
               return null;
-            });
+            },
+            v -> null);
   }
 
   @Property(tries = 50)

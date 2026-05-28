@@ -105,14 +105,14 @@ public class DistributedTracingExample {
                     // API Gateway calls Order Service
                     Try<OrderDetails> result = callOrderService("123").runSafe();
 
-                    result.fold(
+                    result.foldFailureFirst(
+                        error -> {
+                          System.out.println("\nRequest failed: " + error.getMessage());
+                          return null;
+                        },
                         order -> {
                           System.out.println("\nRequest completed successfully!");
                           System.out.println("Order: " + order);
-                          return null;
-                        },
-                        error -> {
-                          System.out.println("\nRequest failed: " + error.getMessage());
                           return null;
                         });
                   });
@@ -158,11 +158,11 @@ public class DistributedTracingExample {
                     List<Object> results =
                         allResults
                             .runSafe()
-                            .fold(
-                                v -> v,
+                            .foldFailureFirst(
                                 e -> {
                                   throw new RuntimeException(e);
-                                });
+                                },
+                                v -> v);
 
                     @SuppressWarnings("unchecked")
                     CustomerInfo customer = (CustomerInfo) results.get(0);
@@ -243,11 +243,11 @@ public class DistributedTracingExample {
                           InventoryStatus inventory =
                               inventoryTask
                                   .runSafe()
-                                  .fold(
-                                      v -> v,
+                                  .foldFailureFirst(
                                       e -> {
                                         throw new RuntimeException(e);
-                                      });
+                                      },
+                                      v -> v);
 
                           log("Inventory status: " + inventory.status());
                         });

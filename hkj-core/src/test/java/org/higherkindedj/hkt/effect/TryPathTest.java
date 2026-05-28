@@ -164,8 +164,27 @@ class TryPathTest {
     }
 
     @Test
-    @DisplayName("fold() applies appropriate function")
-    void foldAppliesAppropriateFunction() {
+    @DisplayName("foldFailureFirst() applies appropriate function")
+    void foldFailureFirstAppliesAppropriateFunction() {
+      TryPath<Integer> successPath = Path.success(TEST_INT);
+      TryPath<Integer> failurePath = Path.failure(TEST_EXCEPTION);
+
+      String successResult =
+          successPath.foldFailureFirst(
+              ex -> "error: " + ex.getMessage(), value -> "value: " + value);
+
+      String failureResult =
+          failurePath.foldFailureFirst(
+              ex -> "error: " + ex.getMessage(), value -> "value: " + value);
+
+      assertThat(successResult).isEqualTo("value: 42");
+      assertThat(failureResult).isEqualTo("error: test error");
+    }
+
+    @Test
+    @DisplayName("fold() [deprecated] still applies appropriate function")
+    @SuppressWarnings("removal")
+    void deprecatedFoldStillAppliesAppropriateFunction() {
       TryPath<Integer> successPath = Path.success(TEST_INT);
       TryPath<Integer> failurePath = Path.failure(TEST_EXCEPTION);
 
@@ -360,13 +379,13 @@ class TryPathTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .fold(
-              value -> null,
+          .foldFailureFirst(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalArgumentException.class);
                 assertThat(ex.getMessage()).contains("via mapper must return TryPath");
                 return null;
-              });
+              },
+              value -> null);
     }
 
     @Test
@@ -417,13 +436,13 @@ class TryPathTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .fold(
-              value -> null,
+          .foldFailureFirst(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalArgumentException.class);
                 assertThat(ex.getMessage()).contains("then supplier must return TryPath");
                 return null;
-              });
+              },
+              value -> null);
     }
   }
 
@@ -639,13 +658,13 @@ class TryPathTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .fold(
-              value -> null,
+          .foldFailureFirst(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalStateException.class);
                 assertThat(ex.getMessage()).contains("wrapped");
                 return null;
-              });
+              },
+              value -> null);
     }
 
     @Test

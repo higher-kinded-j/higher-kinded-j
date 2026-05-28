@@ -21,6 +21,13 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + " public final class KindValidator {"
         + " public Object narrowWithPattern(Object kind) { return kind; }"
         + " public Object narrowHolder(Object kind) { return kind; } }",
+    "package org.higherkindedj.hkt.trymonad;"
+        + " import java.util.function.Function;"
+        + " public interface Try<T> {"
+        + "   <U> U fold(Function<? super T, ? extends U> successMapper,"
+        + "              Function<? super Throwable, ? extends U> failureMapper);"
+        + "   <U> U foldFailureFirst(Function<? super Throwable, ? extends U> failureMapper,"
+        + "                          Function<? super T, ? extends U> successMapper); }",
   };
 
   @Override
@@ -80,6 +87,34 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
             public class Usage {
                 Object run(KindValidator v, Object kind) {
                     return v.narrowHolder(kind);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void swapsTryFoldToFoldFailureFirst() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Usage {
+                String describe(Try<Integer> t) {
+                    return t.fold(value -> "ok: " + value, ex -> "err: " + ex.getMessage());
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Usage {
+                String describe(Try<Integer> t) {
+                    return t.foldFailureFirst(ex -> "err: " + ex.getMessage(), value -> "ok: " + value);
                 }
             }
             """));

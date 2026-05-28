@@ -303,9 +303,9 @@ public class CoreTypePrismsExample {
     Try<User> tryUser = Try.of(() -> fetchUserFromDatabase("u1"));
     if (tryUser.isSuccess()) {
       System.out.println(
-          "  User: " + tryUser.fold(u -> u.name(), ex -> "Failed: " + ex.getMessage()));
+          "  User: " + tryUser.foldFailureFirst(ex -> "Failed: " + ex.getMessage(), u -> u.name()));
     } else {
-      System.out.println("  Error: " + tryUser.fold(u -> "", ex -> ex.getMessage()));
+      System.out.println("  Error: " + tryUser.foldFailureFirst(ex -> ex.getMessage(), u -> ""));
     }
 
     System.out.println("\n✅ With Prisms:");

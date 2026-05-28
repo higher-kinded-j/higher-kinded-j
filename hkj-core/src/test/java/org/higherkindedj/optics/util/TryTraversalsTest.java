@@ -28,11 +28,11 @@ class TryTraversalsTest {
       Try<Integer> result = Traversals.modify(traversal, i -> i * 2, tryValue);
       assertThat(result.isSuccess()).isTrue();
       Integer value =
-          result.fold(
-              v -> v,
+          result.foldFailureFirst(
               error -> {
                 throw new AssertionError("Expected success", error);
-              });
+              },
+              v -> v);
       assertThat(value).isEqualTo(84);
     }
 
@@ -44,11 +44,11 @@ class TryTraversalsTest {
       Try<Integer> result = Traversals.modify(traversal, i -> i * 2, tryValue);
       assertThat(result.isFailure()).isTrue();
       Throwable actual =
-          result.fold(
+          result.foldFailureFirst(
+              failure -> failure,
               success -> {
                 throw new AssertionError();
-              },
-              failure -> failure);
+              });
       assertThat(actual).isEqualTo(error);
     }
 
@@ -84,11 +84,11 @@ class TryTraversalsTest {
               traversal, ex -> new RuntimeException("Wrapped: " + ex.getMessage(), ex), tryValue);
       assertThat(result.isFailure()).isTrue();
       Throwable exception =
-          result.fold(
+          result.foldFailureFirst(
+              failure -> failure,
               success -> {
                 throw new AssertionError();
-              },
-              failure -> failure);
+              });
       assertThat(exception).isInstanceOf(RuntimeException.class);
       assertThat(exception.getMessage()).isEqualTo("Wrapped: error");
     }
@@ -101,11 +101,11 @@ class TryTraversalsTest {
           Traversals.modify(traversal, ex -> new RuntimeException("Wrapped", ex), tryValue);
       assertThat(result.isSuccess()).isTrue();
       Integer value =
-          result.fold(
-              v -> v,
+          result.foldFailureFirst(
               error -> {
                 throw new AssertionError("Expected success", error);
-              });
+              },
+              v -> v);
       assertThat(value).isEqualTo(42);
     }
 
@@ -212,21 +212,21 @@ class TryTraversalsTest {
       Integer value0 =
           result
               .get(0)
-              .fold(
-                  v -> v,
+              .foldFailureFirst(
                   error -> {
                     throw new AssertionError("Expected success", error);
-                  });
+                  },
+                  v -> v);
       assertThat(value0).isEqualTo(10);
       assertThat(result.get(1).isFailure()).isTrue();
       Integer value2 =
           result
               .get(2)
-              .fold(
-                  v -> v,
+              .foldFailureFirst(
                   error -> {
                     throw new AssertionError("Expected success", error);
-                  });
+                  },
+                  v -> v);
       assertThat(value2).isEqualTo(20);
     }
 
@@ -245,30 +245,30 @@ class TryTraversalsTest {
       Throwable exception0 =
           result
               .get(0)
-              .fold(
+              .foldFailureFirst(
+                  failure -> failure,
                   success -> {
                     throw new AssertionError();
-                  },
-                  failure -> failure);
+                  });
       assertThat(exception0).isInstanceOf(RuntimeException.class);
       assertThat(exception0.getMessage()).isEqualTo("Wrapped: error1");
       Integer value1 =
           result
               .get(1)
-              .fold(
-                  v -> v,
+              .foldFailureFirst(
                   error -> {
                     throw new AssertionError("Expected success", error);
-                  });
+                  },
+                  v -> v);
       assertThat(value1).isEqualTo(42);
       Throwable exception2 =
           result
               .get(2)
-              .fold(
+              .foldFailureFirst(
+                  failure -> failure,
                   success -> {
                     throw new AssertionError();
-                  },
-                  failure -> failure);
+                  });
       assertThat(exception2).isInstanceOf(RuntimeException.class);
       assertThat(exception2.getMessage()).isEqualTo("Wrapped: error2");
     }

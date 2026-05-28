@@ -52,10 +52,10 @@ public class TryExample {
         inputFailure.flatMap(safeDivide); // Failure(RuntimeException) - initial failure propagates
 
     String message =
-        result2.fold(
-            successValue -> "Succeeded with " + successValue,
+        result2.foldFailureFirst(
             failureThrowable ->
-                "Failed with " + failureThrowable.getMessage()); // "Failed with Div by zero"
+                "Failed with " + failureThrowable.getMessage(), // "Failed with Div by zero"
+            successValue -> "Succeeded with " + successValue);
 
     Function<Throwable, Double> recoverHandler = throwable -> -1.0;
     Try<Double> recovered1 = result2.recover(recoverHandler); // Success(-1.0)

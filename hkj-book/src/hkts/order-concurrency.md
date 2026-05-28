@@ -111,7 +111,7 @@ public VTaskPath<Either<OrderError, InventoryReservation>> reserveInventoryParal
         .join();
 
     return Path.vtask(() -> raceResult.runSafe()
-        .fold(Either::right, e -> Either.left(toOrderError(e))));
+        .foldFailureFirst(e -> Either.left(toOrderError(e)), Either::right));
 }
 ```
 

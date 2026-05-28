@@ -191,11 +191,11 @@ class LensExtensionsTest {
       Try<Person> result = modifyTry(ageLens, age -> Try.success(age * 2), person);
       assertThat(result.isSuccess()).isTrue();
       Person modifiedPerson =
-          result.fold(
-              v -> v,
+          result.foldFailureFirst(
               error -> {
                 throw new AssertionError("Expected success", error);
-              });
+              },
+              v -> v);
       assertThat(modifiedPerson.name).isEqualTo("Ivy");
       assertThat(modifiedPerson.age).isEqualTo(44);
     }
@@ -209,11 +209,11 @@ class LensExtensionsTest {
           modifyTry(ageLens, age -> age >= 0 ? Try.success(age) : Try.failure(error), person);
       assertThat(result.isFailure()).isTrue();
       Throwable actual =
-          result.fold(
+          result.foldFailureFirst(
+              failure -> failure,
               success -> {
                 throw new AssertionError();
-              },
-              failure -> failure);
+              });
       assertThat(actual).isEqualTo(error);
     }
   }

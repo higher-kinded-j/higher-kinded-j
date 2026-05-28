@@ -403,15 +403,15 @@ public class EnhancedOrderWorkflow {
     return Path.vtask(
         () -> {
           Try<InventoryReservation> result = raceResult.runSafe();
-          return result.fold(
-              Either::right,
+          return result.foldFailureFirst(
               error -> {
                 if (error instanceof ReservationException re) {
                   return Either.left(re.orderError);
                 }
                 return Either.left(
                     SystemError.fromException("Parallel inventory check failed", error));
-              });
+              },
+              Either::right);
         });
   }
 

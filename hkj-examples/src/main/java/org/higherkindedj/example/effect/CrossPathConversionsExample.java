@@ -245,9 +245,9 @@ public class CrossPathConversionsExample {
             .map(x -> x + 10) // Still ValidationPath
             .toTryPath(RuntimeException::new) // TryPath
             .run()
-            .fold(
-                n -> "Final result: " + n, // Success case
-                Throwable::getMessage // Error case
+            .foldFailureFirst(
+                Throwable::getMessage, // Error case
+                n -> "Final result: " + n // Success case
                 );
 
     System.out.println("Conversion chain: " + result); // Final result: 94
@@ -261,7 +261,7 @@ public class CrossPathConversionsExample {
             .toValidationPath(Semigroups.first())
             .toTryPath(RuntimeException::new)
             .run()
-            .fold(n -> "Success: " + n, Throwable::getMessage);
+            .foldFailureFirst(Throwable::getMessage, n -> "Success: " + n);
 
     System.out.println("Empty chain: " + emptyResult); // Value was required
 

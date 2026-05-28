@@ -150,8 +150,8 @@ public class Tutorial01_CircuitBreaker_Solution {
 
       assertThat(result.isFailure()).isTrue();
 
-      // SOLUTION: Extract the exception using fold
-      Throwable error = result.fold(value -> null, ex -> ex);
+      // SOLUTION: Extract the exception using foldFailureFirst
+      Throwable error = result.foldFailureFirst(ex -> ex, value -> null);
 
       assertThat(error).isInstanceOf(CircuitOpenException.class);
       CircuitOpenException coe = (CircuitOpenException) error;

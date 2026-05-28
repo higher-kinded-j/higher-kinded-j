@@ -129,9 +129,9 @@ try {
 
 // 2. runSafe() - Returns Try<A> for functional error handling
 Try<Integer> tryResult = task.runSafe();
-tryResult.fold(
-    value -> System.out.println("Success: " + value),
-    error -> System.err.println("Failure: " + error.getMessage())
+tryResult.foldFailureFirst(
+    error -> System.err.println("Failure: " + error.getMessage()),
+    value -> System.out.println("Success: " + value)
 );
 
 // 3. runAsync() - Returns CompletableFuture<A> for async composition

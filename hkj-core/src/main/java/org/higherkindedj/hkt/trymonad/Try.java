@@ -41,7 +41,7 @@ import org.jspecify.annotations.Nullable;
  * }
  *
  * Try<Integer> result = parseInt("123");
- * result.fold(
+ * result.foldFailureFirst(
  * error -> { System.err.println("Failed: " + error.getMessage()); return -1; },
  * value -> { System.out.println("Succeeded: " + value); return value; }
  * );
@@ -184,9 +184,9 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * re-throws the original {@link Throwable} that caused the failure.
    *
    * <p><b>Caution:</b> This method breaks functional purity by potentially throwing an exception.
-   * It's generally preferred to use methods like {@link #fold(Function, Function)}, {@link
-   * #orElse(Object)}, {@link #recover(Function)}, or pattern matching to handle both success and
-   * failure cases without throwing exceptions.
+   * It's generally preferred to use methods like {@link #foldFailureFirst(Function, Function)},
+   * {@link #orElse(Object)}, {@link #recover(Function)}, or pattern matching to handle both success
+   * and failure cases without throwing exceptions.
    *
    * @return The successful value (can be {@code null} if it was a {@code Success(null)}).
    * @throws Throwable if this is a {@link Failure}, the original exception is thrown.
@@ -218,16 +218,57 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
   @Nullable T orElseGet(Supplier<? extends T> supplier);
 
   /**
+   * Applies one of two functions depending on whether this is a {@link Failure} or a {@link
+   * Success}. The failure mapper is supplied first, matching the error-first argument order used by
+   * {@link Either#fold(Function, Function)}, {@link
+   * org.higherkindedj.hkt.validated.Validated#fold(Function, Function)}, and {@link
+   * org.higherkindedj.hkt.eitherf.EitherF#fold(Function, Function)}.
+   *
+   * <p>This method is named {@code foldFailureFirst} rather than overloading {@code fold} (which
+   * would silently invert behaviour for swapped call sites) or {@code match} (which would create a
+   * lambda-inference ambiguity with {@link #match(Consumer, Consumer)}). In 0.6.0 the canonical
+   * name {@code fold} is planned to be reintroduced with this argument order once every existing
+   * {@link #fold(Function, Function)} call site has migrated through this distinct name.
+   *
+   * @param failureMapper The non-null function to apply if this is a {@link Failure}.
+   * @param successMapper The non-null function to apply if this is a {@link Success}.
+   * @param <U> The target type to which both outcomes are mapped.
+   * @return The result of applying the appropriate mapping function.
+   * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
+   * @since 0.4.6
+   */
+  default <U> U foldFailureFirst(
+      Function<? super Throwable, ? extends U> failureMapper,
+      Function<? super T, ? extends U> successMapper) {
+
+    Validation.function().require(failureMapper, "failureMapper", FOLD);
+    Validation.function().require(successMapper, "successMapper", FOLD);
+
+    return switch (this) {
+      case Success<T>(var value) -> successMapper.apply(value);
+      case Failure<T>(var cause) -> failureMapper.apply(cause);
+    };
+  }
+
+  /**
    * Applies one of two functions depending on whether this is a {@link Success} or a {@link
-   * Failure}. This allows for a complete handling of both outcomes, transforming them into a single
-   * result of type {@code U}.
+   * Failure}.
    *
    * @param successMapper The non-null function to apply if this is a {@link Success}.
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param <U> The target type to which both outcomes are mapped.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code successMapper} or {@code failureMapper} is null.
+   * @deprecated since 0.4.6, for removal in 0.5.0. Use {@link #foldFailureFirst(Function,
+   *     Function)} instead, which matches the error-first ordering of {@code Either.fold}, {@code
+   *     Validated.fold}, and {@code EitherF.fold}. A naked argument swap on this method would
+   *     silently invert behaviour for parameter-ignoring lambdas and {@code Object}-typed method
+   *     references, so the replacement is published under a new name to force every call site
+   *     through a compile error. The canonical name {@code fold} is planned to be reintroduced with
+   *     the error-first argument order in 0.6.0. See <a
+   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/452">#452</a>.
    */
+  @Deprecated(forRemoval = true, since = "0.4.6")
   default <U> U fold(
       Function<? super T, ? extends U> successMapper,
       Function<? super Throwable, ? extends U> failureMapper) {
@@ -235,10 +276,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     Validation.function().require(successMapper, "successMapper", FOLD);
     Validation.function().require(failureMapper, "failureMapper", FOLD);
 
-    return switch (this) {
-      case Success<T>(var value) -> successMapper.apply(value);
-      case Failure<T>(var cause) -> failureMapper.apply(cause);
-    };
+    return foldFailureFirst(failureMapper, successMapper);
   }
 
   /**

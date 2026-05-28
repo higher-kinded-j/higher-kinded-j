@@ -266,7 +266,8 @@ public class LensExtensionsExample {
             profile);
     System.out.println(
         "Database update: "
-            + updated.fold(p -> "Success: " + p.email(), ex -> "Failed: " + ex.getMessage()));
+            + updated.foldFailureFirst(
+                ex -> "Failed: " + ex.getMessage(), p -> "Success: " + p.email()));
 
     // Failed database update
     LEUserProfile badEmail = new LEUserProfile("u2", "Bob", "fail@example.com", 25, "Student");
@@ -280,7 +281,8 @@ public class LensExtensionsExample {
             badEmail);
     System.out.println(
         "Database update: "
-            + failed.fold(p -> "Success: " + p.email(), ex -> "Failed: " + ex.getMessage()));
+            + failed.foldFailureFirst(
+                ex -> "Failed: " + ex.getMessage(), p -> "Success: " + p.email()));
 
     System.out.println();
   }

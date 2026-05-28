@@ -129,7 +129,7 @@ SagaBuilder.<Unit>start()
 VTask<String> execution = orderSaga.run();
 
 Try<String> result = execution.runSafe();
-result.fold(
+result.foldFailureFirst(
     error -> log.error("Order failed: {}", error.getMessage()),
     trackingId -> log.info("Order complete: {}", trackingId)
 );

@@ -320,11 +320,11 @@ public class Tutorial05_ContextWithVTask {
 
                     List<Object> results =
                         all.runSafe()
-                            .fold(
-                                v -> v,
+                            .foldFailureFirst(
                                 e -> {
                                   throw new RuntimeException(e);
-                                });
+                                },
+                                v -> v);
 
                     @SuppressWarnings("unchecked")
                     List<String> orders = (List<String>) results.get(1);

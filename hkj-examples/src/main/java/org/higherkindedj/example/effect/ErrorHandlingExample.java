@@ -176,13 +176,13 @@ public class ErrorHandlingExample {
 
     wrapped
         .run()
-        .fold(
-            val -> null,
+        .foldFailureFirst(
             ex -> {
               System.out.println("Wrapped exception type: " + ex.getClass().getSimpleName());
               System.out.println("Wrapped exception message: " + ex.getMessage());
               return null;
-            });
+            },
+            val -> null);
 
     System.out.println();
   }

@@ -72,13 +72,13 @@ public class ContextScopeExample {
 
               // Execute the task
               Try<String> result = task.runSafe();
-              result.fold(
-                  value -> {
-                    System.out.println("VTask result: " + value);
-                    return null;
-                  },
+              result.foldFailureFirst(
                   error -> {
                     System.out.println("VTask error: " + error.getMessage());
+                    return null;
+                  },
+                  value -> {
+                    System.out.println("VTask result: " + value);
                     return null;
                   });
             });
@@ -266,14 +266,14 @@ public class ContextScopeExample {
                   Scope.<String>allSucceed().timeout(scopeTimeout).fork(task1).fork(task2).join();
 
               Try<List<String>> result = results.runSafe();
-              result.fold(
+              result.foldFailureFirst(
+                  error -> {
+                    System.out.println("Deadline exceeded: " + error.getClass().getSimpleName());
+                    return null;
+                  },
                   values -> {
                     System.out.println("All tasks completed within deadline:");
                     values.forEach(v -> System.out.println("  " + v));
-                    return null;
-                  },
-                  error -> {
-                    System.out.println("Deadline exceeded: " + error.getClass().getSimpleName());
                     return null;
                   });
             });
@@ -387,14 +387,14 @@ public class ContextScopeExample {
                       .join();
 
               Try<List<String>> result = dashboard.runSafe();
-              result.fold(
+              result.foldFailureFirst(
+                  error -> {
+                    System.out.println("Dashboard error: " + error.getMessage());
+                    return null;
+                  },
                   components -> {
                     System.out.println("Dashboard loaded:");
                     components.forEach(c -> System.out.println("  " + c));
-                    return null;
-                  },
-                  error -> {
-                    System.out.println("Dashboard error: " + error.getMessage());
                     return null;
                   });
             });
