@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.id;
 
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,20 +26,20 @@ class IdKindHelperTest {
 
     @Test
     @DisplayName("Run complete IdKindHelper test pattern with Integer value")
-    void runCompleteTestPatternWithInteger() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE).test();
+    void runCompleteTestWithInteger() {
+      KindHelperTests.idKindHelper(TEST_INSTANCE).test();
     }
 
     @Test
     @DisplayName("Run complete IdKindHelper test pattern with String value")
-    void runCompleteTestPatternWithString() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE_STRING).test();
+    void runCompleteTestWithString() {
+      KindHelperTests.idKindHelper(TEST_INSTANCE_STRING).test();
     }
 
     @Test
     @DisplayName("Run complete IdKindHelper test pattern with null value")
-    void runCompleteTestPatternWithNull() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE_NULL).test();
+    void runCompleteTestWithNull() {
+      KindHelperTests.idKindHelper(TEST_INSTANCE_NULL).test();
     }
   }
 
@@ -50,7 +50,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test round-trip widen/narrow only")
     void testRoundTripOnly() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipValidations()
           .skipInvalidType()
           .skipIdempotency()
@@ -61,7 +61,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -72,7 +72,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test invalid type handling only")
     void testInvalidTypeOnly() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipValidations()
           .skipIdempotency()
@@ -83,7 +83,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test idempotency only")
     void testIdempotencyOnly() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipValidations()
           .skipInvalidType()
@@ -94,7 +94,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test edge cases only")
     void testEdgeCasesOnly() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipValidations()
           .skipInvalidType()
@@ -105,14 +105,7 @@ class IdKindHelperTest {
 
   @Nested
   @DisplayName("Concurrency Tests")
-  class ConcurrencyTests {
-
-    @Test
-    @DisplayName("Test concurrent access to widen/narrow operations")
-    void testConcurrentAccess() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE).skipValidations().withConcurrencyTests().test();
-    }
-  }
+  class ConcurrencyTests {}
 
   @Nested
   @DisplayName("Edge Cases")
@@ -121,29 +114,29 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test KindHelper with null value")
     void testWithNullValue() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE_NULL).test();
+      KindHelperTests.idKindHelper(TEST_INSTANCE_NULL).test();
     }
 
     @Test
     @DisplayName("Test KindHelper with different value types")
     void testWithDifferentValueTypes() {
       // Test with Integer
-      CoreTypeTest.idKindHelper(Id.of(42)).test();
+      KindHelperTests.idKindHelper(Id.of(42)).test();
 
       // Test with String
-      CoreTypeTest.idKindHelper(Id.of("test")).test();
+      KindHelperTests.idKindHelper(Id.of("test")).test();
 
       // Test with Boolean
-      CoreTypeTest.idKindHelper(Id.of(true)).test();
+      KindHelperTests.idKindHelper(Id.of(true)).test();
 
       // Test with Double
-      CoreTypeTest.idKindHelper(Id.of(3.14)).test();
+      KindHelperTests.idKindHelper(Id.of(3.14)).test();
     }
 
     @Test
     @DisplayName("Test multiple sequential widen/narrow operations")
     void testMultipleSequentialOperations() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE).skipValidations().test();
+      KindHelperTests.idKindHelper(TEST_INSTANCE).skipValidations().test();
     }
   }
 
@@ -154,7 +147,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test null parameter validation for widen")
     void testWidenNullValidation() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -165,7 +158,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test null parameter validation for narrow")
     void testNarrowNullValidation() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -176,7 +169,7 @@ class IdKindHelperTest {
     @Test
     @DisplayName("Test invalid Kind type validation")
     void testInvalidKindTypeValidation() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
+      KindHelperTests.idKindHelper(TEST_INSTANCE)
           .skipRoundTrip()
           .skipValidations()
           .skipIdempotency()

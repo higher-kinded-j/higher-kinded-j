@@ -14,7 +14,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.laws.MonadLaws;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -279,34 +279,13 @@ class StateMonadTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("Core Type Tests")
-  class CoreTypeTests {
-
-    @Test
-    @DisplayName("Test State core operations")
-    void testStateCoreOperations() {
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(State.get())
-          .withInitialState(getInitialState())
-          .withMappers(validMapper)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test State factory methods")
-    void testStateFactoryMethods() {
-      CoreTypeTest.<Integer, String>state(State.class)
-          .withState(State.pure("test"))
-          .withInitialState(getInitialState())
-          .withoutMappers()
-          .onlyFactoryMethods()
-          .testAll();
-    }
+  @DisplayName("KindHelper Round-Trip Tests")
+  class KindHelperRoundTripTests {
 
     @Test
     @DisplayName("Test State KindHelper")
     void testStateKindHelper() {
-      CoreTypeTest.stateKindHelper(State.pure(42)).test();
+      KindHelperTests.stateKindHelper(State.pure(42)).test();
     }
   }
 

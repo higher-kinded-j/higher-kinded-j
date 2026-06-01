@@ -11,15 +11,12 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,125 +55,26 @@ class EitherTest extends EitherTestBase {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
+    void runCompleteMonadTest() {
+      TypeClassContract.<EitherKind.Witness<String>>monad(EitherMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(EitherFunctor.class)
-          .withApFrom(EitherMonad.class)
-          .withFlatMapFrom(EitherMonad.class)
-          .testAll();
+          .verify();
     }
 
     @Test
     @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
+    void runCompleteFunctorTest() {
+      TypeClassContract.<EitherKind.Witness<String>>functor(EitherFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .testAll();
-    }
-  }
-
-  @Nested
-  @DisplayName("Core Type Testing with TypeClassTest API")
-  class CoreTypeTestingSuite {
-
-    @Test
-    @DisplayName("Test all Either core operations")
-    void testAllEitherCoreOperations() {
-      CoreTypeTest.<String, Integer>either(Either.class)
-          .withLeft(leftInstance)
-          .withRight(rightInstance)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Either with validation configuration")
-    void testEitherWithValidationConfiguration() {
-      CoreTypeTest.<String, Integer>either(Either.class)
-          .withLeft(leftInstance)
-          .withRight(rightInstance)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(EitherFunctor.class)
-          .withFlatMapFrom(EitherMonad.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Either selective operations - basic")
-    void testEitherSelectiveOperations() {
-      CoreTypeTest.<String, Integer>either(Either.class)
-          .withLeft(leftInstance)
-          .withRight(rightInstance)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .onlyFactoryMethods()
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Either Selective with core type API")
-    void testEitherSelectiveWithCoreTypeAPI() {
-      // Create Choice instances for Selective testing
-      Choice<Integer, String> choiceLeft = Selective.left(rightValue);
-      Choice<Integer, String> choiceRight = Selective.right("right-value");
-
-      Either<String, Choice<Integer, String>> eitherChoiceLeft = Either.right(choiceLeft);
-      Either<String, Choice<Integer, String>> eitherChoiceRight = Either.right(choiceRight);
-      Either<String, Boolean> eitherTrue = Either.right(true);
-      Either<String, Boolean> eitherFalse = Either.right(false);
-
-      CoreTypeTest.<String, Integer>either(Either.class)
-          .withLeft(leftInstance)
-          .withRight(rightInstance)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .withSelectiveOperations(eitherChoiceLeft, eitherChoiceRight, eitherTrue, eitherFalse)
-          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(EitherSelective.class)
-          .withBranchFrom(EitherSelective.class)
-          .withWhenSFrom(EitherSelective.class)
-          .withIfSFrom(EitherSelective.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Either Selective with inheritance validation")
-    void testEitherSelectiveWithInheritanceValidation() {
-      // Create Choice instances for Selective testing
-      Choice<Integer, String> choiceLeft = Selective.left(rightValue);
-      Choice<Integer, String> choiceRight = Selective.right("right-value");
-
-      Either<String, Choice<Integer, String>> eitherChoiceLeft = Either.right(choiceLeft);
-      Either<String, Choice<Integer, String>> eitherChoiceRight = Either.right(choiceRight);
-      Either<String, Boolean> eitherTrue = Either.right(true);
-      Either<String, Boolean> eitherFalse = Either.right(false);
-
-      CoreTypeTest.<String, Integer>either(Either.class)
-          .withLeft(leftInstance)
-          .withRight(rightInstance)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .withSelectiveOperations(eitherChoiceLeft, eitherChoiceRight, eitherTrue, eitherFalse)
-          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(EitherSelective.class)
-          .withBranchFrom(EitherSelective.class)
-          .withWhenSFrom(EitherSelective.class)
-          .withIfSFrom(EitherSelective.class)
-          .testAll();
+          .verify();
     }
   }
 

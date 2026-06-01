@@ -15,7 +15,8 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.FunctorLaws;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -112,43 +113,43 @@ class ValidatedFunctorTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -159,11 +160,11 @@ class ValidatedFunctorTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test with standard validation")
     void testWithStandardValidation() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
   }
 

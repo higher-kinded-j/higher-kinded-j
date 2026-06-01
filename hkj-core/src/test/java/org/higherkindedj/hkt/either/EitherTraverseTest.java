@@ -8,19 +8,19 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.data.TestFunctions;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,7 +36,6 @@ class EitherTraverseTest extends EitherTestBase {
   private Function<Integer, Kind<MaybeKind.Witness, String>> validTraverseFunction;
   private Monoid<String> validMonoid;
   private Function<Integer, String> validFoldMapFunction;
-  private BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> maybeEqualityChecker;
 
   @BeforeEach
   void setUpTraverse() {
@@ -47,7 +46,6 @@ class EitherTraverseTest extends EitherTestBase {
     validTraverseFunction = i -> MAYBE.widen(Maybe.just("Traversed:" + i));
     validMonoid = Monoids.string();
     validFoldMapFunction = TestFunctions.INT_TO_STRING;
-    maybeEqualityChecker = (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
 
     validateRequiredFixtures();
   }
@@ -58,27 +56,15 @@ class EitherTraverseTest extends EitherTestBase {
 
     @Test
     @DisplayName("Run complete Traverse test pattern")
-    void runCompleteTraverseTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
+    void runCompleteTraverseTest() {
+      TypeClassContract.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .withEqualityChecker(maybeEqualityChecker)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(EitherTraverseTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .withEqualityChecker(KindEquivalence.byEqualsAfter(EITHER::narrow))
+          .verify();
     }
   }
 
@@ -164,50 +150,50 @@ class EitherTraverseTest extends EitherTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .testOperations();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .testValidations();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .testExceptions();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>traverse(EitherTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .withEqualityChecker(maybeEqualityChecker)
-          .testLaws();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .withEqualityChecker(KindEquivalence.byEqualsAfter(EITHER::narrow))
+          .verifyOnly(Category.LAWS);
     }
   }
 

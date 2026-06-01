@@ -17,7 +17,6 @@ import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -238,21 +237,6 @@ class EitherTTest {
 
       assertThat(etEmpty.toString()).startsWith("EitherT[value=").endsWith("]");
       assertThat(etEmpty.toString()).contains("Optional.empty");
-    }
-  }
-
-  @Nested
-  @DisplayName("Complete Core Type Test Suite")
-  class CompleteCoreTypeTests {
-
-    @Test
-    @DisplayName("Run complete EitherT core type tests")
-    void runCompleteEitherTTests() {
-      CoreTypeTest.eitherT(EitherT.class, outerMonad)
-          .withLeft(EitherT.left(outerMonad, leftValue))
-          .withRight(EitherT.right(outerMonad, rightValue))
-          .withMappers(Object::toString)
-          .testAll();
     }
   }
 

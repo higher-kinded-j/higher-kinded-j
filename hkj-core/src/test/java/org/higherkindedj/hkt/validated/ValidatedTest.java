@@ -18,8 +18,8 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -52,105 +52,26 @@ class ValidatedTest extends ValidatedTestBase {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+    void runCompleteMonadTest() {
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ValidatedMonad.class)
-          .withApFrom(ValidatedMonad.class)
-          .withFlatMapFrom(ValidatedMonad.class)
-          .testAll();
+          .verify();
     }
 
     @Test
     @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+    void runCompleteFunctorTest() {
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Run complete Validated core type tests")
-    void runCompleteValidatedCoreTypeTests() {
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .configureValidation()
-          .withValidatedInheritanceValidation()
-          .withMapFrom(ValidatedMonad.class)
-          .withFlatMapFrom(ValidatedMonad.class)
-          .withIfValidFrom(Invalid.class)
-          .withIfInvalidFrom(Invalid.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Run complete Validated Selective core type tests - operations only")
-    void runCompleteValidatedSelectiveCoreTypeTestsOperationsOnly() {
-      // Create Choice instances for Selective testing - use non-null values
-      Choice<Integer, String> choiceLeft = Selective.left(testValue);
-      Choice<Integer, String> choiceRight = Selective.right(DEFAULT_STRING_VALUE);
-
-      Validated<String, Choice<Integer, String>> validatedChoiceLeft = Validated.valid(choiceLeft);
-      Validated<String, Choice<Integer, String>> validatedChoiceRight =
-          Validated.valid(choiceRight);
-      Validated<String, Boolean> validatedTrue = Validated.valid(true);
-      Validated<String, Boolean> validatedFalse = Validated.valid(false);
-
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .withSelectiveOperations(
-              validatedChoiceLeft, validatedChoiceRight, validatedTrue, validatedFalse)
-          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(ValidatedSelective.class)
-          .withBranchFrom(ValidatedSelective.class)
-          .withWhenSFrom(ValidatedSelective.class)
-          .withIfSFrom(ValidatedSelective.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Run complete Validated Selective core type tests - with validation")
-    void runCompleteValidatedSelectiveCoreTypeTestsWithValidation() {
-      // Create Choice instances for Selective testing - use non-null values
-      Choice<Integer, String> choiceLeft = Selective.left(testValue);
-      Choice<Integer, String> choiceRight = Selective.right(DEFAULT_STRING_VALUE);
-
-      Validated<String, Choice<Integer, String>> validatedChoiceLeft = Validated.valid(choiceLeft);
-      Validated<String, Choice<Integer, String>> validatedChoiceRight =
-          Validated.valid(choiceRight);
-      Validated<String, Boolean> validatedTrue = Validated.valid(true);
-      Validated<String, Boolean> validatedFalse = Validated.valid(false);
-
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .withSelectiveOperations(
-              validatedChoiceLeft, validatedChoiceRight, validatedTrue, validatedFalse)
-          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(ValidatedSelective.class)
-          .withBranchFrom(ValidatedSelective.class)
-          .withWhenSFrom(ValidatedSelective.class)
-          .withIfSFrom(ValidatedSelective.class)
-          .testAll();
+          .verify();
     }
   }
 
@@ -161,25 +82,11 @@ class ValidatedTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test Functor operations only")
     void testFunctorOperationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test Functor validations only")
-    void testFunctorValidationsOnly() {
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .configureValidation()
-          .withValidatedInheritanceValidation()
-          .withMapFrom(ValidatedMonad.class)
-          .withFlatMapFrom(ValidatedMonad.class)
-          .testValidations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -205,40 +112,24 @@ class ValidatedTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test Functor laws only")
     void testFunctorLawsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+          .verifyOnly(Category.LAWS);
     }
 
     @Test
     @DisplayName("Test Monad operations only")
     void testMonadOperationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test Monad validations only with full hierarchy")
-    void testMonadValidationsOnly() {
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .configureValidation()
-          .withValidatedInheritanceValidation()
-          .withMapFrom(ValidatedMonad.class)
-          .withFlatMapFrom(ValidatedMonad.class)
-          .testValidations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -264,67 +155,13 @@ class ValidatedTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test Monad laws only")
     void testMonadLawsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test Selective operations only")
-    void testSelectiveOperationsOnly() {
-      // Create Choice instances for Selective testing - use non-null values
-      Choice<Integer, String> choiceLeft = Selective.left(testValue);
-      Choice<Integer, String> choiceRight = Selective.right(DEFAULT_STRING_VALUE);
-
-      Validated<String, Choice<Integer, String>> validatedChoiceLeft = Validated.valid(choiceLeft);
-      Validated<String, Choice<Integer, String>> validatedChoiceRight =
-          Validated.valid(choiceRight);
-      Validated<String, Boolean> validatedTrue = Validated.valid(true);
-      Validated<String, Boolean> validatedFalse = Validated.valid(false);
-
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .withSelectiveOperations(
-              validatedChoiceLeft, validatedChoiceRight, validatedTrue, validatedFalse)
-          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test Selective validations only")
-    void testSelectiveValidationsOnly() {
-      // Create Choice instances for Selective testing - use non-null values
-      Choice<Integer, String> choiceLeft = Selective.left(testValue);
-      Choice<Integer, String> choiceRight = Selective.right(DEFAULT_STRING_VALUE);
-
-      Validated<String, Choice<Integer, String>> validatedChoiceLeft = Validated.valid(choiceLeft);
-      Validated<String, Choice<Integer, String>> validatedChoiceRight =
-          Validated.valid(choiceRight);
-      Validated<String, Boolean> validatedTrue = Validated.valid(true);
-      Validated<String, Boolean> validatedFalse = Validated.valid(false);
-
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(validInstance)
-          .withMappers(validMapper)
-          .withSelectiveOperations(
-              validatedChoiceLeft, validatedChoiceRight, validatedTrue, validatedFalse)
-          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(ValidatedSelective.class)
-          .withBranchFrom(ValidatedSelective.class)
-          .withWhenSFrom(ValidatedSelective.class)
-          .withIfSFrom(ValidatedSelective.class)
-          .testValidations();
+          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -838,14 +675,14 @@ class ValidatedTest extends ValidatedTestBase {
 
     @Test
     @DisplayName("Run complete Traverse test pattern")
-    void runCompleteTraverseTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+    void runCompleteTraverseTest() {
+      TypeClassContract.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(monad, validFlatMapper)
-          .withFoldableOperations(intMonoid, i -> i)
-          .testAll();
+          .withFoldable(intMonoid, i -> i)
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
     }
   }
 

@@ -11,8 +11,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
+import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 
 /**
  * Base class for Stream type class tests.

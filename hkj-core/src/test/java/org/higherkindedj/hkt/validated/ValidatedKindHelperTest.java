@@ -10,7 +10,7 @@ import java.util.List;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,16 +24,16 @@ class ValidatedKindHelperTest extends ValidatedTestBase {
 
     @Test
     @DisplayName("Run complete ValidatedKindHelper test pattern for Valid")
-    void runCompleteValidatedKindHelperTestPatternForValid() {
+    void runCompleteValidatedKindHelperTestForValid() {
       Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
-      CoreTypeTest.validatedKindHelper(validInstance).test();
+      KindHelperTests.validatedKindHelper(validInstance).test();
     }
 
     @Test
     @DisplayName("Run complete ValidatedKindHelper test pattern for Invalid")
-    void runCompleteValidatedKindHelperTestPatternForInvalid() {
+    void runCompleteValidatedKindHelperTestForInvalid() {
       Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
-      CoreTypeTest.validatedKindHelper(invalidInstance).test();
+      KindHelperTests.validatedKindHelper(invalidInstance).test();
     }
   }
 

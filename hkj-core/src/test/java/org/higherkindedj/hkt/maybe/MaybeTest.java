@@ -15,18 +15,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -52,11 +50,11 @@ class MaybeTest extends MaybeTestBase {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
+    void runCompleteMonadTest() {
       Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
       Kind<MaybeKind.Witness, String> stringKind2 = MAYBE.widen(Maybe.just("Another"));
 
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
           .<String>instance(MONAD)
           .<Integer>withKind(stringKind)
           .withMonadOperations(
@@ -66,88 +64,21 @@ class MaybeTest extends MaybeTestBase {
               stringToIntFunctionKind(),
               stringCombiningFunction())
           .withLawsTesting(justValue, stringTestFunction(), intChainFunction(), equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .testAll();
+          .verify();
     }
 
     @Test
     @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
+    void runCompleteFunctorTest() {
       Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
 
-      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+      TypeClassContract.<MaybeKind.Witness>functor(MaybeFunctor.class)
           .<String>instance(MONAD)
           .<Integer>withKind(stringKind)
           .withMapper(stringToIntMapper())
           .withSecondMapper(intToStringMapper())
           .withEqualityChecker(equalityChecker)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Run complete Maybe core type tests")
-    void runCompleteMaybeCoreTypeTests() {
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Run complete Maybe Selective core type tests - operations only")
-    void runCompleteMaybeSelectiveCoreTypeTestsOperationsOnly() {
-      // Create Choice instances for Selective testing
-      Choice<String, Integer> choiceLeft = Selective.left(justValue);
-      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
-
-      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
-      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
-      Maybe<Boolean> maybeTrue = Maybe.just(true);
-      Maybe<Boolean> maybeFalse = Maybe.just(false);
-
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
-          .withHandlers(String::length, String::length, i -> i * 2)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Run complete Maybe Selective core type tests - with validation")
-    void runCompleteMaybeSelectiveCoreTypeTestsWithValidation() {
-      // Create Choice instances for Selective testing
-      Choice<String, Integer> choiceLeft = Selective.left(justValue);
-      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
-
-      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
-      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
-      Maybe<Boolean> maybeTrue = Maybe.just(true);
-      Maybe<Boolean> maybeFalse = Maybe.just(false);
-
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
-          .withHandlers(String::length, String::length, i -> i * 2)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(MaybeSelective.class)
-          .withBranchFrom(MaybeSelective.class)
-          .withWhenSFrom(MaybeSelective.class)
-          .withIfSFrom(MaybeSelective.class)
-          .testAll();
+          .verify();
     }
   }
 
@@ -160,25 +91,11 @@ class MaybeTest extends MaybeTestBase {
     void testFunctorOperationsOnly() {
       Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
 
-      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+      TypeClassContract.<MaybeKind.Witness>functor(MaybeFunctor.class)
           .<String>instance(MONAD)
           .<Integer>withKind(stringKind)
           .withMapper(stringToIntMapper())
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test Functor validations only")
-    void testFunctorValidationsOnly() {
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .testValidations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -199,15 +116,13 @@ class MaybeTest extends MaybeTestBase {
     void testFunctorLawsOnly() {
       Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
 
-      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+      TypeClassContract.<MaybeKind.Witness>functor(MaybeFunctor.class)
           .<String>instance(MONAD)
           .<Integer>withKind(stringKind)
           .withMapper(stringToIntMapper())
           .withSecondMapper(intToStringMapper())
           .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+          .verifyOnly(Category.LAWS);
     }
 
     @Test
@@ -216,7 +131,7 @@ class MaybeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
       Kind<MaybeKind.Witness, String> stringKind2 = MAYBE.widen(Maybe.just("Another"));
 
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
           .<String>instance(MONAD)
           .<Integer>withKind(stringKind)
           .withMonadOperations(
@@ -225,21 +140,7 @@ class MaybeTest extends MaybeTestBase {
               stringToIntFlatMapper(),
               stringToIntFunctionKind(),
               stringCombiningFunction())
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test Monad validations only with full hierarchy")
-    void testMonadValidationsOnly() {
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .testValidations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -264,7 +165,7 @@ class MaybeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
       Kind<MaybeKind.Witness, String> stringKind2 = MAYBE.widen(Maybe.just("Another"));
 
-      TypeClassTest.<MaybeKind.Witness>monad(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
           .<String>instance(MONAD)
           .<Integer>withKind(stringKind)
           .withMonadOperations(
@@ -274,57 +175,7 @@ class MaybeTest extends MaybeTestBase {
               stringToIntFunctionKind(),
               stringCombiningFunction())
           .withLawsTesting(justValue, stringTestFunction(), intChainFunction(), equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test Selective operations only")
-    void testSelectiveOperationsOnly() {
-      // Create Choice instances for Selective testing
-      Choice<String, Integer> choiceLeft = Selective.left(justValue);
-      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
-
-      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
-      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
-      Maybe<Boolean> maybeTrue = Maybe.just(true);
-      Maybe<Boolean> maybeFalse = Maybe.just(false);
-
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
-          .withHandlers(String::length, String::length, i -> i * 2)
-          .testOperations();
-    }
-
-    @Test
-    @DisplayName("Test Selective validations only")
-    void testSelectiveValidationsOnly() {
-      // Create Choice instances for Selective testing
-      Choice<String, Integer> choiceLeft = Selective.left(justValue);
-      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
-
-      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
-      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
-      Maybe<Boolean> maybeTrue = Maybe.just(true);
-      Maybe<Boolean> maybeFalse = Maybe.just(false);
-
-      CoreTypeTest.<String>maybe(Maybe.class)
-          .withJust(justInstance)
-          .withNothing(nothingInstance)
-          .withMapper(stringToIntMapper())
-          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
-          .withHandlers(String::length, String::length, i -> i * 2)
-          .configureValidation()
-          .useSelectiveInheritanceValidation()
-          .withSelectFrom(MaybeSelective.class)
-          .withBranchFrom(MaybeSelective.class)
-          .withWhenSFrom(MaybeSelective.class)
-          .withIfSFrom(MaybeSelective.class)
-          .testValidations();
+          .verifyOnly(Category.LAWS);
     }
   }
 

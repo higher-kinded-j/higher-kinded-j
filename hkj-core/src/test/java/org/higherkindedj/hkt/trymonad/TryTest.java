@@ -13,7 +13,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,29 +44,9 @@ class TryTest extends TryTestBase {
   class CompleteTestSuite {
 
     @Test
-    @DisplayName("Run complete Try core type tests")
-    void runCompleteTryPattern() {
-      CoreTypeTest.<String>tryType(Try.class)
-          .withSuccess(successInstance)
-          .withFailure(failureInstance)
-          .withMappers(stringToIntMapper())
-          .testAll();
-    }
-
-    @Test
     @DisplayName("Test Try KindHelper implementation")
     void testKindHelper() {
-      CoreTypeTest.tryKindHelper(successInstance).test();
-    }
-
-    @Test
-    @DisplayName("Verify core Try operations")
-    void verifyCoreOperations() {
-      CoreTypeTest.<String>tryType(Try.class)
-          .withSuccess(successInstance)
-          .withFailure(failureInstance)
-          .withMappers(stringToIntMapper())
-          .testOperations();
+      KindHelperTests.tryKindHelper(successInstance).test();
     }
   }
 

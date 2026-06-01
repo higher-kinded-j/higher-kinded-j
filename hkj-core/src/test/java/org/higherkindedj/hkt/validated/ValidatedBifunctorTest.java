@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +31,7 @@ class ValidatedBifunctorTest {
 
     @Test
     @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTestPattern() {
+    void runCompleteBifunctorTest() {
       Kind2<ValidatedKind2.Witness, String, Integer> validValidated =
           VALIDATED.widen2(Validated.valid(42));
       Kind2<ValidatedKind2.Witness, String, Integer> invalidValidated =
@@ -45,7 +45,7 @@ class ValidatedBifunctorTest {
       BiPredicate<Kind2<ValidatedKind2.Witness, ?, ?>, Kind2<ValidatedKind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> VALIDATED.narrow2(k1).equals(VALIDATED.narrow2(k2));
 
-      TypeClassTest.<ValidatedKind2.Witness>bifunctor(ValidatedBifunctor.class)
+      TypeClassContract.<ValidatedKind2.Witness>bifunctor(ValidatedBifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validValidated)
           .withFirstMapper(firstMapper)
@@ -55,7 +55,7 @@ class ValidatedBifunctorTest {
           .withEqualityChecker(equalityChecker)
           .withFirstExceptionKind(invalidValidated)
           .withSecondExceptionKind(validValidated2)
-          .testAll();
+          .verify();
     }
   }
 

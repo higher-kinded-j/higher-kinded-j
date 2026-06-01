@@ -17,7 +17,7 @@ import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

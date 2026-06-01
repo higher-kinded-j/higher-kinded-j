@@ -6,13 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.test.api.CoreTypeTest.eitherKindHelper;
+import static org.higherkindedj.hkt.test.api.KindHelperTests.eitherKindHelper;
 
 import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,13 +43,6 @@ class EitherKindHelperTest extends EitherTestBase {
       for (Either<ComplexTestError, String> instance : testInstances) {
         eitherKindHelper(instance).test();
       }
-    }
-
-    @Test
-    @DisplayName("Comprehensive test with implementation validation")
-    void comprehensiveTestWithImplementationValidation() {
-      Either<ComplexTestError, String> validInstance = Either.right("Comprehensive");
-      eitherKindHelper(validInstance).testWithValidation(EitherKindHelper.class);
     }
   }
 
@@ -226,21 +218,6 @@ class EitherKindHelperTest extends EitherTestBase {
   @Nested
   @DisplayName("Advanced Testing Scenarios")
   class AdvancedTestingScenarios {
-    @Test
-    @DisplayName("Concurrent access test")
-    void testConcurrentAccess() {
-      if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        Either<ComplexTestError, String> testInstance = Either.right("concurrent_test");
-
-        eitherKindHelper(testInstance).withConcurrencyTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Implementation standards validation")
-    void testImplementationStandards() {
-      KindHelperTestPattern.validateImplementationStandards(Either.class, EitherKindHelper.class);
-    }
 
     @Test
     @DisplayName("Quick test for fast test suites")

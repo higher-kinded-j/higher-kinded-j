@@ -16,7 +16,8 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -56,28 +57,28 @@ class TryTraverseTest extends TryTestBase {
 
     @Test
     @DisplayName("Run complete Traverse test pattern")
-    void runCompleteTraverseTestPattern() {
+    void runCompleteTraverseTest() {
       Function<String, Kind<MaybeKind.Witness, Integer>> traverseFunc =
           s -> MAYBE.widen(Maybe.just(Integer.parseInt(s)));
 
       // Note: We test operations and validations separately because Try's map
       // catches exceptions (converting them to Failure) rather than propagating them,
       // which differs from the standard Traverse exception propagation tests
-      TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>traverse(TryTraverse.class)
           .<String>instance(traverse)
           .<Integer>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, traverseFunc)
-          .withFoldableOperations(SUM_MONOID, validMapper)
-          .testOperations();
+          .withFoldable(SUM_MONOID, validMapper)
+          .verifyOnly(Category.OPERATIONS);
 
-      TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>traverse(TryTraverse.class)
           .<String>instance(traverse)
           .<Integer>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, traverseFunc)
-          .withFoldableOperations(SUM_MONOID, validMapper)
-          .testValidations();
+          .withFoldable(SUM_MONOID, validMapper)
+          .verifyOnly(Category.VALIDATIONS);
 
       // Exception tests are handled separately in ExceptionHandlingTests
       // because Try has special exception handling semantics
@@ -218,13 +219,13 @@ class TryTraverseTest extends TryTestBase {
     void testOperationsOnly() {
       Function<String, Kind<MaybeKind.Witness, Integer>> traverseFunc =
           s -> MAYBE.widen(Maybe.just(Integer.parseInt(s)));
-      TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>traverse(TryTraverse.class)
           .<String>instance(traverse)
           .<Integer>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, traverseFunc)
-          .withFoldableOperations(SUM_MONOID, validMapper)
-          .testOperations();
+          .withFoldable(SUM_MONOID, validMapper)
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -233,13 +234,13 @@ class TryTraverseTest extends TryTestBase {
       Function<String, Kind<MaybeKind.Witness, Integer>> traverseFunc =
           s -> MAYBE.widen(Maybe.just(Integer.parseInt(s)));
 
-      TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>traverse(TryTraverse.class)
           .<String>instance(traverse)
           .<Integer>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(maybeApplicative, traverseFunc)
-          .withFoldableOperations(SUM_MONOID, validMapper)
-          .testValidations();
+          .withFoldable(SUM_MONOID, validMapper)
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test

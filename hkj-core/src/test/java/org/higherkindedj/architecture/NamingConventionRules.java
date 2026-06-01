@@ -206,7 +206,9 @@ class NamingConventionRules {
   /**
    * KindHelper classes must end with "KindHelper" suffix.
    *
-   * <p>These classes provide widen() and narrow() conversion utilities.
+   * <p>These classes provide widen() and narrow() conversion utilities. The {@code *Laws}
+   * verification primitives in {@code hkj-test} (e.g. {@code KindHelperLaws}) are explicitly out of
+   * scope — they verify helpers rather than being helper implementations.
    */
   @Test
   @DisplayName("Kind helper classes should be named <Type>KindHelper")
@@ -214,6 +216,8 @@ class NamingConventionRules {
     classes()
         .that()
         .haveSimpleNameContaining("KindHelper")
+        .and()
+        .haveSimpleNameNotEndingWith("Laws")
         .should()
         .haveSimpleNameEndingWith("KindHelper")
         .allowEmptyShould(true)

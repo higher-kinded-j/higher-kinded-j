@@ -13,10 +13,10 @@ import java.util.Set;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,75 +63,27 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<StateKind.Witness<Integer>>monad(StateMonad.class)
+    void runCompleteMonadTest() {
+      TypeClassContract.<StateKind.Witness<Integer>>monad(StateMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .withApFrom(StateApplicative.class)
-          .withFlatMapFrom(StateMonad.class)
-          .selectTests()
-          .skipExceptions() // State is lazy - exceptions deferred until run()
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
 
     @Test
     @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<StateKind.Witness<Integer>>functor(StateFunctor.class)
+    void runCompleteFunctorTest() {
+      TypeClassContract.<StateKind.Witness<Integer>>functor(StateFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() // Skip because State is lazy
-          .test();
-    }
-  }
-
-  @Nested
-  @DisplayName("Core Type Testing with TypeClassTest API")
-  class CoreTypeTestingSuite {
-
-    @Test
-    @DisplayName("Test all State core operations")
-    void testAllStateCoreOperations() {
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(incrementState)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test State with validation configuration")
-    void testStateWithValidationConfiguration() {
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(incrementState)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .withFlatMapFrom(StateMonad.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test State selective operations")
-    void testStateSelectiveOperations() {
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(incrementState)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .onlyFactoryMethods()
-          .testAll();
+          // skip exceptions: State is lazy
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
   }
 

@@ -10,7 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -186,15 +186,15 @@ class StateKindHelperTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("CoreTypeTest Integration")
-  class CoreTypeTestIntegration {
+  @DisplayName("KindHelperTests Integration")
+  class KindHelperTestsIntegration {
 
     @Test
-    @DisplayName("Test KindHelper using CoreTypeTest API")
-    void testKindHelperUsingCoreTypeTestApi() {
+    @DisplayName("Test KindHelper using KindHelperTests API")
+    void testKindHelperUsingKindHelperTestsApi() {
       State<Integer, String> testState = State.pure("test");
 
-      CoreTypeTest.stateKindHelper(testState).test();
+      KindHelperTests.stateKindHelper(testState).test();
     }
 
     @Test
@@ -202,7 +202,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
     void testKindHelperWithSelectiveTests() {
       State<Integer, String> testState = State.pure("selective");
 
-      CoreTypeTest.stateKindHelper(testState).skipValidations().skipEdgeCases().test();
+      KindHelperTests.stateKindHelper(testState).skipValidations().skipEdgeCases().test();
     }
   }
 }

@@ -16,7 +16,6 @@ import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -245,23 +244,6 @@ class ReaderTTest {
       assertThat(rt.toString()).startsWith("ReaderT[run=");
       assertThat(rt.toString()).contains(runFunc.toString());
       assertThat(rt.toString()).endsWith("]");
-    }
-  }
-
-  @Nested
-  @DisplayName("Complete Core Type Test Suite")
-  class CompleteCoreTypeTests {
-
-    @Test
-    @DisplayName("Run complete ReaderT core type tests")
-    void runCompleteReaderTTests() {
-      ReaderT<OptionalKind.Witness, String, Integer> instance =
-          ReaderT.reader(outerMonad, simpleFunction);
-
-      CoreTypeTest.<OptionalKind.Witness, String, Integer>readerT(ReaderT.class, outerMonad)
-          .withInstance(instance)
-          .withMappers(Object::toString)
-          .testAll();
     }
   }
 

@@ -10,7 +10,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,18 +34,18 @@ class ValidatedMonadErrorTest extends ValidatedTestBase {
 
     @Test
     @DisplayName("Run complete MonadError test pattern")
-    void runCompleteMonadErrorTestPattern() {
+    void runCompleteMonadErrorTest() {
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
           error -> validKind(0);
       Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
-      TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testAll();
+          .verify();
     }
   }
 
@@ -150,12 +151,12 @@ class ValidatedMonadErrorTest extends ValidatedTestBase {
           error -> validKind(0);
       Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
-      TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -165,12 +166,12 @@ class ValidatedMonadErrorTest extends ValidatedTestBase {
           error -> validKind(0);
       Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
-      TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
@@ -180,12 +181,12 @@ class ValidatedMonadErrorTest extends ValidatedTestBase {
           error -> validKind(0);
       Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
-      TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
   }
 
@@ -199,18 +200,12 @@ class ValidatedMonadErrorTest extends ValidatedTestBase {
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler = _ -> validKind(0);
       Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
-      TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ValidatedMonad.class)
-          .withApFrom(ValidatedMonad.class)
-          .withFlatMapFrom(ValidatedMonad.class)
-          .withHandleErrorWithFrom(ValidatedMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
   }
 

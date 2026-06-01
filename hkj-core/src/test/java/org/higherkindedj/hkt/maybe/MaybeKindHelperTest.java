@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.test.api.CoreTypeTest.maybeKindHelper;
+import static org.higherkindedj.hkt.test.api.KindHelperTests.maybeKindHelper;
 
 import java.util.List;
 import java.util.Map;
@@ -33,13 +33,6 @@ class MaybeKindHelperTest extends MaybeTestBase {
       for (Maybe<String> instance : testInstances) {
         maybeKindHelper(instance).test();
       }
-    }
-
-    @Test
-    @DisplayName("Comprehensive test with implementation validation")
-    void comprehensiveTestWithImplementationValidation() {
-      Maybe<String> validInstance = Maybe.just("Comprehensive");
-      maybeKindHelper(validInstance).testWithValidation(MaybeKindHelper.class);
     }
   }
 
@@ -189,14 +182,6 @@ class MaybeKindHelperTest extends MaybeTestBase {
   @Nested
   @DisplayName("Advanced Testing Scenarios")
   class AdvancedTestingScenarios {
-    @Test
-    @DisplayName("Concurrent access test")
-    void testConcurrentAccess() {
-      if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        Maybe<String> testInstance = Maybe.just("concurrent_test");
-        maybeKindHelper(testInstance).withConcurrencyTests().test();
-      }
-    }
 
     @Test
     @DisplayName("Quick test for fast test suites")

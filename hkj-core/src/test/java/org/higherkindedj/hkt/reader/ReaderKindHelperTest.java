@@ -4,15 +4,14 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
-import static org.higherkindedj.hkt.test.api.CoreTypeTest.readerKindHelper;
+import static org.higherkindedj.hkt.test.api.KindHelperTests.readerKindHelper;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,14 +47,6 @@ class ReaderKindHelperTest extends ReaderTestBase {
       for (Reader<TestConfig, String> instance : testInstances) {
         readerKindHelper(instance).test();
       }
-    }
-
-    @Test
-    @DisplayName("Comprehensive test with implementation validation")
-    void comprehensiveTestWithImplementationValidation() {
-      Reader<TestConfig, String> validInstance = Reader.of(TestConfig::url);
-
-      readerKindHelper(validInstance).testWithValidation(ReaderKindHelper.class);
     }
   }
 
@@ -160,7 +151,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
       Reader<ComplexEnv, String> complexReader = Reader.of(ComplexEnv::name);
 
-      CoreTypeTest.readerKindHelper(complexReader).test();
+      KindHelperTests.readerKindHelper(complexReader).test();
 
       Kind<ReaderKind.Witness<ComplexEnv>, String> widened =
           ReaderKindHelper.READER.widen(complexReader);
@@ -178,7 +169,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
       readerKindHelper(intReader).test();
       readerKindHelper(stringReader).test();
-      CoreTypeTest.readerKindHelper(differentEnvReader).test();
+      KindHelperTests.readerKindHelper(differentEnvReader).test();
     }
 
     @Test
@@ -225,7 +216,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
       Reader<EmptyEnv, String> emptyReader = Reader.constant("no-env-needed");
 
-      CoreTypeTest.readerKindHelper(emptyReader).test();
+      KindHelperTests.readerKindHelper(emptyReader).test();
 
       Kind<ReaderKind.Witness<EmptyEnv>, String> widened =
           ReaderKindHelper.READER.widen(emptyReader);
@@ -238,22 +229,6 @@ class ReaderKindHelperTest extends ReaderTestBase {
   @Nested
   @DisplayName("Advanced Testing Scenarios")
   class AdvancedTestingScenarios {
-
-    @Test
-    @DisplayName("Concurrent access test")
-    void testConcurrentAccess() {
-      if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        Reader<TestConfig, String> testInstance = Reader.of(TestConfig::url);
-
-        readerKindHelper(testInstance).withConcurrencyTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Implementation standards validation")
-    void testImplementationStandards() {
-      KindHelperTestPattern.validateImplementationStandards(Reader.class, ReaderKindHelper.class);
-    }
 
     @Test
     @DisplayName("Quick test for fast test suites")

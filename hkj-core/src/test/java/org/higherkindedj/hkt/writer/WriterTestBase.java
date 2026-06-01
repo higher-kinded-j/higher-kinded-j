@@ -10,7 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
 
 /**

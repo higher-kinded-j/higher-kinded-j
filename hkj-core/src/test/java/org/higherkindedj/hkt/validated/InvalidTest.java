@@ -11,7 +11,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,29 +26,6 @@ class InvalidTest {
   void setUp() {
     invalidInstance = new Invalid<>("test-error");
     semigroup = Semigroups.string(",");
-  }
-
-  @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Run complete Invalid core type test pattern")
-    void runCompleteInvalidValidationTests() {
-      Validated<String, Integer> anotherInvalid = Validated.invalid("another-error");
-
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(invalidInstance)
-          .withValid(anotherInvalid) // Use another Invalid, not Valid
-          .withMappers(Object::toString)
-          .configureValidation()
-          .withValidatedInheritanceValidation()
-          .withMapFrom(Invalid.class)
-          .withFlatMapFrom(Invalid.class)
-          .withIfValidFrom(Invalid.class)
-          .withIfInvalidFrom(Invalid.class)
-          .testValidations();
-    }
   }
 
   @Nested

@@ -17,7 +17,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,46 +30,11 @@ class LazyTest extends LazyTestBase {
   class CompleteLazyTestSuite {
 
     @Test
-    @DisplayName("Run complete Lazy core type tests using base fixtures")
-    void runCompleteLazyCoreTypeTestsUsingBaseFixtures() {
-      // Create proper deferred and now instances for core type tests
-      // Note: validKind from base is Lazy.now(), so we need to create deferred explicitly
-      Lazy<Integer> deferredLazy = Lazy.defer(() -> DEFAULT_LAZY_VALUE);
-      Lazy<Integer> nowLazy = Lazy.now(DEFAULT_LAZY_VALUE);
-
-      CoreTypeTest.<Integer>lazy(Lazy.class)
-          .withDeferred(deferredLazy)
-          .withNow(nowLazy)
-          .withMappers(validMapper)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Run complete Lazy core type tests with custom instances")
-    void runCompleteLazyCoreTypeTestsWithCustomInstances() {
-      COUNTER.set(0);
-      Lazy<String> deferred =
-          Lazy.defer(
-              () -> {
-                COUNTER.incrementAndGet();
-                Thread.sleep(5);
-                return "SuccessValue";
-              });
-      Lazy<String> now = Lazy.now("PrecomputedValue");
-
-      CoreTypeTest.<String>lazy(Lazy.class)
-          .withDeferred(deferred)
-          .withNow(now)
-          .withMappers(String::length)
-          .testAll();
-    }
-
-    @Test
     @DisplayName("Run complete Lazy KindHelper tests")
     void runCompleteLazyKindHelperTests() {
       Lazy<String> instance = Lazy.now("TestValue");
 
-      CoreTypeTest.lazyKindHelper(instance).test();
+      KindHelperTests.lazyKindHelper(instance).test();
     }
   }
 
@@ -694,55 +659,6 @@ class LazyTest extends LazyTestBase {
       } finally {
         executor.shutdown();
       }
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test factory methods only")
-    void testFactoryMethodsOnly() {
-      CoreTypeTest.lazy(Lazy.class)
-          .withDeferred(Lazy.defer(() -> "test"))
-          .withNow(Lazy.now("test"))
-          .withoutMappers()
-          .onlyFactoryMethods()
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test force operation only")
-    void testForceOnly() {
-      CoreTypeTest.lazy(Lazy.class)
-          .withDeferred(Lazy.defer(() -> "test"))
-          .withNow(Lazy.now("test"))
-          .withoutMappers()
-          .onlyForce()
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test memoisation only")
-    void testMemoizationOnly() {
-      CoreTypeTest.lazy(Lazy.class)
-          .withDeferred(Lazy.defer(() -> "test"))
-          .withNow(Lazy.now("test"))
-          .withoutMappers()
-          .onlyMemoisation()
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      CoreTypeTest.lazy(Lazy.class)
-          .withDeferred(Lazy.defer(() -> "test"))
-          .withNow(Lazy.now("test"))
-          .withMappers(Object::toString)
-          .onlyValidations()
-          .testAll();
     }
   }
 

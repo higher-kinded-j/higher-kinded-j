@@ -9,7 +9,8 @@ import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,7 +33,7 @@ class ConstBifunctorTest {
 
     @Test
     @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTestPattern() {
+    void runCompleteBifunctorTest() {
       Kind2<ConstKind2.Witness, String, Integer> validConst = CONST.widen2(new Const<>("hello"));
       Function<String, Integer> firstMapper = String::length;
       Function<Integer, String> secondMapper = n -> "Value:" + n;
@@ -41,7 +42,7 @@ class ConstBifunctorTest {
       BiPredicate<Kind2<ConstKind2.Witness, ?, ?>, Kind2<ConstKind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> CONST.narrow2(k1).equals(CONST.narrow2(k2));
 
-      TypeClassTest.<ConstKind2.Witness>bifunctor(ConstBifunctor.class)
+      TypeClassContract.<ConstKind2.Witness>bifunctor(ConstBifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validConst)
           .withFirstMapper(firstMapper)
@@ -49,9 +50,7 @@ class ConstBifunctorTest {
           .withCompositionFirstMapper(compositionFirstMapper)
           .withCompositionSecondMapper(compositionSecondMapper)
           .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions()
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
   }
 

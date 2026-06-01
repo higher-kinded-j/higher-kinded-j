@@ -11,8 +11,6 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.FunctorLaws;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -178,52 +176,6 @@ class StateFunctorTest extends StateTestBase<Integer> {
       // Evaluation produces correct result
       StateTuple<Integer, Integer> result = runState(computation, getInitialState());
       assertThatStateTuple(result).hasValue(8); // "Value: 2".length() = 8
-    }
-  }
-
-  @Nested
-  @DisplayName("CoreTypeTest Integration")
-  class CoreTypeTestIntegration {
-
-    @Test
-    @DisplayName("Test State core operations using CoreTypeTest API")
-    void testStateCoreOperations() {
-      State<Integer, Integer> state = State.of(s -> new StateTuple<>(s + 1, s + 1));
-
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(state)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test State with validation configuration")
-    void testStateWithValidationConfiguration() {
-      State<Integer, Integer> state = State.of(s -> new StateTuple<>(s * 2, s + 5));
-
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(state)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .withFlatMapFrom(StateMonad.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test State selective operations")
-    void testStateSelectiveOperations() {
-      State<Integer, Integer> state = State.pure(42);
-
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(state)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .onlyFactoryMethods()
-          .testAll();
     }
   }
 

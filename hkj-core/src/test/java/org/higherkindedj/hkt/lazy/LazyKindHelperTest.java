@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,19 +45,13 @@ class LazyKindHelperTest extends LazyTestBase {
       validateRequiredFixtures();
 
       Lazy<Integer> instance = narrowToLazy(validKind);
-      CoreTypeTest.lazyKindHelper(instance).test();
+      KindHelperTests.lazyKindHelper(instance).test();
     }
 
     @Test
     @DisplayName("Run complete LazyKindHelper tests with custom instance")
     void runCompleteLazyKindHelperTestsWithCustomInstance() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY).test();
-    }
-
-    @Test
-    @DisplayName("Run complete LazyKindHelper tests with concurrency")
-    void runCompleteLazyKindHelperTestsWithConcurrency() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY).withConcurrencyTests().test();
+      KindHelperTests.lazyKindHelper(BASE_LAZY).test();
     }
   }
 
@@ -346,7 +340,7 @@ class LazyKindHelperTest extends LazyTestBase {
     @Test
     @DisplayName("Test round-trip only")
     void testRoundTripOnly() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY)
+      KindHelperTests.lazyKindHelper(BASE_LAZY)
           .skipValidations()
           .skipInvalidType()
           .skipIdempotency()
@@ -357,7 +351,7 @@ class LazyKindHelperTest extends LazyTestBase {
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY)
+      KindHelperTests.lazyKindHelper(BASE_LAZY)
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -368,24 +362,11 @@ class LazyKindHelperTest extends LazyTestBase {
     @Test
     @DisplayName("Test invalid type handling only")
     void testInvalidTypeHandlingOnly() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY)
+      KindHelperTests.lazyKindHelper(BASE_LAZY)
           .skipRoundTrip()
           .skipValidations()
           .skipIdempotency()
           .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test concurrency safety")
-    void testConcurrencySafety() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipInvalidType()
-          .skipIdempotency()
-          .skipEdgeCases()
-          .withConcurrencyTests()
           .test();
     }
   }

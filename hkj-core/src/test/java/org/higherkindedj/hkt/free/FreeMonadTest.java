@@ -17,8 +17,8 @@ import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,7 +41,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
+    void runCompleteMonadTest() {
       // Note: We skip exception propagation tests (.testExceptions()) because
       // Free monad is lazy - it builds program structures without executing them.
       // Exceptions are only thrown during interpretation (foldMap), not during
@@ -49,46 +49,29 @@ class FreeMonadTest extends FreeTestBase {
       // lazy evaluation.
 
       // Test operations
-      TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
 
       // Test validations
-      TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(FreeFunctor.class)
-          .withApFrom(FreeMonad.class)
-          .withFlatMapFrom(FreeMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
 
       // Test laws
-      TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(FreeMonadTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -320,58 +303,40 @@ class FreeMonadTest extends FreeTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(FreeFunctor.class)
-          .withApFrom(FreeMonad.class)
-          .withFlatMapFrom(FreeMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     // Exception propagation tests are not applicable to Free monad because it's lazy.
     // Free monad builds program structures without executing functions, so exceptions
     // are only thrown during interpretation (foldMap), not during construction.
     // This is the correct and expected behavior for lazy evaluation.
-    //
-    // @Test
-    // @DisplayName("Test exception propagation only")
-    // void testExceptionPropagationOnly() {
-    //     TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-    //         .<Integer>instance(monad)
-    //         .<String>withKind(validKind)
-    //         .withMonadOperations(
-    //             validKind2, validMapper, validFlatMapper, validFunctionKind,
-    // validCombiningFunction
-    //         )
-    //         .testExceptions();
-    // }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 

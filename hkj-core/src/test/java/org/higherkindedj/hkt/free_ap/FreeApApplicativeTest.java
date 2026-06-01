@@ -16,7 +16,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -182,21 +183,21 @@ class FreeApApplicativeTest {
     @Test
     @DisplayName("Passes Applicative operations test")
     void passesApplicativeOperationsTest() {
-      TypeClassTest.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
+      TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
           .<Integer>instance(applicative)
           .<String>withKind(validKind)
           .withOperations(validKind2, mapper, functionKind, combiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Passes Applicative validations test")
     void passesApplicativeValidationsTest() {
-      TypeClassTest.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
+      TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
           .<Integer>instance(applicative)
           .<String>withKind(validKind)
           .withOperations(validKind2, mapper, functionKind, combiningFunction)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
@@ -224,12 +225,12 @@ class FreeApApplicativeTest {
 
       Function<String, String> secondMapper = s -> s + "!";
 
-      TypeClassTest.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
+      TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
           .<Integer>instance(applicative)
           .<String>withKind(validKind)
           .withOperations(validKind2, mapper, functionKind, combiningFunction)
           .withLawsTesting(42, mapper, eqChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 }

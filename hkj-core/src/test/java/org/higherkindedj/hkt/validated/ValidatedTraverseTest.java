@@ -15,7 +15,8 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,14 +44,14 @@ class ValidatedTraverseTest extends ValidatedTestBase {
 
     @Test
     @DisplayName("Run complete ValidatedTraverse test pattern")
-    void runCompleteValidatedTraverseTestPattern() {
-      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+    void runCompleteValidatedTraverseTest() {
+      TypeClassContract.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
-          .withFoldableOperations(monoid, Object::toString)
-          .testAll();
+          .withFoldable(monoid, Object::toString)
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
     }
   }
 
@@ -241,37 +242,37 @@ class ValidatedTraverseTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
-          .withFoldableOperations(monoid, Object::toString)
-          .testOperations();
+          .withFoldable(monoid, Object::toString)
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
-          .withFoldableOperations(monoid, Object::toString)
-          .testValidations();
+          .withFoldable(monoid, Object::toString)
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exceptions only")
     void testExceptionsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(validKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
-          .withFoldableOperations(monoid, Object::toString)
-          .testExceptions();
+          .withFoldable(monoid, Object::toString)
+          .verifyOnly(Category.EXCEPTIONS);
     }
   }
 

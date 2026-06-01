@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +31,7 @@ class WriterBifunctorTest {
 
     @Test
     @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTestPattern() {
+    void runCompleteBifunctorTest() {
       Kind2<WriterKind2.Witness, String, Integer> validWriter =
           WRITER.widen2(new Writer<>("log", 42));
       Function<String, Integer> firstMapper = String::length;
@@ -41,7 +41,7 @@ class WriterBifunctorTest {
       BiPredicate<Kind2<WriterKind2.Witness, ?, ?>, Kind2<WriterKind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> WRITER.narrow2(k1).equals(WRITER.narrow2(k2));
 
-      TypeClassTest.<WriterKind2.Witness>bifunctor(WriterBifunctor.class)
+      TypeClassContract.<WriterKind2.Witness>bifunctor(WriterBifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validWriter)
           .withFirstMapper(firstMapper)
@@ -49,7 +49,7 @@ class WriterBifunctorTest {
           .withCompositionFirstMapper(compositionFirstMapper)
           .withCompositionSecondMapper(compositionSecondMapper)
           .withEqualityChecker(equalityChecker)
-          .testAll();
+          .verify();
     }
   }
 
