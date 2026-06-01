@@ -3,18 +3,19 @@
 package org.higherkindedj.hkt.id;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
@@ -39,9 +40,6 @@ class IdTraverseTest extends IdTestBase {
   private Function<Integer, Kind<ValidatedKind.Witness<String>, String>> validTraverseFunction;
   private Monoid<String> validMonoid;
   private Function<Integer, String> validFoldMapFunction;
-  private BiPredicate<
-          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-      validatedEqualityChecker;
 
   @BeforeEach
   void setUpTraverse() {
@@ -52,11 +50,6 @@ class IdTraverseTest extends IdTestBase {
         i -> ValidatedKindHelper.VALIDATED.widen(Validated.valid("Traversed:" + i));
     validMonoid = Monoids.string();
     validFoldMapFunction = Object::toString;
-    validatedEqualityChecker =
-        (k1, k2) ->
-            ValidatedKindHelper.VALIDATED
-                .narrow(k1)
-                .equals(ValidatedKindHelper.VALIDATED.narrow(k2));
 
     validateRequiredFixtures();
   }
@@ -67,27 +60,15 @@ class IdTraverseTest extends IdTestBase {
 
     @Test
     @DisplayName("Run complete Traverse test pattern")
-    void runCompleteTraverseTestPattern() {
-      TypeClassTest.<IdKind.Witness>traverse(IdTraverse.class)
+    void runCompleteTraverseTest() {
+      TypeClassContract.<IdKind.Witness>traverse(IdTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(testIdKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(validatedApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .withEqualityChecker(validatedEqualityChecker)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(IdTraverseTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .withEqualityChecker(KindEquivalence.byEqualsAfter(ID::narrow))
+          .verify();
     }
   }
 
@@ -155,50 +136,50 @@ class IdTraverseTest extends IdTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<IdKind.Witness>traverse(IdTraverse.class)
+      TypeClassContract.<IdKind.Witness>traverse(IdTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(testIdKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(validatedApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .testOperations();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<IdKind.Witness>traverse(IdTraverse.class)
+      TypeClassContract.<IdKind.Witness>traverse(IdTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(testIdKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(validatedApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .testValidations();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<IdKind.Witness>traverse(IdTraverse.class)
+      TypeClassContract.<IdKind.Witness>traverse(IdTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(testIdKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(validatedApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .testExceptions();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<IdKind.Witness>traverse(IdTraverse.class)
+      TypeClassContract.<IdKind.Witness>traverse(IdTraverse.class)
           .<Integer>instance(traverse)
           .<String>withKind(testIdKind)
-          .withOperations(validMapper)
+          .withMapper(validMapper)
           .withApplicative(validatedApplicative, validTraverseFunction)
-          .withFoldableOperations(validMonoid, validFoldMapFunction)
-          .withEqualityChecker(validatedEqualityChecker)
-          .testLaws();
+          .withFoldable(validMonoid, validFoldMapFunction)
+          .withEqualityChecker(KindEquivalence.byEqualsAfter(ID::narrow))
+          .verifyOnly(Category.LAWS);
     }
   }
 

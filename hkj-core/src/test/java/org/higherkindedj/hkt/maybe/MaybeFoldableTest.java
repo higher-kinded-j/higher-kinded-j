@@ -11,9 +11,9 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.data.TestFunctions;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,24 +44,12 @@ class MaybeFoldableTest extends MaybeTestBase {
 
     @Test
     @DisplayName("Run complete Foldable test pattern")
-    void runCompleteFoldableTestPattern() {
-      TypeClassTest.<MaybeKind.Witness>foldable(MaybeTraverse.class)
+    void runCompleteFoldableTest() {
+      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
           .<Integer>instance(foldable)
           .withKind(justKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(MaybeFoldableTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .verify();
     }
   }
 
@@ -128,31 +116,31 @@ class MaybeFoldableTest extends MaybeTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<MaybeKind.Witness>foldable(MaybeTraverse.class)
+      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
           .<Integer>instance(foldable)
           .withKind(justKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<MaybeKind.Witness>foldable(MaybeTraverse.class)
+      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
           .<Integer>instance(foldable)
           .withKind(justKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<MaybeKind.Witness>foldable(MaybeTraverse.class)
+      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
           .<Integer>instance(foldable)
           .withKind(justKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
   }
 

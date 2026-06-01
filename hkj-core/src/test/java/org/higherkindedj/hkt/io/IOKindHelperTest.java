@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.io;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-import static org.higherkindedj.hkt.test.api.CoreTypeTest.ioKindHelper;
+import static org.higherkindedj.hkt.test.api.KindHelperTests.ioKindHelper;
 
 import java.util.List;
 import java.util.Map;
@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,14 +59,6 @@ class IOKindHelperTest extends IOTestBase {
           ioKindHelper(instance).test();
         }
       }
-    }
-
-    @Test
-    @DisplayName("Comprehensive test with implementation validation")
-    void comprehensiveTestWithImplementationValidation() {
-      IO<String> validInstance = IO.delay(() -> "Comprehensive");
-
-      ioKindHelper(validInstance).testWithValidation(IOKindHelper.class);
     }
   }
 
@@ -420,21 +411,6 @@ class IOKindHelperTest extends IOTestBase {
   @Nested
   @DisplayName("Advanced Testing Scenarios")
   class AdvancedTestingScenarios {
-    @Test
-    @DisplayName("Concurrent access test")
-    void testConcurrentAccess() {
-      if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        IO<String> testInstance = IO.delay(() -> "concurrent_test");
-
-        ioKindHelper(testInstance).withConcurrencyTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Implementation standards validation")
-    void testImplementationStandards() {
-      KindHelperTestPattern.validateImplementationStandards(IO.class, IOKindHelper.class);
-    }
 
     @Test
     @DisplayName("Quick test for fast test suites")

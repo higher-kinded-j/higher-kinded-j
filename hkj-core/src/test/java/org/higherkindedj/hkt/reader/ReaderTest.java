@@ -19,8 +19,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,98 +55,27 @@ class ReaderTest extends ReaderTestBase {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
+    void runCompleteMonadTest() {
+      TypeClassContract.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withApFrom(ReaderApplicative.class)
-          .withFlatMapFrom(ReaderMonad.class)
-          .selectTests()
-          .skipExceptions() //  Reader has lazy evaluation
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
 
     @Test
     @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
+    void runCompleteFunctorTest() {
+      TypeClassContract.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() //  Reader has lazy evaluation
-          .test();
-    }
-  }
-
-  @Nested
-  @DisplayName("Core Type Testing with CoreTypeTest API")
-  class CoreTypeTestingSuite {
-
-    @Test
-    @DisplayName("Test all Reader core operations")
-    void testAllReaderCoreOperations() {
-      CoreTypeTest.<TestConfig, String>reader(Reader.class)
-          .withReader(getUrlReader)
-          .withEnvironment(TEST_CONFIG)
-          .withMappers(String::toUpperCase)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Reader with validation configuration")
-    void testReaderWithValidationConfiguration() {
-      CoreTypeTest.<TestConfig, Integer>reader(Reader.class)
-          .withReader(getMaxConnectionsReader)
-          .withEnvironment(TEST_CONFIG)
-          .withMappers(i -> "MaxConnections: " + i)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ReaderFunctor.class)
-          .withFlatMapFrom(ReaderMonad.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Reader selective operations")
-    void testReaderSelectiveOperations() {
-      CoreTypeTest.<TestConfig, String>reader(Reader.class)
-          .withReader(getUrlReader)
-          .withEnvironment(TEST_CONFIG)
-          .withMappers(String::toLowerCase)
-          .onlyFactoryMethods()
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Reader operations only")
-    void testReaderOperationsOnly() {
-      CoreTypeTest.<TestConfig, String>reader(Reader.class)
-          .withReader(getUrlReader)
-          .withEnvironment(TEST_CONFIG)
-          .withMappers(String::toUpperCase)
-          .skipValidations()
-          .skipEdgeCases()
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Reader validations only")
-    void testReaderValidationsOnly() {
-      CoreTypeTest.<TestConfig, String>reader(Reader.class)
-          .withReader(getUrlReader)
-          .withEnvironment(TEST_CONFIG)
-          .withMappers(String::toUpperCase)
-          .onlyValidations()
-          .testAll();
+          // skip exceptions: Reader has lazy evaluation
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
   }
 

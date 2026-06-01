@@ -11,8 +11,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,64 +44,37 @@ class MaybeMonadErrorTest extends MaybeTestBase {
 
     @Test
     @DisplayName("Run complete MonadError test pattern")
-    void runCompleteMonadErrorTestPattern() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+    void runCompleteMonadErrorTest() {
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .withHandleErrorWithFrom(MaybeMonad.class)
-          .testAll();
+          .verify();
     }
 
     @Test
     @DisplayName("Selective testing - operations and laws only")
     void selectiveTestingOperationsAndLaws() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .skipValidations()
-          .skipExceptions()
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.LAWS);
     }
 
     @Test
     @DisplayName("Quick smoke test - operations only")
     void quickSmokeTest() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .withHandleErrorWithFrom(MaybeMonad.class)
-          .testOperationsAndValidations();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(MaybeMonadErrorTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
     }
   }
 
@@ -236,52 +209,46 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(MaybeFunctor.class)
-          .withApFrom(MaybeMonad.class)
-          .withFlatMapFrom(MaybeMonad.class)
-          .withHandleErrorWithFrom(MaybeMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
           .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(validHandler, validFallback)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 

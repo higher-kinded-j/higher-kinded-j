@@ -10,7 +10,8 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,12 +36,12 @@ class TryFoldableTest extends TryTestBase {
 
     @Test
     @DisplayName("Run complete Foldable test pattern")
-    void runCompleteFoldableTestPattern() {
-      TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
+    void runCompleteFoldableTest() {
+      TypeClassContract.<TryKind.Witness>foldable(TryTraverse.class)
           .<String>instance(foldable)
           .withKind(validKind)
           .withOperations(SUM_MONOID, validMapper)
-          .testAll();
+          .verify();
     }
   }
 
@@ -97,31 +98,31 @@ class TryFoldableTest extends TryTestBase {
     @Test
     @DisplayName("Test foldMap operations only")
     void testOperationsOnly() {
-      TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>foldable(TryTraverse.class)
           .<String>instance(foldable)
           .withKind(validKind)
           .withOperations(SUM_MONOID, validMapper)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test foldMap validations only")
     void testValidationsOnly() {
-      TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>foldable(TryTraverse.class)
           .<String>instance(foldable)
           .withKind(validKind)
           .withOperations(SUM_MONOID, validMapper)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
+      TypeClassContract.<TryKind.Witness>foldable(TryTraverse.class)
           .<String>instance(foldable)
           .withKind(validKind)
           .withOperations(SUM_MONOID, validMapper)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
   }
 

@@ -41,6 +41,8 @@ The audit and safety-rail layer on top of [Optic-Driven Batching](optics/optic_b
 
 Mostly an internal refactor of the hkj-core test suite — net −822 lines while preserving 100% JaCoCo coverage. The one user-visible piece is in `hkj-test`: new reusable law helpers (`FunctorLaws`, `ApplicativeLaws`, `MonadLaws`, `SelectiveLaws`) and a `KindEquivalence.byEqualsAfter` helper that downstream users can call to verify their own type-class instances. The Kind-accepting overloads on `EitherAssert` / `MaybeAssert` / `TryAssert` / `IOAssert` / `LazyAssert` / `ReaderAssert` / `ValidatedAssert` / `WriterAssert` / `VStreamAssert` / `VTaskAssert` now match the auto-narrowing pattern of `ListAssert` / `OptionalKindAssert` / `StreamAssert` / `IdAssert`.
 
+A follow-up internal pass completes this work: the remaining hand-rolled `TypeClassTest` / `CoreTypeTest` stage-and-executor scaffolding is replaced by the descriptor-driven `TypeClassContract` harness, with three further reusable `hkj-test` law helpers (`TraverseLaws`, `BifunctorLaws`, `KindHelperLaws`) added on the same pattern — a further ~24.8k lines of bespoke test infrastructure removed, 100% JaCoCo coverage held throughout. No user-facing change beyond the additional law helpers.
+
 **N-ary Coupled Lenses**
 
 The arity ladder above `Lens.paired`: a record with three or more cross-field invariants can now be updated atomically through a single `coupled3`..`coupled9` call instead of nested `paired` workarounds.

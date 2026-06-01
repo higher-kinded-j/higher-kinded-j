@@ -12,8 +12,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,31 +44,13 @@ class ConstApplicativeTest extends ConstTestBase {
 
     @Test
     @DisplayName("Run complete Applicative test pattern")
-    void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
+    void runCompleteApplicativeTest() {
+      TypeClassContract.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
           .<String>instance(applicativeTyped)
           .<Integer>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, validMapper, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ConstApplicative.class)
-          .withApFrom(ConstApplicative.class)
-          .selectTests()
-          .skipExceptions()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(ConstApplicativeTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
   }
 
@@ -382,36 +364,32 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
+      TypeClassContract.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
           .<String>instance(applicativeTyped)
           .<Integer>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
+      TypeClassContract.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
           .<String>instance(applicativeTyped)
           .<Integer>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ConstApplicative.class)
-          .withApFrom(ConstApplicative.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
+      TypeClassContract.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
           .<String>instance(applicativeTyped)
           .<Integer>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, validMapper, equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
 
     @Test

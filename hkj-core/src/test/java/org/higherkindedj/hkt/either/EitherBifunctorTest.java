@@ -8,7 +8,8 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +32,7 @@ class EitherBifunctorTest {
 
     @Test
     @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTestPattern() {
+    void runCompleteBifunctorTest() {
       Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
       Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
       Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
@@ -42,7 +43,7 @@ class EitherBifunctorTest {
       BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
 
-      TypeClassTest.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
+      TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validEither)
           .withFirstMapper(firstMapper)
@@ -52,7 +53,7 @@ class EitherBifunctorTest {
           .withEqualityChecker(equalityChecker)
           .withFirstExceptionKind(leftEither)
           .withSecondExceptionKind(rightEither)
-          .testAll();
+          .verify();
     }
   }
 
@@ -65,14 +66,12 @@ class EitherBifunctorTest {
     void testOperationsOnly() {
       Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
 
-      TypeClassTest.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
+      TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validEither)
           .withFirstMapper(String::length)
           .withSecondMapper(n -> "Value:" + n)
-          .selectTests()
-          .onlyOperations()
-          .test();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
@@ -82,7 +81,7 @@ class EitherBifunctorTest {
       BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
 
-      TypeClassTest.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
+      TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validEither)
           .withFirstMapper(String::length)
@@ -90,9 +89,7 @@ class EitherBifunctorTest {
           .withCompositionFirstMapper(i -> "#" + i)
           .withCompositionSecondMapper(s -> s + "!")
           .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+          .verifyOnly(Category.LAWS);
     }
   }
 

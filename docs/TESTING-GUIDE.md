@@ -450,6 +450,83 @@ Note: Stream is excluded because Java Streams can only be consumed once.
 **Real example:**
 - `AlternativeLawsTestFactory.java` - 15 dynamic tests across 3 Alternative implementations
 
+### Reusable Law Primitives (`hkj-test`) and Contract Testing
+
+Alongside the hand-rolled `@TestFactory` law suites above, the project ships a set of
+**reusable verification primitives** in the `hkj-test` module and orchestrates them with an
+internal, descriptor-driven contract harness in `hkj-core` test sources. This is the preferred
+approach for new type-class tests, and the only one you can reuse against your own HKT simulation.
+
+#### `*Laws` — shipped law helpers
+
+`hkj-test` exposes one flat `*Laws` class per algebra under `org.higherkindedj.hkt.laws`
+(`FunctorLaws`, `ApplicativeLaws`, `MonadLaws`, `SelectiveLaws`, `TraverseLaws`, `BifunctorLaws`).
+Each helper checks one law for a single fixture and takes the instance under test plus a structural
+equality predicate — so library users can verify their own instances:
+
+```java
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+
+// Structural equality over Kind<F, ?> (narrow, then compare by value)
+var eq = KindEquivalence.byEqualsAfter(MAYBE::narrow);
+
+FunctorLaws.assertIdentity(MaybeFunctor.INSTANCE, MAYBE.widen(Maybe.just(42)), eq);
+FunctorLaws.assertComposition(MaybeFunctor.INSTANCE, fa, Object::toString, String::length, eq);
+```
+
+`TraverseLaws.assertIdentity` uses the `Id` applicative (`traverse(Id, Id::of, fa) == fa`);
+`BifunctorLaws` covers identity / composition / first- & second-consistency over `Kind2`.
+
+#### `TypeClassContract` — the fluent contract harness
+
+`org.higherkindedj.hkt.test.contract.TypeClassContract` is the in-core successor to the legacy
+`TypeClassTest` API. Each algebra has a small contract that describes its checks as values and runs
+them through a shared engine, delegating the law category to the `hkj-test` `*Laws`. Checks are
+grouped into a `Category` enum — `OPERATIONS`, `VALIDATIONS`, `EXCEPTIONS`, `LAWS`:
+
+```java
+TypeClassContract.functor(MaybeFunctor.class)
+    .instance(MaybeFunctor.INSTANCE)
+    .withKind(validKind)
+    .withMapper(INT_TO_STRING)
+    .withEqualityChecker(eq)       // required only when LAWS are exercised
+    .verify();                     // runs OPERATIONS, VALIDATIONS, EXCEPTIONS, LAWS
+
+// Run a subset:
+TypeClassContract.monad(MaybeMonad.class)
+    .instance(MaybeMonad.INSTANCE)
+    .withKind(validKind)
+    .withMonadOperations(validKind2, mapper, flatMapper, functionKind, combiningFunction)
+    .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
+```
+
+Entry points exist for `functor`, `foldable`, `applicative`, `monad`, `monadError`, `traverse` and
+`bifunctor`. Null-argument validation is asserted production-aligned (re-derived from
+`util.validation`) for stable single-argument operations and type-only (`NullPointerException`) for
+multi-argument operations whose message wording is implementation-dependent.
+
+#### KindHelper round-trip testing
+
+`KindHelper` widen/narrow isomorphisms are verified with `KindHelperTests` (built-in types) which
+delegates the round-trip / idempotency / edge-case laws to `hkj-test`'s `KindHelperLaws` and adds
+the defensive null / foreign-kind checks:
+
+```java
+KindHelperTests.eitherKindHelper(Either.right("test")).test();
+KindHelperTests.maybeKindHelper(Maybe.just(42)).skipValidations().test();
+
+// Reusable primitive for your own helper:
+KindHelperLaws.assertRoundTrip(myValue, MY_HELPER::widen, MY_HELPER::narrow);
+```
+
+#### `TypeClassTestBase` — the fixture base
+
+`org.higherkindedj.hkt.test.base.TypeClassTestBase` is a shared fixture base providing
+`protected` fixtures (`validKind`, `validMapper`, `equalityChecker`, `testValue`, …) via overridable
+`createX()` factories. Type tests extend it and feed those fixtures into the `*Laws` / contracts
+rather than re-declaring them per test.
+
 ## Optics Law Testing
 
 Optics (Lens, Prism, Traversal) must satisfy specific laws based on their semantics.

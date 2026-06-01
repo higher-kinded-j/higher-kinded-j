@@ -17,7 +17,6 @@ import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -303,29 +302,6 @@ class StateTTest {
           .contains("runStateTFn=")
           .contains("monadF=")
           .endsWith("]");
-    }
-  }
-
-  @Nested
-  @DisplayName("Complete Core Type Test Suite")
-  class CompleteCoreTypeTests {
-
-    @Test
-    @DisplayName("Run complete StateT core type tests")
-    void runCompleteStateTTests() {
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn1 =
-          s -> outerMonad.of(StateTuple.of(s + "_1", initialValue));
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn2 =
-          s -> outerMonad.of(StateTuple.of(s + "_2", initialValue * 2));
-
-      StateT<String, OptionalKind.Witness, Integer> instance1 = StateT.create(runFn1, outerMonad);
-      StateT<String, OptionalKind.Witness, Integer> instance2 = StateT.create(runFn2, outerMonad);
-
-      CoreTypeTest.<String, OptionalKind.Witness, Integer>stateT(StateT.class, outerMonad)
-          .withInstance(instance1)
-          .withAnotherInstance(instance2)
-          .withMappers(Object::toString)
-          .testAll();
     }
   }
 

@@ -15,10 +15,9 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,71 +49,26 @@ class WriterTest extends WriterTestBase {
 
     @Test
     @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTestPattern() {
-      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
+    void runCompleteMonadTest() {
+      TypeClassContract.<WriterKind.Witness<String>>monad(WriterMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(WriterFunctor.class)
-          .withApFrom(WriterApplicative.class)
-          .withFlatMapFrom(WriterMonad.class)
-          .testAll();
+          .verify();
     }
 
     @Test
     @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTestPattern() {
-      TypeClassTest.<WriterKind.Witness<String>>functor(WriterFunctor.class)
+    void runCompleteFunctorTest() {
+      TypeClassContract.<WriterKind.Witness<String>>functor(WriterFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
-          .testAll();
-    }
-  }
-
-  @Nested
-  @DisplayName("Core Type Testing with CoreTypeTest API")
-  class CoreTypeTestingSuite {
-
-    @Test
-    @DisplayName("Test all Writer core operations")
-    void testAllWriterCoreOperations() {
-      CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(defaultWriter())
-          .withMonoid(STRING_MONOID)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Writer with validation configuration")
-    void testWriterWithValidationConfiguration() {
-      CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(defaultWriter())
-          .withMonoid(STRING_MONOID)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(WriterFunctor.class)
-          .withFlatMapFrom(WriterMonad.class)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test Writer selective operations")
-    void testWriterSelectiveOperations() {
-      CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(defaultWriter())
-          .withMonoid(STRING_MONOID)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .onlyFactoryMethods()
-          .testAll();
+          .verify();
     }
   }
 

@@ -16,7 +16,8 @@ import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -139,46 +140,46 @@ class ValidatedMonadTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -189,17 +190,12 @@ class ValidatedMonadTest extends ValidatedTestBase {
     @Test
     @DisplayName("Test with inheritance-based validation")
     void testWithInheritanceBasedValidation() {
-      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(ValidatedMonad.class)
-          .withApFrom(ValidatedMonad.class)
-          .withFlatMapFrom(ValidatedMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
   }
 

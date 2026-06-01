@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.writer;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.test.api.CoreTypeTest.writerKindHelper;
+import static org.higherkindedj.hkt.test.api.KindHelperTests.writerKindHelper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -49,14 +49,6 @@ class WriterKindHelperTest extends WriterTestBase {
       for (Writer<String, Integer> instance : testInstances) {
         writerKindHelper(instance).test();
       }
-    }
-
-    @Test
-    @DisplayName("Comprehensive test with implementation validation")
-    void comprehensiveTestWithImplementationValidation() {
-      Writer<String, Integer> validInstance = valueWriter(100);
-
-      writerKindHelper(validInstance).testWithValidation(WriterKindHelper.class);
     }
   }
 
@@ -220,16 +212,6 @@ class WriterKindHelperTest extends WriterTestBase {
   @Nested
   @DisplayName("Advanced Testing Scenarios")
   class AdvancedTestingScenarios {
-
-    @Test
-    @DisplayName("Concurrent access test")
-    void testConcurrentAccess() {
-      if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        Writer<String, Integer> testInstance = valueWriter(42);
-
-        writerKindHelper(testInstance).withConcurrencyTests().test();
-      }
-    }
 
     @Test
     @DisplayName("Quick test for fast test suites")

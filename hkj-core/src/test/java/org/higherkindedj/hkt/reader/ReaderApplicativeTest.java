@@ -11,7 +11,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -381,7 +381,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
     void testReaderKindHelperWithApplicativeOperations() {
       Reader<TestConfig, String> reader = constantReader("test");
 
-      CoreTypeTest.readerKindHelper(reader).test();
+      KindHelperTests.readerKindHelper(reader).test();
     }
   }
 

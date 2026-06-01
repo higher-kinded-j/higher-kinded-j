@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +31,7 @@ class Tuple2BifunctorTest {
 
     @Test
     @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTestPattern() {
+    void runCompleteBifunctorTest() {
       Kind2<Tuple2Kind2.Witness, String, Integer> validTuple =
           TUPLE2.widen2(new Tuple2<>("hello", 42));
       Function<String, Integer> firstMapper = String::length;
@@ -41,7 +41,7 @@ class Tuple2BifunctorTest {
       BiPredicate<Kind2<Tuple2Kind2.Witness, ?, ?>, Kind2<Tuple2Kind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> TUPLE2.narrow2(k1).equals(TUPLE2.narrow2(k2));
 
-      TypeClassTest.<Tuple2Kind2.Witness>bifunctor(Tuple2Bifunctor.class)
+      TypeClassContract.<Tuple2Kind2.Witness>bifunctor(Tuple2Bifunctor.class)
           .<String, Integer>instance(bifunctor)
           .withKind2(validTuple)
           .withFirstMapper(firstMapper)
@@ -49,7 +49,7 @@ class Tuple2BifunctorTest {
           .withCompositionFirstMapper(compositionFirstMapper)
           .withCompositionSecondMapper(compositionSecondMapper)
           .withEqualityChecker(equalityChecker)
-          .testAll();
+          .verify();
     }
   }
 

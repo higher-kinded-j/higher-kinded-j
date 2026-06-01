@@ -14,7 +14,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -131,33 +132,33 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Functor operations (map)")
     void testFunctorOperations() {
-      TypeClassTest.<IdKind.Witness>functor(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>functor(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withEqualityChecker(equalityChecker)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test Applicative operations (of, ap, map2)")
     void testApplicativeOperations() {
-      TypeClassTest.<IdKind.Witness>applicative(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>applicative(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test Monad operations (flatMap)")
     void testMonadOperations() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
   }
 
@@ -168,48 +169,46 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyOperations()
-          .test();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -220,58 +219,45 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test null parameter validations")
     void testAllNullParameterValidations() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyValidations()
-          .test();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test validation with Functor context for map")
     void testValidationWithFunctorContext() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IdMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test validation with Monad context for flatMap")
     void testValidationWithMonadContext() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withFlatMapFrom(IdMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test validation with full inheritance hierarchy")
     void testValidationWithFullInheritanceHierarchy() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(IdMonad.class)
-          .withApFrom(IdMonad.class)
-          .withFlatMapFrom(IdMonad.class)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
   }
 
@@ -282,37 +268,35 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Functor laws (identity and composition)")
     void testFunctorLaws() {
-      TypeClassTest.<IdKind.Witness>functor(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>functor(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withEqualityChecker(equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
 
     @Test
     @DisplayName("Test Applicative laws (identity, homomorphism, interchange)")
     void testApplicativeLaws() {
-      TypeClassTest.<IdKind.Witness>applicative(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>applicative(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, validMapper, equalityChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
 
     @Test
     @DisplayName("Test Monad laws (left identity, right identity, associativity)")
     void testMonadLaws() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .onlyLaws()
-          .test();
+          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -399,14 +383,12 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test map propagates exceptions")
     void testMapPropagatesExceptions() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .onlyExceptions()
-          .test();
+          .verifyOnly(Category.EXCEPTIONS);
     }
 
     @Test
@@ -444,56 +426,48 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Skip operations")
     void skipOperations() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .skipOperations()
-          .test();
+          .verifyOnly(Category.VALIDATIONS, Category.EXCEPTIONS, Category.LAWS);
     }
 
     @Test
     @DisplayName("Skip validations")
     void skipValidations() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .skipValidations()
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS, Category.LAWS);
     }
 
     @Test
     @DisplayName("Skip exceptions")
     void skipExceptions() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .selectTests()
-          .skipExceptions()
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
     }
 
     @Test
     @DisplayName("Skip laws")
     void skipLaws() {
-      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
+      TypeClassContract.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .selectTests()
-          .skipLaws()
-          .test();
+          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
     }
   }
 }

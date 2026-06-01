@@ -12,8 +12,6 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -278,38 +276,6 @@ class StateApplicativeTest extends StateTestBase<Integer> {
       assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("Exception should be thrown during run()")
           .isSameAs(testException);
-    }
-  }
-
-  @Nested
-  @DisplayName("CoreTypeTest Integration")
-  class CoreTypeTestIntegration {
-
-    @Test
-    @DisplayName("Test State core operations using CoreTypeTest API")
-    void testStateCoreOperations() {
-      State<Integer, Integer> state = State.of(s -> new StateTuple<>(s + 1, s + 1));
-
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(state)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Test State with validation configuration for Applicative")
-    void testStateWithApplicativeValidation() {
-      State<Integer, Integer> state = State.of(s -> new StateTuple<>(s * 2, s + 5));
-
-      CoreTypeTest.<Integer, Integer>state(State.class)
-          .withState(state)
-          .withInitialState(getInitialState())
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .configureValidation()
-          .useInheritanceValidation()
-          .withMapFrom(StateFunctor.class)
-          .testAll();
     }
   }
 

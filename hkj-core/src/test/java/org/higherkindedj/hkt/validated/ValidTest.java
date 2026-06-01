@@ -12,7 +12,6 @@ import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,29 +27,6 @@ class ValidTest extends ValidatedTestBase {
   void setUp() {
     validInstance = new Valid<>(DEFAULT_VALID_VALUE);
     semigroup = createDefaultSemigroup();
-  }
-
-  @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Run complete Valid validation tests")
-    void runCompleteValidValidationTests() {
-      Validated<String, Integer> anotherValid = Validated.valid(ALTERNATIVE_VALID_VALUE);
-
-      CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(validInstance)
-          .withValid(anotherValid)
-          .withMappers(Object::toString)
-          .configureValidation()
-          .withValidatedInheritanceValidation()
-          .withMapFrom(Valid.class)
-          .withFlatMapFrom(Valid.class)
-          .withIfValidFrom(Valid.class)
-          .withIfInvalidFrom(Valid.class)
-          .testValidations();
-    }
   }
 
   @Nested

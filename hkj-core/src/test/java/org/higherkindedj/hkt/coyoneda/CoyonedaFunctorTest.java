@@ -12,7 +12,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -144,21 +145,21 @@ class CoyonedaFunctorTest {
     @Test
     @DisplayName("Passes Functor operations test")
     void passesFunctorOperationsTest() {
-      TypeClassTest.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
+      TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(mapper)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Passes Functor validations test")
     void passesFunctorValidationsTest() {
-      TypeClassTest.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
+      TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(mapper)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
@@ -186,13 +187,13 @@ class CoyonedaFunctorTest {
 
       Function<String, String> secondMapper = s -> s + "!";
 
-      TypeClassTest.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
+      TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
           .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(mapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(eqChecker)
-          .testLaws();
+          .verifyOnly(Category.LAWS);
     }
   }
 }

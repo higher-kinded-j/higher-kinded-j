@@ -267,6 +267,30 @@ class ScopeJoinerTest {
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("task failed");
     }
+
+    @Test
+    @DisplayName("onFork short-circuits once a subtask has completed (deterministic)")
+    @SuppressWarnings("preview")
+    void onForkShortCircuitsAfterFirstCompletion() throws InterruptedException {
+      // Subtask is a sealed type, so we obtain a real, already-completed one from a throwaway,
+      // fully-joined scope rather than stubbing it.
+      StructuredTaskScope.Subtask<String> completed;
+      try (var scope = StructuredTaskScope.open(ScopeJoiner.<String>allSucceed().joiner())) {
+        completed = scope.fork(() -> "winner");
+        scope.join();
+      }
+
+      StructuredTaskScope.Joiner<String, String> joiner =
+          ScopeJoiner.<String>firstComplete().joiner();
+
+      // First completion records the winner and cancels the scope (onComplete returns false).
+      assertThat(joiner.onComplete(completed)).isFalse();
+
+      // Deterministically exercises onFork's "already have a result, don't fork" branch, which is
+      // otherwise only reached by a fork/completion race in the concurrent tests above and so had
+      // intermittent (flaky) coverage.
+      assertThat(joiner.onFork(completed)).isFalse();
+    }
   }
 
   @Nested

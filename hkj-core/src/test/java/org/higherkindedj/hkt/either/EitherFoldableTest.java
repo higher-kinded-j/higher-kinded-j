@@ -14,9 +14,9 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.data.TestFunctions;
-import org.higherkindedj.hkt.test.validation.TestPatternValidator;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,24 +43,12 @@ class EitherFoldableTest extends EitherTestBase {
 
     @Test
     @DisplayName("Run complete Foldable test pattern")
-    void runCompleteFoldableTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+    void runCompleteFoldableTest() {
+      TypeClassContract.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
           .<Integer>instance(foldable)
           .withKind(validKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testAll();
-    }
-
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(EitherFoldableTest.class);
-
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
+          .verify();
     }
   }
 
@@ -138,31 +126,31 @@ class EitherFoldableTest extends EitherTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
           .<Integer>instance(foldable)
           .withKind(validKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testOperations();
+          .verifyOnly(Category.OPERATIONS);
     }
 
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
           .<Integer>instance(foldable)
           .withKind(validKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testValidations();
+          .verifyOnly(Category.VALIDATIONS);
     }
 
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+      TypeClassContract.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
           .<Integer>instance(foldable)
           .withKind(validKind)
           .withOperations(validMonoid, validFoldMapFunction)
-          .testExceptions();
+          .verifyOnly(Category.EXCEPTIONS);
     }
   }
 

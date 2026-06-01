@@ -8,7 +8,7 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 
 /**
  * Base class for Try type class tests.

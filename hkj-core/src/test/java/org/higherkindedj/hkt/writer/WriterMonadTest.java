@@ -14,7 +14,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -153,27 +153,15 @@ class WriterMonadTest extends WriterTestBase {
   }
 
   @Nested
-  @DisplayName("Core Type Tests")
-  class CoreTypeTests {
-
-    @Test
-    @DisplayName("Test Writer core operations")
-    void testWriterCoreOperations() {
-      Writer<String, Integer> writer = writerOf("TestLog;", 42);
-
-      CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(writer)
-          .withMonoid(STRING_MONOID)
-          .withMappers(validMapper)
-          .testAll();
-    }
+  @DisplayName("KindHelper Round-Trip Tests")
+  class KindHelperRoundTripTests {
 
     @Test
     @DisplayName("Test WriterKindHelper operations")
     void testWriterKindHelperOperations() {
       Writer<String, Integer> writer = writerOf("TestLog;", 42);
 
-      CoreTypeTest.writerKindHelper(writer).test();
+      KindHelperTests.writerKindHelper(writer).test();
     }
   }
 

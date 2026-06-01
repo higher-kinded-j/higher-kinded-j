@@ -16,8 +16,7 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -308,27 +307,15 @@ class ReaderMonadTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Core Type Tests")
-  class CoreTypeTests {
-
-    @Test
-    @DisplayName("Test Reader core type operations")
-    void testReaderCoreTypeOperations() {
-      Reader<TestConfig, Integer> reader = Reader.of(TestConfig::maxConnections);
-
-      CoreTypeTest.<TestConfig, Integer>reader(Reader.class)
-          .withReader(reader)
-          .withEnvironment(TEST_CONFIG)
-          .withMappers(TestFunctions.INT_TO_STRING)
-          .testAll();
-    }
+  @DisplayName("KindHelper Round-Trip Tests")
+  class KindHelperRoundTripTests {
 
     @Test
     @DisplayName("Test ReaderKindHelper")
     void testReaderKindHelper() {
       Reader<TestConfig, String> reader = Reader.constant("test");
 
-      CoreTypeTest.readerKindHelper(reader).test();
+      KindHelperTests.readerKindHelper(reader).test();
     }
   }
 }

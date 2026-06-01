@@ -49,36 +49,6 @@ class StreamMonadTest extends StreamTestBase {
   // The framework stores Kind instances in fields and reuses them across multiple operations,
   // which violates Java Stream's single-use semantics. Individual law tests below provide
   // comprehensive coverage while respecting stream consumption constraints.
-  //
-  // @Nested
-  // @DisplayName("Complete Monad Test Suite")
-  // class CompleteMonadTestSuite {
-  //
-  //   @Test
-  //   @DisplayName("Run complete Monad test pattern")
-  //   void runCompleteMonadTestPattern() {
-  //     TypeClassTest.<StreamKind.Witness>monad(StreamMonad.class)
-  //         .<Integer>instance(streamMonad)
-  //         .<String>withKind(validKind)
-  //         .withMonadOperations(
-  //             validKind2, validMapper, validFlatMapper, validFunctionKind,
-  // validCombiningFunction)
-  //         .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-  //         .testAll();
-  //   }
-  //
-  //   @Test
-  //   @DisplayName("Validate test structure follows standards")
-  //   void validateTestStructure() {
-  //     TestPatternValidator.ValidationResult result =
-  //         TestPatternValidator.validateAndReport(StreamMonadTest.class);
-  //
-  //     if (result.hasErrors()) {
-  //       result.printReport();
-  //       throw new AssertionError("Test structure validation failed");
-  //     }
-  //   }
-  // }
 
   @Nested
   @DisplayName("Applicative 'of' tests")

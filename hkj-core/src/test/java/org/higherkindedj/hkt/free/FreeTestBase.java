@@ -13,7 +13,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 
 /**
  * Base class for Free monad tests.

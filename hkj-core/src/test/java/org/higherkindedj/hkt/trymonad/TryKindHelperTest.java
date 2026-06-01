@@ -9,7 +9,7 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import java.io.IOException;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.KindHelperTests;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,14 +27,7 @@ class TryKindHelperTest extends TryTestBase {
     @DisplayName("Run complete KindHelper tests")
     void runCompleteKindHelperTests() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance).test();
-    }
-
-    @Test
-    @DisplayName("Run KindHelper tests with concurrency validation")
-    void runWithConcurrencyTests() {
-      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance).withConcurrencyTests().test();
+      KindHelperTests.tryKindHelper(successInstance).test();
     }
   }
 
@@ -46,7 +39,7 @@ class TryKindHelperTest extends TryTestBase {
     @DisplayName("Test round-trip only")
     void testRoundTripOnly() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance)
+      KindHelperTests.tryKindHelper(successInstance)
           .skipValidations()
           .skipInvalidType()
           .skipIdempotency()
@@ -58,7 +51,7 @@ class TryKindHelperTest extends TryTestBase {
     @DisplayName("Test validations only")
     void testValidationsOnly() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance)
+      KindHelperTests.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -70,7 +63,7 @@ class TryKindHelperTest extends TryTestBase {
     @DisplayName("Test invalid type handling only")
     void testInvalidTypeOnly() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance)
+      KindHelperTests.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipValidations()
           .skipIdempotency()
@@ -82,7 +75,7 @@ class TryKindHelperTest extends TryTestBase {
     @DisplayName("Test idempotency only")
     void testIdempotencyOnly() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance)
+      KindHelperTests.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipValidations()
           .skipInvalidType()
@@ -94,7 +87,7 @@ class TryKindHelperTest extends TryTestBase {
     @DisplayName("Test edge cases only")
     void testEdgeCasesOnly() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance)
+      KindHelperTests.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipValidations()
           .skipInvalidType()
